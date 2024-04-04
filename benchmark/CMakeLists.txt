@@ -7,19 +7,29 @@ set(CMAKE_CXX_STANDARD 17)
 # Build Tests
 #------------------------------------------------------------------------------
 
+set(TEST_LIBS
+        ${Chimaera_CLIENT_LIBRARIES}
+        Catch2::Catch2 MPI::MPI_CXX OpenMP::OpenMP_CXX)
+set(TEST_OPTS "")
+
+if (BUILD_ZeroMQ_TESTS)
+    set(TEST_LIBS ${TEST_LIBS} ZeroMQ::ZeroMQ)
+    set(TEST_OPTS "${TEST_OPTS} -DCHIMERA_ENABLE_ZMQ")
+endif()
+
 add_executable(bench_chimaera_latency
         test_latency.cc)
 add_dependencies(bench_chimaera_latency ${Chimaera_CLIENT_DEPS})
-target_link_libraries(bench_chimaera_latency
-        ${Chimaera_CLIENT_LIBRARIES}
-        Catch2::Catch2 MPI::MPI_CXX OpenMP::OpenMP_CXX)
+target_link_libraries(bench_chimaera_latency ${TEST_LIBS})
+target_compile_definitions(bench_chimaera_latency PUBLIC ${TEST_OPTS})
 
 add_executable(bench_chimaera_bw
-        test_bw.cc)
+        test_bw.cc
+)
 add_dependencies(bench_chimaera_bw ${Chimaera_CLIENT_DEPS})
-target_link_libraries(bench_chimaera_bw
-        ${Chimaera_CLIENT_LIBRARIES}
-        Catch2::Catch2 MPI::MPI_CXX OpenMP::OpenMP_CXX)
+target_link_libraries(bench_chimaera_bw ${TEST_LIBS})
+target_compile_definitions(bench_chimaera_bw PUBLIC ${TEST_OPTS})
+
 
 #------------------------------------------------------------------------------
 # Test Cases
