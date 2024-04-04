@@ -1,0 +1,17 @@
+extern "C" {
+void* alloc_state(chm::Admin::CreateTaskStateTask *task, const char *state_name) {
+  chm::TaskState *exec = reinterpret_cast<chm::TaskState*>(
+      new TYPE_UNWRAP(TRAIT_CLASS)());
+  exec->Init(task->id_, state_name);
+  return exec;
+}
+void* create_state(chm::Admin::CreateTaskStateTask *task, const char *state_name) {
+  chm::TaskState *exec = reinterpret_cast<chm::TaskState*>(
+      new TYPE_UNWRAP(TRAIT_CLASS)());
+  exec->Init(task->id_, state_name);
+  exec->Run(chm::TaskMethod::kConstruct, task, task->ctx_);
+  return exec;
+}
+const char* get_task_lib_name(void) { return TASK_NAME; }
+bool is_chimaera_task_ = true;
+}
