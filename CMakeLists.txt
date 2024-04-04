@@ -7,6 +7,7 @@ project(chimaera)
 option(BUILD_SHARED_LIBS "Build shared libraries (.dll/.so) instead of static ones (.lib/.a)" ON)
 option(BUILD_MPI_TESTS "Build tests which depend on MPI" ON)
 option(BUILD_OpenMP_TESTS "Build tests which depend on OpenMP" ON)
+option(BUILD_ZeroMQ_TESTS "Build tests which depend on ZeroMQ" OFF)
 option(CHIMAERA_ENABLE_COVERAGE "Check how well tests cover code" OFF)
 option(CHIMAERA_ENABLE_DOXYGEN "Check how well the code is documented" OFF)
 
@@ -80,9 +81,11 @@ if(PkgConfig)
 endif()
 
 # Zeromq
-#pkg_check_modules(ZMQ REQUIRED libzmq)
-#include_directories(${ZMQ_INCLUDE_DIRS})
-#message("Found libzmq at: ${ZMQ_INCLUDE_DIRS}")
+if (BUILD_ZeroMQ_TESTS)
+    pkg_check_modules(ZMQ REQUIRED libzmq)
+    include_directories(${ZMQ_INCLUDE_DIRS})
+    message("Found libzmq at: ${ZMQ_INCLUDE_DIRS}")
+endif()
 
 # Thallium
 find_package(thallium CONFIG REQUIRED)
