@@ -30,8 +30,8 @@ class TaskLib;
 #define TASK_UPDATE BIT_OPT(u32, 2)
 /** This task is paused until a set of tasks complete */
 #define TASK_BLOCKED BIT_OPT(u32, 3)
-/** This task is latency-sensitive */
-#define TASK_LOW_LATENCY BIT_OPT(u32, 4)
+/** This task is latency-sensitive (depricated) */
+#define TASK_LOW_LATENCY 0
 /** This task makes system calls and may hurt caching */
 #define TASK_SYSCALL BIT_OPT(u32, 5)
 /** This task does not depend on state */

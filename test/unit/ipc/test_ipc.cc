@@ -37,13 +37,13 @@ TEST_CASE("TestIpc") {
   size_t ops = (1 << 20);
   HILOG(kInfo, "OPS: {}", ops)
   t.Resume();
-  int depth = 5;
+  int depth = 0;
   for (size_t i = 0; i < ops; ++i) {
     int ret;
     // HILOG(kInfo, "Sending message {}", i);
     int node_id = 1 + ((rank + 1) % nprocs);
     ret = client.MdRoot(chm::DomainId::GetNode(node_id),
-                        depth, 0);
+                        i, depth, 0);
 //    auto task = client.AsyncMd(
 //        HRUN_CLIENT->MakeTaskNodeId() + 1,
 //        chm::DomainId::GetNode(node_id),
@@ -81,7 +81,7 @@ TEST_CASE("TestAsyncIpc") {
     // HILOG(kInfo, "Sending message {}", i);
     int node_id = 1 + ((rank + 1) % nprocs);
     client.AsyncMdRoot(chm::DomainId::GetNode(node_id),
-                       depth, TASK_FIRE_AND_FORGET);
+                       i, depth, TASK_FIRE_AND_FORGET);
 //    auto task = client.AsyncMd(
 //        nullptr,
 //        HRUN_CLIENT->MakeTaskNodeId() + 1,
@@ -118,7 +118,8 @@ TEST_CASE("TestFlush") {
     int node_id = 1 + ((rank + 1) % nprocs);
     LPointer<chm::small_message::MdTask> task =
         client.AsyncMdRoot(
-            chm::DomainId::GetNode(node_id), 0, 0);
+            chm::DomainId::GetNode(node_id),
+            node_id, 0, 0);
   }
   CHM_ADMIN->FlushRoot(DomainId::GetGlobal());
   t.Pause();
@@ -140,7 +141,8 @@ void TestIpcMultithread(int nprocs) {
     for (size_t i = 0; i < ops; ++i) {
       int ret;
       int node_id = 1 + ((rank + 1) % nprocs);
-      ret = client.MdRoot(chm::DomainId::GetNode(node_id), 0, 0);
+      ret = client.MdRoot(chm::DomainId::GetNode(node_id),
+                          i, 0, 0);
       REQUIRE(ret == 1);
     }
 #pragma omp barrier

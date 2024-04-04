@@ -44,6 +44,7 @@ class Server : public TaskLib {
           client_.AsyncMd(task,
                           task->task_node_ + 1,
                           task->domain_id_,
+                          task->lane_hash_ + 2,
                           task->depth_ - 1, 0);
       depth_task->Wait<TASK_YIELD_CO>(task);
       HRUN_CLIENT->DelTask(depth_task);

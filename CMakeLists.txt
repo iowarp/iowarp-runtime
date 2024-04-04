@@ -157,6 +157,7 @@ set(TEST_MAIN ${CMAKE_SOURCE_DIR}/test/unit)
 add_subdirectory(tasks)
 add_subdirectory(src)
 add_subdirectory(test)
+add_subdirectory(benchmark)
 
 #-----------------------------------------------------------------------------
 # Build + Enable Testing

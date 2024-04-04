@@ -70,15 +70,16 @@ struct MdTask : public Task, TaskFlags<TF_SRL_SYM | TF_REPLICA> {
          const TaskNode &task_node,
          const DomainId &domain_id,
          TaskStateId &state_id,
+         u32 lane_hash,
          u32 depth,
          u32 flags) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
-    lane_hash_ = 0;
+    lane_hash_ = lane_hash;
     prio_ = TaskPrio::kLowLatency;
     task_state_ = state_id;
     method_ = Method::kMd;
-    task_flags_.SetBits(TASK_LOW_LATENCY | TASK_COROUTINE | flags);
+    task_flags_.SetBits(TASK_COROUTINE | flags);
     domain_id_ = domain_id;
 
     // Custom params
