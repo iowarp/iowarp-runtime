@@ -148,7 +148,7 @@ struct IoTask : public Task, TaskFlags<TF_SRL_ASYM_START | TF_SRL_SYM_END> {
     prio_ = TaskPrio::kLowLatency;
     task_state_ = state_id;
     method_ = Method::kIo;
-    task_flags_.SetBits(0);
+    task_flags_.SetBits(TASK_DATA_OWNER);
     domain_id_ = domain_id;
 
     // Custom params
