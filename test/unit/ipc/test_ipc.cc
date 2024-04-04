@@ -191,7 +191,8 @@ TEST_CASE("TestIO") {
     int ret;
     HILOG(kInfo, "Sending message {}", i);
     int node_id = 1 + ((rank + 1) % nprocs);
-    ret = client.IoRoot(chm::DomainId::GetNode(node_id));
+    ret = client.IoRoot(chm::DomainId::GetNode(node_id),
+                        KILOBYTES(4));
     REQUIRE(ret == 1);
   }
   t.Pause();

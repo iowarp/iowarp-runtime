@@ -127,8 +127,8 @@ struct MdTask : public Task, TaskFlags<TF_SRL_SYM | TF_REPLICA> {
  * A custom task in small_message
  * */
 struct IoTask : public Task, TaskFlags<TF_SRL_ASYM_START | TF_SRL_SYM_END> {
-  static inline int const DATA_SIZE = 4096;
-  IN char data_[DATA_SIZE];
+  IN LPointer<char> data_;
+  IN size_t size_;
   OUT int ret_;
 
   /** SHM default constructor */
@@ -140,7 +140,8 @@ struct IoTask : public Task, TaskFlags<TF_SRL_ASYM_START | TF_SRL_SYM_END> {
   IoTask(hipc::Allocator *alloc,
          const TaskNode &task_node,
          const DomainId &domain_id,
-         TaskStateId &state_id) : Task(alloc) {
+         TaskStateId &state_id,
+         size_t io_size) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
     lane_hash_ = 3;
@@ -151,13 +152,24 @@ struct IoTask : public Task, TaskFlags<TF_SRL_ASYM_START | TF_SRL_SYM_END> {
     domain_id_ = domain_id;
 
     // Custom params
-    memset(data_, 10, DATA_SIZE);
+    data_ = HRUN_CLIENT->AllocateBufferClient(io_size);
+    size_ = io_size;
+    memset(data_.ptr_, 10, io_size);
+  }
+
+  /** Destructor */
+  ~IoTask() {
+    if (IsDataOwner()) {
+      HRUN_CLIENT->FreeBuffer(data_);
+    }
   }
 
   /** (De)serialize message call */
   template<typename Ar>
   void SaveStart(Ar &ar) {
-    DataTransfer xfer(DT_RECEIVER_READ, data_, DATA_SIZE, domain_id_);
+    DataTransfer xfer(DT_RECEIVER_READ,
+                      data_.ptr_,
+                      size_, domain_id_);
     task_serialize<Ar>(ar);
     ar & xfer;
   }
@@ -168,7 +180,7 @@ struct IoTask : public Task, TaskFlags<TF_SRL_ASYM_START | TF_SRL_SYM_END> {
     DataTransfer xfer;
     task_serialize<Ar>(ar);
     ar & xfer;
-    memcpy(data_, xfer.data_, xfer.data_size_);
+    memcpy(data_.ptr_, xfer.data_, xfer.data_size_);
   }
 
   /** (De)serialize message return */

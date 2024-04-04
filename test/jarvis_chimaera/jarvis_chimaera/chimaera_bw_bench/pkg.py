@@ -26,12 +26,6 @@ class ChimaeraBwBench(Application):
         """
         return [
             {
-                'name': 'TEST_CASE',
-                'msg': 'Destroy previous configuration and rebuild',
-                'type': str,
-                'default': 'TestIpc'
-            },
-            {
                 'name': 'nprocs',
                 'msg': 'The number of processes to spawn',
                 'type': int,
@@ -42,6 +36,23 @@ class ChimaeraBwBench(Application):
                 'msg': 'The number of processes per node',
                 'type': int,
                 'default': 1,
+            },
+            {
+                'name': 'async',
+                'msg': 'Use async tasks',
+                'type': bool,
+            },
+            {
+                'name': 'msg_size',
+                'msg': 'The # operations to generate per node',
+                'type': str,
+                'default': '4k',
+            },
+            {
+                'name': 'ops',
+                'msg': 'The # operations to generate per node',
+                'type': str,
+                'default': '4k',
             },
         ]
 
@@ -65,19 +76,24 @@ class ChimaeraBwBench(Application):
         nprocs = self.config['nprocs']
         if self.config['nprocs'] is None:
             nprocs = len(self.jarvis.hostfile)
-        test_ipc_execs = ['TestIpc',
-                          'TestAsyncIpc',
-                          'TestIO',
-                          'TestIpcMultithread4',
-                          'TestIpcMultithread8']
-        if self.config['TEST_CASE'] in test_ipc_execs:
-            Exec(f'test_ipc_exec {self.config["TEST_CASE"]}',
-                 MpiExecInfo(hostfile=self.jarvis.hostfile,
-                             nprocs=nprocs,
-                             ppn=self.config['ppn'],
-                             env=self.env,
-                             do_dbg=self.config['do_dbg'],
-                             dbg_port=self.config['dbg_port']))
+        if self.config['async']:
+            do_async = '1'
+        else:
+            do_async = '0'
+        cmd = [
+            'bench_chimaera_bw',
+            str(self.config['msg_size']),
+            self.config['ops'],
+            do_async,
+        ]
+        cmd = ' '.join(cmd)
+        Exec(cmd,
+             MpiExecInfo(hostfile=self.jarvis.hostfile,
+                         nprocs=nprocs,
+                         ppn=self.config['ppn'],
+                         env=self.env,
+                         do_dbg=self.config['do_dbg'],
+                         dbg_port=self.config['dbg_port']))
 
     def stop(self):
         """
