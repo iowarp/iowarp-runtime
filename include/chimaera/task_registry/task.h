@@ -524,27 +524,18 @@ struct Task : public hipc::ShmContainer {
   }
 
   /** Yield a task to a different task */
-  template<int THREAD_MODEL = 0>
   HSHM_ALWAYS_INLINE
-  void Yield(Task *parent_task) {
-    if constexpr (THREAD_MODEL == TASK_YIELD_CO ||
-                  THREAD_MODEL == TASK_YIELD_NOCO ||
-                  THREAD_MODEL == TASK_YIELD_EMPTY) {
-      if (parent_task &&
-          !IsFireAndForget() &&
-          !IsLongRunning()) {
-        ctx_.pending_to_ = parent_task;
-        SetSignalComplete();
-        if constexpr (THREAD_MODEL != TASK_YIELD_EMPTY) {
-          parent_task->SetBlocked();
-        }
-      }
+  void YieldInit(Task *parent_task) {
+    if (parent_task &&
+        !IsFireAndForget() &&
+        !IsLongRunning()) {
+      ctx_.pending_to_ = parent_task;
+      SetSignalComplete();
     }
-    Yield<THREAD_MODEL>();
   }
 
   /** Wait for task to complete */
-  template<int THREAD_MODEL = 0>
+  template<int THREAD_MODEL = TASK_YIELD_STD>
   void Wait() {
     while (!IsComplete()) {
       if constexpr (THREAD_MODEL == TASK_YIELD_STD) {
@@ -560,11 +551,21 @@ struct Task : public hipc::ShmContainer {
     }
   }
 
-  /** Wait for task to complete */
+  /** Parent yields until this task completes */
+  template<int THREAD_MODEL = TASK_YIELD_STD>
+  HSHM_ALWAYS_INLINE
+  void Yield(Task *parent_task) {
+    if constexpr (THREAD_MODEL == TASK_YIELD_CO) {
+      parent_task->SetBlocked();
+    }
+    parent_task->Yield<THREAD_MODEL>();
+  }
+
+  /** Parent waits for this task to complete */
   template<int THREAD_MODEL = 0>
-  void Wait(Task *yield_task) {
+  void Wait(Task *parent_task) {
     while (!IsComplete()) {
-      yield_task->Yield<THREAD_MODEL>();
+      Yield<THREAD_MODEL>(parent_task);
     }
   }
 

@@ -93,7 +93,7 @@ class Client : public TaskLibClient {
     hipc::LPointer<CreateTaskT> task =
         AsyncCreateTaskStateAlloc<CreateTaskT>(
             task_node, std::forward<Args>(args)...);
-    task->template Yield<TASK_YIELD_EMPTY>(parent_task);
+    task->YieldInit(parent_task);
     MultiQueue *queue = HRUN_CLIENT->GetQueue(queue_id_);
     queue->Emplace(task.ptr_->prio_, task.ptr_->lane_hash_, task.shm_);
     return task;

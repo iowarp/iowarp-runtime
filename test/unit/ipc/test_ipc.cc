@@ -56,7 +56,7 @@ TEST_CASE("TestIpc") {
 
   HILOG(kInfo, "Latency: {} MOps, {} MTasks",
         ops / t.GetUsec(),
-        ops * (depth + 2) / t.GetUsec());
+        ops * (depth + 1) / t.GetUsec());
 }
 
 TEST_CASE("TestAsyncIpc") {
@@ -93,7 +93,7 @@ TEST_CASE("TestAsyncIpc") {
 
   HILOG(kInfo, "Latency: {} MOps, {} MTasks",
         ops / t.GetUsec(),
-        ops * (depth + 2) / t.GetUsec());
+        ops * (depth + 1) / t.GetUsec());
 }
 
 TEST_CASE("TestFlush") {

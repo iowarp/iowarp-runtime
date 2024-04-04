@@ -400,7 +400,7 @@ hipc::LPointer<CUSTOM##Task> Async##CUSTOM(Task *parent_task,\
                                            Args&& ...args) {\
   hipc::LPointer<CUSTOM##Task> task = Async##CUSTOM##Alloc(\
     task_node, std::forward<Args>(args)...);\
-  task->Yield<TASK_YIELD_EMPTY>(parent_task);\
+  task->YieldInit(parent_task);\
   MultiQueue *queue = HRUN_CLIENT->GetQueue(queue_id_);\
   queue->Emplace(task.ptr_->prio_, task.ptr_->lane_hash_, task.shm_);\
   return task;\
@@ -440,7 +440,7 @@ hipc::LPointer<CUSTOM##Task<T>> Async##CUSTOM(Task *parent_task,\
                                            Args&& ...args) {\
   hipc::LPointer<CUSTOM##Task<T>> task = Async##CUSTOM##Alloc(\
     task_node, std::forward<Args>(args)...);\
-  task->Yield<TASK_YIELD_EMPTY>(parent_task);\
+  task->YieldInit(parent_task);\
   MultiQueue *queue = HRUN_CLIENT->GetQueue(queue_id_);\
   queue->Emplace(task.ptr_->prio_, task.ptr_->lane_hash_, task.shm_);\
   return task;\

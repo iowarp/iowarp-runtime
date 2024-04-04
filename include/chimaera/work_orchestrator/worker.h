@@ -210,7 +210,7 @@ class PrivateTaskSet {
     set_[key] = entry;
   }
 
-  void peek(size_t key, PrivateTaskQueueEntry *entry) {
+  void peek(size_t key, PrivateTaskQueueEntry *&entry) {
     entry = &set_[key];
   }
 
@@ -262,13 +262,15 @@ class PrivateTaskQueue {
   }
 
   HSHM_ALWAYS_INLINE
-  void peek(PrivateTaskQueueEntry &entry) {
-    queue_.peek(head_, &entry);
+  void peek(PrivateTaskQueueEntry *&entry) {
+    queue_.peek(head_, entry);
   }
 
   HSHM_ALWAYS_INLINE
   void pop(PrivateTaskQueueEntry &entry) {
-    peek(entry);
+    PrivateTaskQueueEntry *point;
+    peek(point);
+    entry = *point;
     erase();
   }
 
@@ -276,8 +278,9 @@ class PrivateTaskQueue {
   void erase() {
     PrivateTaskQueueEntry *point;
     queue_.peek(head_, point);
-    head_ = point->next_;
+    size_t head = point->next_;
     queue_.erase(head_);
+    head_ = head;
     --size_;
   }
 };
@@ -293,7 +296,6 @@ class PrivateTaskMultiQueue {
  public:
   size_t root_count_;
   size_t max_root_count_;
-  static inline const int MAX_DEPTH = 8;
   PrivateTaskQueue queues_[NUM_QUEUES];
   PrivateTaskSet blocked_;
   hipc::uptr<mpsc_queue<LPointer<Task>>> complete_u_;
@@ -734,15 +736,15 @@ class Worker {
     size_t work = 0;
     size_t size = queue.size_;
     for (size_t i = 0; i < size; ++i) {
-      PrivateTaskQueueEntry entry;
+      PrivateTaskQueueEntry *entry;
       queue.peek(entry);
-      if (entry.task_.ptr_ == nullptr) {
+      if (entry->task_.ptr_ == nullptr) {
         break;
       }
-      RunTask(queue, entry, i,
-              *entry.lane_info_,
-              entry.task_,
-              entry.lane_info_->lane_id_,
+      RunTask(queue,
+              *entry->lane_info_,
+              entry->task_,
+              entry->lane_info_->lane_id_,
               flushing);
       ++work;
     }
@@ -753,8 +755,6 @@ class Worker {
   /** Run a task */
   HSHM_ALWAYS_INLINE
   TaskState* RunTask(PrivateTaskQueue &queue,
-                     PrivateTaskQueueEntry &entry,
-                     size_t queue_off,
                      WorkEntry &lane_info,
                      LPointer<Task> task,
                      u32 lane_id,
@@ -785,6 +785,21 @@ class Worker {
       active_.block(queue.id_);
     }
     return exec;
+  }
+
+  /** Free a task when it is no longer needed */
+  HSHM_ALWAYS_INLINE
+  void EndTask(TaskState *exec, LPointer<Task> &task) {
+    if (task->ShouldSignalComplete()) {
+      Task *active_to = (Task*)task->ctx_.pending_to_;
+      active_.signal_complete(GetPendingQueue(active_to),
+                              task);
+    }
+    if (exec && task->IsFireAndForget()) {
+      exec->Del(task->method_, task.ptr_);
+    } else {
+      task->SetComplete();
+    }
   }
 
   /** Get the characteristics of a task */
@@ -915,21 +930,6 @@ class Worker {
       return state_map_[state_id];
     }
     return it->second;
-  }
-
-  /** Free a task when it is no longer needed */
-  HSHM_ALWAYS_INLINE
-  void EndTask(TaskState *exec, LPointer<Task> &task) {
-    if (task->ShouldSignalComplete()) {
-      Task *active_to = (Task*)task->ctx_.pending_to_;
-      active_.signal_complete(GetPendingQueue(active_to),
-                               task);
-    }
-    if (exec && task->IsFireAndForget()) {
-      exec->Del(task->method_, task.ptr_);
-    } else {
-      task->SetComplete();
-    }
   }
 };
 
