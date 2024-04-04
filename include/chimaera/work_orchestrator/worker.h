@@ -140,6 +140,7 @@ struct PrivateTaskQueueEntry {
  public:
   LPointer<Task> task_;
   WorkEntry *lane_info_;
+  size_t next_, prior_;
 
  public:
   PrivateTaskQueueEntry() = default;
@@ -149,12 +150,16 @@ struct PrivateTaskQueueEntry {
   PrivateTaskQueueEntry(const PrivateTaskQueueEntry &other) {
     task_ = other.task_;
     lane_info_ = other.lane_info_;
+    next_ = other.next_;
+    prior_ = other.prior_;
   }
 
   PrivateTaskQueueEntry& operator=(const PrivateTaskQueueEntry &other) {
     if (this != &other) {
       task_ = other.task_;
       lane_info_ = other.lane_info_;
+      next_ = other.next_;
+      prior_ = other.prior_;
     }
     return *this;
   }
@@ -173,15 +178,61 @@ struct PrivateTaskQueueEntry {
   }
 };
 
+class PrivateTaskSet {
+ public:
+  hshm::spsc_queue<size_t> keys_;
+  std::vector<PrivateTaskQueueEntry> set_;
+
+ public:
+  void Init(size_t max_size) {
+    keys_.Resize(max_size);
+    set_.resize(max_size);
+    for (size_t i = 0; i < max_size; ++i) {
+      keys_.emplace(i);
+    }
+  }
+
+  void resize() {
+    size_t old_size = set_.size();
+    size_t new_size = set_.size() * 2;
+    keys_.Resize(new_size);
+    for (size_t i = old_size; i < new_size; ++i) {
+      keys_.emplace(i);
+    }
+    set_.resize(new_size);
+  }
+
+  void emplace(const PrivateTaskQueueEntry &entry, size_t &key) {
+    if (keys_.pop(key).IsNull()) {
+      resize();
+      keys_.pop(key);
+    }
+    set_[key] = entry;
+  }
+
+  void peek(size_t key, PrivateTaskQueueEntry *entry) {
+    entry = &set_[key];
+  }
+
+  void pop(size_t key, PrivateTaskQueueEntry &entry) {
+    entry = set_[key];
+    erase(key);
+  }
+
+  void erase(size_t key) {
+    keys_.emplace(key);
+  }
+};
+
 class PrivateTaskQueue {
  public:
-  std::vector<PrivateTaskQueueEntry> queue_;
+  PrivateTaskSet queue_;
   size_t size_, head_, tail_;
   int id_;
 
  public:
   void Init(int id, size_t queue_depth) {
-    queue_.resize(queue_depth);
+    queue_.Init(queue_depth);
     size_ = 0;
     tail_ = 0;
     head_ = 0;
@@ -190,48 +241,44 @@ class PrivateTaskQueue {
 
   HSHM_ALWAYS_INLINE
   bool push(const PrivateTaskQueueEntry &entry) {
-    size_t off;
-    return push(entry, off);
-  }
-
-  HSHM_ALWAYS_INLINE
-  bool push(const PrivateTaskQueueEntry &entry, size_t &off) {
-    size_t diff = tail_ - head_;
-    if (diff >= queue_.size()) {
-      return false;
+    size_t key;
+    queue_.emplace(entry, key);
+    if (size_ == 0) {
+      head_ = key;
+      tail_ = key;
+    } else {
+      PrivateTaskQueueEntry *point;
+      // Tail is entry's prior
+      queue_.peek(key, point);
+      point->prior_ = tail_;
+      // Prior's next is entry
+      queue_.peek(tail_, point);
+      point->next_ = key;
+      // Update tail
+      tail_ = key;
     }
-    queue_[tail_ % queue_.size()] = entry;
-    off = tail_;
     ++size_;
-    ++tail_;
     return true;
   }
 
   HSHM_ALWAYS_INLINE
-  void peek(size_t off, PrivateTaskQueueEntry &entry) {
-    entry = queue_[off % queue_.size()];
+  void peek(PrivateTaskQueueEntry &entry) {
+    queue_.peek(head_, &entry);
   }
 
   HSHM_ALWAYS_INLINE
-  void pop(size_t off, PrivateTaskQueueEntry &entry) {
-    peek(off, entry);
-    erase(off);
+  void pop(PrivateTaskQueueEntry &entry) {
+    peek(entry);
+    erase();
   }
 
   HSHM_ALWAYS_INLINE
-  void erase(size_t off) {
-    queue_[off % queue_.size()].task_.ptr_ = nullptr;
+  void erase() {
+    PrivateTaskQueueEntry *point;
+    queue_.peek(head_, point);
+    head_ = point->next_;
+    queue_.erase(head_);
     --size_;
-    _correct_head();
-  }
-
-  HSHM_ALWAYS_INLINE
-  void _correct_head() {
-    for (; head_ < tail_; ++head_) {
-      if (queue_[head_ % queue_.size()].task_.ptr_) {
-        break;
-      }
-    }
   }
 };
 
@@ -241,13 +288,14 @@ class PrivateTaskMultiQueue {
   inline static const int LOW_LAT = 1;
   inline static const int HIGH_LAT = 2;
   inline static const int LONG_RUNNING = 3;
-  inline static const int PENDING = 4;
-  inline static const int NUM_QUEUES = 5;
+  inline static const int NUM_QUEUES = 4;
 
  public:
   size_t root_count_;
   size_t max_root_count_;
+  static inline const int MAX_DEPTH = 8;
   PrivateTaskQueue queues_[NUM_QUEUES];
+  PrivateTaskSet blocked_;
   hipc::uptr<mpsc_queue<LPointer<Task>>> complete_u_;
   mpsc_queue<LPointer<Task>> *complete_;
 
@@ -257,9 +305,9 @@ class PrivateTaskMultiQueue {
     queues_[LOW_LAT].Init(LOW_LAT, max_lanes * qdepth);
     queues_[HIGH_LAT].Init(HIGH_LAT, max_lanes * qdepth);
     queues_[LONG_RUNNING].Init(LONG_RUNNING, max_lanes * qdepth);
-    queues_[PENDING].Init(PENDING, PENDING * max_lanes * qdepth);
+    blocked_.Init(max_lanes * qdepth);
     complete_u_ = hipc::make_uptr<mpsc_queue<LPointer<Task>>>(
-        PENDING * max_lanes * qdepth);
+        max_lanes * qdepth);
     complete_ = complete_u_.get();
     root_count_ = 0;
     max_root_count_ = max_lanes * pqdepth;
@@ -279,10 +327,6 @@ class PrivateTaskMultiQueue {
 
   PrivateTaskQueue& GetLongRunning() {
     return queues_[LONG_RUNNING];
-  }
-
-  PrivateTaskQueue& GetPending() {
-    return queues_[PENDING];
   }
 
   mpsc_queue<LPointer<Task>>& GetCompletion() {
@@ -312,17 +356,17 @@ class PrivateTaskMultiQueue {
     }
   }
 
-  void erase(int queue_id, size_t off) {
+  void erase(int queue_id) {
     if (queue_id == ROOT) {
       --root_count_;
     }
-    queues_[queue_id].erase(off);
+    queues_[queue_id].erase();
   }
 
-  void push_pending(int queue_id, size_t off) {
+  void block(int queue_id) {
     PrivateTaskQueueEntry entry;
-    queues_[queue_id].pop(off, entry);
-    GetPending().push(entry, entry.task_->ctx_.pending_key_);
+    queues_[queue_id].pop(entry);
+    blocked_.emplace(entry, entry.task_->ctx_.pending_key_);
   }
 
   void signal_complete(PrivateTaskMultiQueue &worker_pending,
@@ -337,7 +381,7 @@ class PrivateTaskMultiQueue {
     }
     PrivateTaskQueueEntry entry;
     Task *pending = (Task*)done_task->ctx_.pending_to_;
-    GetPending().pop(pending->ctx_.pending_key_, entry);
+    blocked_.pop(pending->ctx_.pending_key_, entry);
     if (entry.task_.ptr_ != pending) {
       return true;
     }
@@ -376,7 +420,7 @@ class Worker {
   int num_stacks_ = 256;  /**< Number of stacks */
   int stack_size_ = KILOBYTES(64);
   PrivateTaskMultiQueue
-      pending_;  /** Tasks pending to complete */
+      active_;  /** Tasks pending to complete */
   hshm::Timepoint cur_time_;  /**< The current timepoint */
 
  public:
@@ -402,7 +446,7 @@ class Worker {
     }
     // MAX_DEPTH * [LOW_LAT, LONG_LAT]
     config::QueueManagerInfo &qm = HRUN_QM_RUNTIME->config_->queue_manager_;
-    pending_.Init(qm.proc_queue_depth_, qm.queue_depth_, qm.max_lanes_);
+    active_.Init(qm.proc_queue_depth_, qm.queue_depth_, qm.max_lanes_);
     cur_time_.Now();
 
     // Spawn threads
@@ -429,7 +473,7 @@ class Worker {
   /** Get the pending queue for a worker */
   PrivateTaskMultiQueue& GetPendingQueue(Task *task) {
     PrivateTaskMultiQueue &pending =
-        HRUN_WORK_ORCHESTRATOR->workers_[task->ctx_.worker_id_]->pending_;
+        HRUN_WORK_ORCHESTRATOR->workers_[task->ctx_.worker_id_]->active_;
     return pending;
   }
 
@@ -443,7 +487,6 @@ class Worker {
     std::vector<WorkEntry> work_queue;
     while (!poll_queues_.pop(work_queue).IsNull()) {
       for (const WorkEntry &entry : work_queue) {
-        //
         if (entry.queue_->id_ == HRUN_QM_RUNTIME->process_queue_id_) {
           HILOG(kDebug, "Worker {}: Scheduled queue {} (lane {}, prio {}) as a proc queue",
                 id_, entry.queue_->id_, entry.lane_id_, entry.prio_);
@@ -614,18 +657,18 @@ class Worker {
     // Process tasks in the pending queues
     size_t work = 0;
     IngestProcLanes(flushing);
-    work += PollPrivateQueue(pending_.GetRoot(), flushing);
+    work += PollPrivateQueue(active_.GetRoot(), flushing);
     for (size_t i = 0; i < 8192; ++i) {
       size_t diff = 0;
       IngestInterLanes(flushing);
-      diff += PollPrivateQueue(pending_.GetLowLat(), flushing);
+      diff += PollPrivateQueue(active_.GetLowLat(), flushing);
       if (diff == 0) {
         break;
       }
       work += diff;
     }
-    work += PollPrivateQueue(pending_.GetHighLat(), flushing);
-    PollPrivateQueue(pending_.GetLongRunning(), flushing);
+    work += PollPrivateQueue(active_.GetHighLat(), flushing);
+    PollPrivateQueue(active_.GetLongRunning(), flushing);
     return work;
   }
 
@@ -672,7 +715,7 @@ class Worker {
       if (is_remote) {
         task->SetRemote();
       }
-      if (pending_.push(PrivateTaskQueueEntry{task, &lane_info})) {
+      if (active_.push(PrivateTaskQueueEntry{task, &lane_info})) {
         lane->pop();
       } else {
         break;
@@ -682,25 +725,26 @@ class Worker {
 
   /** Process completion events */
   void ProcessCompletions() {
-    while (pending_.process_complete());
+    while (active_.process_complete());
   }
 
   /** Poll the set of tasks in the private queue */
   HSHM_ALWAYS_INLINE
   size_t PollPrivateQueue(PrivateTaskQueue &queue, bool flushing) {
     size_t work = 0;
-    size_t tail = queue.tail_;
-    for (size_t i = queue.head_; i < tail; ++i) {
+    size_t size = queue.size_;
+    for (size_t i = 0; i < size; ++i) {
       PrivateTaskQueueEntry entry;
-      queue.peek(i, entry);
-      if (entry.task_.ptr_ != nullptr) {
-        RunTask(queue, entry, i,
-                *entry.lane_info_,
-                entry.task_,
-                entry.lane_info_->lane_id_,
-                flushing);
-        ++work;
+      queue.peek(entry);
+      if (entry.task_.ptr_ == nullptr) {
+        break;
       }
+      RunTask(queue, entry, i,
+              *entry.lane_info_,
+              entry.task_,
+              entry.lane_info_->lane_id_,
+              flushing);
+      ++work;
     }
     ProcessCompletions();
     return work;
@@ -735,13 +779,10 @@ class Worker {
     ExecTask(lane_info, task.ptr_, rctx, exec, props);
     // Cleanup allocations
     if (task->IsModuleComplete()) {
-      RemoveTaskGroup(task.ptr_, exec,
-                      lane_id,
-                      props.Any(HSHM_WORKER_IS_REMOTE));
-      pending_.erase(queue.id_, queue_off);
+      active_.erase(queue.id_);
       EndTask(exec, task);
     } else if (task->IsBlocked()) {
-      // pending_.push_pending(queue.id_, queue_off);
+      active_.block(queue.id_);
     }
     return exec;
   }
@@ -755,10 +796,7 @@ class Worker {
                                  bool flushing) {
     bitfield32_t props;
 
-    bool group_avail = CheckTaskGroup(task, exec,
-                                      lane_id,
-                                      task->task_node_,
-                                      task->IsRemote());
+    bool group_avail = true;
     bool should_run = task->ShouldRun(cur_time, flushing);
     if (task->IsRemote()) {
       props.SetBits(HSHM_WORKER_IS_REMOTE);
@@ -879,82 +917,14 @@ class Worker {
     return it->second;
   }
 
-  /** Check if two tasks can execute concurrently */
-  HSHM_ALWAYS_INLINE
-  bool CheckTaskGroup(Task *task, TaskState *exec,
-                      u32 lane_id,
-                      TaskNode node, const bool &is_remote) {
-    if (is_remote || task->IsStarted() || task->IsLaneAll()) {
-      return true;
-    }
-    int ret = exec->GetGroup(task->method_, task, group_);
-    if (ret == TASK_UNORDERED || task->IsUnordered()) {
-//      HILOG(kDebug, "(node {}) Task {} is unordered, so count remains 0 worker={}",
-//            HRUN_CLIENT->node_id_, task->task_node_, id_);
-      return true;
-    }
-
-    // Ensure that concurrent requests are not serialized
-    LocalSerialize srl(group_, false);
-    srl << lane_id;
-
-    auto it = group_map_.find(group_);
-    if (it == group_map_.end()) {
-      node.node_depth_ = 1;
-      group_map_.emplace(group_, node);
-//      HILOG(kDebug, "(node {}) Increasing depth of group {} to {} (worker={})",
-//            HRUN_CLIENT->node_id_, std::hash<hshm::charbuf>{}(group_), node.node_depth_, id_);
-      return true;
-    }
-    TaskNode &node_cmp = it->second;
-    if (node_cmp.root_ == node.root_) {
-      node_cmp.node_depth_ += 1;
-//      HILOG(kDebug, "(node {}) Increasing depth of group {} to {} (worker={})",
-//            HRUN_CLIENT->node_id_, std::hash<hshm::charbuf>{}(group_), node.node_depth_, id_);
-      return true;
-    }
-    return false;
-  }
-
-  /** No longer serialize tasks of the same group */
-  HSHM_ALWAYS_INLINE
-  void RemoveTaskGroup(Task *task, TaskState *exec,
-                       u32 lane_id, const bool &is_remote) {
-    if (is_remote || task->IsLaneAll()) {
-      return;
-    }
-    int ret = exec->GetGroup(task->method_, task, group_);
-    if (ret == TASK_UNORDERED || task->IsUnordered()) {
-//      HILOG(kDebug, "(node {}) Decreasing depth of group remains 0 (task_node={} worker={})",
-//            HRUN_CLIENT->node_id_, task->task_node_, id_);
-      return;
-    }
-
-    // Ensure that concurrent requests are not serialized
-    LocalSerialize srl(group_, false);
-    srl << lane_id;
-
-    TaskNode &node_cmp = group_map_[group_];
-    if (node_cmp.node_depth_ == 0) {
-      HELOG(kFatal, "(node {}) Group {} depth is already 0 (task_node={} worker={})",
-            HRUN_CLIENT->node_id_, std::hash<hshm::charbuf>{}(group_), task->task_node_, id_);
-    }
-    node_cmp.node_depth_ -= 1;
-//    HILOG(kDebug, "(node {}) Decreasing depth of to {} (task_node={} worker={})",
-//          HRUN_CLIENT->node_id_, node_cmp.node_depth_, task->task_node_, id_);
-    if (node_cmp.node_depth_ == 0) {
-      group_map_.erase(group_);
-    }
-  }
-
   /** Free a task when it is no longer needed */
   HSHM_ALWAYS_INLINE
   void EndTask(TaskState *exec, LPointer<Task> &task) {
-//    if (task->ShouldSignalComplete()) {
-//      Task *pending_to = (Task*)task->ctx_.pending_to_;
-//      pending_.signal_complete(GetPendingQueue(pending_to),
-//                               task);
-//    }
+    if (task->ShouldSignalComplete()) {
+      Task *active_to = (Task*)task->ctx_.pending_to_;
+      active_.signal_complete(GetPendingQueue(active_to),
+                               task);
+    }
     if (exec && task->IsFireAndForget()) {
       exec->Del(task->method_, task.ptr_);
     } else {

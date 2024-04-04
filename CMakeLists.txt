@@ -38,6 +38,8 @@ endif()
 #-----------------------------------------------------------------------------
 # Find Packages
 #-----------------------------------------------------------------------------
+# This is for compatability with SPACK
+SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 # HermesShm
 find_package(HermesShm CONFIG REQUIRED)
