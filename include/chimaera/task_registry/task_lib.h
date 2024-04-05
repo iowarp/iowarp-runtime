@@ -30,6 +30,7 @@ class MonitorMode {
   TASK_METHOD_T kEndTrainTime = 1;
   TASK_METHOD_T kEstTime = 2;
   TASK_METHOD_T kFlushStat = 3;
+  TASK_METHOD_T kReplicaAgg = 4;
 };
 
 /**
@@ -66,16 +67,10 @@ class TaskLib {
   virtual void Del(u32 method, Task *task) = 0;
 
   /** Duplicate a task */
-  virtual void Dup(u32 method, Task *orig_task, std::vector<LPointer<Task>> &dups) = 0;
+  virtual void CopyStart(u32 method, Task *orig_task, std::vector<LPointer<Task>> &dups) = 0;
 
   /** Register end of duplicate */
-  virtual void DupEnd(u32 method, u32 replica, Task *orig_task, Task *dup_task) = 0;
-
-  /** Allow task to store replicas of completion */
-  virtual void ReplicateStart(u32 method, u32 count, Task *task) = 0;
-
-  /** Can be used to summarize the completions */
-  virtual void ReplicateEnd(u32 method, Task *task) = 0;
+  virtual void CopyEnd(u32 method, Task *orig_task, Task *dup_task) = 0;
 
   /** Serialize a task when initially pushing into remote */
   virtual std::vector<DataTransfer> SaveStart(u32 method, BinaryOutputArchive<true> &ar, Task *task) = 0;
@@ -87,13 +82,7 @@ class TaskLib {
   virtual std::vector<DataTransfer> SaveEnd(u32 method, BinaryOutputArchive<false> &ar, Task *task) = 0;
 
   /** Deserialize a task when returning from remote queue */
-  virtual void LoadEnd(u32 replica, u32 method, BinaryInputArchive<false> &ar, Task *task) = 0;
-
-  /** Deserialize a task when returning from remote queue */
-  virtual u32 GetGroup(u32 method, Task *task, hshm::charbuf &buf) = 0;
-
-  /** Check if two tasks apart of the same group can be executed concurrently */
-  virtual bool CompareGroup(u32 method, Task *task1, Task *task2) = 0;
+  virtual TaskPointer LoadEnd(u32 method, BinaryInputArchive<false> &ar) = 0;
 };
 
 /** Represents a TaskLib in action */

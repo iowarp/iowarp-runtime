@@ -68,30 +68,7 @@ struct DestructTask : public DestroyTaskStateTask {
   }
 };
 
-/**
- * Phases of the push task
- * */
-class PushPhase {
- public:
-  TASK_METHOD_T kStart = 0;
-  TASK_METHOD_T kWait = 1;
-};
-
-
-/**
- * A task to push a serialized task onto the remote queue
- * */
 struct PushTask : public Task, TaskFlags<TF_LOCAL> {
-  IN std::vector<DomainId> domain_ids_;
-  IN Task *orig_task_;
-  IN TaskState *exec_;
-  IN u32 exec_method_;
-  IN std::vector<DataTransfer> xfer_;
-  TEMP bool started_ = false;
-  TEMP void *server_;
-  TEMP std::atomic<u32> rep_;
-  TEMP u32 num_reps_;
-
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
   PushTask(hipc::Allocator *alloc) : Task(alloc) {}
@@ -101,123 +78,21 @@ struct PushTask : public Task, TaskFlags<TF_LOCAL> {
   PushTask(hipc::Allocator *alloc,
            const TaskNode &task_node,
            const DomainId &domain_id,
-           const TaskStateId &state_id,
-           std::vector<DomainId> &domain_ids,
-           Task *orig_task,
-           TaskState *exec,
-           u32 exec_method,
-           std::vector<DataTransfer> &xfer) : Task(alloc) {
-    // Initialize task
-    task_node_ = task_node;
-    lane_hash_ = 0;
-    task_state_ = state_id;
-    method_ = Method::kPush;
-    // task_flags_.SetBits(TASK_PREEMPTIVE | TASK_REMOTE_DEBUG_MARK | TASK_FIRE_AND_FORGET);
-    // task_flags_.SetBits(TASK_COROUTINE | TASK_REMOTE_DEBUG_MARK | TASK_FIRE_AND_FORGET);
-    task_flags_.SetBits(TASK_REMOTE_DEBUG_MARK | TASK_FIRE_AND_FORGET);
-    domain_id_ = domain_id;
-    if (orig_task->IsFlush()) {
-      task_flags_.SetBits(TASK_FLUSH);
-    }
-    if (orig_task->IsLongRunning()) {
-      task_flags_.SetBits(TASK_LONG_RUNNING);
-      prio_ = TaskPrio::kHighLatency;
-    } else {
-      prio_ = TaskPrio::kLowLatency;
-    }
-
-    // Custom params
-    domain_ids_ = std::move(domain_ids);
-    orig_task_ = orig_task;
-    exec_ = exec;
-    exec_method_ = exec_method;
-    xfer_ = std::move(xfer);
-  }
-
-  /** Create group */
-  HSHM_ALWAYS_INLINE
-  u32 GetGroup(hshm::charbuf &group) {
-//    chm::LocalSerialize srl(group);
-//    srl << task_state_.unique_;
-//    srl << task_state_.node_id_;
-//    return 0;
-    return TASK_UNORDERED;
-  }
+           TaskStateId &state_id) : Task(alloc) {}
 };
 
-/**
- * A task to push a serialized task onto the remote queue
- * */
-struct DupTask : public Task, TaskFlags<TF_LOCAL> {
-  IN Task *orig_task_;
-  IN TaskState *exec_;
-  IN u32 exec_method_;
-  IN std::vector<LPointer<Task>> dups_;
-
+struct PushCompleteTask : public Task, TaskFlags<TF_LOCAL> {
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
-  DupTask(hipc::Allocator *alloc) : Task(alloc) {}
+  PushCompleteTask(hipc::Allocator *alloc) : Task(alloc) {}
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
-  DupTask(hipc::Allocator *alloc,
-           const TaskNode &task_node,
-           const TaskStateId &state_id,
-           Task *orig_task,
-           TaskState *exec,
-           u32 exec_method,
-           std::vector<LPointer<Task>> &dups) : Task(alloc) {
-    // Initialize task
-    task_node_ = task_node;
-    lane_hash_ = 0;
-
-    task_state_ = state_id;
-    method_ = Method::kDup;
-    task_flags_.SetBits(TASK_REMOTE_DEBUG_MARK | TASK_FIRE_AND_FORGET | TASK_COROUTINE);
-    domain_id_ = DomainId::GetLocal();
-    if (orig_task->IsFlush()) {
-      task_flags_.SetBits(TASK_FLUSH);
-    }
-    if (orig_task->IsLongRunning()) {
-      task_flags_.SetBits(TASK_LONG_RUNNING);
-      prio_ = TaskPrio::kHighLatency;
-    } else {
-      prio_ = TaskPrio::kLowLatency;
-    }
-
-    // Custom params
-    orig_task_ = orig_task;
-    exec_ = exec;
-    exec_method_ = exec_method;
-    dups_ = std::move(dups);
-  }
-
-  /** Create group */
-  HSHM_ALWAYS_INLINE
-  u32 GetGroup(hshm::charbuf &group) {
-    return TASK_UNORDERED;
-  }
+  PushCompleteTask(hipc::Allocator *alloc,
+                   const TaskNode &task_node,
+                   const DomainId &domain_id,
+                   TaskStateId &state_id) : Task(alloc) {}
 };
-
-/**
- * A task to push a serialized task onto the remote queue
- * */
-//struct AcceptTask : public Task {
-//  /** Emplace constructor */
-//  HSHM_ALWAYS_INLINE explicit
-//  AcceptTask(hipc::Allocator *alloc,
-//             const TaskNode &task_node,
-//             const DomainId &domain_id,
-//             const TaskStateId &state_id) : Task(alloc) {
-//    // Initialize task
-//    task_node_ = task_node;
-//    lane_hash_ = 0;
-//    task_state_ = state_id;
-//    method_ = Method::kAccept;
-//    task_flags_.SetBits(0);
-//    domain_id_ = domain_id;
-//  }
-//};
 
 } // namespace chm::remote_queue
 

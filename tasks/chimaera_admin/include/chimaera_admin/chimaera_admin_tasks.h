@@ -58,7 +58,7 @@ struct RegisterTaskLibTaskTempl : public Task, TaskFlags<TF_SRL_SYM> {
 
   /** (De)serialize message return */
   template<typename Ar>
-  void SerializeEnd(u32 replica, Ar &ar) {
+  void SerializeEnd(Ar &ar) {
     ar(id_);
   }
 
@@ -126,7 +126,7 @@ struct GetOrCreateTaskStateIdTask : public Task, TaskFlags<TF_SRL_SYM> {
 
   /** (De)serialize message return */
   template<typename Ar>
-  void SerializeEnd(u32 replica, Ar &ar) {
+  void SerializeEnd(Ar &ar) {
     ar(id_);
   }
 
@@ -185,21 +185,13 @@ struct CreateTaskStateTask : public Task, TaskFlags<TF_SRL_SYM | TF_REPLICA> {
 
   /** Duplicate message */
   template<typename TaskT>
-  void Dup(hipc::Allocator *alloc, TaskT &other) {
+  void CopyStart(hipc::Allocator *alloc, TaskT &other) {
     task_dup(other);
   }
 
   /** Process duplicate message output */
   template<typename TaskT>
-  void DupEnd(u32 replica, TaskT &dup_task) {
-  }
-
-  /** Replication (does nothing) */
-  void ReplicateStart(u32 count) {
-  }
-
-  /** Replicate end (does nothing) */
-  void ReplicateEnd() {
+  void CopyEnd(TaskT &dup_task) {
   }
 
   /** (De)serialize message call */
@@ -211,7 +203,7 @@ struct CreateTaskStateTask : public Task, TaskFlags<TF_SRL_SYM | TF_REPLICA> {
 
   /** (De)serialize message return */
   template<typename Ar>
-  void SerializeEnd(u32 replica, Ar &ar) {
+  void SerializeEnd(Ar &ar) {
     ar(id_);
   }
 
@@ -267,7 +259,7 @@ struct GetTaskStateIdTask : public Task, TaskFlags<TF_SRL_SYM> {
 
   /** (De)serialize message return */
   template<typename Ar>
-  void SerializeEnd(u32 replica, Ar &ar) {
+  void SerializeEnd(Ar &ar) {
     ar(id_);
   }
 
@@ -314,7 +306,7 @@ struct DestroyTaskStateTask : public Task, TaskFlags<TF_SRL_SYM> {
 
   /** (De)serialize message return */
   template<typename Ar>
-  void SerializeEnd(u32 replica, Ar &ar) {
+  void SerializeEnd(Ar &ar) {
   }
 
   /** Create group */
@@ -352,7 +344,7 @@ struct StopRuntimeTask : public Task, TaskFlags<TF_SRL_SYM> {
 
   /** (De)serialize message return */
   template<typename Ar>
-  void SerializeEnd(u32 replica, Ar &ar) {
+  void SerializeEnd(Ar &ar) {
   }
 
   /** Create group */
@@ -403,7 +395,7 @@ struct SetWorkOrchestratorPolicyTask : public Task, TaskFlags<TF_SRL_SYM> {
 
   /** (De)serialize message return */
   template<typename Ar>
-  void SerializeEnd(u32 replica, Ar &ar) {
+  void SerializeEnd(Ar &ar) {
   }
 
   /** Create group */
@@ -437,13 +429,13 @@ struct FlushTask : public Task, TaskFlags<TF_SRL_SYM | TF_REPLICA> {
 
   /** Duplicate message */
   template<typename TaskT>
-  void Dup(hipc::Allocator *alloc, TaskT &other) {
+  void CopyStart(hipc::Allocator *alloc, TaskT &other) {
     task_dup(other);
   }
 
   /** Process duplicate message output */
   template<typename TaskT>
-  void DupEnd(u32 replica, TaskT &dup_task) {}
+  void CopyEnd(TaskT &dup_task) {}
 
   /** (De)serialize message call */
   template<typename Ar>
@@ -453,13 +445,7 @@ struct FlushTask : public Task, TaskFlags<TF_SRL_SYM | TF_REPLICA> {
 
   /** (De)serialize message return */
   template<typename Ar>
-  void SerializeEnd(u32 replica, Ar &ar) {}
-
-  /** Begin replication */
-  void ReplicateStart(u32 count) {}
-
-  /** Finalize replication */
-  void ReplicateEnd() {}
+  void SerializeEnd(Ar &ar) {}
 
   /** Create group */
   HSHM_ALWAYS_INLINE

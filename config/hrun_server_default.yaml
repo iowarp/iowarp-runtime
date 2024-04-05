@@ -3,7 +3,7 @@ work_orchestrator:
   # The max number of dedicated worker threads
   max_dworkers: 4
   # The max number of overlapping threads
-  max_oworkers: 32
+  max_oworkers: 4
   # The max number of total dedicated cores
   owork_per_core: 32
 
@@ -52,15 +52,8 @@ rpc:
   port: 8080
 
   # The number of handler threads for each RPC server.
-  num_threads: 32
+  num_threads: 4
 
 ### Task Registry
 task_registry: [
-  'hermes_mdm',
-  'hermes_blob_mdm',
-  'hermes_bucket_mdm',
-  'hermes_data_op',
-  'data_stager',
-  'posix_bdev',
-  'ram_bdev'
 ]

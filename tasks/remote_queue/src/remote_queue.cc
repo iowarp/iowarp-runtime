@@ -23,73 +23,24 @@ namespace thallium {
 
 namespace chm::remote_queue {
 
-class Server;
-
-struct AbtWorkerEntry {
-  int id_;
-  Server *server_;
-  ABT_thread thread_;
-  PushTask *task_;
-  RunContext *rctx_;
-
-  AbtWorkerEntry() = default;
-
-  AbtWorkerEntry(int id, Server *server)
-  : id_(id), server_(server), task_(nullptr), rctx_(nullptr) {}
-};
-
-struct WaitTask {
-  u32 method_;
-  Task *task_;
-  DomainId ret_domain_;
-  TaskState *exec_;
+struct RemoteInfo {
+  int replica_;
+  std::atomic<u32> rep_cnt_;
+  u32 rep_max_;
   size_t task_addr_;
-  int replica_;
+  DomainId ret_domain_;
   LPointer<char> data_;
-  bool complete_;
-};
-
-struct AckTask {
-  PushTask *task_;
-  int replica_;
-  std::string ret_;
+  std::vector<LPointer<Task>> replicas_;
 };
 
 class Server : public TaskLib {
  public:
-  hipc::uptr<hipc::mpsc_queue<PushTask*>> push_;
-  hipc::uptr<hipc::mpsc_queue<WaitTask>> wait_;
-  hipc::uptr<hipc::mpsc_queue<AckTask>> ack_;
-
- public:
   Server() = default;
 
   /** Construct remote queue */
-  void CreateThreads() {
-    AbtWorkerEntry *entry;
-    entry = new AbtWorkerEntry(0, this);
-    entry->thread_ = HRUN_WORK_ORCHESTRATOR->SpawnAsyncThread(
-        &Server::RunPreemptive, entry);
-
-    entry = new AbtWorkerEntry(1, this);
-    entry->thread_ = HRUN_WORK_ORCHESTRATOR->SpawnAsyncThread(
-        &Server::RunWaitPreemptive, entry);
-
-//    entry = new AbtWorkerEntry(2, this);
-//    entry->thread_ = HRUN_WORK_ORCHESTRATOR->SpawnAsyncThread(
-//        &Server::RunAckPreemptive, entry);
-  }
   void Construct(ConstructTask *task, RunContext &rctx) {
     HILOG(kInfo, "(node {}) Constructing remote queue (task_node={}, task_state={}, method={})",
           HRUN_CLIENT->node_id_, task->task_node_, task->task_state_, task->method_);
-    size_t max = HRUN_RPC->num_threads_;
-    push_ = hipc::make_uptr<hipc::mpsc_queue<PushTask*>>(
-        HRUN_CLIENT->server_config_.queue_manager_.queue_depth_);
-    wait_ = hipc::make_uptr<hipc::mpsc_queue<WaitTask>>(
-        HRUN_CLIENT->server_config_.queue_manager_.queue_depth_);
-//    ack_ = hipc::make_uptr<hipc::mpsc_queue<AckTask>>(
-//        HRUN_CLIENT->server_config_.queue_manager_.queue_depth_);
-    CreateThreads();
     HRUN_THALLIUM->RegisterRpc("RpcPushSmall", [this](
         const tl::request &req,
         TaskStateId state_id,
@@ -137,72 +88,27 @@ class Server : public TaskLib {
 
   /** Push operation called on client */
   void Push(PushTask *task, RunContext &rctx) {
-    if (!task->started_) {
-      task->started_ = true;
-      task->rep_ = 0;
-      task->num_reps_ = task->domain_ids_.size();
-      HILOG(kDebug, "push task emplaced: task={}, orig_task={}",
-            (size_t)task, (size_t)task->orig_task_)
-      push_->emplace(task);
-    }
-    if (task->rep_.load() == task->num_reps_) {
-      ClientHandlePushReplicaEnd(task);
-    }
-    // HILOG(kDebug, "Continuing task {}", task->task_node_)
-  }
-  void MonitorPush(u32 mode, PushTask *task, RunContext &rctx) {
-  }
-
-  /** Duplicate operations */
-  void Dup(DupTask *task, RunContext &ctx) {
-    Task *orig_task = task->orig_task_;
-    if (!orig_task->IsFireAndForget()) {
-      for (size_t i = 0; i < task->dups_.size(); ++i) {
-        LPointer<Task> &dup = task->dups_[i];
-        dup->Wait<TASK_YIELD_CO>(task);
-        task->exec_->DupEnd(dup->method_, i, task->orig_task_, dup.ptr_);
-        HRUN_CLIENT->DelTask(task->exec_, dup.ptr_);
-      }
-      task->exec_->ReplicateEnd(task->exec_method_, task->orig_task_);
-      if (!orig_task->IsLongRunning()) {
-        orig_task->SetModuleComplete();
-      } else {
-        orig_task->UnsetStarted();
-      }
-    }
-    task->SetModuleComplete();
-  }
-  void MonitorDup(u32 mode, DupTask *task, RunContext &rctx) {
-  }
-
- private:
-  /** An ABT thread to run a PUSH task */
-  static void RunPreemptive(void *data) {
-    AbtWorkerEntry *entry = (AbtWorkerEntry *) data;
-    Server *server = entry->server_;
-    WorkOrchestrator *orchestrator = HRUN_WORK_ORCHESTRATOR;
-    while (orchestrator->IsAlive()) {
-      PushTask *task;
-      while (!server->push_->pop(task).IsNull()) {
-        HILOG(kDebug, "push task started: task={}, orig_task={}", (size_t)task, (size_t)task->orig_task_)
-        server->PushPreemptive(task);
-      }
-      ABT_thread_yield();
-    }
-  }
-
-  /** PUSH using thallium */
-  void PushPreemptive(PushTask *task) {
-    std::vector<DataTransfer> xfer = task->xfer_;
-    std::vector<DomainId> domain_ids = task->domain_ids_;
+    std::vector<DomainId> domain_ids = HRUN_RUNTIME->ResolveDomainId(
+        task->domain_id_);
+    BinaryOutputArchive<true> ar(
+        DomainId::GetNode(HRUN_CLIENT->node_id_));
+    std::vector<DataTransfer> xfer = rctx.exec_->SaveStart(
+        task->method_, ar, task);
+    task->ctx_.remote_ = new RemoteInfo();
+    RemoteInfo *remote = (RemoteInfo*)task->ctx_.remote_;
+    remote->rep_cnt_ = 0;
+    remote->rep_max_ = domain_ids.size();
+    remote->replicas_.resize(domain_ids.size());
     try {
       switch (xfer.size()) {
         case 1: {
-          SyncClientSmallPush(xfer, domain_ids, task);
+          SyncClientSmallPush(xfer, domain_ids,
+                              rctx.exec_, task);
           break;
         }
         case 2: {
-          SyncClientIoPush(xfer, domain_ids, task);
+          SyncClientIoPush(xfer, domain_ids,
+                           rctx.exec_, task);
           break;
         }
         default: {
@@ -219,14 +125,19 @@ class Server : public TaskLib {
     } catch (...) {
       HELOG(kError, "(node {}) Worker {} caught an unknown exception", HRUN_CLIENT->node_id_, id_);
     }
+    task->SetBlocked();
+  }
+  void MonitorPush(u32 mode, PushTask *task, RunContext &rctx) {
   }
 
+ private:
   /** Sync Push for small message */
   void SyncClientSmallPush(std::vector<DataTransfer> &xfer,
                            std::vector<DomainId> &domain_ids,
+                           TaskState *exec,
                            PushTask *task) {
-    TaskStateId state_id = task->exec_->id_;
-    int method = task->exec_method_;
+    TaskStateId state_id = exec->id_;
+    int method = task->method_;
     std::string params = std::string((char *) xfer[0].data_, xfer[0].data_size_);
     for (int replica = 0; replica < domain_ids.size(); ++replica) {
       DomainId my_domain = DomainId::GetNode(HRUN_CLIENT->node_id_);
@@ -245,14 +156,15 @@ class Server : public TaskLib {
   /** Sync Push for I/O message */
   void SyncClientIoPush(std::vector<DataTransfer> &xfer,
                         std::vector<DomainId> &domain_ids,
+                        TaskState *exec,
                         PushTask *task) {
     std::string params = std::string((char *) xfer[1].data_, xfer[1].data_size_);
     IoType io_type = IoType::kRead;
     if (xfer[0].flags_.Any(DT_RECEIVER_READ)) {
       io_type = IoType::kWrite;
     }
-    TaskStateId state_id = task->exec_->id_;
-    int method = task->exec_method_;
+    TaskStateId state_id = exec->id_;
+    int method = task->method_;
     for (int replica = 0; replica < domain_ids.size(); ++replica) {
       DomainId my_domain = DomainId::GetNode(HRUN_CLIENT->node_id_);
       DomainId domain_id = domain_ids[replica];
@@ -395,6 +307,7 @@ class Server : public TaskLib {
     orig_task->UnsetStarted();
     orig_task->UnsetDataOwner();
     orig_task->UnsetLongRunning();
+    orig_task->SetSignalRemoteComplete();
     orig_task->task_flags_.SetBits(TASK_REMOTE_DEBUG_MARK);
 
     // Execute task
@@ -411,58 +324,26 @@ class Server : public TaskLib {
           data_size,
           orig_task->lane_hash_);
 
-    // Spawn wait event handler for task completion
-    WaitTask wait_task;
-    wait_task.method_ = method;
-    wait_task.ret_domain_ = ret_domain;
-    wait_task.task_ = orig_task;
-    wait_task.exec_ = exec;
-    wait_task.task_addr_ = task_addr;
-    wait_task.replica_ = replica;
-    wait_task.data_ = data;
-    wait_task.complete_ = false;
-    wait_->emplace(wait_task);
-
-//    HILOG(kDebug,
-//          "(node {}) Waiting task (task_node={}, task_state={}/{}, state_name={}, method={}, size={}, lane_hash={})",
-//          HRUN_CLIENT->node_id_,
-//          orig_task->task_node_,
-//          orig_task->task_state_,
-//          state_id,
-//          exec->name_,
-//          method,
-//          data_size,
-//          orig_task->lane_hash_);
+    // Construct remote return information
+    orig_task->ctx_.remote_ = new RemoteInfo();
+    RemoteInfo *remote = (RemoteInfo*)orig_task->ctx_.remote_;
+    remote->ret_domain_ = ret_domain;
+    remote->replica_ = replica;
+    remote->data_ = data;
+    remote->task_addr_ = task_addr;
   }
 
-  /** An ABT thread to run a WAIT task */
-  static void RunWaitPreemptive(void *data) {
-    AbtWorkerEntry *entry = (AbtWorkerEntry *) data;
-    Server *server = entry->server_;
-    WorkOrchestrator *orchestrator = HRUN_WORK_ORCHESTRATOR;
-    while (orchestrator->IsAlive()) {
-      WaitTask *wait_task;
-      int i = 0;
-      while (!server->wait_->peek(wait_task, i).IsNull()) {
-        Task *orig_task = wait_task->task_;
-        if (!wait_task->complete_ && orig_task->IsComplete()) {
-          server->RpcComplete(wait_task->method_,
-                              orig_task,
-                              wait_task->exec_,
-                              wait_task->task_addr_,
-                              wait_task->replica_,
-                              wait_task->ret_domain_,
-                              wait_task->data_);
-          wait_task->complete_ = true;
-        }
-        if (i == 0 && wait_task->complete_) {
-          server->wait_->pop();
-          continue;
-        }
-        ++i;
-      }
-      ABT_thread_yield();
-    }
+  /** Complete the task (on the remote node) */
+  void PushComplete(PushCompleteTask *task, RunContext &rctx) {
+    RemoteInfo *remote = (RemoteInfo*)task->ctx_.remote_;
+    TaskState *exec = rctx.exec_;
+    RpcComplete(task->method_, task, exec,
+                remote->task_addr_, remote->replica_,
+                remote->ret_domain_, remote->data_);
+    delete remote;
+    task->SetModuleComplete();
+  }
+  void MonitorPushComplete(u32 mode, PushCompleteTask *task, RunContext &rctx) {
   }
 
   /** Complete a wait task */
@@ -493,30 +374,9 @@ class Server : public TaskLib {
                                         size_t task_addr,
                                         int replica,
                                         std::string &ret) {
-//    AckTask ack_task;
-//    ack_task.task_ = (PushTask *) task_addr;
-//    ack_task.replica_ = replica;
-//    ack_task.ret_ = std::move(ret);
-//    ack_->emplace(ack_task);
-//    req.respond(0);
     ClientHandlePushReplicaOutput(replica, ret, (PushTask *) task_addr);
     req.respond(0);
   }
-
-  /** An ABT thread to run a PUSH task */
-//  static void RunAckPreemptive(void *data) {
-//    AbtWorkerEntry *entry = (AbtWorkerEntry *) data;
-//    Server *server = entry->server_;
-//    WorkOrchestrator *orchestrator = HRUN_WORK_ORCHESTRATOR;
-//    while (orchestrator->IsAlive()) {
-//      AckTask ack_task;
-//      while (!server->ack_->pop(ack_task).IsNull()) {
-//        server->ClientHandlePushReplicaOutput(
-//            ack_task.replica_, ack_task.ret_, ack_task.task_);
-//      }
-//      ABT_thread_yield();
-//    }
-//  }
 
   /** Handle output from replica PUSH */
   void ClientHandlePushReplicaOutput(int replica,
@@ -527,16 +387,40 @@ class Server : public TaskLib {
       xfer[0].data_ = ret.data();
       xfer[0].data_size_ = ret.size();
       BinaryInputArchive<false> ar(xfer);
-      task->exec_->LoadEnd(replica, task->exec_method_, ar, task->orig_task_);
+      TaskState *exec = HRUN_TASK_REGISTRY->GetTaskState(
+          task->task_state_);
+      RemoteInfo *remote = (RemoteInfo*)task->ctx_.remote_;
+      remote->replicas_[replica] = 
+          exec->LoadEnd(task->method_, ar);
       HILOG(kDebug, "Handled replica output for task "
                     "(task_node={}, task_state={}, method={}, "
                     "rep={}, num_reps={})",
-            task->orig_task_->task_node_,
-            task->orig_task_->task_state_,
-            task->orig_task_->method_,
-            task->rep_.load() + 1,
-            task->num_reps_);
-      task->rep_ += 1;
+            task->task_node_,
+            task->task_state_,
+            task->method_,
+            remote->rep_cnt_.load() + 1,
+            remote->rep_max_);
+      remote->rep_cnt_ += 1;
+      if (remote->rep_cnt_.load() == remote->rep_max_) {
+        // TODO(llogan): Signal unblock to worker
+        exec->Monitor(MonitorMode::kReplicaAgg, task, task->ctx_);
+        for (LPointer<Task> &replica : remote->replicas_) {
+          if (replica.ptr_ != nullptr) {
+            exec->Del(task->method_, replica.ptr_);
+          }
+        }
+        delete remote;
+        if (!task->IsLongRunning()) {
+          task->SetModuleComplete();
+        }
+        Worker &worker = HRUN_WORK_ORCHESTRATOR->GetWorker(
+            task->ctx_.worker_id_);
+        task->ctx_.pending_to_ = task;
+        LPointer<Task> task_ptr;
+        task_ptr.ptr_ = task;
+        task_ptr.shm_ = HERMES_MEMORY_MANAGER->Convert(task);
+        worker.SignalComplete(task_ptr);
+      }
     } catch (hshm::Error &e) {
       HELOG(kError, "(node {}) Caught an error: {}",
             HRUN_CLIENT->node_id_, e.what());
@@ -548,23 +432,6 @@ class Server : public TaskLib {
             HRUN_CLIENT->node_id_);
     }
   }
-
-  /** Handle finalization of PUSH replicate */
-  void ClientHandlePushReplicaEnd(PushTask *task) {
-    task->exec_->ReplicateEnd(task->orig_task_->method_, task->orig_task_);
-    HILOG(kDebug, "Completing task (task_node={}, task_state={}, method={})",
-          task->orig_task_->task_node_,
-          task->orig_task_->task_state_,
-          task->orig_task_->method_);
-    if (!task->orig_task_->IsLongRunning()) {
-      task->orig_task_->SetModuleComplete();
-    } else {
-      task->orig_task_->UnsetStarted();
-      task->orig_task_->UnsetDisableRun();
-    }
-    task->SetModuleComplete();
-  }
-
 
  public:
 #include "remote_queue/remote_queue_lib_exec.h"

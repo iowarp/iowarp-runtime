@@ -30,8 +30,8 @@ class TaskLib;
 #define TASK_UPDATE BIT_OPT(u32, 2)
 /** This task is paused until a set of tasks complete */
 #define TASK_BLOCKED BIT_OPT(u32, 3)
-/** This task is latency-sensitive (depricated) */
-#define TASK_LOW_LATENCY 0
+/** This task is latency-sensitive (deprecated) */
+#define TASK_SIGNAL_REMOTE_COMPLETE BIT_OPT(u32, 4)
 /** This task makes system calls and may hurt caching */
 #define TASK_SYSCALL BIT_OPT(u32, 5)
 /** This task does not depend on state */
@@ -48,8 +48,8 @@ class TaskLib;
 #define TASK_LONG_RUNNING (BIT_OPT(u32, 11) | TASK_UNORDERED)
 /** This task is fire and forget. Free when completed */
 #define TASK_FIRE_AND_FORGET BIT_OPT(u32, 12)
-/** This task should not be run at this time */
-#define TASK_DISABLE_RUN BIT_OPT(u32, 13)
+/** This task should not be run at this time (deprecated) */
+#define TASK_DISABLE_RUN 0
 /** This task owns the data in the task */
 #define TASK_DATA_OWNER BIT_OPT(u32, 14)
 /** This task uses co-routine wait */
@@ -268,6 +268,7 @@ struct RunContext {
   hshm::Timer timer_;
   void *pending_to_;
   size_t pending_key_;
+  void *remote_;
 };
 
 /** A generic task base class */
@@ -281,7 +282,6 @@ struct Task : public hipc::ShmContainer {
   u32 lane_hash_;              /**< Determine the lane a task is keyed to */
   u32 method_;                 /**< The method to call in the state */
   bitfield32_t task_flags_;    /**< Properties of the task */
-  // std::atomic<u32> atask_flags_ = 0;    /**< Properties of the task */
   double period_ns_;           /**< The period of the task */
   hshm::Timepoint start_;      /**< The time the task started */
   RunContext ctx_;
@@ -340,21 +340,6 @@ struct Task : public hipc::ShmContainer {
   /** Set task as unordered */
   HSHM_ALWAYS_INLINE bool SetUnordered() {
     return task_flags_.Any(TASK_UNORDERED);
-  }
-
-  /** Disable the running of a task */
-  HSHM_ALWAYS_INLINE void SetDisableRun() {
-    task_flags_.SetBits(TASK_DISABLE_RUN);
-  }
-
-  /** Enable the running of a task */
-  HSHM_ALWAYS_INLINE void UnsetDisableRun() {
-    task_flags_.UnsetBits(TASK_DISABLE_RUN);
-  }
-
-  /** Check if running task is disable */
-  HSHM_ALWAYS_INLINE bool IsRunDisabled() {
-    return task_flags_.Any(TASK_DISABLE_RUN);
   }
 
   /** Set task as data owner */
@@ -470,6 +455,21 @@ struct Task : public hipc::ShmContainer {
   /** Unset signal complete */
   HSHM_ALWAYS_INLINE void UnsetSignalComplete() {
     task_flags_.UnsetBits(TASK_SIGNAL_COMPLETE);
+  }
+
+  /** Set signal remote complete */
+  HSHM_ALWAYS_INLINE void SetSignalRemoteComplete() {
+    task_flags_.SetBits(TASK_SIGNAL_REMOTE_COMPLETE);
+  }
+
+  /** Check if task should signal complete */
+  HSHM_ALWAYS_INLINE bool ShouldSignalRemoteComplete() {
+    return task_flags_.Any(TASK_SIGNAL_REMOTE_COMPLETE);
+  }
+
+  /** Unset signal complete */
+  HSHM_ALWAYS_INLINE void UnsetSignalRemoteComplete() {
+    task_flags_.UnsetBits(TASK_SIGNAL_REMOTE_COMPLETE);
   }
 
   /** Mark this task as remote */

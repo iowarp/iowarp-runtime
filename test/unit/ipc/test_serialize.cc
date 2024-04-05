@@ -46,7 +46,7 @@ struct TestObj : public Task, TaskFlags<TF_SRL_SYM> {
 
   /** (De)serialize message return */
   template<typename Ar>
-  void SerializeEnd(u32 replica, Ar &ar) {
+  void SerializeEnd(Ar &ar) {
   }
 
   bool operator==(const TestObj &other) const {

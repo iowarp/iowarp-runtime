@@ -30,7 +30,6 @@ class WorkOrchestrator {
   std::vector<Worker*> oworkers_;   /**< Undedicated workers */
   std::atomic<bool> stop_runtime_;  /**< Begin killing the runtime */
   std::atomic<bool> kill_requested_;  /**< Kill flushing threads eventually */
-  ABT_xstream xstream_;
 
  public:
   /** Default constructor */
@@ -78,11 +77,21 @@ class WorkOrchestrator {
     return !stop_runtime_.load();
   }
 
+  /** Make an xstream */
+  ABT_xstream MakeXstream() {
+    ABT_xstream xstream;
+    int ret = ABT_xstream_create(ABT_SCHED_NULL, &xstream);
+    if (ret != ABT_SUCCESS) {
+      HELOG(kFatal, "Could not create argobots xstream");
+    }
+    return xstream;
+  }
+
   /** Spawn an argobots thread */
   template<typename FUNC, typename TaskT>
-  ABT_thread SpawnAsyncThread(FUNC &&func, TaskT *data) {
+  ABT_thread SpawnAsyncThread(ABT_xstream xstream, FUNC &&func, TaskT *data) {
     ABT_thread tl_thread;
-    int ret = ABT_thread_create_on_xstream(xstream_,
+    int ret = ABT_thread_create_on_xstream(xstream,
                                            func, (void*) data,
                                            ABT_THREAD_ATTR_NULL,
                                            &tl_thread);

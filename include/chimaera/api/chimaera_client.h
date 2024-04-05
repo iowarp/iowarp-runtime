@@ -471,48 +471,21 @@ Async##CUSTOM##Root(Args&& ...args) {\
 
 /** Call duplicate if applicable */
 template<typename TaskT>
-constexpr inline void CALL_DUPLICATE(TaskT *orig_task, std::vector<LPointer<Task>> &dups) {
-  if constexpr(TaskT::REPLICA) {
+constexpr inline void CALL_COPY_START(TaskT *orig_task, std::vector<LPointer<Task>> &dups) {
+  if constexpr (TaskT::REPLICA) {
     for (LPointer<Task> &dup : dups) {
-      LPointer<TaskT> task = HRUN_CLIENT->NewEmptyTask<TaskT>();
-      task.ptr_->Dup(HRUN_CLIENT->main_alloc_, *orig_task);
-      dup.ptr_ = task.ptr_;
-      dup.shm_ = task.shm_;
+      LPointer<TaskT> dup_task = HRUN_CLIENT->NewEmptyTask<TaskT>();
+      dup_task.ptr_->CopyStart(HRUN_CLIENT->main_alloc_, *orig_task);
+      dup.ptr_ = dup_task.ptr_;
+      dup.shm_ = dup_task.shm_;
     }
   }
 }
 /** Call duplicate if applicable */
 template<typename TaskT>
-constexpr inline void CALL_DUPLICATE_END(u32 replica, TaskT *orig_task, TaskT *dup_task) {
-  if constexpr(TaskT::REPLICA) {
-    orig_task->DupEnd(replica, *dup_task);
-  }
-}
-/** Call replica start if applicable */
-template<typename TaskT>
-constexpr inline void CALL_REPLICA_START(u32 count, TaskT *task) {
-  if constexpr(TaskT::REPLICA) {
-    task->ReplicateStart(count);
-  }
-}
-/** Call replica end if applicable */
-template<typename TaskT>
-constexpr inline void CALL_REPLICA_END(TaskT *task) {
-  if constexpr(TaskT::REPLICA) {
-    task->ReplicateEnd();
-  }
-}
-
-/**
- * Compare two tasks belonging to the same group.
- * Returns true if the tasks can be executed concurrently.
- * */
-template<typename TaskT>
-constexpr inline bool CALL_CMPGRP(TaskT *task1, Task *task2) {
-  if constexpr(TaskT::CMPGRP) {
-    return task1->CompareGroup(task2);
-  } else {
-    return false;
+constexpr inline void CALL_COPY_END(TaskT *orig_task, TaskT *dup_task) {
+  if constexpr (TaskT::REPLICA) {
+    dup_task->CopyEnd(*orig_task);
   }
 }
 

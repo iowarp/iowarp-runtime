@@ -1,5 +1,5 @@
-#ifndef HRUN_CHM_ADMIN_METHODS_H_
-#define HRUN_CHM_ADMIN_METHODS_H_
+#ifndef HRUN_CHIMAERA_ADMIN_METHODS_H_
+#define HRUN_CHIMAERA_ADMIN_METHODS_H_
 
 /** The set of methods in the admin task */
 struct Method : public TaskMethod {
@@ -15,4 +15,4 @@ struct Method : public TaskMethod {
   TASK_METHOD_T kFlush = kLast + 9;
 };
 
-#endif  // HRUN_CHM_ADMIN_METHODS_H_
+#endif  // HRUN_CHIMAERA_ADMIN_METHODS_H_

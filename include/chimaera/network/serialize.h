@@ -105,43 +105,43 @@ class BinaryOutputArchive {
   /** Serialize using call */
   template<typename T, typename ...Args>
   BinaryOutputArchive& operator()(T &var, Args &&...args) {
-    return Serialize(0, var, std::forward<Args>(args)...);
+    return Serialize(var, std::forward<Args>(args)...);
   }
 
   /** Serialize using left shift */
   template<typename T>
   BinaryOutputArchive& operator<<(T &var) {
-    return Serialize(0, var);
+    return Serialize(var);
   }
 
   /** Serialize using ampersand */
   template<typename T>
   BinaryOutputArchive& operator&(T &var) {
-    return Serialize(0, var);
+    return Serialize(var);
   }
 
   /** Serialize using left shift */
   template<typename T>
   BinaryOutputArchive& operator<<(T &&var) {
-    return Serialize(0, var);
+    return Serialize(var);
   }
 
   /** Serialize using ampersand */
   template<typename T>
   BinaryOutputArchive& operator&(T &&var) {
-    return Serialize(0, var);
+    return Serialize(var);
   }
 
   /** Serialize an array */
   template<typename T>
   BinaryOutputArchive& write(T *data, size_t count) {
     size_t size = count * sizeof(T);
-    return Serialize(0, cereal::binary_data(data, size));
+    return Serialize(cereal::binary_data(data, size));
   }
 
   /** Serialize a parameter */
   template<typename T, typename ...Args>
-  BinaryOutputArchive& Serialize(u32 replica, T &var, Args&& ...args) {
+  BinaryOutputArchive& Serialize(T &var, Args&& ...args) {
     if constexpr (IS_TASK(T)) {
       if constexpr (IS_SRL(T)) {
         if constexpr (is_start) {
@@ -152,7 +152,7 @@ class BinaryOutputArchive {
           }
         } else {
           if constexpr (USES_SRL_END(T)) {
-            var.SerializeEnd(replica, *this);
+            var.SerializeEnd(*this);
           } else {
             var.SaveEnd(*this);
           }
@@ -170,12 +170,11 @@ class BinaryOutputArchive {
     } else {
       ar_ << var;
     }
-    return Serialize(replica, std::forward<Args>(args)...);
+    return Serialize(std::forward<Args>(args)...);
   }
 
   /** End serialization recursion */
-  BinaryOutputArchive& Serialize(u32 replica) {
-    (void) replica;
+  BinaryOutputArchive& Serialize() {
     return *this;
   }
 
@@ -224,31 +223,31 @@ class BinaryInputArchive {
   /** Deserialize using call */
   template<typename T, typename ...Args>
   BinaryInputArchive& operator()(T &var, Args &&...args) {
-    return Deserialize(0, var, std::forward<Args>(args)...);
+    return Deserialize(var, std::forward<Args>(args)...);
   }
 
   /** Deserialize using right shift */
   template<typename T>
   BinaryInputArchive& operator>>(T &var) {
-    return Deserialize(0, var);
+    return Deserialize(var);
   }
 
   /** Deserialize using ampersand */
   template<typename T>
   BinaryInputArchive& operator&(T &var) {
-    return Deserialize(0, var);
+    return Deserialize(var);
   }
 
   /** Deserialize an array */
   template<typename T>
   BinaryInputArchive& read(T *data, size_t count) {
     size_t size = count * sizeof(T);
-    Deserialize(0, cereal::binary_data(data, size));
+    Deserialize(cereal::binary_data(data, size));
   }
 
   /** Deserialize a parameter */
   template<typename T, typename ...Args>
-  BinaryInputArchive& Deserialize(u32 replica, T &var, Args&& ...args) {
+  BinaryInputArchive& Deserialize(T &var, Args&& ...args) {
     if constexpr (IS_TASK(T)) {
       if constexpr (IS_SRL(T)) {
         if constexpr (is_start) {
@@ -259,9 +258,9 @@ class BinaryInputArchive {
           }
         } else {
           if constexpr (USES_SRL_END(T)) {
-            var.SerializeEnd(replica, *this);
+            var.SerializeEnd(*this);
           } else {
-            var.LoadEnd(replica, *this);
+            var.LoadEnd(*this);
           }
         }
       }
@@ -275,12 +274,12 @@ class BinaryInputArchive {
     } else {
       ar_ >> var;
     }
-    return Deserialize(replica, std::forward<Args>(args)...);
+    return Deserialize(std::forward<Args>(args)...);
   }
 
   /** End deserialize recursion */
   HSHM_ALWAYS_INLINE
-  BinaryInputArchive& Deserialize(u32 replica) {
+  BinaryInputArchive& Deserialize() {
     return *this;
   }
 };

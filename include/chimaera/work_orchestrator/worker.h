@@ -396,9 +396,9 @@ class PrivateTaskMultiQueue {
 class Worker {
  public:
   u32 id_;  /**< Unique identifier of this worker */
-  std::unique_ptr<std::thread> thread_;  /**< The worker thread handle */
+  // std::unique_ptr<std::thread> thread_;  /**< The worker thread handle */
+  // int pthread_id_;      /**< The worker pthread handle */
   ABT_thread tl_thread_;  /**< The worker argobots thread handle */
-  int pthread_id_;      /**< The worker pthread handle */
   std::atomic<int> pid_;  /**< The worker process id */
   int affinity_;        /**< The worker CPU affinity */
   u32 numa_node_;       // TODO(llogan): track NUMA affinity
@@ -453,8 +453,10 @@ class Worker {
 
     // Spawn threads
     xstream_ = xstream;
-    thread_ = std::make_unique<std::thread>(&Worker::Loop, this);
-    pthread_id_ = thread_->native_handle();
+    // thread_ = std::make_unique<std::thread>(&Worker::Loop, this);
+    // pthread_id_ = thread_->native_handle();
+    tl_thread_ = HRUN_WORK_ORCHESTRATOR->SpawnAsyncThread(
+        xstream_, &Worker::WorkerEntryPoint, this);
   }
 
   /** Constructor without threading */
@@ -466,10 +468,16 @@ class Worker {
     EnableContinuousPolling();
     retries_ = 1;
     pid_ = 0;
-    pthread_id_ = GetLinuxTid();
+    // pthread_id_ = GetLinuxTid();
     // TODO(llogan): implement reserve for group
     group_.resize(512);
     group_.resize(0);
+  }
+
+  /** Join worker */
+  void Join() {
+    // thread_->join();
+    ABT_xstream_join(xstream_);
   }
 
   /** Get the pending queue for a worker */
@@ -565,7 +573,7 @@ class Worker {
   void SetCpuAffinity(int cpu_id) {
     HILOG(kInfo, "Affining worker {} (pid={}) to {}", id_, pid_, cpu_id);
     affinity_ = cpu_id;
-    ProcessAffiner::SetCpuAffinity(pid_, affinity_);
+    ABT_xstream_set_affinity(xstream_, 1, &cpu_id);
   }
 
   /** Make maximum priority process */
@@ -608,6 +616,12 @@ class Worker {
   /**===============================================================
    * Run tasks
    * =============================================================== */
+
+  /** Worker entrypoint */
+  static void WorkerEntryPoint(void *arg) {
+    Worker *worker = (Worker*)arg;
+    worker->Loop();
+  }
 
   /** Worker loop iteration */
   void Loop() {
@@ -787,6 +801,13 @@ class Worker {
     return exec;
   }
 
+  /** Externally signal a task as complete */
+  HSHM_ALWAYS_INLINE
+  void SignalComplete(LPointer<Task> &task) {
+    PrivateTaskMultiQueue &pending = GetPendingQueue(task.ptr_);
+    pending.signal_complete(active_, task);
+  }
+
   /** Free a task when it is no longer needed */
   HSHM_ALWAYS_INLINE
   void EndTask(TaskState *exec, LPointer<Task> &task) {
@@ -839,8 +860,7 @@ class Worker {
                 TaskState *&exec,
                 bitfield32_t &props) {
     // Determine if a task should be executed
-    if (task->IsRunDisabled() ||
-        !props.All(HSHM_WORKER_GROUP_AVAIL | HSHM_WORKER_SHOULD_RUN)) {
+    if (!props.All(HSHM_WORKER_GROUP_AVAIL | HSHM_WORKER_SHOULD_RUN)) {
       return false;
     }
     // Flush tasks
@@ -857,15 +877,11 @@ class Worker {
     }
     // Attempt to run the task if it's ready and runnable
     if (props.Any(HSHM_WORKER_IS_REMOTE)) {
-      auto ids = HRUN_RUNTIME->ResolveDomainId(
-          task->domain_id_);
-      HRUN_REMOTE_QUEUE->Disperse(task, exec, ids);
-      task->SetDisableRun();
+      TaskState *remote_exec = GetTaskState(HRUN_REMOTE_QUEUE->id_);
+      remote_exec->Run(chm::remote_queue::Method::kPush,
+                       task, rctx);
+      task->SetBlocked();
     } else if (task->IsLaneAll()) {
-      HRUN_REMOTE_QUEUE->DisperseLocal(task, exec,
-                                       lane_info.queue_,
-                                       lane_info.group_);
-      task->SetDisableRun();
     } else if (task->IsCoroutine()) {
       ExecCoroutine(task, rctx);
     } else {

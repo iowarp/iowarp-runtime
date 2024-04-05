@@ -88,21 +88,13 @@ struct MdTask : public Task, TaskFlags<TF_SRL_SYM | TF_REPLICA> {
   }
 
   /** Duplicate message */
-  void Dup(hipc::Allocator *alloc, MdTask &other) {
+  void CopyStart(hipc::Allocator *alloc, MdTask &other) {
     task_dup(other);
   }
 
   /** Process duplicate message output */
-  void DupEnd(u32 replica, MdTask &dup_task) {
+  void CopyEnd(MdTask &dup_task) {
   }
-
-  /** Begin replication */
-  void ReplicateStart(u32 count) {
-    ret_.resize(count);
-  }
-
-  /** Finalize replication */
-  void ReplicateEnd() {}
 
   /** (De)serialize message call */
   template<typename Ar>
@@ -112,8 +104,8 @@ struct MdTask : public Task, TaskFlags<TF_SRL_SYM | TF_REPLICA> {
 
   /** (De)serialize message return */
   template<typename Ar>
-  void SerializeEnd(u32 replica, Ar &ar) {
-    ar(ret_[replica]);
+  void SerializeEnd(Ar &ar) {
+    ar(ret_[0]);
   }
 
   /** Create group */
@@ -185,7 +177,7 @@ struct IoTask : public Task, TaskFlags<TF_SRL_ASYM_START | TF_SRL_SYM_END> {
 
   /** (De)serialize message return */
   template<typename Ar>
-  void SerializeEnd(u32 replica, Ar &ar) {
+  void SerializeEnd(Ar &ar) {
     ar(ret_);
   }
 

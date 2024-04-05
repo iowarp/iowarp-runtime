@@ -21,12 +21,6 @@ void WorkOrchestrator::ServerInit(ServerConfig *config, QueueManager &qm) {
   // Initialize argobots
   ABT_init(0, nullptr);
 
-  // Create argobots xstream
-  int ret = ABT_xstream_create(ABT_SCHED_NULL, &xstream_);
-  if (ret != ABT_SUCCESS) {
-    HELOG(kFatal, "Could not create argobots xstream");
-  }
-
   // Spawn workers on the stream
   size_t num_workers = config_->wo_.max_dworkers_ + config->wo_.max_oworkers_;
   workers_.reserve(num_workers);
@@ -35,20 +29,27 @@ void WorkOrchestrator::ServerInit(ServerConfig *config, QueueManager &qm) {
   u32 num_dworkers = config_->wo_.max_dworkers_;
   for (; worker_id < num_dworkers; ++worker_id) {
     int cpu_id = worker_id;
-    workers_.emplace_back(std::make_unique<Worker>(worker_id, cpu_id, xstream_));
+    ABT_xstream xstream = MakeXstream();
+    workers_.emplace_back(std::make_unique<Worker>(
+        worker_id, cpu_id, xstream));
     Worker &worker = *workers_.back();
     worker.EnableContinuousPolling();
     worker.SetLowLatency();
     dworkers_.emplace_back(&worker);
   }
   // Spawn overlapped workers (oworkers)
-  for (; worker_id < num_workers; ++worker_id) {
+  for (size_t i = 0; i < num_workers - worker_id; ++worker_id) {
+    ABT_xstream xstream;
+    if (i % config->wo_.owork_per_core_ == 0) {
+      xstream = MakeXstream();
+    }
     int cpu_id = (int)(num_dworkers + (worker_id - num_dworkers) / config->wo_.owork_per_core_);
-    workers_.emplace_back(std::make_unique<Worker>(worker_id, cpu_id, xstream_));
+    workers_.emplace_back(std::make_unique<Worker>(worker_id, cpu_id, xstream));
     Worker &worker = *workers_.back();
     worker.DisableContinuousPolling();
     worker.SetHighLatency();
     oworkers_.emplace_back(&worker);
+    ++worker_id;
   }
   stop_runtime_ = false;
   kill_requested_ = false;
@@ -77,9 +78,7 @@ void WorkOrchestrator::ServerInit(ServerConfig *config, QueueManager &qm) {
 void WorkOrchestrator::Join() {
   kill_requested_.store(true);
   for (std::unique_ptr<Worker> &worker : workers_) {
-    worker->thread_->join();
-//    ABT_xstream_join(xstream_);
-//    ABT_xstream_free(&xstream_);
+    worker->Join();
   }
 }
 
