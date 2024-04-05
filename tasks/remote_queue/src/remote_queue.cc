@@ -381,11 +381,13 @@ class Server : public TaskLib {
     if (data.ptr_ != nullptr) {
       HRUN_CLIENT->FreeBuffer(data);
     }
-    HILOG(kInfo, "(node {}) Returning replica output of task (task_node={}, task_state={}, method={})",
+    HILOG(kInfo, "(node {}) Returning replica output of task (task_node={}, task_state={}, method={})"
+                 "to remote domain {}",
           HRUN_CLIENT->node_id_,
           orig_task->task_node_,
           orig_task->task_state_,
-          method);
+          method,
+          ret_domain.id_);
     BinaryOutputArchive<false> ar(DomainId::GetNode(HRUN_CLIENT->node_id_));
     std::vector<DataTransfer> out_xfer = exec->SaveEnd(method, ar, orig_task);
     std::string ret;
