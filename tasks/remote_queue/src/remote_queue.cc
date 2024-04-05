@@ -340,7 +340,7 @@ class Server : public TaskLib {
     MultiQueue *queue = HRUN_CLIENT->GetQueue(QueueId(state_id));
     queue->Emplace(orig_task->prio_, orig_task->lane_hash_, task_ptr.shm_);
     HILOG(kDebug,
-          "(node {}) Executing task (task_node={}, task_state={}/{}, state_name={}, method={}, size={}, lane_hash={})",
+          "(node {}) Submitting task (task_node={}, task_state={}/{}, state_name={}, method={}, size={}, lane_hash={})",
           HRUN_CLIENT->node_id_,
           orig_task->task_node_,
           orig_task->task_state_,
@@ -381,6 +381,11 @@ class Server : public TaskLib {
     if (data.ptr_ != nullptr) {
       HRUN_CLIENT->FreeBuffer(data);
     }
+    HILOG(kInfo, "(node {}) Returning replica output of task (task_node={}, task_state={}, method={})",
+          HRUN_CLIENT->node_id_,
+          orig_task->task_node_,
+          orig_task->task_state_,
+          method);
     BinaryOutputArchive<false> ar(DomainId::GetNode(HRUN_CLIENT->node_id_));
     std::vector<DataTransfer> out_xfer = exec->SaveEnd(method, ar, orig_task);
     std::string ret;
@@ -408,6 +413,12 @@ class Server : public TaskLib {
   void ClientHandlePushReplicaOutput(int replica,
                                      std::string &ret,
                                      PushTask *task) {
+    HILOG(kDebug, "(node {}) Received replica output for task "
+                  "(task_node={}, task_state={}, method={})",
+          HRUN_CLIENT->node_id_,
+          task->task_node_,
+          task->task_state_,
+          task->method_);
     try {
       std::vector<DataTransfer> xfer(1);
       xfer[0].data_ = ret.data();
@@ -422,15 +433,16 @@ class Server : public TaskLib {
         remote->replicas_[replica] =
             exec->LoadReplicaEnd(task->method_, ar);
       }
-      HILOG(kDebug, "Handled replica output for task "
+      remote->rep_cnt_ += 1;
+      HILOG(kDebug, "(node {}) Handled replica output for task "
                     "(task_node={}, task_state={}, method={}, "
                     "rep={}, num_reps={})",
+            HRUN_CLIENT->node_id_,
             task->task_node_,
             task->task_state_,
             task->method_,
             remote->rep_cnt_.load() + 1,
             remote->rep_max_);
-      remote->rep_cnt_ += 1;
       if (remote->rep_cnt_.load() == remote->rep_max_) {
         if (remote->rep_max_ > 1) {
           exec->Monitor(MonitorMode::kReplicaAgg, task, task->ctx_);
