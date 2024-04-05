@@ -41,7 +41,9 @@ class Server : public TaskLib {
   void Construct(ConstructTask *task, RunContext &rctx) {
     HILOG(kInfo, "(node {}) Constructing remote queue (task_node={}, task_state={}, method={})",
           HRUN_CLIENT->node_id_, task->task_node_, task->task_state_, task->method_);
-    HRUN_THALLIUM->RegisterRpc("RpcPushSmall", [this](
+    HRUN_THALLIUM->RegisterRpc(
+        *HRUN_WORK_ORCHESTRATOR->rpc_pool_,
+        "RpcPushSmall", [this](
         const tl::request &req,
         TaskStateId state_id,
         u32 method,
@@ -52,7 +54,9 @@ class Server : public TaskLib {
       this->RpcPushSmall(req, state_id, method,
                          task_addr, replica, domain_id, params);
     });
-    HRUN_THALLIUM->RegisterRpc("RpcPushBulk", [this](
+    HRUN_THALLIUM->RegisterRpc(
+        *HRUN_WORK_ORCHESTRATOR->rpc_pool_,
+        "RpcPushBulk", [this](
         const tl::request &req,
         const tl::bulk &bulk,
         TaskStateId state_id,
@@ -67,7 +71,9 @@ class Server : public TaskLib {
                         task_addr, replica, domain_id,
                         params, bulk, data_size, io_type);
     });
-    HRUN_THALLIUM->RegisterRpc("RpcClientHandlePushReplicaOutput", [this](
+    HRUN_THALLIUM->RegisterRpc(
+        *HRUN_WORK_ORCHESTRATOR->rpc_pool_,
+        "RpcClientHandlePushReplicaOutput", [this](
         const tl::request &req,
         size_t task_addr,
         int replica,
@@ -139,6 +145,8 @@ class Server : public TaskLib {
     TaskStateId state_id = exec->id_;
     int method = task->method_;
     std::string params = std::string((char *) xfer[0].data_, xfer[0].data_size_);
+    hshm::Timer t;
+    t.Resume();
     for (int replica = 0; replica < domain_ids.size(); ++replica) {
       DomainId my_domain = DomainId::GetNode(HRUN_CLIENT->node_id_);
       DomainId domain_id = domain_ids[replica];
@@ -151,6 +159,9 @@ class Server : public TaskLib {
                                    my_domain,
                                    params);
     }
+    t.Pause();
+    HILOG(kInfo, "(node {}) Pushed small message to {} replicas in {} usec",
+          HRUN_CLIENT->node_id_, domain_ids.size(), t.GetUsec());
   }
 
   /** Sync Push for I/O message */
@@ -202,6 +213,8 @@ class Server : public TaskLib {
 
     // Create the input data transfer object
     try {
+      hshm::Timer t;
+      t.Resume();
       std::vector<DataTransfer> xfer(1);
       xfer[0].data_ = params.data();
       xfer[0].data_size_ = params.size();
@@ -217,6 +230,9 @@ class Server : public TaskLib {
       data.ptr_ = nullptr;
       RpcExec(req, state_id, method, task_addr, replica, ret_domain,
               xfer, data, orig_task, exec);
+      t.Pause();
+      HILOG(kInfo, "(node {}) Processed small message in {} usec",
+              HRUN_CLIENT->node_id_, t.GetUsec());
     } catch (hshm::Error &e) {
       HELOG(kError, "(node {}) Worker {} caught an error: {}", HRUN_CLIENT->node_id_, id_, e.what());
     } catch (std::exception &e) {
@@ -305,6 +321,7 @@ class Server : public TaskLib {
     // for things like long-running monitoring tasks.
     orig_task->UnsetFireAndForget();
     orig_task->UnsetStarted();
+    orig_task->UnsetSignalComplete();
     orig_task->UnsetBlocked();
     orig_task->UnsetDataOwner();
     orig_task->UnsetLongRunning();
@@ -422,7 +439,6 @@ class Server : public TaskLib {
         }
         Worker &worker = HRUN_WORK_ORCHESTRATOR->GetWorker(
             task->ctx_.worker_id_);
-        task->ctx_.pending_to_ = task;
         LPointer<Task> task_ptr;
         task_ptr.ptr_ = task;
         task_ptr.shm_ = HERMES_MEMORY_MANAGER->Convert(task);

@@ -10,8 +10,8 @@ pkgs:
     pkg_name: chimaera_latency_bench
     nprocs: 1
     ppn: 16
-    depth: 0
-    ops: 16k
-    async: true
+    depth: 6
+    ops: 1k
+    async: false
     do_dbg: false
     dbg_port: 4001

@@ -27,8 +27,8 @@ void WorkOrchestrator::ServerInit(ServerConfig *config, QueueManager &qm) {
   int worker_id = 0;
   // Spawn dedicated workers (dworkers)
   u32 num_dworkers = config_->wo_.max_dworkers_;
+  int cpu_id = 0;
   for (; worker_id < num_dworkers; ++worker_id) {
-    int cpu_id = worker_id;
     ABT_xstream xstream = MakeXstream();
     workers_.emplace_back(std::make_unique<Worker>(
         worker_id, cpu_id, xstream));
@@ -36,23 +36,39 @@ void WorkOrchestrator::ServerInit(ServerConfig *config, QueueManager &qm) {
     worker.EnableContinuousPolling();
     worker.SetLowLatency();
     dworkers_.emplace_back(&worker);
+    ++cpu_id;
   }
   // Spawn overlapped workers (oworkers)
   for (size_t i = 0; i < num_workers - worker_id; ++worker_id) {
     ABT_xstream xstream;
     if (i % config->wo_.owork_per_core_ == 0) {
       xstream = MakeXstream();
+      ++cpu_id;
     }
-    int cpu_id = (int)(num_dworkers + (worker_id - num_dworkers) / config->wo_.owork_per_core_);
-    workers_.emplace_back(std::make_unique<Worker>(worker_id, cpu_id, xstream));
+    workers_.emplace_back(
+        std::make_unique<Worker>(worker_id, cpu_id, xstream));
     Worker &worker = *workers_.back();
     worker.DisableContinuousPolling();
     worker.SetHighLatency();
     oworkers_.emplace_back(&worker);
-    ++worker_id;
   }
   stop_runtime_ = false;
   kill_requested_ = false;
+  // Create RPC worker threads
+  rpc_pool_ = tl::pool::create(tl::pool::access::mpmc);
+  ++cpu_id;
+  for(int i = 0; i < HRUN_RPC->num_threads_; i++) {
+    tl::managed<tl::xstream> es
+        = tl::xstream::create(tl::scheduler::predef::deflt, *rpc_pool_);
+    es->set_cpubind(cpu_id);
+    rpc_xstreams_.push_back(std::move(es));
+    ++cpu_id;
+    if (cpu_id > HERMES_SYSTEM_INFO->ncpu_) {
+      cpu_id = num_dworkers + 1;
+    }
+  }
+  HILOG(kInfo, "Worker created RPC pool with {} threads",
+        HRUN_RPC->num_threads_)
 
   // Wait for pids to become non-zero
   while (true) {

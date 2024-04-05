@@ -44,7 +44,7 @@ class ThalliumRpc {
     HILOG(kInfo, "Attempting to start server on: {}", addr);
     try {
       server_engine_ = std::make_unique<tl::engine>(
-          addr, THALLIUM_SERVER_MODE, true, rpc->num_threads_);
+          addr, THALLIUM_SERVER_MODE);
     } catch (std::exception &e) {
       HELOG(kFatal, "RPC init failed for host: {}\n{}", addr, e.what());
     }
@@ -114,8 +114,8 @@ class ThalliumRpc {
 
   /** Register an RPC with thallium */
   template<typename RpcLambda>
-  void RegisterRpc(const char *name, RpcLambda &&lambda) {
-    server_engine_->define(name, std::forward<RpcLambda>(lambda));
+  void RegisterRpc(tl::pool &pool, const char *name, RpcLambda &&lambda) {
+    server_engine_->define(name, std::forward<RpcLambda>(lambda), 0, pool);
   }
 
   /** RPC call */

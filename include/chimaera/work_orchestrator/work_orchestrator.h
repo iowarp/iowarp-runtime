@@ -30,6 +30,10 @@ class WorkOrchestrator {
   std::vector<Worker*> oworkers_;   /**< Undedicated workers */
   std::atomic<bool> stop_runtime_;  /**< Begin killing the runtime */
   std::atomic<bool> kill_requested_;  /**< Kill flushing threads eventually */
+  std::vector<tl::managed<tl::xstream>>
+    rpc_xstreams_;  /**< RPC streams */
+  tl::managed<tl::pool> rpc_pool_;  /**< RPC pool */
+
 
  public:
   /** Default constructor */
@@ -75,6 +79,11 @@ class WorkOrchestrator {
   HSHM_ALWAYS_INLINE
   bool IsRuntimeAlive() {
     return !stop_runtime_.load();
+  }
+
+  /** Set the CPU affinity of this worker */
+  int SetCpuAffinity(ABT_xstream &xstream, int cpu_id) {
+    return ABT_xstream_set_affinity(xstream, 1, &cpu_id);
   }
 
   /** Make an xstream */

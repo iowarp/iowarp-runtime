@@ -91,6 +91,9 @@ class RpcContext {
 
   /** get RPC address */
   std::string GetRpcAddress(const DomainId &domain_id, int port) {
+    if (config_->rpc_.protocol_ == "shm") {
+      return "shm";
+    }
     std::string result = config_->rpc_.protocol_ + "://";
     if (!config_->rpc_.domain_.empty()) {
       result += config_->rpc_.domain_ + "/";

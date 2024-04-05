@@ -93,10 +93,10 @@ class ChimaeraRun(Service):
                 'rank': 1,
             },
             {
-                'name': 'threads',
+                'name': 'rpc_threads',
                 'msg': 'the number of rpc threads to create',
                 'type': int,
-                'default': 32,
+                'default': 4,
                 'class': 'communication',
                 'rank': 1,
             },
@@ -231,7 +231,7 @@ class ChimaeraRun(Service):
             'protocol': protocol,
             'domain': domain,
             'port': self.config['port'],
-            'num_threads': self.config['threads']
+            'num_threads': self.config['rpc_threads']
         }
         if self.hostfile.path is None:
             chimaera_server['rpc']['host_names'] = self.hostfile.hosts

@@ -371,23 +371,22 @@ class PrivateTaskMultiQueue {
     blocked_.emplace(entry, entry.task_->ctx_.pending_key_);
   }
 
-  void signal_complete(PrivateTaskMultiQueue &worker_pending,
-                       LPointer<Task> &done_task) {
-    worker_pending.GetCompletion().emplace(done_task);
+  void signal_unblock(PrivateTaskMultiQueue &worker_pending,
+                       LPointer<Task> &unblock_task) {
+    worker_pending.GetCompletion().emplace(unblock_task);
   }
 
-  bool process_complete() {
-    LPointer<Task> done_task;
-    if (GetCompletion().pop(done_task).IsNull()) {
+  bool unblock() {
+    LPointer<Task> blocked_task;
+    if (GetCompletion().pop(blocked_task).IsNull()) {
       return false;
     }
     PrivateTaskQueueEntry entry;
-    Task *pending = (Task*)done_task->ctx_.pending_to_;
-    blocked_.pop(pending->ctx_.pending_key_, entry);
-    if (entry.task_.ptr_ != pending) {
+    blocked_.pop(blocked_task->ctx_.pending_key_, entry);
+    if (blocked_task.ptr_ == nullptr) {
       return true;
     }
-    pending->UnsetBlocked();
+    blocked_task->UnsetBlocked();
     push<true>(entry);
     return true;
   }
@@ -741,7 +740,7 @@ class Worker {
 
   /** Process completion events */
   void ProcessCompletions() {
-    while (active_.process_complete());
+    while (active_.unblock());
   }
 
   /** Poll the set of tasks in the private queue */
@@ -805,18 +804,19 @@ class Worker {
 
   /** Externally signal a task as complete */
   HSHM_ALWAYS_INLINE
-  void SignalComplete(LPointer<Task> &task) {
-    PrivateTaskMultiQueue &pending = GetPendingQueue(task.ptr_);
-    pending.signal_complete(active_, task);
+  void SignalComplete(LPointer<Task> &unblock_task) {
+    PrivateTaskMultiQueue &pending = GetPendingQueue(unblock_task.ptr_);
+    pending.signal_unblock(pending, unblock_task);
   }
 
   /** Free a task when it is no longer needed */
   HSHM_ALWAYS_INLINE
   void EndTask(TaskState *exec, LPointer<Task> &task) {
     if (task->ShouldSignalComplete()) {
-      Task *active_to = (Task*)task->ctx_.pending_to_;
-      active_.signal_complete(GetPendingQueue(active_to),
-                              task);
+      LPointer<Task> pending_to;
+      pending_to.ptr_ = (Task*)task->ctx_.pending_to_;
+      pending_to.shm_ = HERMES_MEMORY_MANAGER->Convert(pending_to.ptr_);
+      SignalComplete(pending_to);
     } else if (task->ShouldSignalRemoteComplete()) {
       TaskState *remote_exec = GetTaskState(HRUN_REMOTE_QUEUE->id_);
       remote_exec->Run(chm::remote_queue::Method::kPushComplete,
