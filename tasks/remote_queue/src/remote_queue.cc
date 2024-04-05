@@ -326,7 +326,7 @@ class Server : public TaskLib {
     // NOTE(llogan): Remote tasks are executed to completion and
     // return values sent back to the remote host. This is
     // for things like long-running monitoring tasks.
-    orig_task->UnsetFireAndForget();
+    orig_task->SetFireAndForget();
     orig_task->UnsetStarted();
     orig_task->UnsetSignalComplete();
     orig_task->UnsetBlocked();
@@ -382,7 +382,7 @@ class Server : public TaskLib {
       HRUN_CLIENT->FreeBuffer(data);
     }
     HILOG(kInfo, "(node {}) Returning replica output of task (task_node={}, task_state={}, method={})"
-                 "to remote domain {}",
+                 " to remote domain {}",
           HRUN_CLIENT->node_id_,
           orig_task->task_node_,
           orig_task->task_state_,
@@ -399,7 +399,6 @@ class Server : public TaskLib {
                                   task_addr,
                                   replica,
                                   ret);
-    exec->Del(orig_task->method_, orig_task);
   }
 
   /** Handle return of RpcComplete */
