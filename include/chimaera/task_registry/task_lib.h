@@ -82,7 +82,10 @@ class TaskLib {
   virtual std::vector<DataTransfer> SaveEnd(u32 method, BinaryOutputArchive<false> &ar, Task *task) = 0;
 
   /** Deserialize a task when returning from remote queue */
-  virtual TaskPointer LoadEnd(u32 method, BinaryInputArchive<false> &ar) = 0;
+  virtual void LoadEnd(u32 method, BinaryInputArchive<false> &ar, Task *task) = 0;
+
+  /** Deserialize a task when returning from remote queue */
+  virtual TaskPointer LoadReplicaEnd(u32 method, BinaryInputArchive<false> &ar) = 0;
 };
 
 /** Represents a TaskLib in action */

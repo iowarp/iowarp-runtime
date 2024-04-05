@@ -376,7 +376,52 @@ std::vector<DataTransfer> SaveEnd(u32 method, BinaryOutputArchive<false> &ar, Ta
   return ar.Get();
 }
 /** Deserialize a task when popping from remote queue */
-TaskPointer LoadEnd(u32 method, BinaryInputArchive<false> &ar) override {
+void LoadEnd(u32 method, BinaryInputArchive<false> &ar, Task *task) override {
+  switch (method) {
+    case Method::kCreateTaskState: {
+      ar >> *reinterpret_cast<CreateTaskStateTask*>(task);
+      break;
+    }
+    case Method::kDestroyTaskState: {
+      ar >> *reinterpret_cast<DestroyTaskStateTask*>(task);
+      break;
+    }
+    case Method::kRegisterTaskLib: {
+      ar >> *reinterpret_cast<RegisterTaskLibTask*>(task);
+      break;
+    }
+    case Method::kDestroyTaskLib: {
+      ar >> *reinterpret_cast<DestroyTaskLibTask*>(task);
+      break;
+    }
+    case Method::kGetOrCreateTaskStateId: {
+      ar >> *reinterpret_cast<GetOrCreateTaskStateIdTask*>(task);
+      break;
+    }
+    case Method::kGetTaskStateId: {
+      ar >> *reinterpret_cast<GetTaskStateIdTask*>(task);
+      break;
+    }
+    case Method::kStopRuntime: {
+      ar >> *reinterpret_cast<StopRuntimeTask*>(task);
+      break;
+    }
+    case Method::kSetWorkOrchQueuePolicy: {
+      ar >> *reinterpret_cast<SetWorkOrchQueuePolicyTask*>(task);
+      break;
+    }
+    case Method::kSetWorkOrchProcPolicy: {
+      ar >> *reinterpret_cast<SetWorkOrchProcPolicyTask*>(task);
+      break;
+    }
+    case Method::kFlush: {
+      ar >> *reinterpret_cast<FlushTask*>(task);
+      break;
+    }
+  }
+}
+/** Deserialize a task when popping from remote queue */
+TaskPointer LoadReplicaEnd(u32 method, BinaryInputArchive<false> &ar) override {
   TaskPointer task_ptr;
   switch (method) {
     case Method::kCreateTaskState: {

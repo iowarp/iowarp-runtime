@@ -790,7 +790,9 @@ class Worker {
         GetTaskProperties(task.ptr_, exec, cur_time_,
                           lane_id, flushing);
     // Execute the task based on its properties
-    ExecTask(lane_info, task.ptr_, rctx, exec, props);
+    if (!task->IsModuleComplete()) {
+      ExecTask(lane_info, task.ptr_, rctx, exec, props);
+    }
     // Cleanup allocations
     if (task->IsModuleComplete()) {
       active_.erase(queue.id_);
@@ -815,6 +817,10 @@ class Worker {
       Task *active_to = (Task*)task->ctx_.pending_to_;
       active_.signal_complete(GetPendingQueue(active_to),
                               task);
+    } else if (task->ShouldSignalRemoteComplete()) {
+      TaskState *remote_exec = GetTaskState(HRUN_REMOTE_QUEUE->id_);
+      remote_exec->Run(chm::remote_queue::Method::kPushComplete,
+                       task.ptr_, task->ctx_);
     }
     if (exec && task->IsFireAndForget()) {
       exec->Del(task->method_, task.ptr_);

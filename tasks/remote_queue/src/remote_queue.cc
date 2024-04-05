@@ -305,8 +305,10 @@ class Server : public TaskLib {
     // for things like long-running monitoring tasks.
     orig_task->UnsetFireAndForget();
     orig_task->UnsetStarted();
+    orig_task->UnsetBlocked();
     orig_task->UnsetDataOwner();
     orig_task->UnsetLongRunning();
+    orig_task->UnsetRemote();
     orig_task->SetSignalRemoteComplete();
     orig_task->task_flags_.SetBits(TASK_REMOTE_DEBUG_MARK);
 
@@ -390,8 +392,12 @@ class Server : public TaskLib {
       TaskState *exec = HRUN_TASK_REGISTRY->GetTaskState(
           task->task_state_);
       RemoteInfo *remote = (RemoteInfo*)task->ctx_.remote_;
-      remote->replicas_[replica] = 
-          exec->LoadEnd(task->method_, ar);
+      if (remote->rep_max_ == 1) {
+        exec->LoadEnd(task->method_, ar, task);
+      } else {
+        remote->replicas_[replica] =
+            exec->LoadReplicaEnd(task->method_, ar);
+      }
       HILOG(kDebug, "Handled replica output for task "
                     "(task_node={}, task_state={}, method={}, "
                     "rep={}, num_reps={})",
@@ -402,11 +408,12 @@ class Server : public TaskLib {
             remote->rep_max_);
       remote->rep_cnt_ += 1;
       if (remote->rep_cnt_.load() == remote->rep_max_) {
-        // TODO(llogan): Signal unblock to worker
-        exec->Monitor(MonitorMode::kReplicaAgg, task, task->ctx_);
-        for (LPointer<Task> &replica : remote->replicas_) {
-          if (replica.ptr_ != nullptr) {
-            exec->Del(task->method_, replica.ptr_);
+        if (remote->rep_max_ > 1) {
+          exec->Monitor(MonitorMode::kReplicaAgg, task, task->ctx_);
+          for (LPointer<Task> &replica : remote->replicas_) {
+            if (replica.ptr_ != nullptr) {
+              exec->Del(task->method_, replica.ptr_);
+            }
           }
         }
         delete remote;

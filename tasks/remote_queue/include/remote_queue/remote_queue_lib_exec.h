@@ -178,7 +178,28 @@ std::vector<DataTransfer> SaveEnd(u32 method, BinaryOutputArchive<false> &ar, Ta
   return ar.Get();
 }
 /** Deserialize a task when popping from remote queue */
-TaskPointer LoadEnd(u32 method, BinaryInputArchive<false> &ar) override {
+void LoadEnd(u32 method, BinaryInputArchive<false> &ar, Task *task) override {
+  switch (method) {
+    case Method::kConstruct: {
+      ar >> *reinterpret_cast<ConstructTask*>(task);
+      break;
+    }
+    case Method::kDestruct: {
+      ar >> *reinterpret_cast<DestructTask*>(task);
+      break;
+    }
+    case Method::kPush: {
+      ar >> *reinterpret_cast<PushTask*>(task);
+      break;
+    }
+    case Method::kPushComplete: {
+      ar >> *reinterpret_cast<PushCompleteTask*>(task);
+      break;
+    }
+  }
+}
+/** Deserialize a task when popping from remote queue */
+TaskPointer LoadReplicaEnd(u32 method, BinaryInputArchive<false> &ar) override {
   TaskPointer task_ptr;
   switch (method) {
     case Method::kConstruct: {

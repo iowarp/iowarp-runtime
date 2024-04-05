@@ -100,6 +100,7 @@ struct MdTask : public Task, TaskFlags<TF_SRL_SYM | TF_REPLICA> {
   template<typename Ar>
   void SerializeStart(Ar &ar) {
     task_serialize<Ar>(ar);
+    ar(depth_);
   }
 
   /** (De)serialize message return */
