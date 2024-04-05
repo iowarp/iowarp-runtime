@@ -81,6 +81,29 @@ struct PushTask : public Task, TaskFlags<TF_LOCAL> {
            TaskStateId &state_id) : Task(alloc) {}
 };
 
+struct ProcessTask : public Task, TaskFlags<TF_LOCAL> {
+  /** SHM default constructor */
+  HSHM_ALWAYS_INLINE explicit
+  ProcessTask(hipc::Allocator *alloc) : Task(alloc) {}
+
+  /** Emplace constructor */
+  HSHM_ALWAYS_INLINE explicit
+  ProcessTask(hipc::Allocator *alloc,
+              const TaskNode &task_node,
+              const DomainId &domain_id,
+              TaskStateId &state_id) : Task(alloc) {
+    // Initialize task
+    task_node_ = task_node;
+    lane_hash_ = 0;
+    prio_ = TaskPrio::kLongRunning;
+    task_state_ = state_id;
+    method_ = Method::kProcess;
+    task_flags_.SetBits(TASK_LONG_RUNNING | TASK_COROUTINE);
+    domain_id_ = domain_id;
+    SetPeriodUs(15);
+  }
+};
+
 struct PushCompleteTask : public Task, TaskFlags<TF_LOCAL> {
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit

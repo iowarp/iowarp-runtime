@@ -16,6 +16,10 @@ void Run(u32 method, Task *task, RunContext &rctx) override {
       Push(reinterpret_cast<PushTask *>(task), rctx);
       break;
     }
+    case Method::kProcess: {
+      Process(reinterpret_cast<ProcessTask *>(task), rctx);
+      break;
+    }
     case Method::kPushComplete: {
       PushComplete(reinterpret_cast<PushCompleteTask *>(task), rctx);
       break;
@@ -35,6 +39,10 @@ void Monitor(u32 mode, Task *task, RunContext &rctx) override {
     }
     case Method::kPush: {
       MonitorPush(mode, reinterpret_cast<PushTask *>(task), rctx);
+      break;
+    }
+    case Method::kProcess: {
+      MonitorProcess(mode, reinterpret_cast<ProcessTask *>(task), rctx);
       break;
     }
     case Method::kPushComplete: {
@@ -58,6 +66,10 @@ void Del(u32 method, Task *task) override {
       HRUN_CLIENT->DelTask<PushTask>(reinterpret_cast<PushTask *>(task));
       break;
     }
+    case Method::kProcess: {
+      HRUN_CLIENT->DelTask<ProcessTask>(reinterpret_cast<ProcessTask *>(task));
+      break;
+    }
     case Method::kPushComplete: {
       HRUN_CLIENT->DelTask<PushCompleteTask>(reinterpret_cast<PushCompleteTask *>(task));
       break;
@@ -77,6 +89,10 @@ void CopyStart(u32 method, Task *orig_task, std::vector<LPointer<Task>> &dups) o
     }
     case Method::kPush: {
       chm::CALL_COPY_START(reinterpret_cast<PushTask*>(orig_task), dups);
+      break;
+    }
+    case Method::kProcess: {
+      chm::CALL_COPY_START(reinterpret_cast<ProcessTask*>(orig_task), dups);
       break;
     }
     case Method::kPushComplete: {
@@ -100,6 +116,10 @@ void CopyEnd(u32 method, Task *orig_task, Task *dup_task) override {
       chm::CALL_COPY_END(reinterpret_cast<PushTask*>(orig_task), reinterpret_cast<PushTask*>(dup_task));
       break;
     }
+    case Method::kProcess: {
+      chm::CALL_COPY_END(reinterpret_cast<ProcessTask*>(orig_task), reinterpret_cast<ProcessTask*>(dup_task));
+      break;
+    }
     case Method::kPushComplete: {
       chm::CALL_COPY_END(reinterpret_cast<PushCompleteTask*>(orig_task), reinterpret_cast<PushCompleteTask*>(dup_task));
       break;
@@ -119,6 +139,10 @@ std::vector<DataTransfer> SaveStart(u32 method, BinaryOutputArchive<true> &ar, T
     }
     case Method::kPush: {
       ar << *reinterpret_cast<PushTask*>(task);
+      break;
+    }
+    case Method::kProcess: {
+      ar << *reinterpret_cast<ProcessTask*>(task);
       break;
     }
     case Method::kPushComplete: {
@@ -147,6 +171,11 @@ TaskPointer LoadStart(u32 method, BinaryInputArchive<true> &ar) override {
       ar >> *reinterpret_cast<PushTask*>(task_ptr.ptr_);
       break;
     }
+    case Method::kProcess: {
+      task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<ProcessTask>(task_ptr.shm_);
+      ar >> *reinterpret_cast<ProcessTask*>(task_ptr.ptr_);
+      break;
+    }
     case Method::kPushComplete: {
       task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<PushCompleteTask>(task_ptr.shm_);
       ar >> *reinterpret_cast<PushCompleteTask*>(task_ptr.ptr_);
@@ -170,6 +199,10 @@ std::vector<DataTransfer> SaveEnd(u32 method, BinaryOutputArchive<false> &ar, Ta
       ar << *reinterpret_cast<PushTask*>(task);
       break;
     }
+    case Method::kProcess: {
+      ar << *reinterpret_cast<ProcessTask*>(task);
+      break;
+    }
     case Method::kPushComplete: {
       ar << *reinterpret_cast<PushCompleteTask*>(task);
       break;
@@ -190,6 +223,10 @@ void LoadEnd(u32 method, BinaryInputArchive<false> &ar, Task *task) override {
     }
     case Method::kPush: {
       ar >> *reinterpret_cast<PushTask*>(task);
+      break;
+    }
+    case Method::kProcess: {
+      ar >> *reinterpret_cast<ProcessTask*>(task);
       break;
     }
     case Method::kPushComplete: {
@@ -215,6 +252,11 @@ TaskPointer LoadReplicaEnd(u32 method, BinaryInputArchive<false> &ar) override {
     case Method::kPush: {
       task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<PushTask>(task_ptr.shm_);
       ar >> *reinterpret_cast<PushTask*>(task_ptr.ptr_);
+      break;
+    }
+    case Method::kProcess: {
+      task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<ProcessTask>(task_ptr.shm_);
+      ar >> *reinterpret_cast<ProcessTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kPushComplete: {

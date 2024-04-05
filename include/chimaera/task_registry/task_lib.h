@@ -31,6 +31,7 @@ class MonitorMode {
   TASK_METHOD_T kEstTime = 2;
   TASK_METHOD_T kFlushStat = 3;
   TASK_METHOD_T kReplicaAgg = 4;
+  TASK_METHOD_T kOrder = 5;
 };
 
 /**

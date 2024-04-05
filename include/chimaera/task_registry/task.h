@@ -34,8 +34,8 @@ class TaskLib;
 #define TASK_SIGNAL_REMOTE_COMPLETE BIT_OPT(u32, 4)
 /** This task makes system calls and may hurt caching */
 #define TASK_SYSCALL BIT_OPT(u32, 5)
-/** This task does not depend on state */
-#define TASK_STATELESS BIT_OPT(u32, 6)
+/** This task supports merging */
+#define TASK_MERGE BIT_OPT(u32, 6)
 /** This task does not depend on its position in the queue */
 #define TASK_UNORDERED BIT_OPT(u32, 7)
 /** This task has began execution */

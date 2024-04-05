@@ -888,6 +888,10 @@ class Worker {
                        task, rctx);
       task->SetBlocked();
     } else if (task->IsLaneAll()) {
+//      TaskState *remote_exec = GetTaskState(HRUN_REMOTE_QUEUE->id_);
+//      remote_exec->Run(chm::remote_queue::Method::kPush,
+//                       task, rctx);
+//      task->SetBlocked();
     } else if (task->IsCoroutine()) {
       ExecCoroutine(task, rctx);
     } else {

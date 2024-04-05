@@ -35,6 +35,8 @@ struct RemoteInfo {
 
 class Server : public TaskLib {
  public:
+
+ public:
   Server() = default;
 
   /** Construct remote queue */
@@ -131,9 +133,14 @@ class Server : public TaskLib {
     } catch (...) {
       HELOG(kError, "(node {}) Worker {} caught an unknown exception", HRUN_CLIENT->node_id_, id_);
     }
-    task->SetBlocked();
   }
   void MonitorPush(u32 mode, PushTask *task, RunContext &rctx) {
+  }
+
+  /** Push operation called on client */
+  void Process(ProcessTask *task, RunContext &rctx) {
+  }
+  void MonitorProcess(u32 mode, ProcessTask *task, RunContext &rctx) {
   }
 
  private:
