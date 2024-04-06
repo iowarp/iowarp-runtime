@@ -15,5 +15,6 @@
 #include "chimaera_admin/chimaera_admin.h"
 
 TEST_CASE("TestFinalize") {
+  CHIMAERA_CLIENT_INIT();
   CHM_ADMIN->StopRuntimeRoot();
 }

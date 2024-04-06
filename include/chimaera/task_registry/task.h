@@ -478,6 +478,36 @@ struct Task : public hipc::ShmContainer {
   }
 
   /** Mark this task as remote */
+  HSHM_ALWAYS_INLINE void SetRead() {
+    task_flags_.SetBits(TASK_READ);
+  }
+
+  /** Check if task is remote */
+  HSHM_ALWAYS_INLINE bool IsRead() {
+    return task_flags_.Any(TASK_READ);
+  }
+
+  /** Unset remote */
+  HSHM_ALWAYS_INLINE void UnsetRead() {
+    task_flags_.UnsetBits(TASK_READ);
+  }
+
+  /** Mark this task as remote */
+  HSHM_ALWAYS_INLINE void SetWrite() {
+    task_flags_.SetBits(TASK_WRITE);
+  }
+
+  /** Check if task is remote */
+  HSHM_ALWAYS_INLINE bool IsWrite() {
+    return task_flags_.Any(TASK_WRITE);
+  }
+
+  /** Unset remote */
+  HSHM_ALWAYS_INLINE void UnsetWrite() {
+    task_flags_.UnsetBits(TASK_WRITE);
+  }
+
+  /** Mark this task as remote */
   HSHM_ALWAYS_INLINE void SetRemote() {
     task_flags_.SetBits(TASK_REMOTE);
   }
@@ -577,6 +607,10 @@ struct Task : public hipc::ShmContainer {
   /**====================================
    * Default Constructor
    * ===================================*/
+
+  /** Default constructor */
+  HSHM_ALWAYS_INLINE explicit
+  Task(int) {}
 
   /** Default SHM constructor */
   HSHM_ALWAYS_INLINE explicit

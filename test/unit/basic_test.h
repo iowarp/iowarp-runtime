@@ -46,9 +46,6 @@ static inline bool CompareBuffers(char *p1, size_t s1, char *p2, size_t s2,
   return true;
 }
 
-void MainPretest();
-void MainPosttest();
-
 #define PAGE_DIVIDE(TEXT)
 
 #endif  // HRUN_TEST_UNIT_BASIC_TEST_H_

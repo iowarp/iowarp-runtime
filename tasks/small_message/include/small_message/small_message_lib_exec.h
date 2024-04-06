@@ -107,7 +107,7 @@ void CopyEnd(u32 method, Task *orig_task, Task *dup_task) override {
   }
 }
 /** Serialize a task when initially pushing into remote */
-std::vector<DataTransfer> SaveStart(u32 method, BinaryOutputArchive<true> &ar, Task *task) override {
+void SaveStart(u32 method, BinaryOutputArchive<true> &ar, Task *task) override {
   switch (method) {
     case Method::kConstruct: {
       ar << *reinterpret_cast<ConstructTask*>(task);
@@ -126,7 +126,6 @@ std::vector<DataTransfer> SaveStart(u32 method, BinaryOutputArchive<true> &ar, T
       break;
     }
   }
-  return ar.Get();
 }
 /** Deserialize a task when popping from remote queue */
 TaskPointer LoadStart(u32 method, BinaryInputArchive<true> &ar) override {
@@ -156,7 +155,7 @@ TaskPointer LoadStart(u32 method, BinaryInputArchive<true> &ar) override {
   return task_ptr;
 }
 /** Serialize a task when returning from remote queue */
-std::vector<DataTransfer> SaveEnd(u32 method, BinaryOutputArchive<false> &ar, Task *task) override {
+void SaveEnd(u32 method, BinaryOutputArchive<false> &ar, Task *task) override {
   switch (method) {
     case Method::kConstruct: {
       ar << *reinterpret_cast<ConstructTask*>(task);
@@ -175,7 +174,6 @@ std::vector<DataTransfer> SaveEnd(u32 method, BinaryOutputArchive<false> &ar, Ta
       break;
     }
   }
-  return ar.Get();
 }
 /** Deserialize a task when popping from remote queue */
 void LoadEnd(u32 method, BinaryInputArchive<false> &ar, Task *task) override {

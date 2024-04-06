@@ -21,9 +21,7 @@ int main(int argc, char **argv) {
   session.cli(cli);
   rc = session.applyCommandLine(argc, argv);
   if (rc != 0) return rc;
-  MainPretest();
   rc = session.run();
-  MainPosttest();
   if (rc != 0) return rc;
   MPI_Finalize();
   return rc;

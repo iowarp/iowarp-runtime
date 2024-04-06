@@ -52,7 +52,6 @@ struct RegisterTaskLibTaskTempl : public Task, TaskFlags<TF_SRL_SYM> {
   /** (De)serialize message call */
   template<typename Ar>
   void SerializeStart(Ar &ar) {
-    task_serialize<Ar>(ar);
     ar(lib_name_);
   }
 
@@ -120,7 +119,6 @@ struct GetOrCreateTaskStateIdTask : public Task, TaskFlags<TF_SRL_SYM> {
   /** (De)serialize message call */
   template<typename Ar>
   void SerializeStart(Ar &ar) {
-    task_serialize<Ar>(ar);
     ar(state_name_);
   }
 
@@ -197,7 +195,6 @@ struct CreateTaskStateTask : public Task, TaskFlags<TF_SRL_SYM | TF_REPLICA> {
   /** (De)serialize message call */
   template<typename Ar>
   void SerializeStart(Ar &ar) {
-    task_serialize<Ar>(ar);
     ar(lib_name_, state_name_, id_, queue_info_, custom_);
   }
 
@@ -253,7 +250,6 @@ struct GetTaskStateIdTask : public Task, TaskFlags<TF_SRL_SYM> {
   /** (De)serialize message call */
   template<typename Ar>
   void SerializeStart(Ar &ar) {
-    task_serialize<Ar>(ar);
     ar(state_name_);
   }
 
@@ -300,7 +296,6 @@ struct DestroyTaskStateTask : public Task, TaskFlags<TF_SRL_SYM> {
   /** (De)serialize message call */
   template<typename Ar>
   void SerializeStart(Ar &ar) {
-    task_serialize<Ar>(ar);
     ar & id_;
   }
 
@@ -339,7 +334,6 @@ struct StopRuntimeTask : public Task, TaskFlags<TF_SRL_SYM> {
   /** (De)serialize message call */
   template<typename Ar>
   void SerializeStart(Ar &ar) {
-    task_serialize<Ar>(ar);
   }
 
   /** (De)serialize message return */
@@ -389,7 +383,6 @@ struct SetWorkOrchestratorPolicyTask : public Task, TaskFlags<TF_SRL_SYM> {
   /** (De)serialize message call */
   template<typename Ar>
   void SerializeStart(Ar &ar) {
-    task_serialize<Ar>(ar);
     ar(policy_id_);
   }
 
@@ -440,7 +433,6 @@ struct FlushTask : public Task, TaskFlags<TF_SRL_SYM | TF_REPLICA> {
   /** (De)serialize message call */
   template<typename Ar>
   void SerializeStart(Ar &ar) {
-    task_serialize<Ar>(ar);
   }
 
   /** (De)serialize message return */

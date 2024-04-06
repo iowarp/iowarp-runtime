@@ -96,7 +96,6 @@ struct CustomTask : public Task, TaskFlags<TF_SRL_SYM> {
   /** (De)serialize message call */
   template<typename Ar>
   void SerializeStart(Ar &ar) {
-    task_serialize<Ar>(ar);
   }
 
   /** (De)serialize message return */

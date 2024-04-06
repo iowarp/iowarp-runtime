@@ -16,8 +16,8 @@
 #include <dlfcn.h>
 #include "chimaera/chimaera_types.h"
 #include "chimaera/queue_manager/queue_factory.h"
-#include "chimaera/network/serialize.h"
 #include "task.h"
+#include "chimaera/network/serialize.h"
 
 namespace chm {
 
@@ -74,13 +74,13 @@ class TaskLib {
   virtual void CopyEnd(u32 method, Task *orig_task, Task *dup_task) = 0;
 
   /** Serialize a task when initially pushing into remote */
-  virtual std::vector<DataTransfer> SaveStart(u32 method, BinaryOutputArchive<true> &ar, Task *task) = 0;
+  virtual void SaveStart(u32 method, BinaryOutputArchive<true> &ar, Task *task) = 0;
 
   /** Deserialize a task when popping from remote queue */
   virtual TaskPointer LoadStart(u32 method, BinaryInputArchive<true> &ar) = 0;
 
   /** Serialize a task when returning from remote queue */
-  virtual std::vector<DataTransfer> SaveEnd(u32 method, BinaryOutputArchive<false> &ar, Task *task) = 0;
+  virtual void SaveEnd(u32 method, BinaryOutputArchive<false> &ar, Task *task) = 0;
 
   /** Deserialize a task when returning from remote queue */
   virtual void LoadEnd(u32 method, BinaryInputArchive<false> &ar, Task *task) = 0;

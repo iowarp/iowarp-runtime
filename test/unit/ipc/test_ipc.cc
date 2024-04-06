@@ -21,6 +21,8 @@
 #include "omp.h"
 
 TEST_CASE("TestIpc") {
+  CHIMAERA_CLIENT_INIT();
+
   int rank, nprocs;
   MPI_Barrier(MPI_COMM_WORLD);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -60,6 +62,8 @@ TEST_CASE("TestIpc") {
 }
 
 TEST_CASE("TestAsyncIpc") {
+  CHIMAERA_CLIENT_INIT();
+
   int rank, nprocs;
   MPI_Barrier(MPI_COMM_WORLD);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -97,6 +101,8 @@ TEST_CASE("TestAsyncIpc") {
 }
 
 TEST_CASE("TestFlush") {
+  CHIMAERA_CLIENT_INIT();
+
   int rank, nprocs;
   MPI_Barrier(MPI_COMM_WORLD);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -128,6 +134,8 @@ TEST_CASE("TestFlush") {
 }
 
 void TestIpcMultithread(int nprocs) {
+  CHIMAERA_CLIENT_INIT();
+
   chm::small_message::Client client;
   CHM_ADMIN->RegisterTaskLibRoot(chm::DomainId::GetGlobal(), "small_message");
   client.CreateRoot(chm::DomainId::GetGlobal(), "ipc_test");
@@ -171,6 +179,7 @@ TEST_CASE("TestIpcMultithread32") {
 }
 
 TEST_CASE("TestIO") {
+  CHIMAERA_CLIENT_INIT();
   int rank, nprocs;
   MPI_Barrier(MPI_COMM_WORLD);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);

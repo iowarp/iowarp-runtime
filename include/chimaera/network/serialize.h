@@ -15,15 +15,24 @@
 
 #include "chimaera/chimaera_types.h"
 #include "chimaera/task_registry/task.h"
+#include "chimaera/api/chimaera_client.h"
 #include <sstream>
 
 namespace chm {
 
-/** Receiver will read from data_ */
+/**
+ * Sender writes to data_
+ * Receiver reads from data_
+ * */
 #define DT_RECEIVER_READ BIT_OPT(u32, 0)
+#define DT_SENDER_WRITE BIT_OPT(u32, 0)
 
-/** Receiver will write to data_ */
+/**
+ * Receiver will write to data_
+ * Sender reads from data_
+ * */
 #define DT_RECEIVER_WRITE BIT_OPT(u32, 1)
+#define DT_SENDER_READ BIT_OPT(u32, 1)
 
 /** Free data_ when the data transfer is complete */
 #define DT_FREE_DATA BIT_OPT(u32, 2)
@@ -38,7 +47,7 @@ struct DataTransferBase {
 
   /** Serialize a data transfer object */
   template<typename Ar>
-  void serialize(Ar &ar) const {
+  void serialize(Ar &ar) {
     ar(flags_, (size_t)data_, data_size_, node_id_);
   }
 
@@ -78,34 +87,97 @@ struct DataTransferBase {
   }
 };
 
-/** A sized data pointer indicating data I/O direction */
-struct DataPointer {
-  hshm::bitfield32_t flags_;  /**< Indicates how data will be accessed */
-  hipc::Pointer data_;        /**< The SHM address of data on the node */
-  size_t data_size_;          /**< The amount of data to transfer */
-};
-
 using DataTransfer = DataTransferBase<true>;
 using PassDataTransfer = DataTransferBase<false>;
 
-/** Serialize a data structure */
+class SegmentedTransfer {
+ public:
+  DomainId ret_domain_;                /**< Domain of node to return to */
+  std::vector<std::pair<TaskStateId, u32>> tasks_;  /**< Task info */
+  std::vector<DataTransfer> bulk_[2];   /**< Data payloads */
+  std::string md_;                      /**< Metadata */
+
+  std::string& GetMd() {
+    return md_;
+  }
+
+  void AllocateSegmentsServer() {
+    for (DataTransfer &xfer : bulk_[0]) {
+      xfer.data_ = HRUN_CLIENT->AllocateBufferServer<TASK_YIELD_ABT>(
+          xfer.data_size_).ptr_;
+    }
+    for (DataTransfer &xfer : bulk_[1]) {
+      xfer.data_ = HRUN_CLIENT->AllocateBufferServer<TASK_YIELD_ABT>(
+          xfer.data_size_).ptr_;
+    }
+  }
+
+  size_t size() {
+    size_t size = 0;
+    for (DataTransfer &xfer : bulk_[0]) {
+      size += xfer.data_size_;
+    }
+    for (DataTransfer &xfer : bulk_[1]) {
+      size += xfer.data_size_;
+    }
+    size += md_.size();
+    return size;
+  }
+
+  template<typename Ar>
+  void serialize(Ar &ar) {
+    ar(ret_domain_, tasks_, bulk_[0], bulk_[1], md_);
+  }
+};
+
+/** Serialize a task or task set */
 template<bool is_start>
 class BinaryOutputArchive {
  public:
-  std::vector<DataTransfer> xfer_;
+  SegmentedTransfer xfer_;
   std::stringstream ss_;
   cereal::BinaryOutputArchive ar_;
-  DomainId node_id_;
 
  public:
   /** Default constructor */
-  BinaryOutputArchive(const DomainId &node_id)
-  : node_id_(node_id), ar_(ss_) {}
+  BinaryOutputArchive() : ar_(ss_) {}
 
   /** Serialize using call */
   template<typename T, typename ...Args>
   BinaryOutputArchive& operator()(T &var, Args &&...args) {
     return Serialize(var, std::forward<Args>(args)...);
+  }
+
+  /** Serialize using xfer */
+  BinaryOutputArchive& bulk(u32 flags,
+                            hipc::Pointer &data,
+                            size_t &data_size,
+                            DomainId &node_id) {
+    char *data_ptr = HERMES_MEMORY_MANAGER->Convert<char>(data);
+    bulk(flags, data_ptr, data_size, node_id);
+    return *this;
+  }
+
+  /** Serialize using xfer */
+  template<typename T>
+  BinaryOutputArchive& bulk(u32 flags,
+                            hipc::LPointer<T> &data,
+                            size_t &data_size,
+                            DomainId &node_id) {
+    char *data_ptr = data.ptr_;
+    bulk(flags, data_ptr, data_size, node_id);
+    return *this;
+  }
+
+  /** Serialize using xfer */
+  BinaryOutputArchive& bulk(u32 flags,
+                            char *data,
+                            size_t &data_size,
+                            DomainId &node_id) {
+    int xfer_mode = (flags & DT_RECEIVER_READ) ? 0 : 1;
+    xfer_.bulk_[xfer_mode].emplace_back(
+        (DataTransfer){flags, data, data_size, node_id});
+    return *this;
   }
 
   /** Serialize using left shift */
@@ -145,6 +217,8 @@ class BinaryOutputArchive {
     if constexpr (IS_TASK(T)) {
       if constexpr (IS_SRL(T)) {
         if constexpr (is_start) {
+          xfer_.tasks_.emplace_back(var.task_state_, var.method_);
+          var.template task_serialize<BinaryOutputArchive>((*this));
           if constexpr (USES_SRL_START(T)) {
             var.SerializeStart(*this);
           } else {
@@ -158,15 +232,6 @@ class BinaryOutputArchive {
           }
         }
       }
-    } else if constexpr (std::is_same_v<T, DataTransfer>){
-      var.node_id_ = node_id_;
-      xfer_.emplace_back(var);
-    } else if constexpr(std::is_same_v<T, DataPointer>) {
-      DataTransfer xfer;
-      xfer.flags_ = var.flags_;
-      xfer.data_ = HERMES_MEMORY_MANAGER->Convert<char>(var.data_);
-      xfer.data_size_ = var.size_;
-      xfer_.emplace_back(var);
     } else {
       ar_ << var;
     }
@@ -179,18 +244,8 @@ class BinaryOutputArchive {
   }
 
   /** Get serialized data */
-  std::vector<DataTransfer> Get() {
-    // Serialize metadata parameters
-    std::string str = ss_.str();
-    void *data = nullptr;
-    if (str.size() > 0) {
-      data = malloc(str.size());
-      memcpy(data, str.data(), str.size());
-      ss_.clear();
-    }
-    xfer_.emplace_back(DT_RECEIVER_READ | DT_FREE_DATA, data, str.size(), node_id_);
-
-    // Return transfer buffers
+  SegmentedTransfer Get() {
+    xfer_.md_ = ss_.str();
     return std::move(xfer_);
   }
 };
@@ -199,25 +254,57 @@ class BinaryOutputArchive {
 template<bool is_start>
 class BinaryInputArchive {
  public:
-  std::vector<DataTransfer> xfer_;
+  SegmentedTransfer xfer_;
   std::stringstream ss_;
   cereal::BinaryInputArchive ar_;
   int xfer_off_;
 
  public:
   /** Default constructor */
-  BinaryInputArchive(std::vector<DataTransfer> &xfer)
+  BinaryInputArchive(SegmentedTransfer &xfer)
   : xfer_(std::move(xfer)), xfer_off_(0), ss_(), ar_(ss_) {
-    auto &param_xfer = xfer_.back();
-    ss_.str(std::string((char*)param_xfer.data_, param_xfer.data_size_));
+    ss_.str(xfer_.md_);
   }
 
   /** String constructor */
   BinaryInputArchive(const std::string &params) : ar_(ss_) {
-    xfer_.resize(1);
-    xfer_[0].data_ = (void*)params.data();
-    xfer_[0].data_size_ = params.size();
     ss_.str(params);
+  }
+
+  /** Deserialize using xfer */
+  BinaryInputArchive& bulk(u32 flags,
+                           hipc::Pointer &data,
+                           size_t &data_size,
+                           DomainId &node_id) {
+    char *xfer_data;
+    bulk(flags, xfer_data, data_size, node_id);
+    data = HERMES_MEMORY_MANAGER->Convert<void, hipc::Pointer>(xfer_data);
+    return *this;
+  }
+
+  /** Deserialize using xfer */
+  template<typename T>
+  BinaryInputArchive& bulk(u32 flags,
+                           LPointer<T> &data,
+                           size_t &data_size,
+                           DomainId &node_id) {
+    bulk(flags, (char*&)data.ptr_, data_size, node_id);
+    data.shm_ = HERMES_MEMORY_MANAGER->Convert<void, hipc::Pointer>(
+        data.ptr_);
+    return *this;
+  }
+
+  /** Deserialize using xfer */
+  BinaryInputArchive& bulk(u32 flags,
+                           char *&data,
+                           size_t &data_size,
+                           DomainId &node_id) {
+    int xfer_mode = (flags & DT_RECEIVER_READ) ? 0 : 1;
+    DataTransfer &xfer = xfer_.bulk_[xfer_off_++][xfer_mode];
+    data = (char*)xfer.data_;
+    data_size = xfer.data_size_;
+    node_id = xfer.node_id_;
+    return *this;
   }
 
   /** Deserialize using call */
@@ -251,6 +338,7 @@ class BinaryInputArchive {
     if constexpr (IS_TASK(T)) {
       if constexpr (IS_SRL(T)) {
         if constexpr (is_start) {
+          var.template task_serialize<BinaryInputArchive>((*this));
           if constexpr (USES_SRL_START(T)) {
             var.SerializeStart(*this);
           } else {
@@ -264,13 +352,6 @@ class BinaryInputArchive {
           }
         }
       }
-    } else if constexpr (std::is_same_v<T, DataTransfer>) {
-      var = xfer_[xfer_off_++];
-    } else if constexpr(std::is_same_v<T, DataPointer>) {
-      DataTransfer &xfer = xfer_[xfer_off_++];
-      var.shm_ = HERMES_MEMORY_MANAGER->Convert<char>(xfer.data_);
-      var.size_ = xfer.data_size_;
-      var.flags_ = xfer.flags_;
     } else {
       ar_ >> var;
     }

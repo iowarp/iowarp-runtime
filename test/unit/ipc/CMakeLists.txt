@@ -9,12 +9,10 @@ set(CMAKE_CXX_STANDARD 17)
 
 add_executable(test_ipc_exec
         ${TEST_MAIN}/main_mpi.cc
-        test_init.cc
         test_finalize.cc
         test_ipc.cc
         test_serialize.cc
 )
-
 add_dependencies(test_ipc_exec ${Chimaera_CLIENT_DEPS})
 target_link_libraries(test_ipc_exec
         ${Chimaera_CLIENT_LIBRARIES} Catch2::Catch2 MPI::MPI_CXX OpenMP::OpenMP_CXX)

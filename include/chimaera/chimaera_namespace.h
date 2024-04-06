@@ -29,6 +29,7 @@ using chm::TaskStateId;
 using chm::QueueId;
 using chm::TaskFlags;
 using chm::DataTransfer;
+using chm::SegmentedTransfer;
 using chm::TaskLib;
 using chm::TaskLibClient;
 using chm::config::QueueManagerInfo;

@@ -99,7 +99,6 @@ struct MdTask : public Task, TaskFlags<TF_SRL_SYM | TF_REPLICA> {
   /** (De)serialize message call */
   template<typename Ar>
   void SerializeStart(Ar &ar) {
-    task_serialize<Ar>(ar);
     ar(depth_);
   }
 
@@ -119,7 +118,7 @@ struct MdTask : public Task, TaskFlags<TF_SRL_SYM | TF_REPLICA> {
 /**
  * A custom task in small_message
  * */
-struct IoTask : public Task, TaskFlags<TF_SRL_ASYM_START | TF_SRL_SYM_END> {
+struct IoTask : public Task, TaskFlags<TF_SRL_SYM> {
   IN LPointer<char> data_;
   IN size_t size_;
   OUT int ret_;
@@ -159,21 +158,9 @@ struct IoTask : public Task, TaskFlags<TF_SRL_ASYM_START | TF_SRL_SYM_END> {
 
   /** (De)serialize message call */
   template<typename Ar>
-  void SaveStart(Ar &ar) {
-    DataTransfer xfer(DT_RECEIVER_READ,
-                      data_.ptr_,
-                      size_, domain_id_);
-    task_serialize<Ar>(ar);
-    ar & xfer;
-  }
-
-  /** Deserialize message call */
-  template<typename Ar>
-  void LoadStart(Ar &ar) {
-    DataTransfer xfer;
-    task_serialize<Ar>(ar);
-    ar & xfer;
-    memcpy(data_.ptr_, xfer.data_, xfer.data_size_);
+  void SerializeStart(Ar &ar) {
+    ar.bulk(DT_RECEIVER_READ,
+            data_, size_, domain_id_);
   }
 
   /** (De)serialize message return */
