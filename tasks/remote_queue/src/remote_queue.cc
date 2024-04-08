@@ -68,6 +68,14 @@ class Server : public TaskLib {
         SegmentedTransfer &xfer) {
       this->RpcTaskSubmit(req, bulk, xfer);
     });
+    HRUN_THALLIUM->RegisterRpc(
+        *HRUN_WORK_ORCHESTRATOR->rpc_pool_,
+        "RpcTaskComplete", [this](
+            const tl::request &req,
+            tl::bulk &bulk,
+            SegmentedTransfer &xfer) {
+          this->RpcTaskComplete(req, bulk, xfer);
+        });
     submitters_.resize(max_lanes);
     completers_.resize(max_lanes);
     for (size_t i = 0; i < max_lanes; ++i) {
@@ -117,11 +125,21 @@ class Server : public TaskLib {
       TaskQueueEntry entry;
       std::unordered_map<DomainId, BinaryOutputArchive<true>> entries;
       while (!submit_[rctx.lane_id_].pop(entry).IsNull()) {
+        HILOG(kDebug, "(node {}) Submitting task {}",
+              HRUN_CLIENT->node_id_, entry.task_->task_node_);
         if (entries.find(entry.domain_) == entries.end()) {
           entries.emplace(entry.domain_, BinaryOutputArchive<true>());
         }
+        Task *orig_task = entry.task_;
+        TaskState *exec = HRUN_TASK_REGISTRY->GetTaskState(
+            orig_task->task_state_);
+        if (exec == nullptr) {
+          HELOG(kFatal, "(node {}) Could not find the task state {}",
+                HRUN_CLIENT->node_id_, orig_task->task_state_);
+          return;
+        }
         BinaryOutputArchive<true> &ar = entries[entry.domain_];
-        rctx.exec_->SaveStart(task->method_, ar, task);
+        exec->SaveStart(orig_task->method_, ar, orig_task);
       }
 
       for (auto it = entries.begin(); it != entries.end(); ++it) {
@@ -149,6 +167,8 @@ class Server : public TaskLib {
   /** Complete the task (on the remote node) */
   void ServerPushComplete(ServerPushCompleteTask *task,
                           RunContext &rctx) {
+    HILOG(kDebug, "(node {}) Tasked finished server-side {}",
+          HRUN_CLIENT->node_id_, task->task_node_);
     RemoteInfo *remote = (RemoteInfo*)task->ctx_.prior_net_;
     size_t lane_hash = std::hash<DomainId>{}(remote->ret_domain_);
     complete_[lane_hash % complete_.size()].emplace((TaskQueueEntry){
@@ -166,20 +186,24 @@ class Server : public TaskLib {
     try {
       TaskQueueEntry entry;
       std::unordered_map<DomainId, BinaryOutputArchive<false>> entries;
-      while (!submit_[rctx.lane_id_].pop(entry).IsNull()) {
+      while (!complete_[rctx.lane_id_].pop(entry).IsNull()) {
         if (entries.find(entry.domain_) == entries.end()) {
           entries.emplace(entry.domain_, BinaryOutputArchive<false>());
         }
-        RemoteInfo *remote = (RemoteInfo*)task->ctx_.prior_net_;
-        task->ctx_.task_addr_ = remote->task_addr_;
+        Task *done_task = entry.task_;
+        HILOG(kDebug, "(node {}) Sending completion for {}",
+              HRUN_CLIENT->node_id_, done_task->task_node_);
+        TaskState *exec =
+            HRUN_TASK_REGISTRY->GetTaskState(done_task->task_state_);
+        RemoteInfo *remote = (RemoteInfo*)done_task->ctx_.prior_net_;
+        done_task->ctx_.task_addr_ = remote->task_addr_;
         BinaryOutputArchive<false> &ar = entries[entry.domain_];
-        rctx.exec_->SaveEnd(task->method_, ar, task);
+        exec->SaveEnd(done_task->method_, ar, done_task);
+        exec->Del(done_task->method_, done_task);
       }
 
       for (auto it = entries.begin(); it != entries.end(); ++it) {
         SegmentedTransfer xfer = it->second.Get();
-        xfer.ret_domain_ =
-            DomainId::GetNode(HRUN_CLIENT->node_id_);
         HRUN_THALLIUM->SyncIoCall<int>((i32)it->first.id_,
                                        "RpcTaskComplete",
                                        xfer,
@@ -206,20 +230,20 @@ class Server : public TaskLib {
                      SegmentedTransfer &xfer) {
     try {
       xfer.AllocateSegmentsServer();
-      HILOG(kDebug, "(node {}) Received large message of size {})",
+      HILOG(kDebug, "(node {}) Received submission of size {}",
             HRUN_CLIENT->node_id_, xfer.size());
       HRUN_THALLIUM->IoCallServerWrite(req, bulk, xfer);
       BinaryInputArchive<true> ar(xfer);
+      hshm::Timer t;
+      t.Resume();
       for (size_t i = 0; i < xfer.tasks_.size(); ++i) {
-        hshm::Timer t;
-        t.Resume();
         RemoteInfo *remote = new RemoteInfo();
         remote->ret_domain_ = xfer.ret_domain_;
         DeserializeTask(i, ar, xfer, remote);
-        t.Pause();
-        HILOG(kInfo, "(node {}) Submitted large message in {} usec",
-              HRUN_CLIENT->node_id_, t.GetUsec());
       }
+      t.Pause();
+      HILOG(kInfo, "(node {}) Submitted tasks in {} usec",
+            HRUN_CLIENT->node_id_, t.GetUsec());
     } catch (hshm::Error &e) {
       HELOG(kError, "(node {}) Worker {} caught an error: {}", HRUN_CLIENT->node_id_, id_, e.what());
     } catch (std::exception &e) {
@@ -255,7 +279,7 @@ class Server : public TaskLib {
     // return values sent back to the remote host. This is
     // for things like long-running monitoring tasks.
     orig_task->UnsetStarted();
-    orig_task->UnsetSignalComplete();
+    orig_task->UnsetSignalUnblock();
     orig_task->UnsetBlocked();
     orig_task->UnsetLongRunning();
     orig_task->UnsetRemote();
@@ -285,7 +309,7 @@ class Server : public TaskLib {
                        tl::bulk &bulk,
                        SegmentedTransfer &xfer) {
     try {
-      HILOG(kDebug, "(node {}) Received large message of size {})",
+      HILOG(kDebug, "(node {}) Received completion of size {}",
             HRUN_CLIENT->node_id_, xfer.size());
       // Get task return values
       BinaryInputArchive<false> ar(xfer);
@@ -298,14 +322,13 @@ class Server : public TaskLib {
           return;
         }
         RemoteInfo *remote = (RemoteInfo*)task->ctx_.next_net_;
+        size_t rep_id = remote->rep_cnt_.fetch_add(1);
         if (remote->rep_max_ == 1) {
           exec->LoadEnd(task->method_, ar, task);
         } else {
-          size_t rep_id = remote->rep_cnt_.fetch_add(1);
           remote->replicas_[rep_id] = exec->LoadReplicaEnd(task->method_, ar);
         }
       }
-      xfer = ar.Get();
       HRUN_THALLIUM->IoCallServerWrite(req, bulk, xfer);
       // Check if all replicas are complete
       for (size_t i = 0; i < xfer.tasks_.size(); ++i) {
@@ -315,10 +338,10 @@ class Server : public TaskLib {
         if (remote->rep_cnt_ == remote->rep_max_) {
           if (remote->rep_max_ > 1) {
             exec->Monitor(MonitorMode::kReplicaAgg, task, task->ctx_);
-          }
-          for (size_t i = 0; i < remote->replicas_.size(); ++i) {
-            Task *replica = remote->replicas_[i].ptr_;
-            exec->Del(replica->method_, replica);
+            for (size_t i = 0; i < remote->replicas_.size(); ++i) {
+              Task *replica = remote->replicas_[i].ptr_;
+              exec->Del(replica->method_, replica);
+            }
           }
           delete remote;
           Worker &worker = HRUN_WORK_ORCHESTRATOR->GetWorker(task->ctx_.worker_id_);
@@ -326,7 +349,10 @@ class Server : public TaskLib {
           ltask.ptr_ = task;
           ltask.shm_ = HERMES_MEMORY_MANAGER->Convert<Task, hipc::Pointer>(
               ltask.ptr_);
-          worker.SignalComplete(ltask);
+          if (!task->IsLongRunning()) {
+            task->SetModuleComplete();
+          }
+          worker.SignalUnblock(ltask);
         }
       }
     } catch (hshm::Error &e) {

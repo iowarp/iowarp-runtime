@@ -450,17 +450,17 @@ struct Task : public hipc::ShmContainer {
   }
 
   /** Set signal complete */
-  HSHM_ALWAYS_INLINE void SetSignalComplete() {
+  HSHM_ALWAYS_INLINE void SetSignalUnblock() {
     task_flags_.SetBits(TASK_SIGNAL_COMPLETE);
   }
 
   /** Check if task should signal complete */
-  HSHM_ALWAYS_INLINE bool ShouldSignalComplete() {
+  HSHM_ALWAYS_INLINE bool ShouldSignalUnblock() {
     return task_flags_.Any(TASK_SIGNAL_COMPLETE);
   }
 
   /** Unset signal complete */
-  HSHM_ALWAYS_INLINE void UnsetSignalComplete() {
+  HSHM_ALWAYS_INLINE void UnsetSignalUnblock() {
     task_flags_.UnsetBits(TASK_SIGNAL_COMPLETE);
   }
 
@@ -567,7 +567,7 @@ struct Task : public hipc::ShmContainer {
         !IsFireAndForget() &&
         !IsLongRunning()) {
       ctx_.pending_to_ = parent_task;
-      SetSignalComplete();
+      SetSignalUnblock();
     }
   }
 

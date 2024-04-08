@@ -14,7 +14,12 @@ class ChimaeraUnitTests(Application):
         """
         Initialize paths
         """
-        pass
+        self.test_ipc_execs = ['TestIpc',
+                               'TestAsyncIpc',
+                               'TestIO',
+                               'TestIpcMultithread4',
+                               'TestIpcMultithread8',
+                               'TestSerialize']
 
     def _configure_menu(self):
         """
@@ -65,13 +70,7 @@ class ChimaeraUnitTests(Application):
         nprocs = self.config['nprocs']
         if self.config['nprocs'] is None:
             nprocs = len(self.jarvis.hostfile)
-        test_ipc_execs = ['TestIpc',
-                          'TestAsyncIpc',
-                          'TestIO',
-                          'TestIpcMultithread4',
-                          'TestIpcMultithread8',
-                          'TestSerialize']
-        if self.config['TEST_CASE'] in test_ipc_execs:
+        if self.config['TEST_CASE'] in self.test_ipc_execs:
             Exec(f'test_ipc_exec {self.config["TEST_CASE"]}',
                  MpiExecInfo(hostfile=self.jarvis.hostfile,
                              nprocs=nprocs,
@@ -87,7 +86,10 @@ class ChimaeraUnitTests(Application):
 
         :return: None
         """
-        pass
+        if self.config['TEST_CASE'] in self.test_ipc_execs:
+            Kill('.*test_ipc_exec.*',
+                 PsshExecInfo(hostfile=self.jarvis.hostfile,
+                              env=self.env))
 
     def clean(self):
         """

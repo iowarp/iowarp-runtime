@@ -288,7 +288,7 @@ class BinaryOutputArchive {
 template<bool is_start>
 class BinaryInputArchive {
  public:
-  SegmentedTransfer xfer_;
+  SegmentedTransfer &xfer_;
   std::stringstream ss_;
   cereal::BinaryInputArchive ar_;
   int xfer_off_;
@@ -296,13 +296,8 @@ class BinaryInputArchive {
  public:
   /** Default constructor */
   BinaryInputArchive(SegmentedTransfer &xfer)
-  : xfer_(std::move(xfer)), xfer_off_(0), ss_(), ar_(ss_) {
+  : xfer_(xfer), xfer_off_(0), ss_(), ar_(ss_) {
     ss_.str(xfer_.md_);
-  }
-
-  /** String constructor */
-  BinaryInputArchive(const std::string &params) : ar_(ss_) {
-    ss_.str(params);
   }
 
   /** Deserialize using xfer */
@@ -400,11 +395,6 @@ class BinaryInputArchive {
   HSHM_ALWAYS_INLINE
   BinaryInputArchive& Deserialize() {
     return *this;
-  }
-
-  /** Get updated SegmentedTransfer */
-  SegmentedTransfer&& Get() {
-    return std::move(xfer_);
   }
 };
 

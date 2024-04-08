@@ -365,9 +365,19 @@ class PrivateTaskMultiQueue {
     queues_[queue_id].erase();
   }
 
+  void erase(int queue_id, PrivateTaskQueueEntry&) {
+    if (queue_id == ROOT) {
+      --root_count_;
+    }
+  }
+
   void block(int queue_id) {
     PrivateTaskQueueEntry entry;
     queues_[queue_id].pop(entry);
+    blocked_.emplace(entry, entry.task_->ctx_.pending_key_);
+  }
+
+  void block(PrivateTaskQueueEntry &entry) {
     blocked_.emplace(entry, entry.task_->ctx_.pending_key_);
   }
 
@@ -749,16 +759,19 @@ class Worker {
     size_t work = 0;
     size_t size = queue.size_;
     for (size_t i = 0; i < size; ++i) {
-      PrivateTaskQueueEntry *entry;
-      queue.peek(entry);
-      if (entry->task_.ptr_ == nullptr) {
+      PrivateTaskQueueEntry entry;
+      queue.pop(entry);
+      if (entry.task_.ptr_ == nullptr) {
         break;
       }
-      RunTask(queue,
-              *entry->lane_info_,
-              entry->task_,
-              entry->lane_info_->lane_id_,
+      bool pushback = RunTask(queue, entry,
+              *entry.lane_info_,
+              entry.task_,
+              entry.lane_info_->lane_id_,
               flushing);
+      if (pushback) {
+        queue.push(entry);
+      }
       ++work;
     }
     ProcessCompletions();
@@ -767,17 +780,18 @@ class Worker {
 
   /** Run a task */
   HSHM_ALWAYS_INLINE
-  TaskState* RunTask(PrivateTaskQueue &queue,
-                     WorkEntry &lane_info,
-                     LPointer<Task> task,
-                     u32 lane_id,
-                     bool flushing) {
+  bool RunTask(PrivateTaskQueue &queue,
+               PrivateTaskQueueEntry &entry,
+               WorkEntry &lane_info,
+               LPointer<Task> task,
+               u32 lane_id,
+               bool flushing) {
     // Get the task state
     TaskState *exec = GetTaskState(task->task_state_);
     if (!exec) {
       HELOG(kWarning, "(node {}) Could not find the task state: {}",
             HRUN_CLIENT->node_id_, task->task_state_);
-      return exec;
+      return true;
     }
     // Pack runtime context
     RunContext &rctx = task->ctx_;
@@ -793,18 +807,23 @@ class Worker {
       ExecTask(lane_info, task.ptr_, rctx, exec, props);
     }
     // Cleanup allocations
+    bool pushback = true;
     if (task->IsModuleComplete()) {
-      active_.erase(queue.id_);
+      pushback = false;
+      // active_.erase(queue.id_);
+      active_.erase(queue.id_, entry);
       EndTask(exec, task);
     } else if (task->IsBlocked()) {
-      active_.block(queue.id_);
+      pushback = false;
+      // active_.block(queue.id_);
+      active_.block(entry);
     }
-    return exec;
+    return pushback;
   }
 
   /** Externally signal a task as complete */
   HSHM_ALWAYS_INLINE
-  void SignalComplete(LPointer<Task> &unblock_task) {
+  void SignalUnblock(LPointer<Task> &unblock_task) {
     PrivateTaskMultiQueue &pending = GetPendingQueue(unblock_task.ptr_);
     pending.signal_unblock(pending, unblock_task);
   }
@@ -812,11 +831,11 @@ class Worker {
   /** Free a task when it is no longer needed */
   HSHM_ALWAYS_INLINE
   void EndTask(TaskState *exec, LPointer<Task> &task) {
-    if (task->ShouldSignalComplete()) {
+    if (task->ShouldSignalUnblock()) {
       LPointer<Task> pending_to;
       pending_to.ptr_ = (Task*)task->ctx_.pending_to_;
       pending_to.shm_ = HERMES_MEMORY_MANAGER->Convert(pending_to.ptr_);
-      SignalComplete(pending_to);
+      SignalUnblock(pending_to);
     } else if (task->ShouldSignalRemoteComplete()) {
       TaskState *remote_exec = GetTaskState(HRUN_REMOTE_QUEUE->id_);
       remote_exec->Run(chm::remote_queue::Method::kServerPushComplete,

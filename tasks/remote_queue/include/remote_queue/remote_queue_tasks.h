@@ -99,7 +99,7 @@ struct ClientSubmitTask : public Task, TaskFlags<TF_LOCAL> {
     prio_ = TaskPrio::kLongRunning;
     task_state_ = state_id;
     method_ = Method::kClientSubmit;
-    task_flags_.SetBits(TASK_LONG_RUNNING | TASK_COROUTINE);
+    task_flags_.SetBits(TASK_LONG_RUNNING);
     domain_id_ = domain_id;
     SetPeriodUs(15);
   }
@@ -135,8 +135,8 @@ struct ServerCompleteTask : public Task, TaskFlags<TF_LOCAL> {
     lane_hash_ = lane_hash;
     prio_ = TaskPrio::kLongRunning;
     task_state_ = state_id;
-    method_ = Method::kClientSubmit;
-    task_flags_.SetBits(TASK_LONG_RUNNING | TASK_COROUTINE);
+    method_ = Method::kServerComplete;
+    task_flags_.SetBits(TASK_LONG_RUNNING);
     domain_id_ = domain_id;
     SetPeriodUs(15);
   }
