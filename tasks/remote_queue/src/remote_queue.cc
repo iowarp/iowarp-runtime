@@ -125,8 +125,9 @@ class Server : public TaskLib {
       TaskQueueEntry entry;
       std::unordered_map<DomainId, BinaryOutputArchive<true>> entries;
       while (!submit_[rctx.lane_id_].pop(entry).IsNull()) {
-        HILOG(kDebug, "(node {}) Submitting task {}",
-              HRUN_CLIENT->node_id_, entry.task_->task_node_);
+        HILOG(kDebug, "(node {}) Submitting task {} to domain {}",
+              HRUN_CLIENT->node_id_, entry.task_->task_node_,
+              entry.domain_.id_);
         if (entries.find(entry.domain_) == entries.end()) {
           entries.emplace(entry.domain_, BinaryOutputArchive<true>());
         }
