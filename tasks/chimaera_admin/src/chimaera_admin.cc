@@ -12,6 +12,7 @@
 
 #include "chimaera_admin/chimaera_admin.h"
 #include "chimaera/api/chimaera_runtime.h"
+#include "chimaera/work_orchestrator/comutex.h"
 #include "chimaera/work_orchestrator/scheduler.h"
 
 namespace chm::Admin {

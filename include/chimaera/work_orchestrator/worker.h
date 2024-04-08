@@ -830,6 +830,15 @@ class Worker {
 
   /** Externally signal a task as complete */
   HSHM_ALWAYS_INLINE
+  void SignalUnblock(Task *unblock_task) {
+    LPointer<Task> ltask;
+    ltask.ptr_ = unblock_task;
+    ltask.shm_ = HERMES_MEMORY_MANAGER->Convert(ltask.ptr_);
+    SignalUnblock(ltask);
+  }
+
+  /** Externally signal a task as complete */
+  HSHM_ALWAYS_INLINE
   void SignalUnblock(LPointer<Task> &unblock_task) {
     PrivateTaskMultiQueue &pending = GetPendingQueue(unblock_task.ptr_);
     pending.signal_unblock(pending, unblock_task);
