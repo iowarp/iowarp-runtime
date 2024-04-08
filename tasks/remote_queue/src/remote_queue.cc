@@ -212,6 +212,9 @@ class Server : public TaskLib {
 
       for (auto it = entries.begin(); it != entries.end(); ++it) {
         SegmentedTransfer xfer = it->second.Get();
+        HILOG(kDebug, "(node {}) Sending completion of size {} to {}",
+              HRUN_CLIENT->node_id_, xfer.size(),
+              entry.domain_.id_);
         HRUN_THALLIUM->SyncIoCall<int>((i32)it->first.id_,
                                        "RpcTaskComplete",
                                        xfer,
