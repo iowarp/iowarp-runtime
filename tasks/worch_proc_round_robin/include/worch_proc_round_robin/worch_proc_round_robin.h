@@ -20,14 +20,24 @@ class Client : public TaskLibClient {
   ~Client() = default;
 
   /** Create a worch_proc_round_robin */
-  HSHM_ALWAYS_INLINE
-  void CreateRoot(const DomainId &domain_id,
-                  const std::string &state_name) {
-    id_ = TaskStateId::GetNull();
-    std::vector<PriorityInfo> queue_info;
-    id_ = CHM_ADMIN->CreateTaskStateRoot<ConstructTask>(
-        domain_id, state_name, id_, queue_info);
+  void AsyncCreateConstruct(CreateTask *task,
+                            const TaskNode &task_node,
+                            const DomainId &domain_id,
+                            const std::string &state_name,
+                            const TaskStateId &id) {
+    HRUN_CLIENT->ConstructTask<CreateTask>(
+        task, task_node, domain_id, state_name, id);
   }
+  void CreateRoot(const DomainId &domain_id,
+                  const std::string &state_name,
+                  const TaskStateId &id = TaskId::GetNull()) {
+    LPointer<CreateTask> task = AsyncCreateRoot(
+        domain_id, state_name, id);
+    task->Wait();
+    Init(task->id_);
+    HRUN_CLIENT->DelTask(task);
+  }
+  HRUN_TASK_NODE_PUSH_ROOT(Create);
 
   /** Destroy state */
   HSHM_ALWAYS_INLINE

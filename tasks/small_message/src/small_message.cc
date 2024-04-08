@@ -23,11 +23,11 @@ class Server : public TaskLib {
 
  public:
   /** Construct small_message */
-  void Construct(ConstructTask *task, RunContext &rctx) {
+  void Create(CreateTask *task, RunContext &rctx) {
     client_.Init(id_, CHM_ADMIN->queue_id_);
     task->SetModuleComplete();
   }
-  void MonitorConstruct(u32 mode, ConstructTask *task, RunContext &rctx) {
+  void MonitorCreate(u32 mode, CreateTask *task, RunContext &rctx) {
   }
 
   /** Destroy small_message */

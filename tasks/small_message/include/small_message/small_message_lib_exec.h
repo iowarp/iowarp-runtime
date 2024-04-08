@@ -4,8 +4,8 @@
 /** Execute a task */
 void Run(u32 method, Task *task, RunContext &rctx) override {
   switch (method) {
-    case Method::kConstruct: {
-      Construct(reinterpret_cast<ConstructTask *>(task), rctx);
+    case Method::kCreate: {
+      Create(reinterpret_cast<CreateTask *>(task), rctx);
       break;
     }
     case Method::kDestruct: {
@@ -25,8 +25,8 @@ void Run(u32 method, Task *task, RunContext &rctx) override {
 /** Execute a task */
 void Monitor(u32 mode, Task *task, RunContext &rctx) override {
   switch (task->method_) {
-    case Method::kConstruct: {
-      MonitorConstruct(mode, reinterpret_cast<ConstructTask *>(task), rctx);
+    case Method::kCreate: {
+      MonitorCreate(mode, reinterpret_cast<CreateTask *>(task), rctx);
       break;
     }
     case Method::kDestruct: {
@@ -46,8 +46,8 @@ void Monitor(u32 mode, Task *task, RunContext &rctx) override {
 /** Delete a task */
 void Del(u32 method, Task *task) override {
   switch (method) {
-    case Method::kConstruct: {
-      HRUN_CLIENT->DelTask<ConstructTask>(reinterpret_cast<ConstructTask *>(task));
+    case Method::kCreate: {
+      HRUN_CLIENT->DelTask<CreateTask>(reinterpret_cast<CreateTask *>(task));
       break;
     }
     case Method::kDestruct: {
@@ -67,8 +67,8 @@ void Del(u32 method, Task *task) override {
 /** Duplicate a task */
 void CopyStart(u32 method, Task *orig_task, std::vector<LPointer<Task>> &dups) override {
   switch (method) {
-    case Method::kConstruct: {
-      chm::CALL_COPY_START(reinterpret_cast<ConstructTask*>(orig_task), dups);
+    case Method::kCreate: {
+      chm::CALL_COPY_START(reinterpret_cast<CreateTask*>(orig_task), dups);
       break;
     }
     case Method::kDestruct: {
@@ -88,8 +88,8 @@ void CopyStart(u32 method, Task *orig_task, std::vector<LPointer<Task>> &dups) o
 /** Register the duplicate output with the origin task */
 void CopyEnd(u32 method, Task *orig_task, Task *dup_task) override {
   switch (method) {
-    case Method::kConstruct: {
-      chm::CALL_COPY_END(reinterpret_cast<ConstructTask*>(orig_task), reinterpret_cast<ConstructTask*>(dup_task));
+    case Method::kCreate: {
+      chm::CALL_COPY_END(reinterpret_cast<CreateTask*>(orig_task), reinterpret_cast<CreateTask*>(dup_task));
       break;
     }
     case Method::kDestruct: {
@@ -109,8 +109,8 @@ void CopyEnd(u32 method, Task *orig_task, Task *dup_task) override {
 /** Serialize a task when initially pushing into remote */
 void SaveStart(u32 method, BinaryOutputArchive<true> &ar, Task *task) override {
   switch (method) {
-    case Method::kConstruct: {
-      ar << *reinterpret_cast<ConstructTask*>(task);
+    case Method::kCreate: {
+      ar << *reinterpret_cast<CreateTask*>(task);
       break;
     }
     case Method::kDestruct: {
@@ -131,9 +131,9 @@ void SaveStart(u32 method, BinaryOutputArchive<true> &ar, Task *task) override {
 TaskPointer LoadStart(u32 method, BinaryInputArchive<true> &ar) override {
   TaskPointer task_ptr;
   switch (method) {
-    case Method::kConstruct: {
-      task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<ConstructTask>(task_ptr.shm_);
-      ar >> *reinterpret_cast<ConstructTask*>(task_ptr.ptr_);
+    case Method::kCreate: {
+      task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<CreateTask>(task_ptr.shm_);
+      ar >> *reinterpret_cast<CreateTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kDestruct: {
@@ -157,8 +157,8 @@ TaskPointer LoadStart(u32 method, BinaryInputArchive<true> &ar) override {
 /** Serialize a task when returning from remote queue */
 void SaveEnd(u32 method, BinaryOutputArchive<false> &ar, Task *task) override {
   switch (method) {
-    case Method::kConstruct: {
-      ar << *reinterpret_cast<ConstructTask*>(task);
+    case Method::kCreate: {
+      ar << *reinterpret_cast<CreateTask*>(task);
       break;
     }
     case Method::kDestruct: {
@@ -178,8 +178,8 @@ void SaveEnd(u32 method, BinaryOutputArchive<false> &ar, Task *task) override {
 /** Deserialize a task when popping from remote queue */
 void LoadEnd(u32 method, BinaryInputArchive<false> &ar, Task *task) override {
   switch (method) {
-    case Method::kConstruct: {
-      ar >> *reinterpret_cast<ConstructTask*>(task);
+    case Method::kCreate: {
+      ar >> *reinterpret_cast<CreateTask*>(task);
       break;
     }
     case Method::kDestruct: {
@@ -200,9 +200,9 @@ void LoadEnd(u32 method, BinaryInputArchive<false> &ar, Task *task) override {
 TaskPointer LoadReplicaEnd(u32 method, BinaryInputArchive<false> &ar) override {
   TaskPointer task_ptr;
   switch (method) {
-    case Method::kConstruct: {
-      task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<ConstructTask>(task_ptr.shm_);
-      ar >> *reinterpret_cast<ConstructTask*>(task_ptr.ptr_);
+    case Method::kCreate: {
+      task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<CreateTask>(task_ptr.shm_);
+      ar >> *reinterpret_cast<CreateTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kDestruct: {

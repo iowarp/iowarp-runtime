@@ -102,9 +102,22 @@ class TaskLibClient {
   /** Init from existing ID */
   void Init(const TaskStateId &id,
             const QueueId &queue_id) {
+    if (id.IsNull()) {
+      HELOG(kWarning, "Failed to create task state");
+    }
     id_ = id;
     // queue_id_ = QueueId(id_);
     queue_id_ = queue_id;
+  }
+
+  /** Init from existing ID */
+  void Init(const TaskStateId &id) {
+    if (id.IsNull()) {
+      HELOG(kWarning, "Failed to create task state");
+    }
+    id_ = id;
+    // queue_id_ = QueueId(id_);
+    queue_id_ = id;
   }
 };
 
@@ -130,7 +143,7 @@ typedef const char* (*get_task_lib_name_t)(void);
     chm::TaskState *exec = reinterpret_cast<chm::TaskState*>(\
         new TYPE_UNWRAP(TRAIT_CLASS)());\
     exec->Init(task->id_, HRUN_CLIENT->GetQueueId(task->id_), state_name);\
-    exec->Run(chm::TaskMethod::kConstruct, task, task->ctx_);\
+    exec->Run(chm::TaskMethod::kCreate, task, task->ctx_);\
     return exec;\
   }\
   const char* get_task_lib_name(void) { return TASK_NAME; }\

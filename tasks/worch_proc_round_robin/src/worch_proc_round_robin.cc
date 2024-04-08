@@ -19,10 +19,10 @@ namespace chm::worch_proc_round_robin {
 class Server : public TaskLib {
  public:
   /** Construct the work orchestrator process scheduler */
-  void Construct(ConstructTask *task, RunContext &rctx) {
+  void Create(CreateTask *task, RunContext &rctx) {
     task->SetModuleComplete();
   }
-  void MonitorConstruct(u32 mode, ConstructTask *task, RunContext &rctx) {
+  void MonitorCreate(u32 mode, CreateTask *task, RunContext &rctx) {
   }
 
   /** Destroy the work orchestrator process queue */

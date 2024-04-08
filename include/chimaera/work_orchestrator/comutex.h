@@ -82,6 +82,52 @@ class ScopedCoMutex {
   }
 };
 
+template<typename Key>
+class CoMutexTable {
+ public:
+  std::vector<std::unordered_map<Key, CoMutex>> mutexes_;
+
+ public:
+  CoMutexTable() {
+    QueueManagerInfo &qm = HRUN_QM_RUNTIME->config_->queue_manager_;
+    resize(qm.max_lanes_);
+  }
+
+  size_t resize(size_t max_lanes) {
+    mutexes_.resize(max_lanes);
+    return max_lanes;
+  }
+
+  CoMutex& Get(RunContext &rctx, Key key) {
+    return mutexes_[rctx.lane_id_][key];
+  }
+};
+
+template<typename Key>
+class ScopedCoMutexTable {
+ public:
+  CoMutexTable<Key> &table_;
+  Task *task_;
+  RunContext &rctx_;
+  CoMutex *mutex_;
+
+ public:
+  ScopedCoMutexTable(CoMutexTable<Key> &table,
+                     const Key &key,
+                     Task *task,
+                     RunContext &rctx)
+      : table_(table), task_(task), rctx_(rctx) {
+    CoMutex &mutex = table_.Get(rctx, key);
+    mutex.Lock(task, rctx);
+    mutex_ = &mutex;
+  }
+
+  ~ScopedCoMutexTable() {
+    CoMutex &mutex = *mutex_;
+    mutex.Unlock();
+  }
+};
+
 }  // namespace chm
 
 #endif  // CHIMAERA_INCLUDE_CHIMAERA_WORK_ORCHESTRATOR_COMUTEX_H_

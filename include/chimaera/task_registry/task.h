@@ -79,7 +79,7 @@ class TaskLib;
 
 /** The baseline set of tasks */
 struct TaskMethod {
-  TASK_METHOD_T kConstruct = 0; /**< The constructor of the task */
+  TASK_METHOD_T kCreate = 0; /**< The constructor of the task */
   TASK_METHOD_T kDestruct = 1;  /**< The destructor of the task */
   TASK_METHOD_T kLast = 2;    /**< Where the next method should take place */
 };

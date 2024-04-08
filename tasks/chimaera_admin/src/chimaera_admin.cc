@@ -21,6 +21,7 @@ class Server : public TaskLib {
  public:
   Task *queue_sched_;
   Task *proc_sched_;
+  CoMutexTable<u32> mutexes_;
 
  public:
   Server() : queue_sched_(nullptr), proc_sched_(nullptr) {}
@@ -54,6 +55,7 @@ class Server : public TaskLib {
 
   /** Create a task state */
   void CreateTaskState(CreateTaskStateTask *task, RunContext &rctx) {
+    ScopedCoMutexTable<u32> lock(mutexes_, 0, task, rctx);
     std::string lib_name = task->lib_name_->str();
     std::string state_name = task->state_name_->str();
     // Check local registry for task state
@@ -89,20 +91,13 @@ class Server : public TaskLib {
       task->SetModuleComplete();
       return;
     }
-    // Create the task queue for the state
-    // QueueId qid(task->id_);
-    // MultiQueue *queue = HRUN_QM_RUNTIME->CreateQueue(
-    //     qid, task->queue_info_->vec());
     // Allocate the task state
-    task->method_ = Method::kConstruct;
+    task->method_ = Method::kCreate;
     HRUN_TASK_REGISTRY->CreateTaskState(
         lib_name.c_str(),
         state_name.c_str(),
         task->id_,
         task);
-    // queue->flags_.SetBits(QUEUE_READY);
-    task->method_ = Method::kCreateTaskState;
-    task->SetModuleComplete();
   }
   void MonitorCreateTaskState(u32 mode, CreateTaskStateTask *task, RunContext &rctx) {
   }

@@ -139,9 +139,7 @@ struct GetOrCreateTaskStateIdTask : public Task, TaskFlags<TF_SRL_SYM> {
 struct CreateTaskStateTask : public Task, TaskFlags<TF_SRL_SYM | TF_REPLICA> {
   IN hipc::ShmArchive<hipc::string> lib_name_;
   IN hipc::ShmArchive<hipc::string> state_name_;
-  IN hipc::ShmArchive<hipc::vector<PriorityInfo>> queue_info_;
   INOUT TaskStateId id_;
-  IN hipc::ShmArchive<hipc::string> custom_;
 
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
@@ -154,8 +152,7 @@ struct CreateTaskStateTask : public Task, TaskFlags<TF_SRL_SYM | TF_REPLICA> {
                       const DomainId &domain_id,
                       const std::string &state_name,
                       const std::string &lib_name,
-                      const TaskStateId &id,
-                      const std::vector<PriorityInfo> &queue_info) : Task(alloc) {
+                      const TaskStateId &id) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
     lane_hash_ = 0;
@@ -168,8 +165,6 @@ struct CreateTaskStateTask : public Task, TaskFlags<TF_SRL_SYM | TF_REPLICA> {
     // Initialize
     HSHM_MAKE_AR(state_name_, alloc, state_name);
     HSHM_MAKE_AR(lib_name_, alloc, lib_name);
-    HSHM_MAKE_AR(queue_info_, alloc, queue_info);
-    HSHM_MAKE_AR(custom_, alloc, "");
     id_ = id;
   }
 
@@ -177,8 +172,6 @@ struct CreateTaskStateTask : public Task, TaskFlags<TF_SRL_SYM | TF_REPLICA> {
   ~CreateTaskStateTask() {
     HSHM_DESTROY_AR(state_name_);
     HSHM_DESTROY_AR(lib_name_);
-    HSHM_DESTROY_AR(queue_info_);
-    HSHM_DESTROY_AR(custom_);
   }
 
   /** Duplicate message */
@@ -195,7 +188,7 @@ struct CreateTaskStateTask : public Task, TaskFlags<TF_SRL_SYM | TF_REPLICA> {
   /** (De)serialize message call */
   template<typename Ar>
   void SerializeStart(Ar &ar) {
-    ar(lib_name_, state_name_, id_, queue_info_, custom_);
+    ar(lib_name_, state_name_, id_);
   }
 
   /** (De)serialize message return */

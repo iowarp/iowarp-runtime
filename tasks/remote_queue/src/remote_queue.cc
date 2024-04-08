@@ -48,7 +48,7 @@ class Server : public TaskLib {
   Server() = default;
 
   /** Construct remote queue */
-  void Construct(ConstructTask *task, RunContext &rctx) {
+  void Create(CreateTask *task, RunContext &rctx) {
     HILOG(kInfo, "(node {}) Constructing remote queue (task_node={}, task_state={}, method={})",
           HRUN_CLIENT->node_id_, task->task_node_, task->task_state_, task->method_);
     QueueManagerInfo &qm = HRUN_QM_RUNTIME->config_->queue_manager_;
@@ -88,7 +88,7 @@ class Server : public TaskLib {
     }
     task->SetModuleComplete();
   }
-  void MonitorConstruct(u32 mode, ConstructTask *task, RunContext &rctx) {
+  void MonitorCreate(u32 mode, CreateTask *task, RunContext &rctx) {
   }
 
   /** Destroy remote queue */

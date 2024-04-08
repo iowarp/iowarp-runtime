@@ -732,7 +732,7 @@ class Worker {
 #ifdef CHIMAERA_REMOTE_DEBUG
       if (task->task_state_ != HRUN_QM_CLIENT->admin_task_state_ &&
             !task->task_flags_.Any(TASK_REMOTE_DEBUG_MARK) &&
-            task->method_ != TaskMethod::kConstruct &&
+            task->method_ != TaskMethod::kCreate &&
             HRUN_RUNTIME->remote_created_) {
           is_remote = true;
         }

@@ -23,12 +23,12 @@ class Server : public TaskLib {
 
  public:
   /** Construct work orchestrator queue scheduler */
-  void Construct(ConstructTask *task, RunContext &rctx) {
+  void Create(CreateTask *task, RunContext &rctx) {
     count_lowlat_ = 0;
     count_highlat_ = 0;
     task->SetModuleComplete();
   }
-  void MonitorConstruct(u32 mode, ConstructTask *task, RunContext &rctx) {
+  void MonitorCreate(u32 mode, CreateTask *task, RunContext &rctx) {
   }
 
   /** Destroy work orchestrator queue scheduler */

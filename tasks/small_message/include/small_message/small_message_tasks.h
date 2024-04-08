@@ -19,21 +19,20 @@ namespace chm::small_message {
  * A task to create small_message
  * */
 using chm::Admin::CreateTaskStateTask;
-struct ConstructTask : public CreateTaskStateTask {
+struct CreateTask : public CreateTaskStateTask {
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
-  ConstructTask(hipc::Allocator *alloc) : CreateTaskStateTask(alloc) {}
+  CreateTask(hipc::Allocator *alloc) : CreateTaskStateTask(alloc) {}
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
-  ConstructTask(hipc::Allocator *alloc,
+  CreateTask(hipc::Allocator *alloc,
                 const TaskNode &task_node,
                 const DomainId &domain_id,
                 const std::string &state_name,
-                const TaskStateId &id,
-                const std::vector<PriorityInfo> &queue_info)
+                const TaskStateId &id)
       : CreateTaskStateTask(alloc, task_node, domain_id, state_name,
-                            "small_message", id, queue_info) {
+                            "small_message", id) {
   }
 };
 

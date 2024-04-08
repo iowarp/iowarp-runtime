@@ -21,10 +21,10 @@ class Server : public TaskLib {
   Server() = default;
 
   /** Construct TASK_NAME */
-  void Construct(ConstructTask *task, RunContext &rctx) {
+  void Create(CreateTask *task, RunContext &rctx) {
     task->SetModuleComplete();
   }
-  void MonitorConstruct(u32 mode, ConstructTask *task, RunContext &rctx) {
+  void MonitorCreate(u32 mode, CreateTask *task, RunContext &rctx) {
   }
 
   /** Destroy TASK_NAME */

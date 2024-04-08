@@ -56,64 +56,10 @@ class Client : public TaskLibClient {
   HRUN_TASK_NODE_ADMIN_ROOT(DestroyTaskLib)
 
   /** Spawn a task state */
-  template<typename CreateTaskT, typename ...Args>
+  template<typename CreateTaskStateT>
   HSHM_ALWAYS_INLINE
-  void AsyncCreateTaskStateConstruct(CreateTaskT *task,
-                                     const TaskNode &task_node,
-                                     const DomainId &domain_id,
-                                     Args&& ...args) {
-    HRUN_CLIENT->ConstructTask<CreateTaskT>(
-        task, task_node, domain_id, std::forward<Args>(args)...);
-  }
-  template<typename CreateTaskT, typename ...Args>
-  HSHM_ALWAYS_INLINE
-  TaskStateId CreateTaskStateRoot(const DomainId &domain_id,
-                                  Args&& ...args) {
-    LPointer<CreateTaskT> task = AsyncCreateTaskStateRoot<CreateTaskT>(
-        domain_id, std::forward<Args>(args)...);
-    task->Wait();
-    TaskStateId new_id = task->id_;
-    HRUN_CLIENT->DelTask(task);
-    if (new_id.IsNull()) {
-      HELOG(kWarning, "Failed to create task state");
-    }
-    return new_id;
-  }
-  template<typename CreateTaskT, typename ...Args>
-  hipc::LPointer<CreateTaskT> AsyncCreateTaskStateAlloc(const TaskNode &task_node,
-                                                        Args&& ...args) {
-    hipc::LPointer<CreateTaskT> task = HRUN_CLIENT->AllocateTask<CreateTaskT>();
-    AsyncCreateTaskStateConstruct<CreateTaskT>(task.ptr_, task_node, std::forward<Args>(args)...);
-    return task;
-  }
-  template<typename CreateTaskT, typename ...Args>
-  hipc::LPointer<CreateTaskT> AsyncCreateTaskState(Task *parent_task,
-                                                   const TaskNode &task_node,
-                                                   Args&& ...args) {
-    hipc::LPointer<CreateTaskT> task =
-        AsyncCreateTaskStateAlloc<CreateTaskT>(
-            task_node, std::forward<Args>(args)...);
-    task->YieldInit(parent_task);
-    MultiQueue *queue = HRUN_CLIENT->GetQueue(queue_id_);
-    queue->Emplace(task.ptr_->prio_, task.ptr_->lane_hash_, task.shm_);
-    return task;
-  }
-  template<typename CreateTaskT, typename ...Args>
-  hipc::LPointer<CreateTaskT> AsyncCreateTaskStateEmplace(MultiQueue *queue,
-                                                      const TaskNode &task_node,
-                                                      Args&& ...args) {
-    hipc::LPointer<CreateTaskT> task =
-        AsyncCreateTaskStateAllocCreateTaskT(task_node, std::forward<Args>(args)...);
-    queue->Emplace(task.ptr_->prio_, task.ptr_->lane_hash_, task.shm_);
-    return task;
-  }
-  template<typename CreateTaskT, typename ...Args>
-  hipc::LPointer<CreateTaskT> AsyncCreateTaskStateRoot(Args&& ...args) {
-    TaskNode task_node = HRUN_CLIENT->MakeTaskNodeId();
-    hipc::LPointer<CreateTaskT> task =
-        AsyncCreateTaskState<CreateTaskT>(
-            nullptr, task_node, std::forward<Args>(args)...);
-    return task;
+  TaskStateId CreateTaskStateComplete(LPointer<CreateTaskStateT> task) {
+    return CreateTaskStateComplete(task.ptr_);
   }
 
   /** Get the ID of a task state */

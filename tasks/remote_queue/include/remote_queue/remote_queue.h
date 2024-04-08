@@ -24,28 +24,24 @@ class Client : public TaskLibClient {
   ~Client() = default;
 
   /** Async create a task state */
-  HSHM_ALWAYS_INLINE
-  LPointer<ConstructTask> AsyncCreate(Task *parent_task,
-                                      const TaskNode &task_node,
-                                      const DomainId &domain_id,
-                                      const std::string &state_name,
-                                      const TaskStateId &state_id) {
-    id_ = state_id;
-    QueueManagerInfo &qm = HRUN_CLIENT->server_config_.queue_manager_;
-    std::vector<PriorityInfo> queue_info;
-    return CHM_ADMIN->AsyncCreateTaskState<ConstructTask>(
-        parent_task, task_node, domain_id, state_name, id_, queue_info);
+  void AsyncCreateConstruct(CreateTask *task,
+                            const TaskNode &task_node,
+                            const DomainId &domain_id,
+                            const std::string &state_name,
+                            const TaskStateId &id) {
+    HRUN_CLIENT->ConstructTask<CreateTask>(
+        task, task_node, domain_id, state_name, id);
   }
-  HRUN_TASK_NODE_ROOT(AsyncCreate);
-  template<typename ...Args>
-  HSHM_ALWAYS_INLINE
-  void CreateRoot(Args&& ...args) {
-    LPointer<ConstructTask> task =
-        AsyncCreateRoot(std::forward<Args>(args)...);
+  void CreateRoot(const DomainId &domain_id,
+                  const std::string &state_name,
+                  const TaskStateId &id = TaskId::GetNull()) {
+    LPointer<CreateTask> task = AsyncCreateRoot(
+        domain_id, state_name, id);
     task->Wait();
-    Init(id_, CHM_ADMIN->queue_id_);
+    Init(task->id_);
     HRUN_CLIENT->DelTask(task);
   }
+  HRUN_TASK_NODE_PUSH_ROOT(Create);
 
   /** Destroy task state + queue */
   HSHM_ALWAYS_INLINE
