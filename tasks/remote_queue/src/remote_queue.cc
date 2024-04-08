@@ -199,7 +199,7 @@ class Server : public TaskLib {
         Task *done_task = entry.task_;
         HILOG(kDebug, "(node {}) Sending completion for {} to {}",
               HRUN_CLIENT->node_id_, done_task->task_node_,
-              entry.domain_);
+              entry.domain_.id_);
         TaskState *exec =
             HRUN_TASK_REGISTRY->GetTaskState(done_task->task_state_);
         RemoteInfo *remote = (RemoteInfo*)done_task->ctx_.prior_net_;
