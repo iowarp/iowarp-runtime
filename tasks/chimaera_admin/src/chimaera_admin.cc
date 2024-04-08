@@ -98,6 +98,7 @@ class Server : public TaskLib {
         state_name.c_str(),
         task->id_,
         task);
+    task->SetModuleComplete();
   }
   void MonitorCreateTaskState(u32 mode, CreateTaskStateTask *task, RunContext &rctx) {
   }

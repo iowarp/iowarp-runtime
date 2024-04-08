@@ -30,7 +30,6 @@ namespace chm {
 struct TaskLibInfo {
   void *lib_;  /**< The dlfcn library */
   alloc_state_t alloc_state_;   /**< The create task function */
-  create_state_t create_state_;   /**< The create task function */
   get_task_lib_name_t get_task_lib_name; /**< The get task name function */
 
   /** Default constructor */
@@ -46,27 +45,23 @@ struct TaskLibInfo {
   /** Emplace constructor */
   explicit TaskLibInfo(void *lib,
                        alloc_state_t alloc_state,
-                       create_state_t create_state,
                        get_task_lib_name_t get_task_name)
       : lib_(lib), alloc_state_(alloc_state),
-      create_state_(create_state), get_task_lib_name(get_task_name) {}
+      get_task_lib_name(get_task_name) {}
 
   /** Copy constructor */
   TaskLibInfo(const TaskLibInfo &other)
       : lib_(other.lib_),
         alloc_state_(other.alloc_state_),
-        create_state_(other.create_state_),
         get_task_lib_name(other.get_task_lib_name) {}
 
   /** Move constructor */
   TaskLibInfo(TaskLibInfo &&other) noexcept
       : lib_(other.lib_),
         alloc_state_(other.alloc_state_),
-        create_state_(other.create_state_),
         get_task_lib_name(other.get_task_lib_name) {
     other.lib_ = nullptr;
     other.alloc_state_ = nullptr;
-    other.create_state_ = nullptr;
     other.get_task_lib_name = nullptr;
   }
 };
@@ -156,13 +151,6 @@ class TaskRegistry {
         HELOG(kError, "Could not open the lib library: {}. Reason: {}", lib_path, dlerror());
         return false;
       }
-      info.create_state_ = (create_state_t)dlsym(
-          info.lib_, "create_state");
-      if (!info.create_state_) {
-        HELOG(kError, "The lib {} does not have create_state symbol",
-              lib_path);
-        return false;
-      }
       info.alloc_state_ = (alloc_state_t)dlsym(
           info.lib_, "alloc_state");
       if (!info.alloc_state_) {
@@ -245,23 +233,26 @@ class TaskRegistry {
     // Create the state instance
     task->id_ = state_id;
     TaskLibInfo &info = it->second;
-    TaskState *task_state;
-    task_state = info.create_state_(task, state_name);
-    if (!task_state) {
+    TaskState *exec;
+    exec = info.alloc_state_(task, state_name);
+    if (!exec) {
       HELOG(kError, "Could not create the task state: {}", state_name);
       task->SetModuleComplete();
       return nullptr;
     }
 
     // Add the state to the registry
-    task_state->id_ = state_id;
-    task_state->name_ = state_name;
+    exec->id_ = state_id;
+    exec->name_ = state_name;
     ScopedRwWriteLock lock(lock_, 0);
     task_state_ids_.emplace(state_name, state_id);
-    task_states_.emplace(state_id, task_state);
+    task_states_.emplace(state_id, exec);
     HILOG(kInfo, "(node {})  Created an instance of {} with name {} and ID {}",
-          HRUN_CLIENT->node_id_, lib_name, state_name, state_id)
-    return task_state;
+          HRUN_CLIENT->node_id_, lib_name, state_name, state_id);
+
+    // Construct the state
+    exec->Run(TaskMethod::kCreate, task, task->ctx_);
+    return exec;
   }
 
   /** Get or create a task state's ID */

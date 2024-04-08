@@ -9,7 +9,7 @@ hipc::LPointer<CUSTOM##Task> Async##CUSTOM##Alloc(const TaskNode &task_node,
 template<typename ...Args>
 hipc::LPointer<CUSTOM##Task> Async##CUSTOM(Task *parent_task,
                                            const TaskNode &task_node,
-                                           Args&& ...args) {
+                                          Args&& ...args) {
   hipc::LPointer<CUSTOM##Task> task = Async##CUSTOM##Alloc(
     task_node, std::forward<Args>(args)...);
   task->YieldInit(parent_task);

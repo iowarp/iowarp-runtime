@@ -33,7 +33,7 @@ class CoMutex {
 
   void Lock(Task *task, RunContext &rctx) {
     TaskId task_root = task->task_node_.root_;
-    if (root_ != task_root) {
+    if (!root_.IsNull() && root_ != task_root) {
       task->SetBlocked();
       if (blocked_map_.find(task_root) == blocked_map_.end()) {
         blocked_map_[task_root] = COMUTEX_QUEUE_T();

@@ -63,16 +63,6 @@ void Runtime::ServerInit(std::string server_config_path) {
       HRUN_QM_CLIENT->admin_task_state_,
       admin_task.get());
 
-  // Create the process queue
-  HRUN_CLIENT->MakeTaskStateId();
-  admin_task = hipc::make_mptr<Admin::CreateTaskStateTask>();
-  task_registry_.RegisterTaskLib("proc_queue");
-  task_registry_.CreateTaskState(
-      "proc_queue",
-      "proc_queue",
-      HRUN_QM_CLIENT->process_queue_id_,
-      admin_task.get());
-
   // Create the work orchestrator queue scheduling library
   TaskStateId queue_sched_id = HRUN_CLIENT->MakeTaskStateId();
   admin_task = hipc::make_mptr<Admin::CreateTaskStateTask>();

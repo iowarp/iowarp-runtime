@@ -78,6 +78,7 @@ class Server : public TaskLib {
         });
     submitters_.resize(max_lanes);
     completers_.resize(max_lanes);
+    HRUN_REMOTE_QUEUE->Init(id_);
     for (size_t i = 0; i < max_lanes; ++i) {
       submitters_[i] = HRUN_REMOTE_QUEUE->AsyncClientSubmit(
           task, task->task_node_ + 1,
@@ -173,7 +174,7 @@ class Server : public TaskLib {
   /** Complete the task (on the remote node) */
   void ServerPushComplete(ServerPushCompleteTask *task,
                           RunContext &rctx) {
-    HILOG(kDebug, "(node {}) Tasked finished server-side {}",
+    HILOG(kDebug, "(node {}) Task finished server-side {}",
           HRUN_CLIENT->node_id_, task->task_node_);
     RemoteInfo *remote = (RemoteInfo*)task->ctx_.prior_net_;
     size_t lane_hash = std::hash<DomainId>{}(remote->ret_domain_);
@@ -298,9 +299,9 @@ class Server : public TaskLib {
 
     // Execute task
     MultiQueue *queue = HRUN_CLIENT->GetQueue(QueueId(state_id));
-    queue->Emplace(orig_task->prio_, orig_task->lane_hash_, task_ptr.shm_);
     HILOG(kDebug,
-          "(node {}) Submitting task (task_node={}, task_state={}/{}, state_name={}, method={}, size={}, lane_hash={})",
+          "(node {}) Submitting task (task_node={}, task_state={}/{}, "
+          "state_name={}, method={}, size={}, lane_hash={})",
           HRUN_CLIENT->node_id_,
           orig_task->task_node_,
           orig_task->task_state_,
@@ -309,6 +310,8 @@ class Server : public TaskLib {
           method,
           xfer.size(),
           orig_task->lane_hash_);
+    queue->Emplace(orig_task->prio_,
+                   orig_task->lane_hash_, task_ptr.shm_);
   }
 
   /** Receive task completion */
@@ -322,7 +325,8 @@ class Server : public TaskLib {
       BinaryInputArchive<false> ar(xfer);
       for (size_t i = 0; i < xfer.tasks_.size(); ++i) {
         Task *task = (Task*)xfer.tasks_[i].task_addr_;
-        TaskState *exec = HRUN_TASK_REGISTRY->GetTaskState(task->task_state_);
+        TaskState *exec = HRUN_TASK_REGISTRY->GetTaskState(
+            task->task_state_);
         if (exec == nullptr) {
           HELOG(kFatal, "(node {}) Could not find the task state {}",
                 HRUN_CLIENT->node_id_, task->task_state_);

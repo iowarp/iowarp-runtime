@@ -124,8 +124,6 @@ class TaskLibClient {
 extern "C" {
 /** Allocate a state (no construction) */
 typedef TaskState* (*alloc_state_t)(Task *task, const char *state_name);
-/** Allocate + construct a state */
-typedef TaskState* (*create_state_t)(Task *task, const char *state_name);
 /** Get the name of a task */
 typedef const char* (*get_task_lib_name_t)(void);
 }  // extern c
@@ -137,13 +135,6 @@ typedef const char* (*get_task_lib_name_t)(void);
     chm::TaskState *exec = reinterpret_cast<chm::TaskState*>(\
         new TYPE_UNWRAP(TRAIT_CLASS)());\
     exec->Init(task->id_, HRUN_CLIENT->GetQueueId(task->id_), state_name);\
-    return exec;\
-  }\
-  void* create_state(chm::Admin::CreateTaskStateTask *task, const char *state_name) {\
-    chm::TaskState *exec = reinterpret_cast<chm::TaskState*>(\
-        new TYPE_UNWRAP(TRAIT_CLASS)());\
-    exec->Init(task->id_, HRUN_CLIENT->GetQueueId(task->id_), state_name);\
-    exec->Run(chm::TaskMethod::kCreate, task, task->ctx_);\
     return exec;\
   }\
   const char* get_task_lib_name(void) { return TASK_NAME; }\
