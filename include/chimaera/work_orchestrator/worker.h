@@ -695,6 +695,7 @@ class Worker {
     for (size_t i = 0; i < 8192; ++i) {
       size_t diff = 0;
       IngestInterLanes(flushing);
+      diff += PollPrivateQueue(active_.GetConstruct(), flushing);
       diff += PollPrivateQueue(active_.GetLowLat(), flushing);
       if (diff == 0) {
         break;

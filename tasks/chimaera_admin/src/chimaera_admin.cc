@@ -102,6 +102,7 @@ class Server : public TaskLib {
   void MonitorCreateTaskState(u32 mode, CreateTaskStateTask *task, RunContext &rctx) {
     switch (mode) {
       case MonitorMode::kReplicaAgg: {
+        HILOG(kDebug, "Merging replicas for task state {}", task->id_);
         std::vector<LPointer<Task>> &replicas = rctx.next_net_->replicas_;
         CreateTaskStateTask *replica = reinterpret_cast<CreateTaskStateTask *>(
             replicas[0].ptr_);
