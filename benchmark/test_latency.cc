@@ -54,6 +54,7 @@ void AsyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
 
   t.Resume();
   for (size_t i = 0; i < ops; ++i) {
+    HILOG(kDebug, "Sending message {}", i)
     int node_id = 1 + ((rank + 1) % nprocs);
     client.AsyncMdRoot(chm::DomainId::GetNode(node_id),
                        i, depth, TASK_FIRE_AND_FORGET);
