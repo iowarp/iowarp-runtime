@@ -791,12 +791,12 @@ class Worker {
     if (!exec) {
       if (task->task_state_ == TaskStateId::GetNull()) {
         HELOG(kFatal, "(node {}) Task {} has no task state",
-              HRUN_CLIENT->node_id_);
+              HRUN_CLIENT->node_id_, task->task_node_);
         task->SetModuleComplete();
         return false;
       } else {
-        HELOG(kWarning, "(node {}) Could not find the task state: {}",
-              HRUN_CLIENT->node_id_, task->task_state_);
+        HELOG(kWarning, "(node {}) Could not find the task state {} for task {}",
+              HRUN_CLIENT->node_id_, task->task_state_, task->task_node_);
       }
       return true;
     }
