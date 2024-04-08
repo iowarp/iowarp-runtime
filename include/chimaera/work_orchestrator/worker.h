@@ -819,7 +819,7 @@ class Worker {
       SignalComplete(pending_to);
     } else if (task->ShouldSignalRemoteComplete()) {
       TaskState *remote_exec = GetTaskState(HRUN_REMOTE_QUEUE->id_);
-      remote_exec->Run(chm::remote_queue::Method::kPushComplete,
+      remote_exec->Run(chm::remote_queue::Method::kServerPushComplete,
                        task.ptr_, task->ctx_);
     }
     if (exec && task->IsFireAndForget()) {
@@ -884,7 +884,7 @@ class Worker {
     // Attempt to run the task if it's ready and runnable
     if (props.Any(HSHM_WORKER_IS_REMOTE)) {
       TaskState *remote_exec = GetTaskState(HRUN_REMOTE_QUEUE->id_);
-      remote_exec->Run(chm::remote_queue::Method::kPush,
+      remote_exec->Run(chm::remote_queue::Method::kClientPushSubmit,
                        task, rctx);
       task->SetBlocked();
     } else if (task->IsLaneAll()) {

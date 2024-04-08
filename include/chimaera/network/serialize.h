@@ -90,10 +90,37 @@ struct DataTransferBase {
 using DataTransfer = DataTransferBase<true>;
 using PassDataTransfer = DataTransferBase<false>;
 
+struct TaskSegment {
+  TaskStateId task_state_;
+  u32 method_;
+  size_t task_addr_;
+
+  TaskSegment() = default;
+
+  TaskSegment(TaskStateId task_state, u32 method, size_t task_addr)
+  : task_state_(task_state), method_(method), task_addr_(task_addr) {}
+
+  TaskSegment(const TaskSegment &other)
+  : task_state_(other.task_state_), method_(other.method_),
+    task_addr_(other.task_addr_) {}
+
+  TaskSegment& operator=(const TaskSegment &other) {
+    task_state_ = other.task_state_;
+    method_ = other.method_;
+    task_addr_ = other.task_addr_;
+    return *this;
+  }
+
+  template<typename Ar>
+  void serialize(Ar &ar) {
+    ar(task_state_, method_, task_addr_);
+  }
+};
+
 class SegmentedTransfer {
  public:
   DomainId ret_domain_;                /**< Domain of node to return to */
-  std::vector<std::pair<TaskStateId, u32>> tasks_;  /**< Task info */
+  std::vector<TaskSegment> tasks_;  /**< Task info */
   std::vector<DataTransfer> bulk_[2];   /**< Data payloads */
   std::string md_;                      /**< Metadata */
 
@@ -112,12 +139,12 @@ class SegmentedTransfer {
     }
   }
 
-  size_t size() {
+  size_t size() const {
     size_t size = 0;
-    for (DataTransfer &xfer : bulk_[0]) {
+    for (const DataTransfer &xfer : bulk_[0]) {
       size += xfer.data_size_;
     }
-    for (DataTransfer &xfer : bulk_[1]) {
+    for (const DataTransfer &xfer : bulk_[1]) {
       size += xfer.data_size_;
     }
     size += md_.size();
@@ -141,6 +168,10 @@ class BinaryOutputArchive {
  public:
   /** Default constructor */
   BinaryOutputArchive() : ar_(ss_) {}
+
+  /** Copy constructor */
+  BinaryOutputArchive(const BinaryOutputArchive &other) :
+      xfer_(other.xfer_), ss_(other.ss_.str()), ar_(ss_) {}
 
   /** Serialize using call */
   template<typename T, typename ...Args>
@@ -217,7 +248,8 @@ class BinaryOutputArchive {
     if constexpr (IS_TASK(T)) {
       if constexpr (IS_SRL(T)) {
         if constexpr (is_start) {
-          xfer_.tasks_.emplace_back(var.task_state_, var.method_);
+          xfer_.tasks_.emplace_back(var.task_state_, var.method_,
+                                    (size_t) &var);
           var.template task_serialize<BinaryOutputArchive>((*this));
           if constexpr (USES_SRL_START(T)) {
             var.SerializeStart(*this);
@@ -225,6 +257,8 @@ class BinaryOutputArchive {
             var.SaveStart(*this);
           }
         } else {
+          xfer_.tasks_.emplace_back(var.task_state_, var.method_,
+                                    var.ctx_.task_addr_);
           if constexpr (USES_SRL_END(T)) {
             var.SerializeEnd(*this);
           } else {
@@ -299,9 +333,13 @@ class BinaryInputArchive {
                            char *&data,
                            size_t &data_size,
                            DomainId &node_id) {
-    int xfer_mode = (flags & DT_RECEIVER_READ) ? 0 : 1;
+    int xfer_mode = (flags & DT_SENDER_WRITE) ? 0 : 1;
     DataTransfer &xfer = xfer_.bulk_[xfer_off_++][xfer_mode];
-    data = (char*)xfer.data_;
+    if (flags & DT_SENDER_READ) {
+      xfer.data_ = data;
+    }  else {
+      data = (char *) xfer.data_;
+    }
     data_size = xfer.data_size_;
     node_id = xfer.node_id_;
     return *this;
@@ -362,6 +400,11 @@ class BinaryInputArchive {
   HSHM_ALWAYS_INLINE
   BinaryInputArchive& Deserialize() {
     return *this;
+  }
+
+  /** Get updated SegmentedTransfer */
+  SegmentedTransfer&& Get() {
+    return std::move(xfer_);
   }
 };
 

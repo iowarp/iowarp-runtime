@@ -1,3 +1,4 @@
-kPush: 0
-kProcess: 1
-kPushComplete: 2
+kClientPushSubmit: 0
+kClientSubmit: 1
+kServerPushComplete: 2
+kServerComplete: 3

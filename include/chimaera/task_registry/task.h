@@ -268,7 +268,9 @@ struct RunContext {
   hshm::Timer timer_;
   void *pending_to_;
   size_t pending_key_;
-  void *remote_;
+  void *next_net_;
+  void *prior_net_;
+  size_t task_addr_;
 };
 
 /** A generic task base class */

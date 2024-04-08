@@ -34,6 +34,7 @@
 #include <hermes_shm/data_structures/containers/converters.h>
 #include <hermes_shm/data_structures/containers/charbuf.h>
 #include <hermes_shm/data_structures/containers/spsc_queue.h>
+#include <hermes_shm/data_structures/containers/mpsc_queue.h>
 #include <hermes_shm/data_structures/containers/split_ticket_queue.h>
 #include <hermes_shm/data_structures/containers/converters.h>
 #include "hermes_shm/data_structures/serialization/shm_serialize.h"

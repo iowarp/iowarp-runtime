@@ -52,6 +52,26 @@ class Client : public TaskLibClient {
   void DestroyRoot(const DomainId &domain_id) {
     CHM_ADMIN->DestroyTaskStateRoot(domain_id, id_);
   }
+
+  /** Construct submit aggregator */
+  void AsyncClientSubmitConstruct(ClientSubmitTask *task,
+                                  const TaskNode &task_node,
+                                  const DomainId &domain_id,
+                                  size_t lane_hash) {
+    HRUN_CLIENT->ConstructTask<ClientSubmitTask>(
+        task, task_node, domain_id, id_, lane_hash);
+  }
+  HRUN_TASK_NODE_PUSH_ROOT(ClientSubmit)
+
+  /** Construct complete aggregator */
+  void AsyncServerCompleteConstruct(ServerCompleteTask *task,
+                                    const TaskNode &task_node,
+                                    const DomainId &domain_id,
+                                    size_t lane_hash) {
+    HRUN_CLIENT->ConstructTask<ServerCompleteTask>(
+        task, task_node, domain_id, id_, lane_hash);
+  }
+  HRUN_TASK_NODE_PUSH_ROOT(ServerComplete)
 };
 
 }  // namespace chm

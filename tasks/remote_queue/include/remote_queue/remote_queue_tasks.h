@@ -68,54 +68,80 @@ struct DestructTask : public DestroyTaskStateTask {
   }
 };
 
-struct PushTask : public Task, TaskFlags<TF_LOCAL> {
+struct ClientPushSubmitTask : public Task, TaskFlags<TF_LOCAL> {
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
-  PushTask(hipc::Allocator *alloc) : Task(alloc) {}
+  ClientPushSubmitTask(hipc::Allocator *alloc) : Task(alloc) {}
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
-  PushTask(hipc::Allocator *alloc,
-           const TaskNode &task_node,
-           const DomainId &domain_id,
-           TaskStateId &state_id) : Task(alloc) {}
+  ClientPushSubmitTask(hipc::Allocator *alloc,
+                       const TaskNode &task_node,
+                       const DomainId &domain_id,
+                       TaskStateId &state_id) : Task(alloc) {}
 };
 
-struct ProcessTask : public Task, TaskFlags<TF_LOCAL> {
+struct ClientSubmitTask : public Task, TaskFlags<TF_LOCAL> {
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
-  ProcessTask(hipc::Allocator *alloc) : Task(alloc) {}
+  ClientSubmitTask(hipc::Allocator *alloc) : Task(alloc) {}
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
-  ProcessTask(hipc::Allocator *alloc,
-              const TaskNode &task_node,
-              const DomainId &domain_id,
-              TaskStateId &state_id) : Task(alloc) {
+  ClientSubmitTask(hipc::Allocator *alloc,
+                   const TaskNode &task_node,
+                   const DomainId &domain_id,
+                   TaskStateId &state_id,
+                   size_t lane_hash) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
-    lane_hash_ = 0;
+    lane_hash_ = lane_hash;
     prio_ = TaskPrio::kLongRunning;
     task_state_ = state_id;
-    method_ = Method::kProcess;
+    method_ = Method::kClientSubmit;
     task_flags_.SetBits(TASK_LONG_RUNNING | TASK_COROUTINE);
     domain_id_ = domain_id;
     SetPeriodUs(15);
   }
 };
 
-struct PushCompleteTask : public Task, TaskFlags<TF_LOCAL> {
+struct ServerPushCompleteTask : public Task, TaskFlags<TF_LOCAL> {
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
-  PushCompleteTask(hipc::Allocator *alloc) : Task(alloc) {}
+  ServerPushCompleteTask(hipc::Allocator *alloc) : Task(alloc) {}
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
-  PushCompleteTask(hipc::Allocator *alloc,
-                   const TaskNode &task_node,
-                   const DomainId &domain_id,
-                   TaskStateId &state_id) : Task(alloc) {}
+  ServerPushCompleteTask(hipc::Allocator *alloc,
+                         const TaskNode &task_node,
+                         const DomainId &domain_id,
+                         TaskStateId &state_id) : Task(alloc) {}
 };
+
+struct ServerCompleteTask : public Task, TaskFlags<TF_LOCAL> {
+  /** SHM default constructor */
+  HSHM_ALWAYS_INLINE explicit
+  ServerCompleteTask(hipc::Allocator *alloc) : Task(alloc) {}
+
+  /** Emplace constructor */
+  HSHM_ALWAYS_INLINE explicit
+  ServerCompleteTask(hipc::Allocator *alloc,
+                     const TaskNode &task_node,
+                     const DomainId &domain_id,
+                     TaskStateId &state_id,
+                     size_t lane_hash) : Task(alloc) {
+    // Initialize task
+    task_node_ = task_node;
+    lane_hash_ = lane_hash;
+    prio_ = TaskPrio::kLongRunning;
+    task_state_ = state_id;
+    method_ = Method::kClientSubmit;
+    task_flags_.SetBits(TASK_LONG_RUNNING | TASK_COROUTINE);
+    domain_id_ = domain_id;
+    SetPeriodUs(15);
+  }
+};
+
 
 } // namespace chm::remote_queue
 
