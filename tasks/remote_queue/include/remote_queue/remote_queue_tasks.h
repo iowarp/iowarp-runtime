@@ -96,7 +96,7 @@ struct ClientSubmitTask : public Task, TaskFlags<TF_LOCAL> {
     // Initialize task
     task_node_ = task_node;
     lane_hash_ = lane_hash;
-    prio_ = TaskPrio::kLongRunning;
+    prio_ = TaskPrio::kHighLatency;
     task_state_ = state_id;
     method_ = Method::kClientSubmit;
     task_flags_.SetBits(TASK_LONG_RUNNING);
@@ -133,7 +133,7 @@ struct ServerCompleteTask : public Task, TaskFlags<TF_LOCAL> {
     // Initialize task
     task_node_ = task_node;
     lane_hash_ = lane_hash;
-    prio_ = TaskPrio::kLongRunning;
+    prio_ = TaskPrio::kHighLatency;
     task_state_ = state_id;
     method_ = Method::kServerComplete;
     task_flags_.SetBits(TASK_LONG_RUNNING);

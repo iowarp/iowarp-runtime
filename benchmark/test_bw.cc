@@ -17,10 +17,14 @@ void Summarize(size_t nprocs,
                size_t ops_per_node,
                size_t msg_size) {
   size_t ops = ops_per_node * nprocs;
-  HILOG(kInfo, "Performance: {} MOps, {} MBps, {} nprocs, {} ops-per-node",
-        ops / time_usec,
-        msg_size * ops / time_usec,
-        nprocs, ops_per_node);
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  if (rank == 0) {
+    HILOG(kInfo, "Performance: {} MOps, {} MBps, {} nprocs, {} ops-per-node",
+          ops / time_usec,
+          msg_size * ops / time_usec,
+          nprocs, ops_per_node);
+  }
 }
 
 void SyncIoTest(int rank, int nprocs, size_t msg_size, size_t ops) {

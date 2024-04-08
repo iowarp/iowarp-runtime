@@ -146,10 +146,15 @@ class Server : public TaskLib {
         SegmentedTransfer xfer = it->second.Get();
         xfer.ret_domain_ =
             DomainId::GetNode(HRUN_CLIENT->node_id_);
+        hshm::Timer t;
+        t.Resume();
         HRUN_THALLIUM->SyncIoCall<int>((i32)it->first.id_,
                                        "RpcTaskSubmit",
                                        xfer,
                                        DT_SENDER_WRITE);
+        t.Pause();
+        HILOG(kInfo, "(node {}) Submitted tasks in {} usec",
+              HRUN_CLIENT->node_id_, t.GetUsec());
       }
     } catch (hshm::Error &e) {
       HELOG(kError, "(node {}) Worker {} caught an error: {}", HRUN_CLIENT->node_id_, id_, e.what());

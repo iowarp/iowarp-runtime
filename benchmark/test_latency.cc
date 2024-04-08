@@ -16,10 +16,14 @@ void Summarize(size_t nprocs,
                double time_usec,
                size_t ops_per_node, size_t depth) {
   size_t ops = ops_per_node * nprocs;
-  HILOG(kInfo, "Latency: {} MOps, {} MTasks, {} nprocs, {} ops-per-node",
-        ops / time_usec,
-        ops * (depth + 1) / time_usec,
-        nprocs, ops_per_node);
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  if (rank == 0) {
+    HILOG(kInfo, "Latency: {} MOps, {} MTasks, {} nprocs, {} ops-per-node",
+          ops / time_usec,
+          ops * (depth + 1) / time_usec,
+          nprocs, ops_per_node);
+  }
 }
 
 void SyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
