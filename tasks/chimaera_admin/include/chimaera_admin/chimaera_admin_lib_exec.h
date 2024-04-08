@@ -419,56 +419,66 @@ void LoadEnd(u32 method, BinaryInputArchive<false> &ar, Task *task) override {
   }
 }
 /** Deserialize a task when popping from remote queue */
-TaskPointer LoadReplicaEnd(u32 method, BinaryInputArchive<false> &ar) override {
+TaskPointer LoadReplicaEnd(u32 method, BinaryInputArchive<false> &ar, Task *task) override {
   TaskPointer task_ptr;
   switch (method) {
     case Method::kCreateTaskState: {
       task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<CreateTaskStateTask>(task_ptr.shm_);
+      task_ptr.ptr_->task_dup(*task);
       ar >> *reinterpret_cast<CreateTaskStateTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kDestroyTaskState: {
       task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<DestroyTaskStateTask>(task_ptr.shm_);
+      task_ptr.ptr_->task_dup(*task);
       ar >> *reinterpret_cast<DestroyTaskStateTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kRegisterTaskLib: {
       task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<RegisterTaskLibTask>(task_ptr.shm_);
+      task_ptr.ptr_->task_dup(*task);
       ar >> *reinterpret_cast<RegisterTaskLibTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kDestroyTaskLib: {
       task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<DestroyTaskLibTask>(task_ptr.shm_);
+      task_ptr.ptr_->task_dup(*task);
       ar >> *reinterpret_cast<DestroyTaskLibTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kGetOrCreateTaskStateId: {
       task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<GetOrCreateTaskStateIdTask>(task_ptr.shm_);
+      task_ptr.ptr_->task_dup(*task);
       ar >> *reinterpret_cast<GetOrCreateTaskStateIdTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kGetTaskStateId: {
       task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<GetTaskStateIdTask>(task_ptr.shm_);
+      task_ptr.ptr_->task_dup(*task);
       ar >> *reinterpret_cast<GetTaskStateIdTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kStopRuntime: {
       task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<StopRuntimeTask>(task_ptr.shm_);
+      task_ptr.ptr_->task_dup(*task);
       ar >> *reinterpret_cast<StopRuntimeTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kSetWorkOrchQueuePolicy: {
       task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<SetWorkOrchQueuePolicyTask>(task_ptr.shm_);
+      task_ptr.ptr_->task_dup(*task);
       ar >> *reinterpret_cast<SetWorkOrchQueuePolicyTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kSetWorkOrchProcPolicy: {
       task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<SetWorkOrchProcPolicyTask>(task_ptr.shm_);
+      task_ptr.ptr_->task_dup(*task);
       ar >> *reinterpret_cast<SetWorkOrchProcPolicyTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kFlush: {
       task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<FlushTask>(task_ptr.shm_);
+      task_ptr.ptr_->task_dup(*task);
       ar >> *reinterpret_cast<FlushTask*>(task_ptr.ptr_);
       break;
     }

@@ -337,7 +337,8 @@ class Server : public TaskLib {
         if (remote->rep_max_ == 1) {
           exec->LoadEnd(task->method_, ar, task);
         } else {
-          remote->replicas_[rep_id] = exec->LoadReplicaEnd(task->method_, ar);
+          remote->replicas_[rep_id] = exec->LoadReplicaEnd(
+              task->method_, ar, task);
         }
       }
       HRUN_THALLIUM->IoCallServerWrite(req, bulk, xfer);
