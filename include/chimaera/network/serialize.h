@@ -247,10 +247,10 @@ class BinaryOutputArchive {
   BinaryOutputArchive& Serialize(T &var, Args&& ...args) {
     if constexpr (IS_TASK(T)) {
       if constexpr (IS_SRL(T)) {
+        var.template task_serialize<BinaryOutputArchive>((*this));
         if constexpr (is_start) {
           xfer_.tasks_.emplace_back(var.task_state_, var.method_,
                                     (size_t) &var);
-          var.template task_serialize<BinaryOutputArchive>((*this));
           if constexpr (USES_SRL_START(T)) {
             var.SerializeStart(*this);
           } else {
@@ -370,8 +370,8 @@ class BinaryInputArchive {
   BinaryInputArchive& Deserialize(T &var, Args&& ...args) {
     if constexpr (IS_TASK(T)) {
       if constexpr (IS_SRL(T)) {
+        var.template task_serialize<BinaryInputArchive>((*this));
         if constexpr (is_start) {
-          var.template task_serialize<BinaryInputArchive>((*this));
           if constexpr (USES_SRL_START(T)) {
             var.SerializeStart(*this);
           } else {

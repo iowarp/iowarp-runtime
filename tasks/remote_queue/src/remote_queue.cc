@@ -354,6 +354,8 @@ class Server : public TaskLib {
           ltask.ptr_ = task;
           ltask.shm_ = HERMES_MEMORY_MANAGER->Convert<Task, hipc::Pointer>(
               ltask.ptr_);
+          HILOG(kDebug, "(node {}) Unblocking the task {} (state {})",
+                HRUN_CLIENT->node_id_, task->task_node_, task->task_state_);
           if (!task->IsLongRunning()) {
             task->SetModuleComplete();
           }
