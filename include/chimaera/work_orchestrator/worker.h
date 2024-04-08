@@ -32,6 +32,7 @@ static inline pid_t GetLinuxTid() {
 #define HSHM_WORKER_SHOULD_RUN BIT_OPT(u32, 2)
 #define HSHM_WORKER_IS_FLUSHING BIT_OPT(u32, 3)
 #define HSHM_WORKER_LONG_RUNNING BIT_OPT(u32, 4)
+#define HSHM_WORKER_IS_CONSTRUCT BIT_OPT(u32, 5)
 
 namespace chm {
 
@@ -288,10 +289,11 @@ class PrivateTaskQueue {
 class PrivateTaskMultiQueue {
  public:
   inline static const int ROOT = 0;
-  inline static const int LOW_LAT = 1;
-  inline static const int HIGH_LAT = 2;
-  inline static const int LONG_RUNNING = 3;
-  inline static const int NUM_QUEUES = 4;
+  inline static const int CONSTRUCT = 1;
+  inline static const int LOW_LAT = 2;
+  inline static const int HIGH_LAT = 3;
+  inline static const int LONG_RUNNING = 4;
+  inline static const int NUM_QUEUES = 5;
 
  public:
   size_t root_count_;
@@ -304,6 +306,7 @@ class PrivateTaskMultiQueue {
  public:
   void Init(size_t pqdepth, size_t qdepth, size_t max_lanes) {
     queues_[ROOT].Init(ROOT, max_lanes * qdepth);
+    queues_[CONSTRUCT].Init(CONSTRUCT, max_lanes * qdepth);
     queues_[LOW_LAT].Init(LOW_LAT, max_lanes * qdepth);
     queues_[HIGH_LAT].Init(HIGH_LAT, max_lanes * qdepth);
     queues_[LONG_RUNNING].Init(LONG_RUNNING, max_lanes * qdepth);
@@ -317,6 +320,10 @@ class PrivateTaskMultiQueue {
 
   PrivateTaskQueue& GetRoot() {
     return queues_[ROOT];
+  }
+
+  PrivateTaskQueue& GetConstruct() {
+    return queues_[CONSTRUCT];
   }
 
   PrivateTaskQueue& GetLowLat() {
@@ -338,7 +345,9 @@ class PrivateTaskMultiQueue {
   template<bool WAS_PENDING=false>
   bool push(const PrivateTaskQueueEntry &entry) {
     Task *task = entry.task_.ptr_;
-    if (task->IsLongRunning()) {
+    if (task->method_ == TaskMethod::kCreate) {
+      return GetConstruct().push(entry);
+    } else if (task->IsLongRunning()) {
       return GetLongRunning().push(entry);
     } else if (task->task_node_.node_depth_ == 0) {
       if constexpr (!WAS_PENDING) {
@@ -819,6 +828,10 @@ class Worker {
       pushback = false;
       // active_.erase(queue.id_);
       active_.erase(queue.id_, entry);
+      if (props.Any(HSHM_WORKER_IS_CONSTRUCT)) {
+        TaskStateId id = ((chm::Admin::CreateTaskStateTask*)task.ptr_)->id_;
+        exec = GetTaskState(id);
+      }
       EndTask(exec, task);
     } else if (task->IsBlocked()) {
       pushback = false;
@@ -875,6 +888,9 @@ class Worker {
 
     bool group_avail = true;
     bool should_run = task->ShouldRun(cur_time, flushing);
+    if (task->method_ == TaskMethod::kCreate) {
+      props.SetBits(HSHM_WORKER_IS_CONSTRUCT);
+    }
     if (task->IsRemote()) {
       props.SetBits(HSHM_WORKER_IS_REMOTE);
     }
@@ -922,11 +938,11 @@ class Worker {
       remote_exec->Run(chm::remote_queue::Method::kClientPushSubmit,
                        task, rctx);
       task->SetBlocked();
-    } else if (task->IsLaneAll()) {
-//      TaskState *remote_exec = GetTaskState(HRUN_REMOTE_QUEUE->id_);
-//      remote_exec->Run(chm::remote_queue::Method::kPush,
-//                       task, rctx);
-//      task->SetBlocked();
+    } if (task->IsLaneAll()) {
+      //      TaskState *remote_exec = GetTaskState(HRUN_REMOTE_QUEUE->id_);
+      //      remote_exec->Run(chm::remote_queue::Method::kPush,
+      //                       task, rctx);
+      //      task->SetBlocked();
     } else if (task->IsCoroutine()) {
       ExecCoroutine(task, rctx);
     } else {

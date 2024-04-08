@@ -92,7 +92,6 @@ class Server : public TaskLib {
       return;
     }
     // Allocate the task state
-    task->method_ = Method::kCreate;
     HRUN_TASK_REGISTRY->CreateTaskState(
         lib_name.c_str(),
         state_name.c_str(),
@@ -101,6 +100,14 @@ class Server : public TaskLib {
     task->SetModuleComplete();
   }
   void MonitorCreateTaskState(u32 mode, CreateTaskStateTask *task, RunContext &rctx) {
+    switch (mode) {
+      case MonitorMode::kReplicaAgg: {
+        std::vector<LPointer<Task>> &replicas = rctx.next_net_->replicas_;
+        CreateTaskStateTask *replica = reinterpret_cast<CreateTaskStateTask *>(
+            replicas[0].ptr_);
+        task->id_ = replica->id_;
+      }
+    }
   }
 
   /** Get task state id, fail if DNE */

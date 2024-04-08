@@ -24,14 +24,6 @@ namespace thallium {
 
 namespace chm::remote_queue {
 
-struct RemoteInfo {
-  std::atomic<u32> rep_cnt_;
-  u32 rep_max_;
-  std::vector<LPointer<Task>> replicas_;
-  DomainId ret_domain_;
-  size_t task_addr_;
-};
-
 struct TaskQueueEntry {
   DomainId domain_;
   Task *task_;

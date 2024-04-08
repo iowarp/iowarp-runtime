@@ -79,9 +79,9 @@ class TaskLib;
 
 /** The baseline set of tasks */
 struct TaskMethod {
-  TASK_METHOD_T kCreate = 0; /**< The constructor of the task */
+  TASK_METHOD_T kCreate = 0;    /**< The constructor of the task */
   TASK_METHOD_T kDestruct = 1;  /**< The destructor of the task */
-  TASK_METHOD_T kLast = 2;    /**< Where the next method should take place */
+  TASK_METHOD_T kLast = 2;      /**< Where the next method should take place */
 };
 
 /**
@@ -255,6 +255,16 @@ struct WorkPending {
   : flushing_(other.flushing_), count_(other.count_.load()) {}
 };
 
+struct Task;
+
+struct RemoteInfo {
+  std::atomic<u32> rep_cnt_;
+  u32 rep_max_;
+  std::vector<LPointer<Task>> replicas_;
+  DomainId ret_domain_;
+  size_t task_addr_;
+};
+
 /** Context passed to the Run method of a task */
 struct RunContext {
   u32 worker_id_;         /**< The worker id of the task */
@@ -266,8 +276,8 @@ struct RunContext {
   hshm::Timer timer_;
   void *pending_to_;
   size_t pending_key_;
-  void *next_net_;
-  void *prior_net_;
+  RemoteInfo *next_net_;
+  RemoteInfo *prior_net_;
   size_t task_addr_;
 };
 
