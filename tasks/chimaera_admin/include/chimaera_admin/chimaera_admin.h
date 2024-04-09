@@ -134,7 +134,9 @@ class Client : public TaskLibClient {
     FlushRoot(DomainId::GetGlobal());
     HILOG(kInfo, "Stopping the runtime");
     AsyncStopRuntimeRoot(DomainId::GetGlobalMinusLocal());
+    HILOG(kInfo, "Starting flush!");
     FlushRoot(DomainId::GetLocal());
+    HILOG(kInfo, "Finished flush!");
     AsyncStopRuntimeRoot(DomainId::GetLocal());
     HILOG(kInfo, "All done!");
     exit(1);
