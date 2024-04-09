@@ -395,6 +395,8 @@ using SetWorkOrchProcPolicyTask = SetWorkOrchestratorPolicyTask<1>;
 
 /** A task to destroy a Task state */
 struct FlushTask : public Task, TaskFlags<TF_SRL_SYM | TF_REPLICA> {
+  INOUT size_t work_done_;
+
   /** SHM default constructor */
   FlushTask(hipc::Allocator *alloc) : Task(alloc) {}
 
@@ -411,6 +413,9 @@ struct FlushTask : public Task, TaskFlags<TF_SRL_SYM | TF_REPLICA> {
     method_ = Method::kFlush;
     task_flags_.SetBits(TASK_FLUSH | TASK_COROUTINE);
     domain_id_ = domain_id;
+
+    // Custom
+    work_done_ = 0;
   }
 
   /** Duplicate message */
@@ -426,11 +431,14 @@ struct FlushTask : public Task, TaskFlags<TF_SRL_SYM | TF_REPLICA> {
   /** (De)serialize message call */
   template<typename Ar>
   void SerializeStart(Ar &ar) {
+    ar(work_done_);
   }
 
   /** (De)serialize message return */
   template<typename Ar>
-  void SerializeEnd(Ar &ar) {}
+  void SerializeEnd(Ar &ar) {
+    ar(work_done_);
+  }
 
   /** Create group */
   HSHM_ALWAYS_INLINE

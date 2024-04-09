@@ -180,10 +180,14 @@ class Client : public TaskLibClient {
         task, task_node, domain_id);
   }
   void FlushRoot(const DomainId &domain_id) {
-    LPointer<FlushTask> task =
-        AsyncFlushRoot(domain_id);
-    task->Wait();
-    HRUN_CLIENT->DelTask(task);
+    size_t work_done = 0;
+    do {
+      LPointer<FlushTask> task =
+          AsyncFlushRoot(domain_id);
+      task->Wait();
+      work_done = task->work_done_;
+      HRUN_CLIENT->DelTask(task);
+    } while (work_done > 0);
   }
   HRUN_TASK_NODE_ADMIN_ROOT(Flush);
 };
