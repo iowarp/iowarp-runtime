@@ -3,7 +3,7 @@
 
 /** The set of methods in the admin task */
 struct Method : public TaskMethod {
-  TASK_METHOD_T kCreate = kLast + 0;
+  TASK_METHOD_T kCreateTaskState = kLast + 0;
   TASK_METHOD_T kDestroyTaskState = kLast + 1;
   TASK_METHOD_T kRegisterTaskLib = kLast + 2;
   TASK_METHOD_T kDestroyTaskLib = kLast + 3;

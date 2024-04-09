@@ -232,6 +232,7 @@ class TaskRegistry {
 
     // Create the state instance
     task->id_ = state_id;
+    task->method_ = TaskMethod::kCreate;
     TaskLibInfo &info = it->second;
     TaskState *exec;
     exec = info.alloc_state_(task, state_name);

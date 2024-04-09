@@ -158,7 +158,7 @@ struct CreateTaskStateTask : public Task, TaskFlags<TF_SRL_SYM | TF_REPLICA> {
     lane_hash_ = 0;
     prio_ = TaskPrio::kLowLatency;
     task_state_ = HRUN_QM_CLIENT->admin_task_state_;
-    method_ = Method::kCreate;
+    method_ = Method::kCreateTaskState;
     task_flags_.SetBits(TASK_COROUTINE);
     domain_id_ = domain_id;
 
