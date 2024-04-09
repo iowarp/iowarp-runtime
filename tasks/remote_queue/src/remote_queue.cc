@@ -161,12 +161,12 @@ class Server : public TaskLib {
   void MonitorClientSubmit(u32 mode,
                            ClientSubmitTask *task,
                            RunContext &rctx) {
-    switch (mode) {
-      case MonitorMode::kFlushStat: {
-        rctx.flush_->count_ += submit_[rctx.lane_id_].GetSize();
-        rctx.flush_->count_ += complete_[rctx.lane_id_].GetSize();
-      }
-    }
+//    switch (mode) {
+//      case MonitorMode::kFlushStat: {
+//        rctx.flush_->count_ += submit_[rctx.lane_id_].GetSize();
+//        rctx.flush_->count_ += complete_[rctx.lane_id_].GetSize();
+//      }
+//    }
   }
 
   /** Complete the task (on the remote node) */
@@ -229,12 +229,12 @@ class Server : public TaskLib {
   void MonitorServerComplete(u32 mode,
                              ServerCompleteTask *task,
                              RunContext &rctx) {
-    switch (mode) {
-      case MonitorMode::kFlushStat: {
-        rctx.flush_->count_ += submit_[rctx.lane_id_].GetSize();
-        rctx.flush_->count_ += complete_[rctx.lane_id_].GetSize();
-      }
-    }
+//    switch (mode) {
+//      case MonitorMode::kFlushStat: {
+//        rctx.flush_->count_ += submit_[rctx.lane_id_].GetSize();
+//        rctx.flush_->count_ += complete_[rctx.lane_id_].GetSize();
+//      }
+//    }
   }
 
 
