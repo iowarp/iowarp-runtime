@@ -368,15 +368,19 @@ class Server : public TaskLib {
           remote->replicas_[rep_id] = exec->LoadReplicaEnd(
               orig_task->method_, ar, orig_task);
         }
+        xfer.tasks_[i].rep_id_ = rep_id;
+        xfer.tasks_[i].rep_max_ = remote->rep_max_;
       }
       HRUN_THALLIUM->IoCallServerWrite(req, bulk, xfer);
       // Check if all replicas are complete
       for (size_t i = 0; i < xfer.tasks_.size(); ++i) {
-        Task *orig_task = (Task*)xfer.tasks_[i].task_addr_;
-        TaskState *exec = HRUN_TASK_REGISTRY->GetTaskState(
-            orig_task->task_state_);
-        RemoteInfo *remote = (RemoteInfo*)orig_task->ctx_.next_net_;
-        if (remote->rep_cnt_ == remote->rep_max_) {
+        size_t rep_id = xfer.tasks_[i].rep_id_;
+        size_t rep_max = xfer.tasks_[i].rep_max_;
+        if (rep_id == rep_max - 1) {
+          Task *orig_task = (Task*)xfer.tasks_[i].task_addr_;
+          TaskState *exec = HRUN_TASK_REGISTRY->GetTaskState(
+              orig_task->task_state_);
+          RemoteInfo *remote = (RemoteInfo*)orig_task->ctx_.next_net_;
           if (remote->rep_max_ > 1) {
             exec->Monitor(MonitorMode::kReplicaAgg,
                           orig_task, orig_task->ctx_);
