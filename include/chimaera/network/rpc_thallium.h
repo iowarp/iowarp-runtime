@@ -71,38 +71,15 @@ class ThalliumRpc {
 
   /** Run the daemon */
   void RunDaemon() {
-    HILOG(kInfo, "Starting the daemon on node: {}", rpc_->node_id_);
-    server_engine_->enable_remote_shutdown();
-    auto prefinalize_callback = [this]() {
-      HILOG(kInfo, "Finalizing RPCs on node: {}", rpc_->node_id_);
-    };
-    server_engine_->push_prefinalize_callback(prefinalize_callback);
+    HILOG(kInfo, "Daemon has started on node: {}", rpc_->node_id_);
     server_engine_->wait_for_finalize();
     HILOG(kInfo, "Daemon has stopped on node: {}", rpc_->node_id_);
   }
 
   /** Stop this daemon */
   void StopThisDaemon() {
-    StopDaemon(rpc_->node_id_);
-  }
-
-  /** Stop a thallium daemon */
-  void StopDaemon(u32 node_id) {
-    try {
-      HILOG(kInfo, "Sending stop signal to: {}", node_id);
-      std::string server_name = GetServerName(node_id);
-      tl::endpoint server = client_engine_->lookup(server_name);
-      client_engine_->shutdown_remote_engine(server);
-    } catch (std::exception &e) {
-      HELOG(kFatal, "Stop daemon failed: {}", e.what());
-    }
-  }
-
-  /** Stop the thallium daemon */
-  void StopAllDaemons() {
-    for (u32 node_id = 1; node_id < (int)rpc_->hosts_.size() + 1; ++node_id) {
-      StopDaemon(node_id);
-    }
+    client_engine_->finalize();
+    server_engine_->finalize();
   }
 
   /** Thallium-compatible server name */
