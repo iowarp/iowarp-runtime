@@ -347,21 +347,23 @@ class Server : public TaskLib {
       // Get task return values
       BinaryInputArchive<false> ar(xfer);
       for (size_t i = 0; i < xfer.tasks_.size(); ++i) {
-        Task *task = (Task*)xfer.tasks_[i].task_addr_;
+        Task *orig_task = (Task*)xfer.tasks_[i].task_addr_;
+        HILOG(kDebug, "(node {}) Deserializing return values for task {} (state {})",
+              HRUN_CLIENT->node_id_, orig_task->task_node_, orig_task->task_state_);
         TaskState *exec = HRUN_TASK_REGISTRY->GetTaskState(
-            task->task_state_);
+            orig_task->task_state_);
         if (exec == nullptr) {
           HELOG(kFatal, "(node {}) Could not find the task state {}",
-                HRUN_CLIENT->node_id_, task->task_state_);
+                HRUN_CLIENT->node_id_, orig_task->task_state_);
           return;
         }
-        RemoteInfo *remote = (RemoteInfo*)task->ctx_.next_net_;
+        RemoteInfo *remote = (RemoteInfo*)orig_task->ctx_.next_net_;
         size_t rep_id = remote->rep_cnt_.fetch_add(1);
         if (remote->rep_max_ == 1) {
-          exec->LoadEnd(task->method_, ar, task);
+          exec->LoadEnd(orig_task->method_, ar, orig_task);
         } else {
           remote->replicas_[rep_id] = exec->LoadReplicaEnd(
-              task->method_, ar, task);
+              orig_task->method_, ar, orig_task);
         }
       }
       HRUN_THALLIUM->IoCallServerWrite(req, bulk, xfer);
