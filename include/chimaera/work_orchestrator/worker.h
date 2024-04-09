@@ -487,9 +487,6 @@ class Worker {
     retries_ = 1;
     pid_ = 0;
     // pthread_id_ = GetLinuxTid();
-    // TODO(llogan): implement reserve for group
-    group_.resize(512);
-    group_.resize(0);
   }
 
   /** Join worker */
