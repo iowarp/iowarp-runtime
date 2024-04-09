@@ -147,8 +147,6 @@ void Runtime::Finalize() {}
 /** Run the Hermes core Daemon */
 void Runtime::RunDaemon() {
   thallium_.RunDaemon();
-  HILOG(kInfo, "(node {}) Daemon is running",
-        HRUN_CLIENT->node_id_)
   HILOG(kInfo, "(node {}) Finishing up last requests",
         HRUN_CLIENT->node_id_)
   HRUN_WORK_ORCHESTRATOR->Join();
