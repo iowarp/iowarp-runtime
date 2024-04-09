@@ -310,8 +310,8 @@ class Server : public TaskLib {
     orig_task->UnsetLongRunning();
     orig_task->UnsetRemote();
     orig_task->SetDataOwner();
-    orig_task->UnsetFireAndForget();
-    orig_task->SetSignalRemoteComplete();
+//    orig_task->UnsetFireAndForget();
+//    orig_task->SetSignalRemoteComplete();
     if (!orig_task->IsFireAndForget()) {
       orig_task->SetSignalRemoteComplete();
     }
