@@ -147,14 +147,13 @@ void Runtime::Finalize() {}
 /** Run the Hermes core Daemon */
 void Runtime::RunDaemon() {
   thallium_.RunDaemon();
-  HILOG(kInfo, "Daemon is running")
-//    while (HRUN_WORK_ORCHESTRATOR->IsRuntimeAlive()) {
-//      // Scheduler callbacks?
-//      HERMES_THREAD_MODEL->SleepForUs(1000);
-//    }
-  HILOG(kInfo, "Finishing up last requests")
+  HILOG(kInfo, "(node {}) Daemon is running",
+        HRUN_CLIENT->node_id_)
+  HILOG(kInfo, "(node {}) Finishing up last requests",
+        HRUN_CLIENT->node_id_)
   HRUN_WORK_ORCHESTRATOR->Join();
-  HILOG(kInfo, "Daemon is exiting")
+  HILOG(kInfo, "(node {}) Daemon is exiting",
+        HRUN_CLIENT->node_id_)
 }
 
 /** Stop the Hermes core Daemon */
