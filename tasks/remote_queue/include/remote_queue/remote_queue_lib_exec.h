@@ -89,30 +89,30 @@ void Del(u32 method, Task *task) override {
   }
 }
 /** Duplicate a task */
-void CopyStart(u32 method, Task *orig_task, std::vector<LPointer<Task>> &dups) override {
+void CopyStart(u32 method, Task *orig_task, LPointer<Task> &dup_task) override {
   switch (method) {
     case Method::kCreate: {
-      chm::CALL_COPY_START(reinterpret_cast<CreateTask*>(orig_task), dups);
+      chm::CALL_COPY_START(reinterpret_cast<CreateTask*>(orig_task), dup_task);
       break;
     }
     case Method::kDestruct: {
-      chm::CALL_COPY_START(reinterpret_cast<DestructTask*>(orig_task), dups);
+      chm::CALL_COPY_START(reinterpret_cast<DestructTask*>(orig_task), dup_task);
       break;
     }
     case Method::kClientPushSubmit: {
-      chm::CALL_COPY_START(reinterpret_cast<ClientPushSubmitTask*>(orig_task), dups);
+      chm::CALL_COPY_START(reinterpret_cast<ClientPushSubmitTask*>(orig_task), dup_task);
       break;
     }
     case Method::kClientSubmit: {
-      chm::CALL_COPY_START(reinterpret_cast<ClientSubmitTask*>(orig_task), dups);
+      chm::CALL_COPY_START(reinterpret_cast<ClientSubmitTask*>(orig_task), dup_task);
       break;
     }
     case Method::kServerPushComplete: {
-      chm::CALL_COPY_START(reinterpret_cast<ServerPushCompleteTask*>(orig_task), dups);
+      chm::CALL_COPY_START(reinterpret_cast<ServerPushCompleteTask*>(orig_task), dup_task);
       break;
     }
     case Method::kServerComplete: {
-      chm::CALL_COPY_START(reinterpret_cast<ServerCompleteTask*>(orig_task), dups);
+      chm::CALL_COPY_START(reinterpret_cast<ServerCompleteTask*>(orig_task), dup_task);
       break;
     }
   }

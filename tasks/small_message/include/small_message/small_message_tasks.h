@@ -94,7 +94,7 @@ struct MdTask : public Task, TaskFlags<TF_SRL_SYM | TF_REPLICA> {
   }
 
   /** Process duplicate message output */
-  void CopyEnd(MdTask &dup_task) {
+  void CopyEnd(hipc::Allocator *alloc, MdTask &dup_task) {
   }
 
   /** (De)serialize message call */

@@ -53,18 +53,18 @@ void Del(u32 method, Task *task) override {
   }
 }
 /** Duplicate a task */
-void CopyStart(u32 method, Task *orig_task, std::vector<LPointer<Task>> &dups) override {
+void CopyStart(u32 method, Task *orig_task, LPointer<Task> &dup_task) override {
   switch (method) {
     case Method::kCreate: {
-      chm::CALL_COPY_START(reinterpret_cast<CreateTask*>(orig_task), dups);
+      chm::CALL_COPY_START(reinterpret_cast<CreateTask*>(orig_task), dup_task);
       break;
     }
     case Method::kDestruct: {
-      chm::CALL_COPY_START(reinterpret_cast<DestructTask*>(orig_task), dups);
+      chm::CALL_COPY_START(reinterpret_cast<DestructTask*>(orig_task), dup_task);
       break;
     }
     case Method::kCustom: {
-      chm::CALL_COPY_START(reinterpret_cast<CustomTask*>(orig_task), dups);
+      chm::CALL_COPY_START(reinterpret_cast<CustomTask*>(orig_task), dup_task);
       break;
     }
   }

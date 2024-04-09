@@ -170,7 +170,7 @@ struct CreateTaskStateTask : public Task, TaskFlags<TF_SRL_SYM | TF_REPLICA> {
 
   /** Process duplicate message output */
   template<typename TaskT>
-  void CopyEnd(TaskT &dup_task) {
+  void CopyEnd(hipc::Allocator *alloc, TaskT &dup_task) {
   }
 
   /** (De)serialize message call */
@@ -380,7 +380,9 @@ struct FlushTask : public Task, TaskFlags<TF_SRL_SYM | TF_REPLICA> {
 
   /** Process duplicate message output */
   template<typename TaskT>
-  void CopyEnd(TaskT &dup_task) {}
+  void CopyEnd(hipc::Allocator *alloc, TaskT &other) {
+    work_done_ = other.work_done_;
+  }
 
   /** (De)serialize message call */
   template<typename Ar>

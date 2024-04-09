@@ -471,21 +471,19 @@ Async##CUSTOM##Root(Args&& ...args) {\
 
 /** Call duplicate if applicable */
 template<typename TaskT>
-constexpr inline void CALL_COPY_START(TaskT *orig_task, std::vector<LPointer<Task>> &dups) {
+constexpr inline void CALL_COPY_START(TaskT *orig_task, LPointer<Task> &udup_task) {
   if constexpr (TaskT::REPLICA) {
-    for (LPointer<Task> &dup : dups) {
-      LPointer<TaskT> dup_task = HRUN_CLIENT->NewEmptyTask<TaskT>();
-      dup_task.ptr_->CopyStart(HRUN_CLIENT->main_alloc_, *orig_task);
-      dup.ptr_ = dup_task.ptr_;
-      dup.shm_ = dup_task.shm_;
-    }
+    LPointer<TaskT> dup_task = HRUN_CLIENT->NewEmptyTask<TaskT>();
+    dup_task->CopyStart(HRUN_CLIENT->main_alloc_, *orig_task);
+    udup_task.ptr_ = (Task*)dup_task.ptr_;
+    udup_task.shm_ = dup_task.shm_;
   }
 }
 /** Call duplicate if applicable */
 template<typename TaskT>
 constexpr inline void CALL_COPY_END(TaskT *orig_task, TaskT *dup_task) {
   if constexpr (TaskT::REPLICA) {
-    dup_task->CopyEnd(*orig_task);
+    dup_task->CopyEnd(HRUN_CLIENT->main_alloc_, *orig_task);
   }
 }
 

@@ -102,7 +102,7 @@ struct CustomTask : public Task, TaskFlags<TF_SRL_SYM> {
   }
 
   /** Process duplicate message output */
-  void CopyEnd(CustomTask &dup_task) {
+  void CopyEnd(hipc::Allocator *alloc, CustomTask &dup_task) {
   }
 };
 
