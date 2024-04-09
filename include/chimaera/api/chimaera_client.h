@@ -474,6 +474,7 @@ template<typename TaskT>
 constexpr inline void CALL_COPY_START(TaskT *orig_task, LPointer<Task> &udup_task) {
   if constexpr (TaskT::REPLICA) {
     LPointer<TaskT> dup_task = HRUN_CLIENT->NewEmptyTask<TaskT>();
+    dup_task->task_dup(*orig_task);
     dup_task->CopyStart(HRUN_CLIENT->main_alloc_, *orig_task);
     udup_task.ptr_ = (Task*)dup_task.ptr_;
     udup_task.shm_ = dup_task.shm_;

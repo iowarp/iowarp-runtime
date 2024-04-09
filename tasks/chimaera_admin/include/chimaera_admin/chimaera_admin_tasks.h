@@ -374,7 +374,6 @@ struct FlushTask : public Task, TaskFlags<TF_SRL_SYM | TF_REPLICA> {
   /** Duplicate message */
   template<typename TaskT>
   void CopyStart(hipc::Allocator *alloc, TaskT &other) {
-    task_dup(other);
     work_done_ = other.work_done_;
   }
 
