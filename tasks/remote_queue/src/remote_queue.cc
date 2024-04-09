@@ -381,10 +381,10 @@ class Server : public TaskLib {
             exec->Monitor(MonitorMode::kReplicaAgg,
                           orig_task, orig_task->ctx_);
             for (size_t rep_id = 0; rep_id < remote->replicas_.size(); ++rep_id) {
-              HILOG(kDebug, "(node {}) Freeing replica {} for task {} (state {})",
-                    HRUN_CLIENT->node_id_, rep_id,
-                    orig_task->task_node_, orig_task->task_state_);
               Task *replica = remote->replicas_[rep_id].ptr_;
+              HILOG(kDebug, "(node {}) Freeing replica {} (id: {}) for task {} ",
+                    HRUN_CLIENT->node_id_, rep_id, replica->task_node_,
+                    orig_task->task_node_, orig_task->task_state_);
               exec->Del(replica->method_, replica);
             }
           }
