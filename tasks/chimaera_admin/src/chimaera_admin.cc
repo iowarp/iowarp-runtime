@@ -181,11 +181,11 @@ class Server : public TaskLib {
   void MonitorFlush(u32 mode, FlushTask *task, RunContext &rctx) {
     switch (mode) {
       case MonitorMode::kReplicaAgg: {
-        HILOG(kDebug, "Merging replicas for flush");
         std::vector<LPointer<Task>> &replicas = rctx.next_net_->replicas_;
         FlushTask *replica = reinterpret_cast<FlushTask *>(
             replicas[0].ptr_);
         task->work_done_ += replica->work_done_;
+        HILOG(kInfo, "Total work done in this task: {}", task->work_done_);
       }
     }
   }

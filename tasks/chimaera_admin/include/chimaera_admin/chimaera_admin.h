@@ -191,6 +191,7 @@ class Client : public TaskLibClient {
       task->Wait();
       work_done = task->work_done_;
       HRUN_CLIENT->DelTask(task);
+      HILOG(kDebug, "Total flush work done: {}", work_done);
     } while (work_done > 0);
   }
   HRUN_TASK_NODE_ADMIN_ROOT(Flush);
