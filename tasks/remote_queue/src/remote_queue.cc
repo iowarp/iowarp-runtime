@@ -384,7 +384,7 @@ class Server : public TaskLib {
               Task *replica = remote->replicas_[rep_id].ptr_;
               HILOG(kDebug, "(node {}) Freeing replica {} (id: {}) for task {} ",
                     HRUN_CLIENT->node_id_, rep_id, replica->task_node_,
-                    orig_task->task_node_, orig_task->task_state_);
+                    orig_task->task_node_);
               exec->Del(replica->method_, replica);
             }
           }
