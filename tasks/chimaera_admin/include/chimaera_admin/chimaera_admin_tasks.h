@@ -288,7 +288,7 @@ struct StopRuntimeTask : public Task, TaskFlags<TF_SRL_SYM> {
     prio_ = TaskPrio::kLowLatency;
     task_state_ = HRUN_QM_CLIENT->admin_task_state_;
     method_ = Method::kStopRuntime;
-    task_flags_.SetBits(TASK_FIRE_AND_FORGET | TASK_FLUSH);
+    task_flags_.SetBits(TASK_FIRE_AND_FORGET);
     domain_id_ = domain_id;
   }
 
