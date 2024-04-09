@@ -135,8 +135,9 @@ class Client : public TaskLibClient {
     HILOG(kInfo, "Stopping the runtime");
     AsyncStopRuntimeRoot(DomainId::GetGlobalMinusLocal());
     FlushRoot(DomainId::GetLocal());
-    AsyncStopRuntimeRoot(DomainId::GetLocal());
+    // AsyncStopRuntimeRoot(DomainId::GetLocal());
     HILOG(kInfo, "All done!");
+    exit(1);
   }
 
   /** Set work orchestrator queue policy */

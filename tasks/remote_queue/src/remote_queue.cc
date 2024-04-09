@@ -116,13 +116,9 @@ class Server : public TaskLib {
   /** Push operation called on client */
   void ClientSubmit(ClientSubmitTask *task, RunContext &rctx) {
     try {
+      TaskQueueEntry entry;
       std::unordered_map<DomainId, BinaryOutputArchive<true>> entries;
-      size_t size = submit_[rctx.lane_id_].GetSize();
-      hshm::mpsc_queue<TaskQueueEntry> &queue = submit_[rctx.lane_id_];
-      TaskQueueEntry *entry_p;
-      for (size_t i = 0; i < size; ++i) {
-        queue.peek(entry_p, i);
-        TaskQueueEntry &entry = *entry_p;
+      while (!submit_[rctx.lane_id_].pop(entry).IsNull()) {
         HILOG(kDebug, "(node {}) Submitting task {} to domain {}",
               HRUN_CLIENT->node_id_, entry.task_->task_node_,
               entry.domain_.id_);
@@ -168,10 +164,6 @@ class Server : public TaskLib {
           }
         }
       }
-
-      for (size_t i = 0; i < size; ++i) {
-        queue.pop();
-      }
     } catch (hshm::Error &e) {
       HELOG(kError, "(node {}) Worker {} caught an error: {}", HRUN_CLIENT->node_id_, id_, e.what());
     } catch (std::exception &e) {
@@ -214,12 +206,7 @@ class Server : public TaskLib {
     try {
       TaskQueueEntry entry;
       std::unordered_map<DomainId, BinaryOutputArchive<false>> entries;
-      size_t size = complete_[rctx.lane_id_].GetSize();
-      hshm::mpsc_queue<TaskQueueEntry> &queue = complete_[rctx.lane_id_];
-      TaskQueueEntry *entry_p;
-      for (size_t i = 0; i < size; ++i) {
-        queue.peek(entry_p, i);
-        TaskQueueEntry &entry = *entry_p;
+      while (!complete_[rctx.lane_id_].pop(entry).IsNull()) {
         if (entries.find(entry.domain_) == entries.end()) {
           entries.emplace(entry.domain_, BinaryOutputArchive<false>());
         }
@@ -245,10 +232,6 @@ class Server : public TaskLib {
                                        "RpcTaskComplete",
                                        xfer,
                                        DT_SENDER_WRITE);
-      }
-
-      for (size_t i = 0; i < size; ++i) {
-        queue.pop();
       }
     } catch (hshm::Error &e) {
       HELOG(kError, "(node {}) Worker {} caught an error: {}", HRUN_CLIENT->node_id_, id_, e.what());
