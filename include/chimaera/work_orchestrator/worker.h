@@ -354,7 +354,8 @@ class PrivateTaskMultiQueue {
   template<bool WAS_PENDING=false>
   bool push(const PrivateTaskQueueEntry &entry) {
     Task *task = entry.task_.ptr_;
-    if (task->method_ == TaskMethod::kCreate) {
+    if (task->task_state_ == CHM_ADMIN->id_ &&
+        task->method_ == chm::Admin::Method::kCreateTaskState) {
       return GetConstruct().push(entry);
     } else if (task->IsFlush() && !task->IsRemote()) {
       return GetFlush().push(entry);

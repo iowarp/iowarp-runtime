@@ -346,16 +346,6 @@ struct Task : public hipc::ShmContainer {
     return task_flags_.All(TASK_LONG_RUNNING);
   }
 
-  /** Check if task is unordered */
-  HSHM_ALWAYS_INLINE bool IsUnordered() {
-    return task_flags_.Any(TASK_UNORDERED);
-  }
-
-  /** Set task as unordered */
-  HSHM_ALWAYS_INLINE bool SetUnordered() {
-    return task_flags_.Any(TASK_UNORDERED);
-  }
-
   /** Set task as data owner */
   HSHM_ALWAYS_INLINE void SetDataOwner() {
     task_flags_.SetBits(TASK_DATA_OWNER);
