@@ -151,18 +151,18 @@ class Server : public TaskLib {
         HILOG(kInfo, "(node {}) Submitted tasks in {} usec",
               HRUN_CLIENT->node_id_, t.GetUsec());
 
-//        for (TaskSegment &task_seg : xfer.tasks_) {
-//          Task *orig_task = (Task*)task_seg.task_addr_;
-//          if (orig_task->IsFireAndForget()) {
-//            Worker &worker = HRUN_WORK_ORCHESTRATOR->GetWorker(
-//                orig_task->ctx_.worker_id_);
-//            HILOG(kDebug, "(node {}) Unblocking the f&f task {} (state {})",
-//                  HRUN_CLIENT->node_id_, orig_task->task_node_,
-//                  orig_task->task_state_);
-//            orig_task->SetModuleComplete();
-//            worker.SignalUnblock(orig_task);
-//          }
-//        }
+        for (TaskSegment &task_seg : xfer.tasks_) {
+          Task *orig_task = (Task*)task_seg.task_addr_;
+          if (orig_task->IsFireAndForget()) {
+            Worker &worker = HRUN_WORK_ORCHESTRATOR->GetWorker(
+                orig_task->ctx_.worker_id_);
+            HILOG(kDebug, "(node {}) Unblocking the f&f task {} (state {})",
+                  HRUN_CLIENT->node_id_, orig_task->task_node_,
+                  orig_task->task_state_);
+            orig_task->SetModuleComplete();
+            worker.SignalUnblock(orig_task);
+          }
+        }
       }
     } catch (hshm::Error &e) {
       HELOG(kError, "(node {}) Worker {} caught an error: {}", HRUN_CLIENT->node_id_, id_, e.what());
@@ -312,6 +312,9 @@ class Server : public TaskLib {
     orig_task->SetDataOwner();
     orig_task->UnsetFireAndForget();
     orig_task->SetSignalRemoteComplete();
+    if (!orig_task->IsFireAndForget()) {
+      orig_task->SetSignalRemoteComplete();
+    }
     orig_task->task_flags_.SetBits(TASK_REMOTE_DEBUG_MARK);
     orig_task->ctx_.prior_net_ = remote;
 
