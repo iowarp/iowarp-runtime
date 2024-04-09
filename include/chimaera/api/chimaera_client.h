@@ -127,24 +127,26 @@ class Client : public ConfigurationManager {
     return task;
   }
 
-  /** Allocate task */
-  template<typename TaskT, typename ...Args>
-  HSHM_ALWAYS_INLINE
-  hipc::LPointer<TaskT> AllocateTask() {
-    hipc::LPointer<TaskT> task = main_alloc_->AllocateLocalPtr<TaskT>(sizeof(TaskT));
-    if (task.shm_.IsNull()) {
-      // throw std::runtime_error("Could not allocate buffer");
-      HELOG(kFatal, "Could not allocate buffer (3)");
-    }
-    return task;
-  }
-
   /** Construct task */
   template<typename TaskT, typename ...Args>
   HSHM_ALWAYS_INLINE
   void ConstructTask(TaskT *task, Args&& ...args) {
     return hipc::Allocator::ConstructObj<TaskT>(
         *task, main_alloc_, std::forward<Args>(args)...);
+  }
+
+  /** Allocate task */
+  template<typename TaskT, typename ...Args>
+  HSHM_ALWAYS_INLINE
+      hipc::LPointer<TaskT> AllocateTask() {
+    hipc::LPointer<TaskT> task = main_alloc_->AllocateLocalPtr<TaskT>(sizeof(TaskT));
+    if (task.shm_.IsNull()) {
+      // throw std::runtime_error("Could not allocate buffer");
+      HELOG(kFatal, "Could not allocate buffer (3)");
+    }
+    HILOG(kDebug, "Heap size: {}",
+          main_alloc_->GetCurrentlyAllocatedSize());
+    return task;
   }
 
   /** Create a task */
@@ -157,20 +159,8 @@ class Client : public ConfigurationManager {
       // throw std::runtime_error("Could not allocate buffer");
       HELOG(kFatal, "Could not allocate buffer (4)");
     }
-    return ptr;
-  }
-
-  /** Create a root task */
-  template<typename TaskT, typename ...Args>
-  HSHM_ALWAYS_INLINE
-  LPointer<TaskT> NewTaskRoot(Args&& ...args) {
-    TaskNode task_node = MakeTaskNodeId();
-    LPointer<TaskT> ptr = main_alloc_->NewObjLocal<TaskT>(
-        main_alloc_, task_node, std::forward<Args>(args)...);
-    if (ptr.shm_.IsNull()) {
-      // throw std::runtime_error("Could not allocate buffer");
-      HELOG(kFatal, "Could not allocate buffer (5)");
-    }
+    HILOG(kDebug, "Heap size: {}",
+          main_alloc_->GetCurrentlyAllocatedSize());
     return ptr;
   }
 
@@ -178,15 +168,9 @@ class Client : public ConfigurationManager {
   template<typename TaskT>
   HSHM_ALWAYS_INLINE
   void DelTask(TaskT *task) {
-    // TODO(llogan): verify leak
-#ifdef TASK_DEBUG
-    task->delcnt_++;
-    if (task->delcnt_ != 1) {
-      HELOG(kFatal, "Freed task {} times: node={}, state={}. method={}",
-            task->delcnt_.load(), task->task_node_, task->task_state_, task->method_)
-    }
-#endif
     main_alloc_->DelObj<TaskT>(task);
+    HILOG(kDebug, "Heap size: {}",
+          main_alloc_->GetCurrentlyAllocatedSize());
   }
 
   /** Destroy a task */
@@ -201,6 +185,8 @@ class Client : public ConfigurationManager {
     }
 #endif
     main_alloc_->DelObjLocal<TaskT>(task);
+    HILOG(kDebug, "Heap size: {}",
+          main_alloc_->GetCurrentlyAllocatedSize());
   }
 
   /** Destroy a task */
@@ -208,6 +194,8 @@ class Client : public ConfigurationManager {
   HSHM_ALWAYS_INLINE
   void DelTask(TaskStateT *exec, TaskT *task) {
     exec->Del(task->method_, task);
+    HILOG(kDebug, "Heap size: {}",
+          main_alloc_->GetCurrentlyAllocatedSize());
   }
 
   /** Destroy a task */
@@ -215,6 +203,8 @@ class Client : public ConfigurationManager {
   HSHM_ALWAYS_INLINE
   void DelTask(TaskStateT *exec, LPointer<TaskT> &task) {
     exec->Del(task->method_, task);
+    HILOG(kDebug, "Heap size: {}",
+          main_alloc_->GetCurrentlyAllocatedSize());
   }
 
   /** Convert pointer to char* */
