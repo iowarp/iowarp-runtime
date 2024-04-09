@@ -131,6 +131,7 @@ class Server : public TaskLib {
   /** Stop this runtime */
   void StopRuntime(StopRuntimeTask *task, RunContext &rctx) {
     HILOG(kInfo, "Stopping (server mode)");
+    exit(0);
     HRUN_WORK_ORCHESTRATOR->FinalizeRuntime();
     HRUN_THALLIUM->StopThisDaemon();
     task->SetModuleComplete();
