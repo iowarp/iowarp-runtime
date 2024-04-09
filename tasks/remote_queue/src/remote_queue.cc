@@ -95,6 +95,10 @@ class Server : public TaskLib {
   void ClientPushSubmit(ClientPushSubmitTask *task, RunContext &rctx) {
     std::vector<DomainId> domain_ids = HRUN_RUNTIME->ResolveDomainId(
         task->domain_id_);
+    if (domain_ids.size() == 0) {
+      task->SetModuleComplete();
+      return;
+    }
     BinaryOutputArchive<true> ar;
     task->ctx_.next_net_ = new RemoteInfo();
     RemoteInfo *remote = (RemoteInfo*)task->ctx_.next_net_;
