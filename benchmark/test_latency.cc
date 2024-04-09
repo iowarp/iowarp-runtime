@@ -32,11 +32,13 @@ void SyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
   client.CreateRoot(chm::DomainId::GetGlobal(), "ipc_test");
   MPI_Barrier(MPI_COMM_WORLD);
   hshm::MpiTimer t(MPI_COMM_WORLD);
+  size_t domain_size =
+      CHM_ADMIN->DomainSizeRoot(chm::DomainId::GetGlobal());
 
   HILOG(kInfo, "OPS: {}", ops)
   t.Resume();
   for (size_t i = 0; i < ops; ++i) {
-    int node_id = 1 + ((rank + 1) % nprocs);
+    int node_id = 1 + ((rank + 1) % domain_size);
     client.MdRoot(chm::DomainId::GetNode(node_id),
                   i, depth, 0);
   }
@@ -51,11 +53,13 @@ void AsyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
   client.CreateRoot(chm::DomainId::GetGlobal(), "ipc_test");
   MPI_Barrier(MPI_COMM_WORLD);
   hshm::MpiTimer t(MPI_COMM_WORLD);
+  size_t domain_size =
+      CHM_ADMIN->DomainSizeRoot(chm::DomainId::GetGlobal());
 
   t.Resume();
   for (size_t i = 0; i < ops; ++i) {
     HILOG(kDebug, "Sending message {}", i)
-    int node_id = 1 + ((rank + 1) % nprocs);
+    int node_id = 1 + ((rank + 1) % domain_size);
     client.AsyncMdRoot(chm::DomainId::GetNode(node_id),
                        i, depth, TASK_FIRE_AND_FORGET);
   }

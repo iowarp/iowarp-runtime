@@ -190,6 +190,15 @@ class Server : public TaskLib {
     }
   }
 
+  /** Flush the runtime */
+  void DomainSize(DomainSizeTask *task, RunContext &rctx) {
+    task->comm_size_ =
+        HRUN_RUNTIME->ResolveDomainId(task->comm_).size();
+    task->SetModuleComplete();
+  }
+  void MonitorDomainSize(u32 mode, DomainSizeTask *task, RunContext &rctx) {
+  }
+
  public:
 #include "chimaera_admin/chimaera_admin_lib_exec.h"
 };

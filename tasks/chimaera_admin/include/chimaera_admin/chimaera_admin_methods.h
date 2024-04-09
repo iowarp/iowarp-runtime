@@ -13,6 +13,7 @@ struct Method : public TaskMethod {
   TASK_METHOD_T kSetWorkOrchQueuePolicy = kLast + 7;
   TASK_METHOD_T kSetWorkOrchProcPolicy = kLast + 8;
   TASK_METHOD_T kFlush = kLast + 9;
+  TASK_METHOD_T kDomainSize = kLast + 10;
 };
 
 #endif  // HRUN_CHIMAERA_ADMIN_METHODS_H_

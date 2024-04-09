@@ -33,18 +33,18 @@ class CoMutex {
 
   void Lock(Task *task, RunContext &rctx) {
     TaskId task_root = task->task_node_.root_;
-    if (!root_.IsNull() && root_ != task_root) {
-      task->SetBlocked();
-      if (blocked_map_.find(task_root) == blocked_map_.end()) {
-        blocked_map_[task_root] = COMUTEX_QUEUE_T();
-      }
-      COMUTEX_QUEUE_T &blocked = blocked_map_[task_root];
-      blocked.emplace_back((CoMutexEntry){task, &rctx});
-      task->Yield<TASK_YIELD_CO>();
-    } else {
+    if (root_.IsNull() || root_ == task_root) {
       root_ = task_root;
       ++rep_;
+      return;
     }
+    task->SetBlocked();
+    if (blocked_map_.find(task_root) == blocked_map_.end()) {
+      blocked_map_[task_root] = COMUTEX_QUEUE_T();
+    }
+    COMUTEX_QUEUE_T &blocked = blocked_map_[task_root];
+    blocked.emplace_back((CoMutexEntry){task, &rctx});
+    task->Yield<TASK_YIELD_CO>();
   }
 
   void Unlock() {
@@ -60,6 +60,7 @@ class CoMutex {
       Worker &worker = HRUN_WORK_ORCHESTRATOR->GetWorker(
           rctx.worker_id_);
       worker.SignalUnblock(blocked[i].task_);
+      ++rep_;
     }
     blocked_map_.erase(blocked_map_.begin());
   }

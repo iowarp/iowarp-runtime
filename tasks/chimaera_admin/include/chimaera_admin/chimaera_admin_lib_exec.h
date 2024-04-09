@@ -44,6 +44,10 @@ void Run(u32 method, Task *task, RunContext &rctx) override {
       Flush(reinterpret_cast<FlushTask *>(task), rctx);
       break;
     }
+    case Method::kDomainSize: {
+      DomainSize(reinterpret_cast<DomainSizeTask *>(task), rctx);
+      break;
+    }
   }
 }
 /** Execute a task */
@@ -87,6 +91,10 @@ void Monitor(u32 mode, Task *task, RunContext &rctx) override {
     }
     case Method::kFlush: {
       MonitorFlush(mode, reinterpret_cast<FlushTask *>(task), rctx);
+      break;
+    }
+    case Method::kDomainSize: {
+      MonitorDomainSize(mode, reinterpret_cast<DomainSizeTask *>(task), rctx);
       break;
     }
   }
@@ -134,6 +142,10 @@ void Del(u32 method, Task *task) override {
       HRUN_CLIENT->DelTask<FlushTask>(reinterpret_cast<FlushTask *>(task));
       break;
     }
+    case Method::kDomainSize: {
+      HRUN_CLIENT->DelTask<DomainSizeTask>(reinterpret_cast<DomainSizeTask *>(task));
+      break;
+    }
   }
 }
 /** Duplicate a task */
@@ -177,6 +189,10 @@ void CopyStart(u32 method, Task *orig_task, LPointer<Task> &dup_task) override {
     }
     case Method::kFlush: {
       chm::CALL_COPY_START(reinterpret_cast<FlushTask*>(orig_task), dup_task);
+      break;
+    }
+    case Method::kDomainSize: {
+      chm::CALL_COPY_START(reinterpret_cast<DomainSizeTask*>(orig_task), dup_task);
       break;
     }
   }
@@ -224,6 +240,10 @@ void CopyEnd(u32 method, Task *orig_task, Task *dup_task) override {
       chm::CALL_COPY_END(reinterpret_cast<FlushTask*>(orig_task), reinterpret_cast<FlushTask*>(dup_task));
       break;
     }
+    case Method::kDomainSize: {
+      chm::CALL_COPY_END(reinterpret_cast<DomainSizeTask*>(orig_task), reinterpret_cast<DomainSizeTask*>(dup_task));
+      break;
+    }
   }
 }
 /** Serialize a task when initially pushing into remote */
@@ -267,6 +287,10 @@ void SaveStart(u32 method, BinaryOutputArchive<true> &ar, Task *task) override {
     }
     case Method::kFlush: {
       ar << *reinterpret_cast<FlushTask*>(task);
+      break;
+    }
+    case Method::kDomainSize: {
+      ar << *reinterpret_cast<DomainSizeTask*>(task);
       break;
     }
   }
@@ -325,6 +349,11 @@ TaskPointer LoadStart(u32 method, BinaryInputArchive<true> &ar) override {
       ar >> *reinterpret_cast<FlushTask*>(task_ptr.ptr_);
       break;
     }
+    case Method::kDomainSize: {
+      task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<DomainSizeTask>(task_ptr.shm_);
+      ar >> *reinterpret_cast<DomainSizeTask*>(task_ptr.ptr_);
+      break;
+    }
   }
   return task_ptr;
 }
@@ -371,6 +400,10 @@ void SaveEnd(u32 method, BinaryOutputArchive<false> &ar, Task *task) override {
       ar << *reinterpret_cast<FlushTask*>(task);
       break;
     }
+    case Method::kDomainSize: {
+      ar << *reinterpret_cast<DomainSizeTask*>(task);
+      break;
+    }
   }
 }
 /** Deserialize a task when popping from remote queue */
@@ -414,6 +447,10 @@ void LoadEnd(u32 method, BinaryInputArchive<false> &ar, Task *task) override {
     }
     case Method::kFlush: {
       ar >> *reinterpret_cast<FlushTask*>(task);
+      break;
+    }
+    case Method::kDomainSize: {
+      ar >> *reinterpret_cast<DomainSizeTask*>(task);
       break;
     }
   }
@@ -480,6 +517,12 @@ TaskPointer LoadReplicaEnd(u32 method, BinaryInputArchive<false> &ar, Task *task
       task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<FlushTask>(task_ptr.shm_);
       task_ptr.ptr_->task_dup(*task);
       ar >> *reinterpret_cast<FlushTask*>(task_ptr.ptr_);
+      break;
+    }
+    case Method::kDomainSize: {
+      task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<DomainSizeTask>(task_ptr.shm_);
+      task_ptr.ptr_->task_dup(*task);
+      ar >> *reinterpret_cast<DomainSizeTask*>(task_ptr.ptr_);
       break;
     }
   }

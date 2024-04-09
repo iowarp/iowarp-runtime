@@ -32,9 +32,8 @@ TEST_CASE("TestIpc") {
   client.CreateRoot(chm::DomainId::GetGlobal(), "ipc_test");
   MPI_Barrier(MPI_COMM_WORLD);
   hshm::Timer t;
-
-  int pid = getpid();
-  ProcessAffiner::SetCpuAffinity(pid, 8);
+  size_t domain_size =
+      CHM_ADMIN->DomainSizeRoot(chm::DomainId::GetGlobal());
 
   size_t ops = 16;
   HILOG(kInfo, "OPS: {}", ops)
@@ -43,7 +42,7 @@ TEST_CASE("TestIpc") {
   for (size_t i = 0; i < ops; ++i) {
     int ret;
     // HILOG(kInfo, "Sending message {}", i);
-    int node_id = 1 + ((rank + 1) % nprocs);
+    int node_id = 1 + ((rank + 1) % domain_size);
     ret = client.MdRoot(chm::DomainId::GetNode(node_id),
                         i, depth, 0);
 //    auto task = client.AsyncMd(
@@ -73,6 +72,8 @@ TEST_CASE("TestAsyncIpc") {
   client.CreateRoot(chm::DomainId::GetGlobal(), "ipc_test");
   MPI_Barrier(MPI_COMM_WORLD);
   hshm::Timer t;
+  size_t domain_size =
+      CHM_ADMIN->DomainSizeRoot(chm::DomainId::GetGlobal());
 
   int pid = getpid();
   ProcessAffiner::SetCpuAffinity(pid, 8);
@@ -83,7 +84,7 @@ TEST_CASE("TestAsyncIpc") {
   for (size_t i = 0; i < ops; ++i) {
     int ret;
     // HILOG(kInfo, "Sending message {}", i);
-    int node_id = 1 + ((rank + 1) % nprocs);
+    int node_id = 1 + ((rank + 1) % domain_size);
     client.AsyncMdRoot(chm::DomainId::GetNode(node_id),
                        i, depth, TASK_FIRE_AND_FORGET);
 //    auto task = client.AsyncMd(
@@ -188,6 +189,8 @@ TEST_CASE("TestIO") {
   CHM_ADMIN->RegisterTaskLibRoot(chm::DomainId::GetGlobal(), "small_message");
   client.CreateRoot(chm::DomainId::GetGlobal(), "ipc_test");
   hshm::Timer t;
+  size_t domain_size =
+      CHM_ADMIN->DomainSizeRoot(chm::DomainId::GetGlobal());
 
   int pid = getpid();
   ProcessAffiner::SetCpuAffinity(pid, 8);
@@ -199,7 +202,7 @@ TEST_CASE("TestIO") {
   for (size_t i = 0; i < ops; ++i) {
     int ret;
     HILOG(kInfo, "Sending message {}", i);
-    int node_id = 1 + ((rank + 1) % nprocs);
+    int node_id = 1 + ((rank + 1) % domain_size);
     ret = client.IoRoot(chm::DomainId::GetNode(node_id),
                         KILOBYTES(4));
     REQUIRE(ret == 1);

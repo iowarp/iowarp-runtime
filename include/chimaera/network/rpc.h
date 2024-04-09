@@ -114,7 +114,7 @@ class RpcContext {
     u32 node_id = domain_id.id_;
     if (node_id <= 0 || node_id > (i32)hosts_.size()) {
       HELOG(kFatal, "Attempted to get from node {}, which is out of "
-                    "the range 1-{}", node_id, hosts_.size() + 1)
+                    "the range 1-{}", node_id, hosts_.size())
     }
     u32 index = node_id - 1;
     return hosts_[index].hostname_;
@@ -126,7 +126,7 @@ class RpcContext {
     u32 node_id = domain_id.id_;
     if (node_id <= 0 || node_id > (u32)hosts_.size()) {
       HELOG(kFatal, "Attempted to get from node {}, which is out of "
-                    "the range 1-{}", node_id, hosts_.size() + 1)
+                    "the range 1-{}", node_id, hosts_.size())
     }
     u32 index = node_id - 1;
     return hosts_[index].ip_addr_;

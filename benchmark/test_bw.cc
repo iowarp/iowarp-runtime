@@ -31,11 +31,13 @@ void SyncIoTest(int rank, int nprocs, size_t msg_size, size_t ops) {
   chm::small_message::Client client;
   CHM_ADMIN->RegisterTaskLibRoot(chm::DomainId::GetGlobal(), "small_message");
   client.CreateRoot(chm::DomainId::GetGlobal(), "ipc_test");
+  size_t domain_size =
+      CHM_ADMIN->DomainSizeRoot(chm::DomainId::GetGlobal());
 
   hshm::MpiTimer t(MPI_COMM_WORLD);
   t.Resume();
   for (size_t i = 0; i < ops; ++i) {
-    int node_id = 1 + ((rank + 1) % nprocs);
+    int node_id = 1 + ((rank + 1) % domain_size);
     client.IoRoot(chm::DomainId::GetNode(node_id),
                   msg_size);
   }

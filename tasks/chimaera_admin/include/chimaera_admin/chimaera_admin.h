@@ -195,6 +195,23 @@ class Client : public TaskLibClient {
     } while (work_done > 0);
   }
   HRUN_TASK_NODE_ADMIN_ROOT(Flush);
+
+  /** Flush the runtime */
+  void AsyncDomainSizeConstruct(DomainSizeTask *task,
+                           const TaskNode &task_node,
+                           const DomainId &domain_id) {
+    HRUN_CLIENT->ConstructTask<DomainSizeTask>(
+        task, task_node, domain_id);
+  }
+  size_t DomainSizeRoot(const DomainId &domain_id) {
+    LPointer<DomainSizeTask> task =
+        AsyncDomainSizeRoot(domain_id);
+    task->Wait();
+    size_t comm_size = task->comm_size_;
+    HRUN_CLIENT->DelTask(task);
+    return comm_size;
+  }
+  HRUN_TASK_NODE_ADMIN_ROOT(DomainSize)
 };
 
 }  // namespace chm::Admin

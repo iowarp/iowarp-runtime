@@ -397,6 +397,33 @@ struct FlushTask : public Task, TaskFlags<TF_SRL_SYM | TF_REPLICA> {
   }
 };
 
+/** A task to destroy a Task state */
+struct DomainSizeTask : public Task, TaskFlags<TF_LOCAL> {
+  IN DomainId comm_;
+  OUT size_t comm_size_;
+
+  /** SHM default constructor */
+  DomainSizeTask(hipc::Allocator *alloc) : Task(alloc) {}
+
+  /** Emplace constructor */
+  HSHM_ALWAYS_INLINE explicit
+  DomainSizeTask(hipc::Allocator *alloc,
+                 const TaskNode &task_node,
+                 const DomainId &domain_id) : Task(alloc) {
+    // Initialize task
+    task_node_ = task_node;
+    lane_hash_ = 0;
+    prio_ = TaskPrio::kLowLatency;
+    task_state_ = HRUN_QM_CLIENT->admin_task_state_;
+    method_ = Method::kDomainSize;
+    task_flags_.SetBits(TASK_FLUSH | TASK_COROUTINE);
+    domain_id_ = DomainId::GetLocal();
+
+    // Custom
+    comm_ = domain_id;
+    comm_size_ = 0;
+  }
+};
 
 }  // namespace chm::Admin
 
