@@ -143,8 +143,6 @@ void Runtime::InitSharedMemory() {
 
 /** Finalize Hermes explicitly */
 void Runtime::Finalize() {
-  HILOG(kInfo, "Should be finalizing");
-  exit(0);
 }
 
 /** Run the Hermes core Daemon */
