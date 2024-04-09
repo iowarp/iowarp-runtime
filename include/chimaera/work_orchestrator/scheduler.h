@@ -49,12 +49,6 @@ struct ScheduleTask : public Task, TaskFlags<TF_LOCAL> {
     // Custom params
     ret_.construct(alloc, 1);
   }
-
-  /** Create group */
-  HSHM_ALWAYS_INLINE
-  u32 GetGroup(hshm::charbuf &group) {
-    return TASK_UNORDERED;
-  }
 };
 
 }  // namespace chm

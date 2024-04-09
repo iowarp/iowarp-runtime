@@ -106,6 +106,7 @@ class Server : public TaskLib {
       submit_[lane_hash % submit_.size()].emplace(
           (TaskQueueEntry){domain_id, task});
     }
+    task->SetBlocked();
   }
   void MonitorClientPushSubmit(u32 mode,
                                ClientPushSubmitTask *task,
@@ -134,6 +135,15 @@ class Server : public TaskLib {
         }
         BinaryOutputArchive<true> &ar = entries[entry.domain_];
         exec->SaveStart(orig_task->method_, ar, orig_task);
+        if (orig_task->IsFireAndForget()) {
+          Worker &worker = HRUN_WORK_ORCHESTRATOR->GetWorker(
+              orig_task->ctx_.worker_id_);
+          HILOG(kDebug, "(node {}) Unblocking the f&f task {} (state {})",
+                HRUN_CLIENT->node_id_, orig_task->task_node_,
+                orig_task->task_state_);
+          task->SetModuleComplete();
+          worker.SignalUnblock(orig_task);
+        }
       }
 
       for (auto it = entries.begin(); it != entries.end(); ++it) {
@@ -295,9 +305,10 @@ class Server : public TaskLib {
     orig_task->UnsetBlocked();
     orig_task->UnsetLongRunning();
     orig_task->UnsetRemote();
-    orig_task->UnsetFireAndForget();
     orig_task->SetDataOwner();
-    orig_task->SetSignalRemoteComplete();
+    if (!orig_task->IsFireAndForget()) {
+      orig_task->SetSignalRemoteComplete();
+    }
     orig_task->task_flags_.SetBits(TASK_REMOTE_DEBUG_MARK);
     orig_task->ctx_.prior_net_ = remote;
 

@@ -58,12 +58,6 @@ struct DestructTask : public DestroyTaskStateTask {
                const DomainId &domain_id,
                TaskStateId &state_id)
   : DestroyTaskStateTask(alloc, task_node, domain_id, state_id) {}
-
-  /** Create group */
-  HSHM_ALWAYS_INLINE
-  u32 GetGroup(hshm::charbuf &group) {
-    return TASK_UNORDERED;
-  }
 };
 
 /**
@@ -109,12 +103,6 @@ struct CustomTask : public Task, TaskFlags<TF_SRL_SYM> {
 
   /** Process duplicate message output */
   void CopyEnd(CustomTask &dup_task) {
-  }
-
-  /** Create group */
-  HSHM_ALWAYS_INLINE
-  u32 GetGroup(hshm::charbuf &group) {
-    return TASK_UNORDERED;
   }
 };
 

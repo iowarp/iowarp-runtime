@@ -60,12 +60,6 @@ struct RegisterTaskLibTaskTempl : public Task, TaskFlags<TF_SRL_SYM> {
   void SerializeEnd(Ar &ar) {
     ar(id_);
   }
-
-  /** Create group */
-  HSHM_ALWAYS_INLINE
-  u32 GetGroup(hshm::charbuf &group) {
-    return TASK_UNORDERED;
-  }
 };
 
 /** A task to register a Task Library */
@@ -126,12 +120,6 @@ struct GetOrCreateTaskStateIdTask : public Task, TaskFlags<TF_SRL_SYM> {
   template<typename Ar>
   void SerializeEnd(Ar &ar) {
     ar(id_);
-  }
-
-  /** Create group */
-  HSHM_ALWAYS_INLINE
-  u32 GetGroup(hshm::charbuf &group) {
-    return TASK_UNORDERED;
   }
 };
 
@@ -196,14 +184,6 @@ struct CreateTaskStateTask : public Task, TaskFlags<TF_SRL_SYM | TF_REPLICA> {
   void SerializeEnd(Ar &ar) {
     ar(id_);
   }
-
-  /** Create group */
-  HSHM_ALWAYS_INLINE
-  u32 GetGroup(hshm::charbuf &group) {
-    LocalSerialize srl(group);
-    srl << 16;
-    return 0;
-  }
 };
 
 /** A task to retrieve the ID of a task */
@@ -251,12 +231,6 @@ struct GetTaskStateIdTask : public Task, TaskFlags<TF_SRL_SYM> {
   void SerializeEnd(Ar &ar) {
     ar(id_);
   }
-
-  /** Create group */
-  HSHM_ALWAYS_INLINE
-  u32 GetGroup(hshm::charbuf &group) {
-    return TASK_UNORDERED;
-  }
 };
 
 /** A task to destroy a Task state */
@@ -296,12 +270,6 @@ struct DestroyTaskStateTask : public Task, TaskFlags<TF_SRL_SYM> {
   template<typename Ar>
   void SerializeEnd(Ar &ar) {
   }
-
-  /** Create group */
-  HSHM_ALWAYS_INLINE
-  u32 GetGroup(hshm::charbuf &group) {
-    return TASK_UNORDERED;
-  }
 };
 
 /** A task to destroy a Task state */
@@ -332,12 +300,6 @@ struct StopRuntimeTask : public Task, TaskFlags<TF_SRL_SYM> {
   /** (De)serialize message return */
   template<typename Ar>
   void SerializeEnd(Ar &ar) {
-  }
-
-  /** Create group */
-  HSHM_ALWAYS_INLINE
-  u32 GetGroup(hshm::charbuf &group) {
-    return TASK_UNORDERED;
   }
 };
 
@@ -382,12 +344,6 @@ struct SetWorkOrchestratorPolicyTask : public Task, TaskFlags<TF_SRL_SYM> {
   /** (De)serialize message return */
   template<typename Ar>
   void SerializeEnd(Ar &ar) {
-  }
-
-  /** Create group */
-  HSHM_ALWAYS_INLINE
-  u32 GetGroup(hshm::charbuf &group) {
-    return TASK_UNORDERED;
   }
 };
 using SetWorkOrchQueuePolicyTask = SetWorkOrchestratorPolicyTask<0>;
@@ -438,14 +394,6 @@ struct FlushTask : public Task, TaskFlags<TF_SRL_SYM | TF_REPLICA> {
   template<typename Ar>
   void SerializeEnd(Ar &ar) {
     ar(work_done_);
-  }
-
-  /** Create group */
-  HSHM_ALWAYS_INLINE
-  u32 GetGroup(hshm::charbuf &group) {
-    chm::LocalSerialize srl(group);
-    srl << task_state_;
-    return 0;
   }
 };
 

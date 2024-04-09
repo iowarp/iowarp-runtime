@@ -53,12 +53,6 @@ struct DestructTask : public DestroyTaskStateTask {
                const DomainId &domain_id,
                TaskStateId &state_id)
       : DestroyTaskStateTask(alloc, task_node, domain_id, state_id) {}
-
-  /** Create group */
-  HSHM_ALWAYS_INLINE
-  u32 GetGroup(hshm::charbuf &group) {
-    return TASK_UNORDERED;
-  }
 };
 
 }  // namespace chm::worch_proc_round_robin

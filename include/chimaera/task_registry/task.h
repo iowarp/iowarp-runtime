@@ -715,16 +715,6 @@ struct Task : public hipc::ShmContainer {
     period_ns_ = other.period_ns_;
     start_ = other.start_;
   }
-
-  /**====================================
-   * Grouping
-   * ===================================*/
-
-  /** Create group */
-  HSHM_ALWAYS_INLINE
-  u32 GetGroup(hshm::charbuf &group) {
-    return TASK_UNORDERED;
-  }
 };
 
 /** Decorator macros */
