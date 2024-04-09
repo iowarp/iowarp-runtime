@@ -274,7 +274,7 @@ struct RunContext {
   TaskLib *exec_;
   WorkPending *flush_;
   hshm::Timer timer_;
-  void *pending_to_;
+  Task *pending_to_;
   size_t pending_key_;
   RemoteInfo *next_net_;
   RemoteInfo *prior_net_;

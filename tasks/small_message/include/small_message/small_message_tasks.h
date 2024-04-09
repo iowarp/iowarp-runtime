@@ -61,7 +61,9 @@ struct MdTask : public Task, TaskFlags<TF_SRL_SYM | TF_REPLICA> {
 
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
-  MdTask(hipc::Allocator *alloc) : Task(alloc) {}
+  MdTask(hipc::Allocator *alloc) : Task(alloc) {
+    ret_.construct(alloc, 1);
+  }
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit

@@ -352,16 +352,12 @@ class Server : public TaskLib {
           }
           delete remote;
           Worker &worker = HRUN_WORK_ORCHESTRATOR->GetWorker(task->ctx_.worker_id_);
-          LPointer<Task> ltask;
-          ltask.ptr_ = task;
-          ltask.shm_ = HERMES_MEMORY_MANAGER->Convert<Task, hipc::Pointer>(
-              ltask.ptr_);
           HILOG(kDebug, "(node {}) Unblocking the task {} (state {})",
                 HRUN_CLIENT->node_id_, task->task_node_, task->task_state_);
           if (!task->IsLongRunning()) {
             task->SetModuleComplete();
           }
-          worker.SignalUnblock(ltask);
+          worker.SignalUnblock(task);
         }
       }
     } catch (hshm::Error &e) {

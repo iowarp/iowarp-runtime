@@ -402,8 +402,8 @@ class PrivateTaskMultiQueue {
     }
     PrivateTaskQueueEntry entry;
     blocked_.pop(blocked_task->ctx_.pending_key_, entry);
-    if (blocked_task.ptr_ == nullptr) {
-      return true;
+    if (blocked_task.ptr_ != entry.task_.ptr_) {
+      HILOG(kFatal, "A blocked task was lost");
     }
     blocked_task->UnsetBlocked();
     push<true>(entry);
@@ -862,10 +862,7 @@ class Worker {
   HSHM_ALWAYS_INLINE
   void EndTask(TaskState *exec, LPointer<Task> &task) {
     if (task->ShouldSignalUnblock()) {
-      LPointer<Task> pending_to;
-      pending_to.ptr_ = (Task*)task->ctx_.pending_to_;
-      pending_to.shm_ = HERMES_MEMORY_MANAGER->Convert(pending_to.ptr_);
-      SignalUnblock(pending_to);
+      SignalUnblock(task->ctx_.pending_to_);
     } else if (task->ShouldSignalRemoteComplete()) {
       TaskState *remote_exec = GetTaskState(HRUN_REMOTE_QUEUE->id_);
       remote_exec->Run(chm::remote_queue::Method::kServerPushComplete,
@@ -939,7 +936,7 @@ class Worker {
       remote_exec->Run(chm::remote_queue::Method::kClientPushSubmit,
                        task, rctx);
       task->SetBlocked();
-    } if (task->IsLaneAll()) {
+    } else if (task->IsLaneAll()) {
       //      TaskState *remote_exec = GetTaskState(HRUN_REMOTE_QUEUE->id_);
       //      remote_exec->Run(chm::remote_queue::Method::kPush,
       //                       task, rctx);

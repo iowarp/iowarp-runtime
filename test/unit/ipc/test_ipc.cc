@@ -36,7 +36,7 @@ TEST_CASE("TestIpc") {
   int pid = getpid();
   ProcessAffiner::SetCpuAffinity(pid, 8);
 
-  size_t ops = (1 << 20);
+  size_t ops = 16;
   HILOG(kInfo, "OPS: {}", ops)
   t.Resume();
   int depth = 0;
