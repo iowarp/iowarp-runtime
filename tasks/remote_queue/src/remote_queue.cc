@@ -151,18 +151,18 @@ class Server : public TaskLib {
         HILOG(kInfo, "(node {}) Submitted tasks in {} usec",
               HRUN_CLIENT->node_id_, t.GetUsec());
 
-        for (TaskSegment &task_seg : xfer.tasks_) {
-          Task *orig_task = (Task*)task_seg.task_addr_;
-          if (orig_task->IsFireAndForget()) {
-            Worker &worker = HRUN_WORK_ORCHESTRATOR->GetWorker(
-                orig_task->ctx_.worker_id_);
-            HILOG(kDebug, "(node {}) Unblocking the f&f task {} (state {})",
-                  HRUN_CLIENT->node_id_, orig_task->task_node_,
-                  orig_task->task_state_);
-            orig_task->SetModuleComplete();
-            worker.SignalUnblock(orig_task);
-          }
-        }
+//        for (TaskSegment &task_seg : xfer.tasks_) {
+//          Task *orig_task = (Task*)task_seg.task_addr_;
+//          if (orig_task->IsFireAndForget()) {
+//            Worker &worker = HRUN_WORK_ORCHESTRATOR->GetWorker(
+//                orig_task->ctx_.worker_id_);
+//            HILOG(kDebug, "(node {}) Unblocking the f&f task {} (state {})",
+//                  HRUN_CLIENT->node_id_, orig_task->task_node_,
+//                  orig_task->task_state_);
+//            orig_task->SetModuleComplete();
+//            worker.SignalUnblock(orig_task);
+//          }
+//        }
       }
     } catch (hshm::Error &e) {
       HELOG(kError, "(node {}) Worker {} caught an error: {}", HRUN_CLIENT->node_id_, id_, e.what());
@@ -310,9 +310,8 @@ class Server : public TaskLib {
     orig_task->UnsetLongRunning();
     orig_task->UnsetRemote();
     orig_task->SetDataOwner();
-    if (!orig_task->IsFireAndForget()) {
-      orig_task->SetSignalRemoteComplete();
-    }
+    orig_task->UnsetFireAndForget();
+    orig_task->SetSignalRemoteComplete();
     orig_task->task_flags_.SetBits(TASK_REMOTE_DEBUG_MARK);
     orig_task->ctx_.prior_net_ = remote;
 
@@ -363,25 +362,27 @@ class Server : public TaskLib {
       HRUN_THALLIUM->IoCallServerWrite(req, bulk, xfer);
       // Check if all replicas are complete
       for (size_t i = 0; i < xfer.tasks_.size(); ++i) {
-        Task *task = (Task*)xfer.tasks_[i].task_addr_;
-        TaskState *exec = HRUN_TASK_REGISTRY->GetTaskState(task->task_state_);
-        RemoteInfo *remote = (RemoteInfo*)task->ctx_.next_net_;
+        Task *orig_task = (Task*)xfer.tasks_[i].task_addr_;
+        TaskState *exec = HRUN_TASK_REGISTRY->GetTaskState(
+            orig_task->task_state_);
+        RemoteInfo *remote = (RemoteInfo*)orig_task->ctx_.next_net_;
         if (remote->rep_cnt_ == remote->rep_max_) {
           if (remote->rep_max_ > 1) {
-            exec->Monitor(MonitorMode::kReplicaAgg, task, task->ctx_);
+            exec->Monitor(MonitorMode::kReplicaAgg,
+                          orig_task, orig_task->ctx_);
             for (size_t i = 0; i < remote->replicas_.size(); ++i) {
               Task *replica = remote->replicas_[i].ptr_;
               exec->Del(replica->method_, replica);
             }
           }
           delete remote;
-          Worker &worker = HRUN_WORK_ORCHESTRATOR->GetWorker(task->ctx_.worker_id_);
+          Worker &worker = HRUN_WORK_ORCHESTRATOR->GetWorker(orig_task->ctx_.worker_id_);
           HILOG(kDebug, "(node {}) Unblocking the task {} (state {})",
-                HRUN_CLIENT->node_id_, task->task_node_, task->task_state_);
-          if (!task->IsLongRunning()) {
-            task->SetModuleComplete();
+                HRUN_CLIENT->node_id_, orig_task->task_node_, orig_task->task_state_);
+          if (!orig_task->IsLongRunning()) {
+            orig_task->SetModuleComplete();
           }
-          worker.SignalUnblock(task);
+          worker.SignalUnblock(orig_task);
         }
       }
     } catch (hshm::Error &e) {

@@ -36,7 +36,7 @@ class TaskLib;
 #define TASK_SYSCALL BIT_OPT(u32, 5)
 /** This task supports merging */
 #define TASK_MERGE BIT_OPT(u32, 6)
-/** This task does not depend on its position in the queue */
+/** This task does not depend on its position in the queue (deprecated) */
 #define TASK_UNORDERED BIT_OPT(u32, 7)
 /** This task has began execution */
 #define TASK_HAS_STARTED BIT_OPT(u32, 8)
