@@ -356,7 +356,7 @@ class PrivateTaskMultiQueue {
     Task *task = entry.task_.ptr_;
     if (task->method_ == TaskMethod::kCreate) {
       return GetConstruct().push(entry);
-    } else if (task->IsFlush()) {
+    } else if (task->IsFlush() && !task->IsRemote()) {
       return GetFlush().push(entry);
     } else if (task->IsLongRunning()) {
       return GetLongRunning().push(entry);
