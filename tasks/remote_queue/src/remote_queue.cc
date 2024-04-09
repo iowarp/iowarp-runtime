@@ -362,6 +362,9 @@ class Server : public TaskLib {
         if (remote->rep_max_ == 1) {
           exec->LoadEnd(orig_task->method_, ar, orig_task);
         } else {
+          HILOG(kDebug, "(node {}) Setting replica {} for task {} (state {})",
+                HRUN_CLIENT->node_id_, rep_id,
+                orig_task->task_node_, orig_task->task_state_);
           remote->replicas_[rep_id] = exec->LoadReplicaEnd(
               orig_task->method_, ar, orig_task);
         }
@@ -377,8 +380,11 @@ class Server : public TaskLib {
           if (remote->rep_max_ > 1) {
             exec->Monitor(MonitorMode::kReplicaAgg,
                           orig_task, orig_task->ctx_);
-            for (size_t i = 0; i < remote->replicas_.size(); ++i) {
-              Task *replica = remote->replicas_[i].ptr_;
+            for (size_t rep_id = 0; rep_id < remote->replicas_.size(); ++rep_id) {
+              HILOG(kDebug, "(node {}) Freeing replica {} for task {} (state {})",
+                    HRUN_CLIENT->node_id_, rep_id,
+                    orig_task->task_node_, orig_task->task_state_);
+              Task *replica = remote->replicas_[rep_id].ptr_;
               exec->Del(replica->method_, replica);
             }
           }
