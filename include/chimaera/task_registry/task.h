@@ -243,16 +243,15 @@ class TaskPrio {
 
 /** Used to indicate the amount of work remaining to do when flushing */
 struct WorkPending {
+  size_t count_;
+  size_t last_check_;
+  size_t cur_iter_;
+  size_t work_done_;
   bool flushing_;
-  std::atomic<int> count_;
 
   /** Default constructor */
   WorkPending()
-  : flushing_(false), count_(0) {}
-
-  /** Copy constructor */
-  WorkPending(const WorkPending &other)
-  : flushing_(other.flushing_), count_(other.count_.load()) {}
+  :  count_(0), last_check_(0), cur_iter_(0), work_done_(0), flushing_(false) {}
 };
 
 struct Task;

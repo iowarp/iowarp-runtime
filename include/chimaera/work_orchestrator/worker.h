@@ -263,6 +263,11 @@ class PrivateTaskQueue {
   }
 
   HSHM_ALWAYS_INLINE
+  void peek(PrivateTaskQueueEntry *&entry, size_t off) {
+    queue_.peek(off, entry);
+  }
+
+  HSHM_ALWAYS_INLINE
   void peek(PrivateTaskQueueEntry *&entry) {
     queue_.peek(head_, entry);
   }
@@ -293,15 +298,15 @@ class PrivateTaskMultiQueue {
   inline static const int LOW_LAT = 2;
   inline static const int HIGH_LAT = 3;
   inline static const int LONG_RUNNING = 4;
-  inline static const int NUM_QUEUES = 5;
+  inline static const int FLUSH = 5;
+  inline static const int NUM_QUEUES = 6;
 
  public:
   size_t root_count_;
   size_t max_root_count_;
   PrivateTaskQueue queues_[NUM_QUEUES];
   PrivateTaskSet blocked_;
-  hipc::uptr<mpsc_queue<LPointer<Task>>> complete_u_;
-  mpsc_queue<LPointer<Task>> *complete_;
+  std::unique_ptr<hshm::mpsc_queue<LPointer<Task>>> complete_;
 
  public:
   void Init(size_t pqdepth, size_t qdepth, size_t max_lanes) {
@@ -310,10 +315,10 @@ class PrivateTaskMultiQueue {
     queues_[LOW_LAT].Init(LOW_LAT, max_lanes * qdepth);
     queues_[HIGH_LAT].Init(HIGH_LAT, max_lanes * qdepth);
     queues_[LONG_RUNNING].Init(LONG_RUNNING, max_lanes * qdepth);
+    queues_[FLUSH].Init(LONG_RUNNING, max_lanes * qdepth);
     blocked_.Init(max_lanes * qdepth);
-    complete_u_ = hipc::make_uptr<mpsc_queue<LPointer<Task>>>(
+    complete_ = std::make_unique<hshm::mpsc_queue<LPointer<Task>>>(
         max_lanes * qdepth);
-    complete_ = complete_u_.get();
     root_count_ = 0;
     max_root_count_ = max_lanes * pqdepth;
   }
@@ -338,7 +343,11 @@ class PrivateTaskMultiQueue {
     return queues_[LONG_RUNNING];
   }
 
-  mpsc_queue<LPointer<Task>>& GetCompletion() {
+  PrivateTaskQueue& GetFlush() {
+    return queues_[FLUSH];
+  }
+
+  hshm::mpsc_queue<LPointer<Task>>& GetCompletion() {
     return *complete_;
   }
 
@@ -347,6 +356,8 @@ class PrivateTaskMultiQueue {
     Task *task = entry.task_.ptr_;
     if (task->method_ == TaskMethod::kCreate) {
       return GetConstruct().push(entry);
+    } else if (task->IsFlush()) {
+      return GetFlush().push(entry);
     } else if (task->IsLongRunning()) {
       return GetLongRunning().push(entry);
     } else if (task->task_node_.node_depth_ == 0) {
@@ -638,6 +649,59 @@ class Worker {
     worker->Loop();
   }
 
+  /** Flush the worker's tasks */
+  void BeginFlush(WorkOrchestrator *orch) {
+    // Reset flushing counters
+    flush_.count_ = 0;
+    flush_.flushing_ = true;
+  }
+
+  /** Check if work has been done */
+  void EndFlush(WorkOrchestrator *orch) {
+    // Keep flushing until count is 0
+    if (flush_.count_ > 0) {
+      flush_.work_done_ += flush_.count_;
+      return;
+    }
+    flush_.flushing_ = false;
+
+    // Check if all workers have finished flushing
+    if (active_.GetFlush().size_ > 0) {
+      size_t work_done = 0;
+      size_t consensus = 0;
+      for (std::unique_ptr<Worker> &worker : orch->workers_) {
+        if (!worker->flush_.flushing_) {
+          work_done += flush_.work_done_;
+          if (worker->flush_.work_done_ == 0) {
+            ++consensus;
+          }
+          flush_.work_done_ = 0;
+        }
+      }
+      if (consensus == orch->workers_.size()) {
+        PrivateTaskQueue &queue = active_.GetFlush();
+        PollPrivateQueue(queue, false);
+      } else {
+        for (std::unique_ptr<Worker> &worker : orch->workers_) {
+          UpdateFlushCount(*worker, work_done);
+          worker->flush_.flushing_ = true;
+        }
+      }
+    }
+  }
+
+  /** Update work count for flush tasks */
+  void UpdateFlushCount(Worker &worker, size_t count) {
+    PrivateTaskQueue &queue = worker.active_.GetFlush();
+    for (size_t i = 0; i < queue.size_; ++i) {
+        PrivateTaskQueueEntry *entry;
+        queue.peek(entry, queue.head_ + i);
+        chm::Admin::FlushTask *flush_task =
+            (chm::Admin::FlushTask *)entry->task_.ptr_;
+        flush_task->work_done_ += count;
+    }
+  }
+
   /** Worker loop iteration */
   void Loop() {
     pid_ = GetLinuxTid();
@@ -645,20 +709,23 @@ class Worker {
     if (IsContinuousPolling()) {
       MakeDedicated();
     }
-    WorkOrchestrator *orchestrator = HRUN_WORK_ORCHESTRATOR;
+    WorkOrchestrator *orch = HRUN_WORK_ORCHESTRATOR;
     cur_time_.Now();
     size_t work = 0;
-    while (orchestrator->IsAlive()) {
+    while (orch->IsAlive()) {
       try {
-        bool flushing = flush_.flushing_;
+        bool flushing = flush_.flushing_ || active_.GetFlush().size_;
+        if (flushing) {
+          BeginFlush(orch);
+        }
         work += Run(flushing);
+        if (flushing) {
+          EndFlush(orch);
+        }
         ++work;
         if (work >= 10000) {
           work = 0;
           cur_time_.Now();
-        }
-        if (flushing) {
-          flush_.flushing_ = false;
         }
       } catch (hshm::Error &e) {
         HELOG(kError, "(node {}) Worker {} caught an error: {}", HRUN_CLIENT->node_id_, id_, e.what());
@@ -906,17 +973,17 @@ class Worker {
 
   /** Run an arbitrary task */
   HSHM_ALWAYS_INLINE
-  bool ExecTask(WorkEntry &lane_info,
+  void ExecTask(WorkEntry &lane_info,
                 Task *&task,
                 RunContext &rctx,
                 TaskState *&exec,
                 bitfield32_t &props) {
     // Determine if a task should be executed
-    if (!props.All(HSHM_WORKER_GROUP_AVAIL | HSHM_WORKER_SHOULD_RUN)) {
-      return false;
+    if (!props.All(HSHM_WORKER_SHOULD_RUN)) {
+      return;
     }
     // Flush tasks
-    if (props.Any(HSHM_WORKER_IS_FLUSHING) && !task->IsFlush()) {
+    if (props.Any(HSHM_WORKER_IS_FLUSHING)) {
       if (task->IsLongRunning()) {
         exec->Monitor(MonitorMode::kFlushStat, task, rctx);
       } else {
@@ -949,7 +1016,6 @@ class Worker {
       exec->Monitor(MonitorMode::kEndTrainTime, task, rctx);
     }
     task->DidRun(cur_time_);
-    return !task->IsFlush();
   }
 
   /** Run a task */

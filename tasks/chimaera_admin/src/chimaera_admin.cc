@@ -176,29 +176,6 @@ class Server : public TaskLib {
 
   /** Flush the runtime */
   void Flush(FlushTask *task, RunContext &rctx) {
-    HILOG(kDebug, "Beginning to flush runtime");
-    while (true) {
-      // Make all workers flush locally
-      int count = 0;
-      for (int i = 0; i < 2; ++i) {
-        for (std::unique_ptr<Worker>
-              &worker : HRUN_WORK_ORCHESTRATOR->workers_) {
-          worker->flush_.count_ = 0;
-          worker->flush_.flushing_ = true;
-          while (worker->flush_.flushing_) {
-            std::atomic_thread_fence(
-                std::memory_order::memory_order_seq_cst);
-            task->Yield<TASK_YIELD_CO>();
-          }
-          count += worker->flush_.count_;
-        }
-      }
-      task->work_done_ += count;
-      if (!count) {
-        break;
-      }
-    }
-    HILOG(kDebug, "Flushing completed");
     task->SetModuleComplete();
   }
   void MonitorFlush(u32 mode, FlushTask *task, RunContext &rctx) {
