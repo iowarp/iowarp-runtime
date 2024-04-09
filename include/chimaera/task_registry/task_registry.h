@@ -232,7 +232,6 @@ class TaskRegistry {
 
     // Create the state instance
     task->id_ = state_id;
-    task->method_ = TaskMethod::kCreate;
     TaskLibInfo &info = it->second;
     TaskState *exec;
     exec = info.alloc_state_(task, state_name);
@@ -252,6 +251,8 @@ class TaskRegistry {
           HRUN_CLIENT->node_id_, lib_name, state_name, state_id);
 
     // Construct the state
+    task->method_ = TaskMethod::kCreate;
+    task->task_state_ = state_id;
     exec->Run(TaskMethod::kCreate, task, task->ctx_);
     return exec;
   }
