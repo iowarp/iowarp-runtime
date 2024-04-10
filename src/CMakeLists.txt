@@ -26,12 +26,6 @@ add_library(chimaera_runtime
         chimaera_runtime.cc)
 add_dependencies(chimaera_runtime ${Chimaera_CLIENT_DEPS})
 target_link_libraries(chimaera_runtime thallium ${Chimaera_CLIENT_LIBRARIES})
-if (CHIMAERA_REMOTE_DEBUG)
-  add_compile_definitions(-DCHIMAERA_REMOTE_DEBUG)
-endif()
-if (CHIMAERA_TASK_DEBUG)
-  add_compile_definitions(-DCHIMAERA_TASK_DEBUG)
-endif()
 #------------------------------------------------------------------------------
 # Build Hrun Runtime Start Function
 #------------------------------------------------------------------------------

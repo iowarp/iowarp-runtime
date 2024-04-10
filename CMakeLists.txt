@@ -29,6 +29,13 @@ else()
     add_compile_definitions(HERMES_LOG_VERBOSITY=1)
 endif()
 add_compile_options(-march=native -fomit-frame-pointer)
+if (CHIMAERA_REMOTE_DEBUG)
+    add_compile_definitions(-DCHIMAERA_REMOTE_DEBUG)
+endif()
+if (CHIMAERA_TASK_DEBUG)
+    message("Adding the chimaera task debug option")
+    add_compile_definitions(-DCHIMAERA_TASK_DEBUG)
+endif()
 
 #-----------------------------------------------------------------------------
 # Targets built within this project are exported at Install time for use

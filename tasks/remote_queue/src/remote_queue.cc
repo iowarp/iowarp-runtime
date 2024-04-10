@@ -246,7 +246,7 @@ class Server : public TaskLib {
         Task *done_task = centry.task_;
         TaskState *exec =
             HRUN_TASK_REGISTRY->GetTaskState(done_task->task_state_);
-        exec->Del(done_task->method_, done_task);
+        HRUN_CLIENT->DelTask(exec, done_task);
       }
     } catch (hshm::Error &e) {
       HELOG(kError, "(node {}) Worker {} caught an error: {}", HRUN_CLIENT->node_id_, id_, e.what());
@@ -393,7 +393,7 @@ class Server : public TaskLib {
                           orig_task, orig_task->ctx_);
             for (rep_id = 0; rep_id < remote->replicas_.size(); ++rep_id) {
               Task *replica = remote->replicas_[rep_id].ptr_;
-              exec->Del(replica->method_, replica);
+              HRUN_CLIENT->DelTask(exec, replica);
             }
           }
           delete remote;

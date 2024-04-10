@@ -941,7 +941,7 @@ class Worker {
                        task.ptr_, task->ctx_);
     }
     if (exec && task->IsFireAndForget()) {
-      exec->Del(task->method_, task.ptr_);
+      HRUN_CLIENT->DelTask(exec, task.ptr_);
     } else {
       task->SetComplete();
     }

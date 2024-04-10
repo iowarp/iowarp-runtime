@@ -164,11 +164,36 @@ class Client : public ConfigurationManager {
     return ptr;
   }
 
+  template<typename TaskT>
+  void MonitorTaskFrees(LPointer<TaskT> &task) {
+#ifdef CHIMAERA_TASK_DEBUG
+    task->delcnt_++;
+    if (task->delcnt_ != 1) {
+      HELOG(kFatal, "Freed task {} times: node={}, state={}. method={}",
+            task->delcnt_.load(), task->task_node_, task->task_state_, task->method_)
+    }
+#endif
+  }
+
+  void MonitorTaskFrees(Task *task) {
+#ifdef CHIMAERA_TASK_DEBUG
+    task->delcnt_++;
+    if (task->delcnt_ != 1) {
+      HELOG(kFatal, "Freed task {} times: node={}, state={}. method={}",
+            task->delcnt_.load(), task->task_node_, task->task_state_, task->method_)
+    }
+#endif
+  }
+
   /** Destroy a task */
   template<typename TaskT>
   HSHM_ALWAYS_INLINE
   void DelTask(TaskT *task) {
+#ifdef CHIMAERA_TASK_DEBUG
+    MonitorTaskFrees(task);
+#else
     main_alloc_->DelObj<TaskT>(task);
+#endif
 //    HILOG(kDebug, "Heap size: {}",
 //          main_alloc_->GetCurrentlyAllocatedSize());
   }
@@ -178,11 +203,7 @@ class Client : public ConfigurationManager {
   HSHM_ALWAYS_INLINE
   void DelTask(LPointer<TaskT> &task) {
 #ifdef CHIMAERA_TASK_DEBUG
-    task->delcnt_++;
-    if (task->delcnt_ != 1) {
-      HELOG(kFatal, "Freed task {} times: node={}, state={}. method={}",
-            task->delcnt_.load(), task->task_node_, task->task_state_, task->method_)
-    }
+    MonitorTaskFrees(task);
 #else
     main_alloc_->DelObjLocal<TaskT>(task);
 #endif
@@ -195,11 +216,7 @@ class Client : public ConfigurationManager {
   HSHM_ALWAYS_INLINE
   void DelTask(TaskStateT *exec, TaskT *task) {
 #ifdef CHIMAERA_TASK_DEBUG
-    task->delcnt_++;
-    if (task->delcnt_ != 1) {
-      HELOG(kFatal, "Freed task {} times: node={}, state={}. method={}",
-            task->delcnt_.load(), task->task_node_, task->task_state_, task->method_)
-    }
+    MonitorTaskFrees(task);
 #else
     exec->Del(task->method_, task);
 #endif
@@ -212,11 +229,7 @@ class Client : public ConfigurationManager {
   HSHM_ALWAYS_INLINE
   void DelTask(TaskStateT *exec, LPointer<TaskT> &task) {
 #ifdef CHIMAERA_TASK_DEBUG
-    task->delcnt_++;
-    if (task->delcnt_ != 1) {
-      HELOG(kFatal, "Freed task {} times: node={}, state={}. method={}",
-            task->delcnt_.load(), task->task_node_, task->task_state_, task->method_)
-    }
+    MonitorTaskFrees(task);
 #else
     exec->Del(task->method_, task);
 #endif
