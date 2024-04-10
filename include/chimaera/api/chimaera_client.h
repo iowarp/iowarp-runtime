@@ -144,8 +144,8 @@ class Client : public ConfigurationManager {
       // throw std::runtime_error("Could not allocate buffer");
       HELOG(kFatal, "Could not allocate buffer (3)");
     }
-    HILOG(kDebug, "Heap size: {}",
-          main_alloc_->GetCurrentlyAllocatedSize());
+//    HILOG(kDebug, "Heap size: {}",
+//          main_alloc_->GetCurrentlyAllocatedSize());
     return task;
   }
 
@@ -159,8 +159,8 @@ class Client : public ConfigurationManager {
       // throw std::runtime_error("Could not allocate buffer");
       HELOG(kFatal, "Could not allocate buffer (4)");
     }
-    HILOG(kDebug, "Heap size: {}",
-          main_alloc_->GetCurrentlyAllocatedSize());
+//    HILOG(kDebug, "Heap size: {}",
+//          main_alloc_->GetCurrentlyAllocatedSize());
     return ptr;
   }
 
@@ -169,8 +169,8 @@ class Client : public ConfigurationManager {
   HSHM_ALWAYS_INLINE
   void DelTask(TaskT *task) {
     main_alloc_->DelObj<TaskT>(task);
-    HILOG(kDebug, "Heap size: {}",
-          main_alloc_->GetCurrentlyAllocatedSize());
+//    HILOG(kDebug, "Heap size: {}",
+//          main_alloc_->GetCurrentlyAllocatedSize());
   }
 
   /** Destroy a task */
@@ -185,8 +185,8 @@ class Client : public ConfigurationManager {
     }
 #endif
     main_alloc_->DelObjLocal<TaskT>(task);
-    HILOG(kDebug, "Heap size: {}",
-          main_alloc_->GetCurrentlyAllocatedSize());
+//    HILOG(kDebug, "Heap size: {}",
+//          main_alloc_->GetCurrentlyAllocatedSize());
   }
 
   /** Destroy a task */
@@ -194,8 +194,8 @@ class Client : public ConfigurationManager {
   HSHM_ALWAYS_INLINE
   void DelTask(TaskStateT *exec, TaskT *task) {
     exec->Del(task->method_, task);
-    HILOG(kDebug, "Heap size: {}",
-          main_alloc_->GetCurrentlyAllocatedSize());
+//    HILOG(kDebug, "Heap size: {}",
+//          main_alloc_->GetCurrentlyAllocatedSize());
   }
 
   /** Destroy a task */
@@ -203,8 +203,8 @@ class Client : public ConfigurationManager {
   HSHM_ALWAYS_INLINE
   void DelTask(TaskStateT *exec, LPointer<TaskT> &task) {
     exec->Del(task->method_, task);
-    HILOG(kDebug, "Heap size: {}",
-          main_alloc_->GetCurrentlyAllocatedSize());
+//    HILOG(kDebug, "Heap size: {}",
+//          main_alloc_->GetCurrentlyAllocatedSize());
   }
 
   /** Convert pointer to char* */

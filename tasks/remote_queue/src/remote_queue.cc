@@ -161,9 +161,6 @@ class Server : public TaskLib {
           if (orig_task->IsFireAndForget()) {
             Worker &worker = HRUN_WORK_ORCHESTRATOR->GetWorker(
                 orig_task->ctx_.worker_id_);
-            HILOG(kDebug, "(node {}) Unblocking the f&f task {} (state {})",
-                  HRUN_CLIENT->node_id_, orig_task->task_node_,
-                  orig_task->task_state_);
             orig_task->SetModuleComplete();
             worker.SignalUnblock(orig_task);
           }
@@ -220,7 +217,7 @@ class Server : public TaskLib {
           entries.emplace(entry.domain_, BinaryOutputArchive<false>());
         }
         Task *done_task = entry.task_;
-        HILOG(kDebug, "(node {}) Sending completion for {} to {}",
+        HILOG(kDebug, "(node {}) Sending completion for {} -> {}",
               HRUN_CLIENT->node_id_, done_task->task_node_,
               entry.domain_.id_);
         TaskState *exec =
@@ -235,9 +232,9 @@ class Server : public TaskLib {
       // Do transfers
       for (auto it = entries.begin(); it != entries.end(); ++it) {
         SegmentedTransfer xfer = it->second.Get();
-        HILOG(kDebug, "(node {}) Sending completion of size {} to {}",
-              HRUN_CLIENT->node_id_, xfer.size(),
-              it->first.id_);
+//        HILOG(kDebug, "(node {}) Sending completion of size {} to {}",
+//              HRUN_CLIENT->node_id_, xfer.size(),
+//              it->first.id_);
         HRUN_THALLIUM->SyncIoCall<int>((i32)it->first.id_,
                                        "RpcTaskComplete",
                                        xfer,
@@ -272,8 +269,8 @@ class Server : public TaskLib {
                      SegmentedTransfer &xfer) {
     try {
       xfer.AllocateSegmentsServer();
-      HILOG(kDebug, "(node {}) Received submission of size {}",
-            HRUN_CLIENT->node_id_, xfer.size());
+//      HILOG(kDebug, "(node {}) Received submission of size {}",
+//            HRUN_CLIENT->node_id_, xfer.size());
       HRUN_THALLIUM->IoCallServerWrite(req, bulk, xfer);
       BinaryInputArchive<true> ar(xfer);
       hshm::Timer t;
