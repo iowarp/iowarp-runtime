@@ -740,10 +740,10 @@ class Worker {
       }
     }
     HILOG(kInfo, "(node {}) Worker {} wrapping up",
-          HRUN_CLIENT->node_id_);
+          HRUN_CLIENT->node_id_, id_);
     Run(true);
     HILOG(kInfo, "(node {}) Worker {} has exited",
-          HRUN_CLIENT->node_id_);
+          HRUN_CLIENT->node_id_, id_);
   }
 
   /** Run a single iteration over all queues */
