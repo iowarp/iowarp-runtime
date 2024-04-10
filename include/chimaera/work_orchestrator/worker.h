@@ -183,6 +183,7 @@ class PrivateTaskSet {
  public:
   hshm::spsc_queue<size_t> keys_;
   std::vector<PrivateTaskQueueEntry> set_;
+  size_t size_;
 
  public:
   void Init(size_t max_size) {
@@ -191,6 +192,7 @@ class PrivateTaskSet {
     for (size_t i = 0; i < max_size; ++i) {
       keys_.emplace(i);
     }
+    size_ = 0;
   }
 
   void resize() {
@@ -209,6 +211,7 @@ class PrivateTaskSet {
       keys_.pop(key);
     }
     set_[key] = entry;
+    size_ += 1;
   }
 
   void peek(size_t key, PrivateTaskQueueEntry *&entry) {
@@ -222,6 +225,7 @@ class PrivateTaskSet {
 
   void erase(size_t key) {
     keys_.emplace(key);
+    size_ -= 1;
   }
 };
 
@@ -727,6 +731,8 @@ class Worker {
         if (work >= 10000) {
           work = 0;
           cur_time_.Now();
+          HILOG(kInfo, "(node {}) Worker {} has {} blocked tasks",
+                HRUN_CLIENT->node_id_, id_, active_.blocked_.size_);
         }
       } catch (hshm::Error &e) {
         HELOG(kError, "(node {}) Worker {} caught an error: {}", HRUN_CLIENT->node_id_, id_, e.what());
