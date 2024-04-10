@@ -295,7 +295,7 @@ struct Task : public hipc::ShmContainer {
   double period_ns_;           /**< The period of the task */
   hshm::Timepoint start_;      /**< The time the task started */
   RunContext ctx_;
-#ifdef TASK_DEBUG
+#ifdef CHIMAERA_TASK_DEBUG
   std::atomic<int> delcnt_ = 0;    /**< # of times deltask called */
 #endif
 

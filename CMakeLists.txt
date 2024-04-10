@@ -10,6 +10,8 @@ option(BUILD_OpenMP_TESTS "Build tests which depend on OpenMP" ON)
 option(BUILD_ZeroMQ_TESTS "Build tests which depend on ZeroMQ" OFF)
 option(CHIMAERA_ENABLE_COVERAGE "Check how well tests cover code" OFF)
 option(CHIMAERA_ENABLE_DOXYGEN "Check how well the code is documented" OFF)
+option(CHIMAERA_TASK_DEBUG "Debug tasks" OFF)
+option(CHIMAERA_REMOTE_DEBUG "Debug remote tasks" OFF)
 
 #-----------------------------------------------------------------------------
 # Compiler Optimization

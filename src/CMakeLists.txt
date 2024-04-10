@@ -29,6 +29,9 @@ target_link_libraries(chimaera_runtime thallium ${Chimaera_CLIENT_LIBRARIES})
 if (CHIMAERA_REMOTE_DEBUG)
   target_compile_definitions(chimaera_runtime PUBLIC -DCHIMAERA_REMOTE_DEBUG)
 endif()
+if (CHIMAERA_TASK_DEBUG)
+  target_compile_definitions(chimaera_runtime PUBLIC -DCHIMAERA_TASK_DEBUG)
+endif()
 #------------------------------------------------------------------------------
 # Build Hrun Runtime Start Function
 #------------------------------------------------------------------------------

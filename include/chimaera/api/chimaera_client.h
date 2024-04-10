@@ -177,14 +177,15 @@ class Client : public ConfigurationManager {
   template<typename TaskT>
   HSHM_ALWAYS_INLINE
   void DelTask(LPointer<TaskT> &task) {
-#ifdef TASK_DEBUG
+#ifdef CHIMAERA_TASK_DEBUG
     task->delcnt_++;
     if (task->delcnt_ != 1) {
       HELOG(kFatal, "Freed task {} times: node={}, state={}. method={}",
             task->delcnt_.load(), task->task_node_, task->task_state_, task->method_)
     }
-#endif
+#else
     main_alloc_->DelObjLocal<TaskT>(task);
+#endif
 //    HILOG(kDebug, "Heap size: {}",
 //          main_alloc_->GetCurrentlyAllocatedSize());
   }
@@ -193,7 +194,15 @@ class Client : public ConfigurationManager {
   template<typename TaskStateT, typename TaskT>
   HSHM_ALWAYS_INLINE
   void DelTask(TaskStateT *exec, TaskT *task) {
+#ifdef CHIMAERA_TASK_DEBUG
+    task->delcnt_++;
+    if (task->delcnt_ != 1) {
+      HELOG(kFatal, "Freed task {} times: node={}, state={}. method={}",
+            task->delcnt_.load(), task->task_node_, task->task_state_, task->method_)
+    }
+#else
     exec->Del(task->method_, task);
+#endif
 //    HILOG(kDebug, "Heap size: {}",
 //          main_alloc_->GetCurrentlyAllocatedSize());
   }
@@ -202,7 +211,15 @@ class Client : public ConfigurationManager {
   template<typename TaskStateT, typename TaskT>
   HSHM_ALWAYS_INLINE
   void DelTask(TaskStateT *exec, LPointer<TaskT> &task) {
+#ifdef CHIMAERA_TASK_DEBUG
+    task->delcnt_++;
+    if (task->delcnt_ != 1) {
+      HELOG(kFatal, "Freed task {} times: node={}, state={}. method={}",
+            task->delcnt_.load(), task->task_node_, task->task_state_, task->method_)
+    }
+#else
     exec->Del(task->method_, task);
+#endif
 //    HILOG(kDebug, "Heap size: {}",
 //          main_alloc_->GetCurrentlyAllocatedSize());
   }
