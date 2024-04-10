@@ -392,9 +392,9 @@ class Server : public TaskLib {
         RemoteInfo *remote = (RemoteInfo*)orig_task->ctx_.next_net_;
         remote->rep_complete_ += 1;
         if (rep_id == rep_max - 1) {
-          do {
+          while (remote->rep_complete_ < rep_max) {
             HERMES_THREAD_MODEL->Yield();
-          } while(remote->rep_complete_ < rep_max);
+          };
           TaskState *exec = HRUN_TASK_REGISTRY->GetTaskState(
               orig_task->task_state_);
           if (remote->rep_max_ > 1) {
