@@ -111,12 +111,15 @@ struct MdTask : public Task, TaskFlags<TF_SRL_SYM | TF_REPLICA> {
 };
 
 /**
- * A custom task in small_message
+ * A task to read, write or both
  * */
+#define MD_IO_WRITE BIT_OPT(u32, 0)
+#define MD_IO_READ BIT_OPT(u32, 1)
 struct IoTask : public Task, TaskFlags<TF_SRL_SYM> {
-  IN LPointer<char> data_;
+  IN hipc::Pointer data_;
   IN size_t size_;
-  OUT int ret_;
+  IN bitfield32_t io_flags_;
+  OUT size_t ret_;
 
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
@@ -128,7 +131,8 @@ struct IoTask : public Task, TaskFlags<TF_SRL_SYM> {
          const TaskNode &task_node,
          const DomainId &domain_id,
          TaskStateId &state_id,
-         size_t io_size) : Task(alloc) {
+         size_t io_size,
+         u32 io_flags) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
     lane_hash_ = 3;
@@ -139,9 +143,12 @@ struct IoTask : public Task, TaskFlags<TF_SRL_SYM> {
     domain_id_ = domain_id;
 
     // Custom params
-    data_ = HRUN_CLIENT->AllocateBufferClient(io_size);
+    LPointer<char> data = HRUN_CLIENT->AllocateBufferClient(io_size);
+    data_ = data.shm_;
     size_ = io_size;
-    memset(data_.ptr_, 10, io_size);
+    ret_ = 0;
+    io_flags_.SetBits(io_flags);
+    memset(data.ptr_, 10, io_size);
   }
 
   /** Destructor */
@@ -154,14 +161,21 @@ struct IoTask : public Task, TaskFlags<TF_SRL_SYM> {
   /** (De)serialize message call */
   template<typename Ar>
   void SerializeStart(Ar &ar) {
-    ar.bulk(DT_RECEIVER_READ,
-            data_, size_, domain_id_);
+    ar(io_flags_);
+    if (io_flags_.Any(MD_IO_WRITE)) {
+      ar.bulk(DT_SENDER_WRITE,
+              data_, size_, domain_id_);
+    }
   }
 
   /** (De)serialize message return */
   template<typename Ar>
   void SerializeEnd(Ar &ar) {
-    ar(ret_);
+    ar(io_flags_, ret_);
+    if (io_flags_.Any(MD_IO_READ)) {
+      ar.bulk(DT_SENDER_READ,
+              data_, size_, domain_id_);
+    }
   }
 };
 

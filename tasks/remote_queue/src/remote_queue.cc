@@ -208,9 +208,13 @@ class Server : public TaskLib {
   void ServerComplete(ServerCompleteTask *task,
                       RunContext &rctx) {
     try {
-      TaskQueueEntry entry;
+      // Serialize task completions
+      TaskQueueEntry *entry_p;
       std::unordered_map<DomainId, BinaryOutputArchive<false>> entries;
-      while (!complete_[rctx.lane_id_].pop(entry).IsNull()) {
+      size_t count = complete_[rctx.lane_id_].GetSize();
+      for (size_t i = 0; i < count; ++i) {
+        complete_[rctx.lane_id_].peek(entry_p, i);
+        TaskQueueEntry &entry = *entry_p;
         if (entries.find(entry.domain_) == entries.end()) {
           entries.emplace(entry.domain_, BinaryOutputArchive<false>());
         }
@@ -224,18 +228,27 @@ class Server : public TaskLib {
         done_task->ctx_.task_addr_ = remote->task_addr_;
         BinaryOutputArchive<false> &ar = entries[entry.domain_];
         exec->SaveEnd(done_task->method_, ar, done_task);
-        exec->Del(done_task->method_, done_task);
       }
 
+      // Do transfers
       for (auto it = entries.begin(); it != entries.end(); ++it) {
         SegmentedTransfer xfer = it->second.Get();
         HILOG(kDebug, "(node {}) Sending completion of size {} to {}",
               HRUN_CLIENT->node_id_, xfer.size(),
-              entry.domain_.id_);
+              it->first.id_);
         HRUN_THALLIUM->SyncIoCall<int>((i32)it->first.id_,
                                        "RpcTaskComplete",
                                        xfer,
                                        DT_SENDER_WRITE);
+      }
+
+      // Cleanup the queue
+      TaskQueueEntry entry;
+      while (!complete_[rctx.lane_id_].pop(entry).IsNull()) {
+        Task *done_task = entry.task_;
+        TaskState *exec =
+            HRUN_TASK_REGISTRY->GetTaskState(done_task->task_state_);
+        exec->Del(done_task->method_, done_task);
       }
     } catch (hshm::Error &e) {
       HELOG(kError, "(node {}) Worker {} caught an error: {}", HRUN_CLIENT->node_id_, id_, e.what());

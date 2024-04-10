@@ -69,9 +69,12 @@ class Server : public TaskLib {
 
   /** An I/O task */
   void Io(IoTask *task, RunContext &rctx) {
-    task->ret_ = 1;
-    char *data = HERMES_MEMORY_MANAGER->Convert<char>(task->data_.shm_);
-    (void)data;
+    char *data = HRUN_CLIENT->GetDataPointer(task->data_);
+    task->ret_ = 0;
+    for (size_t i = 0; i < task->size_; ++i) {
+      task->ret_ += data[i];
+    }
+    memset(data, 15, task->size_);
     task->SetModuleComplete();
   }
   void MonitorIo(u32 mode, IoTask *task, RunContext &rctx) {

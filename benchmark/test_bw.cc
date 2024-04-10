@@ -38,8 +38,10 @@ void SyncIoTest(int rank, int nprocs, size_t msg_size, size_t ops) {
   t.Resume();
   for (size_t i = 0; i < ops; ++i) {
     int node_id = 1 + ((rank + 1) % domain_size);
+    size_t read_size, write_size;
     client.IoRoot(chm::DomainId::GetNode(node_id),
-                  msg_size);
+                  msg_size,
+                  MD_IO_WRITE, write_size, read_size);
   }
   t.Pause();
   t.Collect();

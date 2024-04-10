@@ -66,16 +66,23 @@ class Client : public TaskLibClient {
   /** Io task */
   void AsyncIoConstruct(IoTask *task, const TaskNode &task_node,
                         const DomainId &domain_id,
-                        size_t io_size) {
+                        size_t io_size,
+                        u32 io_flags) {
     HRUN_CLIENT->ConstructTask<IoTask>(
-        task, task_node, domain_id, id_, io_size);
+        task, task_node, domain_id, id_, io_size, io_flags);
   }
-  int IoRoot(const DomainId &domain_id, size_t io_size) {
-    LPointer<IoTask> task = AsyncIoRoot(domain_id, io_size);
+  void IoRoot(const DomainId &domain_id, size_t io_size,
+             u32 io_flags, size_t &write_ret, size_t &read_ret) {
+    LPointer<IoTask> task =
+        AsyncIoRoot(domain_id, io_size, io_flags);
     task->Wait();
-    int ret = task->ret_;
+    write_ret = task->ret_;
+    char *data = HRUN_CLIENT->GetDataPointer(task->data_);
+    read_ret = 0;
+    for (size_t i = 0; i < io_size; ++i) {
+      read_ret += data[i];
+    }
     HRUN_CLIENT->DelTask(task);
-    return ret;
   }
   HRUN_TASK_NODE_PUSH_ROOT(Io)
 };

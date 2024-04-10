@@ -139,9 +139,11 @@ class ThalliumRpc {
   }
 
   /** Make a generic bulk */
-  tl::bulk MakeBulk(const std::vector<DataTransfer> &xfer,
-                    tl::bulk_mode flag,
-                    size_t &size_bytes) {
+  tl::bulk MakeBulk(
+      tl::engine &engine,
+      const std::vector<DataTransfer> &xfer,
+      tl::bulk_mode flag,
+      size_t &size_bytes) {
     size_bytes = 0;
     std::vector<std::pair<void *, size_t>> segments(xfer.size());
     for (size_t i = 0; i < xfer.size(); ++i) {
@@ -151,9 +153,9 @@ class ThalliumRpc {
     }
     tl::bulk bulk;
     if (size_bytes) {
-      bulk = client_engine_->expose(segments, flag);
+      bulk = engine.expose(segments, flag);
     }
-    return std::move(bulk);
+    return bulk;
   }
 
   /** Make bulk object for data transfer client-side */
@@ -166,7 +168,7 @@ class ThalliumRpc {
     } else {
       flag = tl::bulk_mode::write_only;
     }
-    return MakeBulk(xfer, flag, size_bytes);
+    return MakeBulk(*client_engine_, xfer, flag, size_bytes);
   }
 
   /** Make bulk object for data transfer at server-side */
@@ -179,7 +181,7 @@ class ThalliumRpc {
     } else {
       flag = tl::bulk_mode::write_only;
     }
-    return MakeBulk(xfer, flag, size_bytes);
+    return MakeBulk(*server_engine_, xfer, flag, size_bytes);
   }
 
   /** I/O transfers */
@@ -191,20 +193,15 @@ class ThalliumRpc {
       std::string server_name = GetServerName(node_id);
       tl::bulk bulk;
       size_t planned_bytes;
-      if (io_flag & DT_RECEIVER_READ) {
-        bulk = MakeBulkClient(
-            xfer.bulk_[0], DT_SENDER_WRITE, planned_bytes);
-      } else {
-        bulk = MakeBulkClient(
-            xfer.bulk_[1], DT_SENDER_READ, planned_bytes);
-      }
+      bulk = MakeBulkClient(
+          xfer.bulk_, io_flag, planned_bytes);
       tl::remote_procedure remote_proc =
           client_engine_->define(func_name);
       tl::endpoint server = client_engine_->lookup(server_name);
       if constexpr (!ASYNC) {
         if constexpr (std::is_same_v<RetT, void>) {
           remote_proc.disable_response();
-          remote_proc.on(server)(bulk,
+          remote_proc.on(server)(bulk, xfer,
               std::forward<Args>(args)...);
         } else {
           return remote_proc.on(server)(bulk, xfer,
@@ -240,12 +237,12 @@ class ThalliumRpc {
 
   /** Io transfer at the server */
   size_t IoCallServerRead(const tl::request &req,
-                          const tl::bulk &bulk,
+                          tl::bulk &bulk,
                           SegmentedTransfer &xfer) {
     tl::endpoint endpoint = req.get_endpoint();
     size_t planned_bytes, real_bytes = 0;
     tl::bulk local_rbulk =
-        MakeBulkServer(xfer.bulk_[0], DT_RECEIVER_READ,
+        MakeBulkServer(xfer.bulk_, DT_RECEIVER_READ,
                        planned_bytes);
     if (planned_bytes == 0) {
       return 0;
@@ -261,12 +258,12 @@ class ThalliumRpc {
 
   /** Io transfer at the server */
   size_t IoCallServerWrite(const tl::request &req,
-                           const tl::bulk &bulk,
+                           tl::bulk &bulk,
                            const SegmentedTransfer &xfer) {
     tl::endpoint endpoint = req.get_endpoint();
     size_t planned_bytes, real_bytes = 0;
     tl::bulk local_wbulk =
-        MakeBulkServer(xfer.bulk_[1], DT_RECEIVER_WRITE,
+        MakeBulkServer(xfer.bulk_, DT_RECEIVER_WRITE,
                        planned_bytes);
     if (planned_bytes == 0) {
       return 0;

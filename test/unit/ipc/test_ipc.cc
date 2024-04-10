@@ -200,12 +200,15 @@ TEST_CASE("TestIO") {
   t.Resume();
   size_t ops = 16;
   for (size_t i = 0; i < ops; ++i) {
-    int ret;
+    size_t write_ret = 0, read_ret = 0;
     HILOG(kInfo, "Sending message {}", i);
     int node_id = 1 + ((rank + 1) % domain_size);
-    ret = client.IoRoot(chm::DomainId::GetNode(node_id),
-                        KILOBYTES(4));
-    REQUIRE(ret == 1);
+    client.IoRoot(chm::DomainId::GetNode(node_id),
+                        KILOBYTES(4),
+                        MD_IO_WRITE | MD_IO_READ,
+                        write_ret, read_ret);
+    REQUIRE(write_ret == KILOBYTES(4) * 10);
+    REQUIRE(read_ret == KILOBYTES(4) * 15);
   }
   t.Pause();
 

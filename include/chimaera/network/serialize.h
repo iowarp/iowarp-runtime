@@ -120,21 +120,17 @@ struct TaskSegment {
 
 class SegmentedTransfer {
  public:
-  DomainId ret_domain_;                /**< Domain of node to return to */
-  std::vector<TaskSegment> tasks_;  /**< Task info */
-  std::vector<DataTransfer> bulk_[2];   /**< Data payloads */
-  std::string md_;                      /**< Metadata */
+  DomainId ret_domain_;              /**< Domain of node to return to */
+  std::vector<TaskSegment> tasks_;   /**< Task info */
+  std::vector<DataTransfer> bulk_;   /**< Data payloads */
+  std::string md_;                   /**< Metadata */
 
   std::string& GetMd() {
     return md_;
   }
 
   void AllocateSegmentsServer() {
-    for (DataTransfer &xfer : bulk_[0]) {
-      xfer.data_ = HRUN_CLIENT->AllocateBufferServer<TASK_YIELD_ABT>(
-          xfer.data_size_).ptr_;
-    }
-    for (DataTransfer &xfer : bulk_[1]) {
+    for (DataTransfer &xfer : bulk_) {
       xfer.data_ = HRUN_CLIENT->AllocateBufferServer<TASK_YIELD_ABT>(
           xfer.data_size_).ptr_;
     }
@@ -142,10 +138,7 @@ class SegmentedTransfer {
 
   size_t size() const {
     size_t size = 0;
-    for (const DataTransfer &xfer : bulk_[0]) {
-      size += xfer.data_size_;
-    }
-    for (const DataTransfer &xfer : bulk_[1]) {
+    for (const DataTransfer &xfer : bulk_) {
       size += xfer.data_size_;
     }
     size += md_.size();
@@ -154,7 +147,7 @@ class SegmentedTransfer {
 
   template<typename Ar>
   void serialize(Ar &ar) {
-    ar(ret_domain_, tasks_, bulk_[0], bulk_[1], md_);
+    ar(ret_domain_, tasks_, bulk_, md_);
   }
 };
 
@@ -191,23 +184,11 @@ class BinaryOutputArchive {
   }
 
   /** Serialize using xfer */
-  template<typename T>
-  BinaryOutputArchive& bulk(u32 flags,
-                            hipc::LPointer<T> &data,
-                            size_t &data_size,
-                            DomainId &node_id) {
-    char *data_ptr = data.ptr_;
-    bulk(flags, data_ptr, data_size, node_id);
-    return *this;
-  }
-
-  /** Serialize using xfer */
   BinaryOutputArchive& bulk(u32 flags,
                             char *data,
                             size_t &data_size,
                             DomainId &node_id) {
-    int xfer_mode = (flags & DT_RECEIVER_READ) ? 0 : 1;
-    xfer_.bulk_[xfer_mode].emplace_back(
+    xfer_.bulk_.emplace_back(
         (DataTransfer){flags, data, data_size, node_id});
     return *this;
   }
@@ -307,20 +288,13 @@ class BinaryInputArchive {
                            size_t &data_size,
                            DomainId &node_id) {
     char *xfer_data;
+    if constexpr (!is_start) {
+      xfer_data = HERMES_MEMORY_MANAGER->Convert<char>(data);
+    }
     bulk(flags, xfer_data, data_size, node_id);
-    data = HERMES_MEMORY_MANAGER->Convert<void, hipc::Pointer>(xfer_data);
-    return *this;
-  }
-
-  /** Deserialize using xfer */
-  template<typename T>
-  BinaryInputArchive& bulk(u32 flags,
-                           LPointer<T> &data,
-                           size_t &data_size,
-                           DomainId &node_id) {
-    bulk(flags, (char*&)data.ptr_, data_size, node_id);
-    data.shm_ = HERMES_MEMORY_MANAGER->Convert<void, hipc::Pointer>(
-        data.ptr_);
+    if constexpr (is_start) {
+      data = HERMES_MEMORY_MANAGER->Convert<void, hipc::Pointer>(xfer_data);
+    }
     return *this;
   }
 
@@ -329,15 +303,14 @@ class BinaryInputArchive {
                            char *&data,
                            size_t &data_size,
                            DomainId &node_id) {
-    int xfer_mode = (flags & DT_SENDER_WRITE) ? 0 : 1;
-    DataTransfer &xfer = xfer_.bulk_[xfer_off_++][xfer_mode];
-    if (flags & DT_SENDER_READ) {
-      xfer.data_ = data;
-    }  else {
+    DataTransfer &xfer = xfer_.bulk_[xfer_off_++];
+    if constexpr (is_start) {
       data = (char *) xfer.data_;
+      data_size = xfer.data_size_;
+      node_id = xfer.node_id_;
+    }  else {
+      xfer.data_ = data;
     }
-    data_size = xfer.data_size_;
-    node_id = xfer.node_id_;
     return *this;
   }
 
