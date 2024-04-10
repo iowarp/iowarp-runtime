@@ -103,6 +103,7 @@ class Server : public TaskLib {
     task->ctx_.next_net_ = new RemoteInfo();
     RemoteInfo *remote = (RemoteInfo*)task->ctx_.next_net_;
     remote->rep_cnt_ = 0;
+    remote->rep_complete_ = 0;
     remote->rep_max_ = domain_ids.size();
     remote->replicas_.resize(domain_ids.size());
     for (DomainId &domain_id  : domain_ids) {
@@ -387,11 +388,17 @@ class Server : public TaskLib {
       for (size_t i = 0; i < xfer.tasks_.size(); ++i) {
         size_t rep_id = xfer.tasks_[i].rep_id_;
         size_t rep_max = xfer.tasks_[i].rep_max_;
+        Task *orig_task = (Task*)xfer.tasks_[i].task_addr_;
+        RemoteInfo *remote = (RemoteInfo*)orig_task->ctx_.next_net_;
+        remote->rep_complete_ += 1;
+        // Wait for all remotes to complete
+        do {
+          HERMES_THREAD_MODEL->Yield();
+        } while(remote->rep_complete_ < rep_max);
+        // Destroy replicas
         if (rep_id == rep_max - 1) {
-          Task *orig_task = (Task*)xfer.tasks_[i].task_addr_;
           TaskState *exec = HRUN_TASK_REGISTRY->GetTaskState(
               orig_task->task_state_);
-          RemoteInfo *remote = (RemoteInfo*)orig_task->ctx_.next_net_;
           if (remote->rep_max_ > 1) {
             exec->Monitor(MonitorMode::kReplicaAgg,
                           orig_task, orig_task->ctx_);

@@ -258,6 +258,7 @@ struct Task;
 
 struct RemoteInfo {
   std::atomic<u32> rep_cnt_;
+  std::atomic<u32> rep_complete_;
   u32 rep_max_;
   std::vector<LPointer<Task>> replicas_;
   DomainId ret_domain_;
