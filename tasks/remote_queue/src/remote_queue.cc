@@ -346,6 +346,7 @@ class Server : public TaskLib {
           orig_task->lane_hash_);
     queue->Emplace(orig_task->prio_,
                    orig_task->lane_hash_, task_ptr.shm_);
+    HILOG(kDebug, "Finished submitting task {}", orig_task->task_node_);
   }
 
   /** Receive task completion */
