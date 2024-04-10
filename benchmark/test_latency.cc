@@ -38,7 +38,7 @@ void SyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
   HILOG(kInfo, "OPS: {}", ops)
   t.Resume();
   for (size_t i = 0; i < ops; ++i) {
-    int node_id = 1 + ((rank + 1) % domain_size);
+    int node_id = 1 + (i % domain_size);
     client.MdRoot(chm::DomainId::GetNode(node_id),
                   i, depth, 0);
   }
@@ -59,7 +59,7 @@ void AsyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
   t.Resume();
   for (size_t i = 0; i < ops; ++i) {
     HILOG(kDebug, "Sending message {}", i)
-    int node_id = 1 + ((rank + 1) % domain_size);
+    int node_id = 1 + (i % domain_size);
     client.AsyncMdRoot(chm::DomainId::GetNode(node_id),
                        i, depth, TASK_FIRE_AND_FORGET);
   }
