@@ -333,7 +333,7 @@ class Server : public TaskLib {
 
     // Execute task
     MultiQueue *queue = HRUN_CLIENT->GetQueue(QueueId(state_id));
-    HILOG(kDebug,
+    HILOG(kInfo,
           "(node {}) Submitting task (task_node={}, task_state={}/{}, "
           "state_name={}, method={}, size={}, lane_hash={})",
           HRUN_CLIENT->node_id_,
@@ -346,7 +346,7 @@ class Server : public TaskLib {
           orig_task->lane_hash_);
     queue->Emplace(orig_task->prio_,
                    orig_task->lane_hash_, task_ptr.shm_);
-    HILOG(kDebug, "Finished submitting task {}", orig_task->task_node_);
+    HILOG(kInfo, "Finished submitting task {}", orig_task->task_node_);
   }
 
   /** Receive task completion */
