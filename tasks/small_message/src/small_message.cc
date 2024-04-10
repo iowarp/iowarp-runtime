@@ -49,7 +49,7 @@ class Server : public TaskLib {
       depth_task->Wait<TASK_YIELD_CO>(task);
       HRUN_CLIENT->DelTask(depth_task);
     }
-    task->ret_[0] = 1;
+    task->ret_ = 1;
     task->SetModuleComplete();
   }
   void MonitorMd(u32 mode, MdTask *task, RunContext &rctx) {

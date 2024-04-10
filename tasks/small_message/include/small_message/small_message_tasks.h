@@ -57,13 +57,11 @@ struct DestructTask : public DestroyTaskStateTask {
  * */
 struct MdTask : public Task, TaskFlags<TF_SRL_SYM | TF_REPLICA> {
   IN u32 depth_;
-  OUT hipc::pod_array<int, 1> ret_;
+  OUT int ret_;
 
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
-  MdTask(hipc::Allocator *alloc) : Task(alloc) {
-    ret_.construct(alloc, 1);
-  }
+  MdTask(hipc::Allocator *alloc) : Task(alloc) {}
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
@@ -85,7 +83,7 @@ struct MdTask : public Task, TaskFlags<TF_SRL_SYM | TF_REPLICA> {
 
     // Custom params
     depth_ = depth;
-    ret_.construct(alloc, 1);
+    ret_ = -1;
   }
 
   /** Duplicate message */
@@ -106,7 +104,7 @@ struct MdTask : public Task, TaskFlags<TF_SRL_SYM | TF_REPLICA> {
   /** (De)serialize message return */
   template<typename Ar>
   void SerializeEnd(Ar &ar) {
-    ar(ret_[0]);
+    ar(ret_);
   }
 };
 

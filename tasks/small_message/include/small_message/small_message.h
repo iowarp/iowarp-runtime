@@ -57,7 +57,7 @@ class Client : public TaskLibClient {
     LPointer<MdTask> task =
         AsyncMdRoot(domain_id, lane_hash, depth, flags);
     task->Wait();
-    int ret = task->ret_[0];
+    int ret = task->ret_;
     HRUN_CLIENT->DelTask(task);
     return ret;
   }
