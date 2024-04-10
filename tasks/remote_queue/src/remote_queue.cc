@@ -398,7 +398,7 @@ class Server : public TaskLib {
                           orig_task, orig_task->ctx_);
             for (rep_id = 0; rep_id < remote->replicas_.size(); ++rep_id) {
               Task *replica = remote->replicas_[rep_id].ptr_;
-              exec->Del(replica->method_, replica);
+              // exec->Del(replica->method_, replica);
             }
           }
           delete remote;
