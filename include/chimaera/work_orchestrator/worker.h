@@ -739,8 +739,11 @@ class Worker {
         Yield();
       }
     }
-    HILOG(kInfo, "Orchestrator is dying");
+    HILOG(kInfo, "(node {}) Worker {} wrapping up",
+          HRUN_CLIENT->node_id_);
     Run(true);
+    HILOG(kInfo, "(node {}) Worker {} has exited",
+          HRUN_CLIENT->node_id_);
   }
 
   /** Run a single iteration over all queues */

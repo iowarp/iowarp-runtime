@@ -364,9 +364,6 @@ class Server : public TaskLib {
         } else {
           LPointer<Task> replica = exec->LoadReplicaEnd(
               orig_task->method_, ar, orig_task);
-          HILOG(kDebug, "(node {}) Setting replica {} ({}) for task {} (state {})",
-                HRUN_CLIENT->node_id_, rep_id, (size_t)replica.ptr_,
-                orig_task->task_node_, orig_task->task_state_);
           remote->replicas_[rep_id] = replica;
         }
         xfer.tasks_[i].rep_id_ = rep_id;
@@ -387,9 +384,6 @@ class Server : public TaskLib {
                           orig_task, orig_task->ctx_);
             for (rep_id = 0; rep_id < remote->replicas_.size(); ++rep_id) {
               Task *replica = remote->replicas_[rep_id].ptr_;
-              HILOG(kDebug, "(node {}) Freeing replica {} (id: {}) for task {} ",
-                    HRUN_CLIENT->node_id_, rep_id, (size_t)replica,
-                    orig_task->task_node_);
               exec->Del(replica->method_, replica);
             }
           }
