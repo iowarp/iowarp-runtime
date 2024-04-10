@@ -209,12 +209,12 @@ class Server : public TaskLib {
                       RunContext &rctx) {
     try {
       // Serialize task completions
-      TaskQueueEntry *entry_p;
+      TaskQueueEntry entry;
       std::unordered_map<DomainId, BinaryOutputArchive<false>> entries;
       size_t count = complete_[rctx.lane_id_].GetSize();
-      for (size_t i = 0; i < count; ++i) {
-        complete_[rctx.lane_id_].peek(entry_p, i);
-        TaskQueueEntry &entry = *entry_p;
+      std::vector<TaskQueueEntry> completed;
+      completed.reserve(count);
+      while (!complete_[rctx.lane_id_].pop(entry).IsNull()) {
         if (entries.find(entry.domain_) == entries.end()) {
           entries.emplace(entry.domain_, BinaryOutputArchive<false>());
         }
@@ -228,6 +228,7 @@ class Server : public TaskLib {
         done_task->ctx_.task_addr_ = remote->task_addr_;
         BinaryOutputArchive<false> &ar = entries[entry.domain_];
         exec->SaveEnd(done_task->method_, ar, done_task);
+        completed.emplace_back(entry);
       }
 
       // Do transfers
@@ -243,10 +244,8 @@ class Server : public TaskLib {
       }
 
       // Cleanup the queue
-      TaskQueueEntry entry;
-      for (size_t i = 0; i < count; ++i) {
-        complete_[rctx.lane_id_].pop(entry);
-        Task *done_task = entry.task_;
+      for (TaskQueueEntry &centry : completed) {
+        Task *done_task = centry.task_;
         TaskState *exec =
             HRUN_TASK_REGISTRY->GetTaskState(done_task->task_state_);
         exec->Del(done_task->method_, done_task);
@@ -398,7 +397,7 @@ class Server : public TaskLib {
                           orig_task, orig_task->ctx_);
             for (rep_id = 0; rep_id < remote->replicas_.size(); ++rep_id) {
               Task *replica = remote->replicas_[rep_id].ptr_;
-              // exec->Del(replica->method_, replica);
+              exec->Del(replica->method_, replica);
             }
           }
           delete remote;
