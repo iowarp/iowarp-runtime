@@ -30,11 +30,11 @@ else()
 endif()
 add_compile_options(-march=native -fomit-frame-pointer)
 if (CHIMAERA_REMOTE_DEBUG)
-    add_compile_definitions(-DCHIMAERA_REMOTE_DEBUG)
+    add_compile_definitions(CHIMAERA_REMOTE_DEBUG)
 endif()
 if (CHIMAERA_TASK_DEBUG)
     message("Adding the chimaera task debug option")
-    add_compile_definitions(-DCHIMAERA_TASK_DEBUG)
+    add_compile_definitions(CHIMAERA_TASK_DEBUG)
 endif()
 
 #-----------------------------------------------------------------------------
