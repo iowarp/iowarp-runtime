@@ -13,41 +13,37 @@ namespace chm::Admin {
 /** A template to register or destroy a task library */
 template<int method>
 struct RegisterTaskLibTaskTempl : public Task, TaskFlags<TF_SRL_SYM> {
-  IN hipc::ShmArchive<hipc::string> lib_name_;
+  IN hipc::string lib_name_;
   OUT TaskStateId id_;
 
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
-  RegisterTaskLibTaskTempl(hipc::Allocator *alloc) : Task(alloc) {}
+  RegisterTaskLibTaskTempl(hipc::Allocator *alloc)
+  : Task(alloc), lib_name_(alloc) {}
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
   RegisterTaskLibTaskTempl(hipc::Allocator *alloc,
                            const TaskNode &task_node,
                            const DomainId &domain_id,
-                           const std::string &lib_name) : Task(alloc) {
+                           const std::string &lib_name)
+  : Task(alloc), lib_name_(alloc, lib_name) {
     // Initialize task
     task_node_ = task_node;
     lane_hash_ = 0;
     prio_ = TaskPrio::kLowLatency;
     task_state_ = HRUN_QM_CLIENT->admin_task_state_;
-    if constexpr(method == 0)
-    {
+    if constexpr(method == 0) {
       method_ = Method::kRegisterTaskLib;
     } else {
       method_ = Method::kDestroyTaskLib;
     }
     task_flags_.SetBits(0);
     domain_id_ = domain_id;
-
-    // Initialize QueueManager task
-    HSHM_MAKE_AR(lib_name_, alloc, lib_name);
   }
 
   /** Destructor */
-  ~RegisterTaskLibTaskTempl() {
-    HSHM_DESTROY_AR(lib_name_);
-  }
+  ~RegisterTaskLibTaskTempl() {}
 
   /** (De)serialize message call */
   template<typename Ar>
@@ -80,19 +76,21 @@ class CreateTaskStatePhase {
 
 /** A task to get or retrieve the ID of a task */
 struct GetOrCreateTaskStateIdTask : public Task, TaskFlags<TF_SRL_SYM> {
-  IN hipc::ShmArchive<hipc::string> state_name_;
+  IN hipc::string state_name_;
   OUT TaskStateId id_;
 
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
-  GetOrCreateTaskStateIdTask(hipc::Allocator *alloc) : Task(alloc) {}
+  GetOrCreateTaskStateIdTask(hipc::Allocator *alloc)
+  : Task(alloc), state_name_(alloc) {}
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
   GetOrCreateTaskStateIdTask(hipc::Allocator *alloc,
                              const TaskNode &task_node,
                              const DomainId &domain_id,
-                             const std::string &state_name) : Task(alloc) {
+                             const std::string &state_name)
+  : Task(alloc), state_name_(alloc, state_name) {
     // Initialize task
     task_node_ = task_node;
     lane_hash_ = 0;
@@ -101,14 +99,9 @@ struct GetOrCreateTaskStateIdTask : public Task, TaskFlags<TF_SRL_SYM> {
     method_ = Method::kGetOrCreateTaskStateId;
     task_flags_.SetBits(0);
     domain_id_ = domain_id;
-
-    // Initialize
-    HSHM_MAKE_AR(state_name_, alloc, state_name);
   }
 
-  ~GetOrCreateTaskStateIdTask() {
-    HSHM_DESTROY_AR(state_name_);
-  }
+  ~GetOrCreateTaskStateIdTask() {}
 
   /** (De)serialize message call */
   template<typename Ar>
@@ -125,13 +118,15 @@ struct GetOrCreateTaskStateIdTask : public Task, TaskFlags<TF_SRL_SYM> {
 
 /** A task to register a Task state + Create a queue */
 struct CreateTaskStateTask : public Task, TaskFlags<TF_SRL_SYM | TF_REPLICA> {
-  IN hipc::ShmArchive<hipc::string> lib_name_;
-  IN hipc::ShmArchive<hipc::string> state_name_;
+  IN hipc::string lib_name_;
+  IN hipc::string state_name_;
   INOUT TaskStateId id_;
 
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
-  CreateTaskStateTask(hipc::Allocator *alloc) : Task(alloc) {}
+  CreateTaskStateTask(hipc::Allocator *alloc)
+  : Task(alloc), lib_name_(alloc), state_name_(alloc) {
+  }
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
@@ -140,7 +135,10 @@ struct CreateTaskStateTask : public Task, TaskFlags<TF_SRL_SYM | TF_REPLICA> {
                       const DomainId &domain_id,
                       const std::string &state_name,
                       const std::string &lib_name,
-                      const TaskStateId &id) : Task(alloc) {
+                      const TaskStateId &id)
+  : Task(alloc),
+    state_name_(alloc, state_name),
+    lib_name_(alloc, lib_name) {
     // Initialize task
     task_node_ = task_node;
     lane_hash_ = 0;
@@ -151,16 +149,11 @@ struct CreateTaskStateTask : public Task, TaskFlags<TF_SRL_SYM | TF_REPLICA> {
     domain_id_ = domain_id;
 
     // Initialize
-    HSHM_MAKE_AR(state_name_, alloc, state_name);
-    HSHM_MAKE_AR(lib_name_, alloc, lib_name);
     id_ = id;
   }
 
   /** Destructor */
-  ~CreateTaskStateTask() {
-    HSHM_DESTROY_AR(state_name_);
-    HSHM_DESTROY_AR(lib_name_);
-  }
+  ~CreateTaskStateTask() {}
 
   /** Duplicate message */
   template<typename TaskT>
@@ -188,21 +181,21 @@ struct CreateTaskStateTask : public Task, TaskFlags<TF_SRL_SYM | TF_REPLICA> {
 
 /** A task to retrieve the ID of a task */
 struct GetTaskStateIdTask : public Task, TaskFlags<TF_SRL_SYM> {
-  IN hipc::ShmArchive<hipc::string>
-      state_name_;
-  OUT TaskStateId
-      id_;
+  IN hipc::string state_name_;
+  OUT TaskStateId id_;
 
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
-  GetTaskStateIdTask(hipc::Allocator *alloc) : Task(alloc) {}
+  GetTaskStateIdTask(hipc::Allocator *alloc)
+  : Task(alloc), state_name_(alloc) {}
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
   GetTaskStateIdTask(hipc::Allocator *alloc,
                      const TaskNode &task_node,
                      const DomainId &domain_id,
-                     const std::string &state_name) : Task(alloc) {
+                     const std::string &state_name)
+  : Task(alloc), state_name_(alloc, state_name) {
     // Initialize task
     task_node_ = task_node;
     lane_hash_ = 0;
@@ -210,15 +203,9 @@ struct GetTaskStateIdTask : public Task, TaskFlags<TF_SRL_SYM> {
     task_state_ = HRUN_QM_CLIENT->admin_task_state_;
     method_ = Method::kGetTaskStateId;
     task_flags_.SetBits(0);
-    domain_id_ = domain_id;
+    domain_id_ = domain_id; }
 
-    // Initialize
-    HSHM_MAKE_AR(state_name_, alloc, state_name);
-  }
-
-  ~GetTaskStateIdTask() {
-    HSHM_DESTROY_AR(state_name_);
-  }
+  ~GetTaskStateIdTask() {}
 
   /** (De)serialize message call */
   template<typename Ar>

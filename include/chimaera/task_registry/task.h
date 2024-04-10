@@ -45,7 +45,7 @@ class TaskLib;
 /** This task was marked completed outside of the worker thread */
 #define TASK_MODULE_COMPLETE BIT_OPT(u32, 10)
 /** This task is long-running */
-#define TASK_LONG_RUNNING (BIT_OPT(u32, 11) | TASK_UNORDERED)
+#define TASK_LONG_RUNNING BIT_OPT(u32, 11)
 /** This task is fire and forget. Free when completed */
 #define TASK_FIRE_AND_FORGET BIT_OPT(u32, 12)
 /** This task should not be run at this time (deprecated) */

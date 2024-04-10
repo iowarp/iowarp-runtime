@@ -28,7 +28,7 @@ class Server : public TaskLib {
 
   /** Register a task library dynamically */
   void RegisterTaskLib(RegisterTaskLibTask *task, RunContext &rctx) {
-    std::string lib_name = task->lib_name_->str();
+    std::string lib_name = task->lib_name_.str();
     HRUN_TASK_REGISTRY->RegisterTaskLib(lib_name);
     task->SetModuleComplete();
   }
@@ -37,7 +37,7 @@ class Server : public TaskLib {
 
   /** Destroy a task library */
   void DestroyTaskLib(DestroyTaskLibTask *task, RunContext &rctx) {
-    std::string lib_name = task->lib_name_->str();
+    std::string lib_name = task->lib_name_.str();
     HRUN_TASK_REGISTRY->DestroyTaskLib(lib_name);
     task->SetModuleComplete();
   }
@@ -46,7 +46,7 @@ class Server : public TaskLib {
 
   /** Get a task state ID if it exists, and create otherwise */
   void GetOrCreateTaskStateId(GetOrCreateTaskStateIdTask *task, RunContext &rctx) {
-    std::string state_name = task->state_name_->str();
+    std::string state_name = task->state_name_.str();
     task->id_ = HRUN_TASK_REGISTRY->GetOrCreateTaskStateId(state_name);
     task->SetModuleComplete();
   }
@@ -56,8 +56,8 @@ class Server : public TaskLib {
   /** Create a task state */
   void CreateTaskState(CreateTaskStateTask *task, RunContext &rctx) {
     ScopedCoMutexTable<u32> lock(mutexes_, 0, task, rctx);
-    std::string lib_name = task->lib_name_->str();
-    std::string state_name = task->state_name_->str();
+    std::string lib_name = task->lib_name_.str();
+    std::string state_name = task->state_name_.str();
     // Check local registry for task state
     TaskState *task_state = HRUN_TASK_REGISTRY->GetTaskState(state_name, task->id_);
     if (task_state) {
@@ -113,7 +113,7 @@ class Server : public TaskLib {
 
   /** Get task state id, fail if DNE */
   void GetTaskStateId(GetTaskStateIdTask *task, RunContext &rctx) {
-    std::string state_name = task->state_name_->str();
+    std::string state_name = task->state_name_.str();
     task->id_ = HRUN_TASK_REGISTRY->GetTaskStateId(state_name);
     task->SetModuleComplete();
   }
