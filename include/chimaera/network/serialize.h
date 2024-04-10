@@ -94,7 +94,6 @@ struct TaskSegment {
   TaskStateId task_state_;
   u32 method_;
   size_t task_addr_;
-  size_t rep_id_, rep_max_;
 
   TaskSegment() = default;
 

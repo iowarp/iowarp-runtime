@@ -380,21 +380,15 @@ class Server : public TaskLib {
               orig_task->method_, ar, orig_task);
           remote->replicas_[rep_id] = replica;
         }
-        xfer.tasks_[i].rep_id_ = rep_id;
-        xfer.tasks_[i].rep_max_ = remote->rep_max_;
       }
       HRUN_THALLIUM->IoCallServerWrite(req, bulk, xfer);
       // Check if all replicas are complete
       for (size_t i = 0; i < xfer.tasks_.size(); ++i) {
-        size_t rep_id = xfer.tasks_[i].rep_id_;
-        size_t rep_max = xfer.tasks_[i].rep_max_;
         Task *orig_task = (Task*)xfer.tasks_[i].task_addr_;
         RemoteInfo *remote = (RemoteInfo*)orig_task->ctx_.next_net_;
-        remote->rep_complete_ += 1;
+        size_t rep_id = remote->rep_complete_.fetch_add(1);
+        size_t rep_max = remote->rep_max_;
         if (rep_id == rep_max - 1) {
-          while (remote->rep_complete_ < rep_max) {
-            HERMES_THREAD_MODEL->Yield();
-          };
           TaskState *exec = HRUN_TASK_REGISTRY->GetTaskState(
               orig_task->task_state_);
           if (remote->rep_max_ > 1) {
