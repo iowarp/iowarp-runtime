@@ -192,6 +192,7 @@ class Client : public ConfigurationManager {
 #ifdef CHIMAERA_TASK_DEBUG
     MonitorTaskFrees(task);
 #else
+    HILOG(kInfo, "Actually deleting task")
     main_alloc_->DelObj<TaskT>(task);
 #endif
 //    HILOG(kDebug, "Heap size: {}",
@@ -205,6 +206,7 @@ class Client : public ConfigurationManager {
 #ifdef CHIMAERA_TASK_DEBUG
     MonitorTaskFrees(task);
 #else
+    HILOG(kInfo, "Actually deleting task")
     main_alloc_->DelObjLocal<TaskT>(task);
 #endif
 //    HILOG(kDebug, "Heap size: {}",
@@ -218,6 +220,7 @@ class Client : public ConfigurationManager {
 #ifdef CHIMAERA_TASK_DEBUG
     MonitorTaskFrees(task);
 #else
+    HILOG(kInfo, "Actually deleting task")
     exec->Del(task->method_, task);
 #endif
 //    HILOG(kDebug, "Heap size: {}",
@@ -231,6 +234,7 @@ class Client : public ConfigurationManager {
 #ifdef CHIMAERA_TASK_DEBUG
     MonitorTaskFrees(task);
 #else
+    HILOG(kInfo, "Actually deleting task")
     exec->Del(task->method_, task);
 #endif
 //    HILOG(kDebug, "Heap size: {}",
