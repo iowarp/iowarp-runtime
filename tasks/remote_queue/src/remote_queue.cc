@@ -391,12 +391,10 @@ class Server : public TaskLib {
         Task *orig_task = (Task*)xfer.tasks_[i].task_addr_;
         RemoteInfo *remote = (RemoteInfo*)orig_task->ctx_.next_net_;
         remote->rep_complete_ += 1;
-        // Wait for all remotes to complete
-        do {
-          HERMES_THREAD_MODEL->Yield();
-        } while(remote->rep_complete_ < rep_max);
-        // Destroy replicas
         if (rep_id == rep_max - 1) {
+          do {
+            HERMES_THREAD_MODEL->Yield();
+          } while(remote->rep_complete_ < rep_max);
           TaskState *exec = HRUN_TASK_REGISTRY->GetTaskState(
               orig_task->task_state_);
           if (remote->rep_max_ > 1) {
