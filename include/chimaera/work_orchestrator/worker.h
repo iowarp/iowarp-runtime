@@ -731,8 +731,6 @@ class Worker {
         if (work >= 10000) {
           work = 0;
           cur_time_.Now();
-          HILOG(kInfo, "(node {}) Worker {} has {} blocked tasks",
-                HRUN_CLIENT->node_id_, id_, active_.blocked_.size_);
         }
       } catch (hshm::Error &e) {
         HELOG(kError, "(node {}) Worker {} caught an error: {}", HRUN_CLIENT->node_id_, id_, e.what());
