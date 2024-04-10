@@ -244,7 +244,8 @@ class Server : public TaskLib {
 
       // Cleanup the queue
       TaskQueueEntry entry;
-      while (!complete_[rctx.lane_id_].pop(entry).IsNull()) {
+      for (size_t i = 0; i < count; ++i) {
+        complete_[rctx.lane_id_].pop(entry);
         Task *done_task = entry.task_;
         TaskState *exec =
             HRUN_TASK_REGISTRY->GetTaskState(done_task->task_state_);
