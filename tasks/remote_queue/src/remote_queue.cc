@@ -154,6 +154,7 @@ class Server : public TaskLib {
         rctx.replicas_ = &replicas;
         // Free
         exec->Monitor(MonitorMode::kReplicaAgg, orig_task, rctx);
+        HILOG(kDebug, "Replicas were waited for and completed");
         for (LPointer<Task> &replica : replicas) {
           HRUN_CLIENT->DelTask(exec, replica.ptr_);
         }
