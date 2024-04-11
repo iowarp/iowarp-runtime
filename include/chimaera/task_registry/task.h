@@ -270,7 +270,7 @@ struct RunContext {
   std::vector<LPointer<Task>> *replicas_;
   size_t ret_task_addr_;
   DomainId ret_domain_;
-  std::atomic<u32> pending_cur_;
+  u32 pending_cur_;
   u32 pending_on_;
 };
 
