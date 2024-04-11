@@ -14,7 +14,6 @@ namespace chm::Admin {
 template<int method>
 struct RegisterTaskLibTaskTempl : public Task, TaskFlags<TF_SRL_SYM> {
   IN hipc::string lib_name_;
-  OUT TaskStateId id_;
 
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
@@ -54,7 +53,6 @@ struct RegisterTaskLibTaskTempl : public Task, TaskFlags<TF_SRL_SYM> {
   /** (De)serialize message return */
   template<typename Ar>
   void SerializeEnd(Ar &ar) {
-    ar(id_);
   }
 };
 
