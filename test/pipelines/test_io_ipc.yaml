@@ -3,11 +3,11 @@ env: chimaera
 pkgs:
   - pkg_type: chimaera_run
     pkg_name: chimaera_run
-    sleep: 5
+    sleep: 10
     do_dbg: true
     dbg_port: 4000
   - pkg_type: chimaera_unit_tests
     pkg_name: chimaera_unit_tests
     TEST_CASE: TestIO
-    do_dbg: true
+    do_dbg: false
     dbg_port: 4001
