@@ -190,6 +190,7 @@ TEST_CASE("TestIO") {
   client.CreateRoot(chm::DomainId::GetGlobal(), "ipc_test");
   MPI_Barrier(MPI_COMM_WORLD);
   MPI_Finalize();
+  exit(1);
   hshm::Timer t;
   size_t domain_size =
       CHM_ADMIN->DomainSizeRoot(chm::DomainId::GetGlobal());
