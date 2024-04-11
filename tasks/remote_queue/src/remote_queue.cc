@@ -134,7 +134,7 @@ class Server : public TaskLib {
         LPointer<Task> replica;
         exec->CopyStart(orig_task->method_, orig_task, replica);
         if (!ff) {
-          replica->YieldInit(task);
+          replica->ctx_.pending_to_opt_ = task;
         }
         size_t lane_hash = std::hash<DomainId>{}(domain_id);
         submit_[lane_hash % submit_.size()].emplace(
