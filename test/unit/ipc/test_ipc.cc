@@ -188,6 +188,7 @@ TEST_CASE("TestIO") {
   chm::small_message::Client client;
   CHM_ADMIN->RegisterTaskLibRoot(chm::DomainId::GetGlobal(), "small_message");
   client.CreateRoot(chm::DomainId::GetGlobal(), "ipc_test");
+  exit(1);
   hshm::Timer t;
   size_t domain_size =
       CHM_ADMIN->DomainSizeRoot(chm::DomainId::GetGlobal());
