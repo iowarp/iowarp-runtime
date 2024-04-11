@@ -36,8 +36,8 @@ class TaskLib;
 #define TASK_SYSCALL BIT_OPT(u32, 5)
 /** This task supports merging */
 #define TASK_MERGE BIT_OPT(u32, 6)
-/** This task does not depend on its position in the queue (deprecated) */
-#define TASK_UNORDERED BIT_OPT(u32, 7)
+/** The remote task has completed */
+#define TASK_REMOTE_COMPLETE BIT_OPT(u32, 7)
 /** This task has began execution */
 #define TASK_HAS_STARTED BIT_OPT(u32, 8)
 /** This task is completed */
@@ -311,6 +311,24 @@ struct Task : public hipc::ShmContainer {
     task_flags_.UnsetBits(TASK_MODULE_COMPLETE);
   }
 
+//  /** Set task as complete on the remote */
+//  HSHM_ALWAYS_INLINE void SetRemoteComplete() {
+//    // atask_flags_ |= TASK_MODULE_COMPLETE;
+//    task_flags_.SetBits(TASK_REMOTE_COMPLETE);
+//  }
+//
+//  /** Check if a task complete on the remote */
+//  HSHM_ALWAYS_INLINE bool IsRemoteComplete() {
+//    // return atask_flags_.load() & TASK_MODULE_COMPLETE;
+//    return task_flags_.Any(TASK_REMOTE_COMPLETE);
+//  }
+//
+//  /** Unset task as complete on the remote */
+//  HSHM_ALWAYS_INLINE void UnsetRemoteComplete() {
+//    // atask_flags_ |= TASK_MODULE_COMPLETE | TASK_COMPLETE;
+//    task_flags_.UnsetBits(TASK_REMOTE_COMPLETE);
+//  }
+
   /** Set task as complete */
   HSHM_ALWAYS_INLINE void SetComplete() {
     // atask_flags_ |= TASK_MODULE_COMPLETE | TASK_COMPLETE;
@@ -574,12 +592,12 @@ struct Task : public hipc::ShmContainer {
 
   /** Wait for task to complete */
   template<int THREAD_MODEL = TASK_YIELD_STD>
-  void Wait() {
-    while (!IsComplete()) {
+  void Wait(u32 flags = TASK_COMPLETE) {
+    while (!task_flags_.All(flags)) {
       if constexpr (THREAD_MODEL == TASK_YIELD_STD) {
         for (;;) {
           std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);
-          if (IsComplete()) {
+          if (task_flags_.All(flags)) {
             // std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);
             return;
           }
@@ -601,8 +619,8 @@ struct Task : public hipc::ShmContainer {
 
   /** Parent waits for this task to complete */
   template<int THREAD_MODEL = 0>
-  void Wait(Task *parent_task) {
-    while (!IsComplete()) {
+  void Wait(Task *parent_task, u32 flags = TASK_COMPLETE) {
+    while (!task_flags_.All(flags)) {
       Yield<THREAD_MODEL>(parent_task);
     }
   }

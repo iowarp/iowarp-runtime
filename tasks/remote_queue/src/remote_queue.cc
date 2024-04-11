@@ -116,7 +116,8 @@ class Server : public TaskLib {
 //      HILOG(kDebug, "(node {}) Blocking task {} on worker {}",
 //            HRUN_CLIENT->node_id_, (size_t)task, rctx.worker_id_);
       if (!ff) {
-        orig_task->Wait<TASK_YIELD_CO>(task);
+        orig_task->Wait<TASK_YIELD_CO>(task, 
+                                       TASK_MODULE_COMPLETE);
       }
       HILOG(kDebug, "(node {}) Resuming task {}",
             HRUN_CLIENT->node_id_, (size_t)task);
@@ -141,7 +142,8 @@ class Server : public TaskLib {
       if (!ff) {
         // Wait
         for (LPointer<Task> &replica : replicas) {
-          replica->Wait<TASK_YIELD_CO>(task);
+          replica->Wait<TASK_YIELD_CO>(task,
+                                       TASK_MODULE_COMPLETE);
         }
         // Combine
         TaskState *exec = HRUN_TASK_REGISTRY->GetTaskState(
@@ -436,7 +438,7 @@ class Server : public TaskLib {
       // Unblock completed tasks
       for (size_t i = 0; i < xfer.tasks_.size(); ++i) {
         Task *orig_task = (Task*)xfer.tasks_[i].task_addr_;
-        orig_task->SetComplete();
+        orig_task->SetModuleComplete();
         Task *pending_to = orig_task->ctx_.pending_to_;
         HILOG(kDebug, "(node {}) Unblocking task {} to worker {}",
               HRUN_CLIENT->node_id_,
