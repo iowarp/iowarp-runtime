@@ -153,7 +153,7 @@ class Server : public TaskLib {
             orig_task->task_state_);
         rctx.replicas_ = &replicas;
         // Free
-        exec->Monitor(MonitorMode::kReplicaAgg, task, rctx);
+        exec->Monitor(MonitorMode::kReplicaAgg, orig_task, rctx);
         for (LPointer<Task> &replica : replicas) {
           HRUN_CLIENT->DelTask(exec, replica.ptr_);
         }
