@@ -362,7 +362,7 @@ class PrivateTaskMultiQueue {
     if (task->task_state_ == CHM_ADMIN->id_ &&
         task->method_ == chm::Admin::Method::kCreateTaskState) {
       return GetConstruct().push(entry);
-    } else if (task->IsFlush() && !task->IsRemote()) {
+    } else if (task->IsFlush()) {
       return GetFlush().push(entry);
     } else if (task->IsLongRunning()) {
       return GetLongRunning().push(entry);
@@ -669,6 +669,7 @@ class Worker {
     // Reset flushing counters
     flush_.count_ = 0;
     flush_.flushing_ = true;
+    PollPrivateQueue(active_.GetFlush(), false);
   }
 
   /** Check if work has been done */
@@ -695,7 +696,7 @@ class Worker {
       }
       if (consensus == orch->workers_.size()) {
         PrivateTaskQueue &queue = active_.GetFlush();
-        PollPrivateQueue(queue, false);
+        PollPrivateQueue(active_.GetFlush(), false);
       } else {
         for (std::unique_ptr<Worker> &worker : orch->workers_) {
           UpdateFlushCount(*worker, work_done);

@@ -376,6 +376,11 @@ struct UniqueId {
   bool operator!=(const UniqueId &other) const {
     return unique_ != other.unique_ || node_id_ != other.node_id_;
   }
+
+  friend std::ostream& operator<<(std::ostream &os, const UniqueId &id) {
+    return os << (std::to_string(id.node_id_) + "."
+        + std::to_string(id.unique_));
+  }
 };
 
 /** Uniquely identify a task state */
@@ -384,13 +389,6 @@ using TaskStateId = UniqueId<1>;
 using QueueId = UniqueId<2>;
 /** Uniquely identify a task */
 using TaskId = UniqueId<3>;
-
-/** Allow unique ids to be printed as strings */
-template<int num>
-std::ostream &operator<<(std::ostream &os, UniqueId<num> const &obj) {
-  return os << (std::to_string(obj.node_id_) + "."
-      + std::to_string(obj.unique_));
-}
 
 /** The types of I/O that can be performed (for IoCall RPC) */
 enum class IoType {

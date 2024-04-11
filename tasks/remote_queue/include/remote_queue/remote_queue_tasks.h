@@ -81,7 +81,12 @@ struct ClientPushSubmitTask : public Task, TaskFlags<TF_LOCAL> {
     prio_ = orig_task->prio_;
     task_state_ = state_id;
     method_ = Method::kClientPushSubmit;
-    task_flags_.SetBits(TASK_COROUTINE | TASK_REMOTE_DEBUG_MARK);
+    task_flags_.SetBits(TASK_COROUTINE |
+                              TASK_FIRE_AND_FORGET |
+                              TASK_REMOTE_DEBUG_MARK);
+    if (orig_task->IsFlush()) {
+      task_flags_.SetBits(TASK_FLUSH);
+    }
     domain_id_ = domain_id;
 
     orig_task_ = orig_task;

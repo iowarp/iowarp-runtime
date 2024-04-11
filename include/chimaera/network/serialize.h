@@ -130,8 +130,10 @@ class SegmentedTransfer {
 
   void AllocateSegmentsServer() {
     for (DataTransfer &xfer : bulk_) {
-      xfer.data_ = HRUN_CLIENT->AllocateBufferServer<TASK_YIELD_ABT>(
-          xfer.data_size_).ptr_;
+      LPointer<char> data = HRUN_CLIENT->AllocateBufferServer<TASK_YIELD_ABT>(
+          xfer.data_size_);
+      xfer.data_ = data.ptr_;
+      HILOG(kDebug, "NEW DATA POINTER: {}", data.shm_)
     }
   }
 
@@ -179,6 +181,11 @@ class BinaryOutputArchive {
                             DomainId &node_id) {
     char *data_ptr = HERMES_MEMORY_MANAGER->Convert<char>(data);
     bulk(flags, data_ptr, data_size, node_id);
+    if constexpr (is_start) {
+      HILOG(kDebug, "BinaryOutputArchive (start) DATA POINTER: {}", data);
+    } else {
+      HILOG(kDebug, "BinaryOutputArchive (end) DATA POINTER: {}", data);
+    }
     return *this;
   }
 
@@ -289,10 +296,12 @@ class BinaryInputArchive {
     char *xfer_data;
     if constexpr (!is_start) {
       xfer_data = HERMES_MEMORY_MANAGER->Convert<char>(data);
+      HILOG(kDebug, "BinaryInputArchive (end) DATA POINTER: {}", data);
     }
     bulk(flags, xfer_data, data_size, node_id);
     if constexpr (is_start) {
       data = HERMES_MEMORY_MANAGER->Convert<void, hipc::Pointer>(xfer_data);
+      HILOG(kDebug, "BinaryInputArchive (start) DATA POINTER: {}", data);
     }
     return *this;
   }

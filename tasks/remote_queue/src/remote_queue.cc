@@ -103,13 +103,16 @@ class Server : public TaskLib {
       return;
     }
 
+    HILOG(kDebug, "ClientPushTask: {} ({}), Original Task: {} ({})",
+          (size_t)task, task, (size_t)orig_task, orig_task);
+
     bool ff = orig_task->IsFireAndForget();
     if (domain_ids.size() == 1) {
       // Submit task directly
       DomainId domain_id = domain_ids[0];
       size_t lane_hash = std::hash<DomainId>{}(domain_id);
       if (!ff) {
-        orig_task->YieldInit(task);
+        orig_task->ctx_.pending_to_opt_ = task;
       }
       submit_[lane_hash % submit_.size()].emplace(
           (TaskQueueEntry){domain_id, orig_task});
@@ -247,6 +250,9 @@ class Server : public TaskLib {
                           RunContext &rctx) {
     HILOG(kDebug, "(node {}) Task finished server-side {}",
           HRUN_CLIENT->node_id_, task->task_node_);
+    if (task->ctx_.ret_task_addr_ == (size_t)task) {
+      HILOG(kFatal, "This shouldn't happen ever");
+    }
     DomainId ret_domain = task->ctx_.ret_domain_;
     size_t lane_hash = std::hash<DomainId>{}(ret_domain);
     complete_[lane_hash % complete_.size()].emplace((TaskQueueEntry){
@@ -296,12 +302,12 @@ class Server : public TaskLib {
       }
 
       // Cleanup the queue
-      for (TaskQueueEntry &centry : completed) {
-        Task *done_task = centry.task_;
-        TaskState *exec =
-            HRUN_TASK_REGISTRY->GetTaskState(done_task->task_state_);
-        HRUN_CLIENT->DelTask(exec, done_task);
-      }
+//      for (TaskQueueEntry &centry : completed) {
+//        Task *done_task = centry.task_;
+//        TaskState *exec =
+//            HRUN_TASK_REGISTRY->GetTaskState(done_task->task_state_);
+//        HRUN_CLIENT->DelTask(exec, done_task);
+//      }
     } catch (hshm::Error &e) {
       HELOG(kError, "(node {}) Worker {} caught an error: {}", HRUN_CLIENT->node_id_, id_, e.what());
     } catch (std::exception &e) {
@@ -364,6 +370,9 @@ class Server : public TaskLib {
     orig_task->domain_id_ = DomainId::GetNode(HRUN_CLIENT->node_id_);
     orig_task->ctx_.ret_task_addr_ = xfer.tasks_[task_off].task_addr_;
     orig_task->ctx_.ret_domain_ = xfer.ret_domain_;
+    if (orig_task->ctx_.ret_task_addr_ == (size_t)orig_task) {
+      HILOG(kFatal, "This shouldn't happen ever");
+    }
 
     // Unset task flags
     // NOTE(llogan): Remote tasks are executed to completion and
@@ -439,7 +448,10 @@ class Server : public TaskLib {
       for (size_t i = 0; i < xfer.tasks_.size(); ++i) {
         Task *orig_task = (Task*)xfer.tasks_[i].task_addr_;
         orig_task->SetModuleComplete();
-        Task *pending_to = orig_task->ctx_.pending_to_;
+        Task *pending_to = orig_task->ctx_.pending_to_opt_;
+        if (pending_to->task_state_ != id_) {
+          HELOG(kFatal, "This shouldn't happen ever");
+        }
         HILOG(kDebug, "(node {}) Unblocking task {} to worker {}",
               HRUN_CLIENT->node_id_,
               (size_t)pending_to,

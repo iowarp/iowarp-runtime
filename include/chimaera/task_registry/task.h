@@ -265,6 +265,7 @@ struct RunContext {
   WorkPending *flush_;
   hshm::Timer timer_;
   Task *pending_to_;
+  Task *pending_to_opt_;
   size_t pending_key_;
   std::vector<LPointer<Task>> *replicas_;
   size_t ret_task_addr_;
@@ -587,6 +588,16 @@ struct Task : public hipc::ShmContainer {
         !IsLongRunning()) {
       ctx_.pending_to_ = parent_task;
       SetSignalUnblock();
+    }
+  }
+
+  /** Yield a task to a different task */
+  HSHM_ALWAYS_INLINE
+  void CustomYieldInit(Task *parent_task) {
+    if (parent_task &&
+        !IsFireAndForget() &&
+        !IsLongRunning()) {
+      ctx_.pending_to_ = parent_task;
     }
   }
 
