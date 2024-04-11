@@ -33,18 +33,15 @@ TEST_CASE("TestIpc") {
   hshm::Timer t;
   size_t domain_size =
       CHM_ADMIN->DomainSizeRoot(chm::DomainId::GetGlobal());
-  MPI_Barrier(MPI_COMM_WORLD);
-  MPI_Finalize();
-  exit(1);
 
-  size_t ops = 16;
+  size_t ops = 1;
   HILOG(kInfo, "OPS: {}", ops)
   t.Resume();
   int depth = 0;
   for (size_t i = 0; i < ops; ++i) {
     int ret;
     // HILOG(kInfo, "Sending message {}", i);
-    int node_id = 1 + ((rank + 1) % domain_size);
+    int node_id = 1 + ((i + 1) % domain_size);
     ret = client.MdRoot(chm::DomainId::GetNode(node_id),
                         i, depth, 0);
 //    auto task = client.AsyncMd(
@@ -86,7 +83,7 @@ TEST_CASE("TestAsyncIpc") {
   for (size_t i = 0; i < ops; ++i) {
     int ret;
     // HILOG(kInfo, "Sending message {}", i);
-    int node_id = 1 + ((rank + 1) % domain_size);
+    int node_id = 1 + ((i + 1) % domain_size);
     client.AsyncMdRoot(chm::DomainId::GetNode(node_id),
                        i, depth, TASK_FIRE_AND_FORGET);
 //    auto task = client.AsyncMd(
@@ -124,7 +121,7 @@ TEST_CASE("TestFlush") {
   for (size_t i = 0; i < ops; ++i) {
     int ret;
     HILOG(kInfo, "Sending message {}", i);
-    int node_id = 1 + ((rank + 1) % nprocs);
+    int node_id = 1 + ((i + 1) % nprocs);
     LPointer<chm::small_message::MdTask> task =
         client.AsyncMdRoot(
             chm::DomainId::GetNode(node_id),
@@ -151,7 +148,7 @@ void TestIpcMultithread(int nprocs) {
     size_t ops = (1 << 20);
     for (size_t i = 0; i < ops; ++i) {
       int ret;
-      int node_id = 1 + ((rank + 1) % nprocs);
+      int node_id = 1 + ((i + 1) % nprocs);
       ret = client.MdRoot(chm::DomainId::GetNode(node_id),
                           i, 0, 0);
       REQUIRE(ret == 1);
@@ -207,7 +204,7 @@ TEST_CASE("TestIO") {
   for (size_t i = 0; i < ops; ++i) {
     size_t write_ret = 0, read_ret = 0;
     HILOG(kInfo, "Sending message {}", i);
-    int node_id = 1 + ((rank + 1) % domain_size);
+    int node_id = 1 + ((i + 1) % domain_size);
     client.IoRoot(chm::DomainId::GetNode(node_id),
                         KILOBYTES(4),
                         MD_IO_WRITE | MD_IO_READ,
