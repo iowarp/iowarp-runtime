@@ -270,6 +270,8 @@ struct RunContext {
   std::vector<LPointer<Task>> *replicas_;
   size_t ret_task_addr_;
   DomainId ret_domain_;
+  std::atomic<u32> pending_cur_;
+  u32 pending_on_;
 };
 
 /** A generic task base class */
@@ -591,16 +593,6 @@ struct Task : public hipc::ShmContainer {
     }
   }
 
-  /** Yield a task to a different task */
-  HSHM_ALWAYS_INLINE
-  void CustomYieldInit(Task *parent_task) {
-    if (parent_task &&
-        !IsFireAndForget() &&
-        !IsLongRunning()) {
-      ctx_.pending_to_ = parent_task;
-    }
-  }
-
   /** Wait for task to complete */
   template<int THREAD_MODEL = TASK_YIELD_STD>
   void Wait(u32 flags = TASK_COMPLETE) {
@@ -618,21 +610,33 @@ struct Task : public hipc::ShmContainer {
     }
   }
 
-  /** Parent yields until this task completes */
-  template<int THREAD_MODEL = TASK_YIELD_STD>
-  HSHM_ALWAYS_INLINE
-  void Yield(Task *parent_task) {
-    if constexpr (THREAD_MODEL == TASK_YIELD_CO) {
-      parent_task->SetBlocked();
-    }
-    parent_task->Yield<THREAD_MODEL>();
+  /** This task waits for subtask to complete */
+  template<int THREAD_MODEL = 0, typename TaskT=Task>
+  void Wait(LPointer<TaskT> &subtask, u32 flags = TASK_COMPLETE) {
+    Wait<THREAD_MODEL>(subtask.ptr_, flags);
   }
 
-  /** Parent waits for this task to complete */
+  /** This task waits for subtask to complete */
   template<int THREAD_MODEL = 0>
-  void Wait(Task *parent_task, u32 flags = TASK_COMPLETE) {
-    while (!task_flags_.All(flags)) {
-      Yield<THREAD_MODEL>(parent_task);
+  void Wait(Task *subtask, u32 flags = TASK_COMPLETE) {
+    ctx_.pending_cur_ = 0;
+    ctx_.pending_on_ = 1;
+    SetBlocked();
+    while (!subtask->task_flags_.All(flags)) {
+      Yield<THREAD_MODEL>();
+    }
+  }
+
+  /** This task waits for a set of tasks to complete */
+  template<int THREAD_MODEL = 0>
+  void Wait(std::vector<LPointer<Task>> &tasks, u32 flags = TASK_COMPLETE) {
+    ctx_.pending_cur_ = 0;
+    ctx_.pending_on_ = (u32)tasks.size();
+    SetBlocked();
+    for (auto &task : tasks) {
+      if (!task->task_flags_.All(flags)) {
+        Yield<THREAD_MODEL>();
+      }
     }
   }
 

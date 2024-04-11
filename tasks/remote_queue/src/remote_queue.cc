@@ -119,7 +119,7 @@ class Server : public TaskLib {
 //      HILOG(kDebug, "(node {}) Blocking task {} on worker {}",
 //            HRUN_CLIENT->node_id_, (size_t)task, rctx.worker_id_);
       if (!ff) {
-        orig_task->Wait<TASK_YIELD_CO>(task, 
+        task->Wait<TASK_YIELD_CO>(orig_task,
                                        TASK_MODULE_COMPLETE);
       }
       HILOG(kDebug, "(node {}) Resuming task {}",
@@ -144,10 +144,7 @@ class Server : public TaskLib {
       // Wait & combine replicas
       if (!ff) {
         // Wait
-        for (LPointer<Task> &replica : replicas) {
-          replica->Wait<TASK_YIELD_CO>(task,
-                                       TASK_MODULE_COMPLETE);
-        }
+        task->Wait<TASK_YIELD_CO>(replicas, TASK_MODULE_COMPLETE);
         // Combine
         TaskState *exec = HRUN_TASK_REGISTRY->GetTaskState(
             orig_task->task_state_);
@@ -155,9 +152,9 @@ class Server : public TaskLib {
         // Free
         exec->Monitor(MonitorMode::kReplicaAgg, orig_task, rctx);
         HILOG(kDebug, "Replicas were waited for and completed");
-//        for (LPointer<Task> &replica : replicas) {
-//          HRUN_CLIENT->DelTask(exec, replica.ptr_);
-//        }
+        for (LPointer<Task> &replica : replicas) {
+          HRUN_CLIENT->DelTask(exec, replica.ptr_);
+        }
       }
     }
 

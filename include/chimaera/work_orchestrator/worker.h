@@ -429,6 +429,10 @@ class PrivateTaskMultiQueue {
           blocked_task->ctx_.pending_key_,
           (size_t)&blocked_,
           id_);
+    blocked_task->ctx_.pending_cur_ += 1;
+    if (blocked_task->ctx_.pending_cur_ != blocked_task->ctx_.pending_on_) {
+      return true;
+    }
     PrivateTaskQueueEntry entry;
     blocked_.pop(blocked_task->ctx_.pending_key_, entry);
     if (blocked_task.ptr_ != entry.task_.ptr_) {

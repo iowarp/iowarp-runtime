@@ -46,7 +46,7 @@ class Server : public TaskLib {
                           task->domain_id_,
                           task->lane_hash_ + 2,
                           task->depth_ - 1, 0);
-      depth_task->Wait<TASK_YIELD_CO>(task);
+      task->Wait<TASK_YIELD_CO>(depth_task);
       HRUN_CLIENT->DelTask(depth_task);
     }
     task->ret_ = 1;
