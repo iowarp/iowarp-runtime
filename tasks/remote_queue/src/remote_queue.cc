@@ -93,25 +93,80 @@ class Server : public TaskLib {
 
   /** Push operation called on client */
   void ClientPushSubmit(ClientPushSubmitTask *task, RunContext &rctx) {
+    // Get domain IDs
+    Task *orig_task = task->orig_task_;
     std::vector<DomainId> domain_ids = HRUN_RUNTIME->ResolveDomainId(
-        task->domain_id_);
+        orig_task->domain_id_);
     if (domain_ids.size() == 0) {
       task->SetModuleComplete();
+      Worker::SignalUnblock(orig_task);
       return;
     }
-    BinaryOutputArchive<true> ar;
-    task->ctx_.next_net_ = new RemoteInfo();
-    RemoteInfo *remote = (RemoteInfo*)task->ctx_.next_net_;
-    remote->rep_cnt_ = 0;
-    remote->rep_complete_ = 0;
-    remote->rep_max_ = domain_ids.size();
-    remote->replicas_.resize(domain_ids.size());
-    for (DomainId &domain_id  : domain_ids) {
+
+    bool ff = orig_task->IsFireAndForget();
+    if (domain_ids.size() == 1) {
+      // Submit task directly
+      DomainId domain_id = domain_ids[0];
       size_t lane_hash = std::hash<DomainId>{}(domain_id);
+      if (!ff) {
+        orig_task->YieldInit(task);
+      }
       submit_[lane_hash % submit_.size()].emplace(
-          (TaskQueueEntry){domain_id, task});
+          (TaskQueueEntry){domain_id, orig_task});
+//      HILOG(kDebug, "(node {}) Blocking task {} on worker {}",
+//            HRUN_CLIENT->node_id_, (size_t)task, rctx.worker_id_);
+      if (!ff) {
+        orig_task->Wait<TASK_YIELD_CO>(task);
+      }
+      HILOG(kDebug, "(node {}) Resuming task {}",
+            HRUN_CLIENT->node_id_, (size_t)task);
+    } else {
+      std::vector<LPointer<Task>> replicas;
+      replicas.reserve(domain_ids.size());
+      // Replicate task
+      for (DomainId &domain_id  : domain_ids) {
+        TaskState *exec = HRUN_TASK_REGISTRY->GetTaskState(
+            orig_task->task_state_);
+        LPointer<Task> replica;
+        exec->CopyStart(orig_task->method_, orig_task, replica);
+        if (!ff) {
+          replica->YieldInit(task);
+        }
+        size_t lane_hash = std::hash<DomainId>{}(domain_id);
+        submit_[lane_hash % submit_.size()].emplace(
+            (TaskQueueEntry){domain_id, replica.ptr_});
+        replicas.emplace_back(replica);
+      }
+      // Wait & combine replicas
+      if (!ff) {
+        // Wait
+        for (LPointer<Task> &replica : replicas) {
+          replica->Wait<TASK_YIELD_CO>(task);
+        }
+        // Combine
+        TaskState *exec = HRUN_TASK_REGISTRY->GetTaskState(
+            orig_task->task_state_);
+        rctx.replicas_ = &replicas;
+        // Free
+        exec->Monitor(MonitorMode::kReplicaAgg, task, rctx);
+        for (LPointer<Task> &replica : replicas) {
+          HRUN_CLIENT->DelTask(exec, replica.ptr_);
+        }
+      }
     }
-    task->SetBlocked();
+
+    // Unblock original task
+    if (!orig_task->IsLongRunning()) {
+      orig_task->SetModuleComplete();
+    } else {
+      orig_task->UnsetComplete();
+    }
+    HILOG(kDebug, "Will unblock the task {} to worker {}",
+          (size_t)orig_task, orig_task->ctx_.worker_id_);
+    Worker::SignalUnblock(orig_task);
+
+    // Set this task as complete
+    task->SetModuleComplete();
   }
   void MonitorClientPushSubmit(u32 mode,
                                ClientPushSubmitTask *task,
@@ -123,9 +178,10 @@ class Server : public TaskLib {
     try {
       TaskQueueEntry entry;
       std::unordered_map<DomainId, BinaryOutputArchive<true>> entries;
-      while (!submit_[rctx.lane_id_].pop(entry).IsNull()) {
-        HILOG(kDebug, "(node {}) Submitting task {} to domain {}",
+      while (!submit_[0].pop(entry).IsNull()) {
+        HILOG(kDebug, "(node {}) Submitting task {} ({}) to domain {}",
               HRUN_CLIENT->node_id_, entry.task_->task_node_,
+              (size_t)entry.task_,
               entry.domain_.id_);
         if (entries.find(entry.domain_) == entries.end()) {
           entries.emplace(entry.domain_, BinaryOutputArchive<true>());
@@ -153,16 +209,14 @@ class Server : public TaskLib {
                                        xfer,
                                        DT_SENDER_WRITE);
         t.Pause();
-        HILOG(kInfo, "(node {}) Submitted tasks in {} usec",
+        HILOG(kDebug, "(node {}) Submitted tasks in {} usec",
               HRUN_CLIENT->node_id_, t.GetUsec());
 
         for (TaskSegment &task_seg : xfer.tasks_) {
           Task *orig_task = (Task*)task_seg.task_addr_;
           if (orig_task->IsFireAndForget()) {
-            Worker &worker = HRUN_WORK_ORCHESTRATOR->GetWorker(
-                orig_task->ctx_.worker_id_);
             orig_task->SetModuleComplete();
-            worker.SignalUnblock(orig_task);
+            Worker::SignalUnblock(orig_task);
           }
         }
       }
@@ -179,8 +233,8 @@ class Server : public TaskLib {
                            RunContext &rctx) {
     switch (mode) {
       case MonitorMode::kFlushStat: {
-        hshm::mpsc_queue<TaskQueueEntry> &submit = submit_[rctx.lane_id_];
-        hshm::mpsc_queue<TaskQueueEntry> &complete = complete_[rctx.lane_id_];
+        hshm::mpsc_queue<TaskQueueEntry> &submit = submit_[0];
+        hshm::mpsc_queue<TaskQueueEntry> &complete = complete_[0];
         rctx.flush_->count_ += submit.GetSize() + complete.GetSize();
       }
     }
@@ -191,10 +245,10 @@ class Server : public TaskLib {
                           RunContext &rctx) {
     HILOG(kDebug, "(node {}) Task finished server-side {}",
           HRUN_CLIENT->node_id_, task->task_node_);
-    RemoteInfo *remote = (RemoteInfo*)task->ctx_.prior_net_;
-    size_t lane_hash = std::hash<DomainId>{}(remote->ret_domain_);
+    DomainId ret_domain = task->ctx_.ret_domain_;
+    size_t lane_hash = std::hash<DomainId>{}(ret_domain);
     complete_[lane_hash % complete_.size()].emplace((TaskQueueEntry){
-      remote->ret_domain_, task
+        ret_domain, task
     });
   }
   void MonitorServerPushComplete(u32 mode,
@@ -209,10 +263,10 @@ class Server : public TaskLib {
       // Serialize task completions
       TaskQueueEntry entry;
       std::unordered_map<DomainId, BinaryOutputArchive<false>> entries;
-      size_t count = complete_[rctx.lane_id_].GetSize();
+      size_t count = complete_[0].GetSize();
       std::vector<TaskQueueEntry> completed;
       completed.reserve(count);
-      while (!complete_[rctx.lane_id_].pop(entry).IsNull()) {
+      while (!complete_[0].pop(entry).IsNull()) {
         if (entries.find(entry.domain_) == entries.end()) {
           entries.emplace(entry.domain_, BinaryOutputArchive<false>());
         }
@@ -222,8 +276,6 @@ class Server : public TaskLib {
               entry.domain_.id_);
         TaskState *exec =
             HRUN_TASK_REGISTRY->GetTaskState(done_task->task_state_);
-        RemoteInfo *remote = (RemoteInfo*)done_task->ctx_.prior_net_;
-        done_task->ctx_.task_addr_ = remote->task_addr_;
         BinaryOutputArchive<false> &ar = entries[entry.domain_];
         exec->SaveEnd(done_task->method_, ar, done_task);
         completed.emplace_back(entry);
@@ -276,9 +328,7 @@ class Server : public TaskLib {
       hshm::Timer t;
       t.Resume();
       for (size_t i = 0; i < xfer.tasks_.size(); ++i) {
-        RemoteInfo *remote = new RemoteInfo();
-        remote->ret_domain_ = xfer.ret_domain_;
-        DeserializeTask(i, ar, xfer, remote);
+        DeserializeTask(i, ar, xfer);
       }
       t.Pause();
       HILOG(kInfo, "(node {}) Submitted tasks in {} usec",
@@ -296,12 +346,10 @@ class Server : public TaskLib {
   /** Push operation called at the remote server */
   void DeserializeTask(size_t task_off,
                        BinaryInputArchive<true> &ar,
-                       SegmentedTransfer &xfer,
-                       RemoteInfo *remote) {
+                       SegmentedTransfer &xfer) {
     // Deserialize task
     TaskStateId state_id = xfer.tasks_[task_off].task_state_;
     u32 method = xfer.tasks_[task_off].method_;
-    remote->task_addr_ = xfer.tasks_[task_off].task_addr_;
     TaskState *exec = HRUN_TASK_REGISTRY->GetTaskState(state_id);
     if (exec == nullptr) {
       HELOG(kFatal, "(node {}) Could not find the task state {}",
@@ -312,6 +360,8 @@ class Server : public TaskLib {
     Task *orig_task = task_ptr.ptr_;
     orig_task = task_ptr.ptr_;
     orig_task->domain_id_ = DomainId::GetNode(HRUN_CLIENT->node_id_);
+    orig_task->ctx_.ret_task_addr_ = xfer.tasks_[task_off].task_addr_;
+    orig_task->ctx_.ret_domain_ = xfer.ret_domain_;
 
     // Unset task flags
     // NOTE(llogan): Remote tasks are executed to completion and
@@ -320,23 +370,23 @@ class Server : public TaskLib {
     orig_task->UnsetStarted();
     orig_task->UnsetSignalUnblock();
     orig_task->UnsetBlocked();
-    orig_task->UnsetLongRunning();
     orig_task->UnsetRemote();
     orig_task->SetDataOwner();
 //    orig_task->UnsetFireAndForget();
 //    orig_task->SetSignalRemoteComplete();
     if (!orig_task->IsFireAndForget()) {
+      orig_task->UnsetLongRunning();
       orig_task->SetSignalRemoteComplete();
     }
     orig_task->task_flags_.SetBits(TASK_REMOTE_DEBUG_MARK);
-    orig_task->ctx_.prior_net_ = remote;
 
     // Execute task
     MultiQueue *queue = HRUN_CLIENT->GetQueue(QueueId(state_id));
-    HILOG(kInfo,
-          "(node {}) Submitting task (task_node={}, task_state={}/{}, "
+    HILOG(kDebug,
+          "(node {}) Submitting task (addr={}, task_node={}, task_state={}/{}, "
           "state_name={}, method={}, size={}, lane_hash={})",
           HRUN_CLIENT->node_id_,
+          (size_t)orig_task,
           orig_task->task_node_,
           orig_task->task_state_,
           state_id,
@@ -346,7 +396,17 @@ class Server : public TaskLib {
           orig_task->lane_hash_);
     queue->Emplace(orig_task->prio_,
                    orig_task->lane_hash_, task_ptr.shm_);
-    HILOG(kInfo, "Finished submitting task {}", orig_task->task_node_);
+    HILOG(kDebug,
+          "(node {}) Done submitting (task_node={}, task_state={}/{}, "
+          "state_name={}, method={}, size={}, lane_hash={})",
+          HRUN_CLIENT->node_id_,
+          orig_task->task_node_,
+          orig_task->task_state_,
+          state_id,
+          exec->name_,
+          method,
+          xfer.size(),
+          orig_task->lane_hash_);
   }
 
   /** Receive task completion */
@@ -356,7 +416,7 @@ class Server : public TaskLib {
     try {
       HILOG(kDebug, "(node {}) Received completion of size {}",
             HRUN_CLIENT->node_id_, xfer.size());
-      // Get task return values
+      // Deserialize message parameters
       BinaryInputArchive<false> ar(xfer);
       for (size_t i = 0; i < xfer.tasks_.size(); ++i) {
         Task *orig_task = (Task*)xfer.tasks_[i].task_addr_;
@@ -369,43 +429,20 @@ class Server : public TaskLib {
                 HRUN_CLIENT->node_id_, orig_task->task_state_);
           return;
         }
-        RemoteInfo *remote = (RemoteInfo*)orig_task->ctx_.next_net_;
-        size_t rep_id = remote->rep_cnt_.fetch_add(1);
-        if (remote->rep_max_ == 1) {
-          exec->LoadEnd(orig_task->method_, ar, orig_task);
-        } else {
-          LPointer<Task> replica = exec->LoadReplicaEnd(
-              orig_task->method_, ar, orig_task);
-          remote->replicas_[rep_id] = replica;
-        }
+        exec->LoadEnd(orig_task->method_, ar, orig_task);
       }
+      // Process bulk message
       HRUN_THALLIUM->IoCallServerWrite(req, bulk, xfer);
-      // Check if all replicas are complete
+      // Unblock completed tasks
       for (size_t i = 0; i < xfer.tasks_.size(); ++i) {
         Task *orig_task = (Task*)xfer.tasks_[i].task_addr_;
-        RemoteInfo *remote = (RemoteInfo*)orig_task->ctx_.next_net_;
-        size_t rep_id = remote->rep_complete_.fetch_add(1);
-        size_t rep_max = remote->rep_max_;
-        if (rep_id == rep_max - 1) {
-          TaskState *exec = HRUN_TASK_REGISTRY->GetTaskState(
-              orig_task->task_state_);
-          if (remote->rep_max_ > 1) {
-            exec->Monitor(MonitorMode::kReplicaAgg,
-                          orig_task, orig_task->ctx_);
-            for (rep_id = 0; rep_id < remote->replicas_.size(); ++rep_id) {
-              Task *replica = remote->replicas_[rep_id].ptr_;
-              HRUN_CLIENT->DelTask(exec, replica);
-            }
-          }
-          delete remote;
-          Worker &worker = HRUN_WORK_ORCHESTRATOR->GetWorker(orig_task->ctx_.worker_id_);
-          HILOG(kDebug, "(node {}) Unblocking the task {} (state {})",
-                HRUN_CLIENT->node_id_, orig_task->task_node_, orig_task->task_state_);
-          if (!orig_task->IsLongRunning()) {
-            orig_task->SetModuleComplete();
-          }
-          worker.SignalUnblock(orig_task);
-        }
+        orig_task->SetComplete();
+        Task *pending_to = orig_task->ctx_.pending_to_;
+        HILOG(kDebug, "(node {}) Unblocking task {} to worker {}",
+              HRUN_CLIENT->node_id_,
+              (size_t)pending_to,
+              pending_to->ctx_.worker_id_);
+        Worker::SignalUnblock(pending_to);
       }
     } catch (hshm::Error &e) {
       HELOG(kError, "(node {}) Worker {} caught an error: {}", HRUN_CLIENT->node_id_, id_, e.what());

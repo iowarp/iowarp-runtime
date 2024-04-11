@@ -102,7 +102,7 @@ class Server : public TaskLib {
   void MonitorCreateTaskState(u32 mode, CreateTaskStateTask *task, RunContext &rctx) {
     switch (mode) {
       case MonitorMode::kReplicaAgg: {
-        std::vector<LPointer<Task>> &replicas = rctx.next_net_->replicas_;
+        std::vector<LPointer<Task>> &replicas = *rctx.replicas_;
         CreateTaskStateTask *replica = reinterpret_cast<CreateTaskStateTask *>(
             replicas[0].ptr_);
         task->id_ = replica->id_;
@@ -181,7 +181,7 @@ class Server : public TaskLib {
   void MonitorFlush(u32 mode, FlushTask *task, RunContext &rctx) {
     switch (mode) {
       case MonitorMode::kReplicaAgg: {
-        std::vector<LPointer<Task>> &replicas = rctx.next_net_->replicas_;
+        std::vector<LPointer<Task>> &replicas = *rctx.replicas_;
         FlushTask *replica = reinterpret_cast<FlushTask *>(
             replicas[0].ptr_);
         task->work_done_ += replica->work_done_;

@@ -50,12 +50,23 @@ class Client : public TaskLibClient {
   }
 
   /** Construct submit aggregator */
+  void AsyncClientPushSubmitConstruct(ClientPushSubmitTask *task,
+                                      const TaskNode &task_node,
+                                      Task *orig_task) {
+    HRUN_CLIENT->ConstructTask<ClientPushSubmitTask>(
+        task, task_node,
+        DomainId::GetLocal(), id_, orig_task);
+  }
+  HRUN_TASK_NODE_PUSH_ROOT(ClientPushSubmit)
+
+  /** Construct submit aggregator */
   void AsyncClientSubmitConstruct(ClientSubmitTask *task,
                                   const TaskNode &task_node,
                                   const DomainId &domain_id,
                                   size_t lane_hash) {
     HRUN_CLIENT->ConstructTask<ClientSubmitTask>(
-        task, task_node, domain_id, id_, lane_hash);
+        task, task_node,
+        domain_id, id_, lane_hash);
   }
   HRUN_TASK_NODE_PUSH_ROOT(ClientSubmit)
 

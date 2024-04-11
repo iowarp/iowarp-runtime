@@ -167,17 +167,14 @@ class Client : public ConfigurationManager {
   template<typename TaskT>
   void MonitorTaskFrees(LPointer<TaskT> &task) {
 #ifdef CHIMAERA_TASK_DEBUG
-    task->delcnt_++;
-    if (task->delcnt_ != 1) {
-      HELOG(kFatal, "Freed task {} times: node={}, state={}. method={}",
-            task->delcnt_.load(), task->task_node_, task->task_state_, task->method_)
-    }
+    MonitorTaskFrees(task.ptr_);
 #endif
   }
 
   void MonitorTaskFrees(Task *task) {
 #ifdef CHIMAERA_TASK_DEBUG
     task->delcnt_++;
+    HILOG(kDebug, "Freeing task {} / {}", (size_t)task, task)
     if (task->delcnt_ != 1) {
       HELOG(kFatal, "Freed task {} times: node={}, state={}. method={}",
             task->delcnt_.load(), task->task_node_, task->task_state_, task->method_)
@@ -448,47 +445,6 @@ Async##CUSTOM##Root(Args&& ...args) {\
                   std::forward<Args>(args)...);\
   return task;\
 }
-
-#define CHIMAERA_TASK_NODE_ROOT_TMPL(CUSTOM)\
-template<typename T, typename ...Args>\
-hipc::LPointer<CUSTOM##Task<T>> Async##CUSTOM##Alloc(const TaskNode &task_node,\
-                                                  Args&& ...args) {\
-  hipc::LPointer<CUSTOM##Task<T>> task =\
-    HRUN_CLIENT->AllocateTask<CUSTOM##Task<T>>();\
-  Async##CUSTOM##Construct(task.ptr_, task_node, std::forward<Args>(args)...);\
-  return task;\
-}\
-template<typename T, typename ...Args>\
-hipc::LPointer<CUSTOM##Task<T>> Async##CUSTOM(Task *parent_task,\
-                                           const TaskNode &task_node,\
-                                           Args&& ...args) {\
-  hipc::LPointer<CUSTOM##Task<T>> task = Async##CUSTOM##Alloc(\
-    task_node, std::forward<Args>(args)...);\
-  task->YieldInit(parent_task);\
-  MultiQueue *queue = HRUN_CLIENT->GetQueue(queue_id_);\
-  queue->Emplace(task.ptr_->prio_, task.ptr_->lane_hash_, task.shm_);\
-  return task;\
-}\
-template<typename T, typename ...Args>\
-hipc::LPointer<CUSTOM##Task<T>>\
-Async##CUSTOM##Emplace(MultiQueue *queue,\
-                       const TaskNode &task_node,\
-                       Args&& ...args) {\
-  hipc::LPointer<CUSTOM##Task<T>> task =\
-    Async##CUSTOM##Alloc(task_node, std::forward<Args>(args)...);\
-  queue->Emplace(task.ptr_->prio_, task.ptr_->lane_hash_, task.shm_);\
-  return task;\
-}\
-template<typename T, typename ...Args>\
-hipc::LPointer<CUSTOM##Task<T>>\
-Async##CUSTOM##Root(Args&& ...args) {\
-  TaskNode task_node = HRUN_CLIENT->MakeTaskNodeId();\
-  hipc::LPointer<CUSTOM##Task<T>> task =\
-    Async##CUSTOM(nullptr, task_node,\
-                  std::forward<Args>(args)...);\
-  return task;\
-}
-
 
 #define HRUN_TASK_NODE_PUSH_ROOT(CUSTOM) CHIMAERA_TASK_NODE_ROOT(CUSTOM)
 #define HRUN_TASK_NODE_ADMIN_ROOT(CUSTOM) CHIMAERA_TASK_NODE_ROOT(CUSTOM)

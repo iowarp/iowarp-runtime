@@ -239,7 +239,7 @@ class BinaryOutputArchive {
           }
         } else {
           xfer_.tasks_.emplace_back(var.task_state_, var.method_,
-                                    var.ctx_.task_addr_);
+                                    var.ctx_.ret_task_addr_);
           if constexpr (USES_SRL_END(T)) {
             var.SerializeEnd(*this);
           } else {

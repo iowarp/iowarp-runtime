@@ -4,14 +4,14 @@ pkgs:
   - pkg_type: chimaera_run
     pkg_name: chimaera_run
     sleep: 5
-    do_dbg: true
+    do_dbg: false
     dbg_port: 4000
   - pkg_type: chimaera_latency_bench
     pkg_name: chimaera_latency_bench
     nprocs: 8
     ppn: 16
     depth: 0
-    ops: 256
+    ops: 8192
     async: false
-    do_dbg: true
+    do_dbg: false
     dbg_port: 4001

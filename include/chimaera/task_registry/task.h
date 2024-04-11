@@ -73,7 +73,7 @@ class TaskLib;
 /** Used to indicate Yield to use */
 #define TASK_YIELD_STD 0
 #define TASK_YIELD_CO 1
-#define TASK_YIELD_NOCO 2
+#define TASK_YIELD_CO_NOBLK 2
 #define TASK_YIELD_ABT 3
 #define TASK_YIELD_EMPTY 4
 
@@ -256,19 +256,9 @@ struct WorkPending {
 
 struct Task;
 
-struct RemoteInfo {
-  std::atomic<u32> rep_cnt_;
-  std::atomic<u32> rep_complete_;
-  u32 rep_max_;
-  std::vector<LPointer<Task>> replicas_;
-  DomainId ret_domain_;
-  size_t task_addr_;
-};
-
 /** Context passed to the Run method of a task */
 struct RunContext {
   u32 worker_id_;         /**< The worker id of the task */
-  u32 lane_id_;           /**< The lane id of the task */
   bctx::transfer_t jmp_;  /**< Stack info for coroutines */
   void *stack_ptr_;       /**< Stack pointer (coroutine) */
   TaskLib *exec_;
@@ -276,9 +266,9 @@ struct RunContext {
   hshm::Timer timer_;
   Task *pending_to_;
   size_t pending_key_;
-  RemoteInfo *next_net_;
-  RemoteInfo *prior_net_;
-  size_t task_addr_;
+  std::vector<LPointer<Task>> *replicas_;
+  size_t ret_task_addr_;
+  DomainId ret_domain_;
 };
 
 /** A generic task base class */
@@ -315,6 +305,12 @@ struct Task : public hipc::ShmContainer {
     return task_flags_.Any(TASK_MODULE_COMPLETE);
   }
 
+  /** Unset task as complete */
+  HSHM_ALWAYS_INLINE void UnsetModuleComplete() {
+    // atask_flags_ |= TASK_MODULE_COMPLETE | TASK_COMPLETE;
+    task_flags_.UnsetBits(TASK_MODULE_COMPLETE);
+  }
+
   /** Set task as complete */
   HSHM_ALWAYS_INLINE void SetComplete() {
     // atask_flags_ |= TASK_MODULE_COMPLETE | TASK_COMPLETE;
@@ -325,6 +321,12 @@ struct Task : public hipc::ShmContainer {
   HSHM_ALWAYS_INLINE bool IsComplete() {
     // return atask_flags_ & TASK_COMPLETE;
     return task_flags_.Any(TASK_COMPLETE);
+  }
+
+  /** Unset task as complete */
+  HSHM_ALWAYS_INLINE void UnsetComplete() {
+    // atask_flags_ |= TASK_MODULE_COMPLETE | TASK_COMPLETE;
+    task_flags_.UnsetBits(TASK_MODULE_COMPLETE | TASK_COMPLETE);
   }
 
   /** Set task as fire & forget */
@@ -549,7 +551,8 @@ struct Task : public hipc::ShmContainer {
   void Yield() {
     if constexpr (THREAD_MODEL == TASK_YIELD_STD) {
       HERMES_THREAD_MODEL->Yield();
-    } else if constexpr (THREAD_MODEL == TASK_YIELD_CO) {
+    } else if constexpr (THREAD_MODEL == TASK_YIELD_CO ||
+                         THREAD_MODEL == TASK_YIELD_CO_NOBLK) {
       ctx_.jmp_ = bctx::jump_fcontext(ctx_.jmp_.fctx, nullptr);
     } else if constexpr (THREAD_MODEL == TASK_YIELD_ABT) {
       ABT_thread_yield();

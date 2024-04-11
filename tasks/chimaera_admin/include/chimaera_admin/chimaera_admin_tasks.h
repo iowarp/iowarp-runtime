@@ -158,7 +158,9 @@ struct CreateTaskStateTask : public Task, TaskFlags<TF_SRL_SYM | TF_REPLICA> {
   /** Duplicate message */
   template<typename TaskT>
   void CopyStart(hipc::Allocator *alloc, TaskT &other) {
-    task_dup(other);
+    lib_name_ = other.lib_name_;
+    state_name_ = other.state_name_;
+    id_ = other.id_;
   }
 
   /** Process duplicate message output */
@@ -403,7 +405,7 @@ struct DomainSizeTask : public Task, TaskFlags<TF_LOCAL> {
     prio_ = TaskPrio::kLowLatency;
     task_state_ = HRUN_QM_CLIENT->admin_task_state_;
     method_ = Method::kDomainSize;
-    task_flags_.SetBits(TASK_FLUSH | TASK_COROUTINE);
+    task_flags_.SetBits(0);
     domain_id_ = DomainId::GetLocal();
 
     // Custom

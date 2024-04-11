@@ -56,10 +56,7 @@ class CoMutex {
     }
     COMUTEX_QUEUE_T &blocked = blocked_map_.begin()->second;
     for (size_t i = 0; i < blocked.size(); ++i) {
-      RunContext &rctx = *blocked[i].rctx_;
-      Worker &worker = HRUN_WORK_ORCHESTRATOR->GetWorker(
-          rctx.worker_id_);
-      worker.SignalUnblock(blocked[i].task_);
+      Worker::SignalUnblock(blocked[i].task_);
       ++rep_;
     }
     blocked_map_.erase(blocked_map_.begin());
@@ -90,8 +87,7 @@ class CoMutexTable {
 
  public:
   CoMutexTable() {
-    QueueManagerInfo &qm = HRUN_QM_RUNTIME->config_->queue_manager_;
-    resize(qm.max_lanes_);
+    resize(HRUN_WORK_ORCHESTRATOR->GetNumWorkers());
   }
 
   size_t resize(size_t max_lanes) {
@@ -100,7 +96,7 @@ class CoMutexTable {
   }
 
   CoMutex& Get(RunContext &rctx, Key key) {
-    return mutexes_[rctx.lane_id_][key];
+    return mutexes_[rctx.worker_id_][key];
   }
 };
 

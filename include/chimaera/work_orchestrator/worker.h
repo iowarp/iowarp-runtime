@@ -140,17 +140,15 @@ namespace chm {
 struct PrivateTaskQueueEntry {
  public:
   LPointer<Task> task_;
-  WorkEntry *lane_info_;
   size_t next_, prior_;
 
  public:
   PrivateTaskQueueEntry() = default;
-  PrivateTaskQueueEntry(const LPointer<Task> &task, WorkEntry *lane_info)
-  : task_(task), lane_info_(lane_info) {}
+  PrivateTaskQueueEntry(const LPointer<Task> &task)
+  : task_(task) {}
 
   PrivateTaskQueueEntry(const PrivateTaskQueueEntry &other) {
     task_ = other.task_;
-    lane_info_ = other.lane_info_;
     next_ = other.next_;
     prior_ = other.prior_;
   }
@@ -158,7 +156,6 @@ struct PrivateTaskQueueEntry {
   PrivateTaskQueueEntry& operator=(const PrivateTaskQueueEntry &other) {
     if (this != &other) {
       task_ = other.task_;
-      lane_info_ = other.lane_info_;
       next_ = other.next_;
       prior_ = other.prior_;
     }
@@ -167,13 +164,15 @@ struct PrivateTaskQueueEntry {
 
   PrivateTaskQueueEntry(PrivateTaskQueueEntry &&other) noexcept {
     task_ = other.task_;
-    lane_info_ = other.lane_info_;
+    next_ = other.next_;
+    prior_ = other.prior_;
   }
 
   PrivateTaskQueueEntry& operator=(PrivateTaskQueueEntry &&other) noexcept {
     if (this != &other) {
       task_ = other.task_;
-      lane_info_ = other.lane_info_;
+      next_ = other.next_;
+      prior_ = other.prior_;
     }
     return *this;
   }
@@ -311,9 +310,11 @@ class PrivateTaskMultiQueue {
   PrivateTaskQueue queues_[NUM_QUEUES];
   PrivateTaskSet blocked_;
   std::unique_ptr<hshm::mpsc_queue<LPointer<Task>>> complete_;
+  size_t id_;
 
  public:
-  void Init(size_t pqdepth, size_t qdepth, size_t max_lanes) {
+  void Init(size_t id, size_t pqdepth, size_t qdepth, size_t max_lanes) {
+    id_ = id;
     queues_[ROOT].Init(ROOT, max_lanes * qdepth);
     queues_[CONSTRUCT].Init(CONSTRUCT, max_lanes * qdepth);
     queues_[LOW_LAT].Init(LOW_LAT, max_lanes * qdepth);
@@ -355,7 +356,7 @@ class PrivateTaskMultiQueue {
     return *complete_;
   }
 
-  template<bool WAS_PENDING=false>
+  template<bool TYPE=0>
   bool push(const PrivateTaskQueueEntry &entry) {
     Task *task = entry.task_.ptr_;
     if (task->task_state_ == CHM_ADMIN->id_ &&
@@ -366,16 +367,7 @@ class PrivateTaskMultiQueue {
     } else if (task->IsLongRunning()) {
       return GetLongRunning().push(entry);
     } else if (task->task_node_.node_depth_ == 0) {
-      if constexpr (!WAS_PENDING) {
-        if (root_count_ == max_root_count_) {
-          return false;
-        }
-      }
-      bool ret = GetRoot().push(entry);
-      if constexpr (!WAS_PENDING) {
-        root_count_ += ret;
-      }
-      return ret;
+      return GetRoot().push(entry);
     } else if (task->prio_ == TaskPrio::kLowLatency) {
       return GetLowLat().push(entry);
     } else {
@@ -384,16 +376,16 @@ class PrivateTaskMultiQueue {
   }
 
   void erase(int queue_id) {
-    if (queue_id == ROOT) {
-      --root_count_;
-    }
+//    if (queue_id == ROOT) {
+//      --root_count_;
+//    }
     queues_[queue_id].erase();
   }
 
   void erase(int queue_id, PrivateTaskQueueEntry&) {
-    if (queue_id == ROOT) {
-      --root_count_;
-    }
+//    if (queue_id == ROOT) {
+//      --root_count_;
+//    }
   }
 
   void block(int queue_id) {
@@ -403,19 +395,40 @@ class PrivateTaskMultiQueue {
   }
 
   void block(PrivateTaskQueueEntry &entry) {
-    blocked_.emplace(entry, entry.task_->ctx_.pending_key_);
+    LPointer<Task> blocked_task = entry.task_;
+    blocked_.emplace(entry, blocked_task->ctx_.pending_key_);
+    HILOG(kDebug, "Blocking task {} (id: {}) with pending key {} "
+                 "on queue {} / worker {}",
+          (size_t)blocked_task.ptr_,
+          blocked_task->task_node_,
+          blocked_task->ctx_.pending_key_,
+          (size_t)&blocked_, id_);
   }
 
   void signal_unblock(PrivateTaskMultiQueue &worker_pending,
-                       LPointer<Task> &unblock_task) {
-    worker_pending.GetCompletion().emplace(unblock_task);
+                      LPointer<Task> &blocked_task) {
+    HILOG(kDebug, "Signalling unblock task {} (id: {}) "
+                 "to queue {} / worker {}",
+          (size_t)blocked_task.ptr_,
+          blocked_task->task_node_,
+          (size_t)&worker_pending.blocked_,
+          worker_pending.id_);
+    worker_pending.GetCompletion().emplace(blocked_task);
   }
 
   bool unblock() {
     LPointer<Task> blocked_task;
-    if (GetCompletion().pop(blocked_task).IsNull()) {
+    hshm::mpsc_queue<LPointer<Task>> &complete = GetCompletion();
+    if (complete.pop(blocked_task).IsNull()) {
       return false;
     }
+    HILOG(kDebug, "Unblocking task {} (id: {}) with pending key {} "
+                 "on queue {} / worker {}",
+          (size_t)blocked_task.ptr_,
+          blocked_task->task_node_,
+          blocked_task->ctx_.pending_key_,
+          (size_t)&blocked_,
+          id_);
     PrivateTaskQueueEntry entry;
     blocked_.pop(blocked_task->ctx_.pending_key_, entry);
     if (blocked_task.ptr_ != entry.task_.ptr_) {
@@ -473,16 +486,13 @@ class Worker {
     retries_ = 1;
     pid_ = 0;
     affinity_ = cpu_id;
-    // TODO(llogan): implement reserve for group
-    group_.resize(512);
-    group_.resize(0);
     stacks_.Resize(num_stacks_);
     for (int i = 0; i < 16; ++i) {
       stacks_.emplace(malloc(stack_size_));
     }
     // MAX_DEPTH * [LOW_LAT, LONG_LAT]
     config::QueueManagerInfo &qm = HRUN_QM_RUNTIME->config_->queue_manager_;
-    active_.Init(qm.proc_queue_depth_, qm.queue_depth_, qm.max_lanes_);
+    active_.Init(id_, qm.proc_queue_depth_, qm.queue_depth_, qm.max_lanes_);
     cur_time_.Now();
 
     // Spawn threads
@@ -814,6 +824,7 @@ class Worker {
 #ifdef CHIMAERA_REMOTE_DEBUG
       if (task->task_state_ != HRUN_QM_CLIENT->admin_task_state_ &&
             !task->task_flags_.Any(TASK_REMOTE_DEBUG_MARK) &&
+            !task->IsLongRunning() &&
             task->method_ != TaskMethod::kCreate &&
             HRUN_RUNTIME->remote_created_) {
           is_remote = true;
@@ -822,7 +833,7 @@ class Worker {
       if (is_remote) {
         task->SetRemote();
       }
-      if (active_.push(PrivateTaskQueueEntry{task, &lane_info})) {
+      if (active_.push<TYPE>(PrivateTaskQueueEntry{task})) {
         lane->pop();
       } else {
         break;
@@ -847,9 +858,7 @@ class Worker {
         break;
       }
       bool pushback = RunTask(queue, entry,
-              *entry.lane_info_,
               entry.task_,
-              entry.lane_info_->lane_id_,
               flushing);
       if (pushback) {
         queue.push(entry);
@@ -864,9 +873,7 @@ class Worker {
   HSHM_ALWAYS_INLINE
   bool RunTask(PrivateTaskQueue &queue,
                PrivateTaskQueueEntry &entry,
-               WorkEntry &lane_info,
                LPointer<Task> task,
-               u32 lane_id,
                bool flushing) {
     // Get the task state
     TaskState *exec = GetTaskState(task->task_state_);
@@ -889,15 +896,23 @@ class Worker {
     rctx.exec_ = exec;
     // Get task properties
     bitfield32_t props =
-        GetTaskProperties(task.ptr_, exec, cur_time_,
-                          lane_id, flushing);
+        GetTaskProperties(task.ptr_, cur_time_,
+                          flushing);
     // Execute the task based on its properties
+    if (!task->IsLongRunning()) {
+      HILOG(kDebug, "Worker {}: Running task {} (id: {}) on queue {}",
+            id_, (size_t)task.ptr_,
+            task->task_node_, queue.id_);
+    }
     if (!task->IsModuleComplete()) {
-      ExecTask(lane_info, task.ptr_, rctx, exec, props);
+      ExecTask(task.ptr_, rctx, exec, props);
     }
     // Cleanup allocations
     bool pushback = true;
     if (task->IsModuleComplete()) {
+      HILOG(kDebug, "Worker {}: Ending task {} (id: {}) on queue {}",
+            id_, (size_t)task.ptr_,
+            task->task_node_, queue.id_);
       pushback = false;
       // active_.erase(queue.id_);
       active_.erase(queue.id_, entry);
@@ -914,9 +929,8 @@ class Worker {
     return pushback;
   }
 
-  /** Externally signal a task as complete */
-  HSHM_ALWAYS_INLINE
-  void SignalUnblock(Task *unblock_task) {
+  /** Unblock a task */
+  static void SignalUnblock(Task *unblock_task) {
     LPointer<Task> ltask;
     ltask.ptr_ = unblock_task;
     ltask.shm_ = HERMES_MEMORY_MANAGER->Convert(ltask.ptr_);
@@ -925,8 +939,11 @@ class Worker {
 
   /** Externally signal a task as complete */
   HSHM_ALWAYS_INLINE
-  void SignalUnblock(LPointer<Task> &unblock_task) {
-    PrivateTaskMultiQueue &pending = GetPendingQueue(unblock_task.ptr_);
+  static void SignalUnblock(LPointer<Task> &unblock_task) {
+    Worker &worker = HRUN_WORK_ORCHESTRATOR->GetWorker(
+        unblock_task->ctx_.worker_id_);
+    PrivateTaskMultiQueue &pending =
+        worker.GetPendingQueue(unblock_task.ptr_);
     pending.signal_unblock(pending, unblock_task);
   }
 
@@ -939,6 +956,8 @@ class Worker {
       TaskState *remote_exec = GetTaskState(HRUN_REMOTE_QUEUE->id_);
       remote_exec->Run(chm::remote_queue::Method::kServerPushComplete,
                        task.ptr_, task->ctx_);
+      task->SetComplete();
+      return;
     }
     if (exec && task->IsFireAndForget()) {
       HRUN_CLIENT->DelTask(exec, task.ptr_);
@@ -950,9 +969,7 @@ class Worker {
   /** Get the characteristics of a task */
   HSHM_ALWAYS_INLINE
   bitfield32_t GetTaskProperties(Task *&task,
-                                 TaskState *&exec,
                                  hshm::Timepoint &cur_time,
-                                 u32 lane_id,
                                  bool flushing) {
     bitfield32_t props;
 
@@ -981,8 +998,7 @@ class Worker {
 
   /** Run an arbitrary task */
   HSHM_ALWAYS_INLINE
-  void ExecTask(WorkEntry &lane_info,
-                Task *&task,
+  void ExecTask(Task *&task,
                 RunContext &rctx,
                 TaskState *&exec,
                 bitfield32_t &props) {
@@ -1004,9 +1020,10 @@ class Worker {
     }
     // Attempt to run the task if it's ready and runnable
     if (props.Any(HSHM_WORKER_IS_REMOTE)) {
-      TaskState *remote_exec = GetTaskState(HRUN_REMOTE_QUEUE->id_);
-      remote_exec->Run(chm::remote_queue::Method::kClientPushSubmit,
-                       task, rctx);
+//      HILOG(kInfo, "Automaking remote task {}", (size_t)task);
+      HRUN_REMOTE_QUEUE->AsyncClientPushSubmit(
+          nullptr, task->task_node_ + 1, task);
+      task->SetBlocked();
     } else if (task->IsLaneAll()) {
       //      TaskState *remote_exec = GetTaskState(HRUN_REMOTE_QUEUE->id_);
       //      remote_exec->Run(chm::remote_queue::Method::kPush,

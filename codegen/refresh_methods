@@ -183,24 +183,6 @@ def refresh_methods(TASK_ROOT):
     lines += ['  }']
     lines += ['}']
 
-    ## Create the LoadEnd Method
-    lines += ['/** Deserialize a task when popping from remote queue */',
-              'TaskPointer LoadReplicaEnd(u32 method, BinaryInputArchive<false> &ar, Task *task) override {',
-              '  TaskPointer task_ptr;',
-              '  switch (method) {']
-    for method_enum_name, method_off in methods:
-        method_name = method_enum_name.replace('k', '', 1)
-        task_name = method_name + "Task"
-        lines += [f'    case Method::{method_enum_name}: {{',
-                  f'      task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<{task_name}>(task_ptr.shm_);',
-                  f'      task_ptr.ptr_->task_dup(*task);',
-                  f'      ar >> *reinterpret_cast<{task_name}*>(task_ptr.ptr_);',
-                  f'      break;',
-                  f'    }}']
-    lines += ['  }']
-    lines += ['  return task_ptr;']
-    lines += ['}']
-
     ## Finish the file
     lines += ['', f'#endif  // {METHOD_MACRO}']
 

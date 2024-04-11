@@ -62,6 +62,8 @@ struct DestructTask : public DestroyTaskStateTask {
 };
 
 struct ClientPushSubmitTask : public Task, TaskFlags<TF_LOCAL> {
+  IN Task *orig_task_;
+
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
   ClientPushSubmitTask(hipc::Allocator *alloc) : Task(alloc) {}
@@ -71,7 +73,19 @@ struct ClientPushSubmitTask : public Task, TaskFlags<TF_LOCAL> {
   ClientPushSubmitTask(hipc::Allocator *alloc,
                        const TaskNode &task_node,
                        const DomainId &domain_id,
-                       TaskStateId &state_id) : Task(alloc) {}
+                       TaskStateId &state_id,
+                       Task *orig_task) : Task(alloc) {
+    // Initialize task
+    task_node_ = task_node;
+    lane_hash_ = orig_task->lane_hash_;
+    prio_ = orig_task->prio_;
+    task_state_ = state_id;
+    method_ = Method::kClientPushSubmit;
+    task_flags_.SetBits(TASK_COROUTINE | TASK_REMOTE_DEBUG_MARK);
+    domain_id_ = domain_id;
+
+    orig_task_ = orig_task;
+  }
 };
 
 struct ClientSubmitTask : public Task, TaskFlags<TF_LOCAL> {
@@ -92,9 +106,8 @@ struct ClientSubmitTask : public Task, TaskFlags<TF_LOCAL> {
     prio_ = TaskPrio::kHighLatency;
     task_state_ = state_id;
     method_ = Method::kClientSubmit;
-    task_flags_.SetBits(TASK_LONG_RUNNING);
+    task_flags_.SetBits(TASK_LONG_RUNNING | TASK_REMOTE_DEBUG_MARK);
     domain_id_ = domain_id;
-    SetPeriodUs(15);
   }
 };
 

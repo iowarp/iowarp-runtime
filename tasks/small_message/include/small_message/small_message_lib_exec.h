@@ -196,36 +196,5 @@ void LoadEnd(u32 method, BinaryInputArchive<false> &ar, Task *task) override {
     }
   }
 }
-/** Deserialize a task when popping from remote queue */
-TaskPointer LoadReplicaEnd(u32 method, BinaryInputArchive<false> &ar, Task *task) override {
-  TaskPointer task_ptr;
-  switch (method) {
-    case Method::kCreate: {
-      task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<CreateTask>(task_ptr.shm_);
-      task_ptr.ptr_->task_dup(*task);
-      ar >> *reinterpret_cast<CreateTask*>(task_ptr.ptr_);
-      break;
-    }
-    case Method::kDestruct: {
-      task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<DestructTask>(task_ptr.shm_);
-      task_ptr.ptr_->task_dup(*task);
-      ar >> *reinterpret_cast<DestructTask*>(task_ptr.ptr_);
-      break;
-    }
-    case Method::kMd: {
-      task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<MdTask>(task_ptr.shm_);
-      task_ptr.ptr_->task_dup(*task);
-      ar >> *reinterpret_cast<MdTask*>(task_ptr.ptr_);
-      break;
-    }
-    case Method::kIo: {
-      task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<IoTask>(task_ptr.shm_);
-      task_ptr.ptr_->task_dup(*task);
-      ar >> *reinterpret_cast<IoTask*>(task_ptr.ptr_);
-      break;
-    }
-  }
-  return task_ptr;
-}
 
 #endif  // HRUN_SMALL_MESSAGE_METHODS_H_

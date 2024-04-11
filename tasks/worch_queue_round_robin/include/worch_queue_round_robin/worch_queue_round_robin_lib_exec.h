@@ -159,30 +159,5 @@ void LoadEnd(u32 method, BinaryInputArchive<false> &ar, Task *task) override {
     }
   }
 }
-/** Deserialize a task when popping from remote queue */
-TaskPointer LoadReplicaEnd(u32 method, BinaryInputArchive<false> &ar, Task *task) override {
-  TaskPointer task_ptr;
-  switch (method) {
-    case Method::kCreate: {
-      task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<CreateTask>(task_ptr.shm_);
-      task_ptr.ptr_->task_dup(*task);
-      ar >> *reinterpret_cast<CreateTask*>(task_ptr.ptr_);
-      break;
-    }
-    case Method::kDestruct: {
-      task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<DestructTask>(task_ptr.shm_);
-      task_ptr.ptr_->task_dup(*task);
-      ar >> *reinterpret_cast<DestructTask*>(task_ptr.ptr_);
-      break;
-    }
-    case Method::kSchedule: {
-      task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<ScheduleTask>(task_ptr.shm_);
-      task_ptr.ptr_->task_dup(*task);
-      ar >> *reinterpret_cast<ScheduleTask*>(task_ptr.ptr_);
-      break;
-    }
-  }
-  return task_ptr;
-}
 
 #endif  // HRUN_WORCH_QUEUE_ROUND_ROBIN_METHODS_H_
