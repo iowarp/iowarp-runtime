@@ -44,6 +44,11 @@ struct RegisterTaskLibTaskTempl : public Task, TaskFlags<TF_SRL_SYM> {
   /** Destructor */
   ~RegisterTaskLibTaskTempl() {}
 
+  /** Duplicate message */
+  void CopyStart(const RegisterTaskLibTaskTempl &other, bool deep) {
+    lib_name_ = other.lib_name_;
+  }
+
   /** (De)serialize message call */
   template<typename Ar>
   void SerializeStart(Ar &ar) {
@@ -101,6 +106,11 @@ struct GetOrCreateTaskStateIdTask : public Task, TaskFlags<TF_SRL_SYM> {
 
   ~GetOrCreateTaskStateIdTask() {}
 
+  /** Duplicate message */
+  void CopyStart(const GetOrCreateTaskStateIdTask &other, bool deep) {
+    state_name_ = other.state_name_;
+  }
+
   /** (De)serialize message call */
   template<typename Ar>
   void SerializeStart(Ar &ar) {
@@ -115,7 +125,7 @@ struct GetOrCreateTaskStateIdTask : public Task, TaskFlags<TF_SRL_SYM> {
 };
 
 /** A task to register a Task state + Create a queue */
-struct CreateTaskStateTask : public Task, TaskFlags<TF_SRL_SYM | TF_REPLICA> {
+struct CreateTaskStateTask : public Task, TaskFlags<TF_SRL_SYM> {
   IN hipc::string lib_name_;
   IN hipc::string state_name_;
   INOUT TaskStateId id_;
@@ -154,18 +164,13 @@ struct CreateTaskStateTask : public Task, TaskFlags<TF_SRL_SYM | TF_REPLICA> {
   ~CreateTaskStateTask() {}
 
   /** Duplicate message */
-  template<typename TaskT>
-  void CopyStart(hipc::Allocator *alloc, TaskT &other) {
+  template<typename CreateTaskT = CreateTaskStateTask>
+  void CopyStart(const CreateTaskT &other, bool deep) {
     lib_name_ = other.lib_name_;
     state_name_ = other.state_name_;
     id_ = other.id_;
     HILOG(kInfo, "Copying CreateTaskStateTask: {} {} {}",
           lib_name_.str(), state_name_.str(), id_)
-  }
-
-  /** Process duplicate message output */
-  template<typename TaskT>
-  void CopyEnd(hipc::Allocator *alloc, TaskT &dup_task) {
   }
 
   /** (De)serialize message call */
@@ -209,6 +214,12 @@ struct GetTaskStateIdTask : public Task, TaskFlags<TF_SRL_SYM> {
 
   ~GetTaskStateIdTask() {}
 
+  /** Copy message input */
+  void CopyStart(const GetTaskStateIdTask &other,
+                 bool deep) {
+    state_name_ = other.state_name_;
+  }
+
   /** (De)serialize message call */
   template<typename Ar>
   void SerializeStart(Ar &ar) {
@@ -249,6 +260,13 @@ struct DestroyTaskStateTask : public Task, TaskFlags<TF_SRL_SYM> {
     id_ = id;
   }
 
+  /** Copy message input */
+  template<typename DestroyTaskT>
+  void CopyStart(const DestroyTaskT &other,
+                 bool deep) {
+    id_ = other.id_;
+  }
+
   /** (De)serialize message call */
   template<typename Ar>
   void SerializeStart(Ar &ar) {
@@ -279,6 +297,10 @@ struct StopRuntimeTask : public Task, TaskFlags<TF_SRL_SYM> {
     method_ = Method::kStopRuntime;
     task_flags_.SetBits(TASK_FLUSH | TASK_FIRE_AND_FORGET);
     domain_id_ = domain_id;
+  }
+
+  /** Duplicate message */
+  void CopyStart(StopRuntimeTask &other, bool deep) {
   }
 
   /** (De)serialize message call */
@@ -324,6 +346,11 @@ struct SetWorkOrchestratorPolicyTask : public Task, TaskFlags<TF_SRL_SYM> {
     policy_id_ = policy_id;
   }
 
+  /** Duplicate message */
+  void CopyStart(SetWorkOrchestratorPolicyTask &other, bool deep) {
+    policy_id_ = other.policy_id_;
+  }
+
   /** (De)serialize message call */
   template<typename Ar>
   void SerializeStart(Ar &ar) {
@@ -339,7 +366,7 @@ using SetWorkOrchQueuePolicyTask = SetWorkOrchestratorPolicyTask<0>;
 using SetWorkOrchProcPolicyTask = SetWorkOrchestratorPolicyTask<1>;
 
 /** A task to destroy a Task state */
-struct FlushTask : public Task, TaskFlags<TF_SRL_SYM | TF_REPLICA> {
+struct FlushTask : public Task, TaskFlags<TF_SRL_SYM> {
   INOUT size_t work_done_;
 
   /** SHM default constructor */
@@ -364,12 +391,7 @@ struct FlushTask : public Task, TaskFlags<TF_SRL_SYM | TF_REPLICA> {
   }
 
   /** Duplicate message */
-  void CopyStart(hipc::Allocator *alloc, FlushTask &other) {
-    work_done_ = other.work_done_;
-  }
-
-  /** Process duplicate message output */
-  void CopyEnd(hipc::Allocator *alloc, FlushTask &other) {
+  void CopyStart(FlushTask &other, bool deep) {
     work_done_ = other.work_done_;
   }
 

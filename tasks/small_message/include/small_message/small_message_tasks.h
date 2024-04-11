@@ -55,7 +55,7 @@ struct DestructTask : public DestroyTaskStateTask {
 /**
  * A custom task in small_message
  * */
-struct MdTask : public Task, TaskFlags<TF_SRL_SYM | TF_REPLICA> {
+struct MdTask : public Task, TaskFlags<TF_SRL_SYM> {
   IN u32 depth_;
   OUT int ret_;
 
@@ -87,12 +87,8 @@ struct MdTask : public Task, TaskFlags<TF_SRL_SYM | TF_REPLICA> {
   }
 
   /** Duplicate message */
-  void CopyStart(hipc::Allocator *alloc, MdTask &other) {
-    task_dup(other);
-  }
-
-  /** Process duplicate message output */
-  void CopyEnd(hipc::Allocator *alloc, MdTask &dup_task) {
+  void CopyStart(const MdTask &other, bool deep) {
+    depth_ = other.depth_;
   }
 
   /** (De)serialize message call */
@@ -154,6 +150,13 @@ struct IoTask : public Task, TaskFlags<TF_SRL_SYM> {
     if (IsDataOwner()) {
       HRUN_CLIENT->FreeBuffer(data_);
     }
+  }
+
+  /** Duplicate message */
+  void CopyStart(const IoTask &other, bool deep) {
+    data_ = other.data_;
+    size_ = other.size_;
+    io_flags_ = other.io_flags_;
   }
 
   /** (De)serialize message call */

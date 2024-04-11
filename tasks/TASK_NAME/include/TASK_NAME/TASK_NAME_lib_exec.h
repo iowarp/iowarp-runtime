@@ -53,35 +53,18 @@ void Del(u32 method, Task *task) override {
   }
 }
 /** Duplicate a task */
-void CopyStart(u32 method, Task *orig_task, LPointer<Task> &dup_task) override {
+void CopyStart(u32 method, Task *orig_task, LPointer<Task> &dup_task, bool deep) override {
   switch (method) {
     case Method::kCreate: {
-      chm::CALL_COPY_START(reinterpret_cast<CreateTask*>(orig_task), dup_task);
+      chm::CALL_COPY_START(reinterpret_cast<CreateTask*>(orig_task), dup_task, deep);
       break;
     }
     case Method::kDestruct: {
-      chm::CALL_COPY_START(reinterpret_cast<DestructTask*>(orig_task), dup_task);
+      chm::CALL_COPY_START(reinterpret_cast<DestructTask*>(orig_task), dup_task, deep);
       break;
     }
     case Method::kCustom: {
-      chm::CALL_COPY_START(reinterpret_cast<CustomTask*>(orig_task), dup_task);
-      break;
-    }
-  }
-}
-/** Register the duplicate output with the origin task */
-void CopyEnd(u32 method, Task *orig_task, Task *dup_task) override {
-  switch (method) {
-    case Method::kCreate: {
-      chm::CALL_COPY_END(reinterpret_cast<CreateTask*>(orig_task), reinterpret_cast<CreateTask*>(dup_task));
-      break;
-    }
-    case Method::kDestruct: {
-      chm::CALL_COPY_END(reinterpret_cast<DestructTask*>(orig_task), reinterpret_cast<DestructTask*>(dup_task));
-      break;
-    }
-    case Method::kCustom: {
-      chm::CALL_COPY_END(reinterpret_cast<CustomTask*>(orig_task), reinterpret_cast<CustomTask*>(dup_task));
+      chm::CALL_COPY_START(reinterpret_cast<CustomTask*>(orig_task), dup_task, deep);
       break;
     }
   }

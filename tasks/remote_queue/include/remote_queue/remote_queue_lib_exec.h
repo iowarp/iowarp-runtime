@@ -89,59 +89,30 @@ void Del(u32 method, Task *task) override {
   }
 }
 /** Duplicate a task */
-void CopyStart(u32 method, Task *orig_task, LPointer<Task> &dup_task) override {
+void CopyStart(u32 method, Task *orig_task, LPointer<Task> &dup_task, bool deep) override {
   switch (method) {
     case Method::kCreate: {
-      chm::CALL_COPY_START(reinterpret_cast<CreateTask*>(orig_task), dup_task);
+      chm::CALL_COPY_START(reinterpret_cast<CreateTask*>(orig_task), dup_task, deep);
       break;
     }
     case Method::kDestruct: {
-      chm::CALL_COPY_START(reinterpret_cast<DestructTask*>(orig_task), dup_task);
+      chm::CALL_COPY_START(reinterpret_cast<DestructTask*>(orig_task), dup_task, deep);
       break;
     }
     case Method::kClientPushSubmit: {
-      chm::CALL_COPY_START(reinterpret_cast<ClientPushSubmitTask*>(orig_task), dup_task);
+      chm::CALL_COPY_START(reinterpret_cast<ClientPushSubmitTask*>(orig_task), dup_task, deep);
       break;
     }
     case Method::kClientSubmit: {
-      chm::CALL_COPY_START(reinterpret_cast<ClientSubmitTask*>(orig_task), dup_task);
+      chm::CALL_COPY_START(reinterpret_cast<ClientSubmitTask*>(orig_task), dup_task, deep);
       break;
     }
     case Method::kServerPushComplete: {
-      chm::CALL_COPY_START(reinterpret_cast<ServerPushCompleteTask*>(orig_task), dup_task);
+      chm::CALL_COPY_START(reinterpret_cast<ServerPushCompleteTask*>(orig_task), dup_task, deep);
       break;
     }
     case Method::kServerComplete: {
-      chm::CALL_COPY_START(reinterpret_cast<ServerCompleteTask*>(orig_task), dup_task);
-      break;
-    }
-  }
-}
-/** Register the duplicate output with the origin task */
-void CopyEnd(u32 method, Task *orig_task, Task *dup_task) override {
-  switch (method) {
-    case Method::kCreate: {
-      chm::CALL_COPY_END(reinterpret_cast<CreateTask*>(orig_task), reinterpret_cast<CreateTask*>(dup_task));
-      break;
-    }
-    case Method::kDestruct: {
-      chm::CALL_COPY_END(reinterpret_cast<DestructTask*>(orig_task), reinterpret_cast<DestructTask*>(dup_task));
-      break;
-    }
-    case Method::kClientPushSubmit: {
-      chm::CALL_COPY_END(reinterpret_cast<ClientPushSubmitTask*>(orig_task), reinterpret_cast<ClientPushSubmitTask*>(dup_task));
-      break;
-    }
-    case Method::kClientSubmit: {
-      chm::CALL_COPY_END(reinterpret_cast<ClientSubmitTask*>(orig_task), reinterpret_cast<ClientSubmitTask*>(dup_task));
-      break;
-    }
-    case Method::kServerPushComplete: {
-      chm::CALL_COPY_END(reinterpret_cast<ServerPushCompleteTask*>(orig_task), reinterpret_cast<ServerPushCompleteTask*>(dup_task));
-      break;
-    }
-    case Method::kServerComplete: {
-      chm::CALL_COPY_END(reinterpret_cast<ServerCompleteTask*>(orig_task), reinterpret_cast<ServerCompleteTask*>(dup_task));
+      chm::CALL_COPY_START(reinterpret_cast<ServerCompleteTask*>(orig_task), dup_task, deep);
       break;
     }
   }

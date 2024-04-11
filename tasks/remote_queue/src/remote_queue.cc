@@ -106,43 +106,38 @@ class Server : public TaskLib {
     HILOG(kDebug, "ClientPushTask: {} ({}), Original Task: {} ({})",
           (size_t)task, task, (size_t)orig_task, orig_task);
 
-    bool ff = orig_task->IsFireAndForget();
+    Task state_buf(0);
+    orig_task->GetState(state_buf);
+    std::vector<LPointer<Task>> replicas;
+    replicas.reserve(domain_ids.size());
+    // Replicate task
+    bool deep = domain_ids.size() > 1;
     if (domain_ids.size() == 1) {
-      // Submit task directly
-      DomainId domain_id = domain_ids[0];
+      DomainId &domain_id = domain_ids[0];
+      TaskState *exec = HRUN_TASK_REGISTRY->GetTaskState(
+          orig_task->task_state_);
+      orig_task->ctx_.pending_to_ = task;
       size_t lane_hash = std::hash<DomainId>{}(domain_id);
-      if (!ff) {
-        orig_task->ctx_.pending_to_opt_ = task;
-      }
       submit_[lane_hash % submit_.size()].emplace(
-          (TaskQueueEntry){domain_id, orig_task});
-//      HILOG(kDebug, "(node {}) Blocking task {} on worker {}",
-//            HRUN_CLIENT->node_id_, (size_t)task, rctx.worker_id_);
-      if (!ff) {
-        task->Wait<TASK_YIELD_CO>(orig_task,
-                                       TASK_MODULE_COMPLETE);
+          (TaskQueueEntry) {domain_id, orig_task});
+      if (!state_buf.IsFireAndForget()) {
+        task->Wait<TASK_YIELD_CO>(orig_task, TASK_MODULE_COMPLETE);
+        orig_task->RestoreState(state_buf);
       }
-      HILOG(kDebug, "(node {}) Resuming task {}",
-            HRUN_CLIENT->node_id_, (size_t)task);
     } else {
-      std::vector<LPointer<Task>> replicas;
-      replicas.reserve(domain_ids.size());
-      // Replicate task
-      for (DomainId &domain_id  : domain_ids) {
+      for (DomainId &domain_id : domain_ids) {
         TaskState *exec = HRUN_TASK_REGISTRY->GetTaskState(
             orig_task->task_state_);
         LPointer<Task> replica;
-        exec->CopyStart(orig_task->method_, orig_task, replica);
-        if (!ff) {
-          replica->ctx_.pending_to_opt_ = task;
-        }
+        exec->CopyStart(orig_task->method_, orig_task, replica, deep);
+        replica->ctx_.pending_to_ = task;
         size_t lane_hash = std::hash<DomainId>{}(domain_id);
         submit_[lane_hash % submit_.size()].emplace(
-            (TaskQueueEntry){domain_id, replica.ptr_});
+            (TaskQueueEntry) {domain_id, replica.ptr_});
         replicas.emplace_back(replica);
       }
       // Wait & combine replicas
-      if (!ff) {
+      if (!state_buf.IsFireAndForget()) {
         // Wait
         task->Wait<TASK_YIELD_CO>(replicas, TASK_MODULE_COMPLETE);
         // Combine
@@ -161,8 +156,6 @@ class Server : public TaskLib {
     // Unblock original task
     if (!orig_task->IsLongRunning()) {
       orig_task->SetModuleComplete();
-    } else {
-      orig_task->UnsetComplete();
     }
     HILOG(kDebug, "Will unblock the task {} to worker {}",
           (size_t)orig_task, orig_task->ctx_.worker_id_);
@@ -446,7 +439,7 @@ class Server : public TaskLib {
       for (size_t i = 0; i < xfer.tasks_.size(); ++i) {
         Task *orig_task = (Task*)xfer.tasks_[i].task_addr_;
         orig_task->SetModuleComplete();
-        Task *pending_to = orig_task->ctx_.pending_to_opt_;
+        Task *pending_to = orig_task->ctx_.pending_to_;
         if (pending_to->task_state_ != id_) {
           HELOG(kFatal, "This shouldn't happen ever");
         }

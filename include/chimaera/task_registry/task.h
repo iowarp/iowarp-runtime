@@ -180,20 +180,20 @@ static inline std::ostream &operator<<(std::ostream &os, const TaskNode &obj) {
   return os << obj.root_ << "/" << std::to_string(obj.node_depth_);
 }
 
+/** This task supports replication */
+#define TF_REPLICA BIT_OPT(u32, 31)
 /** This task uses SerializeStart */
-#define TF_SRL_SYM_START BIT_OPT(u32, 0)
+#define TF_SRL_SYM_START BIT_OPT(u32, 0) | TF_REPLICA
 /** This task uses SaveStart + LoadStart */
-#define TF_SRL_ASYM_START BIT_OPT(u32, 1)
+#define TF_SRL_ASYM_START BIT_OPT(u32, 1) | TF_REPLICA
 /** This task uses SerializeEnd */
-#define TF_SRL_SYM_END BIT_OPT(u32, 2)
+#define TF_SRL_SYM_END BIT_OPT(u32, 2) | TF_REPLICA
 /** This task uses SaveEnd + LoadEnd */
-#define TF_SRL_ASYM_END BIT_OPT(u32, 3)
+#define TF_SRL_ASYM_END BIT_OPT(u32, 3) | TF_REPLICA
 /** This task uses symmetric serialization */
 #define TF_SRL_SYM (TF_SRL_SYM_START | TF_SRL_SYM_END)
 /** This task uses asymmetric serialization */
 #define TF_SRL_ASYM (TF_SRL_ASYM_START | TF_SRL_ASYM_END)
-/** This task uses replication */
-#define TF_REPLICA BIT_OPT(u32, 31)
 /** This task is intended to be used only locally */
 #define TF_LOCAL BIT_OPT(u32, 5)
 /** This task supports monitoring of all sub-methods */
@@ -265,13 +265,10 @@ struct RunContext {
   WorkPending *flush_;
   hshm::Timer timer_;
   Task *pending_to_;
-  Task *pending_to_opt_;
   size_t pending_key_;
   std::vector<LPointer<Task>> *replicas_;
   size_t ret_task_addr_;
   DomainId ret_domain_;
-  u32 pending_cur_;
-  u32 pending_on_;
 };
 
 /** A generic task base class */
@@ -619,8 +616,6 @@ struct Task : public hipc::ShmContainer {
   /** This task waits for subtask to complete */
   template<int THREAD_MODEL = 0>
   void Wait(Task *subtask, u32 flags = TASK_COMPLETE) {
-    ctx_.pending_cur_ = 0;
-    ctx_.pending_on_ = 1;
     SetBlocked();
     while (!subtask->task_flags_.All(flags)) {
       Yield<THREAD_MODEL>();
@@ -630,8 +625,6 @@ struct Task : public hipc::ShmContainer {
   /** This task waits for a set of tasks to complete */
   template<int THREAD_MODEL = 0>
   void Wait(std::vector<LPointer<Task>> &tasks, u32 flags = TASK_COMPLETE) {
-    ctx_.pending_cur_ = 0;
-    ctx_.pending_on_ = (u32)tasks.size();
     SetBlocked();
     for (auto &task : tasks) {
       if (!task->task_flags_.All(flags)) {
@@ -687,11 +680,22 @@ struct Task : public hipc::ShmContainer {
    * ===================================*/
 
   /** SHM copy constructor */
-  HSHM_ALWAYS_INLINE explicit Task(hipc::Allocator *alloc, const Task &other) {}
+  HSHM_ALWAYS_INLINE explicit Task(hipc::Allocator *alloc,
+                                   const Task &other) {}
 
   /** SHM copy assignment operator */
   HSHM_ALWAYS_INLINE Task& operator=(const Task &other) {
     return *this;
+  }
+
+  /** Get state */
+  void GetState(Task &state_buf) {
+    state_buf = *this;
+  }
+
+  /** Restore state */
+  void RestoreState(Task &state_buf) {
+    (*this) = state_buf;
   }
 
   /**====================================

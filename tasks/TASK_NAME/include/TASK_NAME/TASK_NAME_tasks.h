@@ -86,6 +86,10 @@ struct CustomTask : public Task, TaskFlags<TF_SRL_SYM> {
     // Custom params
   }
 
+  /** Duplicate message */
+  void CopyStart(CustomTask &other, bool deep) {
+  }
+
   /** (De)serialize message call */
   template<typename Ar>
   void SerializeStart(Ar &ar) {
@@ -94,15 +98,6 @@ struct CustomTask : public Task, TaskFlags<TF_SRL_SYM> {
   /** (De)serialize message return */
   template<typename Ar>
   void SerializeEnd(Ar &ar) {
-  }
-
-  /** Duplicate message */
-  void CopyStart(hipc::Allocator *alloc, CustomTask &other) {
-    task_dup(other);
-  }
-
-  /** Process duplicate message output */
-  void CopyEnd(hipc::Allocator *alloc, CustomTask &dup_task) {
   }
 };
 

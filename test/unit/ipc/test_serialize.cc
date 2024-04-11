@@ -32,6 +32,10 @@ struct TestObj : public Task, TaskFlags<TF_SRL_SYM> {
     data_p_(const_cast<char *>(data.data())), data_size_(data.size()),
     Task(0)  {}
 
+  /** Duplicate message */
+  void CopyStart(const TestObj &other, bool deep) {
+  }
+
   /** (De)serialize message call */
   template<typename Ar>
   void SerializeStart(Ar &ar) {

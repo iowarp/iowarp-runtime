@@ -97,28 +97,13 @@ def refresh_methods(TASK_ROOT):
 
     ## Create the CopyStart method
     lines += ['/** Duplicate a task */',
-              'void CopyStart(u32 method, Task *orig_task, LPointer<Task> &dup_task) override {',
+              'void CopyStart(u32 method, Task *orig_task, LPointer<Task> &dup_task, bool deep) override {',
               '  switch (method) {']
     for method_enum_name, method_off in methods:
         method_name = method_enum_name.replace('k', '', 1)
         task_name = method_name + "Task"
         lines += [f'    case Method::{method_enum_name}: {{',
-                  f'      chm::CALL_COPY_START(reinterpret_cast<{task_name}*>(orig_task), dup_task);',
-                  f'      break;',
-                  f'    }}']
-    lines += ['  }']
-    lines += ['}']
-
-    ## Create the CopyEnd method
-    lines += ['/** Register the duplicate output with the origin task */',
-              'void CopyEnd(u32 method, Task *orig_task, Task *dup_task) override {',
-              '  switch (method) {']
-    for method_enum_name, method_off in methods:
-        method_name = method_enum_name.replace('k', '', 1)
-        task_name = method_name + "Task"
-        task_cast = f'reinterpret_cast<{task_name}*>'
-        lines += [f'    case Method::{method_enum_name}: {{',
-                  f'      chm::CALL_COPY_END({task_cast}(orig_task), {task_cast}(dup_task));',
+                  f'      chm::CALL_COPY_START(reinterpret_cast<{task_name}*>(orig_task), dup_task, deep);',
                   f'      break;',
                   f'    }}']
     lines += ['  }']
