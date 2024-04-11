@@ -188,6 +188,8 @@ TEST_CASE("TestIO") {
   chm::small_message::Client client;
   CHM_ADMIN->RegisterTaskLibRoot(chm::DomainId::GetGlobal(), "small_message");
   client.CreateRoot(chm::DomainId::GetGlobal(), "ipc_test");
+  MPI_Barrier(MPI_COMM_WORLD);
+  MPI_Finalize();
   exit(1);
   hshm::Timer t;
   size_t domain_size =
