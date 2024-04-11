@@ -68,6 +68,8 @@ class Server : public TaskLib {
     // Check global registry for task state
     if (task->id_.IsNull()) {
       DomainId domain = DomainId::GetNode(1);
+      HILOG(kInfo, "(node {}) Locating task state {} with id {} (task_node={})",
+            HRUN_CLIENT->node_id_, state_name, task->id_, task->task_node_);
       LPointer<GetOrCreateTaskStateIdTask> get_id =
           CHM_ADMIN->AsyncGetOrCreateTaskStateId(
               task, task->task_node_ + 1, domain, state_name);
