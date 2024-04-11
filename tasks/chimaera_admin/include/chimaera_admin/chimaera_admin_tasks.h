@@ -162,7 +162,7 @@ struct CreateTaskStateTask : public Task, TaskFlags<TF_SRL_SYM | TF_REPLICA> {
     state_name_ = other.state_name_;
     id_ = other.id_;
     HILOG(kInfo, "Copying CreateTaskStateTask: {} {} {}",
-          lib_name_, state_name_, id_)
+          lib_name_.str(), state_name_.str(), id_)
   }
 
   /** Process duplicate message output */
