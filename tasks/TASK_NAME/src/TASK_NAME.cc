@@ -42,7 +42,7 @@ class Server : public TaskLib {
     switch (mode) {
       case MonitorMode::kReplicaAgg: {
         std::vector<LPointer<Task>> &replicas = *rctx.replicas_;
-        CustomTask *replica = reinterpret_cast<CustomTask *>(
+        auto replica = reinterpret_cast<CustomTask *>(
             replicas[0].ptr_);
       }
     }

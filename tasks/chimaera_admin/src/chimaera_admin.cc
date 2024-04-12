@@ -121,7 +121,7 @@ class Server : public TaskLib {
     switch (mode) {
       case MonitorMode::kReplicaAgg: {
         std::vector<LPointer<Task>> &replicas = *rctx.replicas_;
-        CreateTaskStateTask *replica = reinterpret_cast<CreateTaskStateTask *>(
+        auto replica = reinterpret_cast<CreateTaskStateTask *>(
             replicas[0].ptr_);
         task->id_ = replica->id_;
         HILOG(kDebug, "New aggregated task state {}", task->id_);
@@ -141,7 +141,7 @@ class Server : public TaskLib {
     switch (mode) {
       case MonitorMode::kReplicaAgg: {
         std::vector<LPointer<Task>> &replicas = *rctx.replicas_;
-        GetTaskStateIdTask *replica = reinterpret_cast<GetTaskStateIdTask *>(
+        auto replica = reinterpret_cast<GetTaskStateIdTask *>(
             replicas[0].ptr_);
         task->id_ = replica->id_;
         HILOG(kDebug, "New aggregated task state {}", task->id_);
@@ -220,7 +220,7 @@ class Server : public TaskLib {
     switch (mode) {
       case MonitorMode::kReplicaAgg: {
         std::vector<LPointer<Task>> &replicas = *rctx.replicas_;
-        FlushTask *replica = reinterpret_cast<FlushTask *>(
+        auto replica = reinterpret_cast<FlushTask *>(
             replicas[0].ptr_);
         task->work_done_ += replica->work_done_;
         HILOG(kInfo, "Total work done in this task: {}", task->work_done_);
