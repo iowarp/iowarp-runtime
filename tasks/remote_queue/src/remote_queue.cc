@@ -112,44 +112,30 @@ class Server : public TaskLib {
     replicas.reserve(domain_ids.size());
     // Replicate task
     bool deep = domain_ids.size() > 1;
-    if (domain_ids.size() == 0) {
-      DomainId &domain_id = domain_ids[0];
+    for (DomainId &domain_id : domain_ids) {
       TaskState *exec = HRUN_TASK_REGISTRY->GetTaskState(
           orig_task->task_state_);
-      orig_task->ctx_.pending_to_ = task;
+      LPointer<Task> replica;
+      exec->CopyStart(orig_task->method_, orig_task, replica, deep);
+      replica->ctx_.pending_to_ = task;
       size_t lane_hash = std::hash<DomainId>{}(domain_id);
       submit_[lane_hash % submit_.size()].emplace(
-          (TaskQueueEntry) {domain_id, orig_task});
-      if (!state_buf.IsFireAndForget()) {
-        task->Wait<TASK_YIELD_CO>(orig_task, TASK_MODULE_COMPLETE);
-        orig_task->RestoreState(state_buf);
-      }
-    } else {
-      for (DomainId &domain_id : domain_ids) {
-        TaskState *exec = HRUN_TASK_REGISTRY->GetTaskState(
-            orig_task->task_state_);
-        LPointer<Task> replica;
-        exec->CopyStart(orig_task->method_, orig_task, replica, deep);
-        replica->ctx_.pending_to_ = task;
-        size_t lane_hash = std::hash<DomainId>{}(domain_id);
-        submit_[lane_hash % submit_.size()].emplace(
-            (TaskQueueEntry) {domain_id, replica.ptr_});
-        replicas.emplace_back(replica);
-      }
-      // Wait & combine replicas
-      if (!state_buf.IsFireAndForget()) {
-        // Wait
-        task->Wait<TASK_YIELD_CO>(replicas, TASK_MODULE_COMPLETE);
-        // Combine
-        TaskState *exec = HRUN_TASK_REGISTRY->GetTaskState(
-            orig_task->task_state_);
-        rctx.replicas_ = &replicas;
-        // Free
-        exec->Monitor(MonitorMode::kReplicaAgg, orig_task, rctx);
-        HILOG(kDebug, "Replicas were waited for and completed");
-        for (LPointer<Task> &replica : replicas) {
-          HRUN_CLIENT->DelTask(exec, replica.ptr_);
-        }
+          (TaskQueueEntry) {domain_id, replica.ptr_});
+      replicas.emplace_back(replica);
+    }
+    // Wait & combine replicas
+    if (!state_buf.IsFireAndForget()) {
+      // Wait
+      task->Wait<TASK_YIELD_CO>(replicas, TASK_MODULE_COMPLETE);
+      // Combine
+      TaskState *exec = HRUN_TASK_REGISTRY->GetTaskState(
+          orig_task->task_state_);
+      rctx.replicas_ = &replicas;
+      // Free
+      exec->Monitor(MonitorMode::kReplicaAgg, orig_task, rctx);
+      HILOG(kDebug, "Replicas were waited for and completed");
+      for (LPointer<Task> &replica : replicas) {
+        HRUN_CLIENT->DelTask(exec, replica.ptr_);
       }
     }
 
