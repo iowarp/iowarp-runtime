@@ -76,6 +76,8 @@ class Server : public TaskLib {
       task->Wait<TASK_YIELD_CO>(get_id);
       task->id_ = get_id->id_;
       HRUN_CLIENT->DelTask(get_id);
+      HILOG(kInfo, "(node {}) Located task state {} with id {} (task_node={})",
+            HRUN_CLIENT->node_id_, state_name, task->id_, task->task_node_);
     }
     // Create the task state
     HILOG(kInfo, "(node {}) Creating task state {} with id {} (task_node={})",
