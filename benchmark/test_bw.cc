@@ -37,7 +37,7 @@ void SyncIoTest(int rank, int nprocs, size_t msg_size, size_t ops) {
   hshm::MpiTimer t(MPI_COMM_WORLD);
   t.Resume();
   for (size_t i = 0; i < ops; ++i) {
-    int node_id = 1 + ((rank + 1) % domain_size);
+    int node_id = 1 + ((i + 1) % domain_size);
     size_t read_size, write_size;
     client.IoRoot(chm::DomainId::GetNode(node_id),
                   msg_size,
