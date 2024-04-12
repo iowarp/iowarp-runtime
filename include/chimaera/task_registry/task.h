@@ -616,8 +616,8 @@ struct Task : public hipc::ShmContainer {
   /** This task waits for subtask to complete */
   template<int THREAD_MODEL = 0>
   void Wait(Task *subtask, u32 flags = TASK_COMPLETE) {
-    SetBlocked();
     while (!subtask->task_flags_.All(flags)) {
+      SetBlocked();
       Yield<THREAD_MODEL>();
     }
   }
@@ -626,8 +626,8 @@ struct Task : public hipc::ShmContainer {
   template<int THREAD_MODEL = 0>
   void Wait(std::vector<LPointer<Task>> &subtasks, u32 flags = TASK_COMPLETE) {
     for (auto &subtask : subtasks) {
-      SetBlocked();
       while (!subtask->task_flags_.All(flags)) {
+        SetBlocked();
         Yield<THREAD_MODEL>();
       }
     }
