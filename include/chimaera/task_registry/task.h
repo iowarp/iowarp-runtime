@@ -620,6 +620,7 @@ struct Task : public hipc::ShmContainer {
       SetBlocked();
       Yield<THREAD_MODEL>();
     }
+    UnsetBlocked();
   }
 
   /** This task waits for a set of tasks to complete */
@@ -631,6 +632,7 @@ struct Task : public hipc::ShmContainer {
         Yield<THREAD_MODEL>();
       }
     }
+    UnsetBlocked();
   }
 
   /**====================================
