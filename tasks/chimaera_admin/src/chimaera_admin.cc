@@ -32,7 +32,9 @@ class Server : public TaskLib {
     HRUN_TASK_REGISTRY->RegisterTaskLib(lib_name);
     task->SetModuleComplete();
   }
-  void MonitorRegisterTaskLib(u32 mode, RegisterTaskLibTask *task, RunContext &rctx) {
+  void MonitorRegisterTaskLib(u32 mode,
+                              RegisterTaskLibTask *task,
+                              RunContext &rctx) {
   }
 
   /** Destroy a task library */
@@ -41,7 +43,9 @@ class Server : public TaskLib {
     HRUN_TASK_REGISTRY->DestroyTaskLib(lib_name);
     task->SetModuleComplete();
   }
-  void MonitorDestroyTaskLib(u32 mode, DestroyTaskLibTask *task, RunContext &rctx) {
+  void MonitorDestroyTaskLib(u32 mode,
+                             DestroyTaskLibTask *task,
+                             RunContext &rctx) {
   }
 
   /** Get a task state ID if it exists, and create otherwise */
@@ -50,7 +54,17 @@ class Server : public TaskLib {
     task->id_ = HRUN_TASK_REGISTRY->GetOrCreateTaskStateId(state_name);
     task->SetModuleComplete();
   }
-  void MonitorGetOrCreateTaskStateId(u32 mode, GetOrCreateTaskStateIdTask *task, RunContext &rctx) {
+  void MonitorGetOrCreateTaskStateId(u32 mode,
+                                     GetOrCreateTaskStateIdTask *task,
+                                     RunContext &rctx) {
+    switch (mode) {
+      case MonitorMode::kReplicaAgg: {
+        std::vector<LPointer<Task>> &replicas = *rctx.replicas_;
+        auto replica = reinterpret_cast<GetOrCreateTaskStateIdTask *>(
+            replicas[0].ptr_);
+        task->id_ = replica->id_;
+      }
+    }
   }
 
   /** Create a task state */
@@ -121,7 +135,18 @@ class Server : public TaskLib {
     task->id_ = HRUN_TASK_REGISTRY->GetTaskStateId(state_name);
     task->SetModuleComplete();
   }
-  void MonitorGetTaskStateId(u32 mode, GetTaskStateIdTask *task, RunContext &rctx) {
+  void MonitorGetTaskStateId(u32 mode,
+                             GetTaskStateIdTask *task,
+                             RunContext &rctx) {
+    switch (mode) {
+      case MonitorMode::kReplicaAgg: {
+        std::vector<LPointer<Task>> &replicas = *rctx.replicas_;
+        GetTaskStateIdTask *replica = reinterpret_cast<GetTaskStateIdTask *>(
+            replicas[0].ptr_);
+        task->id_ = replica->id_;
+        HILOG(kDebug, "New aggregated task state {}", task->id_);
+      }
+    }
   }
 
   /** Destroy a task state */
@@ -129,7 +154,9 @@ class Server : public TaskLib {
     HRUN_TASK_REGISTRY->DestroyTaskState(task->id_);
     task->SetModuleComplete();
   }
-  void MonitorDestroyTaskState(u32 mode, DestroyTaskStateTask *task, RunContext &rctx) {
+  void MonitorDestroyTaskState(u32 mode,
+                               DestroyTaskStateTask *task,
+                               RunContext &rctx) {
   }
 
   /** Stop this runtime */
@@ -157,11 +184,14 @@ class Server : public TaskLib {
     queue->Emplace(TaskPrio::kLowLatency, 0, queue_sched.shm_);
     task->SetModuleComplete();
   }
-  void MonitorSetWorkOrchQueuePolicy(u32 mode, SetWorkOrchQueuePolicyTask *task, RunContext &rctx) {
+  void MonitorSetWorkOrchQueuePolicy(u32 mode,
+                                     SetWorkOrchQueuePolicyTask *task,
+                                     RunContext &rctx) {
   }
 
   /** Set work orchestration policy */
-  void SetWorkOrchProcPolicy(SetWorkOrchProcPolicyTask *task, RunContext &rctx) {
+  void SetWorkOrchProcPolicy(SetWorkOrchProcPolicyTask *task,
+                             RunContext &rctx) {
     if (proc_sched_) {
       proc_sched_->SetModuleComplete();
     }
@@ -175,7 +205,9 @@ class Server : public TaskLib {
     queue->Emplace(0, 0, proc_sched.shm_);
     task->SetModuleComplete();
   }
-  void MonitorSetWorkOrchProcPolicy(u32 mode, SetWorkOrchProcPolicyTask *task, RunContext &rctx) {
+  void MonitorSetWorkOrchProcPolicy(u32 mode,
+                                    SetWorkOrchProcPolicyTask *task,
+                                    RunContext &rctx) {
   }
 
   /** Flush the runtime */

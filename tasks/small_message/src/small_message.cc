@@ -54,15 +54,12 @@ class Server : public TaskLib {
   }
   void MonitorMd(u32 mode, MdTask *task, RunContext &rctx) {
     switch (mode) {
-      case MonitorMode::kBeginTrainTime: {
-//        rctx.timer_.Now();
-//        rctx.timer_.Resume();
-        break;
-      }
-      case MonitorMode::kEndTrainTime: {
-        // rctx.timer_.Pause();
-        // HILOG(kInfo, "Md latency: {} usec", rctx.timer_.GetUsec());
-        break;
+      case MonitorMode::kReplicaAgg: {
+        std::vector<LPointer<Task>> &replicas = *rctx.replicas_;
+        for (LPointer<Task> &replica : replicas) {
+          IoTask *replica_task = reinterpret_cast<IoTask *>(replica.ptr_);
+          task->ret_ = replica_task->ret_;
+        }
       }
     }
   }
@@ -78,6 +75,15 @@ class Server : public TaskLib {
     task->SetModuleComplete();
   }
   void MonitorIo(u32 mode, IoTask *task, RunContext &rctx) {
+    switch (mode) {
+      case MonitorMode::kReplicaAgg: {
+        std::vector<LPointer<Task>> &replicas = *rctx.replicas_;
+        for (LPointer<Task> &replica : replicas) {
+          IoTask *replica_task = reinterpret_cast<IoTask *>(replica.ptr_);
+          task->ret_ = replica_task->ret_;
+        }
+      }
+    }
   }
 
  public:

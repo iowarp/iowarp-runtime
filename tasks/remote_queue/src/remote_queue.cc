@@ -112,7 +112,7 @@ class Server : public TaskLib {
     replicas.reserve(domain_ids.size());
     // Replicate task
     bool deep = domain_ids.size() > 1;
-    if (domain_ids.size() == 1) {
+    if (domain_ids.size() == 0) {
       DomainId &domain_id = domain_ids[0];
       TaskState *exec = HRUN_TASK_REGISTRY->GetTaskState(
           orig_task->task_state_);

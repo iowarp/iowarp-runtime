@@ -39,6 +39,13 @@ class Server : public TaskLib {
     task->SetModuleComplete();
   }
   void MonitorCustom(u32 mode, CustomTask *task, RunContext &rctx) {
+    switch (mode) {
+      case MonitorMode::kReplicaAgg: {
+        std::vector<LPointer<Task>> &replicas = *rctx.replicas_;
+        CustomTask *replica = reinterpret_cast<CustomTask *>(
+            replicas[0].ptr_);
+      }
+    }
   }
  public:
 #include "TASK_NAME/TASK_NAME_lib_exec.h"
