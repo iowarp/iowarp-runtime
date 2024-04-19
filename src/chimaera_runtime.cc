@@ -52,6 +52,7 @@ void Runtime::ServerInit(std::string server_config_path) {
   HERMES_THREAD_MODEL->SetThreadModel(hshm::ThreadType::kArgobots);
   work_orchestrator_.ServerInit(&server_config_, queue_manager_);
   hipc::mptr<Admin::CreateTaskStateTask> admin_task;
+  size_t max_lanes = HRUN_RUNTIME->queue_manager_.max_lanes_;
 
   // Create the admin library
   HRUN_CLIENT->MakeTaskStateId();
@@ -61,17 +62,20 @@ void Runtime::ServerInit(std::string server_config_path) {
       "chimaera_admin",
       "chimaera_admin",
       HRUN_QM_CLIENT->admin_task_state_,
-      admin_task.get());
+      admin_task.get(),
+      max_lanes);
 
   // Create the work orchestrator queue scheduling library
   TaskStateId queue_sched_id = HRUN_CLIENT->MakeTaskStateId();
   admin_task = hipc::make_mptr<Admin::CreateTaskStateTask>();
   task_registry_.RegisterTaskLib("worch_queue_round_robin");
-  TaskState *state = task_registry_.CreateTaskState(
+  task_registry_.CreateTaskState(
       "worch_queue_round_robin",
       "worch_queue_round_robin",
       queue_sched_id,
-      admin_task.get());
+      admin_task.get(),
+      1);
+  TaskState *state = task_registry_.GetTaskState(queue_sched_id, 0);
 
   // Initially schedule queues to workers
   auto queue_task = HRUN_CLIENT->NewTask<ScheduleTask>(
@@ -91,7 +95,8 @@ void Runtime::ServerInit(std::string server_config_path) {
       "worch_proc_round_robin",
       "worch_proc_round_robin",
       proc_sched_id,
-      admin_task.get());
+      admin_task.get(),
+      max_lanes);
 
   // Set the work orchestrator queue scheduler
   CHM_ADMIN->SetWorkOrchQueuePolicyRoot(chm::DomainId::GetLocal(), queue_sched_id);

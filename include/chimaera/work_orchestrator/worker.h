@@ -880,7 +880,8 @@ class Worker {
                LPointer<Task> task,
                bool flushing) {
     // Get the task state
-    TaskState *exec = GetTaskState(task->task_state_);
+    TaskState *exec = GetTaskState(task->task_state_,
+                                   task->lane_hash_);
     if (!exec) {
       if (task->task_state_ == TaskStateId::GetNull()) {
         HELOG(kFatal, "(node {}) Task {} has no task state",
@@ -922,7 +923,7 @@ class Worker {
       active_.erase(queue.id_, entry);
       if (props.Any(HSHM_WORKER_IS_CONSTRUCT)) {
         TaskStateId id = ((chm::Admin::CreateTaskStateTask*)task.ptr_)->id_;
-        exec = GetTaskState(id);
+        exec = GetTaskState(id, task->lane_hash_);
       }
       EndTask(exec, task);
     } else if (task->IsBlocked()) {
@@ -957,7 +958,8 @@ class Worker {
     if (task->ShouldSignalUnblock()) {
       SignalUnblock(task->ctx_.pending_to_);
     } else if (task->ShouldSignalRemoteComplete()) {
-      TaskState *remote_exec = GetTaskState(HRUN_REMOTE_QUEUE->id_);
+      TaskState *remote_exec = GetTaskState(HRUN_REMOTE_QUEUE->id_,
+                                            task->lane_hash_);
       remote_exec->Run(chm::remote_queue::Method::kServerPushComplete,
                        task.ptr_, task->ctx_);
       task->SetComplete();
@@ -1085,10 +1087,10 @@ class Worker {
 
   /** Get task state */
   HSHM_ALWAYS_INLINE
-  TaskState* GetTaskState(const TaskStateId &state_id) {
+  TaskState* GetTaskState(const TaskStateId &state_id, u32 lane_hash) {
     auto it = state_map_.find(state_id);
     if (it == state_map_.end()) {
-      TaskState *state = HRUN_TASK_REGISTRY->GetTaskState(state_id);
+      TaskState *state = HRUN_TASK_REGISTRY->GetTaskState(state_id, lane_hash);
       if (state == nullptr) {
         return nullptr;
       }

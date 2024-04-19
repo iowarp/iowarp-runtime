@@ -66,6 +66,10 @@ struct TaskLibInfo {
   }
 };
 
+struct TaskStateInfo {
+  std::vector<TaskState*> states_;
+};
+
 /**
  * Stores the registered set of TaskLibs and TaskStates
  * */
@@ -80,7 +84,7 @@ class TaskRegistry {
   /** Map of a semantic exec name to exec id */
   std::unordered_map<std::string, TaskStateId> task_state_ids_;
   /** Map of a semantic exec id to state */
-  std::unordered_map<TaskStateId, TaskState*> task_states_;
+  std::unordered_map<TaskStateId, TaskStateInfo> task_states_;
   /** A unique identifier counter */
   std::atomic<u64> *unique_;
   RwLock lock_;
@@ -202,15 +206,16 @@ class TaskRegistry {
    * Create a task state
    * state_id must not be NULL.
    * */
-  TaskState* CreateTaskState(const char *lib_name,
-                             const char *state_name,
-                             const TaskStateId &state_id,
-                             Admin::CreateTaskStateTask *task) {
+  bool CreateTaskState(const char *lib_name,
+                       const char *state_name,
+                       const TaskStateId &state_id,
+                       Admin::CreateTaskStateTask *task,
+                       u32 num_lanes) {
     // Ensure state_id is not NULL
     if (state_id.IsNull()) {
       HELOG(kError, "The task state ID cannot be null");
       task->SetModuleComplete();
-      return nullptr;
+      return false;
     }
 //    HILOG(kInfo, "(node {}) Creating an instance of {} with name {}",
 //          HRUN_CLIENT->node_id_, lib_name, state_name)
@@ -220,41 +225,48 @@ class TaskRegistry {
     if (it == libs_.end()) {
       HELOG(kError, "Could not find the task lib: {}", lib_name);
       task->SetModuleComplete();
-      return nullptr;
+      return false;
     }
 
     // Ensure the task state does not already exist
     if (TaskStateExists(state_id)) {
       HELOG(kError, "The task state already exists: {}", state_name);
       task->SetModuleComplete();
-      return nullptr;
+      return false;
     }
 
     // Create the state instance
-    task->id_ = state_id;
-    TaskLibInfo &info = it->second;
-    TaskState *exec;
-    exec = info.alloc_state_(task, state_name);
-    if (!exec) {
-      HELOG(kError, "Could not create the task state: {}", state_name);
-      task->SetModuleComplete();
-      return nullptr;
+    task_states_[state_id] = TaskStateInfo();
+    for (size_t lane_id = 0; lane_id < num_lanes; ++lane_id) {
+      task->id_ = state_id;
+      TaskLibInfo &info = it->second;
+      TaskState *exec;
+      exec = info.alloc_state_(task, state_name);
+      if (!exec) {
+        HELOG(kError, "Could not create the task state: {}", state_name);
+        task->SetModuleComplete();
+        return false;
+      }
+
+      // Add the state to the registry
+      exec->id_ = state_id;
+      exec->name_ = state_name;
+      exec->lane_id_ = lane_id;
+      ScopedRwWriteLock lock(lock_, 0);
+      task_state_ids_.emplace(state_name, state_id);
+      task_states_[state_id].states_.emplace_back(exec);
+      HILOG(kInfo, "(node {})  Created an instance of {} with name {} and ID {}",
+            HRUN_CLIENT->node_id_, lib_name, state_name, state_id);
+
+      // Construct the state
+      task->method_ = TaskMethod::kCreate;
+      task->task_state_ = state_id;
+      task->ctx_.exec_ = task_states_[state_id].states_.front();
+      exec->Run(TaskMethod::kCreate, task, task->ctx_);
+      task->UnsetModuleComplete();
     }
-
-    // Add the state to the registry
-    exec->id_ = state_id;
-    exec->name_ = state_name;
-    ScopedRwWriteLock lock(lock_, 0);
-    task_state_ids_.emplace(state_name, state_id);
-    task_states_.emplace(state_id, exec);
-    HILOG(kInfo, "(node {})  Created an instance of {} with name {} and ID {}",
-          HRUN_CLIENT->node_id_, lib_name, state_name, state_id);
-
-    // Construct the state
-    task->method_ = TaskMethod::kCreate;
-    task->task_state_ = state_id;
-    exec->Run(TaskMethod::kCreate, task, task->ctx_);
-    return exec;
+    task->SetModuleComplete();
+    return true;
   }
 
   /** Get or create a task state's ID */
@@ -280,23 +292,37 @@ class TaskRegistry {
   }
 
   /** Get a task state instance */
-  TaskState* GetTaskState(const TaskStateId &task_state_id) {
+  TaskState* GetTaskStateAny(const TaskStateId &task_state_id) {
     ScopedRwReadLock lock(lock_, 0);
     auto it = task_states_.find(task_state_id);
     if (it == task_states_.end()) {
       return nullptr;
     }
-    return it->second;
+    return it->second.states_[0];
+  }
+
+  /** Get a task state instance */
+  TaskState* GetTaskState(const TaskStateId &task_state_id,
+                          u32 lane_hash) {
+    ScopedRwReadLock lock(lock_, 0);
+    auto it = task_states_.find(task_state_id);
+    if (it == task_states_.end()) {
+      return nullptr;
+    }
+    u32 lane_id = lane_hash % it->second.states_.size();
+    return it->second.states_[lane_id];
   }
 
   /** Get task state instance by name OR by ID */
-  TaskState* GetTaskState(const std::string &task_name, const TaskStateId &task_state_id) {
+  TaskState* GetTaskState(const std::string &task_name,
+                          const TaskStateId &task_state_id,
+                          u32 lane_hash) {
     ScopedRwReadLock lock(lock_, 0);
     TaskStateId id = GetTaskStateId(task_name);
     if (id.IsNull()) {
       id = task_state_id;
     }
-    return GetTaskState(id);
+    return GetTaskState(id, lane_hash);
   }
 
   /** Destroy a task state */
@@ -307,10 +333,13 @@ class TaskRegistry {
       HELOG(kWarning, "Could not find the task state");
       return;
     }
-    TaskState *task_state = it->second;
-    task_state_ids_.erase(task_state->name_);
+    TaskStateInfo &task_states = it->second;
+    std::string state_name = task_states.states_[0]->name_;
+    for (TaskState *task_state : task_states.states_) {
+      delete task_state;
+    }
+    task_state_ids_.erase(state_name);
     task_states_.erase(it);
-    delete task_state;
   }
 };
 

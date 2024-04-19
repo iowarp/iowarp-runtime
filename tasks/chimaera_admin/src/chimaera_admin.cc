@@ -73,7 +73,8 @@ class Server : public TaskLib {
     std::string lib_name = task->lib_name_.str();
     std::string state_name = task->state_name_.str();
     // Check local registry for task state
-    TaskState *task_state = HRUN_TASK_REGISTRY->GetTaskState(state_name, task->id_);
+    TaskState *task_state = HRUN_TASK_REGISTRY->GetTaskState(
+        state_name, task->id_, task->lane_hash_);
     if (task_state) {
       task->id_ = task_state->id_;
       task->SetModuleComplete();
@@ -110,14 +111,16 @@ class Server : public TaskLib {
       return;
     }
     // Allocate the task state
+    size_t max_lanes = HRUN_RUNTIME->queue_manager_.max_lanes_;
     HRUN_TASK_REGISTRY->CreateTaskState(
         lib_name.c_str(),
         state_name.c_str(),
         task->id_,
-        task);
+        task, max_lanes);
     task->SetModuleComplete();
   }
-  void MonitorCreateTaskState(u32 mode, CreateTaskStateTask *task, RunContext &rctx) {
+  void MonitorCreateTaskState(u32 mode, CreateTaskStateTask *task,
+                              RunContext &rctx) {
     switch (mode) {
       case MonitorMode::kReplicaAgg: {
         std::vector<LPointer<Task>> &replicas = *rctx.replicas_;

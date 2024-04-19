@@ -128,6 +128,7 @@ struct GetOrCreateTaskStateIdTask : public Task, TaskFlags<TF_SRL_SYM> {
 struct CreateTaskStateTask : public Task, TaskFlags<TF_SRL_SYM> {
   IN hipc::string lib_name_;
   IN hipc::string state_name_;
+  IN size_t max_lanes_;
   INOUT TaskStateId id_;
 
   /** SHM default constructor */

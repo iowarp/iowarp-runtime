@@ -29,12 +29,33 @@ struct TaskQueueEntry {
   Task *task_;
 };
 
-class Server : public TaskLib {
- public:
+struct SharedState {
   std::vector<hshm::mpsc_queue<TaskQueueEntry>> submit_;
   std::vector<hshm::mpsc_queue<TaskQueueEntry>> complete_;
   std::vector<LPointer<ClientSubmitTask>> submitters_;
   std::vector<LPointer<ServerCompleteTask>> completers_;
+
+  SharedState(Task *task, size_t queue_depth, size_t num_lanes) {
+    submit_.resize(num_lanes,
+                   (hshm::mpsc_queue<TaskQueueEntry>) {queue_depth});
+    complete_.resize(num_lanes,
+                     (hshm::mpsc_queue<TaskQueueEntry>) {queue_depth});
+    submitters_.resize(num_lanes);
+    completers_.resize(num_lanes);
+    for (size_t i = 0; i < num_lanes; ++i) {
+      submitters_[i] = HRUN_REMOTE_QUEUE->AsyncClientSubmit(
+          task, task->task_node_ + 1,
+          DomainId::GetLocal(), i);
+      completers_[i] = HRUN_REMOTE_QUEUE->AsyncServerComplete(
+          task, task->task_node_ + 1,
+          DomainId::GetLocal(), i);
+    }
+  }
+};
+
+class Server : public TaskLib {
+ public:
+  std::shared_ptr<SharedState> shared_;
 
  public:
   Server() = default;
@@ -43,41 +64,30 @@ class Server : public TaskLib {
   void Create(CreateTask *task, RunContext &rctx) {
     HILOG(kInfo, "(node {}) Constructing remote queue (task_node={}, task_state={}, method={})",
           HRUN_CLIENT->node_id_, task->task_node_, task->task_state_, task->method_);
-    QueueManagerInfo &qm = HRUN_QM_RUNTIME->config_->queue_manager_;
-    // size_t max_lanes = HRUN_QM_RUNTIME->max_lanes_;
-    size_t max_lanes = 1;
-    submit_.resize(
-        max_lanes,
-        (hshm::mpsc_queue<TaskQueueEntry>){qm.queue_depth_});
-    complete_.resize(
-        max_lanes,
-        (hshm::mpsc_queue<TaskQueueEntry>){qm.queue_depth_});
-    HRUN_THALLIUM->RegisterRpc(
-        *HRUN_WORK_ORCHESTRATOR->rpc_pool_,
-        "RpcTaskSubmit", [this](
-        const tl::request &req,
-        tl::bulk &bulk,
-        SegmentedTransfer &xfer) {
-      this->RpcTaskSubmit(req, bulk, xfer);
-    });
-    HRUN_THALLIUM->RegisterRpc(
-        *HRUN_WORK_ORCHESTRATOR->rpc_pool_,
-        "RpcTaskComplete", [this](
-            const tl::request &req,
-            tl::bulk &bulk,
-            SegmentedTransfer &xfer) {
-          this->RpcTaskComplete(req, bulk, xfer);
-        });
-    submitters_.resize(max_lanes);
-    completers_.resize(max_lanes);
-    HRUN_REMOTE_QUEUE->Init(id_);
-    for (size_t i = 0; i < max_lanes; ++i) {
-      submitters_[i] = HRUN_REMOTE_QUEUE->AsyncClientSubmit(
-          task, task->task_node_ + 1,
-          DomainId::GetLocal(), i);
-      completers_[i] = HRUN_REMOTE_QUEUE->AsyncServerComplete(
-          task, task->task_node_ + 1,
-          DomainId::GetLocal(), i);
+    if (lane_id_ == 0) {
+      HRUN_THALLIUM->RegisterRpc(
+          *HRUN_WORK_ORCHESTRATOR->rpc_pool_,
+          "RpcTaskSubmit", [this](
+              const tl::request &req,
+              tl::bulk &bulk,
+              SegmentedTransfer &xfer) {
+            this->RpcTaskSubmit(req, bulk, xfer);
+          });
+      HRUN_THALLIUM->RegisterRpc(
+          *HRUN_WORK_ORCHESTRATOR->rpc_pool_,
+          "RpcTaskComplete", [this](
+              const tl::request &req,
+              tl::bulk &bulk,
+              SegmentedTransfer &xfer) {
+            this->RpcTaskComplete(req, bulk, xfer);
+          });
+      HRUN_REMOTE_QUEUE->Init(id_);
+      QueueManagerInfo &qm = HRUN_QM_RUNTIME->config_->queue_manager_;
+      shared_ = std::make_shared<SharedState>(
+          task, qm.queue_depth_, 1);
+    } else {
+      auto *root = (Server*)rctx.exec_;
+      shared_ = root->shared_;
     }
     task->SetModuleComplete();
   }
@@ -113,13 +123,14 @@ class Server : public TaskLib {
     // Replicate task
     bool deep = domain_ids.size() > 1;
     for (DomainId &domain_id : domain_ids) {
-      TaskState *exec = HRUN_TASK_REGISTRY->GetTaskState(
+      TaskState *exec = HRUN_TASK_REGISTRY->GetTaskStateAny(
           orig_task->task_state_);
       LPointer<Task> replica;
       exec->CopyStart(orig_task->method_, orig_task, replica, deep);
       replica->ctx_.pending_to_ = task;
       size_t lane_hash = std::hash<DomainId>{}(domain_id);
-      submit_[lane_hash % submit_.size()].emplace(
+      auto &submit = shared_->submit_;
+      submit[lane_hash % submit.size()].emplace(
           (TaskQueueEntry) {domain_id, replica.ptr_});
       replicas.emplace_back(replica);
     }
@@ -128,7 +139,7 @@ class Server : public TaskLib {
       // Wait
       task->Wait<TASK_YIELD_CO>(replicas, TASK_MODULE_COMPLETE);
       // Combine
-      TaskState *exec = HRUN_TASK_REGISTRY->GetTaskState(
+      TaskState *exec = HRUN_TASK_REGISTRY->GetTaskStateAny(
           orig_task->task_state_);
       rctx.replicas_ = &replicas;
       // Free
@@ -160,7 +171,8 @@ class Server : public TaskLib {
     try {
       TaskQueueEntry entry;
       std::unordered_map<DomainId, BinaryOutputArchive<true>> entries;
-      while (!submit_[0].pop(entry).IsNull()) {
+      auto &submit = shared_->submit_;
+      while (!submit[0].pop(entry).IsNull()) {
         HILOG(kDebug, "(node {}) Submitting task {} ({}) to domain {}",
               HRUN_CLIENT->node_id_, entry.task_->task_node_,
               (size_t)entry.task_,
@@ -169,7 +181,7 @@ class Server : public TaskLib {
           entries.emplace(entry.domain_, BinaryOutputArchive<true>());
         }
         Task *orig_task = entry.task_;
-        TaskState *exec = HRUN_TASK_REGISTRY->GetTaskState(
+        TaskState *exec = HRUN_TASK_REGISTRY->GetTaskStateAny(
             orig_task->task_state_);
         if (exec == nullptr) {
           HELOG(kFatal, "(node {}) Could not find the task state {}",
@@ -215,8 +227,8 @@ class Server : public TaskLib {
                            RunContext &rctx) {
     switch (mode) {
       case MonitorMode::kFlushStat: {
-        hshm::mpsc_queue<TaskQueueEntry> &submit = submit_[0];
-        hshm::mpsc_queue<TaskQueueEntry> &complete = complete_[0];
+        hshm::mpsc_queue<TaskQueueEntry> &submit = shared_->submit_[0];
+        hshm::mpsc_queue<TaskQueueEntry> &complete = shared_->complete_[0];
         rctx.flush_->count_ += submit.GetSize() + complete.GetSize();
       }
     }
@@ -232,7 +244,8 @@ class Server : public TaskLib {
     }
     DomainId ret_domain = task->ctx_.ret_domain_;
     size_t lane_hash = std::hash<DomainId>{}(ret_domain);
-    complete_[lane_hash % complete_.size()].emplace((TaskQueueEntry){
+    auto &complete = shared_->complete_;
+    complete[lane_hash % complete.size()].emplace((TaskQueueEntry){
         ret_domain, task
     });
   }
@@ -248,10 +261,11 @@ class Server : public TaskLib {
       // Serialize task completions
       TaskQueueEntry entry;
       std::unordered_map<DomainId, BinaryOutputArchive<false>> entries;
-      size_t count = complete_[0].GetSize();
+      auto &complete = shared_->complete_;
+      size_t count = complete[0].GetSize();
       std::vector<TaskQueueEntry> completed;
       completed.reserve(count);
-      while (!complete_[0].pop(entry).IsNull()) {
+      while (!complete[0].pop(entry).IsNull()) {
         if (entries.find(entry.domain_) == entries.end()) {
           entries.emplace(entry.domain_, BinaryOutputArchive<false>());
         }
@@ -260,7 +274,7 @@ class Server : public TaskLib {
               HRUN_CLIENT->node_id_, done_task->task_node_,
               entry.domain_.id_);
         TaskState *exec =
-            HRUN_TASK_REGISTRY->GetTaskState(done_task->task_state_);
+            HRUN_TASK_REGISTRY->GetTaskStateAny(done_task->task_state_);
         BinaryOutputArchive<false> &ar = entries[entry.domain_];
         exec->SaveEnd(done_task->method_, ar, done_task);
         completed.emplace_back(entry);
@@ -335,7 +349,7 @@ class Server : public TaskLib {
     // Deserialize task
     TaskStateId state_id = xfer.tasks_[task_off].task_state_;
     u32 method = xfer.tasks_[task_off].method_;
-    TaskState *exec = HRUN_TASK_REGISTRY->GetTaskState(state_id);
+    TaskState *exec = HRUN_TASK_REGISTRY->GetTaskStateAny(state_id);
     if (exec == nullptr) {
       HELOG(kFatal, "(node {}) Could not find the task state {}",
             HRUN_CLIENT->node_id_, state_id);
@@ -410,7 +424,7 @@ class Server : public TaskLib {
         Task *orig_task = (Task*)xfer.tasks_[i].task_addr_;
         HILOG(kDebug, "(node {}) Deserializing return values for task {} (state {})",
               HRUN_CLIENT->node_id_, orig_task->task_node_, orig_task->task_state_);
-        TaskState *exec = HRUN_TASK_REGISTRY->GetTaskState(
+        TaskState *exec = HRUN_TASK_REGISTRY->GetTaskStateAny(
             orig_task->task_state_);
         if (exec == nullptr) {
           HELOG(kFatal, "(node {}) Could not find the task state {}",

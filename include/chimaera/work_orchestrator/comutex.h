@@ -83,20 +83,13 @@ class ScopedCoMutex {
 template<typename Key>
 class CoMutexTable {
  public:
-  std::vector<std::unordered_map<Key, CoMutex>> mutexes_;
+  std::unordered_map<Key, CoMutex> mutexes_;
 
  public:
-  CoMutexTable() {
-    resize(HRUN_WORK_ORCHESTRATOR->GetNumWorkers());
-  }
-
-  size_t resize(size_t max_lanes) {
-    mutexes_.resize(max_lanes);
-    return max_lanes;
-  }
+  CoMutexTable() {}
 
   CoMutex& Get(RunContext &rctx, Key key) {
-    return mutexes_[rctx.worker_id_][key];
+    return mutexes_[key];
   }
 };
 
