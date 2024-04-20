@@ -309,7 +309,7 @@ class TaskRegistry {
     if (it == task_states_.end()) {
       return nullptr;
     }
-    u32 lane_id = lane_hash % it->second.states_.size();
+    LaneId lane_id = lane_hash % it->second.states_.size();
     return it->second.states_[lane_id];
   }
 

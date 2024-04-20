@@ -74,7 +74,7 @@ struct MdTask : public Task, TaskFlags<TF_SRL_SYM> {
          u32 flags) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
-    lane_hash_ = lane_hash;
+    GetLaneHash() = lane_hash;
     prio_ = TaskPrio::kLowLatency;
     task_state_ = state_id;
     method_ = Method::kMd;
@@ -129,7 +129,7 @@ struct IoTask : public Task, TaskFlags<TF_SRL_SYM> {
          u32 io_flags) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
-    lane_hash_ = 3;
+    GetLaneHash() = 3;
     prio_ = TaskPrio::kLowLatency;
     task_state_ = state_id;
     method_ = Method::kIo;

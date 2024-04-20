@@ -29,7 +29,7 @@ struct RegisterTaskLibTaskTempl : public Task, TaskFlags<TF_SRL_SYM> {
   : Task(alloc), lib_name_(alloc, lib_name) {
     // Initialize task
     task_node_ = task_node;
-    lane_hash_ = 0;
+    GetLaneHash() = 0;
     prio_ = TaskPrio::kLowLatency;
     task_state_ = HRUN_QM_CLIENT->admin_task_state_;
     if constexpr(method == 0) {
@@ -96,7 +96,7 @@ struct GetOrCreateTaskStateIdTask : public Task, TaskFlags<TF_SRL_SYM> {
   : Task(alloc), state_name_(alloc, state_name) {
     // Initialize task
     task_node_ = task_node;
-    lane_hash_ = 0;
+    GetLaneHash() = 0;
     prio_ = TaskPrio::kLowLatency;
     task_state_ = HRUN_QM_CLIENT->admin_task_state_;
     method_ = Method::kGetOrCreateTaskStateId;
@@ -150,7 +150,7 @@ struct CreateTaskStateTask : public Task, TaskFlags<TF_SRL_SYM> {
     lib_name_(alloc, lib_name) {
     // Initialize task
     task_node_ = task_node;
-    lane_hash_ = 0;
+    GetLaneHash() = 0;
     prio_ = TaskPrio::kLowLatency;
     task_state_ = HRUN_QM_CLIENT->admin_task_state_;
     method_ = Method::kCreateTaskState;
@@ -206,7 +206,7 @@ struct GetTaskStateIdTask : public Task, TaskFlags<TF_SRL_SYM> {
   : Task(alloc), state_name_(alloc, state_name) {
     // Initialize task
     task_node_ = task_node;
-    lane_hash_ = 0;
+    GetLaneHash() = 0;
     prio_ = TaskPrio::kLowLatency;
     task_state_ = HRUN_QM_CLIENT->admin_task_state_;
     method_ = Method::kGetTaskStateId;
@@ -250,7 +250,7 @@ struct DestroyTaskStateTask : public Task, TaskFlags<TF_SRL_SYM> {
                        const TaskStateId &id) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
-    lane_hash_ = 0;
+    GetLaneHash() = 0;
     prio_ = TaskPrio::kLowLatency;
     task_state_ = HRUN_QM_CLIENT->admin_task_state_;
     method_ = Method::kDestroyTaskState;
@@ -280,7 +280,7 @@ struct DestroyTaskStateTask : public Task, TaskFlags<TF_SRL_SYM> {
   }
 };
 
-/** A task to destroy a Task state */
+/** A task to stop a runtime */
 struct StopRuntimeTask : public Task, TaskFlags<TF_SRL_SYM> {
   /** SHM default constructor */
   StopRuntimeTask(hipc::Allocator *alloc) : Task(alloc) {}
@@ -292,7 +292,7 @@ struct StopRuntimeTask : public Task, TaskFlags<TF_SRL_SYM> {
                   const DomainId &domain_id) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
-    lane_hash_ = 0;
+    GetLaneHash() = 0;
     prio_ = TaskPrio::kLowLatency;
     task_state_ = HRUN_QM_CLIENT->admin_task_state_;
     method_ = Method::kStopRuntime;
@@ -315,7 +315,7 @@ struct StopRuntimeTask : public Task, TaskFlags<TF_SRL_SYM> {
   }
 };
 
-/** A task to destroy a Task state */
+/** A task to set work orchestration policy */
 template<int method>
 struct SetWorkOrchestratorPolicyTask : public Task, TaskFlags<TF_SRL_SYM> {
   IN TaskStateId policy_id_;
@@ -332,7 +332,7 @@ struct SetWorkOrchestratorPolicyTask : public Task, TaskFlags<TF_SRL_SYM> {
                                 const TaskStateId &policy_id) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
-    lane_hash_ = 0;
+    GetLaneHash() = 0;
     prio_ = TaskPrio::kLowLatency;
     task_state_ = HRUN_QM_CLIENT->admin_task_state_;
     if constexpr(method == 0) {
@@ -366,7 +366,7 @@ struct SetWorkOrchestratorPolicyTask : public Task, TaskFlags<TF_SRL_SYM> {
 using SetWorkOrchQueuePolicyTask = SetWorkOrchestratorPolicyTask<0>;
 using SetWorkOrchProcPolicyTask = SetWorkOrchestratorPolicyTask<1>;
 
-/** A task to destroy a Task state */
+/** A task to flush the runtime */
 struct FlushTask : public Task, TaskFlags<TF_SRL_SYM> {
   INOUT size_t work_done_;
 
@@ -380,7 +380,7 @@ struct FlushTask : public Task, TaskFlags<TF_SRL_SYM> {
             const DomainId &domain_id) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
-    lane_hash_ = 0;
+    GetLaneHash() = 0;
     prio_ = TaskPrio::kLowLatency;
     task_state_ = HRUN_QM_CLIENT->admin_task_state_;
     method_ = Method::kFlush;
@@ -409,7 +409,7 @@ struct FlushTask : public Task, TaskFlags<TF_SRL_SYM> {
   }
 };
 
-/** A task to destroy a Task state */
+/** A task to get the domain size */
 struct DomainSizeTask : public Task, TaskFlags<TF_LOCAL> {
   IN DomainId comm_;
   OUT size_t comm_size_;
@@ -424,7 +424,7 @@ struct DomainSizeTask : public Task, TaskFlags<TF_LOCAL> {
                  const DomainId &domain_id) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
-    lane_hash_ = 0;
+    GetLaneHash() = 0;
     prio_ = TaskPrio::kLowLatency;
     task_state_ = HRUN_QM_CLIENT->admin_task_state_;
     method_ = Method::kDomainSize;
@@ -434,6 +434,155 @@ struct DomainSizeTask : public Task, TaskFlags<TF_LOCAL> {
     // Custom
     comm_ = domain_id;
     comm_size_ = 0;
+  }
+};
+
+/** A task to update the lane mapping */
+struct UpdateLaneMappingTask : public Task, TaskFlags<TF_SRL_SYM> {
+  IN hipc::vector<hipc::pair<StateLaneId, DomainId>> mapping_;
+
+  /** SHM default constructor */
+  UpdateLaneMappingTask(hipc::Allocator *alloc)
+  : Task(alloc), mapping_(alloc) {}
+
+  /** Emplace constructor */
+  HSHM_ALWAYS_INLINE explicit
+  UpdateLaneMappingTask(
+      hipc::Allocator *alloc,
+      const TaskNode &task_node,
+      const DomainId &domain_id,
+      const std::vector<std::pair<StateLaneId, DomainId>> &mapping)
+  : Task(alloc), mapping_(alloc) {
+    // Initialize task
+    task_node_ = task_node;
+    GetLaneHash() = 0;
+    prio_ = TaskPrio::kLowLatency;
+    task_state_ = HRUN_QM_CLIENT->admin_task_state_;
+    method_ = Method::kUpdateLaneMapping;
+    task_flags_.SetBits(0);
+    domain_id_ = domain_id;
+
+    // Copy the mapping
+    mapping_.reserve(mapping.size());
+    for (size_t i = 0; i < mapping.size(); i++) {
+      mapping_.emplace_back(mapping[i].first, mapping[i].second);
+    }
+  }
+
+  /** Duplicate message */
+  void CopyStart(UpdateLaneMappingTask &other, bool deep) {
+    mapping_ = other.mapping_;
+  }
+
+  /** (De)serialize message call */
+  template<typename Ar>
+  void SerializeStart(Ar &ar) {
+    ar(mapping_);
+  }
+
+  /** (De)serialize message return */
+  template<typename Ar>
+  void SerializeEnd(Ar &ar) {
+  }
+};
+
+/** A task to update the lane mapping */
+struct GetLaneMappingTask : public Task, TaskFlags<TF_SRL_SYM> {
+  IN TaskStateId state_id_;
+  IN LaneId lane_id_;
+  OUT DomainId lane_domain_;
+
+  /** SHM default constructor */
+  GetLaneMappingTask(hipc::Allocator *alloc)
+  : Task(alloc) {}
+
+  /** Emplace constructor */
+  HSHM_ALWAYS_INLINE explicit
+  GetLaneMappingTask(
+      hipc::Allocator *alloc,
+      const TaskNode &task_node,
+      const DomainId &domain_id,
+      const TaskStateId &state_id,
+      LaneId lane_id)
+  : Task(alloc) {
+    // Initialize task
+    task_node_ = task_node;
+    GetLaneHash() = 0;
+    prio_ = TaskPrio::kLowLatency;
+    task_state_ = HRUN_QM_CLIENT->admin_task_state_;
+    method_ = Method::kGetLaneMapping;
+    task_flags_.SetBits(0);
+    domain_id_ = domain_id;
+
+    state_id_ = state_id;
+    lane_id_ = lane_id;
+  }
+
+  /** Duplicate message */
+  void CopyStart(GetLaneMappingTask &other, bool deep) {
+    state_id_ = other.state_id_;
+    lane_id_ = other.lane_id_;
+  }
+
+  /** (De)serialize message call */
+  template<typename Ar>
+  void SerializeStart(Ar &ar) {
+    ar(state_id_, lane_id_);
+  }
+
+  /** (De)serialize message return */
+  template<typename Ar>
+  void SerializeEnd(Ar &ar) {
+    ar(lane_domain_);
+  }
+};
+
+/** A task to update the lane mapping */
+struct UpdateLaneCountTask : public Task, TaskFlags<TF_SRL_SYM> {
+  IN TaskStateId state_id_;
+  IN u32 lane_count_;
+
+  /** SHM default constructor */
+  UpdateLaneCountTask(hipc::Allocator *alloc)
+  : Task(alloc) {}
+
+  /** Emplace constructor */
+  HSHM_ALWAYS_INLINE explicit
+  UpdateLaneCountTask(
+      hipc::Allocator *alloc,
+      const TaskNode &task_node,
+      const DomainId &domain_id,
+      const TaskStateId &state_id,
+      u32 lane_count)
+  : Task(alloc) {
+    // Initialize task
+    task_node_ = task_node;
+    GetLaneHash() = 0;
+    prio_ = TaskPrio::kLowLatency;
+    task_state_ = HRUN_QM_CLIENT->admin_task_state_;
+    method_ = Method::kDomainSize;
+    task_flags_.SetBits(0);
+    domain_id_ = domain_id;
+
+    state_id_ = state_id;
+    lane_count_ = lane_count;
+  }
+
+  /** Duplicate message */
+  void CopyStart(UpdateLaneCountTask &other, bool deep) {
+    state_id_ = other.state_id_;
+    lane_count_ = other.lane_count_;
+  }
+
+  /** (De)serialize message call */
+  template<typename Ar>
+  void SerializeStart(Ar &ar) {
+    ar(state_id_, lane_count_);
+  }
+
+  /** (De)serialize message return */
+  template<typename Ar>
+  void SerializeEnd(Ar &ar) {
   }
 };
 

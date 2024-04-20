@@ -43,7 +43,7 @@ namespace chm {
 /** Uniquely identify a queue lane */
 struct WorkEntry {
   u32 prio_;
-  u32 lane_id_;
+  LaneId lane_id_;
   Lane *lane_;
   LaneGroup *group_;
   MultiQueue *queue_;
@@ -54,7 +54,7 @@ struct WorkEntry {
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE
-  WorkEntry(u32 prio, u32 lane_id, MultiQueue *queue)
+  WorkEntry(u32 prio, LaneId lane_id, MultiQueue *queue)
   : prio_(prio), lane_id_(lane_id), queue_(queue) {
     group_ = &queue->GetGroup(prio);
     lane_ = &queue->GetLane(prio, lane_id);
@@ -881,7 +881,7 @@ class Worker {
                bool flushing) {
     // Get the task state
     TaskState *exec = GetTaskState(task->task_state_,
-                                   task->lane_hash_);
+                                   task->GetLaneHash());
     if (!exec) {
       if (task->task_state_ == TaskStateId::GetNull()) {
         HELOG(kFatal, "(node {}) Task {} has no task state",
@@ -923,7 +923,7 @@ class Worker {
       active_.erase(queue.id_, entry);
       if (props.Any(HSHM_WORKER_IS_CONSTRUCT)) {
         TaskStateId id = ((chm::Admin::CreateTaskStateTask*)task.ptr_)->id_;
-        exec = GetTaskState(id, task->lane_hash_);
+        exec = GetTaskState(id, task->GetLaneHash());
       }
       EndTask(exec, task);
     } else if (task->IsBlocked()) {
@@ -959,7 +959,7 @@ class Worker {
       SignalUnblock(task->ctx_.pending_to_);
     } else if (task->ShouldSignalRemoteComplete()) {
       TaskState *remote_exec = GetTaskState(HRUN_REMOTE_QUEUE->id_,
-                                            task->lane_hash_);
+                                            task->GetLaneHash());
       remote_exec->Run(chm::remote_queue::Method::kServerPushComplete,
                        task.ptr_, task->ctx_);
       task->SetComplete();

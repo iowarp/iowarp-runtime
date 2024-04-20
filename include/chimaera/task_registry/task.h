@@ -279,7 +279,6 @@ struct Task : public hipc::ShmContainer {
   TaskNode task_node_;         /**< The unique ID of this task in the graph */
   DomainId domain_id_;         /**< The nodes that the task should run on */
   u32 prio_;                   /**< An indication of the priority of the request */
-  u32 lane_hash_;              /**< Determine the lane a task is keyed to */
   u32 method_;                 /**< The method to call in the state */
   bitfield32_t task_flags_;    /**< Properties of the task */
   double period_ns_;           /**< The period of the task */
@@ -292,6 +291,16 @@ struct Task : public hipc::ShmContainer {
   /**====================================
    * Task Helpers
    * ===================================*/
+
+  /** Get lane hash */
+  HSHM_ALWAYS_INLINE u32 &GetLaneHash() {
+    return domain_id_.lane_hash_;
+  }
+
+  /** Get lane hash */
+  HSHM_ALWAYS_INLINE const u32 &GetLaneHash() const {
+    return domain_id_.lane_hash_;
+  }
 
   /** Set task as externally complete */
   HSHM_ALWAYS_INLINE void SetModuleComplete() {
@@ -310,24 +319,6 @@ struct Task : public hipc::ShmContainer {
     // atask_flags_ |= TASK_MODULE_COMPLETE | TASK_COMPLETE;
     task_flags_.UnsetBits(TASK_MODULE_COMPLETE);
   }
-
-//  /** Set task as complete on the remote */
-//  HSHM_ALWAYS_INLINE void SetRemoteComplete() {
-//    // atask_flags_ |= TASK_MODULE_COMPLETE;
-//    task_flags_.SetBits(TASK_REMOTE_COMPLETE);
-//  }
-//
-//  /** Check if a task complete on the remote */
-//  HSHM_ALWAYS_INLINE bool IsRemoteComplete() {
-//    // return atask_flags_.load() & TASK_MODULE_COMPLETE;
-//    return task_flags_.Any(TASK_REMOTE_COMPLETE);
-//  }
-//
-//  /** Unset task as complete on the remote */
-//  HSHM_ALWAYS_INLINE void UnsetRemoteComplete() {
-//    // atask_flags_ |= TASK_MODULE_COMPLETE | TASK_COMPLETE;
-//    task_flags_.UnsetBits(TASK_REMOTE_COMPLETE);
-//  }
 
   /** Set task as complete */
   HSHM_ALWAYS_INLINE void SetComplete() {
@@ -668,7 +659,7 @@ struct Task : public hipc::ShmContainer {
        bitfield32_t task_flags) {
     shm_init_container(alloc);
     task_node_ = task_node;
-    lane_hash_ = lane_hash;
+    GetLaneHash() = lane_hash;
     prio_ = TaskPrio::kLowLatency;
     task_state_ = task_state;
     method_ = method;
@@ -731,7 +722,7 @@ struct Task : public hipc::ShmContainer {
   template<typename Ar>
   void task_serialize(Ar &ar) {
     // NOTE(llogan): don't serialize start_ because of clock drift
-    ar(task_state_, task_node_, domain_id_, lane_hash_, prio_, method_,
+    ar(task_state_, task_node_, domain_id_, GetLaneHash(), prio_, method_,
        task_flags_, period_ns_);  // , atask_flags_);
   }
 
@@ -740,7 +731,7 @@ struct Task : public hipc::ShmContainer {
     task_state_ = other.task_state_;
     task_node_ = other.task_node_;
     domain_id_ = other.domain_id_;
-    lane_hash_ = other.lane_hash_;
+    GetLaneHash() = other.GetLaneHash();
     prio_ = other.prio_;
     method_ = other.method_;
     task_flags_ = other.task_flags_;

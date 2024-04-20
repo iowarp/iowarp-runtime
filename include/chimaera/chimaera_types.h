@@ -71,6 +71,9 @@ using hshm::ScopedRwReadLock;
 using hshm::ScopedRwWriteLock;
 using hipc::LPointer;
 
+typedef u32 LaneId;  /**< The ID of a lane */
+typedef u32 ProcessorId;  /**< The ID of a processor */
+
 /** Determine the mode that HRUN is initialized for */
 enum class HrunMode {
   kNone,
@@ -81,154 +84,81 @@ enum class HrunMode {
 #define DOMAIN_FLAG_T static inline const int
 
 /**
- * Represents a unique ID for a scheduling domain
- * There are a few domain types:
- * 1. A node domain, which is a single node
- * 2. A global domain, which is all nodes
- * 3. A specific domain, which is a subset of nodes
- * 4. A specific domain + node, temporarily includes this node in a domain
+ * Represents the scheduling domain of a task.
+ * Modes:
+ * 1. Node: Schedule across a set of nodes
+ * 2. Processor: Schedule across a set of processors
+ * 3. Node + Processor: Schedule across processors in a node
+ * 4. Lane: Schedule across lanes
  * */
 struct DomainId {
   bitfield32_t flags_;  /**< Flags indicating how to interpret id */
-  u32 id_;              /**< The domain id, 0 is NULL */
-  DOMAIN_FLAG_T kLocal =
-      BIT_OPT(u32, 0);   /**< Use local node in scheduling decision */
-  DOMAIN_FLAG_T kGlobal =
-      BIT_OPT(u32, 1);  /**< Use all nodes in scheduling decision */
-  DOMAIN_FLAG_T kNoLocal =
-      BIT_OPT(u32, 4);    /**< Don't use local node in scheduling decision */
-  DOMAIN_FLAG_T kSet =
-      BIT_OPT(u32, 2);     /**< ID represents node set ID, not a single node */
+  union {
+    u32 node_id_;    /**< The direct ID of a node */
+    u32 tree_id_;    /**< The unique ID of a domain tree */
+    u32 int_;        /**< Generic integer ID */
+  } major_;
+  union {
+    struct {
+      u16 depth_;
+      u16 idx_;
+    } tree_;        /**< The tree subdomain */
+    u32 cpu_id_;    /**< The processor on a node to address */
+    u32 int_;        /**< Generic integer ID */
+  } minor_;
+  u32 lane_hash_;   /**< The hash of the lane */
+
+  /** Mode flags */
   DOMAIN_FLAG_T kNode =
-      BIT_OPT(u32, 3);    /**< ID represents a specific node */
+      BIT_OPT(u32, 0);    /**< Domain includes node ID */
+  DOMAIN_FLAG_T kProcessor =
+      BIT_OPT(u32, 1);    /**< Domain includes processor ID */
+  DOMAIN_FLAG_T kLane =
+      BIT_OPT(u32, 3);    /**< Domain includes lane ID */
+
+  /** Range flags */
+  DOMAIN_FLAG_T kLocal =
+      BIT_OPT(u32, 15);  /**< Use local node in scheduling decision */
+  DOMAIN_FLAG_T kGlobal =
+      BIT_OPT(u32, 16);  /**< Use all nodes in scheduling decision */
+  DOMAIN_FLAG_T kGlobalMinusLocal =
+      BIT_OPT(u32, 17);  /**< Don't use local node in scheduling decision */
+  DOMAIN_FLAG_T kDirect =
+      BIT_OPT(u32, 18);  /**< Use specific node/lane for decision */
+  DOMAIN_FLAG_T kTree =
+      BIT_OPT(u32, 19);  /**< Use specific node/lane for decision */
 
   /** Serialize domain id */
   template<typename Ar>
   void serialize(Ar &ar) {
-    ar(flags_, id_);
+    ar(flags_, major_.int_, minor_.int_, lane_hash_);
   }
 
   /** Default constructor. */
   HSHM_ALWAYS_INLINE
-  DomainId() : id_(0) {}
-
-  /** Domain has the local node */
-  HSHM_ALWAYS_INLINE
-  bool IsRemote(size_t num_hosts, u32 this_node) const {
-    if (num_hosts == 1 && !flags_.Any(kNoLocal)) {
-      return false;
-    } else {
-      return
-      (flags_.Any(kGlobal | kSet | kNoLocal) ||
-      (flags_.Any(kNode) && id_ != this_node));
-    }
-  }
-
-  /** DomainId representing the local node */
-  HSHM_ALWAYS_INLINE
-  static DomainId GetLocal() {
-      DomainId id;
-      id.id_ = 0;
-      id.flags_.SetBits(kLocal);
-      return id;
-  }
-
-  /** Get the ID */
-  HSHM_ALWAYS_INLINE
-  u32 GetId() const {
-    return id_;
-  }
-
-  /** Domain is a specific node */
-  HSHM_ALWAYS_INLINE
-  bool IsNode() const {
-    return flags_.Any(kNode);
-  }
-
-  /** DomainId representing a specific node */
-  HSHM_ALWAYS_INLINE
-  static DomainId GetNode(u32 node_id) {
-    DomainId id;
-    id.id_ = node_id;
-    id.flags_.SetBits(kNode);
-    return id;
-  }
-
-  /** DomainId representing a specific node + local node */
-  HSHM_ALWAYS_INLINE
-  static DomainId GetNodeWithLocal(u32 node_id) {
-    DomainId id;
-    id.id_ = node_id;
-    id.flags_.SetBits(kLocal);
-    return id;
-  }
-
-  /** Domain represents all nodes */
-  HSHM_ALWAYS_INLINE
-  bool IsGlobal() const {
-    return flags_.Any(kGlobal);
-  }
-
-  /** DomainId representing all nodes */
-  HSHM_ALWAYS_INLINE
-  static DomainId GetGlobal() {
-      DomainId id;
-      id.id_ = 0;
-      id.flags_.SetBits(kGlobal);
-      return id;
-  }
-
-  /** Domain doesn't include this node */
-  bool IsNoLocal() const {
-    return flags_.Any(kNoLocal);
-  }
-
-  /** DomainId representing all nodes, except this one */
-  HSHM_ALWAYS_INLINE
-  static DomainId GetGlobalMinusLocal() {
-    DomainId id;
-    id.id_ = 0;
-    id.flags_.SetBits(kGlobal | kNoLocal);
-    return id;
-  }
-
-  /** DomainId represents a named node set */
-  HSHM_ALWAYS_INLINE
-  bool IsSet() const {
-    return flags_.Any(kSet);
-  }
-
-  /** DomainId representing a named node set */
-  HSHM_ALWAYS_INLINE
-  static DomainId GetSet(u32 domain_id) {
-    DomainId id;
-    id.id_ = domain_id;
-    id.flags_.SetBits(kSet);
-    return id;
-  }
-
-  /** DomainId representing a node set + local node */
-  HSHM_ALWAYS_INLINE
-  static DomainId GetSetWithLocal(u32 domain_id) {
-    DomainId id;
-    id.id_ = domain_id;
-    id.flags_.SetBits(kSet | kLocal);
-    return id;
+  DomainId() {
+    major_.int_ = 0;
+    minor_.int_ = 0;
+    lane_hash_ = 0;
   }
 
   /** Copy constructor */
   HSHM_ALWAYS_INLINE
   DomainId(const DomainId &other) {
-    id_ = other.id_;
     flags_ = other.flags_;
+    major_.node_id_ = other.major_.node_id_;
+    minor_.cpu_id_ = other.minor_.cpu_id_;
+    lane_hash_ = other.lane_hash_;
   }
 
   /** Copy operator */
   HSHM_ALWAYS_INLINE
   DomainId& operator=(const DomainId &other) {
     if (this != &other) {
-      id_ = other.id_;
       flags_ = other.flags_;
+      major_.node_id_ = other.major_.node_id_;
+      minor_.cpu_id_ = other.minor_.cpu_id_;
+      lane_hash_ = other.lane_hash_;
     }
     return *this;
   }
@@ -236,16 +166,20 @@ struct DomainId {
   /** Move constructor */
   HSHM_ALWAYS_INLINE
   DomainId(DomainId &&other) noexcept {
-    id_ = other.id_;
     flags_ = other.flags_;
+    major_.node_id_ = other.major_.node_id_;
+    minor_.cpu_id_ = other.minor_.cpu_id_;
+    lane_hash_ = other.lane_hash_;
   }
 
   /** Move operator */
   HSHM_ALWAYS_INLINE
   DomainId& operator=(DomainId &&other) noexcept {
     if (this != &other) {
-      id_ = other.id_;
       flags_ = other.flags_;
+      major_.node_id_ = other.major_.node_id_;
+      minor_.cpu_id_ = other.minor_.cpu_id_;
+      lane_hash_ = other.lane_hash_;
     }
     return *this;
   }
@@ -253,13 +187,52 @@ struct DomainId {
   /** Equality operator */
   HSHM_ALWAYS_INLINE
   bool operator==(const DomainId &other) const {
-    return id_ == other.id_ && flags_.bits_ == other.flags_.bits_;
+    return flags_.bits_ == other.flags_.bits_ &&
+        major_.int_ == other.major_.int_ &&
+        minor_.int_ == other.minor_.int_ &&
+        lane_hash_ == other.lane_hash_;
   }
 
   /** Inequality operator */
   HSHM_ALWAYS_INLINE
   bool operator!=(const DomainId &other) const {
-    return id_ != other.id_ || flags_.bits_ != other.flags_.bits_;
+    return flags_.bits_ == other.flags_.bits_ &&
+        major_.int_ == other.major_.int_ &&
+        minor_.int_ == other.minor_.int_ &&
+        lane_hash_ == other.lane_hash_;
+  }
+
+  /** DomainId representing this processor */
+  HSHM_ALWAYS_INLINE
+  static DomainId GetLocal() {
+    DomainId id;
+    id.flags_.SetBits(kNode | kProcessor | kLocal);
+    return id;
+  }
+
+  /** DomainId representing a specific node */
+  HSHM_ALWAYS_INLINE
+  static DomainId GetNode(u32 node_id) {
+    DomainId id;
+    id.flags_.SetBits(kNode | kDirect);
+    id.major_.node_id_ = node_id;
+    return id;
+  }
+
+  /** DomainId representing all nodes */
+  HSHM_ALWAYS_INLINE
+  static DomainId GetGlobal() {
+    DomainId id;
+    id.flags_.SetBits(kNode | kGlobal);
+    return id;
+  }
+
+  /** DomainId representing all nodes, except this one */
+  HSHM_ALWAYS_INLINE
+  static DomainId GetGlobalMinusLocal() {
+    DomainId id;
+    id.flags_.SetBits(kGlobalMinusLocal);
+    return id;
   }
 };
 
@@ -390,6 +363,30 @@ using QueueId = UniqueId<2>;
 /** Uniquely identify a task */
 using TaskId = UniqueId<3>;
 
+/** Stateful lane ID */
+struct StateLaneId {
+  TaskStateId state_id_;
+  LaneId lane_id_;
+
+  /** Serialization */
+  template<typename Ar>
+  void serialize(Ar &ar) {
+    ar(state_id_, lane_id_);
+  }
+
+  /** Equality operator */
+  HSHM_ALWAYS_INLINE
+  bool operator==(const StateLaneId &other) const {
+    return state_id_ == other.state_id_ && lane_id_ == other.lane_id_;
+  }
+
+  /** Inequality operator */
+  HSHM_ALWAYS_INLINE
+  bool operator!=(const StateLaneId &other) const {
+    return state_id_ != other.state_id_ || lane_id_ != other.lane_id_;
+  }
+};
+
 /** The types of I/O that can be performed (for IoCall RPC) */
 enum class IoType {
   kRead,
@@ -418,8 +415,19 @@ struct hash<chm::DomainId> {
   HSHM_ALWAYS_INLINE
   std::size_t operator()(const chm::DomainId &key) const {
     return
-        std::hash<u32>{}(key.id_) +
+        std::hash<u32>{}(key.GetId()) +
         std::hash<u32>{}(key.flags_.bits_);
+  }
+};
+
+/** Hash function for StateLaneId */
+template<>
+struct hash<chm::StateLaneId> {
+  HSHM_ALWAYS_INLINE
+  std::size_t operator()(const chm::StateLaneId &key) const {
+    return
+        std::hash<chm::TaskStateId>{}(key.state_id_) +
+        std::hash<chm::LaneId>{}(key.lane_id_);
   }
 };
 

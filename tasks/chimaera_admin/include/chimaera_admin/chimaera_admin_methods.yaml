@@ -9,3 +9,6 @@ kSetWorkOrchQueuePolicy: 7
 kSetWorkOrchProcPolicy: 8
 kFlush: 9
 kDomainSize: 10
+kUpdateLaneMapping: 11
+kGetLaneMapping: 12
+kUpdateLaneCount: 13

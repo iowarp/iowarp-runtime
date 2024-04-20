@@ -48,6 +48,18 @@ void Run(u32 method, Task *task, RunContext &rctx) override {
       DomainSize(reinterpret_cast<DomainSizeTask *>(task), rctx);
       break;
     }
+    case Method::kUpdateLaneMapping: {
+      UpdateLaneMapping(reinterpret_cast<UpdateLaneMappingTask *>(task), rctx);
+      break;
+    }
+    case Method::kGetLaneMapping: {
+      GetLaneMapping(reinterpret_cast<GetLaneMappingTask *>(task), rctx);
+      break;
+    }
+    case Method::kUpdateLaneCount: {
+      UpdateLaneCount(reinterpret_cast<UpdateLaneCountTask *>(task), rctx);
+      break;
+    }
   }
 }
 /** Execute a task */
@@ -95,6 +107,18 @@ void Monitor(u32 mode, Task *task, RunContext &rctx) override {
     }
     case Method::kDomainSize: {
       MonitorDomainSize(mode, reinterpret_cast<DomainSizeTask *>(task), rctx);
+      break;
+    }
+    case Method::kUpdateLaneMapping: {
+      MonitorUpdateLaneMapping(mode, reinterpret_cast<UpdateLaneMappingTask *>(task), rctx);
+      break;
+    }
+    case Method::kGetLaneMapping: {
+      MonitorGetLaneMapping(mode, reinterpret_cast<GetLaneMappingTask *>(task), rctx);
+      break;
+    }
+    case Method::kUpdateLaneCount: {
+      MonitorUpdateLaneCount(mode, reinterpret_cast<UpdateLaneCountTask *>(task), rctx);
       break;
     }
   }
@@ -146,6 +170,18 @@ void Del(u32 method, Task *task) override {
       HRUN_CLIENT->DelTask<DomainSizeTask>(reinterpret_cast<DomainSizeTask *>(task));
       break;
     }
+    case Method::kUpdateLaneMapping: {
+      HRUN_CLIENT->DelTask<UpdateLaneMappingTask>(reinterpret_cast<UpdateLaneMappingTask *>(task));
+      break;
+    }
+    case Method::kGetLaneMapping: {
+      HRUN_CLIENT->DelTask<GetLaneMappingTask>(reinterpret_cast<GetLaneMappingTask *>(task));
+      break;
+    }
+    case Method::kUpdateLaneCount: {
+      HRUN_CLIENT->DelTask<UpdateLaneCountTask>(reinterpret_cast<UpdateLaneCountTask *>(task));
+      break;
+    }
   }
 }
 /** Duplicate a task */
@@ -195,6 +231,18 @@ void CopyStart(u32 method, Task *orig_task, LPointer<Task> &dup_task, bool deep)
       chm::CALL_COPY_START(reinterpret_cast<DomainSizeTask*>(orig_task), dup_task, deep);
       break;
     }
+    case Method::kUpdateLaneMapping: {
+      chm::CALL_COPY_START(reinterpret_cast<UpdateLaneMappingTask*>(orig_task), dup_task, deep);
+      break;
+    }
+    case Method::kGetLaneMapping: {
+      chm::CALL_COPY_START(reinterpret_cast<GetLaneMappingTask*>(orig_task), dup_task, deep);
+      break;
+    }
+    case Method::kUpdateLaneCount: {
+      chm::CALL_COPY_START(reinterpret_cast<UpdateLaneCountTask*>(orig_task), dup_task, deep);
+      break;
+    }
   }
 }
 /** Serialize a task when initially pushing into remote */
@@ -242,6 +290,18 @@ void SaveStart(u32 method, BinaryOutputArchive<true> &ar, Task *task) override {
     }
     case Method::kDomainSize: {
       ar << *reinterpret_cast<DomainSizeTask*>(task);
+      break;
+    }
+    case Method::kUpdateLaneMapping: {
+      ar << *reinterpret_cast<UpdateLaneMappingTask*>(task);
+      break;
+    }
+    case Method::kGetLaneMapping: {
+      ar << *reinterpret_cast<GetLaneMappingTask*>(task);
+      break;
+    }
+    case Method::kUpdateLaneCount: {
+      ar << *reinterpret_cast<UpdateLaneCountTask*>(task);
       break;
     }
   }
@@ -305,6 +365,21 @@ TaskPointer LoadStart(u32 method, BinaryInputArchive<true> &ar) override {
       ar >> *reinterpret_cast<DomainSizeTask*>(task_ptr.ptr_);
       break;
     }
+    case Method::kUpdateLaneMapping: {
+      task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<UpdateLaneMappingTask>(task_ptr.shm_);
+      ar >> *reinterpret_cast<UpdateLaneMappingTask*>(task_ptr.ptr_);
+      break;
+    }
+    case Method::kGetLaneMapping: {
+      task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<GetLaneMappingTask>(task_ptr.shm_);
+      ar >> *reinterpret_cast<GetLaneMappingTask*>(task_ptr.ptr_);
+      break;
+    }
+    case Method::kUpdateLaneCount: {
+      task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<UpdateLaneCountTask>(task_ptr.shm_);
+      ar >> *reinterpret_cast<UpdateLaneCountTask*>(task_ptr.ptr_);
+      break;
+    }
   }
   return task_ptr;
 }
@@ -355,6 +430,18 @@ void SaveEnd(u32 method, BinaryOutputArchive<false> &ar, Task *task) override {
       ar << *reinterpret_cast<DomainSizeTask*>(task);
       break;
     }
+    case Method::kUpdateLaneMapping: {
+      ar << *reinterpret_cast<UpdateLaneMappingTask*>(task);
+      break;
+    }
+    case Method::kGetLaneMapping: {
+      ar << *reinterpret_cast<GetLaneMappingTask*>(task);
+      break;
+    }
+    case Method::kUpdateLaneCount: {
+      ar << *reinterpret_cast<UpdateLaneCountTask*>(task);
+      break;
+    }
   }
 }
 /** Deserialize a task when popping from remote queue */
@@ -402,6 +489,18 @@ void LoadEnd(u32 method, BinaryInputArchive<false> &ar, Task *task) override {
     }
     case Method::kDomainSize: {
       ar >> *reinterpret_cast<DomainSizeTask*>(task);
+      break;
+    }
+    case Method::kUpdateLaneMapping: {
+      ar >> *reinterpret_cast<UpdateLaneMappingTask*>(task);
+      break;
+    }
+    case Method::kGetLaneMapping: {
+      ar >> *reinterpret_cast<GetLaneMappingTask*>(task);
+      break;
+    }
+    case Method::kUpdateLaneCount: {
+      ar >> *reinterpret_cast<UpdateLaneCountTask*>(task);
       break;
     }
   }

@@ -14,6 +14,9 @@ struct Method : public TaskMethod {
   TASK_METHOD_T kSetWorkOrchProcPolicy = kLast + 8;
   TASK_METHOD_T kFlush = kLast + 9;
   TASK_METHOD_T kDomainSize = kLast + 10;
+  TASK_METHOD_T kUpdateLaneMapping = kLast + 11;
+  TASK_METHOD_T kGetLaneMapping = kLast + 12;
+  TASK_METHOD_T kUpdateLaneCount = kLast + 13;
 };
 
 #endif  // HRUN_CHIMAERA_ADMIN_METHODS_H_

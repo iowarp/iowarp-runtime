@@ -384,18 +384,6 @@ class Client : public ConfigurationManager {
     QueueId real_id = GetQueueId(queue_id);
     return queue_manager_.GetQueue(real_id);
   }
-
-  /** Detect if a task is local or remote */
-  HSHM_ALWAYS_INLINE
-  bool IsRemote(Task *task) {
-    if (task->domain_id_.IsNode()) {
-      return task->domain_id_.GetId() != header_->node_id_;
-    } else if (task->domain_id_.IsGlobal()) {
-      return true;
-    } else {
-      return false;
-    }
-  }
 };
 
 /** A function which creates a new TaskNode value */
@@ -424,7 +412,7 @@ hipc::LPointer<CUSTOM##Task> Async##CUSTOM(Task *parent_task,\
     task_node, std::forward<Args>(args)...);\
   task->YieldInit(parent_task);\
   MultiQueue *queue = HRUN_CLIENT->GetQueue(queue_id_);\
-  queue->Emplace(task.ptr_->prio_, task.ptr_->lane_hash_, task.shm_);\
+  queue->Emplace(task.ptr_->prio_, task.ptr_->GetLaneHash(), task.shm_);\
   return task;\
 }\
 template<typename ...Args>\
@@ -434,7 +422,7 @@ Async##CUSTOM##Emplace(MultiQueue *queue,\
                        Args&& ...args) {\
   hipc::LPointer<CUSTOM##Task> task =\
     Async##CUSTOM##Alloc(task_node, std::forward<Args>(args)...);\
-  queue->Emplace(task.ptr_->prio_, task.ptr_->lane_hash_, task.shm_);\
+  queue->Emplace(task.ptr_->prio_, task.ptr_->GetLaneHash(), task.shm_);\
   return task;\
 }\
 template<typename ...Args>\

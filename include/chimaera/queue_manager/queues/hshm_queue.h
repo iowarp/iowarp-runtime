@@ -84,7 +84,7 @@ struct LaneGroup : public PriorityInfo {
   }
 
   /** Get lane */
-  Lane& GetLane(u32 lane_id) {
+  Lane& GetLane(LaneId lane_id) {
     return (*lanes_)[lane_id];
   }
 };
@@ -126,7 +126,9 @@ struct MultiQueueT<Hshm> : public hipc::ShmContainer {
       HSHM_MAKE_AR0(lane_group.lanes_, GetAllocator());
       lane_group.lanes_->reserve(
           prio_info.max_lanes_);
-      for (u32 lane_id = 0; lane_id < lane_group.num_lanes_; ++lane_id) {
+      for (LaneId lane_id = 0;
+           lane_id < lane_group.num_lanes_;
+           ++lane_id) {
         lane_group.lanes_->emplace_back(lane_group.depth_, id_);
         Lane &lane = lane_group.lanes_->back();
         lane.flags_ = prio_info.flags_;
@@ -221,13 +223,13 @@ struct MultiQueueT<Hshm> : public hipc::ShmContainer {
   }
 
   /** Get a lane of the queue */
-  HSHM_ALWAYS_INLINE Lane& GetLane(u32 prio, u32 lane_id) {
+  HSHM_ALWAYS_INLINE Lane& GetLane(u32 prio, LaneId lane_id) {
     return GetLane(GetGroup(prio), lane_id);
   }
 
   /** Get a lane of the queue */
   HSHM_ALWAYS_INLINE Lane& GetLane(LaneGroup &lane_group,
-                                   u32 lane_id) {
+                                   LaneId lane_id) {
     return lane_group.GetLane(lane_id);
   }
 
@@ -244,7 +246,7 @@ struct MultiQueueT<Hshm> : public hipc::ShmContainer {
       WaitForEmplacePlug();
     }
     LaneGroup &lane_group = GetGroup(prio);
-    u32 lane_id = lane_hash % lane_group.num_lanes_;
+    LaneId lane_id = lane_hash % lane_group.num_lanes_;
     Lane &lane = GetLane(lane_group, lane_id);
     hshm::qtok_t ret = lane.emplace(data);
     return !ret.IsNull();

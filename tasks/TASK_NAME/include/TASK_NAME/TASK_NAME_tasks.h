@@ -76,7 +76,7 @@ struct CustomTask : public Task, TaskFlags<TF_SRL_SYM> {
              const TaskStateId &state_id) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
-    lane_hash_ = 0;
+    GetLaneHash() = 0;
     prio_ = TaskPrio::kLowLatency;
     task_state_ = state_id;
     method_ = Method::kCustom;

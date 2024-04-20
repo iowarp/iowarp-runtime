@@ -26,6 +26,38 @@ class Server : public TaskLib {
  public:
   Server() : queue_sched_(nullptr), proc_sched_(nullptr) {}
 
+  /** Update the lane mapping */
+  void UpdateLaneMapping(UpdateLaneMappingTask *task, RunContext &rctx) {
+    for (hipc::pair<StateLaneId, DomainId> &pair : task->mapping_) {
+      HRUN_RPC->CacheLaneMapping(pair.GetKey(), pair.GetVal());
+    }
+    task->SetModuleComplete();
+  }
+  void MonitorUpdateLaneMapping(u32 mode,
+                                UpdateLaneMappingTask *task,
+                                RunContext &rctx) {
+  }
+
+  /** Find the lane mapping */
+  void GetLaneMapping(GetLaneMappingTask *task, RunContext &rctx) {
+    TaskStateId state_id = task->state_id_;
+    task->lane_domain_ =
+        HRUN_RPC->GetLaneMapping({task->state_id_, task->lane_id_});
+    task->SetModuleComplete();
+  }
+  void MonitorGetLaneMapping(u32 mode,
+                             GetLaneMappingTask *task,
+                             RunContext &rctx) {
+  }
+
+  /** Update number of lanes */
+  void UpdateLaneCount(UpdateLaneCountTask *task, RunContext &rctx) {
+  }
+  void MonitorUpdateLaneCount(u32 mode,
+                              UpdateLaneCountTask *task,
+                              RunContext &rctx) {
+  }
+
   /** Register a task library dynamically */
   void RegisterTaskLib(RegisterTaskLibTask *task, RunContext &rctx) {
     std::string lib_name = task->lib_name_.str();
@@ -74,7 +106,7 @@ class Server : public TaskLib {
     std::string state_name = task->state_name_.str();
     // Check local registry for task state
     TaskState *task_state = HRUN_TASK_REGISTRY->GetTaskState(
-        state_name, task->id_, task->lane_hash_);
+        state_name, task->id_, task->GetLaneHash());
     if (task_state) {
       task->id_ = task_state->id_;
       task->SetModuleComplete();

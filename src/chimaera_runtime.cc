@@ -53,6 +53,8 @@ void Runtime::ServerInit(std::string server_config_path) {
   work_orchestrator_.ServerInit(&server_config_, queue_manager_);
   hipc::mptr<Admin::CreateTaskStateTask> admin_task;
   size_t max_lanes = HRUN_RUNTIME->queue_manager_.max_lanes_;
+  size_t max_workers = server_config_.wo_.max_dworkers_ +
+                       server_config_.wo_.max_oworkers_;
 
   // Create the admin library
   HRUN_CLIENT->MakeTaskStateId();
@@ -63,7 +65,7 @@ void Runtime::ServerInit(std::string server_config_path) {
       "chimaera_admin",
       HRUN_QM_CLIENT->admin_task_state_,
       admin_task.get(),
-      max_lanes);
+      1);
 
   // Create the work orchestrator queue scheduling library
   TaskStateId queue_sched_id = HRUN_CLIENT->MakeTaskStateId();
@@ -99,8 +101,10 @@ void Runtime::ServerInit(std::string server_config_path) {
       max_lanes);
 
   // Set the work orchestrator queue scheduler
-  CHM_ADMIN->SetWorkOrchQueuePolicyRoot(chm::DomainId::GetLocal(), queue_sched_id);
-  CHM_ADMIN->SetWorkOrchProcPolicyRoot(chm::DomainId::GetLocal(), proc_sched_id);
+  CHM_ADMIN->SetWorkOrchQueuePolicyRoot(chm::DomainId::GetLocal(),
+                                        queue_sched_id);
+  CHM_ADMIN->SetWorkOrchProcPolicyRoot(chm::DomainId::GetLocal(),
+                                       proc_sched_id);
 
   // Create the remote queue library
   task_registry_.RegisterTaskLib("remote_queue");

@@ -176,7 +176,7 @@ class Server : public TaskLib {
         HILOG(kDebug, "(node {}) Submitting task {} ({}) to domain {}",
               HRUN_CLIENT->node_id_, entry.task_->task_node_,
               (size_t)entry.task_,
-              entry.domain_.id_);
+              entry.domain_.GetId());
         if (entries.find(entry.domain_) == entries.end()) {
           entries.emplace(entry.domain_, BinaryOutputArchive<true>());
         }
@@ -198,7 +198,7 @@ class Server : public TaskLib {
             DomainId::GetNode(HRUN_CLIENT->node_id_);
         hshm::Timer t;
         t.Resume();
-        HRUN_THALLIUM->SyncIoCall<int>((i32)it->first.id_,
+        HRUN_THALLIUM->SyncIoCall<int>((i32)it->first.GetId(),
                                        "RpcTaskSubmit",
                                        xfer,
                                        DT_SENDER_WRITE);
@@ -272,7 +272,7 @@ class Server : public TaskLib {
         Task *done_task = entry.task_;
         HILOG(kDebug, "(node {}) Sending completion for {} -> {}",
               HRUN_CLIENT->node_id_, done_task->task_node_,
-              entry.domain_.id_);
+              entry.domain_);
         TaskState *exec =
             HRUN_TASK_REGISTRY->GetTaskStateAny(done_task->task_state_);
         BinaryOutputArchive<false> &ar = entries[entry.domain_];
@@ -285,8 +285,8 @@ class Server : public TaskLib {
         SegmentedTransfer xfer = it->second.Get();
 //        HILOG(kDebug, "(node {}) Sending completion of size {} to {}",
 //              HRUN_CLIENT->node_id_, xfer.size(),
-//              it->first.id_);
-        HRUN_THALLIUM->SyncIoCall<int>((i32)it->first.id_,
+//              it->first.GetId());
+        HRUN_THALLIUM->SyncIoCall<int>((i32)it->first.GetId(),
                                        "RpcTaskComplete",
                                        xfer,
                                        DT_SENDER_WRITE);
@@ -395,9 +395,9 @@ class Server : public TaskLib {
           exec->name_,
           method,
           xfer.size(),
-          orig_task->lane_hash_);
+          orig_task->GetLaneHash());
     queue->Emplace(orig_task->prio_,
-                   orig_task->lane_hash_, task_ptr.shm_);
+                   orig_task->GetLaneHash(), task_ptr.shm_);
     HILOG(kDebug,
           "(node {}) Done submitting (task_node={}, task_state={}/{}, "
           "state_name={}, method={}, size={}, lane_hash={})",
@@ -408,7 +408,7 @@ class Server : public TaskLib {
           exec->name_,
           method,
           xfer.size(),
-          orig_task->lane_hash_);
+          orig_task->GetLaneHash());
   }
 
   /** Receive task completion */

@@ -43,8 +43,22 @@ struct HostInfo {
       : hostname_(hostname), ip_addr_(ip_addr), node_id_(node_id) {}
 };
 
+/** Lane mapping table */
+struct LaneTableEntry {
+  DomainId domain_id_;  /**< Domain ID */
+  ProcessorId processor_;  /**< Processor ID */
+};
+
 /** A structure to represent RPC context. */
 class RpcContext {
+ public:
+  /** A mapping of lane IDs to DomainIds */
+  typedef std::unordered_map<LaneId, LaneTableEntry> LANE_MAP_T;
+  /** A mapping of state IDs to lane maps */
+  typedef std::unordered_map<TaskStateId, LANE_MAP_T> STATE_LANE_MAP_T;
+  /** A rwlock for lane mappings */
+  RwLock lane_map_lock_;
+
  public:
   ServerConfig *config_;
   int port_;  /**< port number */
@@ -53,6 +67,7 @@ class RpcContext {
   u32 node_id_;           /**< the ID of this node */
   int num_threads_;       /**< Number of RPC threads */
   std::vector<HostInfo> hosts_; /**< Hostname and ip addr per-node */
+  STATE_LANE_MAP_T lane_map_;   /**< Lane mappings */
 
  public:
   /** Default constructor */
@@ -64,6 +79,33 @@ class RpcContext {
     return hosts_.size();
   }
 
+  /** Add the mapping of a lane to a domain */
+  void CacheLaneMapping(const StateLaneId &state_lane_id,
+                        const DomainId &domain_id) {
+    ScopedRwWriteLock lock(lane_map_lock_, 0);
+    if (lane_map_.find(state_lane_id.state_id_) == lane_map_.end()) {
+      lane_map_[state_lane_id.state_id_] = LANE_MAP_T();
+    }
+    lane_map_[state_lane_id.state_id_][state_lane_id.lane_id_] = domain_id;
+  }
+
+  /** Get the domain ID of a lane */
+  DomainId GetLaneMapping(const StateLaneId &state_lane_id) {
+    ScopedRwReadLock lock(lane_map_lock_, 0);
+    if (lane_map_.find(state_lane_id.state_id_) == lane_map_.end()) {
+      HELOG(kWarning, "Lane mapping not found for state {}",
+            state_lane_id.state_id_);
+      return DomainId::GetNode(0);
+    }
+    LANE_MAP_T &lane_map = lane_map_[state_lane_id.state_id_];
+    if (lane_map.find(state_lane_id.lane_id_) == lane_map.end()) {
+      HELOG(kWarning, "Lane mapping not found for lane {} in state {}",
+            state_lane_id.lane_id_, state_lane_id.state_id_);
+      return DomainId::GetNode(0);
+    }
+    return lane_map[state_lane_id.lane_id_];
+  }
+
   /** initialize host info list */
   void ServerInit(ServerConfig *config) {
     config_ = config;
@@ -73,12 +115,13 @@ class RpcContext {
     num_threads_ = config_->rpc_.num_threads_;
     if (hosts_.size()) { return; }
     // Uses hosts produced by host_names
-    auto &hosts = config_->rpc_.host_names_;
+    std::vector<std::string> &hosts =
+        config_->rpc_.host_names_;
 
     // Get all host info
     hosts_.reserve(hosts.size());
     u32 node_id = 1;
-    for (const auto& name : hosts) {
+    for (const std::string& name : hosts) {
       hosts_.emplace_back(name, _GetIpAddress(name), node_id++);
     }
 
@@ -111,7 +154,7 @@ class RpcContext {
   /** get host name from node ID */
   std::string GetHostNameFromNodeId(const DomainId &domain_id) {
     // NOTE(llogan): node_id 0 is reserved as the NULL node
-    u32 node_id = domain_id.id_;
+    u32 node_id = domain_id.GetId();
     if (node_id <= 0 || node_id > (i32)hosts_.size()) {
       HELOG(kFatal, "Attempted to get from node {}, which is out of "
                     "the range 1-{}", node_id, hosts_.size())
@@ -123,7 +166,7 @@ class RpcContext {
   /** get host name from node ID */
   std::string GetIpAddressFromNodeId(const DomainId &domain_id){
     // NOTE(llogan): node_id 0 is reserved as the NULL node
-    u32 node_id = domain_id.id_;
+    u32 node_id = domain_id.GetId();
     if (node_id <= 0 || node_id > (u32)hosts_.size()) {
       HELOG(kFatal, "Attempted to get from node {}, which is out of "
                     "the range 1-{}", node_id, hosts_.size())
