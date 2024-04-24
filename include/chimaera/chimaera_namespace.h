@@ -24,7 +24,7 @@ using chm::TaskPointer;
 using chm::MultiQueue;
 using chm::PriorityInfo;
 using chm::TaskNode;
-using chm::DomainId;
+using chm::DomainQuery;
 using chm::TaskStateId;
 using chm::QueueId;
 using chm::TaskFlags;

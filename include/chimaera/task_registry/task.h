@@ -268,7 +268,7 @@ struct RunContext {
   size_t pending_key_;
   std::vector<LPointer<Task>> *replicas_;
   size_t ret_task_addr_;
-  DomainId ret_domain_;
+  DomainQuery ret_domain_;
 };
 
 /** A generic task base class */
@@ -277,7 +277,7 @@ struct Task : public hipc::ShmContainer {
  public:
   TaskStateId task_state_;     /**< The unique name of a task state */
   TaskNode task_node_;         /**< The unique ID of this task in the graph */
-  DomainId domain_id_;         /**< The nodes that the task should run on */
+  DomainQuery dom_query_;         /**< The nodes that the task should run on */
   u32 prio_;                   /**< An indication of the priority of the request */
   u32 method_;                 /**< The method to call in the state */
   bitfield32_t task_flags_;    /**< Properties of the task */
@@ -294,12 +294,12 @@ struct Task : public hipc::ShmContainer {
 
   /** Get lane hash */
   HSHM_ALWAYS_INLINE u32 &GetLaneHash() {
-    return domain_id_.lane_hash_;
+    return dom_query_.lane_hash_;
   }
 
   /** Get lane hash */
   HSHM_ALWAYS_INLINE const u32 &GetLaneHash() const {
-    return domain_id_.lane_hash_;
+    return dom_query_.lane_hash_;
   }
 
   /** Set task as externally complete */
@@ -652,7 +652,7 @@ struct Task : public hipc::ShmContainer {
   HSHM_ALWAYS_INLINE explicit
   Task(hipc::Allocator *alloc,
        const TaskNode &task_node,
-       const DomainId &domain_id,
+       const DomainQuery &dom_query,
        const TaskStateId &task_state,
        u32 lane_hash,
        u32 method,
@@ -663,7 +663,7 @@ struct Task : public hipc::ShmContainer {
     prio_ = TaskPrio::kLowLatency;
     task_state_ = task_state;
     method_ = method;
-    domain_id_ = domain_id;
+    dom_query_ = dom_query;
     task_flags_ = task_flags;
     // atask_flags_ = task_flags.bits_;
   }
@@ -722,7 +722,7 @@ struct Task : public hipc::ShmContainer {
   template<typename Ar>
   void task_serialize(Ar &ar) {
     // NOTE(llogan): don't serialize start_ because of clock drift
-    ar(task_state_, task_node_, domain_id_, GetLaneHash(), prio_, method_,
+    ar(task_state_, task_node_, dom_query_, GetLaneHash(), prio_, method_,
        task_flags_, period_ns_);  // , atask_flags_);
   }
 
@@ -730,7 +730,7 @@ struct Task : public hipc::ShmContainer {
   void task_dup(TaskT &other) {
     task_state_ = other.task_state_;
     task_node_ = other.task_node_;
-    domain_id_ = other.domain_id_;
+    dom_query_ = other.dom_query_;
     GetLaneHash() = other.GetLaneHash();
     prio_ = other.prio_;
     method_ = other.method_;

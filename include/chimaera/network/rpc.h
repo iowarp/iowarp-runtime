@@ -43,17 +43,11 @@ struct HostInfo {
       : hostname_(hostname), ip_addr_(ip_addr), node_id_(node_id) {}
 };
 
-/** Lane mapping table */
-struct LaneTableEntry {
-  DomainId domain_id_;  /**< Domain ID */
-  ProcessorId processor_;  /**< Processor ID */
-};
-
 /** A structure to represent RPC context. */
 class RpcContext {
  public:
-  /** A mapping of lane IDs to DomainIds */
-  typedef std::unordered_map<LaneId, LaneTableEntry> LANE_MAP_T;
+  /** A mapping of lane IDs to DomainQuerys */
+  typedef std::unordered_map<LaneId, DomainQuery> LANE_MAP_T;
   /** A mapping of state IDs to lane maps */
   typedef std::unordered_map<TaskStateId, LANE_MAP_T> STATE_LANE_MAP_T;
   /** A rwlock for lane mappings */
@@ -81,29 +75,36 @@ class RpcContext {
 
   /** Add the mapping of a lane to a domain */
   void CacheLaneMapping(const StateLaneId &state_lane_id,
-                        const DomainId &domain_id) {
+                        const DomainQuery &dom_query) {
     ScopedRwWriteLock lock(lane_map_lock_, 0);
     if (lane_map_.find(state_lane_id.state_id_) == lane_map_.end()) {
       lane_map_[state_lane_id.state_id_] = LANE_MAP_T();
     }
-    lane_map_[state_lane_id.state_id_][state_lane_id.lane_id_] = domain_id;
+    lane_map_[state_lane_id.state_id_][state_lane_id.lane_id_] = dom_query;
   }
 
   /** Get the domain ID of a lane */
-  DomainId GetLaneMapping(const StateLaneId &state_lane_id) {
+  DomainQuery GetLaneMapping(const StateLaneId &state_lane_id) {
     ScopedRwReadLock lock(lane_map_lock_, 0);
     if (lane_map_.find(state_lane_id.state_id_) == lane_map_.end()) {
       HELOG(kWarning, "Lane mapping not found for state {}",
             state_lane_id.state_id_);
-      return DomainId::GetNode(0);
+      return DomainQuery::GetNode(0);
     }
     LANE_MAP_T &lane_map = lane_map_[state_lane_id.state_id_];
     if (lane_map.find(state_lane_id.lane_id_) == lane_map.end()) {
       HELOG(kWarning, "Lane mapping not found for lane {} in state {}",
             state_lane_id.lane_id_, state_lane_id.state_id_);
-      return DomainId::GetNode(0);
+      return DomainQuery::GetNode(0);
     }
     return lane_map[state_lane_id.lane_id_];
+  }
+
+  /**
+   * Convert a DomainQuery into a set of more concretized queries.
+   * */
+  std::vector<DomainQuery> ResolveDomainQuery(const DomainQuery &dom_query) {
+
   }
 
   /** initialize host info list */
@@ -133,7 +134,7 @@ class RpcContext {
   }
 
   /** get RPC address */
-  std::string GetRpcAddress(const DomainId &domain_id, int port) {
+  std::string GetRpcAddress(const DomainQuery &dom_query, int port) {
     if (config_->rpc_.protocol_ == "shm") {
       return "shm";
     }
@@ -141,20 +142,20 @@ class RpcContext {
     if (!config_->rpc_.domain_.empty()) {
       result += config_->rpc_.domain_ + "/";
     }
-    std::string host_name = GetHostNameFromNodeId(domain_id);
+    std::string host_name = GetHostNameFromNodeId(dom_query);
     result += host_name + ":" + std::to_string(port);
     return result;
   }
 
   /** Get RPC address for this node */
   std::string GetMyRpcAddress() {
-    return GetRpcAddress(DomainId::GetNode(node_id_), port_);
+    return GetRpcAddress(DomainQuery::GetNode(node_id_), port_);
   }
 
   /** get host name from node ID */
-  std::string GetHostNameFromNodeId(const DomainId &domain_id) {
+  std::string GetHostNameFromNodeId(const DomainQuery &dom_query) {
     // NOTE(llogan): node_id 0 is reserved as the NULL node
-    u32 node_id = domain_id.GetId();
+    u32 node_id = dom_query.GetId();
     if (node_id <= 0 || node_id > (i32)hosts_.size()) {
       HELOG(kFatal, "Attempted to get from node {}, which is out of "
                     "the range 1-{}", node_id, hosts_.size())
@@ -164,9 +165,9 @@ class RpcContext {
   }
 
   /** get host name from node ID */
-  std::string GetIpAddressFromNodeId(const DomainId &domain_id){
+  std::string GetIpAddressFromNodeId(const DomainQuery &dom_query){
     // NOTE(llogan): node_id 0 is reserved as the NULL node
-    u32 node_id = domain_id.GetId();
+    u32 node_id = dom_query.GetId();
     if (node_id <= 0 || node_id > (u32)hosts_.size()) {
       HELOG(kFatal, "Attempted to get from node {}, which is out of "
                     "the range 1-{}", node_id, hosts_.size())

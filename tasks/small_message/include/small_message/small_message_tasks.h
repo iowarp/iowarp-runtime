@@ -28,10 +28,10 @@ struct CreateTask : public CreateTaskStateTask {
   HSHM_ALWAYS_INLINE explicit
   CreateTask(hipc::Allocator *alloc,
                 const TaskNode &task_node,
-                const DomainId &domain_id,
+                const DomainQuery &dom_query,
                 const std::string &state_name,
                 const TaskStateId &id)
-      : CreateTaskStateTask(alloc, task_node, domain_id, state_name,
+      : CreateTaskStateTask(alloc, task_node, dom_query, state_name,
                             "small_message", id) {
   }
 };
@@ -47,9 +47,9 @@ struct DestructTask : public DestroyTaskStateTask {
   HSHM_ALWAYS_INLINE
   DestructTask(hipc::Allocator *alloc,
                const TaskNode &task_node,
-               const DomainId &domain_id,
+               const DomainQuery &dom_query,
                TaskStateId &state_id)
-      : DestroyTaskStateTask(alloc, task_node, domain_id, state_id) {}
+      : DestroyTaskStateTask(alloc, task_node, dom_query, state_id) {}
 };
 
 /**
@@ -67,7 +67,7 @@ struct MdTask : public Task, TaskFlags<TF_SRL_SYM> {
   HSHM_ALWAYS_INLINE explicit
   MdTask(hipc::Allocator *alloc,
          const TaskNode &task_node,
-         const DomainId &domain_id,
+         const DomainQuery &dom_query,
          TaskStateId &state_id,
          u32 lane_hash,
          u32 depth,
@@ -79,7 +79,7 @@ struct MdTask : public Task, TaskFlags<TF_SRL_SYM> {
     task_state_ = state_id;
     method_ = Method::kMd;
     task_flags_.SetBits(TASK_COROUTINE | flags);
-    domain_id_ = domain_id;
+    dom_query_ = dom_query;
 
     // Custom params
     depth_ = depth;
@@ -123,7 +123,7 @@ struct IoTask : public Task, TaskFlags<TF_SRL_SYM> {
   HSHM_ALWAYS_INLINE explicit
   IoTask(hipc::Allocator *alloc,
          const TaskNode &task_node,
-         const DomainId &domain_id,
+         const DomainQuery &dom_query,
          TaskStateId &state_id,
          size_t io_size,
          u32 io_flags) : Task(alloc) {
@@ -134,7 +134,7 @@ struct IoTask : public Task, TaskFlags<TF_SRL_SYM> {
     task_state_ = state_id;
     method_ = Method::kIo;
     task_flags_.SetBits(TASK_DATA_OWNER);
-    domain_id_ = domain_id;
+    dom_query_ = dom_query;
 
     // Custom params
     LPointer<char> data = HRUN_CLIENT->AllocateBufferClient(io_size);
@@ -165,7 +165,7 @@ struct IoTask : public Task, TaskFlags<TF_SRL_SYM> {
     ar(io_flags_);
     if (io_flags_.Any(MD_IO_WRITE)) {
       ar.bulk(DT_SENDER_WRITE,
-              data_, size_, domain_id_);
+              data_, size_, dom_query_);
     }
   }
 
@@ -175,7 +175,7 @@ struct IoTask : public Task, TaskFlags<TF_SRL_SYM> {
     ar(io_flags_, ret_);
     if (io_flags_.Any(MD_IO_READ)) {
       ar.bulk(DT_SENDER_READ,
-              data_, size_, domain_id_);
+              data_, size_, dom_query_);
     }
   }
 };

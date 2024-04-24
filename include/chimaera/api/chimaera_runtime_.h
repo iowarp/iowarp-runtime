@@ -66,9 +66,6 @@ class Runtime : public ConfigurationManager {
 
   /** Stop the Hermes core Daemon */
   void StopDaemon();
-
-  /** Get the set of DomainIds */
-  std::vector<DomainId> ResolveDomainId(const DomainId &domain_id);
 };
 
 }  // namespace chm

@@ -36,10 +36,10 @@ struct CreateTask : public CreateTaskStateTask {
   HSHM_ALWAYS_INLINE explicit
   CreateTask(hipc::Allocator *alloc,
                 const TaskNode &task_node,
-                const DomainId &domain_id,
+                const DomainQuery &dom_query,
                 const std::string &state_name,
                 const TaskStateId &id)
-      : CreateTaskStateTask(alloc, task_node, domain_id, state_name,
+      : CreateTaskStateTask(alloc, task_node, dom_query, state_name,
                             "remote_queue", id) {
     // Custom params
   }
@@ -56,9 +56,9 @@ struct DestructTask : public DestroyTaskStateTask {
   HSHM_ALWAYS_INLINE explicit
   DestructTask(hipc::Allocator *alloc,
                const TaskNode &task_node,
-               const DomainId &domain_id,
+               const DomainQuery &dom_query,
                TaskStateId &state_id)
-      : DestroyTaskStateTask(alloc, task_node, domain_id, state_id) {}
+      : DestroyTaskStateTask(alloc, task_node, dom_query, state_id) {}
 };
 
 struct ClientPushSubmitTask : public Task, TaskFlags<TF_LOCAL> {
@@ -72,7 +72,7 @@ struct ClientPushSubmitTask : public Task, TaskFlags<TF_LOCAL> {
   HSHM_ALWAYS_INLINE explicit
   ClientPushSubmitTask(hipc::Allocator *alloc,
                        const TaskNode &task_node,
-                       const DomainId &domain_id,
+                       const DomainQuery &dom_query,
                        TaskStateId &state_id,
                        Task *orig_task) : Task(alloc) {
     // Initialize task
@@ -87,7 +87,7 @@ struct ClientPushSubmitTask : public Task, TaskFlags<TF_LOCAL> {
     if (orig_task->IsFlush()) {
       task_flags_.SetBits(TASK_FLUSH);
     }
-    domain_id_ = domain_id;
+    dom_query_ = dom_query;
 
     orig_task_ = orig_task;
   }
@@ -102,7 +102,7 @@ struct ClientSubmitTask : public Task, TaskFlags<TF_LOCAL> {
   HSHM_ALWAYS_INLINE explicit
   ClientSubmitTask(hipc::Allocator *alloc,
                    const TaskNode &task_node,
-                   const DomainId &domain_id,
+                   const DomainQuery &dom_query,
                    TaskStateId &state_id,
                    size_t lane_hash) : Task(alloc) {
     // Initialize task
@@ -112,7 +112,7 @@ struct ClientSubmitTask : public Task, TaskFlags<TF_LOCAL> {
     task_state_ = state_id;
     method_ = Method::kClientSubmit;
     task_flags_.SetBits(TASK_LONG_RUNNING | TASK_REMOTE_DEBUG_MARK);
-    domain_id_ = domain_id;
+    dom_query_ = dom_query;
   }
 };
 
@@ -125,7 +125,7 @@ struct ServerPushCompleteTask : public Task, TaskFlags<TF_LOCAL> {
   HSHM_ALWAYS_INLINE explicit
   ServerPushCompleteTask(hipc::Allocator *alloc,
                          const TaskNode &task_node,
-                         const DomainId &domain_id,
+                         const DomainQuery &dom_query,
                          TaskStateId &state_id) : Task(alloc) {}
 };
 
@@ -138,7 +138,7 @@ struct ServerCompleteTask : public Task, TaskFlags<TF_LOCAL> {
   HSHM_ALWAYS_INLINE explicit
   ServerCompleteTask(hipc::Allocator *alloc,
                      const TaskNode &task_node,
-                     const DomainId &domain_id,
+                     const DomainQuery &dom_query,
                      TaskStateId &state_id,
                      size_t lane_hash) : Task(alloc) {
     // Initialize task
@@ -148,7 +148,7 @@ struct ServerCompleteTask : public Task, TaskFlags<TF_LOCAL> {
     task_state_ = state_id;
     method_ = Method::kServerComplete;
     task_flags_.SetBits(TASK_LONG_RUNNING);
-    domain_id_ = domain_id;
+    dom_query_ = dom_query;
     SetPeriodUs(15);
   }
 };

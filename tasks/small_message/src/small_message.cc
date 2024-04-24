@@ -43,7 +43,7 @@ class Server : public TaskLib {
       LPointer<MdTask> depth_task =
           client_.AsyncMd(task,
                           task->task_node_ + 1,
-                          task->domain_id_,
+                          task->dom_query_,
                           task->GetLaneHash() + 2,
                           task->depth_ - 1, 0);
       task->Wait<TASK_YIELD_CO>(depth_task);

@@ -25,7 +25,7 @@ namespace thallium {
 namespace chm::remote_queue {
 
 struct TaskQueueEntry {
-  DomainId domain_;
+  DomainQuery domain_;
   Task *task_;
 };
 
@@ -45,10 +45,10 @@ struct SharedState {
     for (size_t i = 0; i < num_lanes; ++i) {
       submitters_[i] = HRUN_REMOTE_QUEUE->AsyncClientSubmit(
           task, task->task_node_ + 1,
-          DomainId::GetLocal(), i);
+          DomainQuery::GetLocal(), i);
       completers_[i] = HRUN_REMOTE_QUEUE->AsyncServerComplete(
           task, task->task_node_ + 1,
-          DomainId::GetLocal(), i);
+          DomainQuery::GetLocal(), i);
     }
   }
 };
@@ -64,7 +64,7 @@ class Server : public TaskLib {
   void Create(CreateTask *task, RunContext &rctx) {
     HILOG(kInfo, "(node {}) Constructing remote queue (task_node={}, task_state={}, method={})",
           HRUN_CLIENT->node_id_, task->task_node_, task->task_state_, task->method_);
-    if (lane_id_ == 0) {
+    if (rctx.exec_ == this) {
       HRUN_THALLIUM->RegisterRpc(
           *HRUN_WORK_ORCHESTRATOR->rpc_pool_,
           "RpcTaskSubmit", [this](
@@ -101,13 +101,102 @@ class Server : public TaskLib {
   void MonitorDestruct(u32 mode, DestructTask *task, RunContext &rctx) {
   }
 
+  /** Check the cache first for a successful hit */
+  bool CheckLocalCache(Task *task,
+                       Task *orig_task) {
+    bool deep = false;
+    TaskState *exec = HRUN_TASK_REGISTRY->GetTaskStateAny(
+        orig_task->task_state_);
+    LPointer<Task> replica;
+    exec->CopyStart(orig_task->method_, orig_task, replica, deep);
+    replica->dom_query_ = orig_task->dom_query_;  // TODO(llogan): Make this the cache query
+    replica->ctx_.pending_to_ = task;
+    size_t lane_hash = orig_task->dom_query_.lane_hash_;
+    // Enqueue the task
+    MultiQueue *queue = HRUN_CLIENT->GetQueue(exec->id_);
+    queue->Emplace(replica->prio_, replica->GetLaneHash(), replica.shm_);
+    // Wait
+    task->Wait<TASK_YIELD_CO>(replica, TASK_MODULE_COMPLETE);
+    bool success = true;  // TODO(llogan): Check for success
+    // Free
+    HILOG(kDebug, "Replicas were waited for and completed");
+    HRUN_CLIENT->DelTask(exec, replica.ptr_);
+    return success;
+  }
+
+  /** Repeat task until success */
+  void FirstSuccess(Task *task,
+                    Task *orig_task,
+                    std::vector<DomainQuery> &dom_queries) {
+    // Replicate task
+    bool deep = false;
+    for (DomainQuery &dom_query : dom_queries) {
+      TaskState *exec = HRUN_TASK_REGISTRY->GetTaskStateAny(
+          orig_task->task_state_);
+      LPointer<Task> replica;
+      exec->CopyStart(orig_task->method_, orig_task, replica, deep);
+      replica->ctx_.pending_to_ = task;
+      size_t lane_hash = std::hash<DomainQuery>{}(dom_query);
+      auto &submit = shared_->submit_;
+      submit[lane_hash % submit.size()].emplace(
+          (TaskQueueEntry) {dom_query, replica.ptr_});
+      // Wait
+      task->Wait<TASK_YIELD_CO>(replica, TASK_MODULE_COMPLETE);
+      bool success = true;  // TODO(llogan): Check for success
+      // Free
+      HILOG(kDebug, "Replicas were waited for and completed");
+      HRUN_CLIENT->DelTask(exec, replica.ptr_);
+      if (success) {
+        break;
+      }
+    }
+  }
+
+  /** Replicate the task across a node set */
+  void Replicate(Task *task,
+                 Task *orig_task,
+                 std::vector<DomainQuery> &dom_queries,
+                 RunContext &rctx) {
+    std::vector<LPointer<Task>> replicas;
+    replicas.reserve(dom_queries.size());
+    // Replicate task
+    bool deep = dom_queries.size() > 1;
+    for (DomainQuery &dom_query : dom_queries) {
+      LPointer<Task> replica;
+      TaskState *exec = HRUN_TASK_REGISTRY->GetTaskStateAny(
+          orig_task->task_state_);
+      exec->CopyStart(orig_task->method_, orig_task, replica, deep);
+      replica->ctx_.pending_to_ = task;
+      size_t lane_hash = std::hash<DomainQuery>{}(dom_query);
+      auto &submit = shared_->submit_;
+      submit[lane_hash % submit.size()].emplace(
+          (TaskQueueEntry) {dom_query, replica.ptr_});
+      replicas.emplace_back(replica);
+    }
+    // Wait & combine replicas
+    if (!task->IsFireAndForget()) {
+      // Wait
+      task->Wait<TASK_YIELD_CO>(replicas, TASK_MODULE_COMPLETE);
+      // Combine
+      TaskState *exec = HRUN_TASK_REGISTRY->GetTaskStateAny(
+          orig_task->task_state_);
+      rctx.replicas_ = &replicas;
+      exec->Monitor(MonitorMode::kReplicaAgg, orig_task, rctx);
+      // Free
+      HILOG(kDebug, "Replicas were waited for and completed");
+      for (LPointer<Task> &replica : replicas) {
+        HRUN_CLIENT->DelTask(exec, replica.ptr_);
+      }
+    }
+  }
+
   /** Push operation called on client */
   void ClientPushSubmit(ClientPushSubmitTask *task, RunContext &rctx) {
     // Get domain IDs
     Task *orig_task = task->orig_task_;
-    std::vector<DomainId> domain_ids = HRUN_RUNTIME->ResolveDomainId(
-        orig_task->domain_id_);
-    if (domain_ids.size() == 0) {
+    std::vector<DomainQuery> dom_queries = HRUN_RUNTIME->ResolveDomainQuery(
+        orig_task->dom_query_);
+    if (dom_queries.size() == 0) {
       task->SetModuleComplete();
       Worker::SignalUnblock(orig_task);
       return;
@@ -115,40 +204,9 @@ class Server : public TaskLib {
 
     HILOG(kDebug, "ClientPushTask: {} ({}), Original Task: {} ({})",
           (size_t)task, task, (size_t)orig_task, orig_task);
-
-    Task state_buf(0);
-    orig_task->GetState(state_buf);
-    std::vector<LPointer<Task>> replicas;
-    replicas.reserve(domain_ids.size());
+    // Try task
     // Replicate task
-    bool deep = domain_ids.size() > 1;
-    for (DomainId &domain_id : domain_ids) {
-      TaskState *exec = HRUN_TASK_REGISTRY->GetTaskStateAny(
-          orig_task->task_state_);
-      LPointer<Task> replica;
-      exec->CopyStart(orig_task->method_, orig_task, replica, deep);
-      replica->ctx_.pending_to_ = task;
-      size_t lane_hash = std::hash<DomainId>{}(domain_id);
-      auto &submit = shared_->submit_;
-      submit[lane_hash % submit.size()].emplace(
-          (TaskQueueEntry) {domain_id, replica.ptr_});
-      replicas.emplace_back(replica);
-    }
-    // Wait & combine replicas
-    if (!state_buf.IsFireAndForget()) {
-      // Wait
-      task->Wait<TASK_YIELD_CO>(replicas, TASK_MODULE_COMPLETE);
-      // Combine
-      TaskState *exec = HRUN_TASK_REGISTRY->GetTaskStateAny(
-          orig_task->task_state_);
-      rctx.replicas_ = &replicas;
-      // Free
-      exec->Monitor(MonitorMode::kReplicaAgg, orig_task, rctx);
-      HILOG(kDebug, "Replicas were waited for and completed");
-      for (LPointer<Task> &replica : replicas) {
-        HRUN_CLIENT->DelTask(exec, replica.ptr_);
-      }
-    }
+    Replicate(task, orig_task, dom_queries, rctx);
 
     // Unblock original task
     if (!orig_task->IsLongRunning()) {
@@ -170,7 +228,7 @@ class Server : public TaskLib {
   void ClientSubmit(ClientSubmitTask *task, RunContext &rctx) {
     try {
       TaskQueueEntry entry;
-      std::unordered_map<DomainId, BinaryOutputArchive<true>> entries;
+      std::unordered_map<DomainQuery, BinaryOutputArchive<true>> entries;
       auto &submit = shared_->submit_;
       while (!submit[0].pop(entry).IsNull()) {
         HILOG(kDebug, "(node {}) Submitting task {} ({}) to domain {}",
@@ -195,7 +253,7 @@ class Server : public TaskLib {
       for (auto it = entries.begin(); it != entries.end(); ++it) {
         SegmentedTransfer xfer = it->second.Get();
         xfer.ret_domain_ =
-            DomainId::GetNode(HRUN_CLIENT->node_id_);
+            DomainQuery::GetNode(HRUN_CLIENT->node_id_);
         hshm::Timer t;
         t.Resume();
         HRUN_THALLIUM->SyncIoCall<int>((i32)it->first.GetId(),
@@ -242,8 +300,8 @@ class Server : public TaskLib {
     if (task->ctx_.ret_task_addr_ == (size_t)task) {
       HILOG(kFatal, "This shouldn't happen ever");
     }
-    DomainId ret_domain = task->ctx_.ret_domain_;
-    size_t lane_hash = std::hash<DomainId>{}(ret_domain);
+    DomainQuery ret_domain = task->ctx_.ret_domain_;
+    size_t lane_hash = std::hash<DomainQuery>{}(ret_domain);
     auto &complete = shared_->complete_;
     complete[lane_hash % complete.size()].emplace((TaskQueueEntry){
         ret_domain, task
@@ -260,7 +318,7 @@ class Server : public TaskLib {
     try {
       // Serialize task completions
       TaskQueueEntry entry;
-      std::unordered_map<DomainId, BinaryOutputArchive<false>> entries;
+      std::unordered_map<DomainQuery, BinaryOutputArchive<false>> entries;
       auto &complete = shared_->complete_;
       size_t count = complete[0].GetSize();
       std::vector<TaskQueueEntry> completed;
@@ -358,7 +416,7 @@ class Server : public TaskLib {
     TaskPointer task_ptr = exec->LoadStart(method, ar);
     Task *orig_task = task_ptr.ptr_;
     orig_task = task_ptr.ptr_;
-    orig_task->domain_id_ = DomainId::GetNode(HRUN_CLIENT->node_id_);
+    orig_task->dom_query_ = DomainQuery::GetNode(HRUN_CLIENT->node_id_);
     orig_task->ctx_.ret_task_addr_ = xfer.tasks_[task_off].task_addr_;
     orig_task->ctx_.ret_domain_ = xfer.ret_domain_;
     if (orig_task->ctx_.ret_task_addr_ == (size_t)orig_task) {

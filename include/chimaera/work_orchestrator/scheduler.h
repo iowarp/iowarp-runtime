@@ -34,7 +34,7 @@ struct ScheduleTask : public Task, TaskFlags<TF_LOCAL> {
   HSHM_ALWAYS_INLINE explicit
   ScheduleTask(hipc::Allocator *alloc,
                const TaskNode &task_node,
-               const DomainId &domain_id,
+               const DomainQuery &dom_query,
                TaskStateId &state_id) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
@@ -44,7 +44,7 @@ struct ScheduleTask : public Task, TaskFlags<TF_LOCAL> {
     method_ = SchedulerMethod::kSchedule;
     task_flags_.SetBits(TASK_LONG_RUNNING | TASK_REMOTE_DEBUG_MARK);
     SetPeriodMs(250);
-    domain_id_ = domain_id;
+    dom_query_ = dom_query;
 
     // Custom params
     ret_.construct(alloc, 1);

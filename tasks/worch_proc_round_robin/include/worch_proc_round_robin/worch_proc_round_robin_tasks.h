@@ -31,10 +31,10 @@ struct CreateTask : public CreateTaskStateTask {
   HSHM_ALWAYS_INLINE
   CreateTask(hipc::Allocator *alloc,
                 const TaskNode &task_node,
-                const DomainId &domain_id,
+                const DomainQuery &dom_query,
                 const std::string &state_name,
                 const TaskStateId &id)
-      : CreateTaskStateTask(alloc, task_node, domain_id, state_name,
+      : CreateTaskStateTask(alloc, task_node, dom_query, state_name,
                             "worch_proc_round_robin", id) {
   }
 };
@@ -50,9 +50,9 @@ struct DestructTask : public DestroyTaskStateTask {
   HSHM_ALWAYS_INLINE
   DestructTask(hipc::Allocator *alloc,
                const TaskNode &task_node,
-               const DomainId &domain_id,
+               const DomainQuery &dom_query,
                TaskStateId &state_id)
-      : DestroyTaskStateTask(alloc, task_node, domain_id, state_id) {}
+      : DestroyTaskStateTask(alloc, task_node, dom_query, state_id) {}
 };
 
 }  // namespace chm::worch_proc_round_robin

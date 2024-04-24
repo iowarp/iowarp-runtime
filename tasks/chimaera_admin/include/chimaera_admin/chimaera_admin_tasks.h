@@ -24,7 +24,7 @@ struct RegisterTaskLibTaskTempl : public Task, TaskFlags<TF_SRL_SYM> {
   HSHM_ALWAYS_INLINE explicit
   RegisterTaskLibTaskTempl(hipc::Allocator *alloc,
                            const TaskNode &task_node,
-                           const DomainId &domain_id,
+                           const DomainQuery &dom_query,
                            const std::string &lib_name)
   : Task(alloc), lib_name_(alloc, lib_name) {
     // Initialize task
@@ -38,7 +38,7 @@ struct RegisterTaskLibTaskTempl : public Task, TaskFlags<TF_SRL_SYM> {
       method_ = Method::kDestroyTaskLib;
     }
     task_flags_.SetBits(0);
-    domain_id_ = domain_id;
+    dom_query_ = dom_query;
   }
 
   /** Destructor */
@@ -91,7 +91,7 @@ struct GetOrCreateTaskStateIdTask : public Task, TaskFlags<TF_SRL_SYM> {
   HSHM_ALWAYS_INLINE explicit
   GetOrCreateTaskStateIdTask(hipc::Allocator *alloc,
                              const TaskNode &task_node,
-                             const DomainId &domain_id,
+                             const DomainQuery &dom_query,
                              const std::string &state_name)
   : Task(alloc), state_name_(alloc, state_name) {
     // Initialize task
@@ -101,7 +101,7 @@ struct GetOrCreateTaskStateIdTask : public Task, TaskFlags<TF_SRL_SYM> {
     task_state_ = HRUN_QM_CLIENT->admin_task_state_;
     method_ = Method::kGetOrCreateTaskStateId;
     task_flags_.SetBits(0);
-    domain_id_ = domain_id;
+    dom_query_ = dom_query;
   }
 
   ~GetOrCreateTaskStateIdTask() {}
@@ -141,7 +141,7 @@ struct CreateTaskStateTask : public Task, TaskFlags<TF_SRL_SYM> {
   HSHM_ALWAYS_INLINE explicit
   CreateTaskStateTask(hipc::Allocator *alloc,
                       const TaskNode &task_node,
-                      const DomainId &domain_id,
+                      const DomainQuery &dom_query,
                       const std::string &state_name,
                       const std::string &lib_name,
                       const TaskStateId &id)
@@ -155,7 +155,7 @@ struct CreateTaskStateTask : public Task, TaskFlags<TF_SRL_SYM> {
     task_state_ = HRUN_QM_CLIENT->admin_task_state_;
     method_ = Method::kCreateTaskState;
     task_flags_.SetBits(TASK_COROUTINE);
-    domain_id_ = domain_id;
+    dom_query_ = dom_query;
 
     // Initialize
     id_ = id;
@@ -201,7 +201,7 @@ struct GetTaskStateIdTask : public Task, TaskFlags<TF_SRL_SYM> {
   HSHM_ALWAYS_INLINE explicit
   GetTaskStateIdTask(hipc::Allocator *alloc,
                      const TaskNode &task_node,
-                     const DomainId &domain_id,
+                     const DomainQuery &dom_query,
                      const std::string &state_name)
   : Task(alloc), state_name_(alloc, state_name) {
     // Initialize task
@@ -211,7 +211,7 @@ struct GetTaskStateIdTask : public Task, TaskFlags<TF_SRL_SYM> {
     task_state_ = HRUN_QM_CLIENT->admin_task_state_;
     method_ = Method::kGetTaskStateId;
     task_flags_.SetBits(0);
-    domain_id_ = domain_id; }
+    dom_query_ = dom_query; }
 
   ~GetTaskStateIdTask() {}
 
@@ -246,7 +246,7 @@ struct DestroyTaskStateTask : public Task, TaskFlags<TF_SRL_SYM> {
   HSHM_ALWAYS_INLINE explicit
   DestroyTaskStateTask(hipc::Allocator *alloc,
                        const TaskNode &task_node,
-                       const DomainId &domain_id,
+                       const DomainQuery &dom_query,
                        const TaskStateId &id) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
@@ -255,7 +255,7 @@ struct DestroyTaskStateTask : public Task, TaskFlags<TF_SRL_SYM> {
     task_state_ = HRUN_QM_CLIENT->admin_task_state_;
     method_ = Method::kDestroyTaskState;
     task_flags_.SetBits(0);
-    domain_id_ = domain_id;
+    dom_query_ = dom_query;
 
     // Initialize
     id_ = id;
@@ -289,7 +289,7 @@ struct StopRuntimeTask : public Task, TaskFlags<TF_SRL_SYM> {
   HSHM_ALWAYS_INLINE explicit
   StopRuntimeTask(hipc::Allocator *alloc,
                   const TaskNode &task_node,
-                  const DomainId &domain_id) : Task(alloc) {
+                  const DomainQuery &dom_query) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
     GetLaneHash() = 0;
@@ -297,7 +297,7 @@ struct StopRuntimeTask : public Task, TaskFlags<TF_SRL_SYM> {
     task_state_ = HRUN_QM_CLIENT->admin_task_state_;
     method_ = Method::kStopRuntime;
     task_flags_.SetBits(TASK_FLUSH | TASK_FIRE_AND_FORGET);
-    domain_id_ = domain_id;
+    dom_query_ = dom_query;
   }
 
   /** Duplicate message */
@@ -328,7 +328,7 @@ struct SetWorkOrchestratorPolicyTask : public Task, TaskFlags<TF_SRL_SYM> {
   HSHM_ALWAYS_INLINE explicit
   SetWorkOrchestratorPolicyTask(hipc::Allocator *alloc,
                                 const TaskNode &task_node,
-                                const DomainId &domain_id,
+                                const DomainQuery &dom_query,
                                 const TaskStateId &policy_id) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
@@ -341,7 +341,7 @@ struct SetWorkOrchestratorPolicyTask : public Task, TaskFlags<TF_SRL_SYM> {
       method_ = Method::kSetWorkOrchProcPolicy;
     }
     task_flags_.SetBits(0);
-    domain_id_ = domain_id;
+    dom_query_ = dom_query;
 
     // Initialize
     policy_id_ = policy_id;
@@ -377,7 +377,7 @@ struct FlushTask : public Task, TaskFlags<TF_SRL_SYM> {
   HSHM_ALWAYS_INLINE explicit
   FlushTask(hipc::Allocator *alloc,
             const TaskNode &task_node,
-            const DomainId &domain_id) : Task(alloc) {
+            const DomainQuery &dom_query) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
     GetLaneHash() = 0;
@@ -385,7 +385,7 @@ struct FlushTask : public Task, TaskFlags<TF_SRL_SYM> {
     task_state_ = HRUN_QM_CLIENT->admin_task_state_;
     method_ = Method::kFlush;
     task_flags_.SetBits(TASK_FLUSH | TASK_COROUTINE);
-    domain_id_ = domain_id;
+    dom_query_ = dom_query;
 
     // Custom
     work_done_ = 0;
@@ -411,7 +411,7 @@ struct FlushTask : public Task, TaskFlags<TF_SRL_SYM> {
 
 /** A task to get the domain size */
 struct DomainSizeTask : public Task, TaskFlags<TF_LOCAL> {
-  IN DomainId comm_;
+  IN DomainQuery comm_;
   OUT size_t comm_size_;
 
   /** SHM default constructor */
@@ -421,7 +421,7 @@ struct DomainSizeTask : public Task, TaskFlags<TF_LOCAL> {
   HSHM_ALWAYS_INLINE explicit
   DomainSizeTask(hipc::Allocator *alloc,
                  const TaskNode &task_node,
-                 const DomainId &domain_id) : Task(alloc) {
+                 const DomainQuery &dom_query) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
     GetLaneHash() = 0;
@@ -429,17 +429,17 @@ struct DomainSizeTask : public Task, TaskFlags<TF_LOCAL> {
     task_state_ = HRUN_QM_CLIENT->admin_task_state_;
     method_ = Method::kDomainSize;
     task_flags_.SetBits(0);
-    domain_id_ = DomainId::GetLocal();
+    dom_query_ = DomainQuery::GetLocal();
 
     // Custom
-    comm_ = domain_id;
+    comm_ = dom_query;
     comm_size_ = 0;
   }
 };
 
 /** A task to update the lane mapping */
 struct UpdateLaneMappingTask : public Task, TaskFlags<TF_SRL_SYM> {
-  IN hipc::vector<hipc::pair<StateLaneId, DomainId>> mapping_;
+  IN hipc::vector<hipc::pair<StateLaneId, DomainQuery>> mapping_;
 
   /** SHM default constructor */
   UpdateLaneMappingTask(hipc::Allocator *alloc)
@@ -450,8 +450,8 @@ struct UpdateLaneMappingTask : public Task, TaskFlags<TF_SRL_SYM> {
   UpdateLaneMappingTask(
       hipc::Allocator *alloc,
       const TaskNode &task_node,
-      const DomainId &domain_id,
-      const std::vector<std::pair<StateLaneId, DomainId>> &mapping)
+      const DomainQuery &dom_query,
+      const std::vector<std::pair<StateLaneId, DomainQuery>> &mapping)
   : Task(alloc), mapping_(alloc) {
     // Initialize task
     task_node_ = task_node;
@@ -460,7 +460,7 @@ struct UpdateLaneMappingTask : public Task, TaskFlags<TF_SRL_SYM> {
     task_state_ = HRUN_QM_CLIENT->admin_task_state_;
     method_ = Method::kUpdateLaneMapping;
     task_flags_.SetBits(0);
-    domain_id_ = domain_id;
+    dom_query_ = dom_query;
 
     // Copy the mapping
     mapping_.reserve(mapping.size());
@@ -490,7 +490,7 @@ struct UpdateLaneMappingTask : public Task, TaskFlags<TF_SRL_SYM> {
 struct GetLaneMappingTask : public Task, TaskFlags<TF_SRL_SYM> {
   IN TaskStateId state_id_;
   IN LaneId lane_id_;
-  OUT DomainId lane_domain_;
+  OUT DomainQuery lane_domain_;
 
   /** SHM default constructor */
   GetLaneMappingTask(hipc::Allocator *alloc)
@@ -501,7 +501,7 @@ struct GetLaneMappingTask : public Task, TaskFlags<TF_SRL_SYM> {
   GetLaneMappingTask(
       hipc::Allocator *alloc,
       const TaskNode &task_node,
-      const DomainId &domain_id,
+      const DomainQuery &dom_query,
       const TaskStateId &state_id,
       LaneId lane_id)
   : Task(alloc) {
@@ -512,7 +512,7 @@ struct GetLaneMappingTask : public Task, TaskFlags<TF_SRL_SYM> {
     task_state_ = HRUN_QM_CLIENT->admin_task_state_;
     method_ = Method::kGetLaneMapping;
     task_flags_.SetBits(0);
-    domain_id_ = domain_id;
+    dom_query_ = dom_query;
 
     state_id_ = state_id;
     lane_id_ = lane_id;
@@ -551,7 +551,7 @@ struct UpdateLaneCountTask : public Task, TaskFlags<TF_SRL_SYM> {
   UpdateLaneCountTask(
       hipc::Allocator *alloc,
       const TaskNode &task_node,
-      const DomainId &domain_id,
+      const DomainQuery &dom_query,
       const TaskStateId &state_id,
       u32 lane_count)
   : Task(alloc) {
@@ -562,7 +562,7 @@ struct UpdateLaneCountTask : public Task, TaskFlags<TF_SRL_SYM> {
     task_state_ = HRUN_QM_CLIENT->admin_task_state_;
     method_ = Method::kDomainSize;
     task_flags_.SetBits(0);
-    domain_id_ = domain_id;
+    dom_query_ = dom_query;
 
     state_id_ = state_id;
     lane_count_ = lane_count;

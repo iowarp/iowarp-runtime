@@ -43,7 +43,7 @@ struct DataTransferBase {
   hshm::bitfield32_t flags_;  /**< Indicates how data will be accessed */
   void *data_;                /**< The virtual address of data on the node */
   size_t data_size_;          /**< The amount of data to transfer */
-  DomainId node_id_;          /**< The node data is located */
+  DomainQuery node_id_;          /**< The node data is located */
 
   /** Serialize a data transfer object */
   template<typename Ar>
@@ -56,7 +56,7 @@ struct DataTransferBase {
 
   /** Emplace constructor */
   DataTransferBase(u32 flags, void *data, size_t data_size,
-                   const DomainId &node_id = DomainId::GetLocal()) :
+                   const DomainQuery &node_id = DomainQuery::GetLocal()) :
   flags_(flags), data_(data), data_size_(data_size), node_id_(node_id) {}
 
   /** Copy constructor */
@@ -119,7 +119,7 @@ struct TaskSegment {
 
 class SegmentedTransfer {
  public:
-  DomainId ret_domain_;              /**< Domain of node to return to */
+  DomainQuery ret_domain_;              /**< Domain of node to return to */
   std::vector<TaskSegment> tasks_;   /**< Task info */
   std::vector<DataTransfer> bulk_;   /**< Data payloads */
   std::string md_;                   /**< Metadata */
@@ -178,7 +178,7 @@ class BinaryOutputArchive {
   BinaryOutputArchive& bulk(u32 flags,
                             hipc::Pointer &data,
                             size_t &data_size,
-                            DomainId &node_id) {
+                            DomainQuery &node_id) {
     char *data_ptr = HERMES_MEMORY_MANAGER->Convert<char>(data);
     bulk(flags, data_ptr, data_size, node_id);
     if constexpr (is_start) {
@@ -193,7 +193,7 @@ class BinaryOutputArchive {
   BinaryOutputArchive& bulk(u32 flags,
                             char *data,
                             size_t &data_size,
-                            DomainId &node_id) {
+                            DomainQuery &node_id) {
     xfer_.bulk_.emplace_back(
         (DataTransfer){flags, data, data_size, node_id});
     return *this;
@@ -292,7 +292,7 @@ class BinaryInputArchive {
   BinaryInputArchive& bulk(u32 flags,
                            hipc::Pointer &data,
                            size_t &data_size,
-                           DomainId &node_id) {
+                           DomainQuery &node_id) {
     char *xfer_data;
     if constexpr (!is_start) {
       xfer_data = HERMES_MEMORY_MANAGER->Convert<char>(data);
@@ -310,7 +310,7 @@ class BinaryInputArchive {
   BinaryInputArchive& bulk(u32 flags,
                            char *&data,
                            size_t &data_size,
-                           DomainId &node_id) {
+                           DomainQuery &node_id) {
     DataTransfer &xfer = xfer_.bulk_[xfer_off_++];
     if constexpr (is_start) {
       data = (char *) xfer.data_;

@@ -29,10 +29,10 @@ struct CreateTask : public CreateTaskStateTask {
   HSHM_ALWAYS_INLINE explicit
   CreateTask(hipc::Allocator *alloc,
                 const TaskNode &task_node,
-                const DomainId &domain_id,
+                const DomainQuery &dom_query,
                 const std::string &state_name,
                 const TaskStateId &id)
-      : CreateTaskStateTask(alloc, task_node, domain_id, state_name,
+      : CreateTaskStateTask(alloc, task_node, dom_query, state_name,
                             "TASK_NAME", id) {
     // Custom params
   }
@@ -55,9 +55,9 @@ struct DestructTask : public DestroyTaskStateTask {
   HSHM_ALWAYS_INLINE explicit
   DestructTask(hipc::Allocator *alloc,
                const TaskNode &task_node,
-               const DomainId &domain_id,
+               const DomainQuery &dom_query,
                TaskStateId &state_id)
-  : DestroyTaskStateTask(alloc, task_node, domain_id, state_id) {}
+  : DestroyTaskStateTask(alloc, task_node, dom_query, state_id) {}
 };
 
 /**
@@ -72,7 +72,7 @@ struct CustomTask : public Task, TaskFlags<TF_SRL_SYM> {
   HSHM_ALWAYS_INLINE explicit
   CustomTask(hipc::Allocator *alloc,
              const TaskNode &task_node,
-             const DomainId &domain_id,
+             const DomainQuery &dom_query,
              const TaskStateId &state_id) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
@@ -81,7 +81,7 @@ struct CustomTask : public Task, TaskFlags<TF_SRL_SYM> {
     task_state_ = state_id;
     method_ = Method::kCustom;
     task_flags_.SetBits(0);
-    domain_id_ = domain_id;
+    dom_query_ = dom_query;
 
     // Custom params
   }

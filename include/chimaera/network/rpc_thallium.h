@@ -66,7 +66,7 @@ class ThalliumRpc {
                                                   THALLIUM_CLIENT_MODE,
                                                   true, 1);
     HILOG(kInfo, "This client is on node {} (i.e., {}, proto: {})",
-          rpc->node_id_, rpc->GetHostNameFromNodeId(DomainId::GetNode(rpc->node_id_)), protocol);
+          rpc->node_id_, rpc->GetHostNameFromNodeId(DomainQuery::GetNode(rpc->node_id_)), protocol);
   }
 
   /** Run the daemon */
@@ -84,7 +84,7 @@ class ThalliumRpc {
 
   /** Thallium-compatible server name */
   std::string GetServerName(u32 node_id) {
-    std::string ip_address = rpc_->GetIpAddressFromNodeId(DomainId::GetNode(node_id));
+    std::string ip_address = rpc_->GetIpAddressFromNodeId(DomainQuery::GetNode(node_id));
     return rpc_->protocol_ + "://" +
         std::string(ip_address) +
         ":" + std::to_string(rpc_->port_);

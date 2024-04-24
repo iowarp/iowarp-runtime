@@ -14,7 +14,7 @@
 #include "chimaera/network/serialize.h"
 #include "chimaera/task_registry/task.h"
 
-using chm::DomainId;
+using chm::DomainQuery;
 using chm::BinaryOutputArchive;
 using chm::BinaryInputArchive;
 using chm::DataTransfer;
@@ -39,7 +39,7 @@ struct TestObj : public Task, TaskFlags<TF_SRL_SYM> {
   /** (De)serialize message call */
   template<typename Ar>
   void SerializeStart(Ar &ar) {
-    ar.bulk(DT_SENDER_WRITE, data_p_, data_size_, domain_id_);
+    ar.bulk(DT_SENDER_WRITE, data_p_, data_size_, dom_query_);
     ar(a_, b_, c_);
   }
 

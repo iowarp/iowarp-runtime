@@ -22,17 +22,17 @@ class Client : public TaskLibClient {
   /** Create a small_message */
   void AsyncCreateConstruct(CreateTask *task,
                             const TaskNode &task_node,
-                            const DomainId &domain_id,
+                            const DomainQuery &dom_query,
                             const std::string &state_name,
                             const TaskStateId &id) {
     HRUN_CLIENT->ConstructTask<CreateTask>(
-        task, task_node, domain_id, state_name, id);
+        task, task_node, dom_query, state_name, id);
   }
-  void CreateRoot(const DomainId &domain_id,
+  void CreateRoot(const DomainQuery &dom_query,
                   const std::string &state_name,
                   const TaskStateId &id = TaskId::GetNull()) {
     LPointer<CreateTask> task = AsyncCreateRoot(
-        domain_id, state_name, id);
+        dom_query, state_name, id);
     task->Wait();
     Init(task->id_);
     HRUN_CLIENT->DelTask(task);
@@ -41,21 +41,21 @@ class Client : public TaskLibClient {
 
   /** Destroy state + queue */
   HSHM_ALWAYS_INLINE
-  void DestroyRoot(const DomainId &domain_id) {
-    CHM_ADMIN->DestroyTaskStateRoot(domain_id, id_);
+  void DestroyRoot(const DomainQuery &dom_query) {
+    CHM_ADMIN->DestroyTaskStateRoot(dom_query, id_);
   }
 
   /** Metadata task */
   void AsyncMdConstruct(MdTask *task,
                         const TaskNode &task_node,
-                        const DomainId &domain_id,
+                        const DomainQuery &dom_query,
                         u32 lane_hash, u32 depth, u32 flags) {
     HRUN_CLIENT->ConstructTask<MdTask>(
-        task, task_node, domain_id, id_, lane_hash, depth, flags);
+        task, task_node, dom_query, id_, lane_hash, depth, flags);
   }
-  int MdRoot(const DomainId &domain_id, u32 lane_hash, u32 depth, u32 flags) {
+  int MdRoot(const DomainQuery &dom_query, u32 lane_hash, u32 depth, u32 flags) {
     LPointer<MdTask> task =
-        AsyncMdRoot(domain_id, lane_hash, depth, flags);
+        AsyncMdRoot(dom_query, lane_hash, depth, flags);
     task->Wait();
     int ret = task->ret_;
     HRUN_CLIENT->DelTask(task);
@@ -65,16 +65,16 @@ class Client : public TaskLibClient {
 
   /** Io task */
   void AsyncIoConstruct(IoTask *task, const TaskNode &task_node,
-                        const DomainId &domain_id,
+                        const DomainQuery &dom_query,
                         size_t io_size,
                         u32 io_flags) {
     HRUN_CLIENT->ConstructTask<IoTask>(
-        task, task_node, domain_id, id_, io_size, io_flags);
+        task, task_node, dom_query, id_, io_size, io_flags);
   }
-  void IoRoot(const DomainId &domain_id, size_t io_size,
+  void IoRoot(const DomainQuery &dom_query, size_t io_size,
              u32 io_flags, size_t &write_ret, size_t &read_ret) {
     LPointer<IoTask> task =
-        AsyncIoRoot(domain_id, io_size, io_flags);
+        AsyncIoRoot(dom_query, io_size, io_flags);
     task->Wait();
     write_ret = task->ret_;
     char *data = HRUN_CLIENT->GetDataPointer(task->data_);

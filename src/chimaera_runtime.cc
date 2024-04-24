@@ -82,7 +82,7 @@ void Runtime::ServerInit(std::string server_config_path) {
   // Initially schedule queues to workers
   auto queue_task = HRUN_CLIENT->NewTask<ScheduleTask>(
       HRUN_CLIENT->MakeTaskNodeId(),
-      DomainId::GetLocal(),
+      DomainQuery::GetLocal(),
       queue_sched_id);
   state->Run(queue_task->method_,
              queue_task.ptr_,
@@ -101,14 +101,14 @@ void Runtime::ServerInit(std::string server_config_path) {
       max_lanes);
 
   // Set the work orchestrator queue scheduler
-  CHM_ADMIN->SetWorkOrchQueuePolicyRoot(chm::DomainId::GetLocal(),
+  CHM_ADMIN->SetWorkOrchQueuePolicyRoot(chm::DomainQuery::GetLocal(),
                                         queue_sched_id);
-  CHM_ADMIN->SetWorkOrchProcPolicyRoot(chm::DomainId::GetLocal(),
+  CHM_ADMIN->SetWorkOrchProcPolicyRoot(chm::DomainQuery::GetLocal(),
                                        proc_sched_id);
 
   // Create the remote queue library
   task_registry_.RegisterTaskLib("remote_queue");
-  remote_queue_.CreateRoot(DomainId::GetLocal(), "remote_queue",
+  remote_queue_.CreateRoot(DomainQuery::GetLocal(), "remote_queue",
                            HRUN_CLIENT->MakeTaskStateId());
   remote_created_ = true;
 }
@@ -167,31 +167,6 @@ void Runtime::RunDaemon() {
 /** Stop the Hermes core Daemon */
 void Runtime::StopDaemon() {
   HRUN_WORK_ORCHESTRATOR->FinalizeRuntime();
-}
-
-/** Get the set of DomainIds */
-std::vector<DomainId>
-Runtime::ResolveDomainId(const DomainId &domain_id) {
-  std::vector<DomainId> ids;
-  if (domain_id.IsGlobal()) {
-    ids.reserve(rpc_.hosts_.size());
-    if (domain_id.IsNoLocal()) {
-      for (HostInfo &host_info : rpc_.hosts_) {
-        if (host_info.node_id_ != rpc_.node_id_) {
-          ids.push_back(DomainId::GetNode(host_info.node_id_));
-        }
-      }
-    } else {
-      for (HostInfo &host_info : rpc_.hosts_) {
-        ids.push_back(DomainId::GetNode(host_info.node_id_));
-      }
-    }
-  } else if (domain_id.IsNode()) {
-    ids.reserve(1);
-    ids.push_back(domain_id);
-  }
-  // TODO(llogan): handle named domain ID sets
-  return ids;
 }
 
 }  // namespace chm

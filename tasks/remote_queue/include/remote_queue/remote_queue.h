@@ -26,17 +26,17 @@ class Client : public TaskLibClient {
   /** Async create a task state */
   void AsyncCreateConstruct(CreateTask *task,
                             const TaskNode &task_node,
-                            const DomainId &domain_id,
+                            const DomainQuery &dom_query,
                             const std::string &state_name,
                             const TaskStateId &id) {
     HRUN_CLIENT->ConstructTask<CreateTask>(
-        task, task_node, domain_id, state_name, id);
+        task, task_node, dom_query, state_name, id);
   }
-  void CreateRoot(const DomainId &domain_id,
+  void CreateRoot(const DomainQuery &dom_query,
                   const std::string &state_name,
                   const TaskStateId &id = TaskId::GetNull()) {
     LPointer<CreateTask> task = AsyncCreateRoot(
-        domain_id, state_name, id);
+        dom_query, state_name, id);
     task->Wait();
     Init(task->id_);
     HRUN_CLIENT->DelTask(task);
@@ -45,8 +45,8 @@ class Client : public TaskLibClient {
 
   /** Destroy task state + queue */
   HSHM_ALWAYS_INLINE
-  void DestroyRoot(const DomainId &domain_id) {
-    CHM_ADMIN->DestroyTaskStateRoot(domain_id, id_);
+  void DestroyRoot(const DomainQuery &dom_query) {
+    CHM_ADMIN->DestroyTaskStateRoot(dom_query, id_);
   }
 
   /** Construct submit aggregator */
@@ -55,28 +55,28 @@ class Client : public TaskLibClient {
                                       Task *orig_task) {
     HRUN_CLIENT->ConstructTask<ClientPushSubmitTask>(
         task, task_node,
-        DomainId::GetLocal(), id_, orig_task);
+        DomainQuery::GetLocal(), id_, orig_task);
   }
   HRUN_TASK_NODE_PUSH_ROOT(ClientPushSubmit)
 
   /** Construct submit aggregator */
   void AsyncClientSubmitConstruct(ClientSubmitTask *task,
                                   const TaskNode &task_node,
-                                  const DomainId &domain_id,
+                                  const DomainQuery &dom_query,
                                   size_t lane_hash) {
     HRUN_CLIENT->ConstructTask<ClientSubmitTask>(
         task, task_node,
-        domain_id, id_, lane_hash);
+        dom_query, id_, lane_hash);
   }
   HRUN_TASK_NODE_PUSH_ROOT(ClientSubmit)
 
   /** Construct complete aggregator */
   void AsyncServerCompleteConstruct(ServerCompleteTask *task,
                                     const TaskNode &task_node,
-                                    const DomainId &domain_id,
+                                    const DomainQuery &dom_query,
                                     size_t lane_hash) {
     HRUN_CLIENT->ConstructTask<ServerCompleteTask>(
-        task, task_node, domain_id, id_, lane_hash);
+        task, task_node, dom_query, id_, lane_hash);
   }
   HRUN_TASK_NODE_PUSH_ROOT(ServerComplete)
 };

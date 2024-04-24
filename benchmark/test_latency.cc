@@ -28,18 +28,18 @@ void Summarize(size_t nprocs,
 
 void SyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
   chm::small_message::Client client;
-  CHM_ADMIN->RegisterTaskLibRoot(chm::DomainId::GetGlobal(), "small_message");
-  client.CreateRoot(chm::DomainId::GetGlobal(), "ipc_test");
+  CHM_ADMIN->RegisterTaskLibRoot(chm::DomainQuery::GetGlobal(), "small_message");
+  client.CreateRoot(chm::DomainQuery::GetGlobal(), "ipc_test");
   MPI_Barrier(MPI_COMM_WORLD);
   hshm::MpiTimer t(MPI_COMM_WORLD);
   size_t domain_size =
-      CHM_ADMIN->DomainSizeRoot(chm::DomainId::GetGlobal());
+      CHM_ADMIN->DomainSizeRoot(chm::DomainQuery::GetGlobal());
 
   HILOG(kInfo, "OPS: {}", ops)
   t.Resume();
   for (size_t i = 0; i < ops; ++i) {
     int node_id = 1 + (i % domain_size);
-    client.MdRoot(chm::DomainId::GetNode(node_id),
+    client.MdRoot(chm::DomainQuery::GetNode(node_id),
                   i, depth, 0);
   }
   t.Pause();
@@ -49,21 +49,21 @@ void SyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
 
 void AsyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
   chm::small_message::Client client;
-  CHM_ADMIN->RegisterTaskLibRoot(chm::DomainId::GetGlobal(), "small_message");
-  client.CreateRoot(chm::DomainId::GetGlobal(), "ipc_test");
+  CHM_ADMIN->RegisterTaskLibRoot(chm::DomainQuery::GetGlobal(), "small_message");
+  client.CreateRoot(chm::DomainQuery::GetGlobal(), "ipc_test");
   MPI_Barrier(MPI_COMM_WORLD);
   hshm::MpiTimer t(MPI_COMM_WORLD);
   size_t domain_size =
-      CHM_ADMIN->DomainSizeRoot(chm::DomainId::GetGlobal());
+      CHM_ADMIN->DomainSizeRoot(chm::DomainQuery::GetGlobal());
 
   t.Resume();
   for (size_t i = 0; i < ops; ++i) {
     HILOG(kDebug, "Sending message {}", i)
     int node_id = 1 + (i % domain_size);
-    client.AsyncMdRoot(chm::DomainId::GetNode(node_id),
+    client.AsyncMdRoot(chm::DomainQuery::GetNode(node_id),
                        i, depth, TASK_FIRE_AND_FORGET);
   }
-  CHM_ADMIN->FlushRoot(DomainId::GetLocal());
+  CHM_ADMIN->FlushRoot(DomainQuery::GetLocal());
   t.Pause();
   t.Collect();
   Summarize(nprocs, t.GetUsec(), ops, depth);

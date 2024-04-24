@@ -28,7 +28,7 @@ class Server : public TaskLib {
 
   /** Update the lane mapping */
   void UpdateLaneMapping(UpdateLaneMappingTask *task, RunContext &rctx) {
-    for (hipc::pair<StateLaneId, DomainId> &pair : task->mapping_) {
+    for (hipc::pair<StateLaneId, DomainQuery> &pair : task->mapping_) {
       HRUN_RPC->CacheLaneMapping(pair.GetKey(), pair.GetVal());
     }
     task->SetModuleComplete();
@@ -114,7 +114,7 @@ class Server : public TaskLib {
     }
     // Check global registry for task state
     if (task->id_.IsNull()) {
-      DomainId domain = DomainId::GetNode(1);
+      DomainQuery domain = DomainQuery::GetNode(1);
       HILOG(kInfo, "(node {}) Locating task state {} with id {} (task_node={})",
             HRUN_CLIENT->node_id_, state_name, task->id_, task->task_node_);
       LPointer<GetOrCreateTaskStateIdTask> get_id =
@@ -213,7 +213,7 @@ class Server : public TaskLib {
       return;
     }
     auto queue_sched = HRUN_CLIENT->NewTask<ScheduleTask>(
-        task->task_node_, DomainId::GetLocal(), task->policy_id_);
+        task->task_node_, DomainQuery::GetLocal(), task->policy_id_);
     queue_sched_ = queue_sched.ptr_;
     MultiQueue *queue = HRUN_CLIENT->GetQueue(queue_id_);
     queue->Emplace(TaskPrio::kLowLatency, 0, queue_sched.shm_);
@@ -234,7 +234,7 @@ class Server : public TaskLib {
       return;
     }
     auto proc_sched = HRUN_CLIENT->NewTask<ScheduleTask>(
-        task->task_node_, DomainId::GetLocal(), task->policy_id_);
+        task->task_node_, DomainQuery::GetLocal(), task->policy_id_);
     proc_sched_ = proc_sched.ptr_;
     MultiQueue *queue = HRUN_CLIENT->GetQueue(queue_id_);
     queue->Emplace(0, 0, proc_sched.shm_);
@@ -266,7 +266,7 @@ class Server : public TaskLib {
   /** Flush the runtime */
   void DomainSize(DomainSizeTask *task, RunContext &rctx) {
     task->comm_size_ =
-        HRUN_RUNTIME->ResolveDomainId(task->comm_).size();
+        HRUN_RUNTIME->ResolveDomainQuery(task->comm_).size();
     task->SetModuleComplete();
   }
   void MonitorDomainSize(u32 mode, DomainSizeTask *task, RunContext &rctx) {

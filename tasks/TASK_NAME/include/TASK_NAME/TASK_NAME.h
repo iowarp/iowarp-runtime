@@ -30,17 +30,17 @@ class Client : public TaskLibClient {
   /** Create a task state */
   void AsyncCreateConstruct(CreateTask *task,
                             const TaskNode &task_node,
-                            const DomainId &domain_id,
+                            const DomainQuery &dom_query,
                             const std::string &state_name,
                             const TaskStateId &id) {
     HRUN_CLIENT->ConstructTask<CreateTask>(
-        task, task_node, domain_id, state_name, id);
+        task, task_node, dom_query, state_name, id);
   }
-  void CreateRoot(const DomainId &domain_id,
+  void CreateRoot(const DomainQuery &dom_query,
                   const std::string &state_name,
                   const TaskStateId &id = TaskId::GetNull()) {
     LPointer<CreateTask> task = AsyncCreateRoot(
-        domain_id, state_name, id);
+        dom_query, state_name, id);
     task->Wait();
     Init(task->id_);
     HRUN_CLIENT->DelTask(task);
@@ -49,21 +49,21 @@ class Client : public TaskLibClient {
 
   /** Destroy task state + queue */
   HSHM_ALWAYS_INLINE
-  void DestroyRoot(const DomainId &domain_id) {
-    CHM_ADMIN->DestroyTaskStateRoot(domain_id, id_);
+  void DestroyRoot(const DomainQuery &dom_query) {
+    CHM_ADMIN->DestroyTaskStateRoot(dom_query, id_);
   }
 
   /** Call a custom method */
   HSHM_ALWAYS_INLINE
   void AsyncCustomConstruct(CustomTask *task,
                             const TaskNode &task_node,
-                            const DomainId &domain_id) {
+                            const DomainQuery &dom_query) {
     HRUN_CLIENT->ConstructTask<CustomTask>(
-        task, task_node, domain_id, id_);
+        task, task_node, dom_query, id_);
   }
   HSHM_ALWAYS_INLINE
-  void CustomRoot(const DomainId &domain_id) {
-    LPointer<CustomTask> task = AsyncCustomRoot(domain_id);
+  void CustomRoot(const DomainQuery &dom_query) {
+    LPointer<CustomTask> task = AsyncCustomRoot(dom_query);
     task.ptr_->Wait();
   }
   HRUN_TASK_NODE_PUSH_ROOT(Custom);
