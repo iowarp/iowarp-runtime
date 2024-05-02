@@ -28,7 +28,7 @@ class QueueManagerRuntime : public QueueManager {
   size_t max_queues_;
   size_t max_lanes_;
   hipc::split_ticket_queue<u64> *tickets_;
-  u32 node_id_;
+  NodeId node_id_;
 
  public:
   /** Default constructor */
@@ -38,7 +38,7 @@ class QueueManagerRuntime : public QueueManager {
   ~QueueManagerRuntime() = default;
 
   /** Create queues in shared memory */
-  void ServerInit(hipc::Allocator *alloc, u32 node_id, ServerConfig *config, QueueManagerShm &shm) {
+  void ServerInit(hipc::Allocator *alloc, NodeId node_id, ServerConfig *config, QueueManagerShm &shm) {
     config_ = config;
     Init(node_id);
     config::QueueManagerInfo &qm = config_->queue_manager_;

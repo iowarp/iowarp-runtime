@@ -28,7 +28,7 @@ class Client : public ConfigurationManager {
   int data_;
   QueueManagerClient queue_manager_;
   std::atomic<u64> *unique_;
-  u32 node_id_;
+  NodeId node_id_;
 
  public:
   /** Default constructor */

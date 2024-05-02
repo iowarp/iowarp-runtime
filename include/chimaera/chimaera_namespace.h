@@ -39,6 +39,8 @@ using chm::RunContext;
 using hshm::RwLock;
 using hshm::Mutex;
 using hshm::bitfield;
+using hshm::bitfield8_t;
+using hshm::bitfield16_t;
 using hshm::bitfield32_t;
 typedef hshm::bitfield<uint64_t> bitfield64_t;
 using hshm::ScopedRwReadLock;

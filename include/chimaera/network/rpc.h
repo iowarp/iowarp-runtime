@@ -32,14 +32,14 @@ namespace chm {
 
 /** Uniquely identify a host machine */
 struct HostInfo {
-  u32 node_id_;           /**< Hermes-assigned node id */
+  NodeId node_id_;           /**< Hermes-assigned node id */
   std::string hostname_;  /**< Host name */
   std::string ip_addr_;   /**< Host IP address */
 
   HostInfo() = default;
   explicit HostInfo(const std::string &hostname,
                     const std::string &ip_addr,
-                    u32 node_id)
+                    NodeId node_id)
       : hostname_(hostname), ip_addr_(ip_addr), node_id_(node_id) {}
 };
 
@@ -58,7 +58,7 @@ class RpcContext {
   int port_;  /**< port number */
   std::string protocol_;  /**< Libfabric provider */
   std::string domain_;    /**< Libfabric domain */
-  u32 node_id_;           /**< the ID of this node */
+  NodeId node_id_;           /**< the ID of this node */
   int num_threads_;       /**< Number of RPC threads */
   std::vector<HostInfo> hosts_; /**< Hostname and ip addr per-node */
   STATE_LANE_MAP_T lane_map_;   /**< Lane mappings */
@@ -104,7 +104,6 @@ class RpcContext {
    * Convert a DomainQuery into a set of more concretized queries.
    * */
   std::vector<DomainQuery> ResolveDomainQuery(const DomainQuery &dom_query) {
-
   }
 
   /** initialize host info list */
@@ -121,7 +120,7 @@ class RpcContext {
 
     // Get all host info
     hosts_.reserve(hosts.size());
-    u32 node_id = 1;
+    NodeId node_id = 1;
     for (const std::string& name : hosts) {
       hosts_.emplace_back(name, _GetIpAddress(name), node_id++);
     }
@@ -155,7 +154,7 @@ class RpcContext {
   /** get host name from node ID */
   std::string GetHostNameFromNodeId(const DomainQuery &dom_query) {
     // NOTE(llogan): node_id 0 is reserved as the NULL node
-    u32 node_id = dom_query.GetId();
+    NodeId node_id = dom_query.GetId();
     if (node_id <= 0 || node_id > (i32)hosts_.size()) {
       HELOG(kFatal, "Attempted to get from node {}, which is out of "
                     "the range 1-{}", node_id, hosts_.size())
@@ -167,7 +166,7 @@ class RpcContext {
   /** get host name from node ID */
   std::string GetIpAddressFromNodeId(const DomainQuery &dom_query){
     // NOTE(llogan): node_id 0 is reserved as the NULL node
-    u32 node_id = dom_query.GetId();
+    NodeId node_id = dom_query.GetId();
     if (node_id <= 0 || node_id > (u32)hosts_.size()) {
       HELOG(kFatal, "Attempted to get from node {}, which is out of "
                     "the range 1-{}", node_id, hosts_.size())

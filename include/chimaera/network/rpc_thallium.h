@@ -83,7 +83,7 @@ class ThalliumRpc {
   }
 
   /** Thallium-compatible server name */
-  std::string GetServerName(u32 node_id) {
+  std::string GetServerName(NodeId node_id) {
     std::string ip_address = rpc_->GetIpAddressFromNodeId(DomainQuery::GetNode(node_id));
     return rpc_->protocol_ + "://" +
         std::string(ip_address) +
@@ -98,7 +98,7 @@ class ThalliumRpc {
 
   /** RPC call */
   template <typename RetT, bool ASYNC, typename... Args>
-  RetT Call(u32 node_id, const std::string &func_name, Args&&... args) {
+  RetT Call(NodeId node_id, const std::string &func_name, Args&&... args) {
     HILOG(kDebug, "Calling {} {} -> {}", func_name, rpc_->node_id_, node_id)
     try {
       std::string server_name = GetServerName(node_id);
@@ -124,14 +124,14 @@ class ThalliumRpc {
 
   /** RPC call */
   template <typename RetT, typename... Args>
-  RetT SyncCall(u32 node_id, const std::string &func_name, Args&&... args) {
+  RetT SyncCall(NodeId node_id, const std::string &func_name, Args&&... args) {
     return Call<RetT, false>(
         node_id, func_name, std::forward<Args>(args)...);
   }
 
   /** Async RPC call */
   template <typename... Args>
-  thallium::async_response AsyncCall(u32 node_id,
+  thallium::async_response AsyncCall(NodeId node_id,
                                      const std::string &func_name,
                                      Args&&... args) {
     return Call<thallium::async_response, true>(
@@ -228,7 +228,7 @@ class ThalliumRpc {
 
   /** I/O transfers */
   template<typename ...Args>
-  thallium::async_response AsyncIoCall(u32 node_id, const char *func_name,
+  thallium::async_response AsyncIoCall(NodeId node_id, const char *func_name,
                                        SegmentedTransfer &xfer, u32 io_flag,
                                        Args&& ...args) {
     return IoCall<thallium::async_response, true>(

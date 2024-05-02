@@ -215,7 +215,7 @@ TEST_CASE("TestIO") {
 }
 
 // TEST_CASE("TestHostfile") {
-//  for (u32 node_id = 1; node_id <
+//  for (NodeId node_id = 1; node_id <
 //  HRUN_THALLIUM->rpc_->hosts_.size() + 1; ++node_id) {
 //    HILOG(kInfo, "Node {}: {}", node_id,
 //    HRUN_THALLIUM->GetServerName(node_id));

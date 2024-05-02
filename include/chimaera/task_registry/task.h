@@ -54,9 +54,9 @@ class TaskLib;
 #define TASK_DATA_OWNER BIT_OPT(u32, 14)
 /** This task uses co-routine wait */
 #define TASK_COROUTINE BIT_OPT(u32, 15)
-/** This task can be scheduled on any lane */
+/** This task can be scheduled on any lane (deprecated) */
 #define TASK_LANE_ANY BIT_OPT(u32, 18)
-/** This task should be scheduled on all lanes */
+/** This task should be scheduled on all lanes (deprecated) */
 #define TASK_LANE_ALL BIT_OPT(u32, 19)
 /** This task flushes the runtime */
 #define TASK_FLUSH BIT_OPT(u32, 20)
@@ -416,16 +416,6 @@ struct Task : public hipc::ShmContainer {
   /** Set this task as blocking */
   HSHM_ALWAYS_INLINE void UnsetCoroutine() {
     task_flags_.UnsetBits(TASK_COROUTINE);
-  }
-
-  /** This task should be dispersed across all lanes */
-  HSHM_ALWAYS_INLINE bool IsLaneAll() {
-    return task_flags_.Any(TASK_LANE_ALL);
-  }
-
-  /** Unset this task as lane-dispersable */
-  HSHM_ALWAYS_INLINE void UnsetLaneAll() {
-    task_flags_.UnsetBits(TASK_LANE_ALL);
   }
 
   /** Set period in nanoseconds */

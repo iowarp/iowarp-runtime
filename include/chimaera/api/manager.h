@@ -23,7 +23,7 @@ namespace chm {
 
 /** Shared-memory header for HRUN */
 struct HrunShm {
-  u32 node_id_;
+  NodeId node_id_;
   QueueManagerShm queue_manager_;
   std::atomic<u64> unique_;
   u64 num_nodes_;

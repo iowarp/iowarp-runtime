@@ -29,13 +29,13 @@ struct QueueManagerShm {
 class QueueManager {
  public:
   hipc::vector<MultiQueue> *queue_map_;   /**< Queues which directly interact with tasks states */
-  u32 node_id_;             /**< The ID of the node this QueueManager is on */
+  NodeId node_id_;             /**< The ID of the node this QueueManager is on */
   QueueId admin_queue_id_;     /**< The queue used to submit administrative requests */
   QueueId process_queue_id_;     /**< ID of process queue task */
   TaskStateId admin_task_state_;  /**< The ID of the admin queue */
 
  public:
-  void Init(u32 node_id) {
+  void Init(NodeId node_id) {
     node_id_ = node_id;
     admin_queue_id_ = QueueId(1, 0);
     admin_task_state_ = TaskStateId(1, 0);

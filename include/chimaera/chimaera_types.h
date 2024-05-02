@@ -65,12 +65,15 @@ namespace chm {
 using hshm::RwLock;
 using hshm::Mutex;
 using hshm::bitfield;
+using hshm::bitfield8_t;
+using hshm::bitfield16_t;
 using hshm::bitfield32_t;
 typedef hshm::bitfield<uint64_t> bitfield64_t;
 using hshm::ScopedRwReadLock;
 using hshm::ScopedRwWriteLock;
 using hipc::LPointer;
 
+typedef u32 NodeId;  /**< The ID of a node */
 typedef u32 LaneId;  /**< The ID of a lane */
 
 /** Determine the mode that HRUN is initialized for */
@@ -80,10 +83,11 @@ enum class HrunMode {
   kServer
 };
 
-#define DOMAIN_FLAG_T static inline const int
+#define CLS_CONST static inline const
 
-union Affinity {
+union DomainSelection {
   u32 id_;
+  u32 hash_;
   struct {
     u32 tree_root_;
     u16 tree_depth_;
@@ -97,68 +101,70 @@ union Affinity {
   }
 };
 
+typedef u16 DomainFlag;
+typedef u16 SubDomainId;
+
 /**
  * Represents the scheduling domain of a task.
- * Modes:
- * 1. Node: Schedule across a set of nodes
- * 2. Processor: Schedule across a set of processors
- * 3. Node + Processor: Schedule across processors in a node
- * 4. Lane: Schedule across lanes
  * */
 struct DomainQuery {
-  bitfield32_t flags_;  /**< Flags indicating how to interpret id */
-  Affinity node_;       /**< The range of nodes */
-  Affinity lane_;       /**< The range of lanes */
-
-  /** Mode flags */
-  DOMAIN_FLAG_T kNode =
-      BIT_OPT(u32, 0);    /**< Domain includes node ID */
-  DOMAIN_FLAG_T kLane =
-      BIT_OPT(u32, 1);    /**< Domain includes lane ID */
+  bitfield16_t flags_;   /**< Reserved flags common across all queries */
+  SubDomainId id_;       /**< The domain to query */
+  NodeId node_;          /**< The selected node to forward query */
+  DomainSelection sel_;  /**< The selected nodes or lanes */
 
   /** Range flags */
-  DOMAIN_FLAG_T kLocal =
-      BIT_OPT(u32, 15);  /**< Use local node in scheduling decision */
-  DOMAIN_FLAG_T kGlobal =
-      BIT_OPT(u32, 16);  /**< Use all nodes in scheduling decision */
-  DOMAIN_FLAG_T kGlobalMinusLocal =
-      BIT_OPT(u32, 17);  /**< Don't use local node in scheduling decision */
-  DOMAIN_FLAG_T kDirect =
-      BIT_OPT(u32, 18);  /**< Use specific node/lane for decision */
-  DOMAIN_FLAG_T kTree =
-      BIT_OPT(u32, 19);  /**< Use specific node/lane for decision */
+  CLS_CONST DomainFlag kSubset =
+      BIT_OPT(DomainFlag, 1);
+  CLS_CONST DomainFlag kLocal =
+      BIT_OPT(DomainFlag, 2);
+  CLS_CONST DomainFlag kDirect =
+      BIT_OPT(DomainFlag, 3);
+  CLS_CONST DomainFlag kGlobal =
+      BIT_OPT(DomainFlag, 4);
+
+  /** Selection flags */
+  CLS_CONST DomainFlag kTree =
+      BIT_OPT(DomainFlag, 5);
+
+  /** Iteration algos */
+  CLS_CONST DomainFlag kBroadcast =
+      BIT_OPT(DomainFlag, 6);
+  CLS_CONST DomainFlag kBroadcastThisLast =
+      BIT_OPT(DomainFlag, 7);
+  CLS_CONST DomainFlag kRepUntilSuccess =
+      BIT_OPT(DomainFlag, 8);
+  CLS_CONST DomainFlag kChooseOne =
+      BIT_OPT(DomainFlag, 9);
 
   /** Serialize domain id */
   template<typename Ar>
   void serialize(Ar &ar) {
-    ar(flags_, major_.int_, minor_.int_, lane_hash_);
+    ar(rflags_, cflags_, resolver_, sel_);
   }
 
   /** Default constructor. */
   HSHM_ALWAYS_INLINE
   DomainQuery() {
-    major_.int_ = 0;
-    minor_.int_ = 0;
-    lane_hash_ = 0;
   }
 
   /** Copy constructor */
   HSHM_ALWAYS_INLINE
   DomainQuery(const DomainQuery &other) {
-    flags_ = other.flags_;
-    major_.node_id_ = other.major_.node_id_;
-    minor_.cpu_id_ = other.minor_.cpu_id_;
-    lane_hash_ = other.lane_hash_;
+    rflags_ = other.rflags_;
+    cflags_ = other.cflags_;
+    resolver_ = other.resolver_;
+    sel_ = other.sel_;
   }
 
   /** Copy operator */
   HSHM_ALWAYS_INLINE
   DomainQuery& operator=(const DomainQuery &other) {
     if (this != &other) {
-      flags_ = other.flags_;
-      major_.node_id_ = other.major_.node_id_;
-      minor_.cpu_id_ = other.minor_.cpu_id_;
-      lane_hash_ = other.lane_hash_;
+      rflags_ = other.rflags_;
+      cflags_ = other.cflags_;
+      resolver_ = other.resolver_;
+      sel_ = other.sel_;
     }
     return *this;
   }
@@ -166,20 +172,20 @@ struct DomainQuery {
   /** Move constructor */
   HSHM_ALWAYS_INLINE
   DomainQuery(DomainQuery &&other) noexcept {
-    flags_ = other.flags_;
-    major_.node_id_ = other.major_.node_id_;
-    minor_.cpu_id_ = other.minor_.cpu_id_;
-    lane_hash_ = other.lane_hash_;
+    rflags_ = other.rflags_;
+    cflags_ = other.cflags_;
+    resolver_ = other.resolver_;
+    sel_ = other.sel_;
   }
 
   /** Move operator */
   HSHM_ALWAYS_INLINE
   DomainQuery& operator=(DomainQuery &&other) noexcept {
     if (this != &other) {
-      flags_ = other.flags_;
-      major_.node_id_ = other.major_.node_id_;
-      minor_.cpu_id_ = other.minor_.cpu_id_;
-      lane_hash_ = other.lane_hash_;
+      rflags_ = other.rflags_;
+      cflags_ = other.cflags_;
+      resolver_ = other.resolver_;
+      sel_ = other.sel_;
     }
     return *this;
   }
@@ -212,7 +218,7 @@ struct DomainQuery {
 
   /** DomainQuery representing a specific node */
   HSHM_ALWAYS_INLINE
-  static DomainQuery GetNode(u32 node_id) {
+  static DomainQuery GetNode(NodeId node_id) {
     DomainQuery id;
     id.flags_.SetBits(kNode | kDirect);
     id.major_.node_id_ = node_id;
@@ -239,7 +245,7 @@ struct DomainQuery {
 /** Represents unique ID for states + queues */
 template<int TYPE>
 struct UniqueId {
-  u32 node_id_;  /**< The node the content is on */
+  NodeId node_id_;  /**< The node the content is on */
   u32 hash_;     /**< The hash of the content the ID represents */
   u64 unique_;   /**< A unique id for the blob */
 
@@ -257,12 +263,12 @@ struct UniqueId {
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
-  UniqueId(u32 node_id, u64 unique)
+  UniqueId(NodeId node_id, u64 unique)
   : node_id_(node_id), hash_(0), unique_(unique) {}
 
   /** Emplace constructor (+hash) */
   HSHM_ALWAYS_INLINE explicit
-  UniqueId(u32 node_id, u32 hash, u64 unique)
+  UniqueId(NodeId node_id, u32 hash, u64 unique)
   : node_id_(node_id), hash_(hash), unique_(unique) {}
 
   /** Copy constructor */

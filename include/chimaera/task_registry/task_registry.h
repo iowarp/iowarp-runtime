@@ -76,7 +76,7 @@ struct TaskStateInfo {
 class TaskRegistry {
  public:
   /** The node the registry is on */
-  u32 node_id_;
+  NodeId node_id_;
   /** The dirs to search for task libs */
   std::vector<std::string> lib_dirs_;
   /** Map of a semantic lib name to lib info */
@@ -94,7 +94,7 @@ class TaskRegistry {
   TaskRegistry() {}
 
   /** Initialize the Task Registry */
-  void ServerInit(ServerConfig *config, u32 node_id, std::atomic<u64> &unique) {
+  void ServerInit(ServerConfig *config, NodeId node_id, std::atomic<u64> &unique) {
     node_id_ = node_id;
     unique_ = &unique;
 
