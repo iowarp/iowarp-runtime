@@ -26,36 +26,32 @@ class Server : public TaskLib {
  public:
   Server() : queue_sched_(nullptr), proc_sched_(nullptr) {}
 
-  /** Update the lane mapping */
-  void UpdateLaneMapping(UpdateLaneMappingTask *task, RunContext &rctx) {
-    for (hipc::pair<StateLaneId, DomainQuery> &pair : task->mapping_) {
-      HRUN_RPC->CacheLaneMapping(pair.GetKey(), pair.GetVal());
-    }
+  /** Create a domain */
+  void CreateDomain(CreateDomainTask *task, RunContext &rctx) {
     task->SetModuleComplete();
   }
-  void MonitorUpdateLaneMapping(u32 mode,
-                                UpdateLaneMappingTask *task,
-                                RunContext &rctx) {
+  void MonitorCreateDomain(u32 mode,
+                           CreateDomainTask *task,
+                           RunContext &rctx) {
   }
 
-  /** Find the lane mapping */
-  void GetLaneMapping(GetLaneMappingTask *task, RunContext &rctx) {
+  /** Get the domain */
+  void GetDomain(GetDomainTask *task, RunContext &rctx) {
     TaskStateId state_id = task->state_id_;
-    task->lane_domain_ =
-        HRUN_RPC->GetLaneMapping({task->state_id_, task->lane_id_});
+    // Update the LaneMapCache to include this node
     task->SetModuleComplete();
   }
-  void MonitorGetLaneMapping(u32 mode,
-                             GetLaneMappingTask *task,
-                             RunContext &rctx) {
+  void MonitorGetDomain(u32 mode,
+                        GetDomainTask *task,
+                        RunContext &rctx) {
   }
 
   /** Update number of lanes */
-  void UpdateLaneCount(UpdateLaneCountTask *task, RunContext &rctx) {
+  void UpdateDomain(UpdateDomainTask *task, RunContext &rctx) {
   }
-  void MonitorUpdateLaneCount(u32 mode,
-                              UpdateLaneCountTask *task,
-                              RunContext &rctx) {
+  void MonitorUpdateDomain(u32 mode,
+                           UpdateDomainTask *task,
+                           RunContext &rctx) {
   }
 
   /** Register a task library dynamically */
@@ -114,7 +110,8 @@ class Server : public TaskLib {
     }
     // Check global registry for task state
     if (task->id_.IsNull()) {
-      DomainQuery domain = DomainQuery::GetNode(1);
+      DomainQuery domain =
+          chm::DomainQuery::GetDirectHash(chm::SubDomainId::kLaneVec, 0);
       HILOG(kInfo, "(node {}) Locating task state {} with id {} (task_node={})",
             HRUN_CLIENT->node_id_, state_name, task->id_, task->task_node_);
       LPointer<GetOrCreateTaskStateIdTask> get_id =
@@ -213,7 +210,9 @@ class Server : public TaskLib {
       return;
     }
     auto queue_sched = HRUN_CLIENT->NewTask<ScheduleTask>(
-        task->task_node_, DomainQuery::GetLocal(), task->policy_id_);
+        task->task_node_,
+        chm::DomainQuery::GetLocalHash(chm::SubDomainId::kLaneVec, 0),
+        task->policy_id_);
     queue_sched_ = queue_sched.ptr_;
     MultiQueue *queue = HRUN_CLIENT->GetQueue(queue_id_);
     queue->Emplace(TaskPrio::kLowLatency, 0, queue_sched.shm_);
@@ -234,7 +233,9 @@ class Server : public TaskLib {
       return;
     }
     auto proc_sched = HRUN_CLIENT->NewTask<ScheduleTask>(
-        task->task_node_, DomainQuery::GetLocal(), task->policy_id_);
+        task->task_node_,
+        chm::DomainQuery::GetLocalHash(chm::SubDomainId::kLaneVec, 0),
+        task->policy_id_);
     proc_sched_ = proc_sched.ptr_;
     MultiQueue *queue = HRUN_CLIENT->GetQueue(queue_id_);
     queue->Emplace(0, 0, proc_sched.shm_);
@@ -263,13 +264,13 @@ class Server : public TaskLib {
     }
   }
 
-  /** Flush the runtime */
-  void DomainSize(DomainSizeTask *task, RunContext &rctx) {
+  /** Get the domain size */
+  void GetDomainSize(GetDomainSizeTask *task, RunContext &rctx) {
     task->comm_size_ =
-        HRUN_RUNTIME->ResolveDomainQuery(task->comm_).size();
+        HRUN_RPC->ResolveDomainQuery(task->comm_).size();
     task->SetModuleComplete();
   }
-  void MonitorDomainSize(u32 mode, DomainSizeTask *task, RunContext &rctx) {
+  void MonitorGetDomainSize(u32 mode, GetDomainSizeTask *task, RunContext &rctx) {
   }
 
  public:

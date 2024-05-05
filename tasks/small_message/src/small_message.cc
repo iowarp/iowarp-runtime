@@ -44,7 +44,6 @@ class Server : public TaskLib {
           client_.AsyncMd(task,
                           task->task_node_ + 1,
                           task->dom_query_,
-                          task->GetLaneHash() + 2,
                           task->depth_ - 1, 0);
       task->Wait<TASK_YIELD_CO>(depth_task);
       HRUN_CLIENT->DelTask(depth_task);

@@ -29,19 +29,22 @@ void Summarize(size_t nprocs,
 
 void SyncIoTest(int rank, int nprocs, size_t msg_size, size_t ops) {
   chm::small_message::Client client;
-  CHM_ADMIN->RegisterTaskLibRoot(chm::DomainQuery::GetGlobal(), "small_message");
-  client.CreateRoot(chm::DomainQuery::GetGlobal(), "ipc_test");
+  CHM_ADMIN->RegisterTaskLibRoot(
+      chm::DomainQuery::GetNodeGlobalBcast(), "small_message");
+  client.CreateRoot(
+      chm::DomainQuery::GetNodeGlobalBcast(), "ipc_test");
   size_t domain_size =
-      CHM_ADMIN->DomainSizeRoot(chm::DomainQuery::GetGlobal());
+      CHM_ADMIN->GetDomainSizeRoot(chm::DomainQuery::GetNodeGlobalBcast());
 
   hshm::MpiTimer t(MPI_COMM_WORLD);
   t.Resume();
   for (size_t i = 0; i < ops; ++i) {
-    int node_id = 1 + ((i + 1) % domain_size);
+    int lane_id = 1 + ((i + 1) % domain_size);
     size_t read_size, write_size;
-    client.IoRoot(chm::DomainQuery::GetNode(node_id),
-                  msg_size,
-                  MD_IO_WRITE, write_size, read_size);
+    client.IoRoot(
+        chm::DomainQuery::GetDirectHash(chm::SubDomainId::kLaneVec, lane_id),
+        msg_size,
+        MD_IO_WRITE, write_size, read_size);
   }
   t.Pause();
   t.Collect();

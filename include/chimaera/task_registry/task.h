@@ -268,7 +268,7 @@ struct RunContext {
   size_t pending_key_;
   std::vector<LPointer<Task>> *replicas_;
   size_t ret_task_addr_;
-  DomainQuery ret_domain_;
+  NodeId ret_node_;
 };
 
 /** A generic task base class */
@@ -294,12 +294,12 @@ struct Task : public hipc::ShmContainer {
 
   /** Get lane hash */
   HSHM_ALWAYS_INLINE u32 &GetLaneHash() {
-    return dom_query_.lane_hash_;
+    return dom_query_.sel_.hash_;
   }
 
   /** Get lane hash */
   HSHM_ALWAYS_INLINE const u32 &GetLaneHash() const {
-    return dom_query_.lane_hash_;
+    return dom_query_.sel_.hash_;
   }
 
   /** Set task as externally complete */
@@ -649,7 +649,6 @@ struct Task : public hipc::ShmContainer {
        bitfield32_t task_flags) {
     shm_init_container(alloc);
     task_node_ = task_node;
-    GetLaneHash() = lane_hash;
     prio_ = TaskPrio::kLowLatency;
     task_state_ = task_state;
     method_ = method;
@@ -721,7 +720,6 @@ struct Task : public hipc::ShmContainer {
     task_state_ = other.task_state_;
     task_node_ = other.task_node_;
     dom_query_ = other.dom_query_;
-    GetLaneHash() = other.GetLaneHash();
     prio_ = other.prio_;
     method_ = other.method_;
     task_flags_ = other.task_flags_;

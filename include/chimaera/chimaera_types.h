@@ -85,163 +85,6 @@ enum class HrunMode {
 
 #define CLS_CONST static inline const
 
-union DomainSelection {
-  u32 id_;
-  u32 hash_;
-  struct {
-    u32 tree_root_;
-    u16 tree_depth_;
-    u16 tree_idx_;
-  } tree_;
-  u64 int_;
-
-  template<typename Ar>
-  void serialize(Ar &ar) {
-    ar(int_);
-  }
-};
-
-typedef u16 DomainFlag;
-typedef u16 SubDomainId;
-
-/**
- * Represents the scheduling domain of a task.
- * */
-struct DomainQuery {
-  bitfield16_t flags_;   /**< Reserved flags common across all queries */
-  SubDomainId id_;       /**< The domain to query */
-  NodeId node_;          /**< The selected node to forward query */
-  DomainSelection sel_;  /**< The selected nodes or lanes */
-
-  /** Range flags */
-  CLS_CONST DomainFlag kSubset =
-      BIT_OPT(DomainFlag, 1);
-  CLS_CONST DomainFlag kLocal =
-      BIT_OPT(DomainFlag, 2);
-  CLS_CONST DomainFlag kDirect =
-      BIT_OPT(DomainFlag, 3);
-  CLS_CONST DomainFlag kGlobal =
-      BIT_OPT(DomainFlag, 4);
-
-  /** Selection flags */
-  CLS_CONST DomainFlag kTree =
-      BIT_OPT(DomainFlag, 5);
-
-  /** Iteration algos */
-  CLS_CONST DomainFlag kBroadcast =
-      BIT_OPT(DomainFlag, 6);
-  CLS_CONST DomainFlag kBroadcastThisLast =
-      BIT_OPT(DomainFlag, 7);
-  CLS_CONST DomainFlag kRepUntilSuccess =
-      BIT_OPT(DomainFlag, 8);
-  CLS_CONST DomainFlag kChooseOne =
-      BIT_OPT(DomainFlag, 9);
-
-  /** Serialize domain id */
-  template<typename Ar>
-  void serialize(Ar &ar) {
-    ar(rflags_, cflags_, resolver_, sel_);
-  }
-
-  /** Default constructor. */
-  HSHM_ALWAYS_INLINE
-  DomainQuery() {
-  }
-
-  /** Copy constructor */
-  HSHM_ALWAYS_INLINE
-  DomainQuery(const DomainQuery &other) {
-    rflags_ = other.rflags_;
-    cflags_ = other.cflags_;
-    resolver_ = other.resolver_;
-    sel_ = other.sel_;
-  }
-
-  /** Copy operator */
-  HSHM_ALWAYS_INLINE
-  DomainQuery& operator=(const DomainQuery &other) {
-    if (this != &other) {
-      rflags_ = other.rflags_;
-      cflags_ = other.cflags_;
-      resolver_ = other.resolver_;
-      sel_ = other.sel_;
-    }
-    return *this;
-  }
-
-  /** Move constructor */
-  HSHM_ALWAYS_INLINE
-  DomainQuery(DomainQuery &&other) noexcept {
-    rflags_ = other.rflags_;
-    cflags_ = other.cflags_;
-    resolver_ = other.resolver_;
-    sel_ = other.sel_;
-  }
-
-  /** Move operator */
-  HSHM_ALWAYS_INLINE
-  DomainQuery& operator=(DomainQuery &&other) noexcept {
-    if (this != &other) {
-      rflags_ = other.rflags_;
-      cflags_ = other.cflags_;
-      resolver_ = other.resolver_;
-      sel_ = other.sel_;
-    }
-    return *this;
-  }
-
-  /** Equality operator */
-  HSHM_ALWAYS_INLINE
-  bool operator==(const DomainQuery &other) const {
-    return flags_.bits_ == other.flags_.bits_ &&
-        major_.int_ == other.major_.int_ &&
-        minor_.int_ == other.minor_.int_ &&
-        lane_hash_ == other.lane_hash_;
-  }
-
-  /** Inequality operator */
-  HSHM_ALWAYS_INLINE
-  bool operator!=(const DomainQuery &other) const {
-    return flags_.bits_ == other.flags_.bits_ &&
-        major_.int_ == other.major_.int_ &&
-        minor_.int_ == other.minor_.int_ &&
-        lane_hash_ == other.lane_hash_;
-  }
-
-  /** DomainQuery representing this processor */
-  HSHM_ALWAYS_INLINE
-  static DomainQuery GetLocal() {
-    DomainQuery id;
-    id.flags_.SetBits(kNode | kProcessor | kLocal);
-    return id;
-  }
-
-  /** DomainQuery representing a specific node */
-  HSHM_ALWAYS_INLINE
-  static DomainQuery GetNode(NodeId node_id) {
-    DomainQuery id;
-    id.flags_.SetBits(kNode | kDirect);
-    id.major_.node_id_ = node_id;
-    return id;
-  }
-
-  /** DomainQuery representing all nodes */
-  HSHM_ALWAYS_INLINE
-  static DomainQuery GetGlobal() {
-    DomainQuery id;
-    id.flags_.SetBits(kNode | kGlobal);
-    return id;
-  }
-
-  /** DomainQuery representing all nodes, except this one */
-  HSHM_ALWAYS_INLINE
-  static DomainQuery GetGlobalMinusLocal() {
-    DomainQuery id;
-    id.flags_.SetBits(kGlobalMinusLocal);
-    return id;
-  }
-};
-
 /** Represents unique ID for states + queues */
 template<int TYPE>
 struct UniqueId {
@@ -356,9 +199,16 @@ struct UniqueId {
     return unique_ != other.unique_ || node_id_ != other.node_id_;
   }
 
+  /** Print operator */
   friend std::ostream& operator<<(std::ostream &os, const UniqueId &id) {
     return os << (std::to_string(id.node_id_) + "."
         + std::to_string(id.unique_));
+  }
+
+  /** Hash function */
+  size_t Hash() const {
+    return std::hash<u64>{}(unique_) +
+           std::hash<u32>{}(node_id_);
   }
 };
 
@@ -369,35 +219,338 @@ using QueueId = UniqueId<2>;
 /** Uniquely identify a task */
 using TaskId = UniqueId<3>;
 
-/** Stateful lane ID */
-struct StateLaneId {
-  TaskStateId state_id_;
-  LaneId lane_id_;
-
-  /** Serialization */
-  template<typename Ar>
-  void serialize(Ar &ar) {
-    ar(state_id_, lane_id_);
-  }
-
-  /** Equality operator */
-  HSHM_ALWAYS_INLINE
-  bool operator==(const StateLaneId &other) const {
-    return state_id_ == other.state_id_ && lane_id_ == other.lane_id_;
-  }
-
-  /** Inequality operator */
-  HSHM_ALWAYS_INLINE
-  bool operator!=(const StateLaneId &other) const {
-    return state_id_ != other.state_id_ || lane_id_ != other.lane_id_;
-  }
-};
-
 /** The types of I/O that can be performed (for IoCall RPC) */
 enum class IoType {
   kRead,
   kWrite,
   kNone
+};
+
+/** Represents a lane or node ID */
+union LaneOrNodeId {
+  NodeId node_id_;
+  LaneId lane_id_;
+
+  template<typename Ar>
+  void serialize(Ar &ar) {
+    ar(node_id_);
+  }
+};
+
+/** Major identifier of subdomain */
+typedef u32 SubDomainGroup;
+
+/** Minor identifier of subdomain */
+typedef u32 SubDomainMinor;
+
+/** An unscoped subdomain of nodes or lanes */
+struct SubDomainId {
+  SubDomainGroup major_;  /**< NodeVec, LaneVec, LaneCache ... */
+  SubDomainMinor minor_;  /**< NodeId, LaneId, LaneId ... */
+
+  CLS_CONST SubDomainGroup kNodeVec = 0;
+  CLS_CONST SubDomainGroup kLaneVec = 1;
+  CLS_CONST SubDomainGroup kLaneCache = 2;
+  CLS_CONST SubDomainGroup kLaneMapCache = 3;
+  CLS_CONST SubDomainGroup kAdminLane = 4;
+  CLS_CONST SubDomainGroup kLast = 4;
+
+  /** Serialization */
+  template<typename Ar>
+  void serialize(Ar &ar) {
+    ar(major_, minor_);
+  }
+
+  /** Equality operator */
+  bool operator==(const SubDomainId &other) const {
+    return major_ == other.major_ && minor_ == other.minor_;
+  }
+
+  /** Hash function */
+  size_t Hash() const {
+    return std::hash<u32>{}(major_) + std::hash<u32>{}(minor_);
+  }
+};
+
+/** Represents a scoped domain */
+struct DomainId {
+  TaskStateId scope_;
+  SubDomainId sub_id_;
+
+  /** Serialization */
+  template<typename Ar>
+  void serialize(Ar &ar) {
+    ar(scope_, sub_id_);
+  }
+
+  /** Equality operator */
+  bool operator==(const DomainId &other) const {
+    return scope_ == other.scope_ && sub_id_ == other.sub_id_;
+  }
+
+  /** Hash function */
+  size_t Hash() const {
+    return scope_.Hash() + sub_id_.Hash();
+  }
+};
+
+/** Select a region of a domain */
+union DomainSelection {
+  u32 id_;
+  u32 hash_;
+  struct {
+    u32 tree_root_;
+    u16 tree_depth_;
+    u16 tree_idx_;
+  } tree_;
+  u64 int_;
+
+  /** Serialization */
+  template<typename Ar>
+  void serialize(Ar &ar) {
+    ar(int_);
+  }
+
+  /** Equality operator */
+  bool operator==(const DomainSelection &other) const {
+    return int_ == other.int_;
+  }
+};
+
+/** Flags for domain query */
+typedef u32 DomainFlag;
+
+/**
+ * Represents the scheduling domain of a task.
+ * */
+struct DomainQuery {
+  bitfield<DomainFlag> flags_;  /**< Flags */
+  SubDomainGroup sub_id_;       /**< The subdomain to query */
+  DomainSelection sel_;  /**< The subset of the subdomain to query */
+
+  /** Range flags */
+  CLS_CONST DomainFlag kLocal =
+      BIT_OPT(DomainFlag, 1);
+  CLS_CONST DomainFlag kDirect =
+      BIT_OPT(DomainFlag, 2);
+  CLS_CONST DomainFlag kGlobal =
+      BIT_OPT(DomainFlag, 4);
+
+  /** Selection flags */
+  CLS_CONST DomainFlag kId =
+      BIT_OPT(DomainFlag, 5);
+  CLS_CONST DomainFlag kHash =
+      BIT_OPT(DomainFlag, 5);
+  CLS_CONST DomainFlag kTree =
+      BIT_OPT(DomainFlag, 6);
+
+  /** Iteration algos */
+  CLS_CONST DomainFlag kBroadcast =
+      BIT_OPT(DomainFlag, 15);
+  CLS_CONST DomainFlag kBroadcastThisLast =
+      BIT_OPT(DomainFlag, 16);
+  CLS_CONST DomainFlag kBroadcastFromLeader =
+      BIT_OPT(DomainFlag, 17);
+  CLS_CONST DomainFlag kRepUntilSuccess =
+      BIT_OPT(DomainFlag, 18);
+  CLS_CONST DomainFlag kChooseOne =
+      BIT_OPT(DomainFlag, 19);
+
+  /** Serialize domain id */
+  template<typename Ar>
+  void serialize(Ar &ar) {
+    ar(flags_, sub_id_, sel_);
+  }
+
+  /** Default constructor. */
+  HSHM_ALWAYS_INLINE
+  DomainQuery() {}
+
+  /** Copy constructor */
+  HSHM_ALWAYS_INLINE
+  DomainQuery(const DomainQuery &other) {
+    flags_ = other.flags_;
+    sub_id_ = other.sub_id_;
+    sel_ = other.sel_;
+  }
+
+  /** Copy operator */
+  HSHM_ALWAYS_INLINE
+  DomainQuery& operator=(const DomainQuery &other) {
+    if (this != &other) {
+      flags_ = other.flags_;
+      sub_id_ = other.sub_id_;
+      sel_ = other.sel_;
+    }
+    return *this;
+  }
+
+  /** Move constructor */
+  HSHM_ALWAYS_INLINE
+  DomainQuery(DomainQuery &&other) noexcept {
+    flags_ = other.flags_;
+    sub_id_ = other.sub_id_;
+    sel_ = other.sel_;
+  }
+
+  /** Move operator */
+  HSHM_ALWAYS_INLINE
+  DomainQuery& operator=(DomainQuery &&other) noexcept {
+    if (this != &other) {
+      flags_ = other.flags_;
+      sub_id_ = other.sub_id_;
+      sel_ = other.sel_;
+    }
+    return *this;
+  }
+
+  /** Equality operator */
+  HSHM_ALWAYS_INLINE
+  bool operator==(const DomainQuery &other) const {
+    return flags_.bits_ == other.flags_.bits_ &&
+        sub_id_ == other.sub_id_ &&
+        sel_ == other.sel_;
+  }
+
+  /** Get the local node domain */
+  static DomainQuery GetLocalHash(const SubDomainGroup &sub_id, u32 hash) {
+    DomainQuery query;
+    query.flags_.SetBits(kLocal | kHash);
+    query.sub_id_ = sub_id;
+    query.sel_.hash_ = hash;
+    return query;
+  }
+
+  /**
+   * The scope of the query is the entire subdomain
+   * @param sub_id The subdomain to query
+   * @param iter_flags The iteration flags to set (e.g., kBroadcast)
+   * */
+  static DomainQuery GetGlobal(const SubDomainGroup &sub_id, u32 iter_flags) {
+    DomainQuery query;
+    query.flags_.SetBits(kGlobal | iter_flags);
+    query.sub_id_ = sub_id;
+    return query;
+  }
+
+  /**
+   * The scope of the query is the entire subdomain
+   * @param sub_id The subdomain to query
+   * @param iter_flags The iteration flags to set (e.g., kBroadcast)
+   * */
+  static DomainQuery GetNodeGlobalBcast() {
+    DomainQuery query;
+    query.flags_.SetBits(kGlobal | kBroadcast);
+    query.sub_id_ = SubDomainId::kNodeVec;
+    return query;
+  }
+
+  /**
+   * Hash the query to an offset in the subdomain vector
+   * @param sub_id The subdomain to query
+   * @param hash The offset hash to resolve in the subdomain
+   * @param flags The iteration flags to set (e.g., kBroadcast)
+   * */
+  static DomainQuery GetDirectHash(const SubDomainGroup &sub_id, u32 hash,
+                                   u32 iter_flags = kChooseOne) {
+    DomainQuery query;
+    query.flags_.SetBits(kDirect | kHash | iter_flags);
+    query.sub_id_ = sub_id;
+    query.sel_.hash_ = hash;
+    return query;
+  }
+
+  /**
+   * Hash the query to an offset in the subdomain vector
+   *
+   * @param sub_id The subdomain to query
+   * @param id The exact id to resolve in the subdomain
+   * @param flags The iteration flags to set (e.g., kBroadcast)
+   * */
+  static DomainQuery GetDirect(const SubDomainGroup &sub_id, u32 id,
+                               u32 iter_flags = kChooseOne) {
+    DomainQuery query;
+    query.flags_.SetBits(kDirect | kHash | iter_flags);
+    query.sub_id_ = sub_id;
+    query.sel_.id_ = id;
+    return query;
+  }
+
+  /** Hash function */
+  size_t Hash() const {
+      return
+        std::hash<DomainFlag>{}(flags_.bits_) +
+        std::hash<SubDomainGroup>{}(sub_id_) +
+        std::hash<u64>{}(sel_.int_);
+  }
+};
+
+/**
+ * Represents a resolved domain query
+ * */
+struct ResolvedDomainQuery {
+  NodeId node_;
+  DomainQuery dom_;
+
+  /** Default constructor */
+  HSHM_ALWAYS_INLINE
+  ResolvedDomainQuery() {}
+
+  /** Emplace constructor */
+  HSHM_ALWAYS_INLINE
+  ResolvedDomainQuery(NodeId node, const DomainQuery &dom)
+  : node_(node), dom_(dom) {}
+
+  /** Emplace constructor (2) */
+  HSHM_ALWAYS_INLINE
+  ResolvedDomainQuery(NodeId node)
+  : node_(node) {}
+
+  /** Copy constructor */
+  HSHM_ALWAYS_INLINE
+  ResolvedDomainQuery(const ResolvedDomainQuery &other) {
+    node_ = other.node_;
+    dom_ = other.dom_;
+  }
+
+  /** Copy assignment */
+  HSHM_ALWAYS_INLINE
+  ResolvedDomainQuery& operator=(const ResolvedDomainQuery &other) {
+    if (this != &other) {
+      node_ = other.node_;
+      dom_ = other.dom_;
+    }
+    return *this;
+  }
+
+  /** Move constructor */
+  HSHM_ALWAYS_INLINE
+  ResolvedDomainQuery(ResolvedDomainQuery &&other) noexcept {
+    node_ = other.node_;
+    dom_ = other.dom_;
+  }
+
+  /** Move assignment */
+  HSHM_ALWAYS_INLINE
+  ResolvedDomainQuery& operator=(ResolvedDomainQuery &&other) noexcept {
+    if (this != &other) {
+      node_ = other.node_;
+      dom_ = other.dom_;
+    }
+    return *this;
+  }
+
+  /** Print operator */
+  friend std::ostream& operator<<(
+      std::ostream &os, const ResolvedDomainQuery &id) {
+    return os << std::to_string(id.node_);
+  }
+
+  /** Serialize */
+  template<typename Ar>
+  void serialize(Ar &ar) {
+    ar(node_, dom_);
+  }
 };
 
 }  // namespace chm
@@ -409,9 +562,16 @@ template <int TYPE>
 struct hash<chm::UniqueId<TYPE>> {
   HSHM_ALWAYS_INLINE
   std::size_t operator()(const chm::UniqueId<TYPE> &key) const {
-    return
-      std::hash<u64>{}(key.unique_) +
-      std::hash<u32>{}(key.node_id_);
+    return key.Hash();
+  }
+};
+
+/** Hash function for DomainId */
+template<>
+struct hash<chm::DomainId> {
+  HSHM_ALWAYS_INLINE
+  std::size_t operator()(const chm::DomainId &key) const {
+    return key.Hash();
   }
 };
 
@@ -420,20 +580,7 @@ template<>
 struct hash<chm::DomainQuery> {
   HSHM_ALWAYS_INLINE
   std::size_t operator()(const chm::DomainQuery &key) const {
-    return
-        std::hash<u32>{}(key.GetId()) +
-        std::hash<u32>{}(key.flags_.bits_);
-  }
-};
-
-/** Hash function for StateLaneId */
-template<>
-struct hash<chm::StateLaneId> {
-  HSHM_ALWAYS_INLINE
-  std::size_t operator()(const chm::StateLaneId &key) const {
-    return
-        std::hash<chm::TaskStateId>{}(key.state_id_) +
-        std::hash<chm::LaneId>{}(key.lane_id_);
+    return key.Hash();
   }
 };
 

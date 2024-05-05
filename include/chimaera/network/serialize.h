@@ -43,47 +43,43 @@ struct DataTransferBase {
   hshm::bitfield32_t flags_;  /**< Indicates how data will be accessed */
   void *data_;                /**< The virtual address of data on the node */
   size_t data_size_;          /**< The amount of data to transfer */
-  DomainQuery node_id_;          /**< The node data is located */
 
   /** Serialize a data transfer object */
   template<typename Ar>
   void serialize(Ar &ar) {
-    ar(flags_, (size_t)data_, data_size_, node_id_);
+    ar(flags_, (size_t)data_, data_size_);
   }
 
   /** Default constructor */
   DataTransferBase() = default;
 
   /** Emplace constructor */
-  DataTransferBase(u32 flags, void *data, size_t data_size,
-                   const DomainQuery &node_id = DomainQuery::GetLocal()) :
-  flags_(flags), data_(data), data_size_(data_size), node_id_(node_id) {}
+  DataTransferBase(u32 flags, void *data, size_t data_size) :
+  flags_(flags), data_(data), data_size_(data_size) {}
 
   /** Copy constructor */
   DataTransferBase(const DataTransferBase &xfer) :
   flags_(xfer.flags_), data_(xfer.data_),
-  data_size_(xfer.data_size_), node_id_(xfer.node_id_) {}
+  data_size_(xfer.data_size_) {}
 
   /** Copy assignment */
   DataTransferBase& operator=(const DataTransferBase &xfer) {
     flags_ = xfer.flags_;
     data_ = xfer.data_;
     data_size_ = xfer.data_size_;
-    node_id_ = xfer.node_id_;
     return *this;
   }
 
   /** Move constructor */
   DataTransferBase(DataTransferBase &&xfer) noexcept :
   flags_(xfer.flags_), data_(xfer.data_),
-  data_size_(xfer.data_size_), node_id_(xfer.node_id_) {}
+  data_size_(xfer.data_size_) {}
 
   /** Equality operator */
   bool operator==(const DataTransferBase &other) const {
     return flags_.bits_ == other.flags_.bits_ &&
          data_ == other.data_ &&
-         data_size_ == other.data_size_ &&
-         node_id_ == other.node_id_;
+         data_size_ == other.data_size_;
   }
 };
 
@@ -94,8 +90,14 @@ struct TaskSegment {
   TaskStateId task_state_;
   u32 method_;
   size_t task_addr_;
+  DomainQuery dom_;
 
   TaskSegment() = default;
+
+  TaskSegment(TaskStateId task_state, u32 method, size_t task_addr,
+              const DomainQuery &dom)
+      : task_state_(task_state), method_(method),
+        task_addr_(task_addr), dom_(dom) {}
 
   TaskSegment(TaskStateId task_state, u32 method, size_t task_addr)
   : task_state_(task_state), method_(method), task_addr_(task_addr) {}
@@ -119,7 +121,7 @@ struct TaskSegment {
 
 class SegmentedTransfer {
  public:
-  DomainQuery ret_domain_;              /**< Domain of node to return to */
+  NodeId ret_node_;                  /**< The node to return to */
   std::vector<TaskSegment> tasks_;   /**< Task info */
   std::vector<DataTransfer> bulk_;   /**< Data payloads */
   std::string md_;                   /**< Metadata */
@@ -148,7 +150,7 @@ class SegmentedTransfer {
 
   template<typename Ar>
   void serialize(Ar &ar) {
-    ar(ret_domain_, tasks_, bulk_, md_);
+    ar(ret_node_, tasks_, bulk_, md_);
   }
 };
 
@@ -177,10 +179,9 @@ class BinaryOutputArchive {
   /** Serialize using xfer */
   BinaryOutputArchive& bulk(u32 flags,
                             hipc::Pointer &data,
-                            size_t &data_size,
-                            DomainQuery &node_id) {
+                            size_t &data_size) {
     char *data_ptr = HERMES_MEMORY_MANAGER->Convert<char>(data);
-    bulk(flags, data_ptr, data_size, node_id);
+    bulk(flags, data_ptr, data_size);
     if constexpr (is_start) {
       HILOG(kDebug, "BinaryOutputArchive (start) DATA POINTER: {}", data);
     } else {
@@ -192,10 +193,9 @@ class BinaryOutputArchive {
   /** Serialize using xfer */
   BinaryOutputArchive& bulk(u32 flags,
                             char *data,
-                            size_t &data_size,
-                            DomainQuery &node_id) {
+                            size_t &data_size) {
     xfer_.bulk_.emplace_back(
-        (DataTransfer){flags, data, data_size, node_id});
+        (DataTransfer){flags, data, data_size});
     return *this;
   }
 
@@ -238,7 +238,8 @@ class BinaryOutputArchive {
         if constexpr (is_start) {
           var.template task_serialize<BinaryOutputArchive>((*this));
           xfer_.tasks_.emplace_back(var.task_state_, var.method_,
-                                    (size_t) &var);
+                                    (size_t) &var,
+                                    var.dom_query_);
           if constexpr (USES_SRL_START(T)) {
             var.SerializeStart(*this);
           } else {
@@ -291,14 +292,13 @@ class BinaryInputArchive {
   /** Deserialize using xfer */
   BinaryInputArchive& bulk(u32 flags,
                            hipc::Pointer &data,
-                           size_t &data_size,
-                           DomainQuery &node_id) {
+                           size_t &data_size) {
     char *xfer_data;
     if constexpr (!is_start) {
       xfer_data = HERMES_MEMORY_MANAGER->Convert<char>(data);
       HILOG(kDebug, "BinaryInputArchive (end) DATA POINTER: {}", data);
     }
-    bulk(flags, xfer_data, data_size, node_id);
+    bulk(flags, xfer_data, data_size);
     if constexpr (is_start) {
       data = HERMES_MEMORY_MANAGER->Convert<void, hipc::Pointer>(xfer_data);
       HILOG(kDebug, "BinaryInputArchive (start) DATA POINTER: {}", data);
@@ -309,13 +309,11 @@ class BinaryInputArchive {
   /** Deserialize using xfer */
   BinaryInputArchive& bulk(u32 flags,
                            char *&data,
-                           size_t &data_size,
-                           DomainQuery &node_id) {
+                           size_t &data_size) {
     DataTransfer &xfer = xfer_.bulk_[xfer_off_++];
     if constexpr (is_start) {
       data = (char *) xfer.data_;
       data_size = xfer.data_size_;
-      node_id = xfer.node_id_;
     }  else {
       xfer.data_ = data;
     }

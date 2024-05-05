@@ -38,7 +38,6 @@ struct ScheduleTask : public Task, TaskFlags<TF_LOCAL> {
                TaskStateId &state_id) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
-    GetLaneHash() = 0;
     prio_ = TaskPrio::kHighLatency;
     task_state_ = state_id;
     method_ = SchedulerMethod::kSchedule;

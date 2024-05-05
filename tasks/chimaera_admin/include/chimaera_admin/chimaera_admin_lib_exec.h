@@ -44,20 +44,20 @@ void Run(u32 method, Task *task, RunContext &rctx) override {
       Flush(reinterpret_cast<FlushTask *>(task), rctx);
       break;
     }
-    case Method::kDomainSize: {
-      DomainSize(reinterpret_cast<DomainSizeTask *>(task), rctx);
+    case Method::kGetDomainSize: {
+      GetDomainSize(reinterpret_cast<GetDomainSizeTask *>(task), rctx);
       break;
     }
-    case Method::kUpdateLaneMapping: {
-      UpdateLaneMapping(reinterpret_cast<UpdateLaneMappingTask *>(task), rctx);
+    case Method::kCreateDomain: {
+      CreateDomain(reinterpret_cast<CreateDomainTask *>(task), rctx);
       break;
     }
-    case Method::kGetLaneMapping: {
-      GetLaneMapping(reinterpret_cast<GetLaneMappingTask *>(task), rctx);
+    case Method::kGetDomain: {
+      GetDomain(reinterpret_cast<GetDomainTask *>(task), rctx);
       break;
     }
-    case Method::kUpdateLaneCount: {
-      UpdateLaneCount(reinterpret_cast<UpdateLaneCountTask *>(task), rctx);
+    case Method::kUpdateDomain: {
+      UpdateDomain(reinterpret_cast<UpdateDomainTask *>(task), rctx);
       break;
     }
   }
@@ -105,20 +105,20 @@ void Monitor(u32 mode, Task *task, RunContext &rctx) override {
       MonitorFlush(mode, reinterpret_cast<FlushTask *>(task), rctx);
       break;
     }
-    case Method::kDomainSize: {
-      MonitorDomainSize(mode, reinterpret_cast<DomainSizeTask *>(task), rctx);
+    case Method::kGetDomainSize: {
+      MonitorGetDomainSize(mode, reinterpret_cast<GetDomainSizeTask *>(task), rctx);
       break;
     }
-    case Method::kUpdateLaneMapping: {
-      MonitorUpdateLaneMapping(mode, reinterpret_cast<UpdateLaneMappingTask *>(task), rctx);
+    case Method::kCreateDomain: {
+      MonitorCreateDomain(mode, reinterpret_cast<CreateDomainTask *>(task), rctx);
       break;
     }
-    case Method::kGetLaneMapping: {
-      MonitorGetLaneMapping(mode, reinterpret_cast<GetLaneMappingTask *>(task), rctx);
+    case Method::kGetDomain: {
+      MonitorGetDomain(mode, reinterpret_cast<GetDomainTask *>(task), rctx);
       break;
     }
-    case Method::kUpdateLaneCount: {
-      MonitorUpdateLaneCount(mode, reinterpret_cast<UpdateLaneCountTask *>(task), rctx);
+    case Method::kUpdateDomain: {
+      MonitorUpdateDomain(mode, reinterpret_cast<UpdateDomainTask *>(task), rctx);
       break;
     }
   }
@@ -166,20 +166,20 @@ void Del(u32 method, Task *task) override {
       HRUN_CLIENT->DelTask<FlushTask>(reinterpret_cast<FlushTask *>(task));
       break;
     }
-    case Method::kDomainSize: {
-      HRUN_CLIENT->DelTask<DomainSizeTask>(reinterpret_cast<DomainSizeTask *>(task));
+    case Method::kGetDomainSize: {
+      HRUN_CLIENT->DelTask<GetDomainSizeTask>(reinterpret_cast<GetDomainSizeTask *>(task));
       break;
     }
-    case Method::kUpdateLaneMapping: {
-      HRUN_CLIENT->DelTask<UpdateLaneMappingTask>(reinterpret_cast<UpdateLaneMappingTask *>(task));
+    case Method::kCreateDomain: {
+      HRUN_CLIENT->DelTask<CreateDomainTask>(reinterpret_cast<CreateDomainTask *>(task));
       break;
     }
-    case Method::kGetLaneMapping: {
-      HRUN_CLIENT->DelTask<GetLaneMappingTask>(reinterpret_cast<GetLaneMappingTask *>(task));
+    case Method::kGetDomain: {
+      HRUN_CLIENT->DelTask<GetDomainTask>(reinterpret_cast<GetDomainTask *>(task));
       break;
     }
-    case Method::kUpdateLaneCount: {
-      HRUN_CLIENT->DelTask<UpdateLaneCountTask>(reinterpret_cast<UpdateLaneCountTask *>(task));
+    case Method::kUpdateDomain: {
+      HRUN_CLIENT->DelTask<UpdateDomainTask>(reinterpret_cast<UpdateDomainTask *>(task));
       break;
     }
   }
@@ -227,20 +227,20 @@ void CopyStart(u32 method, Task *orig_task, LPointer<Task> &dup_task, bool deep)
       chm::CALL_COPY_START(reinterpret_cast<FlushTask*>(orig_task), dup_task, deep);
       break;
     }
-    case Method::kDomainSize: {
-      chm::CALL_COPY_START(reinterpret_cast<DomainSizeTask*>(orig_task), dup_task, deep);
+    case Method::kGetDomainSize: {
+      chm::CALL_COPY_START(reinterpret_cast<GetDomainSizeTask*>(orig_task), dup_task, deep);
       break;
     }
-    case Method::kUpdateLaneMapping: {
-      chm::CALL_COPY_START(reinterpret_cast<UpdateLaneMappingTask*>(orig_task), dup_task, deep);
+    case Method::kCreateDomain: {
+      chm::CALL_COPY_START(reinterpret_cast<CreateDomainTask*>(orig_task), dup_task, deep);
       break;
     }
-    case Method::kGetLaneMapping: {
-      chm::CALL_COPY_START(reinterpret_cast<GetLaneMappingTask*>(orig_task), dup_task, deep);
+    case Method::kGetDomain: {
+      chm::CALL_COPY_START(reinterpret_cast<GetDomainTask*>(orig_task), dup_task, deep);
       break;
     }
-    case Method::kUpdateLaneCount: {
-      chm::CALL_COPY_START(reinterpret_cast<UpdateLaneCountTask*>(orig_task), dup_task, deep);
+    case Method::kUpdateDomain: {
+      chm::CALL_COPY_START(reinterpret_cast<UpdateDomainTask*>(orig_task), dup_task, deep);
       break;
     }
   }
@@ -288,20 +288,20 @@ void SaveStart(u32 method, BinaryOutputArchive<true> &ar, Task *task) override {
       ar << *reinterpret_cast<FlushTask*>(task);
       break;
     }
-    case Method::kDomainSize: {
-      ar << *reinterpret_cast<DomainSizeTask*>(task);
+    case Method::kGetDomainSize: {
+      ar << *reinterpret_cast<GetDomainSizeTask*>(task);
       break;
     }
-    case Method::kUpdateLaneMapping: {
-      ar << *reinterpret_cast<UpdateLaneMappingTask*>(task);
+    case Method::kCreateDomain: {
+      ar << *reinterpret_cast<CreateDomainTask*>(task);
       break;
     }
-    case Method::kGetLaneMapping: {
-      ar << *reinterpret_cast<GetLaneMappingTask*>(task);
+    case Method::kGetDomain: {
+      ar << *reinterpret_cast<GetDomainTask*>(task);
       break;
     }
-    case Method::kUpdateLaneCount: {
-      ar << *reinterpret_cast<UpdateLaneCountTask*>(task);
+    case Method::kUpdateDomain: {
+      ar << *reinterpret_cast<UpdateDomainTask*>(task);
       break;
     }
   }
@@ -360,24 +360,24 @@ TaskPointer LoadStart(u32 method, BinaryInputArchive<true> &ar) override {
       ar >> *reinterpret_cast<FlushTask*>(task_ptr.ptr_);
       break;
     }
-    case Method::kDomainSize: {
-      task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<DomainSizeTask>(task_ptr.shm_);
-      ar >> *reinterpret_cast<DomainSizeTask*>(task_ptr.ptr_);
+    case Method::kGetDomainSize: {
+      task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<GetDomainSizeTask>(task_ptr.shm_);
+      ar >> *reinterpret_cast<GetDomainSizeTask*>(task_ptr.ptr_);
       break;
     }
-    case Method::kUpdateLaneMapping: {
-      task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<UpdateLaneMappingTask>(task_ptr.shm_);
-      ar >> *reinterpret_cast<UpdateLaneMappingTask*>(task_ptr.ptr_);
+    case Method::kCreateDomain: {
+      task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<CreateDomainTask>(task_ptr.shm_);
+      ar >> *reinterpret_cast<CreateDomainTask*>(task_ptr.ptr_);
       break;
     }
-    case Method::kGetLaneMapping: {
-      task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<GetLaneMappingTask>(task_ptr.shm_);
-      ar >> *reinterpret_cast<GetLaneMappingTask*>(task_ptr.ptr_);
+    case Method::kGetDomain: {
+      task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<GetDomainTask>(task_ptr.shm_);
+      ar >> *reinterpret_cast<GetDomainTask*>(task_ptr.ptr_);
       break;
     }
-    case Method::kUpdateLaneCount: {
-      task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<UpdateLaneCountTask>(task_ptr.shm_);
-      ar >> *reinterpret_cast<UpdateLaneCountTask*>(task_ptr.ptr_);
+    case Method::kUpdateDomain: {
+      task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<UpdateDomainTask>(task_ptr.shm_);
+      ar >> *reinterpret_cast<UpdateDomainTask*>(task_ptr.ptr_);
       break;
     }
   }
@@ -426,20 +426,20 @@ void SaveEnd(u32 method, BinaryOutputArchive<false> &ar, Task *task) override {
       ar << *reinterpret_cast<FlushTask*>(task);
       break;
     }
-    case Method::kDomainSize: {
-      ar << *reinterpret_cast<DomainSizeTask*>(task);
+    case Method::kGetDomainSize: {
+      ar << *reinterpret_cast<GetDomainSizeTask*>(task);
       break;
     }
-    case Method::kUpdateLaneMapping: {
-      ar << *reinterpret_cast<UpdateLaneMappingTask*>(task);
+    case Method::kCreateDomain: {
+      ar << *reinterpret_cast<CreateDomainTask*>(task);
       break;
     }
-    case Method::kGetLaneMapping: {
-      ar << *reinterpret_cast<GetLaneMappingTask*>(task);
+    case Method::kGetDomain: {
+      ar << *reinterpret_cast<GetDomainTask*>(task);
       break;
     }
-    case Method::kUpdateLaneCount: {
-      ar << *reinterpret_cast<UpdateLaneCountTask*>(task);
+    case Method::kUpdateDomain: {
+      ar << *reinterpret_cast<UpdateDomainTask*>(task);
       break;
     }
   }
@@ -487,20 +487,20 @@ void LoadEnd(u32 method, BinaryInputArchive<false> &ar, Task *task) override {
       ar >> *reinterpret_cast<FlushTask*>(task);
       break;
     }
-    case Method::kDomainSize: {
-      ar >> *reinterpret_cast<DomainSizeTask*>(task);
+    case Method::kGetDomainSize: {
+      ar >> *reinterpret_cast<GetDomainSizeTask*>(task);
       break;
     }
-    case Method::kUpdateLaneMapping: {
-      ar >> *reinterpret_cast<UpdateLaneMappingTask*>(task);
+    case Method::kCreateDomain: {
+      ar >> *reinterpret_cast<CreateDomainTask*>(task);
       break;
     }
-    case Method::kGetLaneMapping: {
-      ar >> *reinterpret_cast<GetLaneMappingTask*>(task);
+    case Method::kGetDomain: {
+      ar >> *reinterpret_cast<GetDomainTask*>(task);
       break;
     }
-    case Method::kUpdateLaneCount: {
-      ar >> *reinterpret_cast<UpdateLaneCountTask*>(task);
+    case Method::kUpdateDomain: {
+      ar >> *reinterpret_cast<UpdateDomainTask*>(task);
       break;
     }
   }

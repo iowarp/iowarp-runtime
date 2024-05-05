@@ -12,6 +12,7 @@ add_executable(test_ipc_exec
         test_finalize.cc
         test_ipc.cc
         test_serialize.cc
+        test_type_sizes.cc
 )
 add_dependencies(test_ipc_exec ${Chimaera_CLIENT_DEPS})
 target_link_libraries(test_ipc_exec

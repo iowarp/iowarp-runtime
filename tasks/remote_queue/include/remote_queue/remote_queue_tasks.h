@@ -77,7 +77,6 @@ struct ClientPushSubmitTask : public Task, TaskFlags<TF_LOCAL> {
                        Task *orig_task) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
-    GetLaneHash() = orig_task->GetLaneHash();
     prio_ = orig_task->prio_;
     task_state_ = state_id;
     method_ = Method::kClientPushSubmit;
@@ -103,11 +102,9 @@ struct ClientSubmitTask : public Task, TaskFlags<TF_LOCAL> {
   ClientSubmitTask(hipc::Allocator *alloc,
                    const TaskNode &task_node,
                    const DomainQuery &dom_query,
-                   TaskStateId &state_id,
-                   size_t lane_hash) : Task(alloc) {
+                   TaskStateId &state_id) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
-    GetLaneHash() = lane_hash;
     prio_ = TaskPrio::kHighLatency;
     task_state_ = state_id;
     method_ = Method::kClientSubmit;
@@ -139,11 +136,9 @@ struct ServerCompleteTask : public Task, TaskFlags<TF_LOCAL> {
   ServerCompleteTask(hipc::Allocator *alloc,
                      const TaskNode &task_node,
                      const DomainQuery &dom_query,
-                     TaskStateId &state_id,
-                     size_t lane_hash) : Task(alloc) {
+                     TaskStateId &state_id) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
-    GetLaneHash() = lane_hash;
     prio_ = TaskPrio::kHighLatency;
     task_state_ = state_id;
     method_ = Method::kServerComplete;

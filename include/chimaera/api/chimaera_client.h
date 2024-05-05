@@ -303,7 +303,6 @@ class Client : public ConfigurationManager {
       if (!p.shm_.IsNull()) {
         break;
       }
-      // FlushRoot(DomainQuery::GetLocal());
       Yield<THREAD_MODEL>();
       HILOG(kDebug, "{} Waiting to allocate buffer of size {} (1)?", size);
     }
@@ -329,7 +328,6 @@ class Client : public ConfigurationManager {
       if (!p.shm_.IsNull()) {
         break;
       }
-      // FlushRoot(DomainQuery::GetLocal());
       Yield<THREAD_MODEL>(yield_task);
       HILOG(kDebug, "{} Waiting to allocate buffer of size {} (1)?", size);
     }

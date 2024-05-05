@@ -73,37 +73,19 @@ class RpcContext {
     return hosts_.size();
   }
 
-  /** Add the mapping of a lane to a domain */
-  void CacheLaneMapping(const StateLaneId &state_lane_id,
-                        const DomainQuery &dom_query) {
-    ScopedRwWriteLock lock(lane_map_lock_, 0);
-    if (lane_map_.find(state_lane_id.state_id_) == lane_map_.end()) {
-      lane_map_[state_lane_id.state_id_] = LANE_MAP_T();
-    }
-    lane_map_[state_lane_id.state_id_][state_lane_id.lane_id_] = dom_query;
-  }
-
-  /** Get the domain ID of a lane */
-  DomainQuery GetLaneMapping(const StateLaneId &state_lane_id) {
-    ScopedRwReadLock lock(lane_map_lock_, 0);
-    if (lane_map_.find(state_lane_id.state_id_) == lane_map_.end()) {
-      HELOG(kWarning, "Lane mapping not found for state {}",
-            state_lane_id.state_id_);
-      return DomainQuery::GetNode(0);
-    }
-    LANE_MAP_T &lane_map = lane_map_[state_lane_id.state_id_];
-    if (lane_map.find(state_lane_id.lane_id_) == lane_map.end()) {
-      HELOG(kWarning, "Lane mapping not found for lane {} in state {}",
-            state_lane_id.lane_id_, state_lane_id.state_id_);
-      return DomainQuery::GetNode(0);
-    }
-    return lane_map[state_lane_id.lane_id_];
+  /**
+   * Detect if a DomainQuery is across nodes
+   * */
+  bool IsRemote(const DomainQuery &dom_query) {
+    return false;
   }
 
   /**
    * Convert a DomainQuery into a set of more concretized queries.
    * */
-  std::vector<DomainQuery> ResolveDomainQuery(const DomainQuery &dom_query) {
+  std::vector<ResolvedDomainQuery>
+  ResolveDomainQuery(const DomainQuery &dom_query) {
+    return {};
   }
 
   /** initialize host info list */
@@ -133,7 +115,7 @@ class RpcContext {
   }
 
   /** get RPC address */
-  std::string GetRpcAddress(const DomainQuery &dom_query, int port) {
+  std::string GetRpcAddress(NodeId node_id, int port) {
     if (config_->rpc_.protocol_ == "shm") {
       return "shm";
     }
@@ -141,20 +123,19 @@ class RpcContext {
     if (!config_->rpc_.domain_.empty()) {
       result += config_->rpc_.domain_ + "/";
     }
-    std::string host_name = GetHostNameFromNodeId(dom_query);
+    std::string host_name = GetHostNameFromNodeId(node_id);
     result += host_name + ":" + std::to_string(port);
     return result;
   }
 
   /** Get RPC address for this node */
   std::string GetMyRpcAddress() {
-    return GetRpcAddress(DomainQuery::GetNode(node_id_), port_);
+    return GetRpcAddress(node_id_, port_);
   }
 
   /** get host name from node ID */
-  std::string GetHostNameFromNodeId(const DomainQuery &dom_query) {
+  std::string GetHostNameFromNodeId(NodeId node_id) {
     // NOTE(llogan): node_id 0 is reserved as the NULL node
-    NodeId node_id = dom_query.GetId();
     if (node_id <= 0 || node_id > (i32)hosts_.size()) {
       HELOG(kFatal, "Attempted to get from node {}, which is out of "
                     "the range 1-{}", node_id, hosts_.size())
@@ -164,9 +145,8 @@ class RpcContext {
   }
 
   /** get host name from node ID */
-  std::string GetIpAddressFromNodeId(const DomainQuery &dom_query){
+  std::string GetIpAddressFromNodeId(NodeId node_id){
     // NOTE(llogan): node_id 0 is reserved as the NULL node
-    NodeId node_id = dom_query.GetId();
     if (node_id <= 0 || node_id > (u32)hosts_.size()) {
       HELOG(kFatal, "Attempted to get from node {}, which is out of "
                     "the range 1-{}", node_id, hosts_.size())

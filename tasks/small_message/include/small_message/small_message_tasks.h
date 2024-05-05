@@ -69,12 +69,10 @@ struct MdTask : public Task, TaskFlags<TF_SRL_SYM> {
          const TaskNode &task_node,
          const DomainQuery &dom_query,
          TaskStateId &state_id,
-         u32 lane_hash,
          u32 depth,
          u32 flags) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
-    GetLaneHash() = lane_hash;
     prio_ = TaskPrio::kLowLatency;
     task_state_ = state_id;
     method_ = Method::kMd;
@@ -129,7 +127,6 @@ struct IoTask : public Task, TaskFlags<TF_SRL_SYM> {
          u32 io_flags) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
-    GetLaneHash() = 3;
     prio_ = TaskPrio::kLowLatency;
     task_state_ = state_id;
     method_ = Method::kIo;
@@ -164,8 +161,7 @@ struct IoTask : public Task, TaskFlags<TF_SRL_SYM> {
   void SerializeStart(Ar &ar) {
     ar(io_flags_);
     if (io_flags_.Any(MD_IO_WRITE)) {
-      ar.bulk(DT_SENDER_WRITE,
-              data_, size_, dom_query_);
+      ar.bulk(DT_SENDER_WRITE, data_, size_);
     }
   }
 
@@ -174,8 +170,7 @@ struct IoTask : public Task, TaskFlags<TF_SRL_SYM> {
   void SerializeEnd(Ar &ar) {
     ar(io_flags_, ret_);
     if (io_flags_.Any(MD_IO_READ)) {
-      ar.bulk(DT_SENDER_READ,
-              data_, size_, dom_query_);
+      ar.bulk(DT_SENDER_READ, data_, size_);
     }
   }
 };

@@ -82,7 +82,7 @@ void Runtime::ServerInit(std::string server_config_path) {
   // Initially schedule queues to workers
   auto queue_task = HRUN_CLIENT->NewTask<ScheduleTask>(
       HRUN_CLIENT->MakeTaskNodeId(),
-      DomainQuery::GetLocal(),
+      DomainQuery::GetLocalHash(chm::SubDomainId::kLaneVec, 0),
       queue_sched_id);
   state->Run(queue_task->method_,
              queue_task.ptr_,
@@ -101,15 +101,19 @@ void Runtime::ServerInit(std::string server_config_path) {
       max_lanes);
 
   // Set the work orchestrator queue scheduler
-  CHM_ADMIN->SetWorkOrchQueuePolicyRoot(chm::DomainQuery::GetLocal(),
-                                        queue_sched_id);
-  CHM_ADMIN->SetWorkOrchProcPolicyRoot(chm::DomainQuery::GetLocal(),
-                                       proc_sched_id);
+  CHM_ADMIN->SetWorkOrchQueuePolicyRoot(
+      DomainQuery::GetLocalHash(chm::SubDomainId::kLaneVec, 0),
+      queue_sched_id);
+  CHM_ADMIN->SetWorkOrchProcPolicyRoot(
+      DomainQuery::GetLocalHash(chm::SubDomainId::kLaneVec, 0),
+      proc_sched_id);
 
   // Create the remote queue library
   task_registry_.RegisterTaskLib("remote_queue");
-  remote_queue_.CreateRoot(DomainQuery::GetLocal(), "remote_queue",
-                           HRUN_CLIENT->MakeTaskStateId());
+  remote_queue_.CreateRoot(
+      DomainQuery::GetLocalHash(chm::SubDomainId::kLaneVec, 0),
+      "remote_queue",
+      HRUN_CLIENT->MakeTaskStateId());
   remote_created_ = true;
 }
 

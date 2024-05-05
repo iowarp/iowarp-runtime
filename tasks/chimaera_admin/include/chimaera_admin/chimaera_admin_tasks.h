@@ -29,7 +29,6 @@ struct RegisterTaskLibTaskTempl : public Task, TaskFlags<TF_SRL_SYM> {
   : Task(alloc), lib_name_(alloc, lib_name) {
     // Initialize task
     task_node_ = task_node;
-    GetLaneHash() = 0;
     prio_ = TaskPrio::kLowLatency;
     task_state_ = HRUN_QM_CLIENT->admin_task_state_;
     if constexpr(method == 0) {
@@ -96,7 +95,6 @@ struct GetOrCreateTaskStateIdTask : public Task, TaskFlags<TF_SRL_SYM> {
   : Task(alloc), state_name_(alloc, state_name) {
     // Initialize task
     task_node_ = task_node;
-    GetLaneHash() = 0;
     prio_ = TaskPrio::kLowLatency;
     task_state_ = HRUN_QM_CLIENT->admin_task_state_;
     method_ = Method::kGetOrCreateTaskStateId;
@@ -150,7 +148,6 @@ struct CreateTaskStateTask : public Task, TaskFlags<TF_SRL_SYM> {
     lib_name_(alloc, lib_name) {
     // Initialize task
     task_node_ = task_node;
-    GetLaneHash() = 0;
     prio_ = TaskPrio::kLowLatency;
     task_state_ = HRUN_QM_CLIENT->admin_task_state_;
     method_ = Method::kCreateTaskState;
@@ -206,7 +203,6 @@ struct GetTaskStateIdTask : public Task, TaskFlags<TF_SRL_SYM> {
   : Task(alloc), state_name_(alloc, state_name) {
     // Initialize task
     task_node_ = task_node;
-    GetLaneHash() = 0;
     prio_ = TaskPrio::kLowLatency;
     task_state_ = HRUN_QM_CLIENT->admin_task_state_;
     method_ = Method::kGetTaskStateId;
@@ -250,7 +246,6 @@ struct DestroyTaskStateTask : public Task, TaskFlags<TF_SRL_SYM> {
                        const TaskStateId &id) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
-    GetLaneHash() = 0;
     prio_ = TaskPrio::kLowLatency;
     task_state_ = HRUN_QM_CLIENT->admin_task_state_;
     method_ = Method::kDestroyTaskState;
@@ -292,7 +287,6 @@ struct StopRuntimeTask : public Task, TaskFlags<TF_SRL_SYM> {
                   const DomainQuery &dom_query) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
-    GetLaneHash() = 0;
     prio_ = TaskPrio::kLowLatency;
     task_state_ = HRUN_QM_CLIENT->admin_task_state_;
     method_ = Method::kStopRuntime;
@@ -332,7 +326,6 @@ struct SetWorkOrchestratorPolicyTask : public Task, TaskFlags<TF_SRL_SYM> {
                                 const TaskStateId &policy_id) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
-    GetLaneHash() = 0;
     prio_ = TaskPrio::kLowLatency;
     task_state_ = HRUN_QM_CLIENT->admin_task_state_;
     if constexpr(method == 0) {
@@ -380,7 +373,6 @@ struct FlushTask : public Task, TaskFlags<TF_SRL_SYM> {
             const DomainQuery &dom_query) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
-    GetLaneHash() = 0;
     prio_ = TaskPrio::kLowLatency;
     task_state_ = HRUN_QM_CLIENT->admin_task_state_;
     method_ = Method::kFlush;
@@ -410,26 +402,25 @@ struct FlushTask : public Task, TaskFlags<TF_SRL_SYM> {
 };
 
 /** A task to get the domain size */
-struct DomainSizeTask : public Task, TaskFlags<TF_LOCAL> {
+struct GetDomainSizeTask : public Task, TaskFlags<TF_LOCAL> {
   IN DomainQuery comm_;
   OUT size_t comm_size_;
 
   /** SHM default constructor */
-  DomainSizeTask(hipc::Allocator *alloc) : Task(alloc) {}
+  GetDomainSizeTask(hipc::Allocator *alloc) : Task(alloc) {}
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
-  DomainSizeTask(hipc::Allocator *alloc,
-                 const TaskNode &task_node,
-                 const DomainQuery &dom_query) : Task(alloc) {
+  GetDomainSizeTask(hipc::Allocator *alloc,
+                    const TaskNode &task_node,
+                    const DomainQuery &dom_query) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
-    GetLaneHash() = 0;
     prio_ = TaskPrio::kLowLatency;
     task_state_ = HRUN_QM_CLIENT->admin_task_state_;
-    method_ = Method::kDomainSize;
+    method_ = Method::kGetDomainSize;
     task_flags_.SetBits(0);
-    dom_query_ = DomainQuery::GetLocal();
+    dom_query_ = dom_query;
 
     // Custom
     comm_ = dom_query;
@@ -438,46 +429,48 @@ struct DomainSizeTask : public Task, TaskFlags<TF_LOCAL> {
 };
 
 /** A task to update the lane mapping */
-struct UpdateLaneMappingTask : public Task, TaskFlags<TF_SRL_SYM> {
-  IN hipc::vector<hipc::pair<StateLaneId, DomainQuery>> mapping_;
+struct CreateDomainTask : public Task, TaskFlags<TF_SRL_SYM> {
+  IN bool dom_type_;
+  IN TaskStateId dom_scope_;
+  IN DomainId dom_id_;
+  IN hipc::vector<LaneOrNodeId> dom_set_;
 
   /** SHM default constructor */
-  UpdateLaneMappingTask(hipc::Allocator *alloc)
-  : Task(alloc), mapping_(alloc) {}
+  CreateDomainTask(hipc::Allocator *alloc)
+  : Task(alloc), dom_set_(alloc) {}
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
-  UpdateLaneMappingTask(
+  CreateDomainTask(
       hipc::Allocator *alloc,
       const TaskNode &task_node,
       const DomainQuery &dom_query,
-      const std::vector<std::pair<StateLaneId, DomainQuery>> &mapping)
-  : Task(alloc), mapping_(alloc) {
+      const std::vector<LaneOrNodeId> &dom_set)
+  : Task(alloc), dom_set_(alloc) {
     // Initialize task
     task_node_ = task_node;
-    GetLaneHash() = 0;
     prio_ = TaskPrio::kLowLatency;
     task_state_ = HRUN_QM_CLIENT->admin_task_state_;
-    method_ = Method::kUpdateLaneMapping;
+    method_ = Method::kCreateDomain;
     task_flags_.SetBits(0);
     dom_query_ = dom_query;
 
     // Copy the mapping
-    mapping_.reserve(mapping.size());
-    for (size_t i = 0; i < mapping.size(); i++) {
-      mapping_.emplace_back(mapping[i].first, mapping[i].second);
+    dom_set_.reserve(dom_set.size());
+    for (size_t i = 0; i < dom_set.size(); i++) {
+      dom_set_.emplace_back(dom_set[i]);
     }
   }
 
   /** Duplicate message */
-  void CopyStart(UpdateLaneMappingTask &other, bool deep) {
-    mapping_ = other.mapping_;
+  void CopyStart(CreateDomainTask &other, bool deep) {
+    dom_set_ = other.dom_set_;
   }
 
   /** (De)serialize message call */
   template<typename Ar>
   void SerializeStart(Ar &ar) {
-    ar(mapping_);
+    ar(dom_set_);
   }
 
   /** (De)serialize message return */
@@ -487,47 +480,46 @@ struct UpdateLaneMappingTask : public Task, TaskFlags<TF_SRL_SYM> {
 };
 
 /** A task to update the lane mapping */
-struct GetLaneMappingTask : public Task, TaskFlags<TF_SRL_SYM> {
+struct GetDomainTask : public Task, TaskFlags<TF_SRL_SYM> {
   IN TaskStateId state_id_;
-  IN LaneId lane_id_;
+  IN SubDomainId sub_id_;
   OUT DomainQuery lane_domain_;
 
   /** SHM default constructor */
-  GetLaneMappingTask(hipc::Allocator *alloc)
+  GetDomainTask(hipc::Allocator *alloc)
   : Task(alloc) {}
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
-  GetLaneMappingTask(
+  GetDomainTask(
       hipc::Allocator *alloc,
       const TaskNode &task_node,
       const DomainQuery &dom_query,
       const TaskStateId &state_id,
-      LaneId lane_id)
+      const SubDomainId &sub_id)
   : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
-    GetLaneHash() = 0;
     prio_ = TaskPrio::kLowLatency;
     task_state_ = HRUN_QM_CLIENT->admin_task_state_;
-    method_ = Method::kGetLaneMapping;
+    method_ = Method::kGetDomain;
     task_flags_.SetBits(0);
     dom_query_ = dom_query;
 
     state_id_ = state_id;
-    lane_id_ = lane_id;
+    sub_id_ = sub_id;
   }
 
   /** Duplicate message */
-  void CopyStart(GetLaneMappingTask &other, bool deep) {
+  void CopyStart(GetDomainTask &other, bool deep) {
     state_id_ = other.state_id_;
-    lane_id_ = other.lane_id_;
+    sub_id_ = other.sub_id_;
   }
 
   /** (De)serialize message call */
   template<typename Ar>
   void SerializeStart(Ar &ar) {
-    ar(state_id_, lane_id_);
+    ar(state_id_, sub_id_);
   }
 
   /** (De)serialize message return */
@@ -538,17 +530,17 @@ struct GetLaneMappingTask : public Task, TaskFlags<TF_SRL_SYM> {
 };
 
 /** A task to update the lane mapping */
-struct UpdateLaneCountTask : public Task, TaskFlags<TF_SRL_SYM> {
+struct UpdateDomainTask : public Task, TaskFlags<TF_SRL_SYM> {
   IN TaskStateId state_id_;
   IN u32 lane_count_;
 
   /** SHM default constructor */
-  UpdateLaneCountTask(hipc::Allocator *alloc)
+  UpdateDomainTask(hipc::Allocator *alloc)
   : Task(alloc) {}
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
-  UpdateLaneCountTask(
+  UpdateDomainTask(
       hipc::Allocator *alloc,
       const TaskNode &task_node,
       const DomainQuery &dom_query,
@@ -557,10 +549,9 @@ struct UpdateLaneCountTask : public Task, TaskFlags<TF_SRL_SYM> {
   : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
-    GetLaneHash() = 0;
     prio_ = TaskPrio::kLowLatency;
     task_state_ = HRUN_QM_CLIENT->admin_task_state_;
-    method_ = Method::kDomainSize;
+    method_ = Method::kUpdateDomain;
     task_flags_.SetBits(0);
     dom_query_ = dom_query;
 
@@ -569,7 +560,7 @@ struct UpdateLaneCountTask : public Task, TaskFlags<TF_SRL_SYM> {
   }
 
   /** Duplicate message */
-  void CopyStart(UpdateLaneCountTask &other, bool deep) {
+  void CopyStart(UpdateDomainTask &other, bool deep) {
     state_id_ = other.state_id_;
     lane_count_ = other.lane_count_;
   }

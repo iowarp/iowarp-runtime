@@ -39,7 +39,7 @@ struct TestObj : public Task, TaskFlags<TF_SRL_SYM> {
   /** (De)serialize message call */
   template<typename Ar>
   void SerializeStart(Ar &ar) {
-    ar.bulk(DT_SENDER_WRITE, data_p_, data_size_, dom_query_);
+    ar.bulk(DT_SENDER_WRITE, data_p_, data_size_);
     ar(a_, b_, c_);
   }
 
