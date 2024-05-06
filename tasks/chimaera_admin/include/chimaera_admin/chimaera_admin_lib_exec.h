@@ -48,10 +48,6 @@ void Run(u32 method, Task *task, RunContext &rctx) override {
       GetDomainSize(reinterpret_cast<GetDomainSizeTask *>(task), rctx);
       break;
     }
-    case Method::kCreateDomain: {
-      CreateDomain(reinterpret_cast<CreateDomainTask *>(task), rctx);
-      break;
-    }
     case Method::kGetDomain: {
       GetDomain(reinterpret_cast<GetDomainTask *>(task), rctx);
       break;
@@ -107,10 +103,6 @@ void Monitor(u32 mode, Task *task, RunContext &rctx) override {
     }
     case Method::kGetDomainSize: {
       MonitorGetDomainSize(mode, reinterpret_cast<GetDomainSizeTask *>(task), rctx);
-      break;
-    }
-    case Method::kCreateDomain: {
-      MonitorCreateDomain(mode, reinterpret_cast<CreateDomainTask *>(task), rctx);
       break;
     }
     case Method::kGetDomain: {
@@ -170,10 +162,6 @@ void Del(u32 method, Task *task) override {
       HRUN_CLIENT->DelTask<GetDomainSizeTask>(reinterpret_cast<GetDomainSizeTask *>(task));
       break;
     }
-    case Method::kCreateDomain: {
-      HRUN_CLIENT->DelTask<CreateDomainTask>(reinterpret_cast<CreateDomainTask *>(task));
-      break;
-    }
     case Method::kGetDomain: {
       HRUN_CLIENT->DelTask<GetDomainTask>(reinterpret_cast<GetDomainTask *>(task));
       break;
@@ -231,10 +219,6 @@ void CopyStart(u32 method, Task *orig_task, LPointer<Task> &dup_task, bool deep)
       chm::CALL_COPY_START(reinterpret_cast<GetDomainSizeTask*>(orig_task), dup_task, deep);
       break;
     }
-    case Method::kCreateDomain: {
-      chm::CALL_COPY_START(reinterpret_cast<CreateDomainTask*>(orig_task), dup_task, deep);
-      break;
-    }
     case Method::kGetDomain: {
       chm::CALL_COPY_START(reinterpret_cast<GetDomainTask*>(orig_task), dup_task, deep);
       break;
@@ -290,10 +274,6 @@ void SaveStart(u32 method, BinaryOutputArchive<true> &ar, Task *task) override {
     }
     case Method::kGetDomainSize: {
       ar << *reinterpret_cast<GetDomainSizeTask*>(task);
-      break;
-    }
-    case Method::kCreateDomain: {
-      ar << *reinterpret_cast<CreateDomainTask*>(task);
       break;
     }
     case Method::kGetDomain: {
@@ -365,11 +345,6 @@ TaskPointer LoadStart(u32 method, BinaryInputArchive<true> &ar) override {
       ar >> *reinterpret_cast<GetDomainSizeTask*>(task_ptr.ptr_);
       break;
     }
-    case Method::kCreateDomain: {
-      task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<CreateDomainTask>(task_ptr.shm_);
-      ar >> *reinterpret_cast<CreateDomainTask*>(task_ptr.ptr_);
-      break;
-    }
     case Method::kGetDomain: {
       task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<GetDomainTask>(task_ptr.shm_);
       ar >> *reinterpret_cast<GetDomainTask*>(task_ptr.ptr_);
@@ -430,10 +405,6 @@ void SaveEnd(u32 method, BinaryOutputArchive<false> &ar, Task *task) override {
       ar << *reinterpret_cast<GetDomainSizeTask*>(task);
       break;
     }
-    case Method::kCreateDomain: {
-      ar << *reinterpret_cast<CreateDomainTask*>(task);
-      break;
-    }
     case Method::kGetDomain: {
       ar << *reinterpret_cast<GetDomainTask*>(task);
       break;
@@ -489,10 +460,6 @@ void LoadEnd(u32 method, BinaryInputArchive<false> &ar, Task *task) override {
     }
     case Method::kGetDomainSize: {
       ar >> *reinterpret_cast<GetDomainSizeTask*>(task);
-      break;
-    }
-    case Method::kCreateDomain: {
-      ar >> *reinterpret_cast<CreateDomainTask*>(task);
       break;
     }
     case Method::kGetDomain: {

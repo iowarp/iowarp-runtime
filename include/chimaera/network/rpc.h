@@ -80,6 +80,11 @@ class RpcContext {
     return false;
   }
 
+  /** Get the size of a domain */
+  size_t GetDomainSize(const DomainId &dom_id) {
+    return 0;
+  }
+
   /**
    * Convert a DomainQuery into a set of more concretized queries.
    * */

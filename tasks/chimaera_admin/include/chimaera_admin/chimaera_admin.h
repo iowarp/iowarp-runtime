@@ -131,11 +131,11 @@ class Client : public TaskLibClient {
     HILOG(kInfo, "Beginning to flush the runtime.\n"
                  "If you did async I/O, this may take some time.\n"
                  "All unflushed data will be written to the PFS.");
-    FlushRoot(DomainQuery::GetGlobal(SubDomainId::kNodeVec,
+    FlushRoot(DomainQuery::GetGlobal(SubDomainId::kNodeSet,
                                      DomainQuery::kBroadcast));
     HILOG(kInfo, "Stopping the runtime");
     AsyncStopRuntimeRoot(DomainQuery::GetGlobal(
-        SubDomainId::kNodeVec, DomainQuery::kBroadcastThisLast));
+        SubDomainId::kNodeSet, DomainQuery::kBroadcastThisLast));
     HILOG(kInfo, "All done!");
     exit(1);
   }
@@ -197,17 +197,19 @@ class Client : public TaskLibClient {
   /** Flush the runtime */
   void AsyncGetDomainSizeConstruct(GetDomainSizeTask *task,
                            const TaskNode &task_node,
-                           const DomainQuery &dom_query) {
+                           const DomainQuery &dom_query,
+                           const DomainId &dom_id) {
     HRUN_CLIENT->ConstructTask<GetDomainSizeTask>(
-        task, task_node, dom_query);
+        task, task_node, dom_query, dom_id);
   }
-  size_t GetDomainSizeRoot(const DomainQuery &dom_query) {
+  size_t GetDomainSizeRoot(const DomainQuery &dom_query,
+                           const DomainId &dom_id) {
     LPointer<GetDomainSizeTask> task =
-        AsyncGetDomainSizeRoot(dom_query);
+        AsyncGetDomainSizeRoot(dom_query, dom_id);
     task->Wait();
-    size_t comm_size = task->comm_size_;
+    size_t dom_size = task->dom_size_;
     HRUN_CLIENT->DelTask(task);
-    return comm_size;
+    return dom_size;
   }
   HRUN_TASK_NODE_ADMIN_ROOT(GetDomainSize)
 };

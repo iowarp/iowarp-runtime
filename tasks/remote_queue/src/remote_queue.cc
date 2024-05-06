@@ -45,10 +45,10 @@ struct SharedState {
     for (size_t i = 0; i < num_lanes; ++i) {
       submitters_[i] = HRUN_REMOTE_QUEUE->AsyncClientSubmit(
           task, task->task_node_ + 1,
-          DomainQuery::GetLocalHash(SubDomainId::kNodeVec, i));
+          DomainQuery::GetLocalHash(SubDomainId::kNodeSet, i));
       completers_[i] = HRUN_REMOTE_QUEUE->AsyncServerComplete(
           task, task->task_node_ + 1,
-          DomainQuery::GetLocalHash(SubDomainId::kNodeVec, i));
+          DomainQuery::GetLocalHash(SubDomainId::kNodeSet, i));
     }
   }
 };

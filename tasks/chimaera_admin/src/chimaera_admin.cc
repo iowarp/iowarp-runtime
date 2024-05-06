@@ -26,19 +26,10 @@ class Server : public TaskLib {
  public:
   Server() : queue_sched_(nullptr), proc_sched_(nullptr) {}
 
-  /** Create a domain */
-  void CreateDomain(CreateDomainTask *task, RunContext &rctx) {
-    task->SetModuleComplete();
-  }
-  void MonitorCreateDomain(u32 mode,
-                           CreateDomainTask *task,
-                           RunContext &rctx) {
-  }
-
   /** Get the domain */
   void GetDomain(GetDomainTask *task, RunContext &rctx) {
-    TaskStateId state_id = task->state_id_;
     // Update the LaneMapCache to include this node
+
     task->SetModuleComplete();
   }
   void MonitorGetDomain(u32 mode,
@@ -48,6 +39,21 @@ class Server : public TaskLib {
 
   /** Update number of lanes */
   void UpdateDomain(UpdateDomainTask *task, RunContext &rctx) {
+    std::vector<UpdateDomainInfo> ops = task->ops_.vec();
+    for (UpdateDomainInfo &op : ops) {
+      switch (op.op_) {
+        case UpdateDomainOp::kAppend: {
+          break;
+        }
+        case UpdateDomainOp::kRemove: {
+          break;
+        }
+        case UpdateDomainOp::kReplace: {
+          break;
+        }
+      }
+    }
+    task->SetModuleComplete();
   }
   void MonitorUpdateDomain(u32 mode,
                            UpdateDomainTask *task,
@@ -111,7 +117,7 @@ class Server : public TaskLib {
     // Check global registry for task state
     if (task->id_.IsNull()) {
       DomainQuery domain =
-          chm::DomainQuery::GetDirectHash(chm::SubDomainId::kLaneVec, 0);
+          chm::DomainQuery::GetDirectHash(chm::SubDomainId::kLaneSet, 0);
       HILOG(kInfo, "(node {}) Locating task state {} with id {} (task_node={})",
             HRUN_CLIENT->node_id_, state_name, task->id_, task->task_node_);
       LPointer<GetOrCreateTaskStateIdTask> get_id =
@@ -211,7 +217,7 @@ class Server : public TaskLib {
     }
     auto queue_sched = HRUN_CLIENT->NewTask<ScheduleTask>(
         task->task_node_,
-        chm::DomainQuery::GetLocalHash(chm::SubDomainId::kLaneVec, 0),
+        chm::DomainQuery::GetLocalHash(chm::SubDomainId::kLaneSet, 0),
         task->policy_id_);
     queue_sched_ = queue_sched.ptr_;
     MultiQueue *queue = HRUN_CLIENT->GetQueue(queue_id_);
@@ -234,7 +240,7 @@ class Server : public TaskLib {
     }
     auto proc_sched = HRUN_CLIENT->NewTask<ScheduleTask>(
         task->task_node_,
-        chm::DomainQuery::GetLocalHash(chm::SubDomainId::kLaneVec, 0),
+        chm::DomainQuery::GetLocalHash(chm::SubDomainId::kLaneSet, 0),
         task->policy_id_);
     proc_sched_ = proc_sched.ptr_;
     MultiQueue *queue = HRUN_CLIENT->GetQueue(queue_id_);
@@ -266,8 +272,8 @@ class Server : public TaskLib {
 
   /** Get the domain size */
   void GetDomainSize(GetDomainSizeTask *task, RunContext &rctx) {
-    task->comm_size_ =
-        HRUN_RPC->ResolveDomainQuery(task->comm_).size();
+    task->dom_size_ =
+        HRUN_RPC->GetDomainSize(task->dom_id_);
     task->SetModuleComplete();
   }
   void MonitorGetDomainSize(u32 mode, GetDomainSizeTask *task, RunContext &rctx) {

@@ -226,17 +226,6 @@ enum class IoType {
   kNone
 };
 
-/** Represents a lane or node ID */
-union LaneOrNodeId {
-  NodeId node_id_;
-  LaneId lane_id_;
-
-  template<typename Ar>
-  void serialize(Ar &ar) {
-    ar(node_id_);
-  }
-};
-
 /** Major identifier of subdomain */
 typedef u32 SubDomainGroup;
 
@@ -245,15 +234,42 @@ typedef u32 SubDomainMinor;
 
 /** An unscoped subdomain of nodes or lanes */
 struct SubDomainId {
-  SubDomainGroup major_;  /**< NodeVec, LaneVec, LaneCache ... */
+  SubDomainGroup major_;  /**< NodeSet, LaneSet, LaneCache ... */
   SubDomainMinor minor_;  /**< NodeId, LaneId, LaneId ... */
 
-  CLS_CONST SubDomainGroup kNodeVec = 0;
-  CLS_CONST SubDomainGroup kLaneVec = 1;
-  CLS_CONST SubDomainGroup kLaneCache = 2;
-  CLS_CONST SubDomainGroup kLaneMapCache = 3;
-  CLS_CONST SubDomainGroup kAdminLane = 4;
-  CLS_CONST SubDomainGroup kLast = 4;
+  /** Get the metadata subdomain group */
+  CLS_CONST SubDomainGroup GetMetaGroup(SubDomainGroup group) {
+    return group + BIT_OPT(u32, 30);
+  }
+
+  /** ID represents a physical node ID */
+  bool IsPhysical() const {
+    return major_ == kPhysicalNode;
+  }
+
+  /** Create a physical ID subdomain */
+  static SubDomainId CreatePhysical(SubDomainMinor minor) {
+    return {kPhysicalNode, minor};
+  }
+
+  /** Subdomain major+minor groups */
+  CLS_CONST SubDomainGroup kNodeEntry = 0;
+  CLS_CONST SubDomainGroup kLaneEntry = 1;
+  CLS_CONST SubDomainGroup kLaneDataCacheEntry = 2;
+  CLS_CONST SubDomainGroup kAdminLaneEntry = 3;
+  CLS_CONST SubDomainGroup kLaneMapCacheEntry = 4;
+  CLS_CONST SubDomainGroup kLastEntry = 5;
+
+  /** Subdomain major groups */
+  CLS_CONST SubDomainGroup kNodeSet = GetMetaGroup(kNodeEntry);
+  CLS_CONST SubDomainGroup kLaneSet = GetMetaGroup(kLaneEntry);
+  CLS_CONST SubDomainGroup kLaneDataCache = GetMetaGroup(kLaneDataCacheEntry);
+  CLS_CONST SubDomainGroup kAdminLaneSet = GetMetaGroup(kAdminLaneEntry);
+  CLS_CONST SubDomainGroup kLaneMapCache = GetMetaGroup(kLaneMapCacheEntry);
+  CLS_CONST SubDomainGroup kLastSet = GetMetaGroup(kLastEntry);
+
+  /** Physical domain group */
+  CLS_CONST SubDomainGroup kPhysicalNode = BIT_OPT(u32, 31);
 
   /** Serialization */
   template<typename Ar>
@@ -277,6 +293,57 @@ struct DomainId {
   TaskStateId scope_;
   SubDomainId sub_id_;
 
+  /** Default constructor */
+  DomainId() = default;
+
+  /** Emplace constructor */
+  DomainId(const TaskStateId &scope,
+           const SubDomainId &sub_id) {
+    scope_ = scope;
+    sub_id_ = sub_id;
+  }
+
+  /** Emplace constructor (2) */
+  DomainId(const TaskStateId &scope,
+           const SubDomainGroup &group) {
+    scope_ = scope;
+    sub_id_ = {group};
+  }
+
+  /** Emplace constructor (3) */
+  DomainId(const TaskStateId &scope,
+           const SubDomainGroup &group,
+           const SubDomainMinor &minor) {
+    scope_ = scope;
+    sub_id_ = {group, minor};
+  }
+
+  /** Copy constructor */
+  DomainId(const DomainId &other) {
+    scope_ = other.scope_;
+    sub_id_ = other.sub_id_;
+  }
+
+  /** Copy assignment */
+  DomainId& operator=(const DomainId &other) {
+    scope_ = other.scope_;
+    sub_id_ = other.sub_id_;
+    return *this;
+  }
+
+  /** Move constructor */
+  DomainId(DomainId &&other) noexcept {
+    scope_ = other.scope_;
+    sub_id_ = other.sub_id_;
+  }
+
+  /** Move assignment */
+  DomainId& operator=(DomainId &&other) noexcept {
+    scope_ = other.scope_;
+    sub_id_ = other.sub_id_;
+    return *this;
+  }
+
   /** Serialization */
   template<typename Ar>
   void serialize(Ar &ar) {
@@ -291,6 +358,18 @@ struct DomainId {
   /** Hash function */
   size_t Hash() const {
     return scope_.Hash() + sub_id_.Hash();
+  }
+};
+
+/** Represents a range of subdomains */
+struct SubDomainIdRange {
+  SubDomainId off_;
+  u32 count_;
+
+  /** Serialization */
+  template<typename Ar>
+  void serialize(Ar &ar) {
+    ar(off_, count_);
   }
 };
 
@@ -441,7 +520,7 @@ struct DomainQuery {
   static DomainQuery GetNodeGlobalBcast() {
     DomainQuery query;
     query.flags_.SetBits(kGlobal | kBroadcast);
-    query.sub_id_ = SubDomainId::kNodeVec;
+    query.sub_id_ = SubDomainId::kNodeSet;
     return query;
   }
 

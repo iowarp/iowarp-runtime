@@ -33,8 +33,9 @@ void SyncIoTest(int rank, int nprocs, size_t msg_size, size_t ops) {
       chm::DomainQuery::GetNodeGlobalBcast(), "small_message");
   client.CreateRoot(
       chm::DomainQuery::GetNodeGlobalBcast(), "ipc_test");
-  size_t domain_size =
-      CHM_ADMIN->GetDomainSizeRoot(chm::DomainQuery::GetNodeGlobalBcast());
+  size_t domain_size = CHM_ADMIN->GetDomainSizeRoot(
+      chm::DomainQuery::GetLocalHash(chm::SubDomainId::kLaneSet, 0),
+      chm::DomainId(client.id_, chm::SubDomainId::kLaneSet));
 
   hshm::MpiTimer t(MPI_COMM_WORLD);
   t.Resume();
@@ -42,7 +43,7 @@ void SyncIoTest(int rank, int nprocs, size_t msg_size, size_t ops) {
     int lane_id = 1 + ((i + 1) % domain_size);
     size_t read_size, write_size;
     client.IoRoot(
-        chm::DomainQuery::GetDirectHash(chm::SubDomainId::kLaneVec, lane_id),
+        chm::DomainQuery::GetDirectHash(chm::SubDomainId::kLaneSet, lane_id),
         msg_size,
         MD_IO_WRITE, write_size, read_size);
   }

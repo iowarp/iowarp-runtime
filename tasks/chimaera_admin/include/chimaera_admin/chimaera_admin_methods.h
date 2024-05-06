@@ -14,7 +14,6 @@ struct Method : public TaskMethod {
   TASK_METHOD_T kSetWorkOrchProcPolicy = kLast + 8;
   TASK_METHOD_T kFlush = kLast + 9;
   TASK_METHOD_T kGetDomainSize = kLast + 10;
-  TASK_METHOD_T kCreateDomain = kLast + 11;
   TASK_METHOD_T kGetDomain = kLast + 12;
   TASK_METHOD_T kUpdateDomain = kLast + 13;
 };

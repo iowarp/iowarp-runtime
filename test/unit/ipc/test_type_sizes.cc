@@ -31,7 +31,6 @@ TEST_CASE("TestTypeSizes") {
   HILOG(kInfo, "Size of TaskId: {}", sizeof(chm::TaskId));
   HILOG(kInfo, "Size of QueueId: {}", sizeof(chm::QueueId));
   HILOG(kInfo, "Size of DomainId: {}", sizeof(chm::DomainId));
-  HILOG(kInfo, "Size of LaneOrNodeId: {}", sizeof(chm::LaneOrNodeId));
   HILOG(kInfo, "Size of SubDomainId: {}", sizeof(chm::SubDomainId));
   HILOG(kInfo, "Size of DomainId: {}", sizeof(chm::DomainId));
   HILOG(kInfo, "Size of DomainSelection: {}", sizeof(chm::DomainSelection));

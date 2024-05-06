@@ -1028,7 +1028,7 @@ class Worker {
 //      HILOG(kInfo, "Automaking remote task {}", (size_t)task);
       HRUN_REMOTE_QUEUE->AsyncClientPushSubmit(
           nullptr, task->task_node_ + 1,
-          DomainQuery::GetLocalHash(SubDomainId::kLaneVec, 0),
+          DomainQuery::GetLocalHash(SubDomainId::kLaneSet, 0),
           task);
       task->SetBlocked();
     } if (task->IsCoroutine()) {
