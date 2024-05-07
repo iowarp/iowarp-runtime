@@ -823,7 +823,7 @@ class Worker {
       LPointer<Task> task;
       task.shm_ = entry->p_;
       task.ptr_ = HRUN_CLIENT->GetMainPointer<Task>(entry->p_);
-      bool is_remote = HRUN_RPC->IsRemote(task->dom_query_);
+      bool is_remote = HRUN_RPC->IsRemote(task->task_state_, task->dom_query_);
 #ifdef CHIMAERA_REMOTE_DEBUG
       if (task->task_state_ != HRUN_QM_CLIENT->admin_task_state_ &&
             !task->task_flags_.Any(TASK_REMOTE_DEBUG_MARK) &&

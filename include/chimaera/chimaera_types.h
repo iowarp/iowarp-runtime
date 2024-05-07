@@ -237,9 +237,58 @@ struct SubDomainId {
   SubDomainGroup major_;  /**< NodeSet, LaneSet, LaneCache ... */
   SubDomainMinor minor_;  /**< NodeId, LaneId, LaneId ... */
 
-  /** Get the metadata subdomain group */
-  CLS_CONST SubDomainGroup GetMetaGroup(SubDomainGroup group) {
-    return group + BIT_OPT(u32, 30);
+  /** Subdomain major groups */
+  CLS_CONST SubDomainGroup kPhysicalNode = 0;
+  CLS_CONST SubDomainGroup kNodeSet = 1;
+  CLS_CONST SubDomainGroup kLaneSet = 2;
+  CLS_CONST SubDomainGroup kLaneDataCache = 3;
+  CLS_CONST SubDomainGroup kAdminLaneSet = 4;
+  CLS_CONST SubDomainGroup kLaneMapCache = 5;
+  CLS_CONST SubDomainGroup kLastSet = 6;
+
+  /** Default constructor */
+  SubDomainId() = default;
+
+  /** Emplace constructor */
+  SubDomainId(SubDomainGroup major, SubDomainMinor minor) {
+    major_ = major;
+    minor_ = minor;
+  }
+
+  /** Emplace constructor (2) */
+  SubDomainId(SubDomainGroup major) {
+    major_ = major;
+    minor_ = 0;
+  }
+
+  /** Copy constructor */
+  SubDomainId(const SubDomainId &other) {
+    major_ = other.major_;
+    minor_ = other.minor_;
+  }
+
+  /** Copy assignment */
+  SubDomainId& operator=(const SubDomainId &other) {
+    if (this != &other) {
+      major_ = other.major_;
+      minor_ = other.minor_;
+    }
+    return *this;
+  }
+
+  /** Move constructor */
+  SubDomainId(SubDomainId &&other) noexcept {
+    major_ = other.major_;
+    minor_ = other.minor_;
+  }
+
+  /** Move assignment */
+  SubDomainId& operator=(SubDomainId &&other) noexcept {
+    if (this != &other) {
+      major_ = other.major_;
+      minor_ = other.minor_;
+    }
+    return *this;
   }
 
   /** ID represents a physical node ID */
@@ -251,25 +300,6 @@ struct SubDomainId {
   static SubDomainId CreatePhysical(SubDomainMinor minor) {
     return {kPhysicalNode, minor};
   }
-
-  /** Subdomain major+minor groups */
-  CLS_CONST SubDomainGroup kNodeEntry = 0;
-  CLS_CONST SubDomainGroup kLaneEntry = 1;
-  CLS_CONST SubDomainGroup kLaneDataCacheEntry = 2;
-  CLS_CONST SubDomainGroup kAdminLaneEntry = 3;
-  CLS_CONST SubDomainGroup kLaneMapCacheEntry = 4;
-  CLS_CONST SubDomainGroup kLastEntry = 5;
-
-  /** Subdomain major groups */
-  CLS_CONST SubDomainGroup kNodeSet = GetMetaGroup(kNodeEntry);
-  CLS_CONST SubDomainGroup kLaneSet = GetMetaGroup(kLaneEntry);
-  CLS_CONST SubDomainGroup kLaneDataCache = GetMetaGroup(kLaneDataCacheEntry);
-  CLS_CONST SubDomainGroup kAdminLaneSet = GetMetaGroup(kAdminLaneEntry);
-  CLS_CONST SubDomainGroup kLaneMapCache = GetMetaGroup(kLaneMapCacheEntry);
-  CLS_CONST SubDomainGroup kLastSet = GetMetaGroup(kLastEntry);
-
-  /** Physical domain group */
-  CLS_CONST SubDomainGroup kPhysicalNode = BIT_OPT(u32, 31);
 
   /** Serialization */
   template<typename Ar>
@@ -378,10 +408,9 @@ union DomainSelection {
   u32 id_;
   u32 hash_;
   struct {
-    u32 tree_root_;
-    u16 tree_depth_;
-    u16 tree_idx_;
-  } tree_;
+    u32 off_;
+    u32 count_;
+  } range_;
   u64 int_;
 
   /** Serialization */
@@ -420,7 +449,7 @@ struct DomainQuery {
       BIT_OPT(DomainFlag, 5);
   CLS_CONST DomainFlag kHash =
       BIT_OPT(DomainFlag, 5);
-  CLS_CONST DomainFlag kTree =
+  CLS_CONST DomainFlag kRange =
       BIT_OPT(DomainFlag, 6);
 
   /** Iteration algos */
@@ -492,6 +521,15 @@ struct DomainQuery {
   }
 
   /** Get the local node domain */
+  static DomainQuery GetLocalId(const SubDomainGroup &sub_id, u32 id) {
+    DomainQuery query;
+    query.flags_.SetBits(kLocal | kId);
+    query.sub_id_ = sub_id;
+    query.sel_.id_ = id;
+    return query;
+  }
+
+  /** Get the local node domain */
   static DomainQuery GetLocalHash(const SubDomainGroup &sub_id, u32 hash) {
     DomainQuery query;
     query.flags_.SetBits(kLocal | kHash);
@@ -509,6 +547,22 @@ struct DomainQuery {
     DomainQuery query;
     query.flags_.SetBits(kGlobal | iter_flags);
     query.sub_id_ = sub_id;
+    return query;
+  }
+
+  /**
+   * The scope of the query is a subset of the domain
+   * @param sub_id The subdomain to query
+   * @param iter_flags The iteration flags to set (e.g., kBroadcast)
+   * */
+  static DomainQuery GetRange(const SubDomainGroup &sub_id,
+                              u32 off, u32 count,
+                              u32 iter_flags) {
+    DomainQuery query;
+    query.flags_.SetBits(kGlobal | kRange | iter_flags);
+    query.sub_id_ = sub_id;
+    query.sel_.range_.off_ = off;
+    query.sel_.range_.count_ = count;
     return query;
   }
 

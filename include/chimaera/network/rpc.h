@@ -43,54 +43,181 @@ struct HostInfo {
       : hostname_(hostname), ip_addr_(ip_addr), node_id_(node_id) {}
 };
 
+/** Domain map size */
+struct DomainMapEntry {
+  size_t size_;
+  std::vector<SubDomainIdRange> ids_;
+
+  size_t GetOffset(size_t off) {
+    off %= size_;
+    size_t sum = 0;
+    for (const SubDomainIdRange &range : ids_) {
+      sum += range.count_;
+      if (sum > off) {
+        return range.off_.minor_ + off;
+      }
+    }
+    return 0;
+  }
+};
+
 /** A structure to represent RPC context. */
 class RpcContext {
  public:
-  /** A mapping of lane IDs to DomainQuerys */
-  typedef std::unordered_map<LaneId, DomainQuery> LANE_MAP_T;
-  /** A mapping of state IDs to lane maps */
-  typedef std::unordered_map<TaskStateId, LANE_MAP_T> STATE_LANE_MAP_T;
+  /** The type for storing domain mappings */
+  typedef std::unordered_map<DomainId, DomainMapEntry> DOMAIN_MAP_T;
+  /** The table for storing domain mappings */
+  DOMAIN_MAP_T domain_map_;
   /** A rwlock for lane mappings */
-  RwLock lane_map_lock_;
+  RwLock domain_map_lock_;
 
  public:
   ServerConfig *config_;
   int port_;  /**< port number */
   std::string protocol_;  /**< Libfabric provider */
   std::string domain_;    /**< Libfabric domain */
-  NodeId node_id_;           /**< the ID of this node */
+  NodeId node_id_;        /**< the ID of this node */
   int num_threads_;       /**< Number of RPC threads */
-  std::vector<HostInfo> hosts_; /**< Hostname and ip addr per-node */
-  STATE_LANE_MAP_T lane_map_;   /**< Lane mappings */
+  std::vector<HostInfo> hosts_;  /**< Hostname and ip addr per-node */
+  size_t neighborhood_size_ = 32;
 
  public:
   /** Default constructor */
   RpcContext() = default;
 
-  /** Get the nubmer of hosts */
-  HSHM_ALWAYS_INLINE
-  size_t GetNumHosts() {
-    return hosts_.size();
-  }
-
   /**
    * Detect if a DomainQuery is across nodes
    * */
-  bool IsRemote(const DomainQuery &dom_query) {
-    return false;
+  bool IsRemote(const TaskStateId &scope, const DomainQuery &dom_query) {
+    if (dom_query.flags_.Any(DomainQuery::kLocal) || hosts_.size() == 1) {
+      return false;
+    } else {
+      std::vector<ResolvedDomainQuery> res =
+          ResolveDomainQuery(scope, dom_query);
+      if (res.size() == 1 && res[0].node_ == node_id_) {
+        return false;
+      }
+    }
+    return true;
   }
 
   /** Get the size of a domain */
   size_t GetDomainSize(const DomainId &dom_id) {
+    ScopedRwReadLock lock(domain_map_lock_, 0);
+    auto it = domain_map_.find(dom_id);
+    if (it != domain_map_.end()) {
+      return it->second.size_;
+    }
     return 0;
+  }
+
+  /**
+   * Get SubDomainId from domain query
+   * */
+  SubDomainId GetSubDomainId(const TaskStateId &scope,
+                             const DomainQuery &dom_query) {
+    if (dom_query.flags_.Any(DomainQuery::kId)) {
+      return SubDomainId(dom_query.sub_id_, dom_query.sel_.id_);
+    } else if (dom_query.flags_.Any(DomainQuery::kHash)) {
+      DomainId major_id(scope, dom_query.sub_id_);
+      DomainMapEntry &major_entry = domain_map_[major_id];
+      SubDomainMinor minor = major_entry.GetOffset(dom_query.sel_.hash_);
+      return SubDomainId(dom_query.sub_id_, minor);
+    } else {
+      return SubDomainId(dom_query.sub_id_);
+    }
+  }
+
+  /**
+   * Get DomainID from domain query
+   * */
+  DomainId GetDomainId(const TaskStateId &scope, const DomainQuery &dom_query) {
+    return DomainId(scope, GetSubDomainId(scope, dom_query));
+  }
+
+  /**
+   * Resolve the minor domain of a domain query
+   * */
+  void ResolveMinorDomain(const TaskStateId &scope,
+                          const DomainQuery &dom_query,
+                          std::vector<ResolvedDomainQuery> &res) {
+    // Get minor domain
+    DomainId dom_id = GetDomainId(scope, dom_query);
+    DomainMapEntry &entry = domain_map_[dom_id];
+
+    // Minor subdomain contains only nodes
+    for (const SubDomainIdRange &range : entry.ids_) {
+      ResolvedDomainQuery sub_query;
+      sub_query.dom_ = DomainQuery::GetLocalId(dom_query.sub_id_,
+                                               dom_id.sub_id_.minor_);
+      sub_query.node_ = range.off_.minor_;
+      res.emplace_back(sub_query);
+    }
+  }
+
+  /**
+   * Resolve the major domain of a domain query
+   * */
+  void ResolveMajorDomain(const TaskStateId &scope,
+                          const DomainQuery &dom_query,
+                          std::vector<ResolvedDomainQuery> &res) {
+    // Get major domain
+    DomainId dom_id = GetDomainId(scope, dom_query);
+    DomainMapEntry &entry = domain_map_[dom_id];
+
+    // Get size of major domain and divide among neighbors
+    size_t dom_size, dom_off;
+    if (dom_query.flags_.Any(DomainQuery::kRange)) {
+      dom_off = dom_query.sel_.range_.off_;
+      dom_size = dom_query.sel_.range_.count_;
+    } else {
+      dom_off = 0;
+      dom_size = entry.size_;
+    }
+
+    // Create range queries
+    if (dom_size <= neighborhood_size_) {
+      // Concretize range queries into local queries
+      DomainQuery sub_query = DomainQuery::GetDirectHash(
+          dom_query.sub_id_, dom_query.sel_.range_.off_,
+          dom_query.flags_.bits_);
+      for (size_t i = 0; i < dom_size; ++i) {
+        ResolveMinorDomain(scope, sub_query, res);
+        sub_query.sel_.hash_ += 1;
+      }
+    } else {
+      for (size_t i = 0; i < dom_size; i += neighborhood_size_) {
+        ResolvedDomainQuery sub_query;
+        size_t rem_size = std::min(neighborhood_size_, dom_size - i);
+        sub_query.dom_ = DomainQuery::GetRange(
+            dom_query.sub_id_, dom_off, rem_size, dom_query.flags_.bits_);
+        sub_query.node_ = entry.GetOffset(dom_off);
+        res.emplace_back(sub_query);
+        dom_off += neighborhood_size_;
+      }
+    }
   }
 
   /**
    * Convert a DomainQuery into a set of more concretized queries.
    * */
   std::vector<ResolvedDomainQuery>
-  ResolveDomainQuery(const DomainQuery &dom_query) {
-    return {};
+  ResolveDomainQuery(const TaskStateId &scope, const DomainQuery &dom_query) {
+    std::vector<ResolvedDomainQuery> res;
+    if (dom_query.flags_.Any(DomainQuery::kLocal)) {
+      // Keep task on this node
+      ResolvedDomainQuery sub_query;
+      sub_query.dom_ = dom_query;
+      sub_query.node_ = node_id_;
+      res.emplace_back(sub_query);
+    } else if (dom_query.flags_.Any(DomainQuery::kDirect)) {
+      ResolveMinorDomain(scope, dom_query, res);
+    } else if (dom_query.flags_.Any(DomainQuery::kGlobal)) {
+      ResolveMajorDomain(scope, dom_query, res);
+    } else {
+      HELOG(kFatal, "Unknown domain query type")
+    }
+    return res;
   }
 
   /** initialize host info list */
