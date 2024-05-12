@@ -65,10 +65,12 @@ class Server : public TaskLib {
     std::string lib_name = task->lib_name_.str();
     std::string state_name = task->state_name_.str();
     // Check local registry for task state
+    bool state_existed = false;
     TaskState *task_state = CHM_TASK_REGISTRY->GetTaskState(
         state_name, task->id_, task->GetLaneHash());
     if (task_state) {
       task->id_ = task_state->id_;
+      state_existed = true;
     }
     // Check global registry for task state
     if (task->id_.IsNull()) {
@@ -84,72 +86,22 @@ class Server : public TaskLib {
       return;
     }
     // Update the default domains for the state
-    if (task->root_) {
-      // Resolve the scope domain
-      std::vector<ResolvedDomainQuery> dom = HRUN_RPC->ResolveDomainQuery(
-          task->task_state_, task->scope_query_, true);
-      std::vector<UpdateDomainInfo> ops;
-      // Create the set of all lanes
-      {
-        size_t total_dom_size = task->global_lanes_ +
-            task->local_lanes_pn_ * dom.size();
-        DomainId dom_id(task->id_, SubDomainId::kLaneSet);
-        SubDomainIdRange range(
-            SubDomainId::kLaneSet,
-            1,
-            total_dom_size);
-        ops.emplace_back(UpdateDomainInfo{
-            dom_id, UpdateDomainOp::kExpand, range});
-        for (size_t i = 1; i <= task->global_lanes_; ++i) {
-          SubDomainIdRange res(
-              SubDomainId::kPhysicalNode, dom[i % dom.size()].node_, 1);
-          ops.emplace_back(UpdateDomainInfo{
-              DomainId(task->id_, SubDomainId::kLaneSet, i),
-              UpdateDomainOp::kExpand, res});
-        }
-      }
-      // Create the set of global lanes
-      {
-        DomainId dom_id(task->id_, SubDomainId::kGlobalLaneSet);
-        SubDomainIdRange range(
-            SubDomainId::kLaneSet,
-            1,
-            task->global_lanes_);
-        ops.emplace_back(UpdateDomainInfo{
-            dom_id, UpdateDomainOp::kExpand, range});
-        for (size_t i = 1; i <= task->global_lanes_; ++i) {
-          SubDomainIdRange res(
-              SubDomainId::kLaneSet, i, 1);
-          ops.emplace_back(UpdateDomainInfo{
-              DomainId(task->id_, SubDomainId::kGlobalLaneSet, i),
-              UpdateDomainOp::kExpand, res});
-        }
-      }
-      // Create the set of local lanes
-      {
-        DomainId dom_id(task->id_, SubDomainId::kLocalLaneSet);
-        SubDomainIdRange range(
-            SubDomainId::kLaneSet,
-            task->global_lanes_ + 1,
-            task->local_lanes_pn_);
-        ops.emplace_back(UpdateDomainInfo{
-            dom_id, UpdateDomainOp::kExpand, range});
-        for (size_t i = 1; i <= task->local_lanes_pn_; ++i) {
-          SubDomainIdRange res(
-              SubDomainId::kLaneSet, i, 1);
-          ops.emplace_back(UpdateDomainInfo{
-              DomainId(task->id_, SubDomainId::kLocalLaneSet, i),
-              UpdateDomainOp::kExpand, res});
-        }
-      }
-    }
+    std::vector<UpdateDomainInfo> ops = CHM_RPC->CreateDefaultDomains(
+        task->id_,
+        CHM_QM_CLIENT->admin_task_state_,
+        task->scope_query_,
+        task->global_lanes_,
+        task->local_lanes_pn_);
+    CHM_RPC->UpdateDomains(ops);
+    std::vector<SubDomainId> lanes =
+        CHM_RPC->GetLocalLanes(task->id_);
     // Create the task state
     CHM_TASK_REGISTRY->CreateTaskState(
         lib_name.c_str(),
         state_name.c_str(),
         task->id_,
-        task);
-    if (task->root_) {
+        task, lanes);
+    if (task->root_ && !state_existed) {
       // Broadcast the state creation to all nodes
       TaskState *exec = CHM_TASK_REGISTRY->GetTaskState(task->id_, 0);
       LPointer<Task> bcast;

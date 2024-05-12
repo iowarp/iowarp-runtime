@@ -21,6 +21,7 @@
 #include "task_lib.h"
 #include "chimaera/config/config_server.h"
 #include "chimaera_admin/chimaera_admin.h"
+// #include "chimaera/network/rpc.h"
 
 namespace stdfs = std::filesystem;
 
@@ -209,7 +210,8 @@ class TaskRegistry {
   bool CreateTaskState(const char *lib_name,
                        const char *state_name,
                        const TaskStateId &state_id,
-                       Admin::CreateTaskStateTask *task) {
+                       Admin::CreateTaskStateTask *task,
+                       const std::vector<SubDomainId> &lanes) {
     // Ensure state_id is not NULL
     if (state_id.IsNull()) {
       HELOG(kError, "The task state ID cannot be null");
@@ -227,16 +229,11 @@ class TaskRegistry {
       return false;
     }
 
-    // Ensure the task state does not already exist
-    if (TaskStateExists(state_id)) {
-      HELOG(kError, "The task state already exists: {}", state_name);
-      task->SetModuleComplete();
-      return false;
-    }
-
     // Create the state instance
-    task_states_[state_id] = TaskStateInfo();
-    for (size_t lane_id = 0; lane_id < num_lanes; ++lane_id) {
+    if (task_states_.find(state_id) == task_states_.end()) {
+      task_states_[state_id] = TaskStateInfo();
+    }
+    for (const SubDomainId &lane_id : lanes) {
       task->id_ = state_id;
       TaskLibInfo &info = it->second;
       TaskState *exec;
@@ -250,7 +247,7 @@ class TaskRegistry {
       // Add the state to the registry
       exec->id_ = state_id;
       exec->name_ = state_name;
-      exec->lane_id_ = lane_id;
+      exec->lane_id_ = lane_id.minor_;
       ScopedRwWriteLock lock(lock_, 0);
       task_state_ids_.emplace(state_name, state_id);
       task_states_[state_id].states_.emplace_back(exec);

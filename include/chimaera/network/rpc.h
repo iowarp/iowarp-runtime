@@ -51,9 +51,9 @@ struct DomainMapEntry {
 
   DomainMapEntry() : size_(0) {}
 
-  void Expand(SubDomainId &sub_id, u32 off, u32 count) {
-    for (size_t i = off; i < off + count; ++i) {
-      SubDomainId id(sub_id.major_, sub_id.minor_ + i);
+  void Expand(SubDomainIdRange &range) {
+    for (size_t i = range.off_; i < range.off_ + range.count_; ++i) {
+      SubDomainId id(range.group_, i);
       if (ids_set_.find(id) == ids_set_.end()) {
         ids_set_.insert(id);
         ids_.emplace_back(id);
@@ -62,10 +62,13 @@ struct DomainMapEntry {
     }
   }
 
-  void Contract(u32 off, u32 count) {
+  void Contract(SubDomainIdRange &range) {
     std::vector<SubDomainId> ids;
     for (const SubDomainId &id : ids_) {
-      if (off <= id.minor_ && id.minor_ < off + count) {
+      if (id.major_ != range.group_) {
+        continue;
+      }
+      if (range.off_ <= id.minor_ && id.minor_ < range.off_ + range.count_) {
         ids_set_.erase(id);
       } else {
         ids.emplace_back(id);
@@ -115,11 +118,11 @@ class RpcContext {
       DomainMapEntry &entry = domain_map_[info.domain_id_];
       switch (info.op_) {
         case UpdateDomainOp::kContract: {
-          entry.Contract(info.off_, info.count_);
+          entry.Contract(info.range_);
           break;
         }
         case UpdateDomainOp::kExpand: {
-          entry.Expand(info.domain_id_.sub_id_, info.off_, info.count_);
+          entry.Expand(info.range_);
           break;
         }
       }
@@ -268,10 +271,112 @@ class RpcContext {
   }
 
   /** Create the default domains */
-  void CreateDefaultDomains() {
-
+  std::vector<UpdateDomainInfo>
+  CreateDefaultDomains(const TaskStateId &task_state,
+                       const TaskStateId &admin_state,
+                       const DomainQuery &scope_query,
+                       u32 global_lanes,
+                       u32 local_lanes_pn) {
+    std::vector<UpdateDomainInfo> ops;
+    // Resolve the scope domain
+    std::vector<ResolvedDomainQuery> dom = ResolveDomainQuery(
+        admin_state, scope_query, true);
+    size_t dom_size = dom.size();
+    if (dom_size == 0) {
+      for (u32 i = 1; i <= hosts_.size(); ++i) {
+        dom.emplace_back(ResolvedDomainQuery{i});
+      }
+    }
+    // Create the set of all lanes
+    {
+      size_t total_dom_size = global_lanes +
+          local_lanes_pn * dom.size();
+      DomainId dom_id(task_state, SubDomainId::kLaneSet);
+      SubDomainIdRange range(
+          SubDomainId::kLaneSet,
+          1,
+          total_dom_size);
+      ops.emplace_back(UpdateDomainInfo{
+          dom_id, UpdateDomainOp::kExpand, range});
+    }
+    // Create the set of global lanes
+    {
+      DomainId dom_id(task_state, SubDomainId::kGlobalLaneSet);
+      SubDomainIdRange range(
+          SubDomainId::kLaneSet,
+          1,
+          global_lanes);
+      ops.emplace_back(UpdateDomainInfo{
+          dom_id, UpdateDomainOp::kExpand, range});
+      for (size_t i = 1; i <= global_lanes; ++i) {
+        // Update LaneSet
+        SubDomainIdRange res_set(
+            SubDomainId::kPhysicalNode, dom[i % dom.size()].node_, 1);
+        ops.emplace_back(UpdateDomainInfo{
+            DomainId(task_state, SubDomainId::kLaneSet, i),
+            UpdateDomainOp::kExpand, res_set});
+        // Update GlobalLaneSet
+        SubDomainIdRange res_glob(
+            SubDomainId::kLaneSet, i, 1);
+        ops.emplace_back(UpdateDomainInfo{
+            DomainId(task_state, SubDomainId::kGlobalLaneSet, i),
+            UpdateDomainOp::kExpand, res_glob});
+      }
+    }
+    // Create the set of local lanes
+    {
+      DomainId dom_id(task_state, SubDomainId::kLocalLaneSet);
+      SubDomainIdRange range(
+          SubDomainId::kLaneSet,
+          global_lanes + 1,
+          local_lanes_pn);
+      ops.emplace_back(UpdateDomainInfo{
+          dom_id, UpdateDomainOp::kExpand, range});
+      // Update LaneSet
+      u32 lane_off = global_lanes + 1;
+      for (u32 node_id = 1; node_id <= hosts_.size(); ++node_id) {
+        for (size_t i = 1; i <= local_lanes_pn; ++i) {
+          SubDomainIdRange res_set(
+              SubDomainId::kPhysicalNode, node_id, 1);
+          ops.emplace_back(UpdateDomainInfo{
+              DomainId(task_state, SubDomainId::kLaneSet, lane_off),
+              UpdateDomainOp::kExpand, res_set});
+          if (node_id == node_id_) {
+            // Update LocalLaneSet
+            SubDomainIdRange res_loc(
+                SubDomainId::kLaneSet, lane_off, 1);
+            ops.emplace_back(UpdateDomainInfo{
+                DomainId(task_state, SubDomainId::kLocalLaneSet, i),
+                UpdateDomainOp::kExpand, res_loc});
+          }
+          ++lane_off;
+        }
+      }
+    }
+    // Create the set of caching lanes
+    // TODO(llogan)
+    return ops;
   }
-  
+
+  /** Get the set of lanes on this node */
+  std::vector<SubDomainId> GetLocalLanes(const TaskStateId &scope) {
+    std::vector<SubDomainId> res;
+    ScopedRwReadLock lock(domain_map_lock_, 0);
+    for (const std::pair<DomainId, DomainMapEntry> &entry : domain_map_) {
+      const DomainId &dom_id = entry.first;
+      const DomainMapEntry &dom_entry = entry.second;
+      if (dom_id.scope_ == scope &&
+          dom_id.sub_id_.major_ == SubDomainId::kLaneSet) {
+        for (const SubDomainId &id : dom_entry.ids_) {
+          if (id.minor_ == node_id_) {
+            res.emplace_back(dom_id.sub_id_);
+          }
+        }
+      }
+    }
+    return res;
+  }
+
  public:
   /** Default constructor */
   RpcContext() = default;

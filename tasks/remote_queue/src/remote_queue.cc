@@ -176,7 +176,8 @@ class Server : public TaskLib {
     Task *orig_task = task->orig_task_;
     std::vector<ResolvedDomainQuery> dom_queries =
         HRUN_RPC->ResolveDomainQuery(orig_task->task_state_,
-                                     orig_task->dom_query_);
+                                     orig_task->dom_query_,
+                                     false);
     if (dom_queries.size() == 0) {
       task->SetModuleComplete();
       Worker::SignalUnblock(orig_task);
