@@ -46,31 +46,43 @@ struct HostInfo {
 /** Domain map size */
 struct DomainMapEntry {
   size_t size_;
-  std::vector<SubDomainIdRange> ids_;
+  std::unordered_set<SubDomainId> ids_set_;
+  std::vector<SubDomainId> ids_;
 
-  size_t GetOffset(size_t off) {
-    off %= size_;
-    size_t sum = 0;
-    for (const SubDomainIdRange &range : ids_) {
-      sum += range.count_;
-      if (sum > off) {
-        return range.off_.minor_ + off;
+  DomainMapEntry() : size_(0) {}
+
+  void Expand(SubDomainId &sub_id, u32 off, u32 count) {
+    for (size_t i = off; i < off + count; ++i) {
+      SubDomainId id(sub_id.major_, sub_id.minor_ + i);
+      if (ids_set_.find(id) == ids_set_.end()) {
+        ids_set_.insert(id);
+        ids_.emplace_back(id);
+        size_ += 1;
       }
     }
-    return 0;
+  }
+
+  void Contract(u32 off, u32 count) {
+    std::vector<SubDomainId> ids;
+    for (const SubDomainId &id : ids_) {
+      if (off <= id.minor_ && id.minor_ < off + count) {
+        ids_set_.erase(id);
+      } else {
+        ids.emplace_back(id);
+      }
+    }
+    ids_ = std::move(ids);
+  }
+
+  size_t GetOffset(size_t off) {
+    off -= 1;
+    off %= size_;
+    return off;
   }
 };
 
 /** A structure to represent RPC context. */
 class RpcContext {
- public:
-  /** The type for storing domain mappings */
-  typedef std::unordered_map<DomainId, DomainMapEntry> DOMAIN_MAP_T;
-  /** The table for storing domain mappings */
-  DOMAIN_MAP_T domain_map_;
-  /** A rwlock for lane mappings */
-  RwLock domain_map_lock_;
-
  public:
   ServerConfig *config_;
   int port_;  /**< port number */
@@ -82,23 +94,36 @@ class RpcContext {
   size_t neighborhood_size_ = 32;
 
  public:
-  /** Default constructor */
-  RpcContext() = default;
+  /** The type for storing domain mappings */
+  typedef std::unordered_map<DomainId, DomainMapEntry> DOMAIN_MAP_T;
+  /** The table for storing domain mappings */
+  DOMAIN_MAP_T domain_map_;
+  /** A rwlock for lane mappings */
+  RwLock domain_map_lock_;
 
+ public:
   /**
-   * Detect if a DomainQuery is across nodes
+   * Add a set of subdomains to the domain
    * */
-  bool IsRemote(const TaskStateId &scope, const DomainQuery &dom_query) {
-    if (dom_query.flags_.Any(DomainQuery::kLocal) || hosts_.size() == 1) {
-      return false;
-    } else {
-      std::vector<ResolvedDomainQuery> res =
-          ResolveDomainQuery(scope, dom_query);
-      if (res.size() == 1 && res[0].node_ == node_id_) {
-        return false;
+  void UpdateDomains(std::vector<UpdateDomainInfo> &ops) {
+    ScopedRwWriteLock(domain_map_lock_, 0);
+    for (UpdateDomainInfo &info : ops) {
+      auto it = domain_map_.find(info.domain_id_);
+      if (it == domain_map_.end()) {
+        domain_map_.emplace(info.domain_id_, DomainMapEntry());
+      }
+      DomainMapEntry &entry = domain_map_[info.domain_id_];
+      switch (info.op_) {
+        case UpdateDomainOp::kContract: {
+          entry.Contract(info.off_, info.count_);
+          break;
+        }
+        case UpdateDomainOp::kExpand: {
+          entry.Expand(info.domain_id_.sub_id_, info.off_, info.count_);
+          break;
+        }
       }
     }
-    return true;
   }
 
   /** Get the size of a domain */
@@ -140,18 +165,29 @@ class RpcContext {
    * */
   void ResolveMinorDomain(const TaskStateId &scope,
                           const DomainQuery &dom_query,
-                          std::vector<ResolvedDomainQuery> &res) {
+                          std::vector<ResolvedDomainQuery> &res,
+                          bool full) {
     // Get minor domain
     DomainId dom_id = GetDomainId(scope, dom_query);
     DomainMapEntry &entry = domain_map_[dom_id];
 
     // Minor subdomain contains only nodes
-    for (const SubDomainIdRange &range : entry.ids_) {
-      ResolvedDomainQuery sub_query;
-      sub_query.dom_ = DomainQuery::GetLocalId(dom_query.sub_id_,
-                                               dom_id.sub_id_.minor_);
-      sub_query.node_ = range.off_.minor_;
-      res.emplace_back(sub_query);
+    for (const SubDomainId &id : entry.ids_) {
+      if (id.IsPhysical()) {
+        ResolvedDomainQuery sub_query;
+        sub_query.dom_ = DomainQuery::GetLocalId(dom_query.sub_id_,
+                                                 dom_id.sub_id_.minor_);
+        sub_query.node_ = id.minor_;
+        res.emplace_back(sub_query);
+      } else if (id.IsMinor()) {
+        DomainQuery sub_query = DomainQuery::GetDirectId(
+            id.major_, id.minor_, DomainQuery::kBroadcast);
+        ResolveMinorDomain(scope, sub_query, res, full);
+      } else if (id.IsMajor()) {
+        DomainQuery sub_query = DomainQuery::GetGlobal(
+            id.major_, DomainQuery::kBroadcast);
+        ResolveMinorDomain(scope, sub_query, res, full);
+      }
     }
   }
 
@@ -160,7 +196,8 @@ class RpcContext {
    * */
   void ResolveMajorDomain(const TaskStateId &scope,
                           const DomainQuery &dom_query,
-                          std::vector<ResolvedDomainQuery> &res) {
+                          std::vector<ResolvedDomainQuery> &res,
+                          bool full) {
     // Get major domain
     DomainId dom_id = GetDomainId(scope, dom_query);
     DomainMapEntry &entry = domain_map_[dom_id];
@@ -175,17 +212,18 @@ class RpcContext {
       dom_size = entry.size_;
     }
 
-    // Create range queries
-    if (dom_size <= neighborhood_size_) {
+    // Divide into sub-queries
+    if (dom_size <= neighborhood_size_ || full) {
       // Concretize range queries into local queries
       DomainQuery sub_query = DomainQuery::GetDirectHash(
           dom_query.sub_id_, dom_query.sel_.range_.off_,
           dom_query.flags_.bits_);
       for (size_t i = 0; i < dom_size; ++i) {
-        ResolveMinorDomain(scope, sub_query, res);
+        ResolveMinorDomain(scope, sub_query, res, full);
         sub_query.sel_.hash_ += 1;
       }
     } else {
+      // Create smaller range queries
       for (size_t i = 0; i < dom_size; i += neighborhood_size_) {
         ResolvedDomainQuery sub_query;
         size_t rem_size = std::min(neighborhood_size_, dom_size - i);
@@ -202,7 +240,9 @@ class RpcContext {
    * Convert a DomainQuery into a set of more concretized queries.
    * */
   std::vector<ResolvedDomainQuery>
-  ResolveDomainQuery(const TaskStateId &scope, const DomainQuery &dom_query) {
+  ResolveDomainQuery(const TaskStateId &scope,
+                     const DomainQuery &dom_query,
+                     bool full) {
     std::vector<ResolvedDomainQuery> res;
     if (dom_query.flags_.Any(DomainQuery::kLocal)) {
       // Keep task on this node
@@ -210,15 +250,31 @@ class RpcContext {
       sub_query.dom_ = dom_query;
       sub_query.node_ = node_id_;
       res.emplace_back(sub_query);
+    } else if(dom_query.flags_.Any(DomainQuery::kForwardToLeader)) {
+      // Forward to leader
+      DomainQuery sub_query = DomainQuery::GetDirectHash(
+          dom_query.sub_id_, 1, dom_query.flags_.bits_);
+      ResolveMinorDomain(scope, sub_query, res, full);
+      res[0].dom_ = dom_query;
+      res[0].dom_.flags_.UnsetBits(DomainQuery::kForwardToLeader);
     } else if (dom_query.flags_.Any(DomainQuery::kDirect)) {
-      ResolveMinorDomain(scope, dom_query, res);
+      ResolveMinorDomain(scope, dom_query, res, full);
     } else if (dom_query.flags_.Any(DomainQuery::kGlobal)) {
-      ResolveMajorDomain(scope, dom_query, res);
+      ResolveMajorDomain(scope, dom_query, res, full);
     } else {
       HELOG(kFatal, "Unknown domain query type")
     }
     return res;
   }
+
+  /** Create the default domains */
+  void CreateDefaultDomains() {
+
+  }
+  
+ public:
+  /** Default constructor */
+  RpcContext() = default;
 
   /** initialize host info list */
   void ServerInit(ServerConfig *config) {
@@ -231,18 +287,16 @@ class RpcContext {
     // Uses hosts produced by host_names
     std::vector<std::string> &hosts =
         config_->rpc_.host_names_;
-
     // Get all host info
     hosts_.reserve(hosts.size());
     NodeId node_id = 1;
     for (const std::string& name : hosts) {
       hosts_.emplace_back(name, _GetIpAddress(name), node_id++);
     }
-
     // Get id of current host
     node_id_ = _FindThisHost();
     if (node_id_ == 0 || node_id_ > (u32)hosts_.size()) {
-      HELOG(kFatal, "Couldn't identify this host.")
+      HELOG(kFatal, "Couldn't identify this host.");
     }
   }
 

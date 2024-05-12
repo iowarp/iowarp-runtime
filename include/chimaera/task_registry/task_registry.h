@@ -209,8 +209,7 @@ class TaskRegistry {
   bool CreateTaskState(const char *lib_name,
                        const char *state_name,
                        const TaskStateId &state_id,
-                       Admin::CreateTaskStateTask *task,
-                       u32 num_lanes) {
+                       Admin::CreateTaskStateTask *task) {
     // Ensure state_id is not NULL
     if (state_id.IsNull()) {
       HELOG(kError, "The task state ID cannot be null");
@@ -218,7 +217,7 @@ class TaskRegistry {
       return false;
     }
 //    HILOG(kInfo, "(node {}) Creating an instance of {} with name {}",
-//          HRUN_CLIENT->node_id_, lib_name, state_name)
+//          CHM_CLIENT->node_id_, lib_name, state_name)
 
     // Find the task library to instantiate
     auto it = libs_.find(lib_name);
@@ -256,7 +255,7 @@ class TaskRegistry {
       task_state_ids_.emplace(state_name, state_id);
       task_states_[state_id].states_.emplace_back(exec);
       HILOG(kInfo, "(node {})  Created an instance of {} with name {} and ID {}",
-            HRUN_CLIENT->node_id_, lib_name, state_name, state_id);
+            CHM_CLIENT->node_id_, lib_name, state_name, state_id);
 
       // Construct the state
       task->method_ = TaskMethod::kCreate;
@@ -344,8 +343,9 @@ class TaskRegistry {
 };
 
 /** Singleton macro for task registry */
-#define HRUN_TASK_REGISTRY \
-  (&HRUN_RUNTIME->task_registry_)
+#define CHM_TASK_REGISTRY \
+  (&CHM_RUNTIME->task_registry_)
+#define HRUN_TASK_REGISTRY CHM_TASK_REGISTRY
 }  // namespace chm
 
 #endif  // HRUN_INCLUDE_HRUN_TASK_TASK_REGISTRY_H_

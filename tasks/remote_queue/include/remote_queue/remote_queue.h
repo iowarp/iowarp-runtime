@@ -2,8 +2,8 @@
 // Created by lukemartinlogan on 6/29/23.
 //
 
-#ifndef HRUN_remote_queue_H_
-#define HRUN_remote_queue_H_
+#ifndef CHM_REMOTE_QUEUE_H_
+#define CHM_REMOTE_QUEUE_H_
 
 #include "remote_queue_tasks.h"
 
@@ -27,19 +27,21 @@ class Client : public TaskLibClient {
   void AsyncCreateConstruct(CreateTask *task,
                             const TaskNode &task_node,
                             const DomainQuery &dom_query,
+                            const DomainQuery &scope_query,
                             const std::string &state_name,
                             const TaskStateId &id) {
-    HRUN_CLIENT->ConstructTask<CreateTask>(
-        task, task_node, dom_query, state_name, id);
+    CHM_CLIENT->ConstructTask<CreateTask>(
+        task, task_node, dom_query, scope_query, state_name, id);
   }
   void CreateRoot(const DomainQuery &dom_query,
+                  const DomainQuery &scope_query,
                   const std::string &state_name,
                   const TaskStateId &id = TaskId::GetNull()) {
     LPointer<CreateTask> task = AsyncCreateRoot(
-        dom_query, state_name, id);
+        dom_query, scope_query, state_name, id);
     task->Wait();
     Init(task->id_);
-    HRUN_CLIENT->DelTask(task);
+    CHM_CLIENT->DelTask(task);
   }
   HRUN_TASK_NODE_PUSH_ROOT(Create);
 
@@ -54,7 +56,7 @@ class Client : public TaskLibClient {
                                       const TaskNode &task_node,
                                       const DomainQuery &dom_query,
                                       Task *orig_task) {
-    HRUN_CLIENT->ConstructTask<ClientPushSubmitTask>(
+    CHM_CLIENT->ConstructTask<ClientPushSubmitTask>(
         task, task_node,
         dom_query, id_, orig_task);
   }
@@ -64,7 +66,7 @@ class Client : public TaskLibClient {
   void AsyncClientSubmitConstruct(ClientSubmitTask *task,
                                   const TaskNode &task_node,
                                   const DomainQuery &dom_query) {
-    HRUN_CLIENT->ConstructTask<ClientSubmitTask>(
+    CHM_CLIENT->ConstructTask<ClientSubmitTask>(
         task, task_node,
         dom_query, id_);
   }
@@ -74,7 +76,7 @@ class Client : public TaskLibClient {
   void AsyncServerCompleteConstruct(ServerCompleteTask *task,
                                     const TaskNode &task_node,
                                     const DomainQuery &dom_query) {
-    HRUN_CLIENT->ConstructTask<ServerCompleteTask>(
+    CHM_CLIENT->ConstructTask<ServerCompleteTask>(
         task, task_node, dom_query, id_);
   }
   HRUN_TASK_NODE_PUSH_ROOT(ServerComplete)
@@ -82,4 +84,4 @@ class Client : public TaskLibClient {
 
 }  // namespace chm
 
-#endif  // HRUN_remote_queue_H_
+#endif  // CHM_REMOTE_QUEUE_H_

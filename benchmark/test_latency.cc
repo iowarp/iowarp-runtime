@@ -28,12 +28,16 @@ void Summarize(size_t nprocs,
 
 void SyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
   chm::small_message::Client client;
-  CHM_ADMIN->RegisterTaskLibRoot(chm::DomainQuery::GetNodeGlobalBcast(), "small_message");
-  client.CreateRoot(chm::DomainQuery::GetNodeGlobalBcast(), "ipc_test");
+  CHM_ADMIN->RegisterTaskLibRoot(
+      chm::DomainQuery::GetLaneGlobalBcast(), "small_message");
+  client.CreateRoot(
+      chm::DomainQuery::GetDirectHash(chm::SubDomainId::kGlobalLaneSet, 0),
+      chm::DomainQuery::GetLaneGlobalBcast(),
+      "ipc_test");
   MPI_Barrier(MPI_COMM_WORLD);
   hshm::MpiTimer t(MPI_COMM_WORLD);
   size_t domain_size = CHM_ADMIN->GetDomainSizeRoot(
-      chm::DomainQuery::GetLocalHash(chm::SubDomainId::kLaneSet, 0),
+      chm::DomainQuery::GetLocalHash(chm::SubDomainId::kLocalLaneSet, 0),
       chm::DomainId(client.id_, chm::SubDomainId::kLaneSet));
 
   HILOG(kInfo, "OPS: {}", ops)
@@ -52,13 +56,16 @@ void SyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
 void AsyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
   chm::small_message::Client client;
   CHM_ADMIN->RegisterTaskLibRoot(
-      chm::DomainQuery::GetNodeGlobalBcast(),
+      chm::DomainQuery::GetLaneGlobalBcast(),
       "small_message");
-  client.CreateRoot(chm::DomainQuery::GetNodeGlobalBcast(), "ipc_test");
+  client.CreateRoot(
+      chm::DomainQuery::GetDirectHash(chm::SubDomainId::kGlobalLaneSet, 0),
+      chm::DomainQuery::GetLaneGlobalBcast(),
+      "ipc_test");
   MPI_Barrier(MPI_COMM_WORLD);
   hshm::MpiTimer t(MPI_COMM_WORLD);
   size_t domain_size = CHM_ADMIN->GetDomainSizeRoot(
-      chm::DomainQuery::GetLocalHash(chm::SubDomainId::kLaneSet, 0),
+      chm::DomainQuery::GetLocalHash(chm::SubDomainId::kLocalLaneSet, 0),
       chm::DomainId(client.id_, chm::SubDomainId::kLaneSet));
 
   t.Resume();
@@ -70,7 +77,7 @@ void AsyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
         depth, TASK_FIRE_AND_FORGET);
   }
   CHM_ADMIN->FlushRoot(
-      DomainQuery::GetLocalHash(chm::SubDomainId::kLaneSet, 0));
+      DomainQuery::GetLocalHash(chm::SubDomainId::kLocalLaneSet, 0));
   t.Pause();
   t.Collect();
   Summarize(nprocs, t.GetUsec(), ops, depth);

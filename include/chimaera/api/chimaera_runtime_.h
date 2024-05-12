@@ -10,8 +10,8 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef HRUN_INCLUDE_HRUN_CLIENT_HRUN_SERVER_H_
-#define HRUN_INCLUDE_HRUN_CLIENT_HRUN_SERVER_H_
+#ifndef HRUN_INCLUDE_CHM_CLIENT_HRUN_SERVER_H_
+#define HRUN_INCLUDE_CHM_CLIENT_HRUN_SERVER_H_
 
 #include "chimaera/task_registry/task_registry.h"
 #include "chimaera/work_orchestrator/work_orchestrator.h"
@@ -24,11 +24,17 @@
 #include "chimaera/network/rpc_thallium.h"
 
 // Singleton macros
-#define HRUN_RUNTIME hshm::Singleton<chm::Runtime>::GetInstance()
-#define HRUN_RUNTIME_T chm::Runtime*
-#define HRUN_REMOTE_QUEUE (&HRUN_RUNTIME->remote_queue_)
-#define HRUN_THALLIUM (&HRUN_RUNTIME->thallium_)
-#define HRUN_RPC (&HRUN_RUNTIME->rpc_)
+#define CHM_RUNTIME hshm::Singleton<chm::Runtime>::GetInstance()
+#define CHM_RUNTIME_T chm::Runtime*
+#define CHM_REMOTE_QUEUE (&CHM_RUNTIME->remote_queue_)
+#define CHM_THALLIUM (&CHM_RUNTIME->thallium_)
+#define CHM_RPC (&CHM_RUNTIME->rpc_)
+
+#define HRUN_RUNTIME CHM_RUNTIME
+#define HRUN_RUNTIME_T CHM_RUNTIME_T
+#define HRUN_REMOTE_QUEUE CHM_REMOTE_QUEUE
+#define HRUN_THALLIUM CHM_THALLIUM
+#define HRUN_RPC CHM_RPC
 
 namespace chm {
 
@@ -70,4 +76,4 @@ class Runtime : public ConfigurationManager {
 
 }  // namespace chm
 
-#endif  // HRUN_INCLUDE_HRUN_CLIENT_HRUN_SERVER_H_
+#endif  // HRUN_INCLUDE_CHM_CLIENT_HRUN_SERVER_H_

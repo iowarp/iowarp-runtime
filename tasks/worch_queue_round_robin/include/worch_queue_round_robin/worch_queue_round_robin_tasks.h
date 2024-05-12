@@ -32,10 +32,11 @@ struct CreateTask : public CreateTaskStateTask {
   CreateTask(hipc::Allocator *alloc,
                 const TaskNode &task_node,
                 const DomainQuery &dom_query,
+                const DomainQuery &scope_query,
                 const std::string &state_name,
                 const TaskStateId &id)
-      : CreateTaskStateTask(alloc, task_node, dom_query, state_name,
-                            "worch_queue_round_robin", id) {
+      : CreateTaskStateTask(alloc, task_node, dom_query, scope_query,
+                            state_name, "worch_queue_round_robin", id) {
   }
 
   /** Destructor */

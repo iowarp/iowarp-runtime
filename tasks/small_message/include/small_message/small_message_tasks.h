@@ -29,10 +29,11 @@ struct CreateTask : public CreateTaskStateTask {
   CreateTask(hipc::Allocator *alloc,
                 const TaskNode &task_node,
                 const DomainQuery &dom_query,
+                const DomainQuery &scope_query,
                 const std::string &state_name,
                 const TaskStateId &id)
-      : CreateTaskStateTask(alloc, task_node, dom_query, state_name,
-                            "small_message", id) {
+      : CreateTaskStateTask(alloc, task_node, dom_query, scope_query,
+                            state_name, "small_message", id) {
   }
 };
 
@@ -134,7 +135,7 @@ struct IoTask : public Task, TaskFlags<TF_SRL_SYM> {
     dom_query_ = dom_query;
 
     // Custom params
-    LPointer<char> data = HRUN_CLIENT->AllocateBufferClient(io_size);
+    LPointer<char> data = CHM_CLIENT->AllocateBufferClient(io_size);
     data_ = data.shm_;
     size_ = io_size;
     ret_ = 0;
@@ -145,7 +146,7 @@ struct IoTask : public Task, TaskFlags<TF_SRL_SYM> {
   /** Destructor */
   ~IoTask() {
     if (IsDataOwner()) {
-      HRUN_CLIENT->FreeBuffer(data_);
+      CHM_CLIENT->FreeBuffer(data_);
     }
   }
 

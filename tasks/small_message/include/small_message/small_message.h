@@ -23,19 +23,21 @@ class Client : public TaskLibClient {
   void AsyncCreateConstruct(CreateTask *task,
                             const TaskNode &task_node,
                             const DomainQuery &dom_query,
+                            const DomainQuery &scope_query,
                             const std::string &state_name,
                             const TaskStateId &id) {
-    HRUN_CLIENT->ConstructTask<CreateTask>(
-        task, task_node, dom_query, state_name, id);
+    CHM_CLIENT->ConstructTask<CreateTask>(
+        task, task_node, dom_query, scope_query, state_name, id);
   }
   void CreateRoot(const DomainQuery &dom_query,
+                  const DomainQuery &scope_query,
                   const std::string &state_name,
                   const TaskStateId &id = TaskId::GetNull()) {
     LPointer<CreateTask> task = AsyncCreateRoot(
-        dom_query, state_name, id);
+        dom_query, scope_query, state_name, id);
     task->Wait();
     Init(task->id_);
-    HRUN_CLIENT->DelTask(task);
+    CHM_CLIENT->DelTask(task);
   }
   HRUN_TASK_NODE_PUSH_ROOT(Create);
 
@@ -50,7 +52,7 @@ class Client : public TaskLibClient {
                         const TaskNode &task_node,
                         const DomainQuery &dom_query,
                         u32 depth, u32 flags) {
-    HRUN_CLIENT->ConstructTask<MdTask>(
+    CHM_CLIENT->ConstructTask<MdTask>(
         task, task_node, dom_query, id_, depth, flags);
   }
   int MdRoot(const DomainQuery &dom_query, u32 depth, u32 flags) {
@@ -58,7 +60,7 @@ class Client : public TaskLibClient {
         AsyncMdRoot(dom_query, depth, flags);
     task->Wait();
     int ret = task->ret_;
-    HRUN_CLIENT->DelTask(task);
+    CHM_CLIENT->DelTask(task);
     return ret;
   }
   HRUN_TASK_NODE_PUSH_ROOT(Md);
@@ -68,7 +70,7 @@ class Client : public TaskLibClient {
                         const DomainQuery &dom_query,
                         size_t io_size,
                         u32 io_flags) {
-    HRUN_CLIENT->ConstructTask<IoTask>(
+    CHM_CLIENT->ConstructTask<IoTask>(
         task, task_node, dom_query, id_, io_size, io_flags);
   }
   void IoRoot(const DomainQuery &dom_query, size_t io_size,
@@ -77,12 +79,12 @@ class Client : public TaskLibClient {
         AsyncIoRoot(dom_query, io_size, io_flags);
     task->Wait();
     write_ret = task->ret_;
-    char *data = HRUN_CLIENT->GetDataPointer(task->data_);
+    char *data = CHM_CLIENT->GetDataPointer(task->data_);
     read_ret = 0;
     for (size_t i = 0; i < io_size; ++i) {
       read_ret += data[i];
     }
-    HRUN_CLIENT->DelTask(task);
+    CHM_CLIENT->DelTask(task);
   }
   HRUN_TASK_NODE_PUSH_ROOT(Io)
 };

@@ -747,21 +747,21 @@ class Worker {
           cur_time_.Now();
         }
       } catch (hshm::Error &e) {
-        HELOG(kError, "(node {}) Worker {} caught an error: {}", HRUN_CLIENT->node_id_, id_, e.what());
+        HELOG(kError, "(node {}) Worker {} caught an error: {}", CHM_CLIENT->node_id_, id_, e.what());
       } catch (std::exception &e) {
-        HELOG(kError, "(node {}) Worker {} caught an exception: {}", HRUN_CLIENT->node_id_, id_, e.what());
+        HELOG(kError, "(node {}) Worker {} caught an exception: {}", CHM_CLIENT->node_id_, id_, e.what());
       } catch (...) {
-        HELOG(kError, "(node {}) Worker {} caught an unknown exception", HRUN_CLIENT->node_id_, id_);
+        HELOG(kError, "(node {}) Worker {} caught an unknown exception", CHM_CLIENT->node_id_, id_);
       }
       if (!IsContinuousPolling()) {
         Yield();
       }
     }
     HILOG(kInfo, "(node {}) Worker {} wrapping up",
-          HRUN_CLIENT->node_id_, id_);
+          CHM_CLIENT->node_id_, id_);
     Run(true);
     HILOG(kInfo, "(node {}) Worker {} has exited",
-          HRUN_CLIENT->node_id_, id_);
+          CHM_CLIENT->node_id_, id_);
   }
 
   /** Run a single iteration over all queues */
@@ -822,26 +822,61 @@ class Worker {
       }
       LPointer<Task> task;
       task.shm_ = entry->p_;
-      task.ptr_ = HRUN_CLIENT->GetMainPointer<Task>(entry->p_);
-      bool is_remote = HRUN_RPC->IsRemote(task->task_state_, task->dom_query_);
-#ifdef CHIMAERA_REMOTE_DEBUG
-      if (task->task_state_ != HRUN_QM_CLIENT->admin_task_state_ &&
-            !task->task_flags_.Any(TASK_REMOTE_DEBUG_MARK) &&
-            !task->IsLongRunning() &&
-            task->method_ != TaskMethod::kCreate &&
-            HRUN_RUNTIME->remote_created_) {
-          is_remote = true;
-        }
-#endif
-      if (is_remote) {
+      task.ptr_ = CHM_CLIENT->GetMainPointer<Task>(entry->p_);
+      int route = Reroute(task->task_state_,
+                          task->dom_query_,
+                          task,
+                          lane);
+      if (route == 2) {
         task->SetRemote();
       }
-      if (active_.push<TYPE>(PrivateTaskQueueEntry{task})) {
+      if (route == 1 || active_.push<TYPE>(PrivateTaskQueueEntry{task})) {
         lane->pop();
       } else {
         break;
       }
     }
+  }
+
+  /**
+   * Detect if a DomainQuery is across nodes
+   * */
+  int Reroute(const TaskStateId &scope,
+              const DomainQuery &dom_query,
+              LPointer<Task> task,
+              Lane *lane) {
+    std::vector<ResolvedDomainQuery> resolved =
+        HRUN_RPC->ResolveDomainQuery(scope, dom_query);
+    if (resolved.size() == 1 && resolved[0].node_ == CHM_RPC->node_id_) {
+      DomainQuery &res_query = resolved[0].dom_;
+#ifdef CHIMAERA_REMOTE_DEBUG
+      if (task->task_state_ != CHM_QM_CLIENT->admin_task_state_ &&
+          !task->task_flags_.Any(TASK_REMOTE_DEBUG_MARK) &&
+          !task->IsLongRunning() &&
+          task->method_ != TaskMethod::kCreate &&
+          CHM_RUNTIME->remote_created_ &&
+          !task->IsRemote()) {
+        return 2;
+      }
+#endif
+      if (res_query.flags_.Any(DomainQuery::kLocal | DomainQuery::kId)) {
+        MultiQueue *queue = CHM_QM_CLIENT->GetQueue(
+            task->task_state_);
+        Lane &lane_cmp = queue->GetLane(task->prio_, res_query.sel_.id_);
+        if (lane_cmp.id_ == lane->id_) {
+          return 0;
+        } else {
+          lane_cmp.emplace(task.shm_);
+          return 1;
+        }
+      }
+      return 2;
+    } else if (resolved.size() > 1) {
+      return 2;
+    } else {
+      HELOG(kFatal, "Domain query resolved to no sub-queries");
+    }
+    return true;
   }
 
   /** Process completion events */
@@ -884,12 +919,12 @@ class Worker {
     if (!exec) {
       if (task->task_state_ == TaskStateId::GetNull()) {
         HELOG(kFatal, "(node {}) Task {} has no task state",
-              HRUN_CLIENT->node_id_, task->task_node_);
+              CHM_CLIENT->node_id_, task->task_node_);
         task->SetModuleComplete();
         return false;
       } else {
         HELOG(kWarning, "(node {}) Could not find the task state {} for task {}",
-              HRUN_CLIENT->node_id_, task->task_state_, task->task_node_);
+              CHM_CLIENT->node_id_, task->task_state_, task->task_node_);
       }
       return true;
     }
@@ -957,7 +992,7 @@ class Worker {
     if (task->ShouldSignalUnblock()) {
       SignalUnblock(task->ctx_.pending_to_);
     } else if (task->ShouldSignalRemoteComplete()) {
-      TaskState *remote_exec = GetTaskState(HRUN_REMOTE_QUEUE->id_,
+      TaskState *remote_exec = GetTaskState(CHM_REMOTE_QUEUE->id_,
                                             task->GetLaneHash());
       remote_exec->Run(chm::remote_queue::Method::kServerPushComplete,
                        task.ptr_, task->ctx_);
@@ -965,7 +1000,7 @@ class Worker {
       return;
     }
     if (exec && task->IsFireAndForget()) {
-      HRUN_CLIENT->DelTask(exec, task.ptr_);
+      CHM_CLIENT->DelTask(exec, task.ptr_);
     } else {
       task->SetComplete();
     }
@@ -1026,9 +1061,9 @@ class Worker {
     // Attempt to run the task if it's ready and runnable
     if (props.Any(HSHM_WORKER_IS_REMOTE)) {
 //      HILOG(kInfo, "Automaking remote task {}", (size_t)task);
-      HRUN_REMOTE_QUEUE->AsyncClientPushSubmit(
+      CHM_REMOTE_QUEUE->AsyncClientPushSubmit(
           nullptr, task->task_node_ + 1,
-          DomainQuery::GetLocalHash(SubDomainId::kLaneSet, 0),
+          DomainQuery::GetLocalHash(SubDomainId::kLocalLaneSet, 0),
           task);
       task->SetBlocked();
     } if (task->IsCoroutine()) {

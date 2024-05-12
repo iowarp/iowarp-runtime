@@ -30,8 +30,9 @@ class MonitorMode {
   TASK_METHOD_T kEndTrainTime = 1;
   TASK_METHOD_T kEstTime = 2;
   TASK_METHOD_T kFlushStat = 3;
-  TASK_METHOD_T kReplicaAgg = 4;
-  TASK_METHOD_T kOrder = 5;
+  TASK_METHOD_T kReplicaStart = 4;
+  TASK_METHOD_T kReplicaAgg = 5;
+  TASK_METHOD_T kOrder = 6;
 };
 
 /**
@@ -132,7 +133,7 @@ typedef const char* (*get_task_lib_name_t)(void);
   void* alloc_state(chm::Admin::CreateTaskStateTask *task, const char *state_name) {\
     chm::TaskState *exec = reinterpret_cast<chm::TaskState*>(\
         new TYPE_UNWRAP(TRAIT_CLASS)());\
-    exec->Init(task->id_, HRUN_CLIENT->GetQueueId(task->id_), state_name);\
+    exec->Init(task->id_, CHM_CLIENT->GetQueueId(task->id_), state_name);\
     return exec;\
   }\
   const char* get_task_lib_name(void) { return TASK_NAME; }\

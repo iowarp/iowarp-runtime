@@ -20,10 +20,6 @@ void Run(u32 method, Task *task, RunContext &rctx) override {
       DestroyTaskLib(reinterpret_cast<DestroyTaskLibTask *>(task), rctx);
       break;
     }
-    case Method::kGetOrCreateTaskStateId: {
-      GetOrCreateTaskStateId(reinterpret_cast<GetOrCreateTaskStateIdTask *>(task), rctx);
-      break;
-    }
     case Method::kGetTaskStateId: {
       GetTaskStateId(reinterpret_cast<GetTaskStateIdTask *>(task), rctx);
       break;
@@ -46,10 +42,6 @@ void Run(u32 method, Task *task, RunContext &rctx) override {
     }
     case Method::kGetDomainSize: {
       GetDomainSize(reinterpret_cast<GetDomainSizeTask *>(task), rctx);
-      break;
-    }
-    case Method::kGetDomain: {
-      GetDomain(reinterpret_cast<GetDomainTask *>(task), rctx);
       break;
     }
     case Method::kUpdateDomain: {
@@ -77,10 +69,6 @@ void Monitor(u32 mode, Task *task, RunContext &rctx) override {
       MonitorDestroyTaskLib(mode, reinterpret_cast<DestroyTaskLibTask *>(task), rctx);
       break;
     }
-    case Method::kGetOrCreateTaskStateId: {
-      MonitorGetOrCreateTaskStateId(mode, reinterpret_cast<GetOrCreateTaskStateIdTask *>(task), rctx);
-      break;
-    }
     case Method::kGetTaskStateId: {
       MonitorGetTaskStateId(mode, reinterpret_cast<GetTaskStateIdTask *>(task), rctx);
       break;
@@ -105,10 +93,6 @@ void Monitor(u32 mode, Task *task, RunContext &rctx) override {
       MonitorGetDomainSize(mode, reinterpret_cast<GetDomainSizeTask *>(task), rctx);
       break;
     }
-    case Method::kGetDomain: {
-      MonitorGetDomain(mode, reinterpret_cast<GetDomainTask *>(task), rctx);
-      break;
-    }
     case Method::kUpdateDomain: {
       MonitorUpdateDomain(mode, reinterpret_cast<UpdateDomainTask *>(task), rctx);
       break;
@@ -119,55 +103,47 @@ void Monitor(u32 mode, Task *task, RunContext &rctx) override {
 void Del(u32 method, Task *task) override {
   switch (method) {
     case Method::kCreateTaskState: {
-      HRUN_CLIENT->DelTask<CreateTaskStateTask>(reinterpret_cast<CreateTaskStateTask *>(task));
+      CHM_CLIENT->DelTask<CreateTaskStateTask>(reinterpret_cast<CreateTaskStateTask *>(task));
       break;
     }
     case Method::kDestroyTaskState: {
-      HRUN_CLIENT->DelTask<DestroyTaskStateTask>(reinterpret_cast<DestroyTaskStateTask *>(task));
+      CHM_CLIENT->DelTask<DestroyTaskStateTask>(reinterpret_cast<DestroyTaskStateTask *>(task));
       break;
     }
     case Method::kRegisterTaskLib: {
-      HRUN_CLIENT->DelTask<RegisterTaskLibTask>(reinterpret_cast<RegisterTaskLibTask *>(task));
+      CHM_CLIENT->DelTask<RegisterTaskLibTask>(reinterpret_cast<RegisterTaskLibTask *>(task));
       break;
     }
     case Method::kDestroyTaskLib: {
-      HRUN_CLIENT->DelTask<DestroyTaskLibTask>(reinterpret_cast<DestroyTaskLibTask *>(task));
-      break;
-    }
-    case Method::kGetOrCreateTaskStateId: {
-      HRUN_CLIENT->DelTask<GetOrCreateTaskStateIdTask>(reinterpret_cast<GetOrCreateTaskStateIdTask *>(task));
+      CHM_CLIENT->DelTask<DestroyTaskLibTask>(reinterpret_cast<DestroyTaskLibTask *>(task));
       break;
     }
     case Method::kGetTaskStateId: {
-      HRUN_CLIENT->DelTask<GetTaskStateIdTask>(reinterpret_cast<GetTaskStateIdTask *>(task));
+      CHM_CLIENT->DelTask<GetTaskStateIdTask>(reinterpret_cast<GetTaskStateIdTask *>(task));
       break;
     }
     case Method::kStopRuntime: {
-      HRUN_CLIENT->DelTask<StopRuntimeTask>(reinterpret_cast<StopRuntimeTask *>(task));
+      CHM_CLIENT->DelTask<StopRuntimeTask>(reinterpret_cast<StopRuntimeTask *>(task));
       break;
     }
     case Method::kSetWorkOrchQueuePolicy: {
-      HRUN_CLIENT->DelTask<SetWorkOrchQueuePolicyTask>(reinterpret_cast<SetWorkOrchQueuePolicyTask *>(task));
+      CHM_CLIENT->DelTask<SetWorkOrchQueuePolicyTask>(reinterpret_cast<SetWorkOrchQueuePolicyTask *>(task));
       break;
     }
     case Method::kSetWorkOrchProcPolicy: {
-      HRUN_CLIENT->DelTask<SetWorkOrchProcPolicyTask>(reinterpret_cast<SetWorkOrchProcPolicyTask *>(task));
+      CHM_CLIENT->DelTask<SetWorkOrchProcPolicyTask>(reinterpret_cast<SetWorkOrchProcPolicyTask *>(task));
       break;
     }
     case Method::kFlush: {
-      HRUN_CLIENT->DelTask<FlushTask>(reinterpret_cast<FlushTask *>(task));
+      CHM_CLIENT->DelTask<FlushTask>(reinterpret_cast<FlushTask *>(task));
       break;
     }
     case Method::kGetDomainSize: {
-      HRUN_CLIENT->DelTask<GetDomainSizeTask>(reinterpret_cast<GetDomainSizeTask *>(task));
-      break;
-    }
-    case Method::kGetDomain: {
-      HRUN_CLIENT->DelTask<GetDomainTask>(reinterpret_cast<GetDomainTask *>(task));
+      CHM_CLIENT->DelTask<GetDomainSizeTask>(reinterpret_cast<GetDomainSizeTask *>(task));
       break;
     }
     case Method::kUpdateDomain: {
-      HRUN_CLIENT->DelTask<UpdateDomainTask>(reinterpret_cast<UpdateDomainTask *>(task));
+      CHM_CLIENT->DelTask<UpdateDomainTask>(reinterpret_cast<UpdateDomainTask *>(task));
       break;
     }
   }
@@ -189,10 +165,6 @@ void CopyStart(u32 method, Task *orig_task, LPointer<Task> &dup_task, bool deep)
     }
     case Method::kDestroyTaskLib: {
       chm::CALL_COPY_START(reinterpret_cast<DestroyTaskLibTask*>(orig_task), dup_task, deep);
-      break;
-    }
-    case Method::kGetOrCreateTaskStateId: {
-      chm::CALL_COPY_START(reinterpret_cast<GetOrCreateTaskStateIdTask*>(orig_task), dup_task, deep);
       break;
     }
     case Method::kGetTaskStateId: {
@@ -217,10 +189,6 @@ void CopyStart(u32 method, Task *orig_task, LPointer<Task> &dup_task, bool deep)
     }
     case Method::kGetDomainSize: {
       chm::CALL_COPY_START(reinterpret_cast<GetDomainSizeTask*>(orig_task), dup_task, deep);
-      break;
-    }
-    case Method::kGetDomain: {
-      chm::CALL_COPY_START(reinterpret_cast<GetDomainTask*>(orig_task), dup_task, deep);
       break;
     }
     case Method::kUpdateDomain: {
@@ -248,10 +216,6 @@ void SaveStart(u32 method, BinaryOutputArchive<true> &ar, Task *task) override {
       ar << *reinterpret_cast<DestroyTaskLibTask*>(task);
       break;
     }
-    case Method::kGetOrCreateTaskStateId: {
-      ar << *reinterpret_cast<GetOrCreateTaskStateIdTask*>(task);
-      break;
-    }
     case Method::kGetTaskStateId: {
       ar << *reinterpret_cast<GetTaskStateIdTask*>(task);
       break;
@@ -276,10 +240,6 @@ void SaveStart(u32 method, BinaryOutputArchive<true> &ar, Task *task) override {
       ar << *reinterpret_cast<GetDomainSizeTask*>(task);
       break;
     }
-    case Method::kGetDomain: {
-      ar << *reinterpret_cast<GetDomainTask*>(task);
-      break;
-    }
     case Method::kUpdateDomain: {
       ar << *reinterpret_cast<UpdateDomainTask*>(task);
       break;
@@ -291,67 +251,57 @@ TaskPointer LoadStart(u32 method, BinaryInputArchive<true> &ar) override {
   TaskPointer task_ptr;
   switch (method) {
     case Method::kCreateTaskState: {
-      task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<CreateTaskStateTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHM_CLIENT->NewEmptyTask<CreateTaskStateTask>(task_ptr.shm_);
       ar >> *reinterpret_cast<CreateTaskStateTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kDestroyTaskState: {
-      task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<DestroyTaskStateTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHM_CLIENT->NewEmptyTask<DestroyTaskStateTask>(task_ptr.shm_);
       ar >> *reinterpret_cast<DestroyTaskStateTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kRegisterTaskLib: {
-      task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<RegisterTaskLibTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHM_CLIENT->NewEmptyTask<RegisterTaskLibTask>(task_ptr.shm_);
       ar >> *reinterpret_cast<RegisterTaskLibTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kDestroyTaskLib: {
-      task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<DestroyTaskLibTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHM_CLIENT->NewEmptyTask<DestroyTaskLibTask>(task_ptr.shm_);
       ar >> *reinterpret_cast<DestroyTaskLibTask*>(task_ptr.ptr_);
       break;
     }
-    case Method::kGetOrCreateTaskStateId: {
-      task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<GetOrCreateTaskStateIdTask>(task_ptr.shm_);
-      ar >> *reinterpret_cast<GetOrCreateTaskStateIdTask*>(task_ptr.ptr_);
-      break;
-    }
     case Method::kGetTaskStateId: {
-      task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<GetTaskStateIdTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHM_CLIENT->NewEmptyTask<GetTaskStateIdTask>(task_ptr.shm_);
       ar >> *reinterpret_cast<GetTaskStateIdTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kStopRuntime: {
-      task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<StopRuntimeTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHM_CLIENT->NewEmptyTask<StopRuntimeTask>(task_ptr.shm_);
       ar >> *reinterpret_cast<StopRuntimeTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kSetWorkOrchQueuePolicy: {
-      task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<SetWorkOrchQueuePolicyTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHM_CLIENT->NewEmptyTask<SetWorkOrchQueuePolicyTask>(task_ptr.shm_);
       ar >> *reinterpret_cast<SetWorkOrchQueuePolicyTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kSetWorkOrchProcPolicy: {
-      task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<SetWorkOrchProcPolicyTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHM_CLIENT->NewEmptyTask<SetWorkOrchProcPolicyTask>(task_ptr.shm_);
       ar >> *reinterpret_cast<SetWorkOrchProcPolicyTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kFlush: {
-      task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<FlushTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHM_CLIENT->NewEmptyTask<FlushTask>(task_ptr.shm_);
       ar >> *reinterpret_cast<FlushTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kGetDomainSize: {
-      task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<GetDomainSizeTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHM_CLIENT->NewEmptyTask<GetDomainSizeTask>(task_ptr.shm_);
       ar >> *reinterpret_cast<GetDomainSizeTask*>(task_ptr.ptr_);
       break;
     }
-    case Method::kGetDomain: {
-      task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<GetDomainTask>(task_ptr.shm_);
-      ar >> *reinterpret_cast<GetDomainTask*>(task_ptr.ptr_);
-      break;
-    }
     case Method::kUpdateDomain: {
-      task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<UpdateDomainTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHM_CLIENT->NewEmptyTask<UpdateDomainTask>(task_ptr.shm_);
       ar >> *reinterpret_cast<UpdateDomainTask*>(task_ptr.ptr_);
       break;
     }
@@ -377,10 +327,6 @@ void SaveEnd(u32 method, BinaryOutputArchive<false> &ar, Task *task) override {
       ar << *reinterpret_cast<DestroyTaskLibTask*>(task);
       break;
     }
-    case Method::kGetOrCreateTaskStateId: {
-      ar << *reinterpret_cast<GetOrCreateTaskStateIdTask*>(task);
-      break;
-    }
     case Method::kGetTaskStateId: {
       ar << *reinterpret_cast<GetTaskStateIdTask*>(task);
       break;
@@ -403,10 +349,6 @@ void SaveEnd(u32 method, BinaryOutputArchive<false> &ar, Task *task) override {
     }
     case Method::kGetDomainSize: {
       ar << *reinterpret_cast<GetDomainSizeTask*>(task);
-      break;
-    }
-    case Method::kGetDomain: {
-      ar << *reinterpret_cast<GetDomainTask*>(task);
       break;
     }
     case Method::kUpdateDomain: {
@@ -434,10 +376,6 @@ void LoadEnd(u32 method, BinaryInputArchive<false> &ar, Task *task) override {
       ar >> *reinterpret_cast<DestroyTaskLibTask*>(task);
       break;
     }
-    case Method::kGetOrCreateTaskStateId: {
-      ar >> *reinterpret_cast<GetOrCreateTaskStateIdTask*>(task);
-      break;
-    }
     case Method::kGetTaskStateId: {
       ar >> *reinterpret_cast<GetTaskStateIdTask*>(task);
       break;
@@ -460,10 +398,6 @@ void LoadEnd(u32 method, BinaryInputArchive<false> &ar, Task *task) override {
     }
     case Method::kGetDomainSize: {
       ar >> *reinterpret_cast<GetDomainSizeTask*>(task);
-      break;
-    }
-    case Method::kGetDomain: {
-      ar >> *reinterpret_cast<GetDomainTask*>(task);
       break;
     }
     case Method::kUpdateDomain: {

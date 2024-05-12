@@ -31,19 +31,21 @@ class Client : public TaskLibClient {
   void AsyncCreateConstruct(CreateTask *task,
                             const TaskNode &task_node,
                             const DomainQuery &dom_query,
+                            const DomainQuery &scope_query,
                             const std::string &state_name,
                             const TaskStateId &id) {
-    HRUN_CLIENT->ConstructTask<CreateTask>(
-        task, task_node, dom_query, state_name, id);
+    CHM_CLIENT->ConstructTask<CreateTask>(
+        task, task_node, dom_query, scope_query, state_name, id);
   }
   void CreateRoot(const DomainQuery &dom_query,
+                  const DomainQuery &scope_query,
                   const std::string &state_name,
                   const TaskStateId &id = TaskId::GetNull()) {
     LPointer<CreateTask> task = AsyncCreateRoot(
-        dom_query, state_name, id);
+        dom_query, scope_query, state_name, id);
     task->Wait();
     Init(task->id_);
-    HRUN_CLIENT->DelTask(task);
+    CHM_CLIENT->DelTask(task);
   }
   HRUN_TASK_NODE_PUSH_ROOT(Create);
 
@@ -58,7 +60,7 @@ class Client : public TaskLibClient {
   void AsyncCustomConstruct(CustomTask *task,
                             const TaskNode &task_node,
                             const DomainQuery &dom_query) {
-    HRUN_CLIENT->ConstructTask<CustomTask>(
+    CHM_CLIENT->ConstructTask<CustomTask>(
         task, task_node, dom_query, id_);
   }
   HSHM_ALWAYS_INLINE

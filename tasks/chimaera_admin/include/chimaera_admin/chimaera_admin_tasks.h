@@ -30,7 +30,7 @@ struct RegisterTaskLibTaskTempl : public Task, TaskFlags<TF_SRL_SYM> {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrio::kLowLatency;
-    task_state_ = HRUN_QM_CLIENT->admin_task_state_;
+    task_state_ = CHM_QM_CLIENT->admin_task_state_;
     if constexpr(method == 0) {
       method_ = Method::kRegisterTaskLib;
     } else {
@@ -76,57 +76,14 @@ class CreateTaskStatePhase {
   TASK_METHOD_T kLast = 0;
 };
 
-/** A task to get or retrieve the ID of a task */
-struct GetOrCreateTaskStateIdTask : public Task, TaskFlags<TF_SRL_SYM> {
-  IN hipc::string state_name_;
-  OUT TaskStateId id_;
-
-  /** SHM default constructor */
-  HSHM_ALWAYS_INLINE explicit
-  GetOrCreateTaskStateIdTask(hipc::Allocator *alloc)
-  : Task(alloc), state_name_(alloc) {}
-
-  /** Emplace constructor */
-  HSHM_ALWAYS_INLINE explicit
-  GetOrCreateTaskStateIdTask(hipc::Allocator *alloc,
-                             const TaskNode &task_node,
-                             const DomainQuery &dom_query,
-                             const std::string &state_name)
-  : Task(alloc), state_name_(alloc, state_name) {
-    // Initialize task
-    task_node_ = task_node;
-    prio_ = TaskPrio::kLowLatency;
-    task_state_ = HRUN_QM_CLIENT->admin_task_state_;
-    method_ = Method::kGetOrCreateTaskStateId;
-    task_flags_.SetBits(0);
-    dom_query_ = dom_query;
-  }
-
-  ~GetOrCreateTaskStateIdTask() {}
-
-  /** Duplicate message */
-  void CopyStart(const GetOrCreateTaskStateIdTask &other, bool deep) {
-    state_name_ = other.state_name_;
-  }
-
-  /** (De)serialize message call */
-  template<typename Ar>
-  void SerializeStart(Ar &ar) {
-    ar(state_name_);
-  }
-
-  /** (De)serialize message return */
-  template<typename Ar>
-  void SerializeEnd(Ar &ar) {
-    ar(id_);
-  }
-};
-
 /** A task to register a Task state + Create a queue */
 struct CreateTaskStateTask : public Task, TaskFlags<TF_SRL_SYM> {
   IN hipc::string lib_name_;
   IN hipc::string state_name_;
-  IN size_t max_lanes_;
+  IN size_t global_lanes_;
+  IN size_t local_lanes_pn_;
+  IN DomainQuery scope_query_;
+  IN bool root_ = true;
   INOUT TaskStateId id_;
 
   /** SHM default constructor */
@@ -140,6 +97,7 @@ struct CreateTaskStateTask : public Task, TaskFlags<TF_SRL_SYM> {
   CreateTaskStateTask(hipc::Allocator *alloc,
                       const TaskNode &task_node,
                       const DomainQuery &dom_query,
+                      const DomainQuery &scope_query,
                       const std::string &state_name,
                       const std::string &lib_name,
                       const TaskStateId &id)
@@ -149,12 +107,13 @@ struct CreateTaskStateTask : public Task, TaskFlags<TF_SRL_SYM> {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrio::kLowLatency;
-    task_state_ = HRUN_QM_CLIENT->admin_task_state_;
+    task_state_ = CHM_QM_CLIENT->admin_task_state_;
     method_ = Method::kCreateTaskState;
     task_flags_.SetBits(TASK_COROUTINE);
     dom_query_ = dom_query;
 
     // Initialize
+    scope_query_ = scope_query;
     id_ = id;
   }
 
@@ -167,6 +126,8 @@ struct CreateTaskStateTask : public Task, TaskFlags<TF_SRL_SYM> {
     lib_name_ = other.lib_name_;
     state_name_ = other.state_name_;
     id_ = other.id_;
+    root_ = other.root_;
+    scope_query_ = other.scope_query_;
     HILOG(kInfo, "Copying CreateTaskStateTask: {} {} {}",
           lib_name_.str(), state_name_.str(), id_)
   }
@@ -174,7 +135,7 @@ struct CreateTaskStateTask : public Task, TaskFlags<TF_SRL_SYM> {
   /** (De)serialize message call */
   template<typename Ar>
   void SerializeStart(Ar &ar) {
-    ar(lib_name_, state_name_, id_);
+    ar(lib_name_, state_name_, id_, root_, scope_query_);
   }
 
   /** (De)serialize message return */
@@ -204,7 +165,7 @@ struct GetTaskStateIdTask : public Task, TaskFlags<TF_SRL_SYM> {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrio::kLowLatency;
-    task_state_ = HRUN_QM_CLIENT->admin_task_state_;
+    task_state_ = CHM_QM_CLIENT->admin_task_state_;
     method_ = Method::kGetTaskStateId;
     task_flags_.SetBits(0);
     dom_query_ = dom_query; }
@@ -247,7 +208,7 @@ struct DestroyTaskStateTask : public Task, TaskFlags<TF_SRL_SYM> {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrio::kLowLatency;
-    task_state_ = HRUN_QM_CLIENT->admin_task_state_;
+    task_state_ = CHM_QM_CLIENT->admin_task_state_;
     method_ = Method::kDestroyTaskState;
     task_flags_.SetBits(0);
     dom_query_ = dom_query;
@@ -288,7 +249,7 @@ struct StopRuntimeTask : public Task, TaskFlags<TF_SRL_SYM> {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrio::kLowLatency;
-    task_state_ = HRUN_QM_CLIENT->admin_task_state_;
+    task_state_ = CHM_QM_CLIENT->admin_task_state_;
     method_ = Method::kStopRuntime;
     task_flags_.SetBits(TASK_FLUSH | TASK_FIRE_AND_FORGET);
     dom_query_ = dom_query;
@@ -327,7 +288,7 @@ struct SetWorkOrchestratorPolicyTask : public Task, TaskFlags<TF_SRL_SYM> {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrio::kLowLatency;
-    task_state_ = HRUN_QM_CLIENT->admin_task_state_;
+    task_state_ = CHM_QM_CLIENT->admin_task_state_;
     if constexpr(method == 0) {
       method_ = Method::kSetWorkOrchQueuePolicy;
     } else {
@@ -374,7 +335,7 @@ struct FlushTask : public Task, TaskFlags<TF_SRL_SYM> {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrio::kLowLatency;
-    task_state_ = HRUN_QM_CLIENT->admin_task_state_;
+    task_state_ = CHM_QM_CLIENT->admin_task_state_;
     method_ = Method::kFlush;
     task_flags_.SetBits(TASK_FLUSH | TASK_COROUTINE);
     dom_query_ = dom_query;
@@ -418,7 +379,7 @@ struct GetDomainSizeTask : public Task, TaskFlags<TF_LOCAL> {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrio::kLowLatency;
-    task_state_ = HRUN_QM_CLIENT->admin_task_state_;
+    task_state_ = CHM_QM_CLIENT->admin_task_state_;
     method_ = Method::kGetDomainSize;
     task_flags_.SetBits(0);
     dom_query_ = dom_query;
@@ -426,72 +387,6 @@ struct GetDomainSizeTask : public Task, TaskFlags<TF_LOCAL> {
     // Custom
     dom_id_ = dom_id;
     dom_size_ = 0;
-  }
-};
-
-/** Cache the domain on this node */
-struct GetDomainTask : public Task, TaskFlags<TF_SRL_SYM> {
-  IN DomainId dom_id_;
-  OUT hipc::vector<SubDomainIdRange> set_;
-
-  /** SHM default constructor */
-  GetDomainTask(hipc::Allocator *alloc)
-  : Task(alloc), set_(alloc) {}
-
-  /** Emplace constructor */
-  HSHM_ALWAYS_INLINE explicit
-  GetDomainTask(
-      hipc::Allocator *alloc,
-      const TaskNode &task_node,
-      const DomainQuery &dom_query,
-      const DomainId &dom_id)
-  : Task(alloc), set_(alloc) {
-    // Initialize task
-    task_node_ = task_node;
-    prio_ = TaskPrio::kLowLatency;
-    task_state_ = HRUN_QM_CLIENT->admin_task_state_;
-    method_ = Method::kGetDomain;
-    task_flags_.SetBits(0);
-    dom_query_ = dom_query;
-
-    dom_id_ = dom_id;
-  }
-
-  /** Duplicate message */
-  void CopyStart(GetDomainTask &other, bool deep) {
-    dom_id_ = other.dom_id_;
-  }
-
-  /** (De)serialize message call */
-  template<typename Ar>
-  void SerializeStart(Ar &ar) {
-    ar(dom_id_);
-  }
-
-  /** (De)serialize message return */
-  template<typename Ar>
-  void SerializeEnd(Ar &ar) {
-    ar(set_);
-  }
-};
-
-/** Operations that can be performed on a domain */
-enum class UpdateDomainOp {
-  kReplace,
-  kRemove,
-  kAppend
-};
-
-/** Info required for updating a domain */
-struct UpdateDomainInfo {
-  DomainId domain_id_;
-  UpdateDomainOp op_;
-  SubDomainId off_, new_;
-  u32 count_;
-
-  template<typename Ar>
-  void serialize(Ar &ar) {
-    ar(domain_id_, op_, off_, new_, count_);
   }
 };
 
@@ -515,7 +410,7 @@ struct UpdateDomainTask : public Task, TaskFlags<TF_SRL_SYM> {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrio::kLowLatency;
-    task_state_ = HRUN_QM_CLIENT->admin_task_state_;
+    task_state_ = CHM_QM_CLIENT->admin_task_state_;
     method_ = Method::kUpdateDomain;
     task_flags_.SetBits(0);
     dom_query_ = dom_query;

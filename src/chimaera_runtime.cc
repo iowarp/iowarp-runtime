@@ -48,27 +48,27 @@ void Runtime::ServerInit(std::string server_config_path) {
                             rpc_.node_id_,
                             &server_config_,
                             header_->queue_manager_);
-  HRUN_CLIENT->Create(server_config_path, "", true);
+  CHM_CLIENT->Create(server_config_path, "", true);
   HERMES_THREAD_MODEL->SetThreadModel(hshm::ThreadType::kArgobots);
   work_orchestrator_.ServerInit(&server_config_, queue_manager_);
   hipc::mptr<Admin::CreateTaskStateTask> admin_task;
-  size_t max_lanes = HRUN_RUNTIME->queue_manager_.max_lanes_;
+  size_t max_lanes = CHM_RUNTIME->queue_manager_.max_lanes_;
   size_t max_workers = server_config_.wo_.max_dworkers_ +
                        server_config_.wo_.max_oworkers_;
 
   // Create the admin library
-  HRUN_CLIENT->MakeTaskStateId();
+  CHM_CLIENT->MakeTaskStateId();
   admin_task = hipc::make_mptr<Admin::CreateTaskStateTask>();
   task_registry_.RegisterTaskLib("chimaera_admin");
   task_registry_.CreateTaskState(
       "chimaera_admin",
       "chimaera_admin",
-      HRUN_QM_CLIENT->admin_task_state_,
+      CHM_QM_CLIENT->admin_task_state_,
       admin_task.get(),
       1);
 
   // Create the work orchestrator queue scheduling library
-  TaskStateId queue_sched_id = HRUN_CLIENT->MakeTaskStateId();
+  TaskStateId queue_sched_id = CHM_CLIENT->MakeTaskStateId();
   admin_task = hipc::make_mptr<Admin::CreateTaskStateTask>();
   task_registry_.RegisterTaskLib("worch_queue_round_robin");
   task_registry_.CreateTaskState(
@@ -80,40 +80,40 @@ void Runtime::ServerInit(std::string server_config_path) {
   TaskState *state = task_registry_.GetTaskState(queue_sched_id, 0);
 
   // Initially schedule queues to workers
-  auto queue_task = HRUN_CLIENT->NewTask<ScheduleTask>(
-      HRUN_CLIENT->MakeTaskNodeId(),
-      DomainQuery::GetLocalHash(chm::SubDomainId::kLaneSet, 0),
+  auto queue_task = CHM_CLIENT->NewTask<ScheduleTask>(
+      CHM_CLIENT->MakeTaskNodeId(),
+      DomainQuery::GetLocalHash(chm::SubDomainId::kLocalLaneSet, 0),
       queue_sched_id);
   state->Run(queue_task->method_,
              queue_task.ptr_,
              queue_task->ctx_);
-  HRUN_CLIENT->DelTask(queue_task);
+  CHM_CLIENT->DelTask(queue_task);
 
   // Create the work orchestrator process scheduling library
-  TaskStateId proc_sched_id = HRUN_CLIENT->MakeTaskStateId();
+  TaskStateId proc_sched_id = CHM_CLIENT->MakeTaskStateId();
   admin_task = hipc::make_mptr<Admin::CreateTaskStateTask>();
   task_registry_.RegisterTaskLib("worch_proc_round_robin");
   task_registry_.CreateTaskState(
       "worch_proc_round_robin",
       "worch_proc_round_robin",
       proc_sched_id,
-      admin_task.get(),
-      max_lanes);
+      admin_task.get());
 
   // Set the work orchestrator queue scheduler
   CHM_ADMIN->SetWorkOrchQueuePolicyRoot(
-      DomainQuery::GetLocalHash(chm::SubDomainId::kLaneSet, 0),
+      DomainQuery::GetLocalHash(chm::SubDomainId::kLocalLaneSet, 0),
       queue_sched_id);
   CHM_ADMIN->SetWorkOrchProcPolicyRoot(
-      DomainQuery::GetLocalHash(chm::SubDomainId::kLaneSet, 0),
+      DomainQuery::GetLocalHash(chm::SubDomainId::kLocalLaneSet, 0),
       proc_sched_id);
 
   // Create the remote queue library
   task_registry_.RegisterTaskLib("remote_queue");
   remote_queue_.CreateRoot(
-      DomainQuery::GetLocalHash(chm::SubDomainId::kLaneSet, 0),
+      DomainQuery::GetLocalHash(chm::SubDomainId::kLocalLaneSet, 0),
+      DomainQuery::GetLocalHash(chm::SubDomainId::kLocalLaneSet, 0),
       "remote_queue",
-      HRUN_CLIENT->MakeTaskStateId());
+      CHM_CLIENT->MakeTaskStateId());
   remote_created_ = true;
 }
 
@@ -162,10 +162,10 @@ void Runtime::Finalize() {
 void Runtime::RunDaemon() {
   thallium_.RunDaemon();
   HILOG(kInfo, "(node {}) Finishing up last requests",
-        HRUN_CLIENT->node_id_)
+        CHM_CLIENT->node_id_)
   HRUN_WORK_ORCHESTRATOR->Join();
   HILOG(kInfo, "(node {}) Daemon is exiting",
-        HRUN_CLIENT->node_id_)
+        CHM_CLIENT->node_id_)
 }
 
 /** Stop the Hermes core Daemon */

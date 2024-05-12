@@ -14,8 +14,8 @@
 #include "chimaera/api/chimaera_runtime.h"
 
 int main(int argc, char **argv) {
-  HRUN_RUNTIME->Create();
-  HRUN_RUNTIME->RunDaemon();
-  HRUN_RUNTIME->Finalize();
+  CHM_RUNTIME->Create();
+  CHM_RUNTIME->RunDaemon();
+  CHM_RUNTIME->Finalize();
   return 0;
 }

@@ -46,7 +46,7 @@ class Server : public TaskLib {
                           task->dom_query_,
                           task->depth_ - 1, 0);
       task->Wait<TASK_YIELD_CO>(depth_task);
-      HRUN_CLIENT->DelTask(depth_task);
+      CHM_CLIENT->DelTask(depth_task);
     }
     task->ret_ = 1;
     task->SetModuleComplete();
@@ -65,7 +65,7 @@ class Server : public TaskLib {
 
   /** An I/O task */
   void Io(IoTask *task, RunContext &rctx) {
-    char *data = HRUN_CLIENT->GetDataPointer(task->data_);
+    char *data = CHM_CLIENT->GetDataPointer(task->data_);
     task->ret_ = 0;
     for (size_t i = 0; i < task->size_; ++i) {
       task->ret_ += data[i];

@@ -81,7 +81,11 @@ class TaskLib;
 struct TaskMethod {
   TASK_METHOD_T kCreate = 0;    /**< The constructor of the task */
   TASK_METHOD_T kDestruct = 1;  /**< The destructor of the task */
-  TASK_METHOD_T kLast = 2;      /**< Where the next method should take place */
+  TASK_METHOD_T kNodeFailure = 2;  /**< The node failure method */
+  TASK_METHOD_T kRecover = 3;   /**< The recovery method */
+  TASK_METHOD_T kMigrate = 4;   /**< The migrate method */
+  TASK_METHOD_T kUpdate = 5;   /**< The update method */
+  TASK_METHOD_T kLast = 6;      /**< Where the next method should take place */
 };
 
 /**

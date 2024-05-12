@@ -132,7 +132,7 @@ class SegmentedTransfer {
 
   void AllocateSegmentsServer() {
     for (DataTransfer &xfer : bulk_) {
-      LPointer<char> data = HRUN_CLIENT->AllocateBufferServer<TASK_YIELD_ABT>(
+      LPointer<char> data = CHM_CLIENT->AllocateBufferServer<TASK_YIELD_ABT>(
           xfer.data_size_);
       xfer.data_ = data.ptr_;
       HILOG(kDebug, "NEW DATA POINTER: {}", data.shm_)

@@ -47,19 +47,19 @@ void Monitor(u32 mode, Task *task, RunContext &rctx) override {
 void Del(u32 method, Task *task) override {
   switch (method) {
     case Method::kCreate: {
-      HRUN_CLIENT->DelTask<CreateTask>(reinterpret_cast<CreateTask *>(task));
+      CHM_CLIENT->DelTask<CreateTask>(reinterpret_cast<CreateTask *>(task));
       break;
     }
     case Method::kDestruct: {
-      HRUN_CLIENT->DelTask<DestructTask>(reinterpret_cast<DestructTask *>(task));
+      CHM_CLIENT->DelTask<DestructTask>(reinterpret_cast<DestructTask *>(task));
       break;
     }
     case Method::kMd: {
-      HRUN_CLIENT->DelTask<MdTask>(reinterpret_cast<MdTask *>(task));
+      CHM_CLIENT->DelTask<MdTask>(reinterpret_cast<MdTask *>(task));
       break;
     }
     case Method::kIo: {
-      HRUN_CLIENT->DelTask<IoTask>(reinterpret_cast<IoTask *>(task));
+      CHM_CLIENT->DelTask<IoTask>(reinterpret_cast<IoTask *>(task));
       break;
     }
   }
@@ -111,22 +111,22 @@ TaskPointer LoadStart(u32 method, BinaryInputArchive<true> &ar) override {
   TaskPointer task_ptr;
   switch (method) {
     case Method::kCreate: {
-      task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<CreateTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHM_CLIENT->NewEmptyTask<CreateTask>(task_ptr.shm_);
       ar >> *reinterpret_cast<CreateTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kDestruct: {
-      task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<DestructTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHM_CLIENT->NewEmptyTask<DestructTask>(task_ptr.shm_);
       ar >> *reinterpret_cast<DestructTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kMd: {
-      task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<MdTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHM_CLIENT->NewEmptyTask<MdTask>(task_ptr.shm_);
       ar >> *reinterpret_cast<MdTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kIo: {
-      task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<IoTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHM_CLIENT->NewEmptyTask<IoTask>(task_ptr.shm_);
       ar >> *reinterpret_cast<IoTask*>(task_ptr.ptr_);
       break;
     }

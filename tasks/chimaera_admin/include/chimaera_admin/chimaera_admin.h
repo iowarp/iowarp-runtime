@@ -10,8 +10,8 @@ class Client : public TaskLibClient {
  public:
   /** Default constructor */
   Client() {
-    id_ = TaskStateId(HRUN_QM_CLIENT->admin_queue_id_);
-    queue_id_ = HRUN_QM_CLIENT->admin_queue_id_;
+    id_ = TaskStateId(CHM_QM_CLIENT->admin_queue_id_);
+    queue_id_ = CHM_QM_CLIENT->admin_queue_id_;
   }
 
   /** Destructor */
@@ -23,7 +23,7 @@ class Client : public TaskLibClient {
                                      const TaskNode &task_node,
                                      const DomainQuery &dom_query,
                                      const std::string &lib_name) {
-    HRUN_CLIENT->ConstructTask<RegisterTaskLibTask>(
+    CHM_CLIENT->ConstructTask<RegisterTaskLibTask>(
         task, task_node, dom_query, lib_name);
   }
   HSHM_ALWAYS_INLINE
@@ -31,7 +31,7 @@ class Client : public TaskLibClient {
                            const std::string &lib_name) {
     LPointer<RegisterTaskLibTask> task = AsyncRegisterTaskLibRoot(dom_query, lib_name);
     task->Wait();
-    HRUN_CLIENT->DelTask(task);
+    CHM_CLIENT->DelTask(task);
   }
   HRUN_TASK_NODE_ADMIN_ROOT(RegisterTaskLib)
 
@@ -41,7 +41,7 @@ class Client : public TaskLibClient {
                                     const TaskNode &task_node,
                                     const DomainQuery &dom_query,
                                     const std::string &lib_name) {
-    HRUN_CLIENT->ConstructTask<DestroyTaskLibTask>(
+    CHM_CLIENT->ConstructTask<DestroyTaskLibTask>(
         task, task_node, dom_query, lib_name);
   }
   HSHM_ALWAYS_INLINE
@@ -51,7 +51,7 @@ class Client : public TaskLibClient {
     LPointer<DestroyTaskLibTask> task =
         AsyncDestroyTaskLibRoot(dom_query, lib_name);
     task->Wait();
-    HRUN_CLIENT->DelTask(task);
+    CHM_CLIENT->DelTask(task);
   }
   HRUN_TASK_NODE_ADMIN_ROOT(DestroyTaskLib)
 
@@ -63,30 +63,11 @@ class Client : public TaskLibClient {
   }
 
   /** Get the ID of a task state */
-  void AsyncGetOrCreateTaskStateIdConstruct(GetOrCreateTaskStateIdTask *task,
-                                            const TaskNode &task_node,
-                                            const DomainQuery &dom_query,
-                                            const std::string &state_name) {
-    HRUN_CLIENT->ConstructTask<GetOrCreateTaskStateIdTask>(
-        task, task_node, dom_query, state_name);
-  }
-  TaskStateId GetOrCreateTaskStateIdRoot(const DomainQuery &dom_query,
-                                         const std::string &state_name) {
-    LPointer<GetOrCreateTaskStateIdTask> task =
-        AsyncGetOrCreateTaskStateIdRoot(dom_query, state_name);
-    task->Wait();
-    TaskStateId new_id = task->id_;
-    HRUN_CLIENT->DelTask(task);
-    return new_id;
-  }
-  HRUN_TASK_NODE_ADMIN_ROOT(GetOrCreateTaskStateId)
-
-  /** Get the ID of a task state */
   void AsyncGetTaskStateIdConstruct(GetTaskStateIdTask *task,
                                     const TaskNode &task_node,
                                     const DomainQuery &dom_query,
                                     const std::string &state_name) {
-    HRUN_CLIENT->ConstructTask<GetTaskStateIdTask>(
+    CHM_CLIENT->ConstructTask<GetTaskStateIdTask>(
         task, task_node, dom_query, state_name);
   }
   TaskStateId GetTaskStateIdRoot(const DomainQuery &dom_query,
@@ -95,7 +76,7 @@ class Client : public TaskLibClient {
         AsyncGetTaskStateIdRoot(dom_query, state_name);
     task->Wait();
     TaskStateId new_id = task->id_;
-    HRUN_CLIENT->DelTask(task);
+    CHM_CLIENT->DelTask(task);
     return new_id;
   }
   HRUN_TASK_NODE_ADMIN_ROOT(GetTaskStateId)
@@ -106,7 +87,7 @@ class Client : public TaskLibClient {
                                       const TaskNode &task_node,
                                       const DomainQuery &dom_query,
                                       const TaskStateId &id) {
-    HRUN_CLIENT->ConstructTask<DestroyTaskStateTask>(
+    CHM_CLIENT->ConstructTask<DestroyTaskStateTask>(
         task, task_node, dom_query, id);
   }
   HSHM_ALWAYS_INLINE
@@ -115,7 +96,7 @@ class Client : public TaskLibClient {
     LPointer<DestroyTaskStateTask> task =
         AsyncDestroyTaskStateRoot(dom_query, id);
     task->Wait();
-    HRUN_CLIENT->DelTask(task);
+    CHM_CLIENT->DelTask(task);
   }
   HRUN_TASK_NODE_ADMIN_ROOT(DestroyTaskState)
 
@@ -123,7 +104,7 @@ class Client : public TaskLibClient {
   void AsyncStopRuntimeConstruct(StopRuntimeTask *task,
                                  const TaskNode &task_node,
                                  const DomainQuery &dom_query) {
-    HRUN_CLIENT->ConstructTask<StopRuntimeTask>(
+    CHM_CLIENT->ConstructTask<StopRuntimeTask>(
         task, task_node, dom_query);
   }
   HRUN_TASK_NODE_ADMIN_ROOT(StopRuntime);
@@ -131,11 +112,10 @@ class Client : public TaskLibClient {
     HILOG(kInfo, "Beginning to flush the runtime.\n"
                  "If you did async I/O, this may take some time.\n"
                  "All unflushed data will be written to the PFS.");
-    FlushRoot(DomainQuery::GetGlobal(SubDomainId::kNodeSet,
-                                     DomainQuery::kBroadcast));
+    FlushRoot(DomainQuery::GetLaneGlobalBcast());
     HILOG(kInfo, "Stopping the runtime");
     AsyncStopRuntimeRoot(DomainQuery::GetGlobal(
-        SubDomainId::kNodeSet, DomainQuery::kBroadcastThisLast));
+        SubDomainId::kLaneSet, DomainQuery::kBroadcastThisLast));
     HILOG(kInfo, "All done!");
     exit(1);
   }
@@ -145,7 +125,7 @@ class Client : public TaskLibClient {
                                             const TaskNode &task_node,
                                             const DomainQuery &dom_query,
                                             const TaskStateId &policy) {
-    HRUN_CLIENT->ConstructTask<SetWorkOrchQueuePolicyTask>(
+    CHM_CLIENT->ConstructTask<SetWorkOrchQueuePolicyTask>(
         task, task_node, dom_query, policy);
   }
   void SetWorkOrchQueuePolicyRoot(const DomainQuery &dom_query,
@@ -153,7 +133,7 @@ class Client : public TaskLibClient {
     LPointer<SetWorkOrchQueuePolicyTask> task =
         AsyncSetWorkOrchQueuePolicyRoot(dom_query, policy);
     task->Wait();
-    HRUN_CLIENT->DelTask(task);
+    CHM_CLIENT->DelTask(task);
   }
   HRUN_TASK_NODE_ADMIN_ROOT(SetWorkOrchQueuePolicy);
 
@@ -162,7 +142,7 @@ class Client : public TaskLibClient {
                                            const TaskNode &task_node,
                                            const DomainQuery &dom_query,
                                            const TaskStateId &policy) {
-    HRUN_CLIENT->ConstructTask<SetWorkOrchProcPolicyTask>(
+    CHM_CLIENT->ConstructTask<SetWorkOrchProcPolicyTask>(
         task, task_node, dom_query, policy);
   }
   void SetWorkOrchProcPolicyRoot(const DomainQuery &dom_query,
@@ -170,7 +150,7 @@ class Client : public TaskLibClient {
     LPointer<SetWorkOrchProcPolicyTask> task =
         AsyncSetWorkOrchProcPolicyRoot(dom_query, policy);
     task->Wait();
-    HRUN_CLIENT->DelTask(task);
+    CHM_CLIENT->DelTask(task);
   }
   HRUN_TASK_NODE_ADMIN_ROOT(SetWorkOrchProcPolicy);
 
@@ -178,7 +158,7 @@ class Client : public TaskLibClient {
   void AsyncFlushConstruct(FlushTask *task,
                            const TaskNode &task_node,
                            const DomainQuery &dom_query) {
-    HRUN_CLIENT->ConstructTask<FlushTask>(
+    CHM_CLIENT->ConstructTask<FlushTask>(
         task, task_node, dom_query);
   }
   void FlushRoot(const DomainQuery &dom_query) {
@@ -188,7 +168,7 @@ class Client : public TaskLibClient {
           AsyncFlushRoot(dom_query);
       task->Wait();
       work_done = task->work_done_;
-      HRUN_CLIENT->DelTask(task);
+      CHM_CLIENT->DelTask(task);
       HILOG(kDebug, "Total flush work done: {}", work_done);
     } while (work_done > 0);
   }
@@ -199,7 +179,7 @@ class Client : public TaskLibClient {
                            const TaskNode &task_node,
                            const DomainQuery &dom_query,
                            const DomainId &dom_id) {
-    HRUN_CLIENT->ConstructTask<GetDomainSizeTask>(
+    CHM_CLIENT->ConstructTask<GetDomainSizeTask>(
         task, task_node, dom_query, dom_id);
   }
   size_t GetDomainSizeRoot(const DomainQuery &dom_query,
@@ -208,7 +188,7 @@ class Client : public TaskLibClient {
         AsyncGetDomainSizeRoot(dom_query, dom_id);
     task->Wait();
     size_t dom_size = task->dom_size_;
-    HRUN_CLIENT->DelTask(task);
+    CHM_CLIENT->DelTask(task);
     return dom_size;
   }
   HRUN_TASK_NODE_ADMIN_ROOT(GetDomainSize)

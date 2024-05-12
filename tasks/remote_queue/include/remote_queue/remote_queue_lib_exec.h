@@ -63,27 +63,27 @@ void Monitor(u32 mode, Task *task, RunContext &rctx) override {
 void Del(u32 method, Task *task) override {
   switch (method) {
     case Method::kCreate: {
-      HRUN_CLIENT->DelTask<CreateTask>(reinterpret_cast<CreateTask *>(task));
+      CHM_CLIENT->DelTask<CreateTask>(reinterpret_cast<CreateTask *>(task));
       break;
     }
     case Method::kDestruct: {
-      HRUN_CLIENT->DelTask<DestructTask>(reinterpret_cast<DestructTask *>(task));
+      CHM_CLIENT->DelTask<DestructTask>(reinterpret_cast<DestructTask *>(task));
       break;
     }
     case Method::kClientPushSubmit: {
-      HRUN_CLIENT->DelTask<ClientPushSubmitTask>(reinterpret_cast<ClientPushSubmitTask *>(task));
+      CHM_CLIENT->DelTask<ClientPushSubmitTask>(reinterpret_cast<ClientPushSubmitTask *>(task));
       break;
     }
     case Method::kClientSubmit: {
-      HRUN_CLIENT->DelTask<ClientSubmitTask>(reinterpret_cast<ClientSubmitTask *>(task));
+      CHM_CLIENT->DelTask<ClientSubmitTask>(reinterpret_cast<ClientSubmitTask *>(task));
       break;
     }
     case Method::kServerPushComplete: {
-      HRUN_CLIENT->DelTask<ServerPushCompleteTask>(reinterpret_cast<ServerPushCompleteTask *>(task));
+      CHM_CLIENT->DelTask<ServerPushCompleteTask>(reinterpret_cast<ServerPushCompleteTask *>(task));
       break;
     }
     case Method::kServerComplete: {
-      HRUN_CLIENT->DelTask<ServerCompleteTask>(reinterpret_cast<ServerCompleteTask *>(task));
+      CHM_CLIENT->DelTask<ServerCompleteTask>(reinterpret_cast<ServerCompleteTask *>(task));
       break;
     }
   }
@@ -151,32 +151,32 @@ TaskPointer LoadStart(u32 method, BinaryInputArchive<true> &ar) override {
   TaskPointer task_ptr;
   switch (method) {
     case Method::kCreate: {
-      task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<CreateTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHM_CLIENT->NewEmptyTask<CreateTask>(task_ptr.shm_);
       ar >> *reinterpret_cast<CreateTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kDestruct: {
-      task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<DestructTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHM_CLIENT->NewEmptyTask<DestructTask>(task_ptr.shm_);
       ar >> *reinterpret_cast<DestructTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kClientPushSubmit: {
-      task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<ClientPushSubmitTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHM_CLIENT->NewEmptyTask<ClientPushSubmitTask>(task_ptr.shm_);
       ar >> *reinterpret_cast<ClientPushSubmitTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kClientSubmit: {
-      task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<ClientSubmitTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHM_CLIENT->NewEmptyTask<ClientSubmitTask>(task_ptr.shm_);
       ar >> *reinterpret_cast<ClientSubmitTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kServerPushComplete: {
-      task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<ServerPushCompleteTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHM_CLIENT->NewEmptyTask<ServerPushCompleteTask>(task_ptr.shm_);
       ar >> *reinterpret_cast<ServerPushCompleteTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kServerComplete: {
-      task_ptr.ptr_ = HRUN_CLIENT->NewEmptyTask<ServerCompleteTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHM_CLIENT->NewEmptyTask<ServerCompleteTask>(task_ptr.shm_);
       ar >> *reinterpret_cast<ServerCompleteTask*>(task_ptr.ptr_);
       break;
     }

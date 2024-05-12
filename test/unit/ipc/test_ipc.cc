@@ -28,11 +28,16 @@ TEST_CASE("TestIpc") {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
   chm::small_message::Client client;
-  CHM_ADMIN->RegisterTaskLibRoot(chm::DomainQuery::GetNodeGlobalBcast(), "small_message");
-  client.CreateRoot(chm::DomainQuery::GetNodeGlobalBcast(), "ipc_test");
+  CHM_ADMIN->RegisterTaskLibRoot(
+      chm::DomainQuery::GetDirectHash(chm::SubDomainId::kGlobalLaneSet, 0),
+      "small_message");
+  client.CreateRoot(
+      chm::DomainQuery::GetDirectHash(chm::SubDomainId::kGlobalLaneSet, 0),
+      chm::DomainQuery::GetLaneGlobalBcast(),
+      "ipc_test");
   hshm::Timer t;
   size_t domain_size = CHM_ADMIN->GetDomainSizeRoot(
-      chm::DomainQuery::GetLocalHash(chm::SubDomainId::kLaneSet, 0),
+      chm::DomainQuery::GetLocalHash(chm::SubDomainId::kLocalLaneSet, 0),
       chm::DomainId(client.id_, chm::SubDomainId::kLaneSet));
 
   size_t ops = 1;
@@ -63,13 +68,15 @@ TEST_CASE("TestAsyncIpc") {
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
   chm::small_message::Client client;
   CHM_ADMIN->RegisterTaskLibRoot(
-      chm::DomainQuery::GetNodeGlobalBcast(), "small_message");
+      chm::DomainQuery::GetLaneGlobalBcast(), "small_message");
   client.CreateRoot(
-      chm::DomainQuery::GetNodeGlobalBcast(), "ipc_test");
+      chm::DomainQuery::GetDirectHash(chm::SubDomainId::kGlobalLaneSet, 0),
+      chm::DomainQuery::GetLaneGlobalBcast(),
+      "ipc_test");
   MPI_Barrier(MPI_COMM_WORLD);
   hshm::Timer t;
   size_t domain_size = CHM_ADMIN->GetDomainSizeRoot(
-      chm::DomainQuery::GetLocalHash(chm::SubDomainId::kLaneSet, 0),
+      chm::DomainQuery::GetLocalHash(chm::SubDomainId::kLocalLaneSet, 0),
       chm::DomainId(client.id_, chm::SubDomainId::kLaneSet));
 
   int pid = getpid();
@@ -87,7 +94,7 @@ TEST_CASE("TestAsyncIpc") {
         depth, TASK_FIRE_AND_FORGET);
   }
   CHM_ADMIN->FlushRoot(
-      DomainQuery::GetLocalHash(chm::SubDomainId::kLaneSet, 0));
+      DomainQuery::GetLocalHash(chm::SubDomainId::kLocalLaneSet, 0));
   t.Pause();
 
   HILOG(kInfo, "Latency: {} MOps, {} MTasks",
@@ -103,8 +110,11 @@ TEST_CASE("TestFlush") {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
   chm::small_message::Client client;
-  CHM_ADMIN->RegisterTaskLibRoot(chm::DomainQuery::GetNodeGlobalBcast(), "small_message");
-  client.CreateRoot(chm::DomainQuery::GetNodeGlobalBcast(), "ipc_test");
+  CHM_ADMIN->RegisterTaskLibRoot(chm::DomainQuery::GetLaneGlobalBcast(), "small_message");
+  client.CreateRoot(
+      chm::DomainQuery::GetDirectHash(chm::SubDomainId::kGlobalLaneSet, 0),
+      chm::DomainQuery::GetLaneGlobalBcast(),
+      "ipc_test");
   MPI_Barrier(MPI_COMM_WORLD);
   hshm::Timer t;
 
@@ -121,7 +131,7 @@ TEST_CASE("TestFlush") {
         chm::DomainQuery::GetDirectHash(chm::SubDomainId::kLaneSet, lane_id),
         0, 0);
   }
-  CHM_ADMIN->FlushRoot(DomainQuery::GetNodeGlobalBcast());
+  CHM_ADMIN->FlushRoot(DomainQuery::GetLaneGlobalBcast());
   t.Pause();
 
   HILOG(kInfo, "Latency: {} MOps", ops / t.GetUsec());
@@ -131,8 +141,11 @@ void TestIpcMultithread(int nprocs) {
   CHIMAERA_CLIENT_INIT();
 
   chm::small_message::Client client;
-  CHM_ADMIN->RegisterTaskLibRoot(chm::DomainQuery::GetNodeGlobalBcast(), "small_message");
-  client.CreateRoot(chm::DomainQuery::GetNodeGlobalBcast(), "ipc_test");
+  CHM_ADMIN->RegisterTaskLibRoot(chm::DomainQuery::GetLaneGlobalBcast(), "small_message");
+  client.CreateRoot(
+      chm::DomainQuery::GetDirectHash(chm::SubDomainId::kGlobalLaneSet, 0),
+      chm::DomainQuery::GetLaneGlobalBcast(),
+      "ipc_test");
 
 #pragma omp parallel shared(client, nprocs) num_threads(nprocs)
   {
@@ -180,11 +193,14 @@ TEST_CASE("TestIO") {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
   chm::small_message::Client client;
-  CHM_ADMIN->RegisterTaskLibRoot(chm::DomainQuery::GetNodeGlobalBcast(), "small_message");
-  client.CreateRoot(chm::DomainQuery::GetNodeGlobalBcast(), "ipc_test");
+  CHM_ADMIN->RegisterTaskLibRoot(chm::DomainQuery::GetLaneGlobalBcast(), "small_message");
+  client.CreateRoot(
+      chm::DomainQuery::GetDirectHash(chm::SubDomainId::kGlobalLaneSet, 0),
+      chm::DomainQuery::GetLaneGlobalBcast(),
+      "ipc_test");
   hshm::Timer t;
   size_t domain_size = CHM_ADMIN->GetDomainSizeRoot(
-      chm::DomainQuery::GetLocalHash(chm::SubDomainId::kLaneSet, 0),
+      chm::DomainQuery::GetLocalHash(chm::SubDomainId::kLocalLaneSet, 0),
       chm::DomainId(client.id_, chm::SubDomainId::kLaneSet));
 
   int pid = getpid();

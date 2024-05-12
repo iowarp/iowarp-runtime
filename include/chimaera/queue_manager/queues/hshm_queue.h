@@ -16,7 +16,7 @@ struct LaneData {
 
   LaneData() = default;
 
-  LaneData(hipc::Pointer &p, bool complete) {
+  LaneData(hipc::Pointer &p) {
     p_ = p;
   }
 };
@@ -236,8 +236,8 @@ struct MultiQueueT<Hshm> : public hipc::ShmContainer {
   /** Emplace a SHM pointer to a task */
   HSHM_ALWAYS_INLINE
   bool Emplace(u32 prio, u32 lane_hash,
-               hipc::Pointer &p, bool complete = false) {
-    return Emplace(prio, lane_hash, LaneData(p, complete));
+               hipc::Pointer &p) {
+    return Emplace(prio, lane_hash, LaneData(p));
   }
 
   /** Emplace a SHM pointer to a task */

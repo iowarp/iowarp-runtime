@@ -239,12 +239,11 @@ struct SubDomainId {
 
   /** Subdomain major groups */
   CLS_CONST SubDomainGroup kPhysicalNode = 0;
-  CLS_CONST SubDomainGroup kNodeSet = 1;
-  CLS_CONST SubDomainGroup kLaneSet = 2;
-  CLS_CONST SubDomainGroup kLaneDataCache = 3;
-  CLS_CONST SubDomainGroup kAdminLaneSet = 4;
-  CLS_CONST SubDomainGroup kLaneMapCache = 5;
-  CLS_CONST SubDomainGroup kLastSet = 6;
+  CLS_CONST SubDomainGroup kLaneSet = 1;
+  CLS_CONST SubDomainGroup kGlobalLaneSet = 2;
+  CLS_CONST SubDomainGroup kLocalLaneSet = 3;
+  CLS_CONST SubDomainGroup kLaneDataCache = 4;
+  CLS_CONST SubDomainGroup kLast = 5;
 
   /** Default constructor */
   SubDomainId() = default;
@@ -294,6 +293,16 @@ struct SubDomainId {
   /** ID represents a physical node ID */
   bool IsPhysical() const {
     return major_ == kPhysicalNode;
+  }
+
+  /** ID represents a major+minor ID */
+  bool IsMajor() const {
+    return minor_ == 0;
+  }
+
+  /** ID represents a major ID */
+  bool IsMinor() const {
+    return minor_ > 0;
   }
 
   /** Create a physical ID subdomain */
@@ -391,22 +400,10 @@ struct DomainId {
   }
 };
 
-/** Represents a range of subdomains */
-struct SubDomainIdRange {
-  SubDomainId off_;
-  u32 count_;
-
-  /** Serialization */
-  template<typename Ar>
-  void serialize(Ar &ar) {
-    ar(off_, count_);
-  }
-};
-
 /** Select a region of a domain */
 union DomainSelection {
-  u32 id_;
   u32 hash_;
+  u32 id_;
   struct {
     u32 off_;
     u32 count_;
@@ -422,6 +419,80 @@ union DomainSelection {
   /** Equality operator */
   bool operator==(const DomainSelection &other) const {
     return int_ == other.int_;
+  }
+};
+
+/** Operations that can be performed on a domain */
+enum class UpdateDomainOp {
+  kContract,
+  kExpand
+};
+
+/** Subdomain ID range */
+struct SubDomainIdRange {
+  SubDomainGroup group_;
+  u32 off_, count_;
+
+  /** Default constructor */
+  SubDomainIdRange() = default;
+
+  /** Emplace constructor */
+  SubDomainIdRange(SubDomainGroup group, u32 off, u32 count) {
+    group_ = group;
+    off_ = off;
+    count_ = count;
+  }
+
+  /** Copy constructor */
+  SubDomainIdRange(const SubDomainIdRange &other) {
+    group_ = other.group_;
+    off_ = other.off_;
+    count_ = other.count_;
+  }
+
+  /** Copy assignment */
+  SubDomainIdRange& operator=(const SubDomainIdRange &other) {
+    if (this != &other) {
+      group_ = other.group_;
+      off_ = other.off_;
+      count_ = other.count_;
+    }
+    return *this;
+  }
+
+  /** Move constructor */
+  SubDomainIdRange(SubDomainIdRange &&other) noexcept {
+    group_ = other.group_;
+    off_ = other.off_;
+    count_ = other.count_;
+  }
+
+  /** Move assignment */
+  SubDomainIdRange& operator=(SubDomainIdRange &&other) noexcept {
+    if (this != &other) {
+      group_ = other.group_;
+      off_ = other.off_;
+      count_ = other.count_;
+    }
+    return *this;
+  }
+
+  /** Serialization */
+  template<typename Ar>
+  void serialize(Ar &ar) {
+    ar(group_, off_, count_);
+  }
+};
+
+/** Info required for updating a domain */
+struct UpdateDomainInfo {
+  DomainId domain_id_;
+  UpdateDomainOp op_;
+  SubDomainIdRange range_;
+
+  template<typename Ar>
+  void serialize(Ar &ar) {
+    ar(domain_id_, op_, range_);
   }
 };
 
@@ -457,12 +528,12 @@ struct DomainQuery {
       BIT_OPT(DomainFlag, 15);
   CLS_CONST DomainFlag kBroadcastThisLast =
       BIT_OPT(DomainFlag, 16);
-  CLS_CONST DomainFlag kBroadcastFromLeader =
-      BIT_OPT(DomainFlag, 17);
   CLS_CONST DomainFlag kRepUntilSuccess =
       BIT_OPT(DomainFlag, 18);
   CLS_CONST DomainFlag kChooseOne =
       BIT_OPT(DomainFlag, 19);
+  CLS_CONST DomainFlag kForwardToLeader =
+      BIT_OPT(DomainFlag, 17);
 
   /** Serialize domain id */
   template<typename Ar>
@@ -571,10 +642,25 @@ struct DomainQuery {
    * @param sub_id The subdomain to query
    * @param iter_flags The iteration flags to set (e.g., kBroadcast)
    * */
-  static DomainQuery GetNodeGlobalBcast() {
+  static DomainQuery GetLaneGlobalBcast() {
     DomainQuery query;
     query.flags_.SetBits(kGlobal | kBroadcast);
-    query.sub_id_ = SubDomainId::kNodeSet;
+    query.sub_id_ = SubDomainId::kLaneSet;
+    return query;
+  }
+
+  /**
+   * Id the query to an offset in the subdomain vector
+   * @param sub_id The subdomain to query
+   * @param id The ID to resolve in the subdomain
+   * @param flags The iteration flags to set (e.g., kBroadcast)
+   * */
+  static DomainQuery GetDirectId(const SubDomainGroup &sub_id, u32 id,
+                                   u32 iter_flags = kChooseOne) {
+    DomainQuery query;
+    query.flags_.SetBits(kDirect | kId | iter_flags);
+    query.sub_id_ = sub_id;
+    query.sel_.id_ = id;
     return query;
   }
 
@@ -590,22 +676,6 @@ struct DomainQuery {
     query.flags_.SetBits(kDirect | kHash | iter_flags);
     query.sub_id_ = sub_id;
     query.sel_.hash_ = hash;
-    return query;
-  }
-
-  /**
-   * Hash the query to an offset in the subdomain vector
-   *
-   * @param sub_id The subdomain to query
-   * @param id The exact id to resolve in the subdomain
-   * @param flags The iteration flags to set (e.g., kBroadcast)
-   * */
-  static DomainQuery GetDirect(const SubDomainGroup &sub_id, u32 id,
-                               u32 iter_flags = kChooseOne) {
-    DomainQuery query;
-    query.flags_.SetBits(kDirect | kHash | iter_flags);
-    query.sub_id_ = sub_id;
-    query.sel_.id_ = id;
     return query;
   }
 
@@ -695,6 +765,15 @@ template <int TYPE>
 struct hash<chm::UniqueId<TYPE>> {
   HSHM_ALWAYS_INLINE
   std::size_t operator()(const chm::UniqueId<TYPE> &key) const {
+    return key.Hash();
+  }
+};
+
+/** Hash function for SubDomainId */
+template<>
+struct hash<chm::SubDomainId> {
+  HSHM_ALWAYS_INLINE
+  std::size_t operator()(const chm::SubDomainId &key) const {
     return key.Hash();
   }
 };
