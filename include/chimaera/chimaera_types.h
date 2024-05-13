@@ -236,8 +236,8 @@ enum class TaskRouteMode {
 /** Context used for creating objects */
 struct CreateContext {
   TaskStateId id_ = TaskStateId::GetNull();
-  u32 global_lanes_;
-  u32 local_lanes_pn_;
+  u32 global_lanes_ = 0;
+  u32 local_lanes_pn_ = 0;
 
   /** Serialization */
   template<typename Ar>
@@ -663,7 +663,7 @@ struct DomainQuery {
   static DomainQuery GetLaneGlobalBcast() {
     DomainQuery query;
     query.flags_.SetBits(kGlobal | kBroadcast);
-    query.sub_id_ = SubDomainId::kLaneSet;
+    query.sub_id_ = SubDomainId::kGlobalLaneSet;
     return query;
   }
 
@@ -689,7 +689,7 @@ struct DomainQuery {
    * @param flags The iteration flags to set (e.g., kBroadcast)
    * */
   static DomainQuery GetDirectHash(const SubDomainGroup &sub_id, u32 hash,
-                                   u32 iter_flags = kChooseOne) {
+                                   u32 iter_flags = kBroadcast) {
     DomainQuery query;
     query.flags_.SetBits(kDirect | kHash | iter_flags);
     query.sub_id_ = sub_id;

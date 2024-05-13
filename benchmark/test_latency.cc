@@ -45,7 +45,7 @@ void SyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
   for (size_t i = 0; i < ops; ++i) {
     int lane_id = 1 + (i % domain_size);
     client.MdRoot(
-        chm::DomainQuery::GetDirectHash(chm::SubDomainId::kLaneSet, lane_id),
+        chm::DomainQuery::GetDirectHash(chm::SubDomainId::kGlobalLaneSet, lane_id),
         depth, 0);
   }
   t.Pause();
@@ -73,7 +73,7 @@ void AsyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
     HILOG(kDebug, "Sending message {}", i)
     int lane_id = 1 + (i % domain_size);
     client.AsyncMdRoot(
-        chm::DomainQuery::GetDirectHash(chm::SubDomainId::kLaneSet, lane_id),
+        chm::DomainQuery::GetDirectHash(chm::SubDomainId::kGlobalLaneSet, lane_id),
         depth, TASK_FIRE_AND_FORGET);
   }
   CHM_ADMIN->FlushRoot(

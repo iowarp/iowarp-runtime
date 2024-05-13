@@ -72,6 +72,11 @@ class Runtime : public ConfigurationManager {
 
   /** Stop the Hermes core Daemon */
   void StopDaemon();
+
+  /** Get # of lanes from QueueManager */
+  size_t GetNumLanes() {
+    return queue_manager_.max_lanes_;
+  }
 };
 
 }  // namespace chm

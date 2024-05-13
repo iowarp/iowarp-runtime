@@ -64,7 +64,7 @@ class Server : public TaskLib {
   void Create(CreateTask *task, RunContext &rctx) {
     HILOG(kInfo, "(node {}) Constructing remote queue (task_node={}, task_state={}, method={})",
           CHM_CLIENT->node_id_, task->task_node_, task->task_state_, task->method_);
-    if (rctx.exec_ == this) {
+    if (rctx.shared_exec_ == this) {
       HRUN_THALLIUM->RegisterRpc(
           *HRUN_WORK_ORCHESTRATOR->rpc_pool_,
           "RpcTaskSubmit", [this](
@@ -86,7 +86,7 @@ class Server : public TaskLib {
       shared_ = std::make_shared<SharedState>(
           task, qm.queue_depth_, 1);
     } else {
-      auto *root = (Server*)rctx.exec_;
+      auto *root = (Server*)rctx.shared_exec_;
       shared_ = root->shared_;
     }
     task->SetModuleComplete();

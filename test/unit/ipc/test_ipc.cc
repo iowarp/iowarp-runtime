@@ -40,15 +40,15 @@ TEST_CASE("TestIpc") {
       chm::DomainQuery::GetDirectHash(chm::SubDomainId::kLocalLaneSet, 0),
       chm::DomainId(client.id_, chm::SubDomainId::kLaneSet));
 
-  size_t ops = 1;
+  size_t ops = 256;
   HILOG(kInfo, "OPS: {}", ops)
   t.Resume();
   int depth = 0;
   for (size_t i = 0; i < ops; ++i) {
     // HILOG(kInfo, "Sending message {}", i);
-    int lane_id = 1 + ((i + 1) % domain_size);
+    int lane_id = i;
     int ret = client.MdRoot(
-        chm::DomainQuery::GetDirectHash(chm::SubDomainId::kLaneSet, lane_id),
+        chm::DomainQuery::GetDirectHash(chm::SubDomainId::kGlobalLaneSet, lane_id),
         depth, 0);
     REQUIRE(ret == 1);
   }
@@ -88,9 +88,9 @@ TEST_CASE("TestAsyncIpc") {
   for (size_t i = 0; i < ops; ++i) {
     int ret;
     // HILOG(kInfo, "Sending message {}", i);
-    int lane_id = 1 + ((i + 1) % domain_size);
+    int lane_id = i;
     client.AsyncMdRoot(
-        chm::DomainQuery::GetDirectHash(chm::SubDomainId::kLaneSet, lane_id),
+        chm::DomainQuery::GetDirectHash(chm::SubDomainId::kGlobalLaneSet, lane_id),
         depth, TASK_FIRE_AND_FORGET);
   }
   CHM_ADMIN->FlushRoot(
@@ -128,7 +128,7 @@ TEST_CASE("TestFlush") {
     HILOG(kInfo, "Sending message {}", i);
     int lane_id = 1 + ((i + 1) % nprocs);
     LPointer<chm::small_message::MdTask> task = client.AsyncMdRoot(
-        chm::DomainQuery::GetDirectHash(chm::SubDomainId::kLaneSet, lane_id),
+        chm::DomainQuery::GetDirectHash(chm::SubDomainId::kGlobalLaneSet, lane_id),
         0, 0);
   }
   CHM_ADMIN->FlushRoot(DomainQuery::GetLaneGlobalBcast());
@@ -157,7 +157,7 @@ void TestIpcMultithread(int nprocs) {
       int ret;
       int lane_id = 1 + ((i + 1) % nprocs);
       ret = client.MdRoot(
-          chm::DomainQuery::GetDirectHash(chm::SubDomainId::kLaneSet, lane_id),
+          chm::DomainQuery::GetDirectHash(chm::SubDomainId::kGlobalLaneSet, lane_id),
           0, 0);
       REQUIRE(ret == 1);
     }
@@ -213,9 +213,9 @@ TEST_CASE("TestIO") {
   for (size_t i = 0; i < ops; ++i) {
     size_t write_ret = 0, read_ret = 0;
     HILOG(kInfo, "Sending message {}", i);
-    int lane_id = 1 + ((i + 1) % domain_size);
+    int lane_id = i;
     client.IoRoot(
-        chm::DomainQuery::GetDirectHash(chm::SubDomainId::kLaneSet, lane_id),
+        chm::DomainQuery::GetDirectHash(chm::SubDomainId::kGlobalLaneSet, lane_id),
         KILOBYTES(4),
         MD_IO_WRITE | MD_IO_READ,
         write_ret, read_ret);

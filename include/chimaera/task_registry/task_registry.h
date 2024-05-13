@@ -249,20 +249,25 @@ class TaskRegistry {
       ScopedRwWriteLock lock(lock_, 0);
       task_state_ids_.emplace(state_name, state_id);
       task_states_[state_id].shared_state_ = exec;
-      HILOG(kInfo, "(node {})  Created an instance of {} with name {} and ID {}",
-            CHM_CLIENT->node_id_, lib_name, state_name, state_id);
 
       // Construct the state
       task->ctx_.id_ = state_id;
       task->method_ = TaskMethod::kCreate;
       task->task_state_ = state_id;
-      task->rctx_.exec_ = task_states_[state_id].shared_state_;
+      task->rctx_.shared_exec_ = task_states_[state_id].shared_state_;
       exec->Run(TaskMethod::kCreate, task, task->rctx_);
       task->UnsetModuleComplete();
     }
 
-    // Create private state
+    // Create partitioned state
+    std::unordered_map<LaneId, TaskState*> &states =
+        task_states_[state_id].states_;
     for (const SubDomainId &lane_id : lanes) {
+      // Don't repeat if state exists
+      if (states.find(lane_id.minor_) != states.end()) {
+        continue;
+      }
+
       // Allocate the state
       TaskState *exec = info.alloc_state_(task, state_name);
       if (!exec) {
@@ -278,18 +283,17 @@ class TaskRegistry {
       ScopedRwWriteLock lock(lock_, 0);
       task_state_ids_.emplace(state_name, state_id);
       task_states_[state_id].states_[exec->lane_id_] = exec;
-      HILOG(kInfo, "(node {})  Created an instance of {} with name {} and ID {}",
-            CHM_CLIENT->node_id_, lib_name, state_name, state_id);
 
       // Construct the state
       task->ctx_.id_ = state_id;
       task->method_ = TaskMethod::kCreate;
       task->task_state_ = state_id;
-      task->rctx_.exec_ = task_states_[state_id].shared_state_;
+      task->rctx_.shared_exec_ = task_states_[state_id].shared_state_;
       exec->Run(TaskMethod::kCreate, task, task->rctx_);
       task->UnsetModuleComplete();
     }
-    task->SetModuleComplete();
+    HILOG(kInfo, "(node {})  Created an instance of {} with name {} and ID {}",
+          CHM_CLIENT->node_id_, lib_name, state_name, state_id);
     return true;
   }
 

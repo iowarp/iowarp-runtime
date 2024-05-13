@@ -114,8 +114,8 @@ class Client : public TaskLibClient {
                  "All unflushed data will be written to the PFS.");
     FlushRoot(DomainQuery::GetLaneGlobalBcast());
     HILOG(kInfo, "Stopping the runtime");
-    AsyncStopRuntimeRoot(DomainQuery::GetGlobal(
-        SubDomainId::kLaneSet, DomainQuery::kBroadcastThisLast));
+//    AsyncStopRuntimeRoot(DomainQuery::GetGlobal(
+//        SubDomainId::kLaneSet, DomainQuery::kBroadcastThisLast));
     HILOG(kInfo, "All done!");
     exit(1);
   }

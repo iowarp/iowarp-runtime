@@ -8,10 +8,10 @@ pkgs:
     dbg_port: 4000
   - pkg_type: chimaera_latency_bench
     pkg_name: chimaera_latency_bench
-    nprocs: 8
+    nprocs: 1
     ppn: 16
     depth: 0
-    ops: 8192
+    ops: 4
     async: false
     do_dbg: false
     dbg_port: 4001

@@ -42,10 +42,10 @@ void SyncIoTest(int rank, int nprocs, size_t msg_size, size_t ops) {
   hshm::MpiTimer t(MPI_COMM_WORLD);
   t.Resume();
   for (size_t i = 0; i < ops; ++i) {
-    int lane_id = 1 + ((i + 1) % domain_size);
+    int lane_id = i;
     size_t read_size, write_size;
     client.IoRoot(
-        chm::DomainQuery::GetDirectHash(chm::SubDomainId::kLaneSet, lane_id),
+        chm::DomainQuery::GetDirectHash(chm::SubDomainId::kGlobalLaneSet, lane_id),
         msg_size,
         MD_IO_WRITE, write_size, read_size);
   }

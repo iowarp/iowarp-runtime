@@ -266,6 +266,7 @@ struct RunContext {
   bctx::transfer_t jmp_;  /**< Stack info for coroutines */
   void *stack_ptr_;       /**< Stack pointer (coroutine) */
   TaskLib *exec_;
+  TaskLib *shared_exec_;
   WorkPending *flush_;
   hshm::Timer timer_;
   Task *pending_to_;
@@ -722,6 +723,11 @@ struct Task : public hipc::ShmContainer {
     prio_ = other.prio_;
     method_ = other.method_;
     task_flags_ = other.task_flags_;
+    UnsetStarted();
+    UnsetSignalUnblock();
+    UnsetBlocked();
+    UnsetRemote();
+    UnsetComplete();
     // atask_flags_ = other.atask_flags_.load();
     period_ns_ = other.period_ns_;
     start_ = other.start_;

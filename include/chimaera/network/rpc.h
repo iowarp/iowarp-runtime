@@ -176,7 +176,7 @@ class RpcContext {
     for (const SubDomainId &id : entry.ids_) {
       if (id.IsPhysical()) {
         ResolvedDomainQuery sub_query;
-        sub_query.dom_ = DomainQuery::GetLocalId(dom_query.sub_id_,
+        sub_query.dom_ = DomainQuery::GetLocalId(SubDomainId::kLaneSet,
                                                  dom_id.sub_id_.minor_);
         sub_query.node_ = id.minor_;
         res.emplace_back(sub_query);

@@ -85,13 +85,22 @@ class Server : public TaskLib {
       task->SetModuleComplete();
       return;
     }
+    // Get # of lanes to create
+    u32 global_lanes = task->ctx_.global_lanes_;
+    u32 local_lanes_pn = task->ctx_.local_lanes_pn_;
+    if (global_lanes == 0) {
+      global_lanes = CHM_RPC->hosts_.size() * CHM_RUNTIME->GetNumLanes();
+    }
+    if (local_lanes_pn == 0) {
+      local_lanes_pn = CHM_RUNTIME->GetNumLanes();
+    }
     // Update the default domains for the state
     std::vector<UpdateDomainInfo> ops = CHM_RPC->CreateDefaultDomains(
         task->ctx_.id_,
         CHM_QM_CLIENT->admin_task_state_,
         task->scope_query_,
-        task->ctx_.global_lanes_,
-        task->ctx_.local_lanes_pn_);
+        global_lanes,
+        local_lanes_pn);
     CHM_RPC->UpdateDomains(ops);
     std::vector<SubDomainId> lanes =
         CHM_RPC->GetLocalLanes(task->ctx_.id_);
@@ -114,7 +123,10 @@ class Server : public TaskLib {
       bcast_ptr->task_state_ = CHM_ADMIN->id_;
       MultiQueue *queue =
           CHM_QM_CLIENT->GetQueue(CHM_QM_CLIENT->admin_queue_id_);
-      queue->Emplace(task->prio_, 0, bcast.shm_);
+      bcast->YieldInit(task);
+      queue->Emplace(bcast->prio_, 0, bcast.shm_);
+      task->Wait<TASK_YIELD_CO>(bcast);
+      exec->Del(bcast->method_, bcast.ptr_);
     }
     task->SetModuleComplete();
   }
