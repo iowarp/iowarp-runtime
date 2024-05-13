@@ -226,6 +226,13 @@ enum class IoType {
   kNone
 };
 
+/** Route mode */
+enum class TaskRouteMode {
+  kThisWorker,
+  kLocalWorker,
+  kRemoteWorker
+};
+
 /** Major identifier of subdomain */
 typedef u32 SubDomainGroup;
 
@@ -685,6 +692,61 @@ struct DomainQuery {
         std::hash<DomainFlag>{}(flags_.bits_) +
         std::hash<SubDomainGroup>{}(sub_id_) +
         std::hash<u64>{}(sel_.int_);
+  }
+
+  /** Print operator */
+  friend std::ostream& operator<<(std::ostream &os,
+      const DomainQuery &dom_query) {
+    // Get scope string
+    std::string scope;
+    if (dom_query.flags_.Any(kLocal)) {
+      scope = "local";
+    } else if (dom_query.flags_.Any(kGlobal)) {
+      scope = "global";
+    } else if (dom_query.flags_.Any(kDirect)) {
+      scope = "direct";
+    }
+
+    // Get iteration string
+    std::string iter;
+    if (dom_query.flags_.Any(kBroadcast)) {
+      iter = "broadcast";
+    } else if (dom_query.flags_.Any(kBroadcastThisLast)) {
+      iter = "broadcast_this_last";
+    } else if (dom_query.flags_.Any(kRepUntilSuccess)) {
+      iter = "rep_until_success";
+    } else if (dom_query.flags_.Any(kChooseOne)) {
+      iter = "choose_one";
+    } else if (dom_query.flags_.Any(kForwardToLeader)) {
+      iter = "forward_to_leader";
+    }
+
+    // Get selection string
+    std::string sel;
+    if (dom_query.flags_.Any(kId)) {
+      sel = "id";
+    } else if (dom_query.flags_.Any(kHash)) {
+      sel = "hash";
+    } else if (dom_query.flags_.Any(kRange)) {
+      sel = "range";
+    }
+
+    // Get range string
+    std::string range;
+    if (dom_query.flags_.Any(kRange)) {
+      range = std::to_string(dom_query.sel_.range_.off_) + ":" +
+              std::to_string(dom_query.sel_.range_.count_);
+    } else if (dom_query.flags_.Any(kId)) {
+      range = std::to_string(dom_query.sel_.id_);
+    } else if (dom_query.flags_.Any(kHash)) {
+      range = std::to_string(dom_query.sel_.hash_);
+    }
+
+    std::string format = hshm::Formatter::format(
+        "DomainQuery will perform {} over the {} scope "
+        "of the {} selection {} of subdomain group {}",
+        iter, scope, sel, range, dom_query.sub_id_);
+    return os << format;
   }
 };
 

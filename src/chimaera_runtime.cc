@@ -93,7 +93,7 @@ void Runtime::ServerInit(std::string server_config_path) {
       queue_sched_id,
       admin_task.get(),
       lanes);
-  TaskState *state = task_registry_.GetTaskState(queue_sched_id, 0);
+  TaskState *state = task_registry_.GetAnyTaskState(queue_sched_id);
 
   // Initially schedule queues to workers
   auto queue_task = CHM_CLIENT->NewTask<ScheduleTask>(

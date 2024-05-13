@@ -108,7 +108,7 @@ class Server : public TaskLib {
     // Replicate task
     bool deep = false;
     for (ResolvedDomainQuery &dom_query : dom_queries) {
-      TaskState *exec = HRUN_TASK_REGISTRY->GetTaskStateAny(
+      TaskState *exec = HRUN_TASK_REGISTRY->GetAnyTaskState(
           orig_task->task_state_);
       LPointer<Task> replica;
       exec->CopyStart(orig_task->method_, orig_task, replica, deep);
@@ -140,7 +140,7 @@ class Server : public TaskLib {
     bool deep = dom_queries.size() > 1;
     for (ResolvedDomainQuery &dom_query : dom_queries) {
       LPointer<Task> replica;
-      TaskState *exec = HRUN_TASK_REGISTRY->GetTaskStateAny(
+      TaskState *exec = HRUN_TASK_REGISTRY->GetAnyTaskState(
           orig_task->task_state_);
       exec->CopyStart(orig_task->method_, orig_task, replica, deep);
       if (dom_query.dom_.flags_.Any(DomainQuery::kLocal)) {
@@ -158,7 +158,7 @@ class Server : public TaskLib {
       // Wait
       task->Wait<TASK_YIELD_CO>(replicas, TASK_MODULE_COMPLETE);
       // Combine
-      TaskState *exec = HRUN_TASK_REGISTRY->GetTaskStateAny(
+      TaskState *exec = HRUN_TASK_REGISTRY->GetAnyTaskState(
           orig_task->task_state_);
       rctx.replicas_ = &replicas;
       exec->Monitor(MonitorMode::kReplicaAgg, orig_task, rctx);
@@ -221,7 +221,7 @@ class Server : public TaskLib {
           entries.emplace(entry.domain_.node_, BinaryOutputArchive<true>());
         }
         Task *orig_task = entry.task_;
-        TaskState *exec = HRUN_TASK_REGISTRY->GetTaskStateAny(
+        TaskState *exec = HRUN_TASK_REGISTRY->GetAnyTaskState(
             orig_task->task_state_);
         if (exec == nullptr) {
           HELOG(kFatal, "(node {}) Could not find the task state {}",
@@ -314,7 +314,7 @@ class Server : public TaskLib {
               CHM_CLIENT->node_id_, done_task->task_node_,
               entry.domain_);
         TaskState *exec =
-            HRUN_TASK_REGISTRY->GetTaskStateAny(done_task->task_state_);
+            HRUN_TASK_REGISTRY->GetAnyTaskState(done_task->task_state_);
         BinaryOutputArchive<false> &ar = entries[entry.domain_.node_];
         exec->SaveEnd(done_task->method_, ar, done_task);
         completed.emplace_back(entry);
@@ -389,7 +389,7 @@ class Server : public TaskLib {
     // Deserialize task
     TaskStateId state_id = xfer.tasks_[task_off].task_state_;
     u32 method = xfer.tasks_[task_off].method_;
-    TaskState *exec = HRUN_TASK_REGISTRY->GetTaskStateAny(state_id);
+    TaskState *exec = HRUN_TASK_REGISTRY->GetAnyTaskState(state_id);
     if (exec == nullptr) {
       HELOG(kFatal, "(node {}) Could not find the task state {}",
             CHM_CLIENT->node_id_, state_id);
@@ -435,9 +435,9 @@ class Server : public TaskLib {
           exec->name_,
           method,
           xfer.size(),
-          orig_task->GetLaneHash());
+          orig_task->GetLaneId());
     queue->Emplace(orig_task->prio_,
-                   orig_task->GetLaneHash(), task_ptr.shm_);
+                   orig_task->GetLaneId(), task_ptr.shm_);
     HILOG(kDebug,
           "(node {}) Done submitting (task_node={}, task_state={}/{}, "
           "state_name={}, method={}, size={}, lane_hash={})",
@@ -448,7 +448,7 @@ class Server : public TaskLib {
           exec->name_,
           method,
           xfer.size(),
-          orig_task->GetLaneHash());
+          orig_task->GetLaneId());
   }
 
   /** Receive task completion */
@@ -464,7 +464,7 @@ class Server : public TaskLib {
         Task *orig_task = (Task*)xfer.tasks_[i].task_addr_;
         HILOG(kDebug, "(node {}) Deserializing return values for task {} (state {})",
               CHM_CLIENT->node_id_, orig_task->task_node_, orig_task->task_state_);
-        TaskState *exec = HRUN_TASK_REGISTRY->GetTaskStateAny(
+        TaskState *exec = HRUN_TASK_REGISTRY->GetAnyTaskState(
             orig_task->task_state_);
         if (exec == nullptr) {
           HELOG(kFatal, "(node {}) Could not find the task state {}",

@@ -464,8 +464,6 @@ class Worker {
   bitfield32_t flags_;  /**< Worker metadata flags */
   std::unordered_map<hshm::charbuf, TaskNode>
       group_map_;        /**< Determine if a task can be executed right now */
-  std::unordered_map<TaskStateId, TaskState*>
-      state_map_;       /**< The set of task states */
   hshm::charbuf group_;  /**< The current group */
   WorkPending flush_;    /**< Info needed for flushing ops */
   hshm::spsc_queue<void*> stacks_;  /**< Cache of stacks for tasks */
@@ -823,17 +821,22 @@ class Worker {
       LPointer<Task> task;
       task.shm_ = entry->p_;
       task.ptr_ = CHM_CLIENT->GetMainPointer<Task>(entry->p_);
-      int route = Reroute(task->task_state_,
+      TaskRouteMode route = Reroute(task->task_state_,
                           task->dom_query_,
                           task,
                           lane);
-      if (route == 2) {
+
+      if (route == TaskRouteMode::kRemoteWorker) {
         task->SetRemote();
       }
-      if (route == 1 || active_.push<TYPE>(PrivateTaskQueueEntry{task})) {
+      if (route == TaskRouteMode::kLocalWorker) {
         lane->pop();
       } else {
-        break;
+        if (active_.push<TYPE>(PrivateTaskQueueEntry{task})) {
+          lane->pop();
+        } else {
+          break;
+        }
       }
     }
   }
@@ -841,10 +844,10 @@ class Worker {
   /**
    * Detect if a DomainQuery is across nodes
    * */
-  int Reroute(const TaskStateId &scope,
-              const DomainQuery &dom_query,
-              LPointer<Task> task,
-              Lane *lane) {
+  TaskRouteMode Reroute(const TaskStateId &scope,
+                        const DomainQuery &dom_query,
+                        LPointer<Task> task,
+                        Lane *lane) {
     std::vector<ResolvedDomainQuery> resolved =
         HRUN_RPC->ResolveDomainQuery(scope, dom_query, false);
     if (resolved.size() == 1 && resolved[0].node_ == CHM_RPC->node_id_) {
@@ -856,27 +859,27 @@ class Worker {
           task->method_ != TaskMethod::kCreate &&
           CHM_RUNTIME->remote_created_ &&
           !task->IsRemote()) {
-        return 2;
+        return TaskRouteMode::kRemoteWorker;
       }
 #endif
       if (res_query.flags_.Any(DomainQuery::kLocal | DomainQuery::kId)) {
-        MultiQueue *queue = CHM_QM_CLIENT->GetQueue(
+        MultiQueue *queue = CHM_CLIENT->GetQueue(
             task->task_state_);
         Lane &lane_cmp = queue->GetLane(task->prio_, res_query.sel_.id_);
         if (lane_cmp.id_ == lane->id_) {
-          return 0;
+          return TaskRouteMode::kThisWorker;
         } else {
           lane_cmp.emplace(task.shm_);
-          return 1;
+          return TaskRouteMode::kLocalWorker;
         }
       }
-      return 2;
+      return TaskRouteMode::kRemoteWorker;
     } else if (resolved.size() > 1) {
-      return 2;
+      return TaskRouteMode::kRemoteWorker;
     } else {
       HELOG(kFatal, "Domain query resolved to no sub-queries");
     }
-    return true;
+    return TaskRouteMode::kRemoteWorker;
   }
 
   /** Process completion events */
@@ -915,7 +918,7 @@ class Worker {
                bool flushing) {
     // Get the task state
     TaskState *exec = GetTaskState(task->task_state_,
-                                   task->GetLaneHash());
+                                   task->GetLaneId());
     if (!exec) {
       if (task->task_state_ == TaskStateId::GetNull()) {
         HELOG(kFatal, "(node {}) Task {} has no task state",
@@ -923,8 +926,10 @@ class Worker {
         task->SetModuleComplete();
         return false;
       } else {
-        HELOG(kWarning, "(node {}) Could not find the task state {} for task {}",
-              CHM_CLIENT->node_id_, task->task_state_, task->task_node_);
+        HELOG(kWarning, "(node {}) Could not find the task state {} for task {}"
+                        " with query: {}",
+              CHM_CLIENT->node_id_, task->task_state_, task->task_node_,
+              task->dom_query_);
       }
       return true;
     }
@@ -957,7 +962,7 @@ class Worker {
       active_.erase(queue.id_, entry);
       if (props.Any(HSHM_WORKER_IS_CONSTRUCT)) {
         TaskStateId id = ((chm::Admin::CreateTaskStateTask*)task.ptr_)->id_;
-        exec = GetTaskState(id, task->GetLaneHash());
+        exec = GetTaskState(id, task->GetLaneId());
       }
       EndTask(exec, task);
     } else if (task->IsBlocked()) {
@@ -993,7 +998,7 @@ class Worker {
       SignalUnblock(task->ctx_.pending_to_);
     } else if (task->ShouldSignalRemoteComplete()) {
       TaskState *remote_exec = GetTaskState(CHM_REMOTE_QUEUE->id_,
-                                            task->GetLaneHash());
+                                            task->GetLaneId());
       remote_exec->Run(chm::remote_queue::Method::kServerPushComplete,
                        task.ptr_, task->ctx_);
       task->SetComplete();
@@ -1118,17 +1123,8 @@ class Worker {
 
   /** Get task state */
   HSHM_ALWAYS_INLINE
-  TaskState* GetTaskState(const TaskStateId &state_id, u32 lane_hash) {
-    auto it = state_map_.find(state_id);
-    if (it == state_map_.end()) {
-      TaskState *state = HRUN_TASK_REGISTRY->GetTaskState(state_id, lane_hash);
-      if (state == nullptr) {
-        return nullptr;
-      }
-      state_map_.emplace(state_id, state);
-      return state_map_[state_id];
-    }
-    return it->second;
+  TaskState* GetTaskState(const TaskStateId &state_id, u32 lane_id) {
+    return HRUN_TASK_REGISTRY->GetTaskState(state_id, lane_id);
   }
 };
 

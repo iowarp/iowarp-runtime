@@ -297,13 +297,8 @@ struct Task : public hipc::ShmContainer {
    * ===================================*/
 
   /** Get lane hash */
-  HSHM_ALWAYS_INLINE u32 &GetLaneHash() {
-    return dom_query_.sel_.hash_;
-  }
-
-  /** Get lane hash */
-  HSHM_ALWAYS_INLINE const u32 &GetLaneHash() const {
-    return dom_query_.sel_.hash_;
+  HSHM_ALWAYS_INLINE const u32 &GetLaneId() const {
+    return dom_query_.sel_.id_;
   }
 
   /** Set task as externally complete */
@@ -715,7 +710,7 @@ struct Task : public hipc::ShmContainer {
   template<typename Ar>
   void task_serialize(Ar &ar) {
     // NOTE(llogan): don't serialize start_ because of clock drift
-    ar(task_state_, task_node_, dom_query_, GetLaneHash(), prio_, method_,
+    ar(task_state_, task_node_, dom_query_, prio_, method_,
        task_flags_, period_ns_);  // , atask_flags_);
   }
 

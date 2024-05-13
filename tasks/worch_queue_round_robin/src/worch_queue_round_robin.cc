@@ -45,7 +45,7 @@ class Server : public TaskLib {
       if (queue.id_.IsNull() || !queue.flags_.Any(QUEUE_READY)) {
         continue;
       }
-      for (LaneGroup &lane_group : *queue.groups_) {
+      for (LaneGroup &lane_group : queue.groups_) {
         u32 num_lanes = lane_group.num_lanes_;
         for (LaneId lane_id = lane_group.num_scheduled_; lane_id < num_lanes; ++lane_id) {
           u32 worker_id;

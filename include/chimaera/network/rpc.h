@@ -219,8 +219,7 @@ class RpcContext {
     if (dom_size <= neighborhood_size_ || full) {
       // Concretize range queries into local queries
       DomainQuery sub_query = DomainQuery::GetDirectHash(
-          dom_query.sub_id_, dom_query.sel_.range_.off_,
-          dom_query.flags_.bits_);
+          dom_query.sub_id_, dom_off, dom_query.flags_.bits_);
       for (size_t i = 0; i < dom_size; ++i) {
         ResolveMinorDomain(scope, sub_query, res, full);
         sub_query.sel_.hash_ += 1;
@@ -278,7 +277,7 @@ class RpcContext {
                        u32 global_lanes,
                        u32 local_lanes_pn) {
     std::vector<UpdateDomainInfo> ops;
-    // Resolve the scope domain
+    // Resolve the admin scope domain
     std::vector<ResolvedDomainQuery> dom = ResolveDomainQuery(
         admin_state, scope_query, true);
     size_t dom_size = dom.size();
@@ -361,17 +360,13 @@ class RpcContext {
   /** Get the set of lanes on this node */
   std::vector<SubDomainId> GetLocalLanes(const TaskStateId &scope) {
     std::vector<SubDomainId> res;
+    size_t dom_size = GetDomainSize(DomainId(scope, SubDomainId::kLaneSet));
     ScopedRwReadLock lock(domain_map_lock_, 0);
-    for (const std::pair<DomainId, DomainMapEntry> &entry : domain_map_) {
-      const DomainId &dom_id = entry.first;
-      const DomainMapEntry &dom_entry = entry.second;
-      if (dom_id.scope_ == scope &&
-          dom_id.sub_id_.major_ == SubDomainId::kLaneSet) {
-        for (const SubDomainId &id : dom_entry.ids_) {
-          if (id.minor_ == node_id_) {
-            res.emplace_back(dom_id.sub_id_);
-          }
-        }
+    for (u32 i = 0; i < dom_size; ++i) {
+      std::vector<ResolvedDomainQuery> res_query = ResolveDomainQuery(
+          scope, DomainQuery::GetDirectHash(SubDomainId::kLaneSet, i), true);
+      if (res_query.size() == 1 && res_query[0].node_ == node_id_) {
+        res.emplace_back(SubDomainId::kLaneSet, res_query[0].dom_.sel_.id_);
       }
     }
     return res;

@@ -66,8 +66,8 @@ class Server : public TaskLib {
     std::string state_name = task->state_name_.str();
     // Check local registry for task state
     bool state_existed = false;
-    TaskState *task_state = CHM_TASK_REGISTRY->GetTaskState(
-        state_name, task->id_, task->GetLaneHash());
+    TaskState *task_state = CHM_TASK_REGISTRY->GetAnyTaskState(
+        state_name, task->id_);
     if (task_state) {
       task->id_ = task_state->id_;
       state_existed = true;
@@ -103,7 +103,7 @@ class Server : public TaskLib {
         task, lanes);
     if (task->root_ && !state_existed) {
       // Broadcast the state creation to all nodes
-      TaskState *exec = CHM_TASK_REGISTRY->GetTaskState(task->id_, 0);
+      TaskState *exec = CHM_TASK_REGISTRY->GetAnyTaskState(task->id_);
       LPointer<Task> bcast;
       exec->CopyStart(task->method_, task, bcast, true);
       auto *bcast_ptr = reinterpret_cast<CreateTaskStateTask *>(

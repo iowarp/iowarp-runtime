@@ -68,7 +68,8 @@ struct TaskLibInfo {
 };
 
 struct TaskStateInfo {
-  std::vector<TaskState*> states_;
+  TaskState *shared_state_;
+  std::unordered_map<LaneId, TaskState*> states_;
 };
 
 /**
@@ -228,16 +229,42 @@ class TaskRegistry {
       task->SetModuleComplete();
       return false;
     }
+    TaskLibInfo &info = it->second;
 
-    // Create the state instance
+    // Create shared state
     if (task_states_.find(state_id) == task_states_.end()) {
+      // Allocate the state
       task_states_[state_id] = TaskStateInfo();
-    }
-    for (const SubDomainId &lane_id : lanes) {
+      TaskState *exec = info.alloc_state_(task, state_name);
+      if (!exec) {
+        HELOG(kError, "Could not create the task state: {}", state_name);
+        task->SetModuleComplete();
+        return false;
+      }
+
+      // Add the state to the registry
+      exec->id_ = state_id;
+      exec->name_ = state_name;
+      exec->lane_id_ = 0;
+      ScopedRwWriteLock lock(lock_, 0);
+      task_state_ids_.emplace(state_name, state_id);
+      task_states_[state_id].shared_state_ = exec;
+      HILOG(kInfo, "(node {})  Created an instance of {} with name {} and ID {}",
+            CHM_CLIENT->node_id_, lib_name, state_name, state_id);
+
+      // Construct the state
       task->id_ = state_id;
-      TaskLibInfo &info = it->second;
-      TaskState *exec;
-      exec = info.alloc_state_(task, state_name);
+      task->method_ = TaskMethod::kCreate;
+      task->task_state_ = state_id;
+      task->ctx_.exec_ = task_states_[state_id].shared_state_;
+      exec->Run(TaskMethod::kCreate, task, task->ctx_);
+      task->UnsetModuleComplete();
+    }
+
+    // Create private state
+    for (const SubDomainId &lane_id : lanes) {
+      // Allocate the state
+      TaskState *exec = info.alloc_state_(task, state_name);
       if (!exec) {
         HELOG(kError, "Could not create the task state: {}", state_name);
         task->SetModuleComplete();
@@ -250,14 +277,15 @@ class TaskRegistry {
       exec->lane_id_ = lane_id.minor_;
       ScopedRwWriteLock lock(lock_, 0);
       task_state_ids_.emplace(state_name, state_id);
-      task_states_[state_id].states_.emplace_back(exec);
+      task_states_[state_id].states_[exec->lane_id_] = exec;
       HILOG(kInfo, "(node {})  Created an instance of {} with name {} and ID {}",
             CHM_CLIENT->node_id_, lib_name, state_name, state_id);
 
       // Construct the state
+      task->id_ = state_id;
       task->method_ = TaskMethod::kCreate;
       task->task_state_ = state_id;
-      task->ctx_.exec_ = task_states_[state_id].states_.front();
+      task->ctx_.exec_ = task_states_[state_id].shared_state_;
       exec->Run(TaskMethod::kCreate, task, task->ctx_);
       task->UnsetModuleComplete();
     }
@@ -288,37 +316,39 @@ class TaskRegistry {
   }
 
   /** Get a task state instance */
-  TaskState* GetTaskStateAny(const TaskStateId &task_state_id) {
+  TaskState* GetAnyTaskState(const TaskStateId &task_state_id) {
     ScopedRwReadLock lock(lock_, 0);
     auto it = task_states_.find(task_state_id);
     if (it == task_states_.end()) {
       return nullptr;
     }
-    return it->second.states_[0];
-  }
-
-  /** Get a task state instance */
-  TaskState* GetTaskState(const TaskStateId &task_state_id,
-                          u32 lane_hash) {
-    ScopedRwReadLock lock(lock_, 0);
-    auto it = task_states_.find(task_state_id);
-    if (it == task_states_.end()) {
-      return nullptr;
-    }
-    LaneId lane_id = lane_hash % it->second.states_.size();
-    return it->second.states_[lane_id];
+    return it->second.shared_state_;
   }
 
   /** Get task state instance by name OR by ID */
-  TaskState* GetTaskState(const std::string &task_name,
-                          const TaskStateId &task_state_id,
-                          u32 lane_hash) {
+  TaskState* GetAnyTaskState(const std::string &task_name,
+                             const TaskStateId &task_state_id) {
     ScopedRwReadLock lock(lock_, 0);
     TaskStateId id = GetTaskStateId(task_name);
     if (id.IsNull()) {
       id = task_state_id;
     }
-    return GetTaskState(id, lane_hash);
+    auto it = task_states_.find(task_state_id);
+    if (it == task_states_.end()) {
+      return nullptr;
+    }
+    return it->second.shared_state_;
+  }
+
+  /** Get a task state instance */
+  TaskState* GetTaskState(const TaskStateId &task_state_id,
+                          LaneId lane_id) {
+    ScopedRwReadLock lock(lock_, 0);
+    auto it = task_states_.find(task_state_id);
+    if (it == task_states_.end()) {
+      return nullptr;
+    }
+    return it->second.states_[lane_id];
   }
 
   /** Destroy a task state */
@@ -331,9 +361,7 @@ class TaskRegistry {
     }
     TaskStateInfo &task_states = it->second;
     std::string state_name = task_states.states_[0]->name_;
-    for (TaskState *task_state : task_states.states_) {
-      delete task_state;
-    }
+    // TODO(llogan): Iterate over shared_state + states and destroy them
     task_state_ids_.erase(state_name);
     task_states_.erase(it);
   }
