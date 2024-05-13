@@ -233,6 +233,19 @@ enum class TaskRouteMode {
   kRemoteWorker
 };
 
+/** Context used for creating objects */
+struct CreateContext {
+  TaskStateId id_ = TaskStateId::GetNull();
+  u32 global_lanes_;
+  u32 local_lanes_pn_;
+
+  /** Serialization */
+  template<typename Ar>
+  void serialize(Ar &ar) {
+    ar(id_, global_lanes_, local_lanes_pn_);
+  }
+};
+
 /** Major identifier of subdomain */
 typedef u32 SubDomainGroup;
 
@@ -520,11 +533,11 @@ struct DomainQuery {
   CLS_CONST DomainFlag kDirect =
       BIT_OPT(DomainFlag, 2);
   CLS_CONST DomainFlag kGlobal =
-      BIT_OPT(DomainFlag, 4);
+      BIT_OPT(DomainFlag, 3);
 
   /** Selection flags */
   CLS_CONST DomainFlag kId =
-      BIT_OPT(DomainFlag, 5);
+      BIT_OPT(DomainFlag, 4);
   CLS_CONST DomainFlag kHash =
       BIT_OPT(DomainFlag, 5);
   CLS_CONST DomainFlag kRange =
@@ -546,6 +559,13 @@ struct DomainQuery {
   template<typename Ar>
   void serialize(Ar &ar) {
     ar(flags_, sub_id_, sel_);
+  }
+
+  /** Get iteration flags */
+  DomainFlag GetIterFlags() const {
+    return flags_.bits_ & (kBroadcast | kBroadcastThisLast |
+                           kRepUntilSuccess | kChooseOne |
+                           kForwardToLeader);
   }
 
   /** Default constructor. */
@@ -604,15 +624,6 @@ struct DomainQuery {
     query.flags_.SetBits(kLocal | kId);
     query.sub_id_ = sub_id;
     query.sel_.id_ = id;
-    return query;
-  }
-
-  /** Get the local node domain */
-  static DomainQuery GetLocalHash(const SubDomainGroup &sub_id, u32 hash) {
-    DomainQuery query;
-    query.flags_.SetBits(kLocal | kHash);
-    query.sub_id_ = sub_id;
-    query.sel_.hash_ = hash;
     return query;
   }
 

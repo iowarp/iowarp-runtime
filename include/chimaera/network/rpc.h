@@ -77,10 +77,8 @@ struct DomainMapEntry {
     ids_ = std::move(ids);
   }
 
-  size_t GetOffset(size_t off) {
-    off -= 1;
-    off %= size_;
-    return off;
+  SubDomainId& Get(LaneId hash) {
+    return ids_[hash % size_];
   }
 };
 
@@ -149,8 +147,8 @@ class RpcContext {
     } else if (dom_query.flags_.Any(DomainQuery::kHash)) {
       DomainId major_id(scope, dom_query.sub_id_);
       DomainMapEntry &major_entry = domain_map_[major_id];
-      SubDomainMinor minor = major_entry.GetOffset(dom_query.sel_.hash_);
-      return SubDomainId(dom_query.sub_id_, minor);
+      SubDomainId id = major_entry.Get(dom_query.sel_.hash_);
+      return id;
     } else {
       return SubDomainId(dom_query.sub_id_);
     }
@@ -219,7 +217,7 @@ class RpcContext {
     if (dom_size <= neighborhood_size_ || full) {
       // Concretize range queries into local queries
       DomainQuery sub_query = DomainQuery::GetDirectHash(
-          dom_query.sub_id_, dom_off, dom_query.flags_.bits_);
+          dom_query.sub_id_, dom_off, DomainQuery::kBroadcast);
       for (size_t i = 0; i < dom_size; ++i) {
         ResolveMinorDomain(scope, sub_query, res, full);
         sub_query.sel_.hash_ += 1;
@@ -230,8 +228,13 @@ class RpcContext {
         ResolvedDomainQuery sub_query;
         size_t rem_size = std::min(neighborhood_size_, dom_size - i);
         sub_query.dom_ = DomainQuery::GetRange(
-            dom_query.sub_id_, dom_off, rem_size, dom_query.flags_.bits_);
-        sub_query.node_ = entry.GetOffset(dom_off);
+            dom_query.sub_id_, dom_off, rem_size, dom_query.GetIterFlags());
+        u32 forward = hosts_.size() / neighborhood_size_;
+        if (forward < 2) {
+          sub_query.node_ = node_id_;
+        } else {
+          sub_query.node_ = forward * neighborhood_size_;
+        }
         res.emplace_back(sub_query);
         dom_off += neighborhood_size_;
       }
@@ -246,7 +249,7 @@ class RpcContext {
                      const DomainQuery &dom_query,
                      bool full) {
     std::vector<ResolvedDomainQuery> res;
-    if (dom_query.flags_.Any(DomainQuery::kLocal)) {
+    if (dom_query.flags_.All(DomainQuery::kLocal | DomainQuery::kId)) {
       // Keep task on this node
       ResolvedDomainQuery sub_query;
       sub_query.dom_ = dom_query;

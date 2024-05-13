@@ -34,9 +34,9 @@ struct CreateTask : public CreateTaskStateTask {
                 const DomainQuery &dom_query,
                 const DomainQuery &scope_query,
                 const std::string &state_name,
-                const TaskStateId &id)
+                const CreateContext &ctx)
       : CreateTaskStateTask(alloc, task_node, dom_query, scope_query,
-                            state_name, "worch_queue_round_robin", id) {
+                            state_name, "worch_queue_round_robin", ctx) {
   }
 
   /** Destructor */

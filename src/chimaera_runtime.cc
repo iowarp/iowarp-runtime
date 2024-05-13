@@ -52,7 +52,7 @@ void Runtime::ServerInit(std::string server_config_path) {
   HERMES_THREAD_MODEL->SetThreadModel(hshm::ThreadType::kArgobots);
   work_orchestrator_.ServerInit(&server_config_, queue_manager_);
   hipc::mptr<Admin::CreateTaskStateTask> admin_task;
-  size_t max_lanes = CHM_RUNTIME->queue_manager_.max_lanes_;
+  u32 max_lanes = CHM_RUNTIME->queue_manager_.max_lanes_;
   size_t max_workers = server_config_.wo_.max_dworkers_ +
                        server_config_.wo_.max_oworkers_;
   std::vector<UpdateDomainInfo> ops;
@@ -98,11 +98,11 @@ void Runtime::ServerInit(std::string server_config_path) {
   // Initially schedule queues to workers
   auto queue_task = CHM_CLIENT->NewTask<ScheduleTask>(
       CHM_CLIENT->MakeTaskNodeId(),
-      DomainQuery::GetLocalHash(chm::SubDomainId::kLocalLaneSet, 0),
+      DomainQuery::GetDirectHash(chm::SubDomainId::kLocalLaneSet, 0),
       queue_sched_id);
   state->Run(queue_task->method_,
              queue_task.ptr_,
-             queue_task->ctx_);
+             queue_task->rctx_);
   CHM_CLIENT->DelTask(queue_task);
 
   // Create the work orchestrator process scheduling library
@@ -125,10 +125,10 @@ void Runtime::ServerInit(std::string server_config_path) {
 
   // Set the work orchestrator queue scheduler
   CHM_ADMIN->SetWorkOrchQueuePolicyRoot(
-      DomainQuery::GetLocalHash(chm::SubDomainId::kLocalLaneSet, 0),
+      DomainQuery::GetDirectHash(chm::SubDomainId::kLocalLaneSet, 0),
       queue_sched_id);
   CHM_ADMIN->SetWorkOrchProcPolicyRoot(
-      DomainQuery::GetLocalHash(chm::SubDomainId::kLocalLaneSet, 0),
+      DomainQuery::GetDirectHash(chm::SubDomainId::kLocalLaneSet, 0),
       proc_sched_id);
 
   // Create the remote queue library
@@ -141,10 +141,10 @@ void Runtime::ServerInit(std::string server_config_path) {
   CHM_RPC->UpdateDomains(ops);
   lanes = CHM_RPC->GetLocalLanes(proc_sched_id);
   remote_queue_.CreateRoot(
-      DomainQuery::GetLocalHash(chm::SubDomainId::kLocalLaneSet, 0),
-      DomainQuery::GetLocalHash(chm::SubDomainId::kLocalLaneSet, 0),
+      DomainQuery::GetDirectHash(chm::SubDomainId::kLocalLaneSet, 0),
+      DomainQuery::GetDirectHash(chm::SubDomainId::kLocalLaneSet, 0),
       "remote_queue",
-      CHM_CLIENT->MakeTaskStateId());
+      CreateContext{CHM_CLIENT->MakeTaskStateId(), max_lanes, 1});
   remote_created_ = true;
 }
 

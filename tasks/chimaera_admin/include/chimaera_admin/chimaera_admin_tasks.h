@@ -80,11 +80,9 @@ class CreateTaskStatePhase {
 struct CreateTaskStateTask : public Task, TaskFlags<TF_SRL_SYM> {
   IN hipc::string lib_name_;
   IN hipc::string state_name_;
-  IN size_t global_lanes_;
-  IN size_t local_lanes_pn_;
   IN DomainQuery scope_query_;
   IN bool root_ = true;
-  INOUT TaskStateId id_;
+  INOUT CreateContext ctx_;
 
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
@@ -100,7 +98,7 @@ struct CreateTaskStateTask : public Task, TaskFlags<TF_SRL_SYM> {
                       const DomainQuery &scope_query,
                       const std::string &state_name,
                       const std::string &lib_name,
-                      const TaskStateId &id)
+                      const CreateContext &ctx)
   : Task(alloc),
     state_name_(alloc, state_name),
     lib_name_(alloc, lib_name) {
@@ -114,7 +112,7 @@ struct CreateTaskStateTask : public Task, TaskFlags<TF_SRL_SYM> {
 
     // Initialize
     scope_query_ = scope_query;
-    id_ = id;
+    ctx_ = ctx;
   }
 
   /** Destructor */
@@ -125,23 +123,23 @@ struct CreateTaskStateTask : public Task, TaskFlags<TF_SRL_SYM> {
   void CopyStart(const CreateTaskT &other, bool deep) {
     lib_name_ = other.lib_name_;
     state_name_ = other.state_name_;
-    id_ = other.id_;
+    ctx_ = other.ctx_;
     root_ = other.root_;
     scope_query_ = other.scope_query_;
     HILOG(kInfo, "Copying CreateTaskStateTask: {} {} {}",
-          lib_name_.str(), state_name_.str(), id_)
+          lib_name_.str(), state_name_.str(), ctx_.id_)
   }
 
   /** (De)serialize message call */
   template<typename Ar>
   void SerializeStart(Ar &ar) {
-    ar(lib_name_, state_name_, id_, root_, scope_query_);
+    ar(lib_name_, state_name_, ctx_, root_, scope_query_);
   }
 
   /** (De)serialize message return */
   template<typename Ar>
   void SerializeEnd(Ar &ar) {
-    ar(id_);
+    ar(ctx_.id_);
   }
 };
 

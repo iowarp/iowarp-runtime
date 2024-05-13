@@ -27,13 +27,13 @@ struct CreateTask : public CreateTaskStateTask {
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
   CreateTask(hipc::Allocator *alloc,
-                const TaskNode &task_node,
-                const DomainQuery &dom_query,
-                const DomainQuery &scope_query,
-                const std::string &state_name,
-                const TaskStateId &id)
+             const TaskNode &task_node,
+             const DomainQuery &dom_query,
+             const DomainQuery &scope_query,
+             const std::string &state_name,
+             const CreateContext &ctx)
       : CreateTaskStateTask(alloc, task_node, dom_query, scope_query,
-                            state_name, "small_message", id) {
+                            state_name, "small_message", ctx) {
   }
 };
 

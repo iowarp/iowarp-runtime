@@ -33,18 +33,18 @@ class Client : public TaskLibClient {
                             const DomainQuery &dom_query,
                             const DomainQuery &scope_query,
                             const std::string &state_name,
-                            const TaskStateId &id) {
+                            const CreateContext &ctx) {
     CHM_CLIENT->ConstructTask<CreateTask>(
-        task, task_node, dom_query, scope_query, state_name, id);
+        task, task_node, dom_query, scope_query, state_name, ctx);
   }
   void CreateRoot(const DomainQuery &dom_query,
                   const DomainQuery &scope_query,
                   const std::string &state_name,
-                  const TaskStateId &id = TaskId::GetNull()) {
+                  const CreateContext &ctx = CreateContext()) {
     LPointer<CreateTask> task = AsyncCreateRoot(
-        dom_query, scope_query, state_name, id);
+        dom_query, scope_query, state_name, ctx);
     task->Wait();
-    Init(task->id_);
+    Init(task->ctx_.id_);
     CHM_CLIENT->DelTask(task);
   }
   HRUN_TASK_NODE_PUSH_ROOT(Create);

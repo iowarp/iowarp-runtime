@@ -140,15 +140,18 @@ namespace chm {
 struct PrivateTaskQueueEntry {
  public:
   LPointer<Task> task_;
+  DomainQuery res_query_;
   size_t next_, prior_;
 
  public:
   PrivateTaskQueueEntry() = default;
-  PrivateTaskQueueEntry(const LPointer<Task> &task)
-  : task_(task) {}
+  PrivateTaskQueueEntry(const LPointer<Task> &task,
+                        const DomainQuery &res_query)
+  : task_(task), res_query_(res_query) {}
 
   PrivateTaskQueueEntry(const PrivateTaskQueueEntry &other) {
     task_ = other.task_;
+    res_query_ = other.res_query_;
     next_ = other.next_;
     prior_ = other.prior_;
   }
@@ -156,6 +159,7 @@ struct PrivateTaskQueueEntry {
   PrivateTaskQueueEntry& operator=(const PrivateTaskQueueEntry &other) {
     if (this != &other) {
       task_ = other.task_;
+      res_query_ = other.res_query_;
       next_ = other.next_;
       prior_ = other.prior_;
     }
@@ -164,6 +168,7 @@ struct PrivateTaskQueueEntry {
 
   PrivateTaskQueueEntry(PrivateTaskQueueEntry &&other) noexcept {
     task_ = other.task_;
+    res_query_ = other.res_query_;
     next_ = other.next_;
     prior_ = other.prior_;
   }
@@ -171,6 +176,7 @@ struct PrivateTaskQueueEntry {
   PrivateTaskQueueEntry& operator=(PrivateTaskQueueEntry &&other) noexcept {
     if (this != &other) {
       task_ = other.task_;
+      res_query_ = other.res_query_;
       next_ = other.next_;
       prior_ = other.prior_;
     }
@@ -391,17 +397,17 @@ class PrivateTaskMultiQueue {
   void block(int queue_id) {
     PrivateTaskQueueEntry entry;
     queues_[queue_id].pop(entry);
-    blocked_.emplace(entry, entry.task_->ctx_.pending_key_);
+    blocked_.emplace(entry, entry.task_->rctx_.pending_key_);
   }
 
   void block(PrivateTaskQueueEntry &entry) {
     LPointer<Task> blocked_task = entry.task_;
-    blocked_.emplace(entry, blocked_task->ctx_.pending_key_);
+    blocked_.emplace(entry, blocked_task->rctx_.pending_key_);
     HILOG(kDebug, "Blocking task {} (id: {}) with pending key {} "
                  "on queue {} / worker {}",
           (size_t)blocked_task.ptr_,
           blocked_task->task_node_,
-          blocked_task->ctx_.pending_key_,
+          blocked_task->rctx_.pending_key_,
           (size_t)&blocked_, id_);
   }
 
@@ -426,14 +432,14 @@ class PrivateTaskMultiQueue {
                  "on queue {} / worker {}",
           (size_t)blocked_task.ptr_,
           blocked_task->task_node_,
-          blocked_task->ctx_.pending_key_,
+          blocked_task->rctx_.pending_key_,
           (size_t)&blocked_,
           id_);
     if (!blocked_task->IsBlocked()) {
       return true;
     }
     PrivateTaskQueueEntry entry;
-    blocked_.pop(blocked_task->ctx_.pending_key_, entry);
+    blocked_.pop(blocked_task->rctx_.pending_key_, entry);
     if (blocked_task.ptr_ != entry.task_.ptr_) {
       HILOG(kFatal, "A blocked task was lost");
     }
@@ -525,7 +531,7 @@ class Worker {
   /** Get the pending queue for a worker */
   PrivateTaskMultiQueue& GetPendingQueue(Task *task) {
     PrivateTaskMultiQueue &pending =
-        HRUN_WORK_ORCHESTRATOR->workers_[task->ctx_.worker_id_]->active_;
+        HRUN_WORK_ORCHESTRATOR->workers_[task->rctx_.worker_id_]->active_;
     return pending;
   }
 
@@ -821,10 +827,11 @@ class Worker {
       LPointer<Task> task;
       task.shm_ = entry->p_;
       task.ptr_ = CHM_CLIENT->GetMainPointer<Task>(entry->p_);
+      DomainQuery dom_query = task->dom_query_;
       TaskRouteMode route = Reroute(task->task_state_,
-                          task->dom_query_,
-                          task,
-                          lane);
+                                    dom_query,
+                                    task,
+                                    lane);
 
       if (route == TaskRouteMode::kRemoteWorker) {
         task->SetRemote();
@@ -832,7 +839,7 @@ class Worker {
       if (route == TaskRouteMode::kLocalWorker) {
         lane->pop();
       } else {
-        if (active_.push<TYPE>(PrivateTaskQueueEntry{task})) {
+        if (active_.push<TYPE>(PrivateTaskQueueEntry{task, dom_query})) {
           lane->pop();
         } else {
           break;
@@ -845,13 +852,13 @@ class Worker {
    * Detect if a DomainQuery is across nodes
    * */
   TaskRouteMode Reroute(const TaskStateId &scope,
-                        const DomainQuery &dom_query,
+                        DomainQuery &dom_query,
                         LPointer<Task> task,
                         Lane *lane) {
     std::vector<ResolvedDomainQuery> resolved =
         HRUN_RPC->ResolveDomainQuery(scope, dom_query, false);
     if (resolved.size() == 1 && resolved[0].node_ == CHM_RPC->node_id_) {
-      DomainQuery &res_query = resolved[0].dom_;
+      dom_query = resolved[0].dom_;
 #ifdef CHIMAERA_REMOTE_DEBUG
       if (task->task_state_ != CHM_QM_CLIENT->admin_task_state_ &&
           !task->task_flags_.Any(TASK_REMOTE_DEBUG_MARK) &&
@@ -862,10 +869,10 @@ class Worker {
         return TaskRouteMode::kRemoteWorker;
       }
 #endif
-      if (res_query.flags_.Any(DomainQuery::kLocal | DomainQuery::kId)) {
+      if (dom_query.flags_.All(DomainQuery::kLocal | DomainQuery::kId)) {
         MultiQueue *queue = CHM_CLIENT->GetQueue(
             task->task_state_);
-        Lane &lane_cmp = queue->GetLane(task->prio_, res_query.sel_.id_);
+        Lane &lane_cmp = queue->GetLane(task->prio_, dom_query.sel_.id_);
         if (lane_cmp.id_ == lane->id_) {
           return TaskRouteMode::kThisWorker;
         } else {
@@ -918,7 +925,7 @@ class Worker {
                bool flushing) {
     // Get the task state
     TaskState *exec = GetTaskState(task->task_state_,
-                                   task->GetLaneId());
+                                   entry.res_query_.sel_.id_);
     if (!exec) {
       if (task->task_state_ == TaskStateId::GetNull()) {
         HELOG(kFatal, "(node {}) Task {} has no task state",
@@ -934,7 +941,7 @@ class Worker {
       return true;
     }
     // Pack runtime context
-    RunContext &rctx = task->ctx_;
+    RunContext &rctx = task->rctx_;
     rctx.worker_id_ = id_;
     rctx.flush_ = &flush_;
     rctx.exec_ = exec;
@@ -961,7 +968,8 @@ class Worker {
       // active_.erase(queue.id_);
       active_.erase(queue.id_, entry);
       if (props.Any(HSHM_WORKER_IS_CONSTRUCT)) {
-        TaskStateId id = ((chm::Admin::CreateTaskStateTask*)task.ptr_)->id_;
+        TaskStateId id =
+            ((chm::Admin::CreateTaskStateTask*)task.ptr_)->ctx_.id_;
         exec = GetTaskState(id, task->GetLaneId());
       }
       EndTask(exec, task);
@@ -985,7 +993,7 @@ class Worker {
   HSHM_ALWAYS_INLINE
   static void SignalUnblock(LPointer<Task> &unblock_task) {
     Worker &worker = HRUN_WORK_ORCHESTRATOR->GetWorker(
-        unblock_task->ctx_.worker_id_);
+        unblock_task->rctx_.worker_id_);
     PrivateTaskMultiQueue &pending =
         worker.GetPendingQueue(unblock_task.ptr_);
     pending.signal_unblock(pending, unblock_task);
@@ -995,12 +1003,12 @@ class Worker {
   HSHM_ALWAYS_INLINE
   void EndTask(TaskState *exec, LPointer<Task> &task) {
     if (task->ShouldSignalUnblock()) {
-      SignalUnblock(task->ctx_.pending_to_);
+      SignalUnblock(task->rctx_.pending_to_);
     } else if (task->ShouldSignalRemoteComplete()) {
       TaskState *remote_exec = GetTaskState(CHM_REMOTE_QUEUE->id_,
                                             task->GetLaneId());
       remote_exec->Run(chm::remote_queue::Method::kServerPushComplete,
-                       task.ptr_, task->ctx_);
+                       task.ptr_, task->rctx_);
       task->SetComplete();
       return;
     }
@@ -1068,7 +1076,7 @@ class Worker {
 //      HILOG(kInfo, "Automaking remote task {}", (size_t)task);
       CHM_REMOTE_QUEUE->AsyncClientPushSubmit(
           nullptr, task->task_node_ + 1,
-          DomainQuery::GetLocalHash(SubDomainId::kLocalLaneSet, 0),
+          DomainQuery::GetDirectHash(SubDomainId::kLocalLaneSet, 0),
           task);
       task->SetBlocked();
     } if (task->IsCoroutine()) {
@@ -1109,7 +1117,7 @@ class Worker {
   /** Run a coroutine */
   static void CoroutineEntry(bctx::transfer_t t) {
     Task *task = reinterpret_cast<Task*>(t.data);
-    RunContext &rctx = task->ctx_;
+    RunContext &rctx = task->rctx_;
     TaskState *&exec = rctx.exec_;
     rctx.jmp_ = t;
     exec->Run(task->method_, task, rctx);

@@ -67,43 +67,43 @@ class Server : public TaskLib {
     // Check local registry for task state
     bool state_existed = false;
     TaskState *task_state = CHM_TASK_REGISTRY->GetAnyTaskState(
-        state_name, task->id_);
+        state_name, task->ctx_.id_);
     if (task_state) {
-      task->id_ = task_state->id_;
+      task->ctx_.id_ = task_state->id_;
       state_existed = true;
     }
     // Check global registry for task state
-    if (task->id_.IsNull()) {
-      task->id_ = CHM_TASK_REGISTRY->GetOrCreateTaskStateId(state_name);
+    if (task->ctx_.id_.IsNull()) {
+      task->ctx_.id_ = CHM_TASK_REGISTRY->GetOrCreateTaskStateId(state_name);
     }
     // Create the task state
     HILOG(kInfo, "(node {}) Creating task state {} with id {} (task_node={})",
-          CHM_CLIENT->node_id_, state_name, task->id_, task->task_node_);
-    if (task->id_.IsNull()) {
+          CHM_CLIENT->node_id_, state_name, task->ctx_.id_, task->task_node_);
+    if (task->ctx_.id_.IsNull()) {
       HELOG(kError, "(node {}) The task state {} with id {} is NULL.",
-            CHM_CLIENT->node_id_, state_name, task->id_);
+            CHM_CLIENT->node_id_, state_name, task->ctx_.id_);
       task->SetModuleComplete();
       return;
     }
     // Update the default domains for the state
     std::vector<UpdateDomainInfo> ops = CHM_RPC->CreateDefaultDomains(
-        task->id_,
+        task->ctx_.id_,
         CHM_QM_CLIENT->admin_task_state_,
         task->scope_query_,
-        task->global_lanes_,
-        task->local_lanes_pn_);
+        task->ctx_.global_lanes_,
+        task->ctx_.local_lanes_pn_);
     CHM_RPC->UpdateDomains(ops);
     std::vector<SubDomainId> lanes =
-        CHM_RPC->GetLocalLanes(task->id_);
+        CHM_RPC->GetLocalLanes(task->ctx_.id_);
     // Create the task state
     CHM_TASK_REGISTRY->CreateTaskState(
         lib_name.c_str(),
         state_name.c_str(),
-        task->id_,
+        task->ctx_.id_,
         task, lanes);
     if (task->root_ && !state_existed) {
       // Broadcast the state creation to all nodes
-      TaskState *exec = CHM_TASK_REGISTRY->GetAnyTaskState(task->id_);
+      TaskState *exec = CHM_TASK_REGISTRY->GetAnyTaskState(task->ctx_.id_);
       LPointer<Task> bcast;
       exec->CopyStart(task->method_, task, bcast, true);
       auto *bcast_ptr = reinterpret_cast<CreateTaskStateTask *>(
@@ -125,8 +125,8 @@ class Server : public TaskLib {
         std::vector<LPointer<Task>> &replicas = *rctx.replicas_;
         auto replica = reinterpret_cast<CreateTaskStateTask *>(
             replicas[0].ptr_);
-        task->id_ = replica->id_;
-        HILOG(kDebug, "New aggregated task state {}", task->id_);
+        task->ctx_ = replica->ctx_;
+        HILOG(kDebug, "New aggregated task state {}", task->ctx_.id_);
       }
     }
   }
@@ -181,7 +181,7 @@ class Server : public TaskLib {
     }
     auto queue_sched = CHM_CLIENT->NewTask<ScheduleTask>(
         task->task_node_,
-        chm::DomainQuery::GetLocalHash(chm::SubDomainId::kLocalLaneSet, 0),
+        chm::DomainQuery::GetDirectHash(chm::SubDomainId::kLocalLaneSet, 0),
         task->policy_id_);
     queue_sched_ = queue_sched.ptr_;
     MultiQueue *queue = CHM_CLIENT->GetQueue(queue_id_);
@@ -204,7 +204,7 @@ class Server : public TaskLib {
     }
     auto proc_sched = CHM_CLIENT->NewTask<ScheduleTask>(
         task->task_node_,
-        chm::DomainQuery::GetLocalHash(chm::SubDomainId::kLocalLaneSet, 0),
+        chm::DomainQuery::GetDirectHash(chm::SubDomainId::kLocalLaneSet, 0),
         task->policy_id_);
     proc_sched_ = proc_sched.ptr_;
     MultiQueue *queue = CHM_CLIENT->GetQueue(queue_id_);

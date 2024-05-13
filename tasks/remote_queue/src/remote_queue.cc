@@ -45,10 +45,10 @@ struct SharedState {
     for (size_t i = 0; i < num_lanes; ++i) {
       submitters_[i] = CHM_REMOTE_QUEUE->AsyncClientSubmit(
           task, task->task_node_ + 1,
-          DomainQuery::GetLocalHash(SubDomainId::kLocalLaneSet, i));
+          DomainQuery::GetDirectHash(SubDomainId::kLocalLaneSet, i));
       completers_[i] = CHM_REMOTE_QUEUE->AsyncServerComplete(
           task, task->task_node_ + 1,
-          DomainQuery::GetLocalHash(SubDomainId::kLocalLaneSet, i));
+          DomainQuery::GetDirectHash(SubDomainId::kLocalLaneSet, i));
     }
   }
 };
@@ -112,7 +112,7 @@ class Server : public TaskLib {
           orig_task->task_state_);
       LPointer<Task> replica;
       exec->CopyStart(orig_task->method_, orig_task, replica, deep);
-      replica->ctx_.pending_to_ = task;
+      replica->rctx_.pending_to_ = task;
       size_t lane_hash = std::hash<NodeId>{}(dom_query.node_);
       auto &submit = shared_->submit_;
       submit[lane_hash % submit.size()].emplace(
@@ -146,7 +146,7 @@ class Server : public TaskLib {
       if (dom_query.dom_.flags_.Any(DomainQuery::kLocal)) {
         exec->Monitor(MonitorMode::kReplicaStart, orig_task, rctx);
       }
-      replica->ctx_.pending_to_ = task;
+      replica->rctx_.pending_to_ = task;
       size_t lane_hash = std::hash<NodeId>{}(dom_query.node_);
       auto &submit = shared_->submit_;
       submit[lane_hash % submit.size()].emplace(
@@ -195,7 +195,7 @@ class Server : public TaskLib {
       orig_task->SetModuleComplete();
     }
     HILOG(kDebug, "Will unblock the task {} to worker {}",
-          (size_t)orig_task, orig_task->ctx_.worker_id_);
+          (size_t)orig_task, orig_task->rctx_.worker_id_);
     Worker::SignalUnblock(orig_task);
 
     // Set this task as complete
@@ -279,10 +279,10 @@ class Server : public TaskLib {
                           RunContext &rctx) {
     HILOG(kDebug, "(node {}) Task finished server-side {}",
           CHM_CLIENT->node_id_, task->task_node_);
-    if (task->ctx_.ret_task_addr_ == (size_t)task) {
+    if (task->rctx_.ret_task_addr_ == (size_t)task) {
       HILOG(kFatal, "This shouldn't happen ever");
     }
-    NodeId ret_node = task->ctx_.ret_node_;
+    NodeId ret_node = task->rctx_.ret_node_;
     size_t lane_hash = std::hash<NodeId>{}(ret_node);
     auto &complete = shared_->complete_;
     complete[lane_hash % complete.size()].emplace((TaskQueueEntry){
@@ -399,9 +399,9 @@ class Server : public TaskLib {
     Task *orig_task = task_ptr.ptr_;
     orig_task = task_ptr.ptr_;
     orig_task->dom_query_ = xfer.tasks_[task_off].dom_;
-    orig_task->ctx_.ret_task_addr_ = xfer.tasks_[task_off].task_addr_;
-    orig_task->ctx_.ret_node_ = xfer.ret_node_;
-    if (orig_task->ctx_.ret_task_addr_ == (size_t)orig_task) {
+    orig_task->rctx_.ret_task_addr_ = xfer.tasks_[task_off].task_addr_;
+    orig_task->rctx_.ret_node_ = xfer.ret_node_;
+    if (orig_task->rctx_.ret_task_addr_ == (size_t)orig_task) {
       HILOG(kFatal, "This shouldn't happen ever");
     }
 
@@ -479,14 +479,14 @@ class Server : public TaskLib {
       for (size_t i = 0; i < xfer.tasks_.size(); ++i) {
         Task *orig_task = (Task*)xfer.tasks_[i].task_addr_;
         orig_task->SetModuleComplete();
-        Task *pending_to = orig_task->ctx_.pending_to_;
+        Task *pending_to = orig_task->rctx_.pending_to_;
         if (pending_to->task_state_ != id_) {
           HELOG(kFatal, "This shouldn't happen ever");
         }
         HILOG(kDebug, "(node {}) Unblocking task {} to worker {}",
               CHM_CLIENT->node_id_,
               (size_t)pending_to,
-              pending_to->ctx_.worker_id_);
+              pending_to->rctx_.worker_id_);
         Worker::SignalUnblock(pending_to);
       }
     } catch (hshm::Error &e) {

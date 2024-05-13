@@ -287,7 +287,7 @@ struct Task : public hipc::ShmContainer {
   bitfield32_t task_flags_;    /**< Properties of the task */
   double period_ns_;           /**< The period of the task */
   hshm::Timepoint start_;      /**< The time the task started */
-  RunContext ctx_;
+  RunContext rctx_;
 // #ifdef CHIMAERA_TASK_DEBUG
   std::atomic<int> delcnt_ = 0;    /**< # of times deltask called */
 // #endif
@@ -551,7 +551,7 @@ struct Task : public hipc::ShmContainer {
       HERMES_THREAD_MODEL->Yield();
     } else if constexpr (THREAD_MODEL == TASK_YIELD_CO ||
                          THREAD_MODEL == TASK_YIELD_CO_NOBLK) {
-      ctx_.jmp_ = bctx::jump_fcontext(ctx_.jmp_.fctx, nullptr);
+      rctx_.jmp_ = bctx::jump_fcontext(rctx_.jmp_.fctx, nullptr);
     } else if constexpr (THREAD_MODEL == TASK_YIELD_ABT) {
       ABT_thread_yield();
     }
@@ -565,7 +565,7 @@ struct Task : public hipc::ShmContainer {
     if (parent_task &&
         !IsFireAndForget() &&
         !IsLongRunning()) {
-      ctx_.pending_to_ = parent_task;
+      rctx_.pending_to_ = parent_task;
       SetSignalUnblock();
     }
   }

@@ -253,11 +253,11 @@ class TaskRegistry {
             CHM_CLIENT->node_id_, lib_name, state_name, state_id);
 
       // Construct the state
-      task->id_ = state_id;
+      task->ctx_.id_ = state_id;
       task->method_ = TaskMethod::kCreate;
       task->task_state_ = state_id;
-      task->ctx_.exec_ = task_states_[state_id].shared_state_;
-      exec->Run(TaskMethod::kCreate, task, task->ctx_);
+      task->rctx_.exec_ = task_states_[state_id].shared_state_;
+      exec->Run(TaskMethod::kCreate, task, task->rctx_);
       task->UnsetModuleComplete();
     }
 
@@ -282,11 +282,11 @@ class TaskRegistry {
             CHM_CLIENT->node_id_, lib_name, state_name, state_id);
 
       // Construct the state
-      task->id_ = state_id;
+      task->ctx_.id_ = state_id;
       task->method_ = TaskMethod::kCreate;
       task->task_state_ = state_id;
-      task->ctx_.exec_ = task_states_[state_id].shared_state_;
-      exec->Run(TaskMethod::kCreate, task, task->ctx_);
+      task->rctx_.exec_ = task_states_[state_id].shared_state_;
+      exec->Run(TaskMethod::kCreate, task, task->rctx_);
       task->UnsetModuleComplete();
     }
     task->SetModuleComplete();

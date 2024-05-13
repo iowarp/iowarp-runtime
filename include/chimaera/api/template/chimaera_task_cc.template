@@ -2,7 +2,7 @@ extern "C" {
   void* alloc_state(chm::Admin::CreateTaskStateTask *task, const char *state_name) {
     chm::TaskState *exec = reinterpret_cast<chm::TaskState*>(
         new TYPE_UNWRAP(TRAIT_CLASS)());
-    exec->Init(task->id_, CHM_CLIENT->GetQueueId(task->id_), state_name);
+    exec->Init(task->ctx_.id_, CHM_CLIENT->GetQueueId(task->ctx_.id_), state_name);
     return exec;
   }
   const char* get_task_lib_name(void) { return TASK_NAME; }

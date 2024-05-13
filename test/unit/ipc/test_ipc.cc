@@ -37,7 +37,7 @@ TEST_CASE("TestIpc") {
       "ipc_test");
   hshm::Timer t;
   size_t domain_size = CHM_ADMIN->GetDomainSizeRoot(
-      chm::DomainQuery::GetLocalHash(chm::SubDomainId::kLocalLaneSet, 0),
+      chm::DomainQuery::GetDirectHash(chm::SubDomainId::kLocalLaneSet, 0),
       chm::DomainId(client.id_, chm::SubDomainId::kLaneSet));
 
   size_t ops = 1;
@@ -76,7 +76,7 @@ TEST_CASE("TestAsyncIpc") {
   MPI_Barrier(MPI_COMM_WORLD);
   hshm::Timer t;
   size_t domain_size = CHM_ADMIN->GetDomainSizeRoot(
-      chm::DomainQuery::GetLocalHash(chm::SubDomainId::kLocalLaneSet, 0),
+      chm::DomainQuery::GetDirectHash(chm::SubDomainId::kLocalLaneSet, 0),
       chm::DomainId(client.id_, chm::SubDomainId::kLaneSet));
 
   int pid = getpid();
@@ -94,7 +94,7 @@ TEST_CASE("TestAsyncIpc") {
         depth, TASK_FIRE_AND_FORGET);
   }
   CHM_ADMIN->FlushRoot(
-      DomainQuery::GetLocalHash(chm::SubDomainId::kLocalLaneSet, 0));
+      DomainQuery::GetDirectHash(chm::SubDomainId::kLocalLaneSet, 0));
   t.Pause();
 
   HILOG(kInfo, "Latency: {} MOps, {} MTasks",
@@ -200,7 +200,7 @@ TEST_CASE("TestIO") {
       "ipc_test");
   hshm::Timer t;
   size_t domain_size = CHM_ADMIN->GetDomainSizeRoot(
-      chm::DomainQuery::GetLocalHash(chm::SubDomainId::kLocalLaneSet, 0),
+      chm::DomainQuery::GetDirectHash(chm::SubDomainId::kLocalLaneSet, 0),
       chm::DomainId(client.id_, chm::SubDomainId::kLaneSet));
 
   int pid = getpid();

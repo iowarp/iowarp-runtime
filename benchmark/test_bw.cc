@@ -36,7 +36,7 @@ void SyncIoTest(int rank, int nprocs, size_t msg_size, size_t ops) {
       chm::DomainQuery::GetLaneGlobalBcast(),
       "ipc_test");
   size_t domain_size = CHM_ADMIN->GetDomainSizeRoot(
-      chm::DomainQuery::GetLocalHash(chm::SubDomainId::kLocalLaneSet, 0),
+      chm::DomainQuery::GetDirectHash(chm::SubDomainId::kLocalLaneSet, 0),
       chm::DomainId(client.id_, chm::SubDomainId::kLaneSet));
 
   hshm::MpiTimer t(MPI_COMM_WORLD);
