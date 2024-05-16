@@ -19,7 +19,7 @@
 namespace chm {
 
 #define HRUN_QM_RUNTIME \
-  (&CHM_RUNTIME->queue_manager_)
+  (&CHI_RUNTIME->queue_manager_)
 
 /** Administrative queuing actions */
 class QueueManagerRuntime : public QueueManager {

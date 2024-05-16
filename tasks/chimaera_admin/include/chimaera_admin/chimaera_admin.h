@@ -1,5 +1,5 @@
-#ifndef HRUN_TASKS_CHM_ADMIN_CHM_ADMIN_H_
-#define HRUN_TASKS_CHM_ADMIN_CHM_ADMIN_H_
+#ifndef HRUN_TASKS_CHI_ADMIN_CHI_ADMIN_H_
+#define HRUN_TASKS_CHI_ADMIN_CHI_ADMIN_H_
 
 #include "chimaera_admin_tasks.h"
 
@@ -10,8 +10,8 @@ class Client : public TaskLibClient {
  public:
   /** Default constructor */
   Client() {
-    id_ = TaskStateId(CHM_QM_CLIENT->admin_queue_id_);
-    queue_id_ = CHM_QM_CLIENT->admin_queue_id_;
+    id_ = TaskStateId(CHI_QM_CLIENT->admin_queue_id_);
+    queue_id_ = CHI_QM_CLIENT->admin_queue_id_;
   }
 
   /** Destructor */
@@ -23,7 +23,7 @@ class Client : public TaskLibClient {
                                      const TaskNode &task_node,
                                      const DomainQuery &dom_query,
                                      const std::string &lib_name) {
-    CHM_CLIENT->ConstructTask<RegisterTaskLibTask>(
+    CHI_CLIENT->ConstructTask<RegisterTaskLibTask>(
         task, task_node, dom_query, lib_name);
   }
   HSHM_ALWAYS_INLINE
@@ -31,7 +31,7 @@ class Client : public TaskLibClient {
                            const std::string &lib_name) {
     LPointer<RegisterTaskLibTask> task = AsyncRegisterTaskLibRoot(dom_query, lib_name);
     task->Wait();
-    CHM_CLIENT->DelTask(task);
+    CHI_CLIENT->DelTask(task);
   }
   HRUN_TASK_NODE_ADMIN_ROOT(RegisterTaskLib)
 
@@ -41,7 +41,7 @@ class Client : public TaskLibClient {
                                     const TaskNode &task_node,
                                     const DomainQuery &dom_query,
                                     const std::string &lib_name) {
-    CHM_CLIENT->ConstructTask<DestroyTaskLibTask>(
+    CHI_CLIENT->ConstructTask<DestroyTaskLibTask>(
         task, task_node, dom_query, lib_name);
   }
   HSHM_ALWAYS_INLINE
@@ -51,7 +51,7 @@ class Client : public TaskLibClient {
     LPointer<DestroyTaskLibTask> task =
         AsyncDestroyTaskLibRoot(dom_query, lib_name);
     task->Wait();
-    CHM_CLIENT->DelTask(task);
+    CHI_CLIENT->DelTask(task);
   }
   HRUN_TASK_NODE_ADMIN_ROOT(DestroyTaskLib)
 
@@ -67,7 +67,7 @@ class Client : public TaskLibClient {
                                     const TaskNode &task_node,
                                     const DomainQuery &dom_query,
                                     const std::string &state_name) {
-    CHM_CLIENT->ConstructTask<GetTaskStateIdTask>(
+    CHI_CLIENT->ConstructTask<GetTaskStateIdTask>(
         task, task_node, dom_query, state_name);
   }
   TaskStateId GetTaskStateIdRoot(const DomainQuery &dom_query,
@@ -76,7 +76,7 @@ class Client : public TaskLibClient {
         AsyncGetTaskStateIdRoot(dom_query, state_name);
     task->Wait();
     TaskStateId new_id = task->id_;
-    CHM_CLIENT->DelTask(task);
+    CHI_CLIENT->DelTask(task);
     return new_id;
   }
   HRUN_TASK_NODE_ADMIN_ROOT(GetTaskStateId)
@@ -87,7 +87,7 @@ class Client : public TaskLibClient {
                                       const TaskNode &task_node,
                                       const DomainQuery &dom_query,
                                       const TaskStateId &id) {
-    CHM_CLIENT->ConstructTask<DestroyTaskStateTask>(
+    CHI_CLIENT->ConstructTask<DestroyTaskStateTask>(
         task, task_node, dom_query, id);
   }
   HSHM_ALWAYS_INLINE
@@ -96,7 +96,7 @@ class Client : public TaskLibClient {
     LPointer<DestroyTaskStateTask> task =
         AsyncDestroyTaskStateRoot(dom_query, id);
     task->Wait();
-    CHM_CLIENT->DelTask(task);
+    CHI_CLIENT->DelTask(task);
   }
   HRUN_TASK_NODE_ADMIN_ROOT(DestroyTaskState)
 
@@ -104,7 +104,7 @@ class Client : public TaskLibClient {
   void AsyncStopRuntimeConstruct(StopRuntimeTask *task,
                                  const TaskNode &task_node,
                                  const DomainQuery &dom_query) {
-    CHM_CLIENT->ConstructTask<StopRuntimeTask>(
+    CHI_CLIENT->ConstructTask<StopRuntimeTask>(
         task, task_node, dom_query);
   }
   HRUN_TASK_NODE_ADMIN_ROOT(StopRuntime);
@@ -125,7 +125,7 @@ class Client : public TaskLibClient {
                                             const TaskNode &task_node,
                                             const DomainQuery &dom_query,
                                             const TaskStateId &policy) {
-    CHM_CLIENT->ConstructTask<SetWorkOrchQueuePolicyTask>(
+    CHI_CLIENT->ConstructTask<SetWorkOrchQueuePolicyTask>(
         task, task_node, dom_query, policy);
   }
   void SetWorkOrchQueuePolicyRoot(const DomainQuery &dom_query,
@@ -133,7 +133,7 @@ class Client : public TaskLibClient {
     LPointer<SetWorkOrchQueuePolicyTask> task =
         AsyncSetWorkOrchQueuePolicyRoot(dom_query, policy);
     task->Wait();
-    CHM_CLIENT->DelTask(task);
+    CHI_CLIENT->DelTask(task);
   }
   HRUN_TASK_NODE_ADMIN_ROOT(SetWorkOrchQueuePolicy);
 
@@ -142,7 +142,7 @@ class Client : public TaskLibClient {
                                            const TaskNode &task_node,
                                            const DomainQuery &dom_query,
                                            const TaskStateId &policy) {
-    CHM_CLIENT->ConstructTask<SetWorkOrchProcPolicyTask>(
+    CHI_CLIENT->ConstructTask<SetWorkOrchProcPolicyTask>(
         task, task_node, dom_query, policy);
   }
   void SetWorkOrchProcPolicyRoot(const DomainQuery &dom_query,
@@ -150,7 +150,7 @@ class Client : public TaskLibClient {
     LPointer<SetWorkOrchProcPolicyTask> task =
         AsyncSetWorkOrchProcPolicyRoot(dom_query, policy);
     task->Wait();
-    CHM_CLIENT->DelTask(task);
+    CHI_CLIENT->DelTask(task);
   }
   HRUN_TASK_NODE_ADMIN_ROOT(SetWorkOrchProcPolicy);
 
@@ -158,7 +158,7 @@ class Client : public TaskLibClient {
   void AsyncFlushConstruct(FlushTask *task,
                            const TaskNode &task_node,
                            const DomainQuery &dom_query) {
-    CHM_CLIENT->ConstructTask<FlushTask>(
+    CHI_CLIENT->ConstructTask<FlushTask>(
         task, task_node, dom_query);
   }
   void FlushRoot(const DomainQuery &dom_query) {
@@ -168,7 +168,7 @@ class Client : public TaskLibClient {
           AsyncFlushRoot(dom_query);
       task->Wait();
       work_done = task->work_done_;
-      CHM_CLIENT->DelTask(task);
+      CHI_CLIENT->DelTask(task);
       HILOG(kDebug, "Total flush work done: {}", work_done);
     } while (work_done > 0);
   }
@@ -179,7 +179,7 @@ class Client : public TaskLibClient {
                            const TaskNode &task_node,
                            const DomainQuery &dom_query,
                            const DomainId &dom_id) {
-    CHM_CLIENT->ConstructTask<GetDomainSizeTask>(
+    CHI_CLIENT->ConstructTask<GetDomainSizeTask>(
         task, task_node, dom_query, dom_id);
   }
   size_t GetDomainSizeRoot(const DomainQuery &dom_query,
@@ -188,7 +188,7 @@ class Client : public TaskLibClient {
         AsyncGetDomainSizeRoot(dom_query, dom_id);
     task->Wait();
     size_t dom_size = task->dom_size_;
-    CHM_CLIENT->DelTask(task);
+    CHI_CLIENT->DelTask(task);
     return dom_size;
   }
   HRUN_TASK_NODE_ADMIN_ROOT(GetDomainSize)
@@ -196,7 +196,7 @@ class Client : public TaskLibClient {
 
 }  // namespace chm::Admin
 
-#define CHM_ADMIN \
+#define CHI_ADMIN \
   hshm::EasySingleton<chm::Admin::Client>::GetInstance()
 
-#endif  // HRUN_TASKS_CHM_ADMIN_CHM_ADMIN_H_
+#endif  // HRUN_TASKS_CHI_ADMIN_CHI_ADMIN_H_

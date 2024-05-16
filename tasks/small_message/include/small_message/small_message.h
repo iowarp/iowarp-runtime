@@ -26,7 +26,7 @@ class Client : public TaskLibClient {
                             const DomainQuery &scope_query,
                             const std::string &state_name,
                             const CreateContext &ctx) {
-    CHM_CLIENT->ConstructTask<CreateTask>(
+    CHI_CLIENT->ConstructTask<CreateTask>(
         task, task_node, dom_query, scope_query, state_name, ctx);
   }
   void CreateRoot(const DomainQuery &dom_query,
@@ -37,14 +37,14 @@ class Client : public TaskLibClient {
         dom_query, scope_query, state_name, ctx);
     task->Wait();
     Init(task->ctx_.id_);
-    CHM_CLIENT->DelTask(task);
+    CHI_CLIENT->DelTask(task);
   }
-  HRUN_TASK_NODE_PUSH_ROOT(Create);
+  CHI_TASK_METHODS(Create);
 
   /** Destroy state + queue */
   HSHM_ALWAYS_INLINE
   void DestroyRoot(const DomainQuery &dom_query) {
-    CHM_ADMIN->DestroyTaskStateRoot(dom_query, id_);
+    CHI_ADMIN->DestroyTaskStateRoot(dom_query, id_);
   }
 
   /** Metadata task */
@@ -52,7 +52,7 @@ class Client : public TaskLibClient {
                         const TaskNode &task_node,
                         const DomainQuery &dom_query,
                         u32 depth, u32 flags) {
-    CHM_CLIENT->ConstructTask<MdTask>(
+    CHI_CLIENT->ConstructTask<MdTask>(
         task, task_node, dom_query, id_, depth, flags);
   }
   int MdRoot(const DomainQuery &dom_query, u32 depth, u32 flags) {
@@ -60,17 +60,17 @@ class Client : public TaskLibClient {
         AsyncMdRoot(dom_query, depth, flags);
     task->Wait();
     int ret = task->ret_;
-    CHM_CLIENT->DelTask(task);
+    CHI_CLIENT->DelTask(task);
     return ret;
   }
-  HRUN_TASK_NODE_PUSH_ROOT(Md);
+  CHI_TASK_METHODS(Md);
 
   /** Io task */
   void AsyncIoConstruct(IoTask *task, const TaskNode &task_node,
                         const DomainQuery &dom_query,
                         size_t io_size,
                         u32 io_flags) {
-    CHM_CLIENT->ConstructTask<IoTask>(
+    CHI_CLIENT->ConstructTask<IoTask>(
         task, task_node, dom_query, id_, io_size, io_flags);
   }
   void IoRoot(const DomainQuery &dom_query, size_t io_size,
@@ -79,14 +79,14 @@ class Client : public TaskLibClient {
         AsyncIoRoot(dom_query, io_size, io_flags);
     task->Wait();
     write_ret = task->ret_;
-    char *data = CHM_CLIENT->GetDataPointer(task->data_);
+    char *data = CHI_CLIENT->GetDataPointer(task->data_);
     read_ret = 0;
     for (size_t i = 0; i < io_size; ++i) {
       read_ret += data[i];
     }
-    CHM_CLIENT->DelTask(task);
+    CHI_CLIENT->DelTask(task);
   }
-  HRUN_TASK_NODE_PUSH_ROOT(Io)
+  CHI_TASK_METHODS(Io)
 };
 
 }  // namespace chm

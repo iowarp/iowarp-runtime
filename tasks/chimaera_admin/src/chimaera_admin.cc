@@ -40,7 +40,7 @@ class Server : public TaskLib {
   /** Register a task library dynamically */
   void RegisterTaskLib(RegisterTaskLibTask *task, RunContext &rctx) {
     std::string lib_name = task->lib_name_.str();
-    CHM_TASK_REGISTRY->RegisterTaskLib(lib_name);
+    CHI_TASK_REGISTRY->RegisterTaskLib(lib_name);
     task->SetModuleComplete();
   }
   void MonitorRegisterTaskLib(u32 mode,
@@ -51,7 +51,7 @@ class Server : public TaskLib {
   /** Destroy a task library */
   void DestroyTaskLib(DestroyTaskLibTask *task, RunContext &rctx) {
     std::string lib_name = task->lib_name_.str();
-    CHM_TASK_REGISTRY->DestroyTaskLib(lib_name);
+    CHI_TASK_REGISTRY->DestroyTaskLib(lib_name);
     task->SetModuleComplete();
   }
   void MonitorDestroyTaskLib(u32 mode,
@@ -66,7 +66,7 @@ class Server : public TaskLib {
     std::string state_name = task->state_name_.str();
     // Check local registry for task state
     bool state_existed = false;
-    TaskState *task_state = CHM_TASK_REGISTRY->GetAnyTaskState(
+    TaskState *task_state = CHI_TASK_REGISTRY->GetAnyTaskState(
         state_name, task->ctx_.id_);
     if (task_state) {
       task->ctx_.id_ = task_state->id_;
@@ -74,14 +74,14 @@ class Server : public TaskLib {
     }
     // Check global registry for task state
     if (task->ctx_.id_.IsNull()) {
-      task->ctx_.id_ = CHM_TASK_REGISTRY->GetOrCreateTaskStateId(state_name);
+      task->ctx_.id_ = CHI_TASK_REGISTRY->GetOrCreateTaskStateId(state_name);
     }
     // Create the task state
     HILOG(kInfo, "(node {}) Creating task state {} with id {} (task_node={})",
-          CHM_CLIENT->node_id_, state_name, task->ctx_.id_, task->task_node_);
+          CHI_CLIENT->node_id_, state_name, task->ctx_.id_, task->task_node_);
     if (task->ctx_.id_.IsNull()) {
       HELOG(kError, "(node {}) The task state {} with id {} is NULL.",
-            CHM_CLIENT->node_id_, state_name, task->ctx_.id_);
+            CHI_CLIENT->node_id_, state_name, task->ctx_.id_);
       task->SetModuleComplete();
       return;
     }
@@ -89,44 +89,45 @@ class Server : public TaskLib {
     u32 global_lanes = task->ctx_.global_lanes_;
     u32 local_lanes_pn = task->ctx_.local_lanes_pn_;
     if (global_lanes == 0) {
-      global_lanes = CHM_RPC->hosts_.size() * CHM_RUNTIME->GetNumLanes();
+      global_lanes = CHI_RPC->hosts_.size() * CHI_RUNTIME->GetNumLanes();
     }
     if (local_lanes_pn == 0) {
-      local_lanes_pn = CHM_RUNTIME->GetNumLanes();
+      local_lanes_pn = CHI_RUNTIME->GetNumLanes();
     }
     // Update the default domains for the state
-    std::vector<UpdateDomainInfo> ops = CHM_RPC->CreateDefaultDomains(
+    std::vector<UpdateDomainInfo> ops = CHI_RPC->CreateDefaultDomains(
         task->ctx_.id_,
-        CHM_QM_CLIENT->admin_task_state_,
+        CHI_QM_CLIENT->admin_task_state_,
         task->scope_query_,
         global_lanes,
         local_lanes_pn);
-    CHM_RPC->UpdateDomains(ops);
+    CHI_RPC->UpdateDomains(ops);
     std::vector<SubDomainId> lanes =
-        CHM_RPC->GetLocalLanes(task->ctx_.id_);
+        CHI_RPC->GetLocalLanes(task->ctx_.id_);
     // Create the task state
-    CHM_TASK_REGISTRY->CreateTaskState(
+    CHI_TASK_REGISTRY->CreateTaskState(
         lib_name.c_str(),
         state_name.c_str(),
         task->ctx_.id_,
         task, lanes);
     if (task->root_ && !state_existed) {
       // Broadcast the state creation to all nodes
-      TaskState *exec = CHM_TASK_REGISTRY->GetAnyTaskState(task->ctx_.id_);
+      TaskState *exec = CHI_TASK_REGISTRY->GetAnyTaskState(task->ctx_.id_);
       LPointer<Task> bcast;
-      exec->CopyStart(task->method_, task, bcast, true);
+      exec->CopyStart(Method::kCreate, task, bcast, true);
       auto *bcast_ptr = reinterpret_cast<CreateTaskStateTask *>(
           bcast.ptr_);
+      bcast_ptr->task_node_ += 1;
       bcast_ptr->root_ = false;
       bcast_ptr->dom_query_ = bcast_ptr->scope_query_;
       bcast_ptr->method_ = Method::kCreateTaskState;
-      bcast_ptr->task_state_ = CHM_ADMIN->id_;
+      bcast_ptr->task_state_ = CHI_ADMIN->id_;
       MultiQueue *queue =
-          CHM_QM_CLIENT->GetQueue(CHM_QM_CLIENT->admin_queue_id_);
+          CHI_QM_CLIENT->GetQueue(CHI_QM_CLIENT->admin_queue_id_);
       bcast->YieldInit(task);
       queue->Emplace(bcast->prio_, 0, bcast.shm_);
       task->Wait<TASK_YIELD_CO>(bcast);
-      exec->Del(bcast->method_, bcast.ptr_);
+      exec->Del(Method::kCreate, bcast.ptr_);
     }
     task->SetModuleComplete();
   }
@@ -146,7 +147,7 @@ class Server : public TaskLib {
   /** Get task state id, fail if DNE */
   void GetTaskStateId(GetTaskStateIdTask *task, RunContext &rctx) {
     std::string state_name = task->state_name_.str();
-    task->id_ = CHM_TASK_REGISTRY->GetTaskStateId(state_name);
+    task->id_ = CHI_TASK_REGISTRY->GetTaskStateId(state_name);
     task->SetModuleComplete();
   }
   void MonitorGetTaskStateId(u32 mode,
@@ -165,7 +166,7 @@ class Server : public TaskLib {
 
   /** Destroy a task state */
   void DestroyTaskState(DestroyTaskStateTask *task, RunContext &rctx) {
-    CHM_TASK_REGISTRY->DestroyTaskState(task->id_);
+    CHI_TASK_REGISTRY->DestroyTaskState(task->id_);
     task->SetModuleComplete();
   }
   void MonitorDestroyTaskState(u32 mode,
@@ -191,12 +192,12 @@ class Server : public TaskLib {
     if (queue_sched_ && !queue_sched_->IsComplete()) {
       return;
     }
-    auto queue_sched = CHM_CLIENT->NewTask<ScheduleTask>(
+    auto queue_sched = CHI_CLIENT->NewTask<ScheduleTask>(
         task->task_node_,
         chm::DomainQuery::GetDirectHash(chm::SubDomainId::kLocalLaneSet, 0),
         task->policy_id_);
     queue_sched_ = queue_sched.ptr_;
-    MultiQueue *queue = CHM_CLIENT->GetQueue(queue_id_);
+    MultiQueue *queue = CHI_CLIENT->GetQueue(queue_id_);
     queue->Emplace(TaskPrio::kLowLatency, 0, queue_sched.shm_);
     task->SetModuleComplete();
   }
@@ -214,12 +215,12 @@ class Server : public TaskLib {
     if (proc_sched_ && !proc_sched_->IsComplete()) {
       return;
     }
-    auto proc_sched = CHM_CLIENT->NewTask<ScheduleTask>(
+    auto proc_sched = CHI_CLIENT->NewTask<ScheduleTask>(
         task->task_node_,
         chm::DomainQuery::GetDirectHash(chm::SubDomainId::kLocalLaneSet, 0),
         task->policy_id_);
     proc_sched_ = proc_sched.ptr_;
-    MultiQueue *queue = CHM_CLIENT->GetQueue(queue_id_);
+    MultiQueue *queue = CHI_CLIENT->GetQueue(queue_id_);
     queue->Emplace(0, 0, proc_sched.shm_);
     task->SetModuleComplete();
   }

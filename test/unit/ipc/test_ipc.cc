@@ -28,7 +28,7 @@ TEST_CASE("TestIpc") {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
   chm::small_message::Client client;
-  CHM_ADMIN->RegisterTaskLibRoot(
+  CHI_ADMIN->RegisterTaskLibRoot(
       chm::DomainQuery::GetDirectHash(chm::SubDomainId::kGlobalLaneSet, 0),
       "small_message");
   client.CreateRoot(
@@ -36,9 +36,9 @@ TEST_CASE("TestIpc") {
       chm::DomainQuery::GetLaneGlobalBcast(),
       "ipc_test");
   hshm::Timer t;
-  size_t domain_size = CHM_ADMIN->GetDomainSizeRoot(
+  size_t domain_size = CHI_ADMIN->GetDomainSizeRoot(
       chm::DomainQuery::GetDirectHash(chm::SubDomainId::kLocalLaneSet, 0),
-      chm::DomainId(client.id_, chm::SubDomainId::kLaneSet));
+      chm::DomainId(client.id_, chm::SubDomainId::kGlobalLaneSet));
 
   size_t ops = 256;
   HILOG(kInfo, "OPS: {}", ops)
@@ -67,7 +67,7 @@ TEST_CASE("TestAsyncIpc") {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
   chm::small_message::Client client;
-  CHM_ADMIN->RegisterTaskLibRoot(
+  CHI_ADMIN->RegisterTaskLibRoot(
       chm::DomainQuery::GetLaneGlobalBcast(), "small_message");
   client.CreateRoot(
       chm::DomainQuery::GetDirectHash(chm::SubDomainId::kGlobalLaneSet, 0),
@@ -75,9 +75,9 @@ TEST_CASE("TestAsyncIpc") {
       "ipc_test");
   MPI_Barrier(MPI_COMM_WORLD);
   hshm::Timer t;
-  size_t domain_size = CHM_ADMIN->GetDomainSizeRoot(
+  size_t domain_size = CHI_ADMIN->GetDomainSizeRoot(
       chm::DomainQuery::GetDirectHash(chm::SubDomainId::kLocalLaneSet, 0),
-      chm::DomainId(client.id_, chm::SubDomainId::kLaneSet));
+      chm::DomainId(client.id_, chm::SubDomainId::kGlobalLaneSet));
 
   int pid = getpid();
   ProcessAffiner::SetCpuAffinity(pid, 8);
@@ -93,7 +93,7 @@ TEST_CASE("TestAsyncIpc") {
         chm::DomainQuery::GetDirectHash(chm::SubDomainId::kGlobalLaneSet, lane_id),
         depth, TASK_FIRE_AND_FORGET);
   }
-  CHM_ADMIN->FlushRoot(
+  CHI_ADMIN->FlushRoot(
       DomainQuery::GetDirectHash(chm::SubDomainId::kLocalLaneSet, 0));
   t.Pause();
 
@@ -110,7 +110,7 @@ TEST_CASE("TestFlush") {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
   chm::small_message::Client client;
-  CHM_ADMIN->RegisterTaskLibRoot(chm::DomainQuery::GetLaneGlobalBcast(), "small_message");
+  CHI_ADMIN->RegisterTaskLibRoot(chm::DomainQuery::GetLaneGlobalBcast(), "small_message");
   client.CreateRoot(
       chm::DomainQuery::GetDirectHash(chm::SubDomainId::kGlobalLaneSet, 0),
       chm::DomainQuery::GetLaneGlobalBcast(),
@@ -131,7 +131,7 @@ TEST_CASE("TestFlush") {
         chm::DomainQuery::GetDirectHash(chm::SubDomainId::kGlobalLaneSet, lane_id),
         0, 0);
   }
-  CHM_ADMIN->FlushRoot(DomainQuery::GetLaneGlobalBcast());
+  CHI_ADMIN->FlushRoot(DomainQuery::GetLaneGlobalBcast());
   t.Pause();
 
   HILOG(kInfo, "Latency: {} MOps", ops / t.GetUsec());
@@ -141,7 +141,7 @@ void TestIpcMultithread(int nprocs) {
   CHIMAERA_CLIENT_INIT();
 
   chm::small_message::Client client;
-  CHM_ADMIN->RegisterTaskLibRoot(chm::DomainQuery::GetLaneGlobalBcast(), "small_message");
+  CHI_ADMIN->RegisterTaskLibRoot(chm::DomainQuery::GetLaneGlobalBcast(), "small_message");
   client.CreateRoot(
       chm::DomainQuery::GetDirectHash(chm::SubDomainId::kGlobalLaneSet, 0),
       chm::DomainQuery::GetLaneGlobalBcast(),
@@ -193,15 +193,15 @@ TEST_CASE("TestIO") {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
   chm::small_message::Client client;
-  CHM_ADMIN->RegisterTaskLibRoot(chm::DomainQuery::GetLaneGlobalBcast(), "small_message");
+  CHI_ADMIN->RegisterTaskLibRoot(chm::DomainQuery::GetLaneGlobalBcast(), "small_message");
   client.CreateRoot(
       chm::DomainQuery::GetDirectHash(chm::SubDomainId::kGlobalLaneSet, 0),
       chm::DomainQuery::GetLaneGlobalBcast(),
       "ipc_test");
   hshm::Timer t;
-  size_t domain_size = CHM_ADMIN->GetDomainSizeRoot(
+  size_t domain_size = CHI_ADMIN->GetDomainSizeRoot(
       chm::DomainQuery::GetDirectHash(chm::SubDomainId::kLocalLaneSet, 0),
-      chm::DomainId(client.id_, chm::SubDomainId::kLaneSet));
+      chm::DomainId(client.id_, chm::SubDomainId::kGlobalLaneSet));
 
   int pid = getpid();
   ProcessAffiner::SetCpuAffinity(pid, 8);

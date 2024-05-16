@@ -151,6 +151,13 @@ struct TaskNode {
     return ret;
   }
 
+  /** Addition operator*/
+  HSHM_ALWAYS_INLINE
+  TaskNode& operator+=(int i) {
+    node_depth_ += i;
+    return *this;
+  }
+
   /** Null task node */
   HSHM_ALWAYS_INLINE
   static TaskNode GetNull() {

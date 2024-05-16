@@ -48,45 +48,45 @@ void Runtime::ServerInit(std::string server_config_path) {
                             rpc_.node_id_,
                             &server_config_,
                             header_->queue_manager_);
-  CHM_CLIENT->Create(server_config_path, "", true);
+  CHI_CLIENT->Create(server_config_path, "", true);
   HERMES_THREAD_MODEL->SetThreadModel(hshm::ThreadType::kArgobots);
   work_orchestrator_.ServerInit(&server_config_, queue_manager_);
   hipc::mptr<Admin::CreateTaskStateTask> admin_task;
-  u32 max_lanes = CHM_RUNTIME->queue_manager_.max_lanes_;
+  u32 max_lanes = CHI_RUNTIME->queue_manager_.max_lanes_;
   size_t max_workers = server_config_.wo_.max_dworkers_ +
                        server_config_.wo_.max_oworkers_;
   std::vector<UpdateDomainInfo> ops;
   std::vector<SubDomainId> lanes;
 
   // Create the admin library
-  CHM_CLIENT->MakeTaskStateId();
+  CHI_CLIENT->MakeTaskStateId();
   admin_task = hipc::make_mptr<Admin::CreateTaskStateTask>();
   task_registry_.RegisterTaskLib("chimaera_admin");
-  ops = CHM_RPC->CreateDefaultDomains(
-      CHM_QM_CLIENT->admin_task_state_,
-      CHM_QM_CLIENT->admin_task_state_,
+  ops = CHI_RPC->CreateDefaultDomains(
+      CHI_QM_CLIENT->admin_task_state_,
+      CHI_QM_CLIENT->admin_task_state_,
       DomainQuery::GetGlobal(chm::SubDomainId::kLaneSet, 0),
-      CHM_RPC->hosts_.size(), 1);
-  CHM_RPC->UpdateDomains(ops);
-  lanes = CHM_RPC->GetLocalLanes(CHM_QM_CLIENT->admin_task_state_);
+      CHI_RPC->hosts_.size(), 1);
+  CHI_RPC->UpdateDomains(ops);
+  lanes = CHI_RPC->GetLocalLanes(CHI_QM_CLIENT->admin_task_state_);
   task_registry_.CreateTaskState(
       "chimaera_admin",
       "chimaera_admin",
-      CHM_QM_CLIENT->admin_task_state_,
+      CHI_QM_CLIENT->admin_task_state_,
       admin_task.get(),
       lanes);
 
   // Create the work orchestrator queue scheduling library
-  TaskStateId queue_sched_id = CHM_CLIENT->MakeTaskStateId();
+  TaskStateId queue_sched_id = CHI_CLIENT->MakeTaskStateId();
   admin_task = hipc::make_mptr<Admin::CreateTaskStateTask>();
   task_registry_.RegisterTaskLib("worch_queue_round_robin");
-  ops = CHM_RPC->CreateDefaultDomains(
+  ops = CHI_RPC->CreateDefaultDomains(
       queue_sched_id,
-      CHM_QM_CLIENT->admin_task_state_,
+      CHI_QM_CLIENT->admin_task_state_,
       DomainQuery::GetGlobal(chm::SubDomainId::kLocalLaneSet, 0),
       1, 1);
-  CHM_RPC->UpdateDomains(ops);
-  lanes = CHM_RPC->GetLocalLanes(queue_sched_id);
+  CHI_RPC->UpdateDomains(ops);
+  lanes = CHI_RPC->GetLocalLanes(queue_sched_id);
   task_registry_.CreateTaskState(
       "worch_queue_round_robin",
       "worch_queue_round_robin",
@@ -96,26 +96,26 @@ void Runtime::ServerInit(std::string server_config_path) {
   TaskState *state = task_registry_.GetAnyTaskState(queue_sched_id);
 
   // Initially schedule queues to workers
-  auto queue_task = CHM_CLIENT->NewTask<ScheduleTask>(
-      CHM_CLIENT->MakeTaskNodeId(),
+  auto queue_task = CHI_CLIENT->NewTask<ScheduleTask>(
+      CHI_CLIENT->MakeTaskNodeId(),
       DomainQuery::GetDirectHash(chm::SubDomainId::kLocalLaneSet, 0),
       queue_sched_id);
   state->Run(queue_task->method_,
              queue_task.ptr_,
              queue_task->rctx_);
-  CHM_CLIENT->DelTask(queue_task);
+  CHI_CLIENT->DelTask(queue_task);
 
   // Create the work orchestrator process scheduling library
-  TaskStateId proc_sched_id = CHM_CLIENT->MakeTaskStateId();
+  TaskStateId proc_sched_id = CHI_CLIENT->MakeTaskStateId();
   admin_task = hipc::make_mptr<Admin::CreateTaskStateTask>();
   task_registry_.RegisterTaskLib("worch_proc_round_robin");
-  ops = CHM_RPC->CreateDefaultDomains(
+  ops = CHI_RPC->CreateDefaultDomains(
       proc_sched_id,
-      CHM_QM_CLIENT->admin_task_state_,
+      CHI_QM_CLIENT->admin_task_state_,
       DomainQuery::GetGlobal(chm::SubDomainId::kLocalLaneSet, 0),
       1, 1);
-  CHM_RPC->UpdateDomains(ops);
-  lanes = CHM_RPC->GetLocalLanes(proc_sched_id);
+  CHI_RPC->UpdateDomains(ops);
+  lanes = CHI_RPC->GetLocalLanes(proc_sched_id);
   task_registry_.CreateTaskState(
       "worch_proc_round_robin",
       "worch_proc_round_robin",
@@ -124,27 +124,21 @@ void Runtime::ServerInit(std::string server_config_path) {
       lanes);
 
   // Set the work orchestrator queue scheduler
-  CHM_ADMIN->SetWorkOrchQueuePolicyRoot(
+  CHI_ADMIN->SetWorkOrchQueuePolicyRoot(
       DomainQuery::GetDirectHash(chm::SubDomainId::kLocalLaneSet, 0),
       queue_sched_id);
-  CHM_ADMIN->SetWorkOrchProcPolicyRoot(
+  CHI_ADMIN->SetWorkOrchProcPolicyRoot(
       DomainQuery::GetDirectHash(chm::SubDomainId::kLocalLaneSet, 0),
       proc_sched_id);
 
   // Create the remote queue library
+  // TODO(llogan): Figure out why remote queue poller can't find rq.1.5
   task_registry_.RegisterTaskLib("remote_queue");
-  ops = CHM_RPC->CreateDefaultDomains(
-      proc_sched_id,
-      CHM_QM_CLIENT->admin_task_state_,
-      DomainQuery::GetGlobal(chm::SubDomainId::kLocalLaneSet, 0),
-      max_lanes, 1);
-  CHM_RPC->UpdateDomains(ops);
-  lanes = CHM_RPC->GetLocalLanes(proc_sched_id);
   remote_queue_.CreateRoot(
       DomainQuery::GetDirectHash(chm::SubDomainId::kLocalLaneSet, 0),
       DomainQuery::GetDirectHash(chm::SubDomainId::kLocalLaneSet, 0),
       "remote_queue",
-      CreateContext{CHM_CLIENT->MakeTaskStateId(), max_lanes, 1});
+      CreateContext{CHI_CLIENT->MakeTaskStateId(), 1, max_lanes});
   remote_created_ = true;
 }
 
@@ -193,10 +187,10 @@ void Runtime::Finalize() {
 void Runtime::RunDaemon() {
   thallium_.RunDaemon();
   HILOG(kInfo, "(node {}) Finishing up last requests",
-        CHM_CLIENT->node_id_)
+        CHI_CLIENT->node_id_)
   HRUN_WORK_ORCHESTRATOR->Join();
   HILOG(kInfo, "(node {}) Daemon is exiting",
-        CHM_CLIENT->node_id_)
+        CHI_CLIENT->node_id_)
 }
 
 /** Stop the Hermes core Daemon */

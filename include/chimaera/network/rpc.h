@@ -248,6 +248,7 @@ class RpcContext {
   ResolveDomainQuery(const TaskStateId &scope,
                      const DomainQuery &dom_query,
                      bool full) {
+    ScopedRwReadLock lock(domain_map_lock_, 0);
     std::vector<ResolvedDomainQuery> res;
     if (dom_query.flags_.All(DomainQuery::kLocal | DomainQuery::kId)) {
       // Keep task on this node
@@ -291,6 +292,7 @@ class RpcContext {
     }
     // Create the set of all lanes
     {
+      // Create the major LaneSet domain
       size_t total_dom_size = global_lanes +
           local_lanes_pn * dom.size();
       DomainId dom_id(task_state, SubDomainId::kLaneSet);
@@ -303,9 +305,10 @@ class RpcContext {
     }
     // Create the set of global lanes
     {
+      // Create the major GlobalLaneSet domain
       DomainId dom_id(task_state, SubDomainId::kGlobalLaneSet);
       SubDomainIdRange range(
-          SubDomainId::kLaneSet,
+          SubDomainId::kGlobalLaneSet,
           1,
           global_lanes);
       ops.emplace_back(UpdateDomainInfo{
@@ -327,10 +330,11 @@ class RpcContext {
     }
     // Create the set of local lanes
     {
+      // Create the major LocalLaneSet domain
       DomainId dom_id(task_state, SubDomainId::kLocalLaneSet);
       SubDomainIdRange range(
-          SubDomainId::kLaneSet,
-          global_lanes + 1,
+          SubDomainId::kLocalLaneSet,
+          1,
           local_lanes_pn);
       ops.emplace_back(UpdateDomainInfo{
           dom_id, UpdateDomainOp::kExpand, range});
@@ -340,6 +344,7 @@ class RpcContext {
         for (size_t i = 1; i <= local_lanes_pn; ++i) {
           SubDomainIdRange res_set(
               SubDomainId::kPhysicalNode, node_id, 1);
+          // Update LaneSet
           ops.emplace_back(UpdateDomainInfo{
               DomainId(task_state, SubDomainId::kLaneSet, lane_off),
               UpdateDomainOp::kExpand, res_set});

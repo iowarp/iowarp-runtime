@@ -26,7 +26,7 @@ class Client : public TaskLibClient {
                             const DomainQuery &scope_query,
                             const std::string &state_name,
                             const CreateContext &ctx) {
-    CHM_CLIENT->ConstructTask<CreateTask>(
+    CHI_CLIENT->ConstructTask<CreateTask>(
         task, task_node, dom_query, scope_query, state_name, ctx);
   }
   void CreateRoot(const DomainQuery &dom_query,
@@ -37,14 +37,14 @@ class Client : public TaskLibClient {
         dom_query, scope_query, state_name, ctx);
     task->Wait();
     Init(task->ctx_.id_);
-    CHM_CLIENT->DelTask(task);
+    CHI_CLIENT->DelTask(task);
   }
-  HRUN_TASK_NODE_PUSH_ROOT(Create);
+  CHI_TASK_METHODS(Create);
 
   /** Destroy state */
   HSHM_ALWAYS_INLINE
   void DestroyRoot(const DomainQuery &dom_query) {
-    CHM_ADMIN->DestroyTaskStateRoot(dom_query, id_);
+    CHI_ADMIN->DestroyTaskStateRoot(dom_query, id_);
   }
 };
 

@@ -2,8 +2,8 @@
 // Created by lukemartinlogan on 6/29/23.
 //
 
-#ifndef CHM_REMOTE_QUEUE_H_
-#define CHM_REMOTE_QUEUE_H_
+#ifndef CHI_REMOTE_QUEUE_H_
+#define CHI_REMOTE_QUEUE_H_
 
 #include "remote_queue_tasks.h"
 
@@ -30,7 +30,7 @@ class Client : public TaskLibClient {
                             const DomainQuery &scope_query,
                             const std::string &state_name,
                             const CreateContext &ctx) {
-    CHM_CLIENT->ConstructTask<CreateTask>(
+    CHI_CLIENT->ConstructTask<CreateTask>(
         task, task_node, dom_query, scope_query, state_name, ctx);
   }
   void CreateRoot(const DomainQuery &dom_query,
@@ -41,14 +41,14 @@ class Client : public TaskLibClient {
         dom_query, scope_query, state_name, ctx);
     task->Wait();
     Init(task->ctx_.id_);
-    CHM_CLIENT->DelTask(task);
+    CHI_CLIENT->DelTask(task);
   }
-  HRUN_TASK_NODE_PUSH_ROOT(Create);
+  CHI_TASK_METHODS(Create);
 
   /** Destroy task state + queue */
   HSHM_ALWAYS_INLINE
   void DestroyRoot(const DomainQuery &dom_query) {
-    CHM_ADMIN->DestroyTaskStateRoot(dom_query, id_);
+    CHI_ADMIN->DestroyTaskStateRoot(dom_query, id_);
   }
 
   /** Construct submit aggregator */
@@ -56,32 +56,32 @@ class Client : public TaskLibClient {
                                       const TaskNode &task_node,
                                       const DomainQuery &dom_query,
                                       Task *orig_task) {
-    CHM_CLIENT->ConstructTask<ClientPushSubmitTask>(
+    CHI_CLIENT->ConstructTask<ClientPushSubmitTask>(
         task, task_node,
         dom_query, id_, orig_task);
   }
-  HRUN_TASK_NODE_PUSH_ROOT(ClientPushSubmit)
+  CHI_TASK_METHODS(ClientPushSubmit)
 
   /** Construct submit aggregator */
   void AsyncClientSubmitConstruct(ClientSubmitTask *task,
                                   const TaskNode &task_node,
                                   const DomainQuery &dom_query) {
-    CHM_CLIENT->ConstructTask<ClientSubmitTask>(
+    CHI_CLIENT->ConstructTask<ClientSubmitTask>(
         task, task_node,
         dom_query, id_);
   }
-  HRUN_TASK_NODE_PUSH_ROOT(ClientSubmit)
+  CHI_TASK_METHODS(ClientSubmit)
 
   /** Construct complete aggregator */
   void AsyncServerCompleteConstruct(ServerCompleteTask *task,
                                     const TaskNode &task_node,
                                     const DomainQuery &dom_query) {
-    CHM_CLIENT->ConstructTask<ServerCompleteTask>(
+    CHI_CLIENT->ConstructTask<ServerCompleteTask>(
         task, task_node, dom_query, id_);
   }
-  HRUN_TASK_NODE_PUSH_ROOT(ServerComplete)
+  CHI_TASK_METHODS(ServerComplete)
 };
 
 }  // namespace chm
 
-#endif  // CHM_REMOTE_QUEUE_H_
+#endif  // CHI_REMOTE_QUEUE_H_

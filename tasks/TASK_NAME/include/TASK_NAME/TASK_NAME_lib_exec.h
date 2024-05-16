@@ -39,15 +39,15 @@ void Monitor(u32 mode, Task *task, RunContext &rctx) override {
 void Del(u32 method, Task *task) override {
   switch (method) {
     case Method::kCreate: {
-      CHM_CLIENT->DelTask<CreateTask>(reinterpret_cast<CreateTask *>(task));
+      CHI_CLIENT->DelTask<CreateTask>(reinterpret_cast<CreateTask *>(task));
       break;
     }
     case Method::kDestruct: {
-      CHM_CLIENT->DelTask<DestructTask>(reinterpret_cast<DestructTask *>(task));
+      CHI_CLIENT->DelTask<DestructTask>(reinterpret_cast<DestructTask *>(task));
       break;
     }
     case Method::kCustom: {
-      CHM_CLIENT->DelTask<CustomTask>(reinterpret_cast<CustomTask *>(task));
+      CHI_CLIENT->DelTask<CustomTask>(reinterpret_cast<CustomTask *>(task));
       break;
     }
   }
@@ -91,17 +91,17 @@ TaskPointer LoadStart(u32 method, BinaryInputArchive<true> &ar) override {
   TaskPointer task_ptr;
   switch (method) {
     case Method::kCreate: {
-      task_ptr.ptr_ = CHM_CLIENT->NewEmptyTask<CreateTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<CreateTask>(task_ptr.shm_);
       ar >> *reinterpret_cast<CreateTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kDestruct: {
-      task_ptr.ptr_ = CHM_CLIENT->NewEmptyTask<DestructTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<DestructTask>(task_ptr.shm_);
       ar >> *reinterpret_cast<DestructTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kCustom: {
-      task_ptr.ptr_ = CHM_CLIENT->NewEmptyTask<CustomTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<CustomTask>(task_ptr.shm_);
       ar >> *reinterpret_cast<CustomTask*>(task_ptr.ptr_);
       break;
     }

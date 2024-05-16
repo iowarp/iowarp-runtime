@@ -119,6 +119,6 @@ class WorkOrchestrator {
 }  // namespace chm
 
 #define HRUN_WORK_ORCHESTRATOR \
-  (&CHM_RUNTIME->work_orchestrator_)
+  (&CHI_RUNTIME->work_orchestrator_)
 
 #endif  // HRUN_INCLUDE_HRUN_WORK_ORCHESTRATOR_WORK_ORCHESTRATOR_H_

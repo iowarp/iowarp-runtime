@@ -28,7 +28,7 @@ void Summarize(size_t nprocs,
 
 void SyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
   chm::small_message::Client client;
-  CHM_ADMIN->RegisterTaskLibRoot(
+  CHI_ADMIN->RegisterTaskLibRoot(
       chm::DomainQuery::GetLaneGlobalBcast(), "small_message");
   client.CreateRoot(
       chm::DomainQuery::GetDirectHash(chm::SubDomainId::kGlobalLaneSet, 0),
@@ -36,9 +36,9 @@ void SyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
       "ipc_test");
   MPI_Barrier(MPI_COMM_WORLD);
   hshm::MpiTimer t(MPI_COMM_WORLD);
-  size_t domain_size = CHM_ADMIN->GetDomainSizeRoot(
+  size_t domain_size = CHI_ADMIN->GetDomainSizeRoot(
       chm::DomainQuery::GetDirectHash(chm::SubDomainId::kLocalLaneSet, 0),
-      chm::DomainId(client.id_, chm::SubDomainId::kLaneSet));
+      chm::DomainId(client.id_, chm::SubDomainId::kGlobalLaneSet));
 
   HILOG(kInfo, "OPS: {}", ops)
   t.Resume();
@@ -55,7 +55,7 @@ void SyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
 
 void AsyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
   chm::small_message::Client client;
-  CHM_ADMIN->RegisterTaskLibRoot(
+  CHI_ADMIN->RegisterTaskLibRoot(
       chm::DomainQuery::GetLaneGlobalBcast(),
       "small_message");
   client.CreateRoot(
@@ -64,9 +64,9 @@ void AsyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
       "ipc_test");
   MPI_Barrier(MPI_COMM_WORLD);
   hshm::MpiTimer t(MPI_COMM_WORLD);
-  size_t domain_size = CHM_ADMIN->GetDomainSizeRoot(
+  size_t domain_size = CHI_ADMIN->GetDomainSizeRoot(
       chm::DomainQuery::GetDirectHash(chm::SubDomainId::kLocalLaneSet, 0),
-      chm::DomainId(client.id_, chm::SubDomainId::kLaneSet));
+      chm::DomainId(client.id_, chm::SubDomainId::kGlobalLaneSet));
 
   t.Resume();
   for (size_t i = 0; i < ops; ++i) {
@@ -76,7 +76,7 @@ void AsyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
         chm::DomainQuery::GetDirectHash(chm::SubDomainId::kGlobalLaneSet, lane_id),
         depth, TASK_FIRE_AND_FORGET);
   }
-  CHM_ADMIN->FlushRoot(
+  CHI_ADMIN->FlushRoot(
       DomainQuery::GetDirectHash(chm::SubDomainId::kLocalLaneSet, 0));
   t.Pause();
   t.Collect();

@@ -365,7 +365,7 @@ class PrivateTaskMultiQueue {
   template<bool TYPE=0>
   bool push(const PrivateTaskQueueEntry &entry) {
     Task *task = entry.task_.ptr_;
-    if (task->task_state_ == CHM_ADMIN->id_ &&
+    if (task->task_state_ == CHI_ADMIN->id_ &&
         task->method_ == chm::Admin::Method::kCreateTaskState) {
       return GetConstruct().push(entry);
     } else if (task->IsFlush()) {
@@ -751,21 +751,21 @@ class Worker {
           cur_time_.Now();
         }
       } catch (hshm::Error &e) {
-        HELOG(kError, "(node {}) Worker {} caught an error: {}", CHM_CLIENT->node_id_, id_, e.what());
+        HELOG(kError, "(node {}) Worker {} caught an error: {}", CHI_CLIENT->node_id_, id_, e.what());
       } catch (std::exception &e) {
-        HELOG(kError, "(node {}) Worker {} caught an exception: {}", CHM_CLIENT->node_id_, id_, e.what());
+        HELOG(kError, "(node {}) Worker {} caught an exception: {}", CHI_CLIENT->node_id_, id_, e.what());
       } catch (...) {
-        HELOG(kError, "(node {}) Worker {} caught an unknown exception", CHM_CLIENT->node_id_, id_);
+        HELOG(kError, "(node {}) Worker {} caught an unknown exception", CHI_CLIENT->node_id_, id_);
       }
       if (!IsContinuousPolling()) {
         Yield();
       }
     }
     HILOG(kInfo, "(node {}) Worker {} wrapping up",
-          CHM_CLIENT->node_id_, id_);
+          CHI_CLIENT->node_id_, id_);
     Run(true);
     HILOG(kInfo, "(node {}) Worker {} has exited",
-          CHM_CLIENT->node_id_, id_);
+          CHI_CLIENT->node_id_, id_);
   }
 
   /** Run a single iteration over all queues */
@@ -826,7 +826,7 @@ class Worker {
       }
       LPointer<Task> task;
       task.shm_ = entry->p_;
-      task.ptr_ = CHM_CLIENT->GetMainPointer<Task>(entry->p_);
+      task.ptr_ = CHI_CLIENT->GetMainPointer<Task>(entry->p_);
       DomainQuery dom_query = task->dom_query_;
       TaskRouteMode route = Reroute(task->task_state_,
                                     dom_query,
@@ -857,23 +857,25 @@ class Worker {
                         Lane *lane) {
     std::vector<ResolvedDomainQuery> resolved =
         HRUN_RPC->ResolveDomainQuery(scope, dom_query, false);
-    if (resolved.size() == 1 && resolved[0].node_ == CHM_RPC->node_id_) {
+    if (resolved.size() == 1 && resolved[0].node_ == CHI_RPC->node_id_) {
       dom_query = resolved[0].dom_;
 #ifdef CHIMAERA_REMOTE_DEBUG
-      if (task->task_state_ != CHM_QM_CLIENT->admin_task_state_ &&
+      if (task->task_state_ != CHI_QM_CLIENT->admin_task_state_ &&
           !task->task_flags_.Any(TASK_REMOTE_DEBUG_MARK) &&
           !task->IsLongRunning() &&
           task->method_ != TaskMethod::kCreate &&
-          CHM_RUNTIME->remote_created_ &&
+          CHI_RUNTIME->remote_created_ &&
           !task->IsRemote()) {
         return TaskRouteMode::kRemoteWorker;
       }
 #endif
       if (dom_query.flags_.All(DomainQuery::kLocal | DomainQuery::kId)) {
-        MultiQueue *queue = CHM_CLIENT->GetQueue(
+        MultiQueue *queue = CHI_CLIENT->GetQueue(
             task->task_state_);
-        Lane &lane_cmp = queue->GetLane(task->prio_, dom_query.sel_.id_);
-        if (lane_cmp.id_ == lane->id_) {
+        LaneGroup &lane_group = queue->GetGroup(task->prio_);
+        u32 lane_id = dom_query.sel_.id_ % lane_group.num_lanes_;
+        Lane &lane_cmp = lane_group.GetLane(lane_id);
+        if (&lane_cmp == lane) {
           return TaskRouteMode::kThisWorker;
         } else {
           lane_cmp.emplace(task.shm_);
@@ -929,14 +931,14 @@ class Worker {
     if (!exec) {
       if (task->task_state_ == TaskStateId::GetNull()) {
         HELOG(kFatal, "(node {}) Task {} has no task state",
-              CHM_CLIENT->node_id_, task->task_node_);
+              CHI_CLIENT->node_id_, task->task_node_);
         task->SetModuleComplete();
         return false;
       } else {
         HELOG(kWarning, "(node {}) Could not find the task state {} for task {}"
                         " with query: {}",
-              CHM_CLIENT->node_id_, task->task_state_, task->task_node_,
-              task->dom_query_);
+              CHI_CLIENT->node_id_, task->task_state_, task->task_node_,
+              entry.res_query_);
       }
       return true;
     }
@@ -1005,7 +1007,7 @@ class Worker {
     if (task->ShouldSignalUnblock()) {
       SignalUnblock(task->rctx_.pending_to_);
     } else if (task->ShouldSignalRemoteComplete()) {
-      TaskState *remote_exec = GetTaskState(CHM_REMOTE_QUEUE->id_,
+      TaskState *remote_exec = GetTaskState(CHI_REMOTE_QUEUE->id_,
                                             task->GetLaneId());
       remote_exec->Run(chm::remote_queue::Method::kServerPushComplete,
                        task.ptr_, task->rctx_);
@@ -1013,7 +1015,7 @@ class Worker {
       return;
     }
     if (exec && task->IsFireAndForget()) {
-      CHM_CLIENT->DelTask(exec, task.ptr_);
+      CHI_CLIENT->DelTask(exec, task.ptr_);
     } else {
       task->SetComplete();
     }
@@ -1074,7 +1076,7 @@ class Worker {
     // Attempt to run the task if it's ready and runnable
     if (props.Any(HSHM_WORKER_IS_REMOTE)) {
 //      HILOG(kInfo, "Automaking remote task {}", (size_t)task);
-      CHM_REMOTE_QUEUE->AsyncClientPushSubmit(
+      CHI_REMOTE_QUEUE->AsyncClientPushSubmit(
           nullptr, task->task_node_ + 1,
           DomainQuery::GetDirectHash(SubDomainId::kLocalLaneSet, 0),
           task);

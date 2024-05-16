@@ -220,7 +220,7 @@ class TaskRegistry {
       return false;
     }
 //    HILOG(kInfo, "(node {}) Creating an instance of {} with name {}",
-//          CHM_CLIENT->node_id_, lib_name, state_name)
+//          CHI_CLIENT->node_id_, lib_name, state_name)
 
     // Find the task library to instantiate
     auto it = libs_.find(lib_name);
@@ -293,7 +293,7 @@ class TaskRegistry {
       task->UnsetModuleComplete();
     }
     HILOG(kInfo, "(node {})  Created an instance of {} with name {} and ID {}",
-          CHM_CLIENT->node_id_, lib_name, state_name, state_id);
+          CHI_CLIENT->node_id_, lib_name, state_name, state_id);
     return true;
   }
 
@@ -372,9 +372,9 @@ class TaskRegistry {
 };
 
 /** Singleton macro for task registry */
-#define CHM_TASK_REGISTRY \
-  (&CHM_RUNTIME->task_registry_)
-#define HRUN_TASK_REGISTRY CHM_TASK_REGISTRY
+#define CHI_TASK_REGISTRY \
+  (&CHI_RUNTIME->task_registry_)
+#define HRUN_TASK_REGISTRY CHI_TASK_REGISTRY
 }  // namespace chm
 
 #endif  // HRUN_INCLUDE_HRUN_TASK_TASK_REGISTRY_H_

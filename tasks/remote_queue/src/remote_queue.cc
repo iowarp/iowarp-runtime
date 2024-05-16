@@ -43,10 +43,10 @@ struct SharedState {
     submitters_.resize(num_lanes);
     completers_.resize(num_lanes);
     for (size_t i = 0; i < num_lanes; ++i) {
-      submitters_[i] = CHM_REMOTE_QUEUE->AsyncClientSubmit(
+      submitters_[i] = CHI_REMOTE_QUEUE->AsyncClientSubmit(
           task, task->task_node_ + 1,
           DomainQuery::GetDirectHash(SubDomainId::kLocalLaneSet, i));
-      completers_[i] = CHM_REMOTE_QUEUE->AsyncServerComplete(
+      completers_[i] = CHI_REMOTE_QUEUE->AsyncServerComplete(
           task, task->task_node_ + 1,
           DomainQuery::GetDirectHash(SubDomainId::kLocalLaneSet, i));
     }
@@ -63,7 +63,7 @@ class Server : public TaskLib {
   /** Construct remote queue */
   void Create(CreateTask *task, RunContext &rctx) {
     HILOG(kInfo, "(node {}) Constructing remote queue (task_node={}, task_state={}, method={})",
-          CHM_CLIENT->node_id_, task->task_node_, task->task_state_, task->method_);
+          CHI_CLIENT->node_id_, task->task_node_, task->task_state_, task->method_);
     if (rctx.shared_exec_ == this) {
       HRUN_THALLIUM->RegisterRpc(
           *HRUN_WORK_ORCHESTRATOR->rpc_pool_,
@@ -81,7 +81,7 @@ class Server : public TaskLib {
               SegmentedTransfer &xfer) {
             this->RpcTaskComplete(req, bulk, xfer);
           });
-      CHM_REMOTE_QUEUE->Init(id_);
+      CHI_REMOTE_QUEUE->Init(id_);
       QueueManagerInfo &qm = HRUN_QM_RUNTIME->config_->queue_manager_;
       shared_ = std::make_shared<SharedState>(
           task, qm.queue_depth_, 1);
@@ -122,7 +122,7 @@ class Server : public TaskLib {
       bool success = true;  // TODO(llogan): Check for success
       // Free
       HILOG(kDebug, "Replicas were waited for and completed");
-      CHM_CLIENT->DelTask(exec, replica.ptr_);
+      CHI_CLIENT->DelTask(exec, replica.ptr_);
       if (success) {
         break;
       }
@@ -165,7 +165,7 @@ class Server : public TaskLib {
       // Free
       HILOG(kDebug, "Replicas were waited for and completed");
       for (LPointer<Task> &replica : replicas) {
-        CHM_CLIENT->DelTask(exec, replica.ptr_);
+        CHI_CLIENT->DelTask(exec, replica.ptr_);
       }
     }
   }
@@ -214,7 +214,7 @@ class Server : public TaskLib {
       auto &submit = shared_->submit_;
       while (!submit[0].pop(entry).IsNull()) {
         HILOG(kDebug, "(node {}) Submitting task {} ({}) to domain {}",
-              CHM_CLIENT->node_id_, entry.task_->task_node_,
+              CHI_CLIENT->node_id_, entry.task_->task_node_,
               (size_t)entry.task_,
               entry.domain_);
         if (entries.find(entry.domain_.node_) == entries.end()) {
@@ -225,7 +225,7 @@ class Server : public TaskLib {
             orig_task->task_state_);
         if (exec == nullptr) {
           HELOG(kFatal, "(node {}) Could not find the task state {}",
-                CHM_CLIENT->node_id_, orig_task->task_state_);
+                CHI_CLIENT->node_id_, orig_task->task_state_);
           return;
         }
         orig_task->dom_query_ = entry.domain_.dom_;
@@ -244,7 +244,7 @@ class Server : public TaskLib {
                                        DT_SENDER_WRITE);
         t.Pause();
         HILOG(kDebug, "(node {}) Submitted tasks in {} usec",
-              CHM_CLIENT->node_id_, t.GetUsec());
+              CHI_CLIENT->node_id_, t.GetUsec());
 
         for (TaskSegment &task_seg : xfer.tasks_) {
           Task *orig_task = (Task*)task_seg.task_addr_;
@@ -255,11 +255,11 @@ class Server : public TaskLib {
         }
       }
     } catch (hshm::Error &e) {
-      HELOG(kError, "(node {}) Worker {} caught an error: {}", CHM_CLIENT->node_id_, id_, e.what());
+      HELOG(kError, "(node {}) Worker {} caught an error: {}", CHI_CLIENT->node_id_, id_, e.what());
     } catch (std::exception &e) {
-      HELOG(kError, "(node {}) Worker {} caught an exception: {}", CHM_CLIENT->node_id_, id_, e.what());
+      HELOG(kError, "(node {}) Worker {} caught an exception: {}", CHI_CLIENT->node_id_, id_, e.what());
     } catch (...) {
-      HELOG(kError, "(node {}) Worker {} caught an unknown exception", CHM_CLIENT->node_id_, id_);
+      HELOG(kError, "(node {}) Worker {} caught an unknown exception", CHI_CLIENT->node_id_, id_);
     }
   }
   void MonitorClientSubmit(u32 mode,
@@ -278,7 +278,7 @@ class Server : public TaskLib {
   void ServerPushComplete(ServerPushCompleteTask *task,
                           RunContext &rctx) {
     HILOG(kDebug, "(node {}) Task finished server-side {}",
-          CHM_CLIENT->node_id_, task->task_node_);
+          CHI_CLIENT->node_id_, task->task_node_);
     if (task->rctx_.ret_task_addr_ == (size_t)task) {
       HILOG(kFatal, "This shouldn't happen ever");
     }
@@ -311,7 +311,7 @@ class Server : public TaskLib {
         }
         Task *done_task = entry.task_;
         HILOG(kDebug, "(node {}) Sending completion for {} -> {}",
-              CHM_CLIENT->node_id_, done_task->task_node_,
+              CHI_CLIENT->node_id_, done_task->task_node_,
               entry.domain_);
         TaskState *exec =
             HRUN_TASK_REGISTRY->GetAnyTaskState(done_task->task_state_);
@@ -324,7 +324,7 @@ class Server : public TaskLib {
       for (auto it = entries.begin(); it != entries.end(); ++it) {
         SegmentedTransfer xfer = it->second.Get();
 //        HILOG(kDebug, "(node {}) Sending completion of size {} to {}",
-//              CHM_CLIENT->node_id_, xfer.size(),
+//              CHI_CLIENT->node_id_, xfer.size(),
 //              it->first.GetId());
         HRUN_THALLIUM->SyncIoCall<int>((i32)it->first,
                                        "RpcTaskComplete",
@@ -337,14 +337,14 @@ class Server : public TaskLib {
 //        Task *done_task = centry.task_;
 //        TaskState *exec =
 //            HRUN_TASK_REGISTRY->GetTaskState(done_task->task_state_);
-//        CHM_CLIENT->DelTask(exec, done_task);
+//        CHI_CLIENT->DelTask(exec, done_task);
 //      }
     } catch (hshm::Error &e) {
-      HELOG(kError, "(node {}) Worker {} caught an error: {}", CHM_CLIENT->node_id_, id_, e.what());
+      HELOG(kError, "(node {}) Worker {} caught an error: {}", CHI_CLIENT->node_id_, id_, e.what());
     } catch (std::exception &e) {
-      HELOG(kError, "(node {}) Worker {} caught an exception: {}", CHM_CLIENT->node_id_, id_, e.what());
+      HELOG(kError, "(node {}) Worker {} caught an exception: {}", CHI_CLIENT->node_id_, id_, e.what());
     } catch (...) {
-      HELOG(kError, "(node {}) Worker {} caught an unknown exception", CHM_CLIENT->node_id_, id_);
+      HELOG(kError, "(node {}) Worker {} caught an unknown exception", CHI_CLIENT->node_id_, id_);
     }
   }
   void MonitorServerComplete(u32 mode,
@@ -361,7 +361,7 @@ class Server : public TaskLib {
     try {
       xfer.AllocateSegmentsServer();
 //      HILOG(kDebug, "(node {}) Received submission of size {}",
-//            CHM_CLIENT->node_id_, xfer.size());
+//            CHI_CLIENT->node_id_, xfer.size());
       HRUN_THALLIUM->IoCallServerWrite(req, bulk, xfer);
       BinaryInputArchive<true> ar(xfer);
       hshm::Timer t;
@@ -371,13 +371,13 @@ class Server : public TaskLib {
       }
       t.Pause();
       HILOG(kInfo, "(node {}) Submitted tasks in {} usec",
-            CHM_CLIENT->node_id_, t.GetUsec());
+            CHI_CLIENT->node_id_, t.GetUsec());
     } catch (hshm::Error &e) {
-      HELOG(kError, "(node {}) Worker {} caught an error: {}", CHM_CLIENT->node_id_, id_, e.what());
+      HELOG(kError, "(node {}) Worker {} caught an error: {}", CHI_CLIENT->node_id_, id_, e.what());
     } catch (std::exception &e) {
-      HELOG(kError, "(node {}) Worker {} caught an exception: {}", CHM_CLIENT->node_id_, id_, e.what());
+      HELOG(kError, "(node {}) Worker {} caught an exception: {}", CHI_CLIENT->node_id_, id_, e.what());
     } catch (...) {
-      HELOG(kError, "(node {}) Worker {} caught an unknown exception", CHM_CLIENT->node_id_, id_);
+      HELOG(kError, "(node {}) Worker {} caught an unknown exception", CHI_CLIENT->node_id_, id_);
     }
     req.respond(0);
   }
@@ -392,7 +392,7 @@ class Server : public TaskLib {
     TaskState *exec = HRUN_TASK_REGISTRY->GetAnyTaskState(state_id);
     if (exec == nullptr) {
       HELOG(kFatal, "(node {}) Could not find the task state {}",
-            CHM_CLIENT->node_id_, state_id);
+            CHI_CLIENT->node_id_, state_id);
       return;
     }
     TaskPointer task_ptr = exec->LoadStart(method, ar);
@@ -423,11 +423,11 @@ class Server : public TaskLib {
     orig_task->task_flags_.SetBits(TASK_REMOTE_DEBUG_MARK);
 
     // Execute task
-    MultiQueue *queue = CHM_CLIENT->GetQueue(QueueId(state_id));
+    MultiQueue *queue = CHI_CLIENT->GetQueue(QueueId(state_id));
     HILOG(kDebug,
           "(node {}) Submitting task (addr={}, task_node={}, task_state={}/{}, "
           "state_name={}, method={}, size={}, lane_hash={})",
-          CHM_CLIENT->node_id_,
+          CHI_CLIENT->node_id_,
           (size_t)orig_task,
           orig_task->task_node_,
           orig_task->task_state_,
@@ -441,7 +441,7 @@ class Server : public TaskLib {
     HILOG(kDebug,
           "(node {}) Done submitting (task_node={}, task_state={}/{}, "
           "state_name={}, method={}, size={}, lane_hash={})",
-          CHM_CLIENT->node_id_,
+          CHI_CLIENT->node_id_,
           orig_task->task_node_,
           orig_task->task_state_,
           state_id,
@@ -457,18 +457,18 @@ class Server : public TaskLib {
                        SegmentedTransfer &xfer) {
     try {
       HILOG(kDebug, "(node {}) Received completion of size {}",
-            CHM_CLIENT->node_id_, xfer.size());
+            CHI_CLIENT->node_id_, xfer.size());
       // Deserialize message parameters
       BinaryInputArchive<false> ar(xfer);
       for (size_t i = 0; i < xfer.tasks_.size(); ++i) {
         Task *orig_task = (Task*)xfer.tasks_[i].task_addr_;
         HILOG(kDebug, "(node {}) Deserializing return values for task {} (state {})",
-              CHM_CLIENT->node_id_, orig_task->task_node_, orig_task->task_state_);
+              CHI_CLIENT->node_id_, orig_task->task_node_, orig_task->task_state_);
         TaskState *exec = HRUN_TASK_REGISTRY->GetAnyTaskState(
             orig_task->task_state_);
         if (exec == nullptr) {
           HELOG(kFatal, "(node {}) Could not find the task state {}",
-                CHM_CLIENT->node_id_, orig_task->task_state_);
+                CHI_CLIENT->node_id_, orig_task->task_state_);
           return;
         }
         exec->LoadEnd(orig_task->method_, ar, orig_task);
@@ -484,17 +484,17 @@ class Server : public TaskLib {
           HELOG(kFatal, "This shouldn't happen ever");
         }
         HILOG(kDebug, "(node {}) Unblocking task {} to worker {}",
-              CHM_CLIENT->node_id_,
+              CHI_CLIENT->node_id_,
               (size_t)pending_to,
               pending_to->rctx_.worker_id_);
         Worker::SignalUnblock(pending_to);
       }
     } catch (hshm::Error &e) {
-      HELOG(kError, "(node {}) Worker {} caught an error: {}", CHM_CLIENT->node_id_, id_, e.what());
+      HELOG(kError, "(node {}) Worker {} caught an error: {}", CHI_CLIENT->node_id_, id_, e.what());
     } catch (std::exception &e) {
-      HELOG(kError, "(node {}) Worker {} caught an exception: {}", CHM_CLIENT->node_id_, id_, e.what());
+      HELOG(kError, "(node {}) Worker {} caught an exception: {}", CHI_CLIENT->node_id_, id_, e.what());
     } catch (...) {
-      HELOG(kError, "(node {}) Worker {} caught an unknown exception", CHM_CLIENT->node_id_, id_);
+      HELOG(kError, "(node {}) Worker {} caught an unknown exception", CHI_CLIENT->node_id_, id_);
     }
     req.respond(0);
   }

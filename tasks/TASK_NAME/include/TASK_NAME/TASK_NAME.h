@@ -34,7 +34,7 @@ class Client : public TaskLibClient {
                             const DomainQuery &scope_query,
                             const std::string &state_name,
                             const CreateContext &ctx) {
-    CHM_CLIENT->ConstructTask<CreateTask>(
+    CHI_CLIENT->ConstructTask<CreateTask>(
         task, task_node, dom_query, scope_query, state_name, ctx);
   }
   void CreateRoot(const DomainQuery &dom_query,
@@ -45,14 +45,14 @@ class Client : public TaskLibClient {
         dom_query, scope_query, state_name, ctx);
     task->Wait();
     Init(task->ctx_.id_);
-    CHM_CLIENT->DelTask(task);
+    CHI_CLIENT->DelTask(task);
   }
-  HRUN_TASK_NODE_PUSH_ROOT(Create);
+  CHI_TASK_METHODS(Create);
 
   /** Destroy task state + queue */
   HSHM_ALWAYS_INLINE
   void DestroyRoot(const DomainQuery &dom_query) {
-    CHM_ADMIN->DestroyTaskStateRoot(dom_query, id_);
+    CHI_ADMIN->DestroyTaskStateRoot(dom_query, id_);
   }
 
   /** Call a custom method */
@@ -60,7 +60,7 @@ class Client : public TaskLibClient {
   void AsyncCustomConstruct(CustomTask *task,
                             const TaskNode &task_node,
                             const DomainQuery &dom_query) {
-    CHM_CLIENT->ConstructTask<CustomTask>(
+    CHI_CLIENT->ConstructTask<CustomTask>(
         task, task_node, dom_query, id_);
   }
   HSHM_ALWAYS_INLINE
@@ -68,7 +68,7 @@ class Client : public TaskLibClient {
     LPointer<CustomTask> task = AsyncCustomRoot(dom_query);
     task.ptr_->Wait();
   }
-  HRUN_TASK_NODE_PUSH_ROOT(Custom);
+  CHI_TASK_METHODS(Custom);
 };
 
 }  // namespace chm

@@ -103,47 +103,47 @@ void Monitor(u32 mode, Task *task, RunContext &rctx) override {
 void Del(u32 method, Task *task) override {
   switch (method) {
     case Method::kCreateTaskState: {
-      CHM_CLIENT->DelTask<CreateTaskStateTask>(reinterpret_cast<CreateTaskStateTask *>(task));
+      CHI_CLIENT->DelTask<CreateTaskStateTask>(reinterpret_cast<CreateTaskStateTask *>(task));
       break;
     }
     case Method::kDestroyTaskState: {
-      CHM_CLIENT->DelTask<DestroyTaskStateTask>(reinterpret_cast<DestroyTaskStateTask *>(task));
+      CHI_CLIENT->DelTask<DestroyTaskStateTask>(reinterpret_cast<DestroyTaskStateTask *>(task));
       break;
     }
     case Method::kRegisterTaskLib: {
-      CHM_CLIENT->DelTask<RegisterTaskLibTask>(reinterpret_cast<RegisterTaskLibTask *>(task));
+      CHI_CLIENT->DelTask<RegisterTaskLibTask>(reinterpret_cast<RegisterTaskLibTask *>(task));
       break;
     }
     case Method::kDestroyTaskLib: {
-      CHM_CLIENT->DelTask<DestroyTaskLibTask>(reinterpret_cast<DestroyTaskLibTask *>(task));
+      CHI_CLIENT->DelTask<DestroyTaskLibTask>(reinterpret_cast<DestroyTaskLibTask *>(task));
       break;
     }
     case Method::kGetTaskStateId: {
-      CHM_CLIENT->DelTask<GetTaskStateIdTask>(reinterpret_cast<GetTaskStateIdTask *>(task));
+      CHI_CLIENT->DelTask<GetTaskStateIdTask>(reinterpret_cast<GetTaskStateIdTask *>(task));
       break;
     }
     case Method::kStopRuntime: {
-      CHM_CLIENT->DelTask<StopRuntimeTask>(reinterpret_cast<StopRuntimeTask *>(task));
+      CHI_CLIENT->DelTask<StopRuntimeTask>(reinterpret_cast<StopRuntimeTask *>(task));
       break;
     }
     case Method::kSetWorkOrchQueuePolicy: {
-      CHM_CLIENT->DelTask<SetWorkOrchQueuePolicyTask>(reinterpret_cast<SetWorkOrchQueuePolicyTask *>(task));
+      CHI_CLIENT->DelTask<SetWorkOrchQueuePolicyTask>(reinterpret_cast<SetWorkOrchQueuePolicyTask *>(task));
       break;
     }
     case Method::kSetWorkOrchProcPolicy: {
-      CHM_CLIENT->DelTask<SetWorkOrchProcPolicyTask>(reinterpret_cast<SetWorkOrchProcPolicyTask *>(task));
+      CHI_CLIENT->DelTask<SetWorkOrchProcPolicyTask>(reinterpret_cast<SetWorkOrchProcPolicyTask *>(task));
       break;
     }
     case Method::kFlush: {
-      CHM_CLIENT->DelTask<FlushTask>(reinterpret_cast<FlushTask *>(task));
+      CHI_CLIENT->DelTask<FlushTask>(reinterpret_cast<FlushTask *>(task));
       break;
     }
     case Method::kGetDomainSize: {
-      CHM_CLIENT->DelTask<GetDomainSizeTask>(reinterpret_cast<GetDomainSizeTask *>(task));
+      CHI_CLIENT->DelTask<GetDomainSizeTask>(reinterpret_cast<GetDomainSizeTask *>(task));
       break;
     }
     case Method::kUpdateDomain: {
-      CHM_CLIENT->DelTask<UpdateDomainTask>(reinterpret_cast<UpdateDomainTask *>(task));
+      CHI_CLIENT->DelTask<UpdateDomainTask>(reinterpret_cast<UpdateDomainTask *>(task));
       break;
     }
   }
@@ -251,57 +251,57 @@ TaskPointer LoadStart(u32 method, BinaryInputArchive<true> &ar) override {
   TaskPointer task_ptr;
   switch (method) {
     case Method::kCreateTaskState: {
-      task_ptr.ptr_ = CHM_CLIENT->NewEmptyTask<CreateTaskStateTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<CreateTaskStateTask>(task_ptr.shm_);
       ar >> *reinterpret_cast<CreateTaskStateTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kDestroyTaskState: {
-      task_ptr.ptr_ = CHM_CLIENT->NewEmptyTask<DestroyTaskStateTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<DestroyTaskStateTask>(task_ptr.shm_);
       ar >> *reinterpret_cast<DestroyTaskStateTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kRegisterTaskLib: {
-      task_ptr.ptr_ = CHM_CLIENT->NewEmptyTask<RegisterTaskLibTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<RegisterTaskLibTask>(task_ptr.shm_);
       ar >> *reinterpret_cast<RegisterTaskLibTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kDestroyTaskLib: {
-      task_ptr.ptr_ = CHM_CLIENT->NewEmptyTask<DestroyTaskLibTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<DestroyTaskLibTask>(task_ptr.shm_);
       ar >> *reinterpret_cast<DestroyTaskLibTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kGetTaskStateId: {
-      task_ptr.ptr_ = CHM_CLIENT->NewEmptyTask<GetTaskStateIdTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<GetTaskStateIdTask>(task_ptr.shm_);
       ar >> *reinterpret_cast<GetTaskStateIdTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kStopRuntime: {
-      task_ptr.ptr_ = CHM_CLIENT->NewEmptyTask<StopRuntimeTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<StopRuntimeTask>(task_ptr.shm_);
       ar >> *reinterpret_cast<StopRuntimeTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kSetWorkOrchQueuePolicy: {
-      task_ptr.ptr_ = CHM_CLIENT->NewEmptyTask<SetWorkOrchQueuePolicyTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<SetWorkOrchQueuePolicyTask>(task_ptr.shm_);
       ar >> *reinterpret_cast<SetWorkOrchQueuePolicyTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kSetWorkOrchProcPolicy: {
-      task_ptr.ptr_ = CHM_CLIENT->NewEmptyTask<SetWorkOrchProcPolicyTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<SetWorkOrchProcPolicyTask>(task_ptr.shm_);
       ar >> *reinterpret_cast<SetWorkOrchProcPolicyTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kFlush: {
-      task_ptr.ptr_ = CHM_CLIENT->NewEmptyTask<FlushTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<FlushTask>(task_ptr.shm_);
       ar >> *reinterpret_cast<FlushTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kGetDomainSize: {
-      task_ptr.ptr_ = CHM_CLIENT->NewEmptyTask<GetDomainSizeTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<GetDomainSizeTask>(task_ptr.shm_);
       ar >> *reinterpret_cast<GetDomainSizeTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kUpdateDomain: {
-      task_ptr.ptr_ = CHM_CLIENT->NewEmptyTask<UpdateDomainTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<UpdateDomainTask>(task_ptr.shm_);
       ar >> *reinterpret_cast<UpdateDomainTask*>(task_ptr.ptr_);
       break;
     }

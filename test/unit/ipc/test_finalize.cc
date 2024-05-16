@@ -16,5 +16,5 @@
 
 TEST_CASE("TestFinalize") {
   CHIMAERA_CLIENT_INIT();
-  CHM_ADMIN->StopRuntimeRoot();
+  CHI_ADMIN->StopRuntimeRoot();
 }

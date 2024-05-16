@@ -135,7 +135,7 @@ struct IoTask : public Task, TaskFlags<TF_SRL_SYM> {
     dom_query_ = dom_query;
 
     // Custom params
-    LPointer<char> data = CHM_CLIENT->AllocateBufferClient(io_size);
+    LPointer<char> data = CHI_CLIENT->AllocateBufferClient(io_size);
     data_ = data.shm_;
     size_ = io_size;
     ret_ = 0;
@@ -146,7 +146,7 @@ struct IoTask : public Task, TaskFlags<TF_SRL_SYM> {
   /** Destructor */
   ~IoTask() {
     if (IsDataOwner()) {
-      CHM_CLIENT->FreeBuffer(data_);
+      CHI_CLIENT->FreeBuffer(data_);
     }
   }
 

@@ -10,18 +10,18 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef HRUN_INCLUDE_CHM_CLIENT_CHM_CLIENT_H_
-#define HRUN_INCLUDE_CHM_CLIENT_CHM_CLIENT_H_
+#ifndef HRUN_INCLUDE_CHI_CLIENT_CHI_CLIENT_H_
+#define HRUN_INCLUDE_CHI_CLIENT_CHI_CLIENT_H_
 
 #include <string>
 #include "manager.h"
 #include "chimaera/queue_manager/queue_manager_client.h"
 
 // Singleton macros
-#define CHM_CLIENT hshm::Singleton<chm::Client>::GetInstance()
-#define CHM_CLIENT_T chm::Client*
-#define HRUN_CLIENT CHM_CLIENT
-#define HRUN_CLIENT_T CHM_CLIENT_T
+#define CHI_CLIENT hshm::Singleton<chm::Client>::GetInstance()
+#define CHI_CLIENT_T chm::Client*
+#define HRUN_CLIENT CHI_CLIENT
+#define HRUN_CLIENT_T CHI_CLIENT_T
 
 namespace chm {
 
@@ -371,10 +371,10 @@ class Client : public ConfigurationManager {
   /** Get the queue ID */
   HSHM_ALWAYS_INLINE
   QueueId GetQueueId(const TaskStateId &id) {
-    if (id == CHM_QM_CLIENT->process_queue_id_) {
-      return CHM_QM_CLIENT->process_queue_id_;
+    if (id == CHI_QM_CLIENT->process_queue_id_) {
+      return CHI_QM_CLIENT->process_queue_id_;
     } else {
-      return CHM_QM_CLIENT->admin_queue_id_;
+      return CHI_QM_CLIENT->admin_queue_id_;
     }
   }
 
@@ -390,7 +390,7 @@ class Client : public ConfigurationManager {
 #define HRUN_TASK_NODE_ROOT(CUSTOM)\
   template<typename ...Args>\
   auto CUSTOM##Root(Args&& ...args) {\
-    TaskNode task_node = CHM_CLIENT->MakeTaskNodeId();\
+    TaskNode task_node = CHI_CLIENT->MakeTaskNodeId();\
     return CUSTOM(nullptr, task_node, std::forward<Args>(args)...);\
   }
 
@@ -400,7 +400,7 @@ template<typename ...Args>\
 hipc::LPointer<CUSTOM##Task> Async##CUSTOM##Alloc(const TaskNode &task_node,\
                                                   Args&& ...args) {\
   hipc::LPointer<CUSTOM##Task> task =\
-    CHM_CLIENT->AllocateTask<CUSTOM##Task>();\
+    CHI_CLIENT->AllocateTask<CUSTOM##Task>();\
   Async##CUSTOM##Construct(task.ptr_, task_node, std::forward<Args>(args)...);\
   return task;\
 }\
@@ -411,7 +411,7 @@ hipc::LPointer<CUSTOM##Task> Async##CUSTOM(Task *parent_task,\
   hipc::LPointer<CUSTOM##Task> task = Async##CUSTOM##Alloc(\
     task_node, std::forward<Args>(args)...);\
   task->YieldInit(parent_task);\
-  MultiQueue *queue = CHM_CLIENT->GetQueue(queue_id_);\
+  MultiQueue *queue = CHI_CLIENT->GetQueue(queue_id_);\
   queue->Emplace(task.ptr_->prio_, task.ptr_->GetLaneId(), task.shm_);\
   return task;\
 }\
@@ -428,14 +428,14 @@ Async##CUSTOM##Emplace(MultiQueue *queue,\
 template<typename ...Args>\
 hipc::LPointer<CUSTOM##Task>\
 Async##CUSTOM##Root(Args&& ...args) {\
-  TaskNode task_node = CHM_CLIENT->MakeTaskNodeId();\
+  TaskNode task_node = CHI_CLIENT->MakeTaskNodeId();\
   hipc::LPointer<CUSTOM##Task> task =\
     Async##CUSTOM(nullptr, task_node,\
                   std::forward<Args>(args)...);\
   return task;\
 }
 
-#define HRUN_TASK_NODE_PUSH_ROOT(CUSTOM) CHIMAERA_TASK_NODE_ROOT(CUSTOM)
+#define CHI_TASK_METHODS(CUSTOM) CHIMAERA_TASK_NODE_ROOT(CUSTOM)
 #define HRUN_TASK_NODE_ADMIN_ROOT(CUSTOM) CHIMAERA_TASK_NODE_ROOT(CUSTOM)
 
 /** Call duplicate if applicable */
@@ -444,7 +444,7 @@ constexpr inline void CALL_COPY_START(TaskT *orig_task,
                                       LPointer<Task> &udup_task,
                                       bool deep) {
   if constexpr (TaskT::REPLICA) {
-    LPointer<TaskT> dup_task = CHM_CLIENT->NewEmptyTask<TaskT>();
+    LPointer<TaskT> dup_task = CHI_CLIENT->NewEmptyTask<TaskT>();
     dup_task->task_dup(*orig_task);
     if (!deep) {
       dup_task->UnsetDataOwner();
@@ -458,17 +458,17 @@ constexpr inline void CALL_COPY_START(TaskT *orig_task,
 }  // namespace chm
 
 static inline bool CHIMAERA_CLIENT_INIT() {
-  if (!CHM_CLIENT->IsInitialized() &&
-      !CHM_CLIENT->IsBeingInitialized() &&
-      !CHM_CLIENT->IsTerminated()) {
-    CHM_CLIENT->Create();
-    CHM_CLIENT->is_transparent_ = true;
+  if (!CHI_CLIENT->IsInitialized() &&
+      !CHI_CLIENT->IsBeingInitialized() &&
+      !CHI_CLIENT->IsTerminated()) {
+    CHI_CLIENT->Create();
+    CHI_CLIENT->is_transparent_ = true;
     return true;
   }
   return false;
 }
 #define TRANSPARENT_RUN CHIMAERA_CLIENT_INIT
 
-#define HASH_TO_NODE_ID(hash) (1 + ((hash) % CHM_CLIENT->GetNumNodes()))
+#define HASH_TO_NODE_ID(hash) (1 + ((hash) % CHI_CLIENT->GetNumNodes()))
 
-#endif  // HRUN_INCLUDE_CHM_CLIENT_CHM_CLIENT_H_
+#endif  // HRUN_INCLUDE_CHI_CLIENT_CHI_CLIENT_H_
