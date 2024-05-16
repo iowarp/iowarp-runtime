@@ -61,7 +61,11 @@ class Server : public TaskLib {
 
   /** Create a task state */
   void CreateTaskState(CreateTaskStateTask *task, RunContext &rctx) {
+    HILOG(kInfo, "REGISTERING kCreateTaskState for task {} on worker {} lane {} and state_name {}",
+          task->task_node_, rctx.worker_id_, lane_id_, task->state_name_.str());
     ScopedCoMutexTable<u32> lock(mutexes_, 0, task, rctx);
+    HILOG(kInfo, "BEGINNING kCreateTaskState for task {} on worker {} lane {}",
+          task->task_node_, rctx.worker_id_, lane_id_);
     std::string lib_name = task->lib_name_.str();
     std::string state_name = task->state_name_.str();
     // Check local registry for task state
@@ -71,6 +75,10 @@ class Server : public TaskLib {
     if (task_state) {
       task->ctx_.id_ = task_state->id_;
       state_existed = true;
+      task->SetModuleComplete();
+      HILOG(kInfo, "ENDING kCreateTaskState for task {} on worker {}",
+            task->task_node_, rctx.worker_id_);
+      return;
     }
     // Check global registry for task state
     if (task->ctx_.id_.IsNull()) {
@@ -110,7 +118,7 @@ class Server : public TaskLib {
         state_name.c_str(),
         task->ctx_.id_,
         task, lanes);
-    if (task->root_ && !state_existed) {
+    if (task->root_) {
       // Broadcast the state creation to all nodes
       TaskState *exec = CHI_TASK_REGISTRY->GetAnyTaskState(task->ctx_.id_);
       LPointer<Task> bcast;
@@ -125,10 +133,12 @@ class Server : public TaskLib {
       MultiQueue *queue =
           CHI_QM_CLIENT->GetQueue(CHI_QM_CLIENT->admin_queue_id_);
       bcast->YieldInit(task);
-      queue->Emplace(bcast->prio_, 0, bcast.shm_);
+      queue->Emplace(bcast->prio_, bcast->GetLaneId(), bcast.shm_);
       task->Wait<TASK_YIELD_CO>(bcast);
       exec->Del(Method::kCreate, bcast.ptr_);
     }
+    HILOG(kInfo, "ENDING kCreateTaskState for task {} on worker {} lane {}",
+          task->task_node_, rctx.worker_id_, lane_id_);
     task->SetModuleComplete();
   }
   void MonitorCreateTaskState(u32 mode, CreateTaskStateTask *task,

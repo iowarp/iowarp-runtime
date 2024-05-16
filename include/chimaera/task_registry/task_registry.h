@@ -252,8 +252,6 @@ class TaskRegistry {
 
       // Construct the state
       task->ctx_.id_ = state_id;
-      task->method_ = TaskMethod::kCreate;
-      task->task_state_ = state_id;
       task->rctx_.shared_exec_ = task_states_[state_id].shared_state_;
       exec->Run(TaskMethod::kCreate, task, task->rctx_);
       task->UnsetModuleComplete();
@@ -281,13 +279,10 @@ class TaskRegistry {
       exec->name_ = state_name;
       exec->lane_id_ = lane_id.minor_;
       ScopedRwWriteLock lock(lock_, 0);
-      task_state_ids_.emplace(state_name, state_id);
       task_states_[state_id].states_[exec->lane_id_] = exec;
 
       // Construct the state
       task->ctx_.id_ = state_id;
-      task->method_ = TaskMethod::kCreate;
-      task->task_state_ = state_id;
       task->rctx_.shared_exec_ = task_states_[state_id].shared_state_;
       exec->Run(TaskMethod::kCreate, task, task->rctx_);
       task->UnsetModuleComplete();
@@ -337,7 +332,7 @@ class TaskRegistry {
     if (id.IsNull()) {
       id = task_state_id;
     }
-    auto it = task_states_.find(task_state_id);
+    auto it = task_states_.find(id);
     if (it == task_states_.end()) {
       return nullptr;
     }
