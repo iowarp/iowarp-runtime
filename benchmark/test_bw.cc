@@ -28,16 +28,16 @@ void Summarize(size_t nprocs,
 }
 
 void SyncIoTest(int rank, int nprocs, size_t msg_size, size_t ops) {
-  chm::small_message::Client client;
+  chi::small_message::Client client;
   CHI_ADMIN->RegisterTaskLibRoot(
-      chm::DomainQuery::GetLaneGlobalBcast(), "small_message");
+      chi::DomainQuery::GetLaneGlobalBcast(), "small_message");
   client.CreateRoot(
-      chm::DomainQuery::GetDirectHash(chm::SubDomainId::kGlobalLaneSet, 0),
-      chm::DomainQuery::GetLaneGlobalBcast(),
+      chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalLaneSet, 0),
+      chi::DomainQuery::GetLaneGlobalBcast(),
       "ipc_test");
   size_t domain_size = CHI_ADMIN->GetDomainSizeRoot(
-      chm::DomainQuery::GetDirectHash(chm::SubDomainId::kLocalLaneSet, 0),
-      chm::DomainId(client.id_, chm::SubDomainId::kGlobalLaneSet));
+      chi::DomainQuery::GetDirectHash(chi::SubDomainId::kLocalLaneSet, 0),
+      chi::DomainId(client.id_, chi::SubDomainId::kGlobalLaneSet));
 
   hshm::MpiTimer t(MPI_COMM_WORLD);
   t.Resume();
@@ -45,7 +45,7 @@ void SyncIoTest(int rank, int nprocs, size_t msg_size, size_t ops) {
     int lane_id = i;
     size_t read_size, write_size;
     client.IoRoot(
-        chm::DomainQuery::GetDirectHash(chm::SubDomainId::kGlobalLaneSet, lane_id),
+        chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalLaneSet, lane_id),
         msg_size,
         MD_IO_WRITE, write_size, read_size);
   }

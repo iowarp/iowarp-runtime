@@ -16,7 +16,7 @@
 #include "config.h"
 #include "chimaera/chimaera_types.h"
 
-namespace chm::config {
+namespace chi::config {
 
 /**
  * Work orchestrator information defined in server config
@@ -101,10 +101,10 @@ class ServerConfig : public BaseConfig {
   void ParseRpcInfo(YAML::Node yaml_conf);
 };
 
-}  // namespace chm::config
+}  // namespace chi::config
 
-namespace chm {
+namespace chi {
 using ServerConfig = config::ServerConfig;
-}  // namespace chm
+}  // namespace chi
 
 #endif  // HRUN_SRC_CONFIG_SERVER_H_

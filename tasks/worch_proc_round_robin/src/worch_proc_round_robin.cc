@@ -14,7 +14,7 @@
 #include "chimaera/api/chimaera_runtime.h"
 #include "worch_proc_round_robin/worch_proc_round_robin.h"
 
-namespace chm::worch_proc_round_robin {
+namespace chi::worch_proc_round_robin {
 
 class Server : public TaskLib {
  public:
@@ -42,6 +42,6 @@ class Server : public TaskLib {
 #include "worch_proc_round_robin/worch_proc_round_robin_lib_exec.h"
 };
 
-}  // namespace chm
+}  // namespace chi
 
-HRUN_TASK_CC(chm::worch_proc_round_robin::Server, "worch_proc_round_robin");
+HRUN_TASK_CC(chi::worch_proc_round_robin::Server, "worch_proc_round_robin");

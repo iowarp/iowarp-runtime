@@ -15,7 +15,7 @@
 
 #include "hermes_shm/data_structures/data_structure.h"
 
-namespace chm {
+namespace chi {
 
 /** A class for serializing simple objects into private memory */
 template<typename DataT = hshm::charbuf>
@@ -104,6 +104,6 @@ class LocalDeserialize {
   }
 };
 
-}  // namespace chm
+}  // namespace chi
 
 #endif  // HRUN_INCLUDE_HRUN_NETWORK_LOCAL_SERIALIZE_H_

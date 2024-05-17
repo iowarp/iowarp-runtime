@@ -17,7 +17,7 @@
 #include "chimaera/chimaera_types.h"
 #include "queue_factory.h"
 
-namespace chm {
+namespace chi {
 
 /** Shared-memory representation of the QueueManager */
 struct QueueManagerShm {
@@ -52,6 +52,6 @@ class QueueManager {
   }
 };
 
-}  // namespace chm
+}  // namespace chi
 
 #endif  // HRUN_INCLUDE_HRUN_QUEUE_MANAGER_QUEUE_MANAGER_H_

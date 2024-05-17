@@ -14,13 +14,13 @@
 #include "chimaera/network/serialize.h"
 #include "chimaera/task_registry/task.h"
 
-using chm::DomainQuery;
-using chm::BinaryOutputArchive;
-using chm::BinaryInputArchive;
-using chm::DataTransfer;
-using chm::SegmentedTransfer;
-using chm::Task;
-using chm::TaskFlags;
+using chi::DomainQuery;
+using chi::BinaryOutputArchive;
+using chi::BinaryInputArchive;
+using chi::DataTransfer;
+using chi::SegmentedTransfer;
+using chi::Task;
+using chi::TaskFlags;
 
 struct TestObj : public Task, TaskFlags<TF_SRL_SYM> {
   char *data_p_;

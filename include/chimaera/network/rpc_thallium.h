@@ -22,7 +22,7 @@
 
 namespace tl = thallium;
 
-namespace chm {
+namespace chi {
 
 /**
    A structure to represent Thallium state

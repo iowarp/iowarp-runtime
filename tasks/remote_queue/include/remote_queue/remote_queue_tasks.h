@@ -18,7 +18,7 @@
 
 namespace tl = thallium;
 
-namespace chm::remote_queue {
+namespace chi::remote_queue {
 
 #include "chimaera/chimaera_namespace.h"
 #include "remote_queue_methods.h"
@@ -26,7 +26,7 @@ namespace chm::remote_queue {
 /**
  * A task to create remote_queue
  * */
-using chm::Admin::CreateTaskStateTask;
+using chi::Admin::CreateTaskStateTask;
 struct CreateTask : public CreateTaskStateTask {
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
@@ -47,7 +47,7 @@ struct CreateTask : public CreateTaskStateTask {
 };
 
 /** A task to destroy remote_queue */
-using chm::Admin::DestroyTaskStateTask;
+using chi::Admin::DestroyTaskStateTask;
 struct DestructTask : public DestroyTaskStateTask {
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
@@ -150,6 +150,6 @@ struct ServerCompleteTask : public Task, TaskFlags<TF_LOCAL> {
 };
 
 
-} // namespace chm::remote_queue
+} // namespace chi::remote_queue
 
 #endif //HRUN_TASKS_REMOTE_QUEUE_INCLUDE_REMOTE_QUEUE_REMOTE_QUEUE_TASKS_H_

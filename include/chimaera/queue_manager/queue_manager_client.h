@@ -15,7 +15,7 @@
 
 #include "queue_manager.h"
 
-namespace chm {
+namespace chi {
 
 #define CHI_QM_CLIENT \
   (&CHI_CLIENT->queue_manager_)
@@ -41,6 +41,6 @@ class QueueManagerClient : public QueueManager {
   }
 };
 
-}  // namespace chm
+}  // namespace chi
 
 #endif  // HRUN_INCLUDE_HRUN_QUEUE_MANAGER_QUEUE_MANAGER_CLIENT_H_

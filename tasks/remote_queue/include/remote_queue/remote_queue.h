@@ -7,7 +7,7 @@
 
 #include "remote_queue_tasks.h"
 
-namespace chm::remote_queue {
+namespace chi::remote_queue {
 
 /**
  * Create remote_queue requests
@@ -82,6 +82,6 @@ class Client : public TaskLibClient {
   CHI_TASK_METHODS(ServerComplete)
 };
 
-}  // namespace chm
+}  // namespace chi
 
 #endif  // CHI_REMOTE_QUEUE_H_

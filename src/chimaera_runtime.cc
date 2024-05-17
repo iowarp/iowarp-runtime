@@ -13,7 +13,7 @@
 #include "hermes_shm/util/singleton.h"
 #include "chimaera/api/chimaera_runtime.h"
 
-namespace chm {
+namespace chi {
 
 /** Create the server-side API */
 Runtime* Runtime::Create(std::string server_config_path) {
@@ -35,17 +35,17 @@ void Runtime::ServerInit(std::string server_config_path) {
   HILOG(kInfo, "Initializing shared memory")
   InitSharedMemory();
   HILOG(kInfo, "Initializing RPC")
-  rpc_.ServerInit(&server_config_);
+  CHI_RPC->ServerInit(&server_config_);
   HILOG(kInfo, "Initializing thallium")
-  thallium_.ServerInit(&rpc_);
+  thallium_.ServerInit(CHI_RPC);
   HILOG(kInfo, "Initializing queues + workers")
-  header_->node_id_ = rpc_.node_id_;
+  header_->node_id_ = CHI_RPC->node_id_;
   header_->unique_ = 0;
   header_->num_nodes_ = server_config_.rpc_.host_names_.size();
-  task_registry_.ServerInit(&server_config_, rpc_.node_id_, header_->unique_);
+  task_registry_.ServerInit(&server_config_, CHI_RPC->node_id_, header_->unique_);
   // Queue manager + client must be initialized before Work Orchestrator
   queue_manager_.ServerInit(main_alloc_,
-                            rpc_.node_id_,
+                            CHI_RPC->node_id_,
                             &server_config_,
                             header_->queue_manager_);
   CHI_CLIENT->Create(server_config_path, "", true);
@@ -65,7 +65,7 @@ void Runtime::ServerInit(std::string server_config_path) {
   ops = CHI_RPC->CreateDefaultDomains(
       CHI_QM_CLIENT->admin_task_state_,
       CHI_QM_CLIENT->admin_task_state_,
-      DomainQuery::GetGlobal(chm::SubDomainId::kLaneSet, 0),
+      DomainQuery::GetGlobal(chi::SubDomainId::kLaneSet, 0),
       CHI_RPC->hosts_.size(), 1);
   CHI_RPC->UpdateDomains(ops);
   lanes = CHI_RPC->GetLocalLanes(CHI_QM_CLIENT->admin_task_state_);
@@ -83,7 +83,7 @@ void Runtime::ServerInit(std::string server_config_path) {
   ops = CHI_RPC->CreateDefaultDomains(
       queue_sched_id,
       CHI_QM_CLIENT->admin_task_state_,
-      DomainQuery::GetGlobal(chm::SubDomainId::kLocalLaneSet, 0),
+      DomainQuery::GetGlobal(chi::SubDomainId::kLocalLaneSet, 0),
       1, 1);
   CHI_RPC->UpdateDomains(ops);
   lanes = CHI_RPC->GetLocalLanes(queue_sched_id);
@@ -98,7 +98,7 @@ void Runtime::ServerInit(std::string server_config_path) {
   // Initially schedule queues to workers
   auto queue_task = CHI_CLIENT->NewTask<ScheduleTask>(
       CHI_CLIENT->MakeTaskNodeId(),
-      DomainQuery::GetDirectHash(chm::SubDomainId::kLocalLaneSet, 0),
+      DomainQuery::GetDirectHash(chi::SubDomainId::kLocalLaneSet, 0),
       queue_sched_id);
   state->Run(queue_task->method_,
              queue_task.ptr_,
@@ -112,7 +112,7 @@ void Runtime::ServerInit(std::string server_config_path) {
   ops = CHI_RPC->CreateDefaultDomains(
       proc_sched_id,
       CHI_QM_CLIENT->admin_task_state_,
-      DomainQuery::GetGlobal(chm::SubDomainId::kLocalLaneSet, 0),
+      DomainQuery::GetGlobal(chi::SubDomainId::kLocalLaneSet, 0),
       1, 1);
   CHI_RPC->UpdateDomains(ops);
   lanes = CHI_RPC->GetLocalLanes(proc_sched_id);
@@ -125,18 +125,18 @@ void Runtime::ServerInit(std::string server_config_path) {
 
   // Set the work orchestrator queue scheduler
   CHI_ADMIN->SetWorkOrchQueuePolicyRoot(
-      DomainQuery::GetDirectHash(chm::SubDomainId::kLocalLaneSet, 0),
+      DomainQuery::GetDirectHash(chi::SubDomainId::kLocalLaneSet, 0),
       queue_sched_id);
   CHI_ADMIN->SetWorkOrchProcPolicyRoot(
-      DomainQuery::GetDirectHash(chm::SubDomainId::kLocalLaneSet, 0),
+      DomainQuery::GetDirectHash(chi::SubDomainId::kLocalLaneSet, 0),
       proc_sched_id);
 
   // Create the remote queue library
   // TODO(llogan): Figure out why remote queue poller can't find rq.1.5
   task_registry_.RegisterTaskLib("remote_queue");
   remote_queue_.CreateRoot(
-      DomainQuery::GetDirectHash(chm::SubDomainId::kLocalLaneSet, 0),
-      DomainQuery::GetDirectHash(chm::SubDomainId::kLocalLaneSet, 0),
+      DomainQuery::GetDirectHash(chi::SubDomainId::kLocalLaneSet, 0),
+      DomainQuery::GetDirectHash(chi::SubDomainId::kLocalLaneSet, 0),
       "remote_queue",
       CreateContext{CHI_CLIENT->MakeTaskStateId(), 1, max_lanes});
   remote_created_ = true;
@@ -198,7 +198,8 @@ void Runtime::StopDaemon() {
   HRUN_WORK_ORCHESTRATOR->FinalizeRuntime();
 }
 
-}  // namespace chm
+}  // namespace chi
 
 /** Runtime singleton */
-DEFINE_SINGLETON_CC(chm::Runtime)
+DEFINE_SINGLETON_CC(chi::Runtime)
+DEFINE_SINGLETON_CC(chi::RpcContext)

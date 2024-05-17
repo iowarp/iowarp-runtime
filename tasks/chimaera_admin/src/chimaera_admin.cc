@@ -15,7 +15,7 @@
 #include "chimaera/work_orchestrator/comutex.h"
 #include "chimaera/work_orchestrator/scheduler.h"
 
-namespace chm::Admin {
+namespace chi::Admin {
 
 class Server : public TaskLib {
  public:
@@ -204,7 +204,7 @@ class Server : public TaskLib {
     }
     auto queue_sched = CHI_CLIENT->NewTask<ScheduleTask>(
         task->task_node_,
-        chm::DomainQuery::GetDirectHash(chm::SubDomainId::kLocalLaneSet, 0),
+        chi::DomainQuery::GetDirectHash(chi::SubDomainId::kLocalLaneSet, 0),
         task->policy_id_);
     queue_sched_ = queue_sched.ptr_;
     MultiQueue *queue = CHI_CLIENT->GetQueue(queue_id_);
@@ -227,7 +227,7 @@ class Server : public TaskLib {
     }
     auto proc_sched = CHI_CLIENT->NewTask<ScheduleTask>(
         task->task_node_,
-        chm::DomainQuery::GetDirectHash(chm::SubDomainId::kLocalLaneSet, 0),
+        chi::DomainQuery::GetDirectHash(chi::SubDomainId::kLocalLaneSet, 0),
         task->policy_id_);
     proc_sched_ = proc_sched.ptr_;
     MultiQueue *queue = CHI_CLIENT->GetQueue(queue_id_);
@@ -270,6 +270,6 @@ class Server : public TaskLib {
 #include "chimaera_admin/chimaera_admin_lib_exec.h"
 };
 
-}  // namespace chm
+}  // namespace chi
 
-HRUN_TASK_CC(chm::Admin::Server, "chimaera_admin");
+HRUN_TASK_CC(chi::Admin::Server, "chimaera_admin");

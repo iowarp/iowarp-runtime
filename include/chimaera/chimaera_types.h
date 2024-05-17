@@ -60,7 +60,7 @@ typedef int64_t i64;  /**< 64-bit signed integer */
 typedef float f32;    /**< 32-bit float */
 typedef double f64;   /**< 64-bit float */
 
-namespace chm {
+namespace chi {
 
 using hshm::RwLock;
 using hshm::Mutex;
@@ -829,42 +829,42 @@ struct ResolvedDomainQuery {
   }
 };
 
-}  // namespace chm
+}  // namespace chi
 
 namespace std {
 
 /** Hash function for UniqueId */
 template <int TYPE>
-struct hash<chm::UniqueId<TYPE>> {
+struct hash<chi::UniqueId<TYPE>> {
   HSHM_ALWAYS_INLINE
-  std::size_t operator()(const chm::UniqueId<TYPE> &key) const {
+  std::size_t operator()(const chi::UniqueId<TYPE> &key) const {
     return key.Hash();
   }
 };
 
 /** Hash function for SubDomainId */
 template<>
-struct hash<chm::SubDomainId> {
+struct hash<chi::SubDomainId> {
   HSHM_ALWAYS_INLINE
-  std::size_t operator()(const chm::SubDomainId &key) const {
+  std::size_t operator()(const chi::SubDomainId &key) const {
     return key.Hash();
   }
 };
 
 /** Hash function for DomainId */
 template<>
-struct hash<chm::DomainId> {
+struct hash<chi::DomainId> {
   HSHM_ALWAYS_INLINE
-  std::size_t operator()(const chm::DomainId &key) const {
+  std::size_t operator()(const chi::DomainId &key) const {
     return key.Hash();
   }
 };
 
 /** Hash function for DomainQuery */
 template<>
-struct hash<chm::DomainQuery> {
+struct hash<chi::DomainQuery> {
   HSHM_ALWAYS_INLINE
-  std::size_t operator()(const chm::DomainQuery &key) const {
+  std::size_t operator()(const chi::DomainQuery &key) const {
     return key.Hash();
   }
 };

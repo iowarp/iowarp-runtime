@@ -18,11 +18,11 @@
 namespace thallium {
 
 /** Serialize I/O type enum */
-// SERIALIZE_ENUM(chm::IoType);
+// SERIALIZE_ENUM(chi::IoType);
 
 }  // namespace thallium
 
-namespace chm::remote_queue {
+namespace chi::remote_queue {
 
 struct TaskQueueEntry {
   ResolvedDomainQuery domain_;
@@ -502,6 +502,6 @@ class Server : public TaskLib {
  public:
 #include "remote_queue/remote_queue_lib_exec.h"
 };
-}  // namespace chm
+}  // namespace chi
 
-HRUN_TASK_CC(chm::remote_queue::Server, "remote_queue");
+HRUN_TASK_CC(chi::remote_queue::Server, "remote_queue");

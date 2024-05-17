@@ -13,7 +13,7 @@
 #ifndef HRUN_INCLUDE_HRUN_HRUN_CONSTANTS_H_
 #define HRUN_INCLUDE_HRUN_HRUN_CONSTANTS_H_
 
-namespace chm {
+namespace chi {
 
 #include <string>
 
@@ -32,6 +32,6 @@ class Constants {
   }
 };
 
-}  // namespace chm
+}  // namespace chi
 
 #endif  // HRUN_INCLUDE_HRUN_HRUN_CONSTANTS_H_

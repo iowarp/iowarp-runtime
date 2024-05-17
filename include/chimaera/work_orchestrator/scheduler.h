@@ -15,7 +15,7 @@
 
 #include "chimaera/task_registry/task.h"
 
-namespace chm {
+namespace chi {
 
 /** The set of methods in the admin task */
 struct SchedulerMethod : public TaskMethod {
@@ -50,6 +50,6 @@ struct ScheduleTask : public Task, TaskFlags<TF_LOCAL> {
   }
 };
 
-}  // namespace chm
+}  // namespace chi
 
 #endif  // HRUN_INCLUDE_HRUN_WORK_ORCHESTRATOR_SCHEDULER_H_

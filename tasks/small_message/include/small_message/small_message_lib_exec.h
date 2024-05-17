@@ -68,19 +68,19 @@ void Del(u32 method, Task *task) override {
 void CopyStart(u32 method, Task *orig_task, LPointer<Task> &dup_task, bool deep) override {
   switch (method) {
     case Method::kCreate: {
-      chm::CALL_COPY_START(reinterpret_cast<CreateTask*>(orig_task), dup_task, deep);
+      chi::CALL_COPY_START(reinterpret_cast<CreateTask*>(orig_task), dup_task, deep);
       break;
     }
     case Method::kDestruct: {
-      chm::CALL_COPY_START(reinterpret_cast<DestructTask*>(orig_task), dup_task, deep);
+      chi::CALL_COPY_START(reinterpret_cast<DestructTask*>(orig_task), dup_task, deep);
       break;
     }
     case Method::kMd: {
-      chm::CALL_COPY_START(reinterpret_cast<MdTask*>(orig_task), dup_task, deep);
+      chi::CALL_COPY_START(reinterpret_cast<MdTask*>(orig_task), dup_task, deep);
       break;
     }
     case Method::kIo: {
-      chm::CALL_COPY_START(reinterpret_cast<IoTask*>(orig_task), dup_task, deep);
+      chi::CALL_COPY_START(reinterpret_cast<IoTask*>(orig_task), dup_task, deep);
       break;
     }
   }

@@ -19,7 +19,7 @@
 #include "task.h"
 #include "chimaera/network/serialize.h"
 
-namespace chm {
+namespace chi {
 
 typedef LPointer<Task> TaskPointer;
 
@@ -130,8 +130,8 @@ typedef const char* (*get_task_lib_name_t)(void);
 /** Used internally by task source file */
 #define HRUN_TASK_CC(TRAIT_CLASS, TASK_NAME)\
   extern "C" {\
-  void* alloc_state(chm::Admin::CreateTaskStateTask *task, const char *state_name) {\
-    chm::TaskState *exec = reinterpret_cast<chm::TaskState*>(\
+  void* alloc_state(chi::Admin::CreateTaskStateTask *task, const char *state_name) {\
+    chi::TaskState *exec = reinterpret_cast<chi::TaskState*>(\
         new TYPE_UNWRAP(TRAIT_CLASS)());\
     exec->Init(task->ctx_.id_, CHI_CLIENT->GetQueueId(task->ctx_.id_), state_name);\
     return exec;\
@@ -140,6 +140,6 @@ typedef const char* (*get_task_lib_name_t)(void);
   bool is_chimaera_task_ = true;\
   }
 
-}   // namespace chm
+}   // namespace chi
 
 #endif  // HRUN_INCLUDE_HRUN_TASK_TASK_H_

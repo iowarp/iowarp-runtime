@@ -103,7 +103,7 @@ def refresh_methods(TASK_ROOT):
         method_name = method_enum_name.replace('k', '', 1)
         task_name = method_name + "Task"
         lines += [f'    case Method::{method_enum_name}: {{',
-                  f'      chm::CALL_COPY_START(reinterpret_cast<{task_name}*>(orig_task), dup_task, deep);',
+                  f'      chi::CALL_COPY_START(reinterpret_cast<{task_name}*>(orig_task), dup_task, deep);',
                   f'      break;',
                   f'    }}']
     lines += ['  }']

@@ -18,7 +18,7 @@
 #include <csetjmp>
 #include <thallium.hpp>
 
-namespace chm {
+namespace chi {
 
 class TaskLib;
 
@@ -218,7 +218,7 @@ class IsTask {};
 #define TASK_FLAG_T constexpr inline static bool
 /** Determine this is a task */
 #define IS_TASK(T) \
-  std::is_base_of_v<chm::IsTask, T>
+  std::is_base_of_v<chi::IsTask, T>
 /** Determine this task supports serialization */
 #define IS_SRL(T) \
   T::SUPPORTS_SRL
@@ -747,6 +747,6 @@ struct Task : public hipc::ShmContainer {
 #define INOUT
 #define TEMP
 
-}  // namespace chm
+}  // namespace chi
 
 #endif  // HRUN_INCLUDE_HRUN_QUEUE_MANAGER_REQUEST_H_

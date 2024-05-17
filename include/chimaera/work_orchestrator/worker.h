@@ -34,7 +34,7 @@ static inline pid_t GetLinuxTid() {
 #define HSHM_WORKER_LONG_RUNNING BIT_OPT(u32, 4)
 #define HSHM_WORKER_IS_CONSTRUCT BIT_OPT(u32, 5)
 
-namespace chm {
+namespace chi {
 
 #define WORKER_CONTINUOUS_POLLING BIT_OPT(u32, 0)
 #define WORKER_LOW_LATENCY BIT_OPT(u32, 1)
@@ -120,22 +120,22 @@ struct WorkEntry {
   }
 };
 
-}  // namespace chm
+}  // namespace chi
 
 namespace std {
 /** Hash function for WorkEntry */
 template<>
-struct hash<chm::WorkEntry> {
+struct hash<chi::WorkEntry> {
   HSHM_ALWAYS_INLINE
       std::size_t
-  operator()(const chm::WorkEntry &key) const {
-    return std::hash<chm::MultiQueue*>{}(key.queue_) +
+  operator()(const chi::WorkEntry &key) const {
+    return std::hash<chi::MultiQueue*>{}(key.queue_) +
         std::hash<u32>{}(key.lane_id_) + std::hash<u64>{}(key.prio_);
   }
 };
 }  // namespace std
 
-namespace chm {
+namespace chi {
 
 struct PrivateTaskQueueEntry {
  public:
@@ -366,7 +366,7 @@ class PrivateTaskMultiQueue {
   bool push(const PrivateTaskQueueEntry &entry) {
     Task *task = entry.task_.ptr_;
     if (task->task_state_ == CHI_ADMIN->id_ &&
-        task->method_ == chm::Admin::Method::kCreateTaskState) {
+        task->method_ == chi::Admin::Method::kCreateTaskState) {
       return GetConstruct().push(entry);
     } else if (task->IsFlush()) {
       return GetFlush().push(entry);
@@ -719,8 +719,8 @@ class Worker {
     for (size_t i = 0; i < queue.size_; ++i) {
         PrivateTaskQueueEntry *entry;
         queue.peek(entry, queue.head_ + i);
-        chm::Admin::FlushTask *flush_task =
-            (chm::Admin::FlushTask *)entry->task_.ptr_;
+        chi::Admin::FlushTask *flush_task =
+            (chi::Admin::FlushTask *)entry->task_.ptr_;
         flush_task->work_done_ += count;
     }
   }
@@ -971,7 +971,7 @@ class Worker {
       active_.erase(queue.id_, entry);
       if (props.Any(HSHM_WORKER_IS_CONSTRUCT)) {
         TaskStateId id =
-            ((chm::Admin::CreateTaskStateTask*)task.ptr_)->ctx_.id_;
+            ((chi::Admin::CreateTaskStateTask*)task.ptr_)->ctx_.id_;
         exec = GetTaskState(id, task->GetLaneId());
       }
       EndTask(exec, task);
@@ -1009,7 +1009,7 @@ class Worker {
     } else if (task->ShouldSignalRemoteComplete()) {
       TaskState *remote_exec = GetTaskState(CHI_REMOTE_QUEUE->id_,
                                             task->GetLaneId());
-      remote_exec->Run(chm::remote_queue::Method::kServerPushComplete,
+      remote_exec->Run(chi::remote_queue::Method::kServerPushComplete,
                        task.ptr_, task->rctx_);
       task->SetComplete();
       return;
@@ -1138,6 +1138,6 @@ class Worker {
   }
 };
 
-}  // namespace chm
+}  // namespace chi
 
 #endif  // HRUN_INCLUDE_HRUN_WORK_ORCHESTRATOR_WORKER_H_

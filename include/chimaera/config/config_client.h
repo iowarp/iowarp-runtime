@@ -18,7 +18,7 @@
 
 namespace stdfs = std::filesystem;
 
-namespace chm::config {
+namespace chi::config {
 
 /**
  * Configuration used to intialize client
@@ -33,10 +33,10 @@ class ClientConfig : public BaseConfig {
   void LoadDefault() override;
 };
 
-}  // namespace chm::config
+}  // namespace chi::config
 
-namespace chm {
+namespace chi {
 using ClientConfig = config::ClientConfig;
-}  // namespace chm
+}  // namespace chi
 
 #endif  // HRUN_SRC_CONFIG_CLIENT_H_

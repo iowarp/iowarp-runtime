@@ -27,25 +27,25 @@ void Summarize(size_t nprocs,
 }
 
 void SyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
-  chm::small_message::Client client;
+  chi::small_message::Client client;
   CHI_ADMIN->RegisterTaskLibRoot(
-      chm::DomainQuery::GetLaneGlobalBcast(), "small_message");
+      chi::DomainQuery::GetLaneGlobalBcast(), "small_message");
   client.CreateRoot(
-      chm::DomainQuery::GetDirectHash(chm::SubDomainId::kGlobalLaneSet, 0),
-      chm::DomainQuery::GetLaneGlobalBcast(),
+      chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalLaneSet, 0),
+      chi::DomainQuery::GetLaneGlobalBcast(),
       "ipc_test");
   MPI_Barrier(MPI_COMM_WORLD);
   hshm::MpiTimer t(MPI_COMM_WORLD);
   size_t domain_size = CHI_ADMIN->GetDomainSizeRoot(
-      chm::DomainQuery::GetDirectHash(chm::SubDomainId::kLocalLaneSet, 0),
-      chm::DomainId(client.id_, chm::SubDomainId::kGlobalLaneSet));
+      chi::DomainQuery::GetDirectHash(chi::SubDomainId::kLocalLaneSet, 0),
+      chi::DomainId(client.id_, chi::SubDomainId::kGlobalLaneSet));
 
   HILOG(kInfo, "OPS: {}", ops)
   t.Resume();
   for (size_t i = 0; i < ops; ++i) {
     int lane_id = 1 + (i % domain_size);
     client.MdRoot(
-        chm::DomainQuery::GetDirectHash(chm::SubDomainId::kGlobalLaneSet, lane_id),
+        chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalLaneSet, lane_id),
         depth, 0);
   }
   t.Pause();
@@ -54,30 +54,30 @@ void SyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
 }
 
 void AsyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
-  chm::small_message::Client client;
+  chi::small_message::Client client;
   CHI_ADMIN->RegisterTaskLibRoot(
-      chm::DomainQuery::GetLaneGlobalBcast(),
+      chi::DomainQuery::GetLaneGlobalBcast(),
       "small_message");
   client.CreateRoot(
-      chm::DomainQuery::GetDirectHash(chm::SubDomainId::kGlobalLaneSet, 0),
-      chm::DomainQuery::GetLaneGlobalBcast(),
+      chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalLaneSet, 0),
+      chi::DomainQuery::GetLaneGlobalBcast(),
       "ipc_test");
   MPI_Barrier(MPI_COMM_WORLD);
   hshm::MpiTimer t(MPI_COMM_WORLD);
   size_t domain_size = CHI_ADMIN->GetDomainSizeRoot(
-      chm::DomainQuery::GetDirectHash(chm::SubDomainId::kLocalLaneSet, 0),
-      chm::DomainId(client.id_, chm::SubDomainId::kGlobalLaneSet));
+      chi::DomainQuery::GetDirectHash(chi::SubDomainId::kLocalLaneSet, 0),
+      chi::DomainId(client.id_, chi::SubDomainId::kGlobalLaneSet));
 
   t.Resume();
   for (size_t i = 0; i < ops; ++i) {
     HILOG(kDebug, "Sending message {}", i)
     int lane_id = 1 + (i % domain_size);
     client.AsyncMdRoot(
-        chm::DomainQuery::GetDirectHash(chm::SubDomainId::kGlobalLaneSet, lane_id),
+        chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalLaneSet, lane_id),
         depth, TASK_FIRE_AND_FORGET);
   }
   CHI_ADMIN->FlushRoot(
-      DomainQuery::GetDirectHash(chm::SubDomainId::kLocalLaneSet, 0));
+      DomainQuery::GetDirectHash(chi::SubDomainId::kLocalLaneSet, 0));
   t.Pause();
   t.Collect();
   Summarize(nprocs, t.GetUsec(), ops, depth);

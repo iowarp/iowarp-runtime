@@ -7,7 +7,7 @@
 
 #include "worch_queue_round_robin_tasks.h"
 
-namespace chm::worch_queue_round_robin {
+namespace chi::worch_queue_round_robin {
 
 /** Create admin requests */
 class Client : public TaskLibClient {
@@ -48,6 +48,6 @@ class Client : public TaskLibClient {
   }
 };
 
-}  // namespace chm
+}  // namespace chi
 
 #endif  // HRUN_worch_queue_round_robin_H_

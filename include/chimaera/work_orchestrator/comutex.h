@@ -8,7 +8,7 @@
 #include "worker.h"
 #include "chimaera/task_registry/task.h"
 
-namespace chm {
+namespace chi {
 
 struct CoMutexEntry {
   Task *task_;
@@ -118,6 +118,6 @@ class ScopedCoMutexTable {
   }
 };
 
-}  // namespace chm
+}  // namespace chi
 
 #endif  // CHIMAERA_INCLUDE_CHIMAERA_WORK_ORCHESTRATOR_COMUTEX_H_

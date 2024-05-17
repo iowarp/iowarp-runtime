@@ -13,7 +13,7 @@
 #include "chimaera/work_orchestrator/work_orchestrator.h"
 #include "chimaera/work_orchestrator/worker.h"
 
-namespace chm {
+namespace chi {
 
 void WorkOrchestrator::ServerInit(ServerConfig *config, QueueManager &qm) {
   config_ = config;
@@ -142,4 +142,4 @@ void WorkOrchestrator::DedicateCores() {
   // HILOG(kInfo, "Affining {} processes to {} cores", count, cpu_ids.size());
 }
 
-}  // namespace chm
+}  // namespace chi

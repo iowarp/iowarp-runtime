@@ -15,13 +15,13 @@
 
 #include "queues/hshm_queue.h"
 
-namespace chm {
+namespace chi {
 
 #ifdef QUEUE_TYPE
 using MultiQueue = MultiQueueT<QUEUE_TYPE>;
 #else
 using MultiQueue = MultiQueueT<Hshm>;
 #endif
-}  // namespace chm
+}  // namespace chi
 
 #endif  // HRUN_INCLUDE_HRUN_QUEUE_MANAGER_QUEUE_FACTORY_H_

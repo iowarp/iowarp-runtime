@@ -14,7 +14,7 @@
 #include "chimaera/api/chimaera_runtime.h"
 #include "TASK_NAME/TASK_NAME.h"
 
-namespace chm::TASK_NAME {
+namespace chi::TASK_NAME {
 
 class Server : public TaskLib {
  public:
@@ -51,6 +51,6 @@ class Server : public TaskLib {
 #include "TASK_NAME/TASK_NAME_lib_exec.h"
 };
 
-}  // namespace chm::TASK_NAME
+}  // namespace chi::TASK_NAME
 
-HRUN_TASK_CC(chm::TASK_NAME::Server, "TASK_NAME");
+HRUN_TASK_CC(chi::TASK_NAME::Server, "TASK_NAME");

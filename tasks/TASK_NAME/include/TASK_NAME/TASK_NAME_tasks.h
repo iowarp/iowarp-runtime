@@ -10,7 +10,7 @@
 #include "chimaera_admin/chimaera_admin.h"
 #include "chimaera/queue_manager/queue_manager_client.h"
 
-namespace chm::TASK_NAME {
+namespace chi::TASK_NAME {
 
 #include "TASK_NAME_methods.h"
 #include "chimaera/chimaera_namespace.h"
@@ -18,7 +18,7 @@ namespace chm::TASK_NAME {
 /**
  * A task to create TASK_NAME
  * */
-using chm::Admin::CreateTaskStateTask;
+using chi::Admin::CreateTaskStateTask;
 struct CreateTask : public CreateTaskStateTask {
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
@@ -45,7 +45,7 @@ struct CreateTask : public CreateTaskStateTask {
 };
 
 /** A task to destroy TASK_NAME */
-using chm::Admin::DestroyTaskStateTask;
+using chi::Admin::DestroyTaskStateTask;
 struct DestructTask : public DestroyTaskStateTask {
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
@@ -101,6 +101,6 @@ struct CustomTask : public Task, TaskFlags<TF_SRL_SYM> {
   }
 };
 
-}  // namespace chm::TASK_NAME
+}  // namespace chi::TASK_NAME
 
 #endif  // HRUN_TASKS_TASK_TEMPL_INCLUDE_TASK_NAME_TASK_NAME_TASKS_H_

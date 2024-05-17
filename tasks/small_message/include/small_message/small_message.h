@@ -7,7 +7,7 @@
 
 #include "small_message_tasks.h"
 
-namespace chm::small_message {
+namespace chi::small_message {
 
 /** Create admin requests */
 class Client : public TaskLibClient {
@@ -89,6 +89,6 @@ class Client : public TaskLibClient {
   CHI_TASK_METHODS(Io)
 };
 
-}  // namespace chm
+}  // namespace chi
 
 #endif  // HRUN_small_message_H_

@@ -16,7 +16,7 @@
 #include "queue_manager.h"
 #include "queue_manager_client.h"
 
-namespace chm {
+namespace chi {
 
 #define HRUN_QM_RUNTIME \
   (&CHI_RUNTIME->queue_manager_)
@@ -95,6 +95,6 @@ class QueueManagerRuntime : public QueueManager {
   }
 };
 
-}  // namespace chm
+}  // namespace chi
 
 #endif  // HRUN_INCLUDE_HRUN_QUEUE_MANAGER_QUEUE_MANAGER_SERVER_H_

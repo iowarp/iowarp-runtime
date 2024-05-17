@@ -11,7 +11,7 @@
 #include "chimaera/work_orchestrator/scheduler.h"
 #include "chimaera/queue_manager/queue_manager_client.h"
 
-namespace chm::worch_queue_round_robin {
+namespace chi::worch_queue_round_robin {
 
 #include "chimaera/chimaera_namespace.h"
 
@@ -21,7 +21,7 @@ typedef SchedulerMethod Method;
 /**
  * A task to create worch_queue_round_robin
  * */
-using chm::Admin::CreateTaskStateTask;
+using chi::Admin::CreateTaskStateTask;
 struct CreateTask : public CreateTaskStateTask {
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
@@ -45,7 +45,7 @@ struct CreateTask : public CreateTaskStateTask {
 };
 
 /** A task to destroy worch_queue_round_robin */
-using chm::Admin::DestroyTaskStateTask;
+using chi::Admin::DestroyTaskStateTask;
 struct DestructTask : public DestroyTaskStateTask {
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
@@ -60,6 +60,6 @@ struct DestructTask : public DestroyTaskStateTask {
       : DestroyTaskStateTask(alloc, task_node, dom_query, state_id) {}
 };
 
-}  // namespace chm::worch_queue_round_robin
+}  // namespace chi::worch_queue_round_robin
 
 #endif  // HRUN_WORCH_QUEUE_ROUND_ROBIN_TASKS_H_

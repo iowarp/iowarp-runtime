@@ -18,7 +18,7 @@
 #include "chimaera/network/rpc_thallium.h"
 #include <thread>
 
-namespace chm {
+namespace chi {
 
 class Worker;
 
@@ -116,7 +116,7 @@ class WorkOrchestrator {
   }
 };
 
-}  // namespace chm
+}  // namespace chi
 
 #define HRUN_WORK_ORCHESTRATOR \
   (&CHI_RUNTIME->work_orchestrator_)

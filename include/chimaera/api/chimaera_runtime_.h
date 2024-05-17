@@ -24,19 +24,17 @@
 #include "chimaera/network/rpc_thallium.h"
 
 // Singleton macros
-#define CHI_RUNTIME hshm::Singleton<chm::Runtime>::GetInstance()
-#define CHI_RUNTIME_T chm::Runtime*
+#define CHI_RUNTIME hshm::Singleton<chi::Runtime>::GetInstance()
+#define CHI_RUNTIME_T chi::Runtime*
 #define CHI_REMOTE_QUEUE (&CHI_RUNTIME->remote_queue_)
 #define CHI_THALLIUM (&CHI_RUNTIME->thallium_)
-#define CHI_RPC (&CHI_RUNTIME->rpc_)
 
 #define HRUN_RUNTIME CHI_RUNTIME
 #define HRUN_RUNTIME_T CHI_RUNTIME_T
 #define HRUN_REMOTE_QUEUE CHI_REMOTE_QUEUE
 #define HRUN_THALLIUM CHI_THALLIUM
-#define HRUN_RPC CHI_RPC
 
-namespace chm {
+namespace chi {
 
 class Runtime : public ConfigurationManager {
  public:
@@ -45,7 +43,6 @@ class Runtime : public ConfigurationManager {
   WorkOrchestrator work_orchestrator_;
   QueueManagerRuntime queue_manager_;
   remote_queue::Client remote_queue_;
-  RpcContext rpc_;
   ThalliumRpc thallium_;
   bool remote_created_ = false;
 
@@ -79,6 +76,6 @@ class Runtime : public ConfigurationManager {
   }
 };
 
-}  // namespace chm
+}  // namespace chi
 
 #endif  // HRUN_INCLUDE_CHI_CLIENT_HRUN_SERVER_H_

@@ -17,7 +17,7 @@
 
 namespace stdfs = std::filesystem;
 
-namespace chm::config {
+namespace chi::config {
 
 /** parse the YAML node */
 void ClientConfig::ParseYAML(YAML::Node &yaml_conf) {
@@ -31,4 +31,4 @@ void ClientConfig::LoadDefault() {
   LoadText(kHrunClientDefaultConfigStr, false);
 }
 
-}  // namespace chm::config
+}  // namespace chi::config

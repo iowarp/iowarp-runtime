@@ -14,7 +14,7 @@
 #include "chimaera/api/chimaera_runtime.h"
 #include "small_message/small_message.h"
 
-namespace chm::small_message {
+namespace chi::small_message {
 
 class Server : public TaskLib {
  public:
@@ -89,6 +89,6 @@ class Server : public TaskLib {
 #include "small_message/small_message_lib_exec.h"
 };
 
-}  // namespace chm
+}  // namespace chi
 
-HRUN_TASK_CC(chm::small_message::Server, "small_message");
+HRUN_TASK_CC(chi::small_message::Server, "small_message");

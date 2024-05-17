@@ -16,14 +16,15 @@
 #include <string>
 #include "manager.h"
 #include "chimaera/queue_manager/queue_manager_client.h"
+#include "chimaera/network/rpc.h"
 
 // Singleton macros
-#define CHI_CLIENT hshm::Singleton<chm::Client>::GetInstance()
-#define CHI_CLIENT_T chm::Client*
+#define CHI_CLIENT hshm::Singleton<chi::Client>::GetInstance()
+#define CHI_CLIENT_T chi::Client*
 #define HRUN_CLIENT CHI_CLIENT
 #define HRUN_CLIENT_T CHI_CLIENT_T
 
-namespace chm {
+namespace chi {
 
 class Client : public ConfigurationManager {
  public:
@@ -411,27 +412,33 @@ hipc::LPointer<CUSTOM##Task> Async##CUSTOM(Task *parent_task,\
   hipc::LPointer<CUSTOM##Task> task = Async##CUSTOM##Alloc(\
     task_node, std::forward<Args>(args)...);\
   task->YieldInit(parent_task);\
+  std::vector<ResolvedDomainQuery> resolved =\
+    CHI_RPC->ResolveDomainQuery(task->task_state_, task->dom_query_, false);\
   MultiQueue *queue = CHI_CLIENT->GetQueue(queue_id_);\
-  queue->Emplace(task.ptr_->prio_, task.ptr_->GetLaneId(), task.shm_);\
-  return task;\
-}\
-template<typename ...Args>\
-hipc::LPointer<CUSTOM##Task>\
-Async##CUSTOM##Emplace(MultiQueue *queue,\
-                       const TaskNode &task_node,\
-                       Args&& ...args) {\
-  hipc::LPointer<CUSTOM##Task> task =\
-    Async##CUSTOM##Alloc(task_node, std::forward<Args>(args)...);\
-  queue->Emplace(task.ptr_->prio_, task.ptr_->GetLaneId(), task.shm_);\
+  DomainQuery dom_query = resolved[0].dom_;\
+  if (resolved.size() == 1 && resolved[0].node_ == CHI_RPC->node_id_ &&\
+      dom_query.flags_.All(DomainQuery::kLocal | DomainQuery::kId)) {\
+    LaneGroup &lane_group = queue->GetGroup(task->prio_);\
+    u32 lane_id = dom_query.sel_.id_ % lane_group.num_lanes_;\
+    Lane &lane = lane_group.GetLane(lane_id);\
+    lane.emplace(task.shm_);\
+  } else {\
+    queue->Emplace(task->prio_,\
+                   std::hash<chi::DomainQuery>{}(task->dom_query_),\
+                   task.shm_);\
+  }\
   return task;\
 }\
 template<typename ...Args>\
 hipc::LPointer<CUSTOM##Task>\
 Async##CUSTOM##Root(Args&& ...args) {\
   TaskNode task_node = CHI_CLIENT->MakeTaskNodeId();\
-  hipc::LPointer<CUSTOM##Task> task =\
-    Async##CUSTOM(nullptr, task_node,\
-                  std::forward<Args>(args)...);\
+  hipc::LPointer<CUSTOM##Task> task = Async##CUSTOM##Alloc(\
+      task_node, std::forward<Args>(args)...);\
+  MultiQueue *queue = CHI_CLIENT->GetQueue(queue_id_);\
+  queue->Emplace(TaskPrio::kLowLatency,\
+                 std::hash<chi::DomainQuery>{}(task->dom_query_),\
+                 task.shm_);\
   return task;\
 }
 
@@ -455,7 +462,7 @@ constexpr inline void CALL_COPY_START(TaskT *orig_task,
   }
 }
 
-}  // namespace chm
+}  // namespace chi
 
 static inline bool CHIMAERA_CLIENT_INIT() {
   if (!CHI_CLIENT->IsInitialized() &&

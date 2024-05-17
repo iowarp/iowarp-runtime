@@ -6,7 +6,7 @@
 #include "chimaera/queue_manager/queue_manager_client.h"
 #include "chimaera/chimaera_namespace.h"
 
-namespace chm::Admin {
+namespace chi::Admin {
 
 #include "chimaera_admin_methods.h"
 
@@ -434,6 +434,6 @@ struct UpdateDomainTask : public Task, TaskFlags<TF_SRL_SYM> {
   }
 };
 
-}  // namespace chm::Admin
+}  // namespace chi::Admin
 
 #endif  // HRUN_TASKS_CHI_ADMIN_INCLUDE_CHI_ADMIN_CHI_ADMIN_TASKS_H_

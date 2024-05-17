@@ -19,7 +19,7 @@
 #include "chimaera/config/config_server.h"
 #include "chimaera/config/config_server_default.h"
 
-namespace chm::config {
+namespace chi::config {
 
 /** parse work orchestrator info from YAML config */
 void ServerConfig::ParseWorkOrchestrator(YAML::Node yaml_conf) {
@@ -126,4 +126,4 @@ void ServerConfig::LoadDefault() {
   LoadText(kHrunServerDefaultConfigStr, false);
 }
 
-}  // namespace chm::config
+}  // namespace chi::config

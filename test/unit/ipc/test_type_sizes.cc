@@ -27,15 +27,15 @@ TEST_CASE("TestTypeSizes") {
   HILOG(kInfo, "Size of float: {}", sizeof(float))
   HILOG(kInfo, "Size of double: {}", sizeof(double))
 
-  HILOG(kInfo, "Size of TaskStateId: {}", sizeof(chm::TaskStateId));
-  HILOG(kInfo, "Size of TaskId: {}", sizeof(chm::TaskId));
-  HILOG(kInfo, "Size of QueueId: {}", sizeof(chm::QueueId));
-  HILOG(kInfo, "Size of DomainId: {}", sizeof(chm::DomainId));
-  HILOG(kInfo, "Size of SubDomainId: {}", sizeof(chm::SubDomainId));
-  HILOG(kInfo, "Size of DomainId: {}", sizeof(chm::DomainId));
-  HILOG(kInfo, "Size of DomainSelection: {}", sizeof(chm::DomainSelection));
-  HILOG(kInfo, "Size of DomainQuery: {}", sizeof(chm::DomainQuery));
-  HILOG(kInfo, "Size of DomainQuery: {}", sizeof(chm::DomainQuery));
-  HILOG(kInfo, "Size of RunContext: {}", sizeof(chm::RunContext));
-  HILOG(kInfo, "Size of Task: {}", sizeof(chm::Task));
+  HILOG(kInfo, "Size of TaskStateId: {}", sizeof(chi::TaskStateId));
+  HILOG(kInfo, "Size of TaskId: {}", sizeof(chi::TaskId));
+  HILOG(kInfo, "Size of QueueId: {}", sizeof(chi::QueueId));
+  HILOG(kInfo, "Size of DomainId: {}", sizeof(chi::DomainId));
+  HILOG(kInfo, "Size of SubDomainId: {}", sizeof(chi::SubDomainId));
+  HILOG(kInfo, "Size of DomainId: {}", sizeof(chi::DomainId));
+  HILOG(kInfo, "Size of DomainSelection: {}", sizeof(chi::DomainSelection));
+  HILOG(kInfo, "Size of DomainQuery: {}", sizeof(chi::DomainQuery));
+  HILOG(kInfo, "Size of DomainQuery: {}", sizeof(chi::DomainQuery));
+  HILOG(kInfo, "Size of RunContext: {}", sizeof(chi::RunContext));
+  HILOG(kInfo, "Size of Task: {}", sizeof(chi::Task));
 }

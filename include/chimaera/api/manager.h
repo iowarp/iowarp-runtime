@@ -19,7 +19,7 @@
 #include "chimaera/config/config_server.h"
 #include "chimaera/queue_manager/queue_manager.h"
 
-namespace chm {
+namespace chi {
 
 /** Shared-memory header for HRUN */
 struct HrunShm {
@@ -94,6 +94,6 @@ class ConfigurationManager {
   }
 };
 
-}  // namespace chm
+}  // namespace chi
 
 #endif  // HRUN_INCLUDE_HRUN_MANAGER_MANAGER_H_

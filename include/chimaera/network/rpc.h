@@ -28,7 +28,12 @@
 #include "chimaera/chimaera_types.h"
 #include "chimaera/config/config_server.h"
 
-namespace chm {
+namespace chi {
+
+/** Create RPC singleton */
+#define CHI_RPC \
+  hshm::Singleton<RpcContext>::GetInstance()
+#define HRUN_RPC CHI_RPC
 
 /** Uniquely identify a host machine */
 struct HostInfo {

@@ -14,4 +14,4 @@
 #include "chimaera/api/chimaera_client.h"
 
 /** Runtime singleton */
-DEFINE_SINGLETON_CC(chm::Client)
+DEFINE_SINGLETON_CC(chi::Client)

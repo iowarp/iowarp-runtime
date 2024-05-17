@@ -10,7 +10,7 @@
 #include "chimaera_admin/chimaera_admin.h"
 #include "chimaera/queue_manager/queue_manager_client.h"
 
-namespace chm::small_message {
+namespace chi::small_message {
 
 #include "small_message_methods.h"
 #include "chimaera/chimaera_namespace.h"
@@ -18,7 +18,7 @@ namespace chm::small_message {
 /**
  * A task to create small_message
  * */
-using chm::Admin::CreateTaskStateTask;
+using chi::Admin::CreateTaskStateTask;
 struct CreateTask : public CreateTaskStateTask {
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
@@ -38,7 +38,7 @@ struct CreateTask : public CreateTaskStateTask {
 };
 
 /** A task to destroy small_message */
-using chm::Admin::DestroyTaskStateTask;
+using chi::Admin::DestroyTaskStateTask;
 struct DestructTask : public DestroyTaskStateTask {
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
@@ -176,6 +176,6 @@ struct IoTask : public Task, TaskFlags<TF_SRL_SYM> {
   }
 };
 
-}  // namespace chm
+}  // namespace chi
 
 #endif  // HRUN_TASKS_SMALL_MESSAGE_INCLUDE_SMALL_MESSAGE_SMALL_MESSAGE_TASKS_H_

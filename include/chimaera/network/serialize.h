@@ -18,7 +18,7 @@
 #include "chimaera/api/chimaera_client.h"
 #include <sstream>
 
-namespace chm {
+namespace chi {
 
 /**
  * Sender writes to data_
@@ -378,6 +378,6 @@ class BinaryInputArchive {
   }
 };
 
-}  // namespace chm
+}  // namespace chi
 
 #endif  // HRUN_INCLUDE_HRUN_NETWORK_SERIALIZE_H_

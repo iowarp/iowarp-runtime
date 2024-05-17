@@ -20,7 +20,7 @@
 #include "hermes_shm/types/qtok.h"
 #include "chimaera/chimaera_types.h"
 
-namespace chm {
+namespace chi {
 
 /** Forward declaration of mpsc_queue */
 template<typename T>

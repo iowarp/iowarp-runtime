@@ -15,7 +15,7 @@
 
 #include "TASK_NAME_tasks.h"
 
-namespace chm::TASK_NAME {
+namespace chi::TASK_NAME {
 
 /** Create TASK_NAME requests */
 class Client : public TaskLibClient {
@@ -71,6 +71,6 @@ class Client : public TaskLibClient {
   CHI_TASK_METHODS(Custom);
 };
 
-}  // namespace chm
+}  // namespace chi
 
 #endif  // HRUN_TASK_NAME_H_

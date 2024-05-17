@@ -8,7 +8,7 @@
 #include "chimaera/queue_manager/queue.h"
 #include "mpsc_queue.h"
 
-namespace chm {
+namespace chi {
 
 /** The data stored in a lane */
 struct LaneData {
@@ -22,7 +22,7 @@ struct LaneData {
 };
 
 /** Represents a lane tasks can be stored */
-typedef chm::mpsc_queue<LaneData> Lane;
+typedef chi::mpsc_queue<LaneData> Lane;
 
 /** Prioritization of different lanes in the queue */
 struct LaneGroup : public PriorityInfo, public hipc::ShmContainer {
@@ -366,7 +366,7 @@ struct MultiQueueT<Hshm> : public hipc::ShmContainer {
   }
 };
 
-}  // namespace chm
+}  // namespace chi
 
 
 #endif  // HRUN_INCLUDE_HRUN_QUEUE_MANAGER_HSHM_QUEUE_H_

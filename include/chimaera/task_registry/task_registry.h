@@ -25,7 +25,7 @@
 
 namespace stdfs = std::filesystem;
 
-namespace chm {
+namespace chi {
 
 /** All information needed to create a trait */
 struct TaskLibInfo {
@@ -370,6 +370,6 @@ class TaskRegistry {
 #define CHI_TASK_REGISTRY \
   (&CHI_RUNTIME->task_registry_)
 #define HRUN_TASK_REGISTRY CHI_TASK_REGISTRY
-}  // namespace chm
+}  // namespace chi
 
 #endif  // HRUN_INCLUDE_HRUN_TASK_TASK_REGISTRY_H_

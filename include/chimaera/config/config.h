@@ -22,7 +22,7 @@
 #include <limits>
 #include "hermes_shm/util/config_parse.h"
 
-namespace chm::config {
+namespace chi::config {
 
 /**
  * Base class for configuration files
@@ -76,6 +76,6 @@ class BaseConfig {
   virtual void ParseYAML(YAML::Node &yaml_conf) = 0;
 };
 
-}  // namespace chm::config
+}  // namespace chi::config
 
 #endif  // HRUN_SRC_CONFIG_H_

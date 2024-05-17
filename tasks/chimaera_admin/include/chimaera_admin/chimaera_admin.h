@@ -3,7 +3,7 @@
 
 #include "chimaera_admin_tasks.h"
 
-namespace chm::Admin {
+namespace chi::Admin {
 
 /** Create admin requests */
 class Client : public TaskLibClient {
@@ -194,9 +194,9 @@ class Client : public TaskLibClient {
   HRUN_TASK_NODE_ADMIN_ROOT(GetDomainSize)
 };
 
-}  // namespace chm::Admin
+}  // namespace chi::Admin
 
 #define CHI_ADMIN \
-  hshm::EasySingleton<chm::Admin::Client>::GetInstance()
+  hshm::EasySingleton<chi::Admin::Client>::GetInstance()
 
 #endif  // HRUN_TASKS_CHI_ADMIN_CHI_ADMIN_H_
