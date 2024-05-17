@@ -33,7 +33,7 @@ class Client : public TaskLibClient {
     task->Wait();
     CHI_CLIENT->DelTask(task);
   }
-  HRUN_TASK_NODE_ADMIN_ROOT(RegisterTaskLib)
+  CHIMAERA_TASK_NODE_ROOT(RegisterTaskLib)
 
   /** Unregister a task */
   HSHM_ALWAYS_INLINE
@@ -53,7 +53,7 @@ class Client : public TaskLibClient {
     task->Wait();
     CHI_CLIENT->DelTask(task);
   }
-  HRUN_TASK_NODE_ADMIN_ROOT(DestroyTaskLib)
+  CHIMAERA_TASK_NODE_ROOT(DestroyTaskLib)
 
   /** Spawn a task state */
   template<typename CreateTaskStateT>
@@ -79,7 +79,7 @@ class Client : public TaskLibClient {
     CHI_CLIENT->DelTask(task);
     return new_id;
   }
-  HRUN_TASK_NODE_ADMIN_ROOT(GetTaskStateId)
+  CHIMAERA_TASK_NODE_ROOT(GetTaskStateId)
 
   /** Terminate a task state */
   HSHM_ALWAYS_INLINE
@@ -98,27 +98,28 @@ class Client : public TaskLibClient {
     task->Wait();
     CHI_CLIENT->DelTask(task);
   }
-  HRUN_TASK_NODE_ADMIN_ROOT(DestroyTaskState)
+  CHIMAERA_TASK_NODE_ROOT(DestroyTaskState)
 
   /** Terminate the runtime */
   void AsyncStopRuntimeConstruct(StopRuntimeTask *task,
                                  const TaskNode &task_node,
-                                 const DomainQuery &dom_query) {
+                                 const DomainQuery &dom_query,
+                                 bool root) {
     CHI_CLIENT->ConstructTask<StopRuntimeTask>(
-        task, task_node, dom_query);
+        task, task_node, dom_query, root);
   }
-  HRUN_TASK_NODE_ADMIN_ROOT(StopRuntime);
   void StopRuntimeRoot() {
     HILOG(kInfo, "Beginning to flush the runtime.\n"
                  "If you did async I/O, this may take some time.\n"
                  "All unflushed data will be written to the PFS.");
     FlushRoot(DomainQuery::GetLaneGlobalBcast());
     HILOG(kInfo, "Stopping the runtime");
-//    AsyncStopRuntimeRoot(DomainQuery::GetGlobal(
-//        SubDomainId::kLaneSet, DomainQuery::kBroadcastThisLast));
+    AsyncStopRuntimeRoot(DomainQuery::GetDirectHash(
+        SubDomainId::kLocalLaneSet, 0), true);
     HILOG(kInfo, "All done!");
     exit(1);
   }
+  CHIMAERA_TASK_NODE_ROOT(StopRuntime);
 
   /** Set work orchestrator queue policy */
   void AsyncSetWorkOrchQueuePolicyConstruct(SetWorkOrchQueuePolicyTask *task,
@@ -135,7 +136,7 @@ class Client : public TaskLibClient {
     task->Wait();
     CHI_CLIENT->DelTask(task);
   }
-  HRUN_TASK_NODE_ADMIN_ROOT(SetWorkOrchQueuePolicy);
+  CHIMAERA_TASK_NODE_ROOT(SetWorkOrchQueuePolicy);
 
   /** Set work orchestrator process policy */
   void AsyncSetWorkOrchProcPolicyConstruct(SetWorkOrchProcPolicyTask *task,
@@ -152,7 +153,7 @@ class Client : public TaskLibClient {
     task->Wait();
     CHI_CLIENT->DelTask(task);
   }
-  HRUN_TASK_NODE_ADMIN_ROOT(SetWorkOrchProcPolicy);
+  CHIMAERA_TASK_NODE_ROOT(SetWorkOrchProcPolicy);
 
   /** Flush the runtime */
   void AsyncFlushConstruct(FlushTask *task,
@@ -172,7 +173,7 @@ class Client : public TaskLibClient {
       HILOG(kDebug, "Total flush work done: {}", work_done);
     } while (work_done > 0);
   }
-  HRUN_TASK_NODE_ADMIN_ROOT(Flush);
+  CHIMAERA_TASK_NODE_ROOT(Flush);
 
   /** Flush the runtime */
   void AsyncGetDomainSizeConstruct(GetDomainSizeTask *task,
@@ -191,7 +192,7 @@ class Client : public TaskLibClient {
     CHI_CLIENT->DelTask(task);
     return dom_size;
   }
-  HRUN_TASK_NODE_ADMIN_ROOT(GetDomainSize)
+  CHIMAERA_TASK_NODE_ROOT(GetDomainSize)
 };
 
 }  // namespace chi::Admin

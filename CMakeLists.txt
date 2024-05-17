@@ -12,6 +12,8 @@ option(CHIMAERA_ENABLE_COVERAGE "Check how well tests cover code" OFF)
 option(CHIMAERA_ENABLE_DOXYGEN "Check how well the code is documented" OFF)
 option(CHIMAERA_TASK_DEBUG "Debug tasks" OFF)
 option(CHIMAERA_REMOTE_DEBUG "Debug remote tasks" OFF)
+option(CHIMAERA_ENABLE_JEMALLOC "Use jemalloc as the allocator" OFF)
+option(CHIMAERA_ENABLE_MIMALLOC "Use mimalloc as the allocator" OFF)
 
 #-----------------------------------------------------------------------------
 # Compiler Optimization
@@ -108,6 +110,27 @@ if (Boost_FOUND)
     message(STATUS "found boost at ${Boost_INCLUDE_DIRS}")
 endif()
 include_directories(${Boost_INCLUDE_DIRS})
+
+# Choose an allocator
+set(ALLOCATOR_LIBRARIES "")
+
+# jemalloc
+if (CHIMAERA_ENABLE_JEMALLOC)
+    pkg_check_modules (JEMALLOC jemalloc)
+    pkg_search_module(JEMALLOC REQUIRED jemalloc)
+    include_directories(${JEMALLOC_INCLUDE_DIRS})
+    link_directories(${JEMALLOC_LIBRARY_DIRS})
+    set(ALLOCATOR_LIBRARIES ${JEMALLOC_LIBRARIES})
+endif()
+
+# mimmalloc
+if (CHIMAERA_ENABLE_MIMALLOC)
+    find_package(mimalloc REQUIRED)
+    if (mimalloc_FOUND)
+        message(STATUS "found mimalloc at ${mimalloc_DIR}")
+    endif()
+    set(ALLOCATOR_LIBRARIES mimalloc)
+endif()
 
 #------------------------------------------------------------------------------
 # Setup CMake Environment

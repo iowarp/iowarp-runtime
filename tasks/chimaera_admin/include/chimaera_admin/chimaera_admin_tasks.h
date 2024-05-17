@@ -236,6 +236,8 @@ struct DestroyTaskStateTask : public Task, TaskFlags<TF_SRL_SYM> {
 
 /** A task to stop a runtime */
 struct StopRuntimeTask : public Task, TaskFlags<TF_SRL_SYM> {
+  IN bool root_;
+
   /** SHM default constructor */
   StopRuntimeTask(hipc::Allocator *alloc) : Task(alloc) {}
 
@@ -243,7 +245,8 @@ struct StopRuntimeTask : public Task, TaskFlags<TF_SRL_SYM> {
   HSHM_ALWAYS_INLINE explicit
   StopRuntimeTask(hipc::Allocator *alloc,
                   const TaskNode &task_node,
-                  const DomainQuery &dom_query) : Task(alloc) {
+                  const DomainQuery &dom_query,
+                  bool root) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrio::kLowLatency;
@@ -251,15 +254,19 @@ struct StopRuntimeTask : public Task, TaskFlags<TF_SRL_SYM> {
     method_ = Method::kStopRuntime;
     task_flags_.SetBits(TASK_FLUSH | TASK_FIRE_AND_FORGET);
     dom_query_ = dom_query;
+
+    root_ = root;
   }
 
   /** Duplicate message */
   void CopyStart(StopRuntimeTask &other, bool deep) {
+    root_ = other.root_;
   }
 
   /** (De)serialize message call */
   template<typename Ar>
   void SerializeStart(Ar &ar) {
+    ar(root_);
   }
 
   /** (De)serialize message return */

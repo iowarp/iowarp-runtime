@@ -32,7 +32,6 @@ static inline pid_t GetLinuxTid() {
 #define HSHM_WORKER_SHOULD_RUN BIT_OPT(u32, 2)
 #define HSHM_WORKER_IS_FLUSHING BIT_OPT(u32, 3)
 #define HSHM_WORKER_LONG_RUNNING BIT_OPT(u32, 4)
-#define HSHM_WORKER_IS_CONSTRUCT BIT_OPT(u32, 5)
 
 namespace chi {
 
@@ -481,7 +480,7 @@ class Worker {
 
  public:
   /**===============================================================
-   * Initialize Worker and Change Utilization
+   * Initialize Worker
    * =============================================================== */
 
   /** Constructor */
@@ -520,145 +519,6 @@ class Worker {
     retries_ = 1;
     pid_ = 0;
     // pthread_id_ = GetLinuxTid();
-  }
-
-  /** Join worker */
-  void Join() {
-    // thread_->join();
-    ABT_xstream_join(xstream_);
-  }
-
-  /** Get the pending queue for a worker */
-  PrivateTaskMultiQueue& GetPendingQueue(Task *task) {
-    PrivateTaskMultiQueue &pending =
-        HRUN_WORK_ORCHESTRATOR->workers_[task->rctx_.worker_id_]->active_;
-    return pending;
-  }
-
-  /** Tell worker to poll a set of queues */
-  void PollQueues(const std::vector<WorkEntry> &queues) {
-    poll_queues_.emplace(queues);
-  }
-
-  /** Actually poll the queues from within the worker */
-  void _PollQueues() {
-    std::vector<WorkEntry> work_queue;
-    while (!poll_queues_.pop(work_queue).IsNull()) {
-      for (const WorkEntry &entry : work_queue) {
-        if (entry.queue_->id_ == HRUN_QM_RUNTIME->process_queue_id_) {
-          HILOG(kDebug, "Worker {}: Scheduled queue {} (lane {}, prio {}) as a proc queue",
-                id_, entry.queue_->id_, entry.lane_id_, entry.prio_);
-          work_proc_queue_.emplace_back(entry);
-        } else {
-          HILOG(kDebug, "Worker {}: Scheduled queue {} (lane {}, prio {}) as an inter queue",
-                id_, entry.queue_->id_, entry.lane_id_, entry.prio_);
-          work_inter_queue_.emplace_back(entry);
-        }
-      }
-    }
-  }
-
-  /**
-   * Tell worker to start relinquishing some of its queues
-   * This function must be called from a single thread (outside of worker)
-   * */
-  void RelinquishingQueues(const std::vector<WorkEntry> &queues) {
-    relinquish_queues_.emplace(queues);
-  }
-
-  /** Actually relinquish the queues from within the worker */
-  void _RelinquishQueues() {
-  }
-
-  /** Check if worker is still stealing queues */
-  bool IsRelinquishingQueues() {
-    return relinquish_queues_.size() > 0;
-  }
-
-  /** Set the sleep cycle */
-  void SetPollingFrequency(size_t sleep_us, u32 num_retries) {
-    sleep_us_ = sleep_us;
-    retries_ = num_retries;
-    flags_.UnsetBits(WORKER_CONTINUOUS_POLLING);
-  }
-
-  /** Enable continuous polling */
-  void EnableContinuousPolling() {
-    flags_.SetBits(WORKER_CONTINUOUS_POLLING);
-  }
-
-  /** Disable continuous polling */
-  void DisableContinuousPolling() {
-    flags_.UnsetBits(WORKER_CONTINUOUS_POLLING);
-  }
-
-  /** Check if continuously polling */
-  bool IsContinuousPolling() {
-    return flags_.Any(WORKER_CONTINUOUS_POLLING);
-  }
-
-  /** Check if continuously polling */
-  void SetHighLatency() {
-    flags_.SetBits(WORKER_HIGH_LATENCY);
-  }
-
-  /** Check if continuously polling */
-  bool IsHighLatency() {
-    return flags_.Any(WORKER_HIGH_LATENCY);
-  }
-
-  /** Check if continuously polling */
-  void SetLowLatency() {
-    flags_.SetBits(WORKER_LOW_LATENCY);
-  }
-
-  /** Check if continuously polling */
-  bool IsLowLatency() {
-    return flags_.Any(WORKER_LOW_LATENCY);
-  }
-
-  /** Set the CPU affinity of this worker */
-  void SetCpuAffinity(int cpu_id) {
-    HILOG(kInfo, "Affining worker {} (pid={}) to {}", id_, pid_, cpu_id);
-    affinity_ = cpu_id;
-    ABT_xstream_set_affinity(xstream_, 1, &cpu_id);
-  }
-
-  /** Make maximum priority process */
-  void MakeDedicated() {
-    int policy = SCHED_FIFO;
-    struct sched_param param = { .sched_priority = 1 };
-    sched_setscheduler(0, policy, &param);
-  }
-
-  /** Worker yields for a period of time */
-  void Yield() {
-    if (flags_.Any(WORKER_CONTINUOUS_POLLING)) {
-      return;
-    }
-    if (sleep_us_ > 0) {
-      HERMES_THREAD_MODEL->SleepForUs(sleep_us_);
-    } else {
-      HERMES_THREAD_MODEL->Yield();
-    }
-  }
-
-  /** Allocate a stack for a task */
-  void* AllocateStack() {
-    void *stack;
-    if (!stacks_.pop(stack).IsNull()) {
-      return stack;
-    }
-    return malloc(stack_size_);
-  }
-
-  /** Free a stack */
-  void FreeStack(void *stack) {
-    if(!stacks_.emplace(stack).IsNull()) {
-      return;
-    }
-    stacks_.Resize(stacks_.size() * 2 + num_stacks_);
-    stacks_.emplace(stack);
   }
 
   /**===============================================================
@@ -832,7 +692,6 @@ class Worker {
                                     dom_query,
                                     task,
                                     lane);
-
       if (route == TaskRouteMode::kRemoteWorker) {
         task->SetRemote();
       }
@@ -851,10 +710,10 @@ class Worker {
   /**
    * Detect if a DomainQuery is across nodes
    * */
-  TaskRouteMode Reroute(const TaskStateId &scope,
-                        DomainQuery &dom_query,
-                        LPointer<Task> task,
-                        Lane *lane) {
+  static TaskRouteMode Reroute(const TaskStateId &scope,
+                               DomainQuery &dom_query,
+                               LPointer<Task> task,
+                               Lane *lane) {
     std::vector<ResolvedDomainQuery> resolved =
         HRUN_RPC->ResolveDomainQuery(scope, dom_query, false);
     if (resolved.size() == 1 && resolved[0].node_ == CHI_RPC->node_id_) {
@@ -969,11 +828,6 @@ class Worker {
       pushback = false;
       // active_.erase(queue.id_);
       active_.erase(queue.id_, entry);
-      if (props.Any(HSHM_WORKER_IS_CONSTRUCT)) {
-        TaskStateId id =
-            ((chi::Admin::CreateTaskStateTask*)task.ptr_)->ctx_.id_;
-        exec = GetTaskState(id, task->GetLaneId());
-      }
       EndTask(exec, task);
     } else if (task->IsBlocked()) {
       pushback = false;
@@ -1030,9 +884,6 @@ class Worker {
 
     bool group_avail = true;
     bool should_run = task->ShouldRun(cur_time, flushing);
-    if (task->method_ == TaskMethod::kCreate) {
-      props.SetBits(HSHM_WORKER_IS_CONSTRUCT);
-    }
     if (task->IsRemote()) {
       props.SetBits(HSHM_WORKER_IS_REMOTE);
     }
@@ -1128,13 +979,152 @@ class Worker {
   }
 
   /**===============================================================
-   * Task Ordering and Completion
+   * Helpers
    * =============================================================== */
 
   /** Get task state */
   HSHM_ALWAYS_INLINE
   TaskState* GetTaskState(const TaskStateId &state_id, u32 lane_id) {
     return HRUN_TASK_REGISTRY->GetTaskState(state_id, lane_id);
+  }
+
+  /** Join worker */
+  void Join() {
+    // thread_->join();
+    ABT_xstream_join(xstream_);
+  }
+
+  /** Get the pending queue for a worker */
+  PrivateTaskMultiQueue& GetPendingQueue(Task *task) {
+    PrivateTaskMultiQueue &pending =
+        HRUN_WORK_ORCHESTRATOR->workers_[task->rctx_.worker_id_]->active_;
+    return pending;
+  }
+
+  /** Tell worker to poll a set of queues */
+  void PollQueues(const std::vector<WorkEntry> &queues) {
+    poll_queues_.emplace(queues);
+  }
+
+  /** Actually poll the queues from within the worker */
+  void _PollQueues() {
+    std::vector<WorkEntry> work_queue;
+    while (!poll_queues_.pop(work_queue).IsNull()) {
+      for (const WorkEntry &entry : work_queue) {
+        if (entry.queue_->id_ == HRUN_QM_RUNTIME->process_queue_id_) {
+          HILOG(kDebug, "Worker {}: Scheduled queue {} (lane {}, prio {}) as a proc queue",
+                id_, entry.queue_->id_, entry.lane_id_, entry.prio_);
+          work_proc_queue_.emplace_back(entry);
+        } else {
+          HILOG(kDebug, "Worker {}: Scheduled queue {} (lane {}, prio {}) as an inter queue",
+                id_, entry.queue_->id_, entry.lane_id_, entry.prio_);
+          work_inter_queue_.emplace_back(entry);
+        }
+      }
+    }
+  }
+
+  /**
+   * Tell worker to start relinquishing some of its queues
+   * This function must be called from a single thread (outside of worker)
+   * */
+  void RelinquishingQueues(const std::vector<WorkEntry> &queues) {
+    relinquish_queues_.emplace(queues);
+  }
+
+  /** Actually relinquish the queues from within the worker */
+  void _RelinquishQueues() {
+  }
+
+  /** Check if worker is still stealing queues */
+  bool IsRelinquishingQueues() {
+    return relinquish_queues_.size() > 0;
+  }
+
+  /** Set the sleep cycle */
+  void SetPollingFrequency(size_t sleep_us, u32 num_retries) {
+    sleep_us_ = sleep_us;
+    retries_ = num_retries;
+    flags_.UnsetBits(WORKER_CONTINUOUS_POLLING);
+  }
+
+  /** Enable continuous polling */
+  void EnableContinuousPolling() {
+    flags_.SetBits(WORKER_CONTINUOUS_POLLING);
+  }
+
+  /** Disable continuous polling */
+  void DisableContinuousPolling() {
+    flags_.UnsetBits(WORKER_CONTINUOUS_POLLING);
+  }
+
+  /** Check if continuously polling */
+  bool IsContinuousPolling() {
+    return flags_.Any(WORKER_CONTINUOUS_POLLING);
+  }
+
+  /** Check if continuously polling */
+  void SetHighLatency() {
+    flags_.SetBits(WORKER_HIGH_LATENCY);
+  }
+
+  /** Check if continuously polling */
+  bool IsHighLatency() {
+    return flags_.Any(WORKER_HIGH_LATENCY);
+  }
+
+  /** Check if continuously polling */
+  void SetLowLatency() {
+    flags_.SetBits(WORKER_LOW_LATENCY);
+  }
+
+  /** Check if continuously polling */
+  bool IsLowLatency() {
+    return flags_.Any(WORKER_LOW_LATENCY);
+  }
+
+  /** Set the CPU affinity of this worker */
+  void SetCpuAffinity(int cpu_id) {
+    HILOG(kInfo, "Affining worker {} (pid={}) to {}", id_, pid_, cpu_id);
+    affinity_ = cpu_id;
+    ABT_xstream_set_affinity(xstream_, 1, &cpu_id);
+  }
+
+  /** Make maximum priority process */
+  void MakeDedicated() {
+    int policy = SCHED_FIFO;
+    struct sched_param param = { .sched_priority = 1 };
+    sched_setscheduler(0, policy, &param);
+  }
+
+  /** Worker yields for a period of time */
+  void Yield() {
+    if (flags_.Any(WORKER_CONTINUOUS_POLLING)) {
+      return;
+    }
+    if (sleep_us_ > 0) {
+      HERMES_THREAD_MODEL->SleepForUs(sleep_us_);
+    } else {
+      HERMES_THREAD_MODEL->Yield();
+    }
+  }
+
+  /** Allocate a stack for a task */
+  void* AllocateStack() {
+    void *stack;
+    if (!stacks_.pop(stack).IsNull()) {
+      return stack;
+    }
+    return malloc(stack_size_);
+  }
+
+  /** Free a stack */
+  void FreeStack(void *stack) {
+    if(!stacks_.emplace(stack).IsNull()) {
+      return;
+    }
+    stacks_.Resize(stacks_.size() * 2 + num_stacks_);
+    stacks_.emplace(stack);
   }
 };
 

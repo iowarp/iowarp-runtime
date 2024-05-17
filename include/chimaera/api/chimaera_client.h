@@ -443,7 +443,6 @@ Async##CUSTOM##Root(Args&& ...args) {\
 }
 
 #define CHI_TASK_METHODS(CUSTOM) CHIMAERA_TASK_NODE_ROOT(CUSTOM)
-#define HRUN_TASK_NODE_ADMIN_ROOT(CUSTOM) CHIMAERA_TASK_NODE_ROOT(CUSTOM)
 
 /** Call duplicate if applicable */
 template<typename TaskT>

@@ -546,8 +546,6 @@ struct DomainQuery {
   /** Iteration algos */
   CLS_CONST DomainFlag kBroadcast =
       BIT_OPT(DomainFlag, 15);
-  CLS_CONST DomainFlag kBroadcastThisLast =
-      BIT_OPT(DomainFlag, 16);
   CLS_CONST DomainFlag kRepUntilSuccess =
       BIT_OPT(DomainFlag, 18);
   CLS_CONST DomainFlag kChooseOne =
@@ -563,7 +561,7 @@ struct DomainQuery {
 
   /** Get iteration flags */
   DomainFlag GetIterFlags() const {
-    return flags_.bits_ & (kBroadcast | kBroadcastThisLast |
+    return flags_.bits_ & (kBroadcast |
                            kRepUntilSuccess | kChooseOne |
                            kForwardToLeader);
   }
@@ -722,8 +720,6 @@ struct DomainQuery {
     std::string iter;
     if (dom_query.flags_.Any(kBroadcast)) {
       iter = "broadcast";
-    } else if (dom_query.flags_.Any(kBroadcastThisLast)) {
-      iter = "broadcast_this_last";
     } else if (dom_query.flags_.Any(kRepUntilSuccess)) {
       iter = "rep_until_success";
     } else if (dom_query.flags_.Any(kChooseOne)) {

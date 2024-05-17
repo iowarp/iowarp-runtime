@@ -16,14 +16,16 @@ target_link_libraries(chimaera_client
   yaml-cpp
   cereal::cereal
   thallium
-  -ldl -lrt -lc -pthread)
+  -ldl -lrt -lc -pthread
+  ${ALLOCATOR_LIBRARIES})
 
 #------------------------------------------------------------------------------
 # Build Hrun Runtime Library
 #------------------------------------------------------------------------------
 add_library(chimaera_runtime
         work_orchestrator.cc
-        chimaera_runtime.cc)
+        chimaera_runtime.cc
+        ${ALLOCATOR_LIBRARIES})
 add_dependencies(chimaera_runtime ${Chimaera_CLIENT_DEPS})
 target_link_libraries(chimaera_runtime thallium ${Chimaera_CLIENT_LIBRARIES})
 #------------------------------------------------------------------------------
@@ -32,14 +34,16 @@ target_link_libraries(chimaera_runtime thallium ${Chimaera_CLIENT_LIBRARIES})
 add_executable(chimaera_start_runtime
         chimaera_start_runtime.cc)
 add_dependencies(chimaera_start_runtime ${Chimaera_RUNTIME_DEPS})
-target_link_libraries(chimaera_start_runtime ${Chimaera_RUNTIME_LIBRARIES})
+target_link_libraries(chimaera_start_runtime ${Chimaera_RUNTIME_LIBRARIES}
+        ${ALLOCATOR_LIBRARIES})
 
 #------------------------------------------------------------------------------
 # Build HRUN Runtime Stop Function
 #------------------------------------------------------------------------------
 add_executable(chimaera_stop_runtime chimaera_stop_runtime.cc)
 add_dependencies(chimaera_stop_runtime ${Chimaera_RUNTIME_DEPS})
-target_link_libraries(chimaera_stop_runtime ${Chimaera_RUNTIME_LIBRARIES})
+target_link_libraries(chimaera_stop_runtime ${Chimaera_RUNTIME_LIBRARIES}
+        ${ALLOCATOR_LIBRARIES})
 
 #-----------------------------------------------------------------------------
 # Add file(s) to CMake Install
