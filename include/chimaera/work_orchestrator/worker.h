@@ -147,6 +147,13 @@ struct PrivateTaskQueueEntry {
   PrivateTaskQueueEntry(const LPointer<Task> &task,
                         const DomainQuery &res_query)
   : task_(task), res_query_(res_query) {}
+  template<typename TaskT>
+  PrivateTaskQueueEntry(const LPointer<TaskT> &task,
+                        const DomainQuery &res_query)
+      : res_query_(res_query) {
+    task_.ptr_ = (Task*)task.ptr_;
+    task_.shm_ = task.shm_;
+  }
 
   PrivateTaskQueueEntry(const PrivateTaskQueueEntry &other) {
     task_ = other.task_;
@@ -766,9 +773,10 @@ class Worker {
       if (entry.task_.ptr_ == nullptr) {
         break;
       }
-      bool pushback = RunTask(queue, entry,
-              entry.task_,
-              flushing);
+      bool pushback = RunTask(
+          queue, entry,
+          entry.task_,
+          flushing);
       if (pushback) {
         queue.push(entry);
       }
@@ -779,7 +787,6 @@ class Worker {
   }
 
   /** Run a task */
-  HSHM_ALWAYS_INLINE
   bool RunTask(PrivateTaskQueue &queue,
                PrivateTaskQueueEntry &entry,
                LPointer<Task> task,
@@ -810,6 +817,7 @@ class Worker {
     bitfield32_t props =
         GetTaskProperties(task.ptr_, cur_time_,
                           flushing);
+    // Allocate remote task and execute here
     // Execute the task based on its properties
     if (!task->IsLongRunning()) {
       HILOG(kDebug, "Worker {}: Running task {} (id: {}) on queue {}",
@@ -817,7 +825,7 @@ class Worker {
             task->task_node_, queue.id_);
     }
     if (!task->IsModuleComplete()) {
-      ExecTask(task.ptr_, rctx, exec, props);
+      ExecTask(queue, entry, task.ptr_, rctx, exec, props);
     }
     // Cleanup allocations
     bool pushback = true;
@@ -831,80 +839,15 @@ class Worker {
       EndTask(exec, task);
     } else if (task->IsBlocked()) {
       pushback = false;
-      // active_.block(queue.id_);
-      active_.block(entry);
     }
     return pushback;
   }
 
-  /** Unblock a task */
-  static void SignalUnblock(Task *unblock_task) {
-    LPointer<Task> ltask;
-    ltask.ptr_ = unblock_task;
-    ltask.shm_ = HERMES_MEMORY_MANAGER->Convert(ltask.ptr_);
-    SignalUnblock(ltask);
-  }
-
-  /** Externally signal a task as complete */
-  HSHM_ALWAYS_INLINE
-  static void SignalUnblock(LPointer<Task> &unblock_task) {
-    Worker &worker = HRUN_WORK_ORCHESTRATOR->GetWorker(
-        unblock_task->rctx_.worker_id_);
-    PrivateTaskMultiQueue &pending =
-        worker.GetPendingQueue(unblock_task.ptr_);
-    pending.signal_unblock(pending, unblock_task);
-  }
-
-  /** Free a task when it is no longer needed */
-  HSHM_ALWAYS_INLINE
-  void EndTask(TaskState *exec, LPointer<Task> &task) {
-    if (task->ShouldSignalUnblock()) {
-      SignalUnblock(task->rctx_.pending_to_);
-    } else if (task->ShouldSignalRemoteComplete()) {
-      TaskState *remote_exec = GetTaskState(CHI_REMOTE_QUEUE->id_,
-                                            task->GetLaneId());
-      remote_exec->Run(chi::remote_queue::Method::kServerPushComplete,
-                       task.ptr_, task->rctx_);
-      task->SetComplete();
-      return;
-    }
-    if (exec && task->IsFireAndForget()) {
-      CHI_CLIENT->DelTask(exec, task.ptr_);
-    } else {
-      task->SetComplete();
-    }
-  }
-
-  /** Get the characteristics of a task */
-  HSHM_ALWAYS_INLINE
-  bitfield32_t GetTaskProperties(Task *&task,
-                                 hshm::Timepoint &cur_time,
-                                 bool flushing) {
-    bitfield32_t props;
-
-    bool group_avail = true;
-    bool should_run = task->ShouldRun(cur_time, flushing);
-    if (task->IsRemote()) {
-      props.SetBits(HSHM_WORKER_IS_REMOTE);
-    }
-    if (group_avail) {
-      props.SetBits(HSHM_WORKER_GROUP_AVAIL);
-    }
-    if (should_run) {
-      props.SetBits(HSHM_WORKER_SHOULD_RUN);
-    }
-    if (flushing) {
-      props.SetBits(HSHM_WORKER_IS_FLUSHING);
-    }
-    if (task->IsLongRunning()) {
-      props.SetBits(HSHM_WORKER_LONG_RUNNING);
-    }
-    return props;
-  }
-
   /** Run an arbitrary task */
   HSHM_ALWAYS_INLINE
-  void ExecTask(Task *&task,
+  void ExecTask(PrivateTaskQueue &queue,
+                PrivateTaskQueueEntry &entry,
+                Task *&task,
                 RunContext &rctx,
                 TaskState *&exec,
                 bitfield32_t &props) {
@@ -927,12 +870,24 @@ class Worker {
     // Attempt to run the task if it's ready and runnable
     if (props.Any(HSHM_WORKER_IS_REMOTE)) {
 //      HILOG(kInfo, "Automaking remote task {}", (size_t)task);
-      CHI_REMOTE_QUEUE->AsyncClientPushSubmit(
-          nullptr, task->task_node_ + 1,
+      task->SetBlocked();
+      active_.block(entry);
+      LPointer<remote_queue::ClientPushSubmitTask> remote_task =
+          CHI_REMOTE_QUEUE->AsyncClientPushSubmitAlloc(
+          task->task_node_ + 1,
           DomainQuery::GetDirectHash(SubDomainId::kLocalLaneSet, 0),
           task);
-      task->SetBlocked();
-    } if (task->IsCoroutine()) {
+      std::vector<ResolvedDomainQuery> resolved =
+          CHI_RPC->ResolveDomainQuery(remote_task->task_state_,
+                                      remote_task->dom_query_,
+                                      false);
+      PrivateTaskQueueEntry remote_entry{remote_task, resolved[0].dom_};
+      RunTask(queue, remote_entry, remote_entry.task_, false);
+      return;
+    }
+
+    // Actually execute the task
+    if (task->IsCoroutine()) {
       ExecCoroutine(task, rctx);
     } else {
       exec->Run(task->method_, task, rctx);
@@ -943,6 +898,10 @@ class Worker {
       exec->Monitor(MonitorMode::kEndTrainTime, task, rctx);
     }
     task->DidRun(cur_time_);
+    // Block the task
+    if (task->IsBlocked()) {
+      active_.block(entry);
+    }
   }
 
   /** Run a task */
@@ -978,9 +937,74 @@ class Worker {
     task->Yield<TASK_YIELD_CO>();
   }
 
+  /** Free a task when it is no longer needed */
+  HSHM_ALWAYS_INLINE
+  void EndTask(TaskState *exec, LPointer<Task> &task) {
+    if (task->ShouldSignalUnblock()) {
+      SignalUnblock(task->rctx_.pending_to_);
+    } else if (task->ShouldSignalRemoteComplete()) {
+      TaskState *remote_exec = GetTaskState(CHI_REMOTE_QUEUE->id_,
+                                            task->GetLaneId());
+      remote_exec->Run(chi::remote_queue::Method::kServerPushComplete,
+                       task.ptr_, task->rctx_);
+      task->SetComplete();
+      return;
+    }
+    if (exec && task->IsFireAndForget()) {
+      CHI_CLIENT->DelTask(exec, task.ptr_);
+    } else {
+      task->SetComplete();
+    }
+  }
+
   /**===============================================================
    * Helpers
    * =============================================================== */
+
+  /** Unblock a task */
+  static void SignalUnblock(Task *unblock_task) {
+    LPointer<Task> ltask;
+    ltask.ptr_ = unblock_task;
+    ltask.shm_ = HERMES_MEMORY_MANAGER->Convert(ltask.ptr_);
+    SignalUnblock(ltask);
+  }
+
+  /** Externally signal a task as complete */
+  HSHM_ALWAYS_INLINE
+  static void SignalUnblock(LPointer<Task> &unblock_task) {
+    Worker &worker = HRUN_WORK_ORCHESTRATOR->GetWorker(
+        unblock_task->rctx_.worker_id_);
+    PrivateTaskMultiQueue &pending =
+        worker.GetPendingQueue(unblock_task.ptr_);
+    pending.signal_unblock(pending, unblock_task);
+  }
+
+  /** Get the characteristics of a task */
+  HSHM_ALWAYS_INLINE
+  bitfield32_t GetTaskProperties(Task *&task,
+                                 hshm::Timepoint &cur_time,
+                                 bool flushing) {
+    bitfield32_t props;
+
+    bool group_avail = true;
+    bool should_run = task->ShouldRun(cur_time, flushing);
+    if (task->IsRemote()) {
+      props.SetBits(HSHM_WORKER_IS_REMOTE);
+    }
+    if (group_avail) {
+      props.SetBits(HSHM_WORKER_GROUP_AVAIL);
+    }
+    if (should_run) {
+      props.SetBits(HSHM_WORKER_SHOULD_RUN);
+    }
+    if (flushing) {
+      props.SetBits(HSHM_WORKER_IS_FLUSHING);
+    }
+    if (task->IsLongRunning()) {
+      props.SetBits(HSHM_WORKER_LONG_RUNNING);
+    }
+    return props;
+  }
 
   /** Get task state */
   HSHM_ALWAYS_INLINE

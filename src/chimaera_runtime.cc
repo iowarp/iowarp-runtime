@@ -131,17 +131,6 @@ void Runtime::ServerInit(std::string server_config_path) {
       DomainQuery::GetDirectHash(chi::SubDomainId::kLocalLaneSet, 0),
       proc_sched_id);
 
-//  hshm::Timer t;
-//  t.Resume();
-//  u32 dom_ops = 1000000;
-//  for (size_t i = 0; i < dom_ops; ++i) {
-//    HRUN_RPC->ResolveDomainQuery(CHI_ADMIN->id_,
-//                                 DomainQuery::GetDirectHash(chi::SubDomainId::kLocalLaneSet, 0),
-//                                 false);
-//  }
-//  t.Pause();
-//  HILOG(kInfo, "ResolveDomainQuery: {} nsec", t.GetNsec() / dom_ops);
-
   // Create the remote queue library
   task_registry_.RegisterTaskLib("remote_queue");
   remote_queue_.CreateRoot(

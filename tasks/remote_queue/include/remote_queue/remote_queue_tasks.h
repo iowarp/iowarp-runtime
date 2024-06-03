@@ -124,7 +124,15 @@ struct ServerPushCompleteTask : public Task, TaskFlags<TF_LOCAL> {
   ServerPushCompleteTask(hipc::Allocator *alloc,
                          const TaskNode &task_node,
                          const DomainQuery &dom_query,
-                         TaskStateId &state_id) : Task(alloc) {}
+                         TaskStateId &state_id) : Task(alloc) {
+    // Initialize task
+    task_node_ = task_node;
+    prio_ = TaskPrio::kLowLatency;
+    task_state_ = state_id;
+    method_ = Method::kServerPushComplete;
+    task_flags_.SetBits(TASK_REMOTE_DEBUG_MARK);
+    dom_query_ = dom_query;
+  }
 };
 
 struct ServerCompleteTask : public Task, TaskFlags<TF_LOCAL> {
@@ -143,7 +151,7 @@ struct ServerCompleteTask : public Task, TaskFlags<TF_LOCAL> {
     prio_ = TaskPrio::kHighLatency;
     task_state_ = state_id;
     method_ = Method::kServerComplete;
-    task_flags_.SetBits(TASK_LONG_RUNNING);
+    task_flags_.SetBits(TASK_LONG_RUNNING | TASK_REMOTE_DEBUG_MARK);
     dom_query_ = dom_query;
     SetPeriodUs(15);
   }

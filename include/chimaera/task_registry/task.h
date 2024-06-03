@@ -305,83 +305,83 @@ struct Task : public hipc::ShmContainer {
    * ===================================*/
 
   /** Get lane hash */
-  HSHM_ALWAYS_INLINE const u32 &GetLaneId() const {
+  const u32 &GetLaneId() const {
     return dom_query_.sel_.id_;
   }
 
   /** Set task as externally complete */
-  HSHM_ALWAYS_INLINE void SetModuleComplete() {
+  void SetModuleComplete() {
     // atask_flags_ |= TASK_MODULE_COMPLETE;
     task_flags_.SetBits(TASK_MODULE_COMPLETE);
   }
 
   /** Check if a task marked complete externally */
-  HSHM_ALWAYS_INLINE bool IsModuleComplete() {
+  bool IsModuleComplete() {
     // return atask_flags_.load() & TASK_MODULE_COMPLETE;
     return task_flags_.Any(TASK_MODULE_COMPLETE);
   }
 
   /** Unset task as complete */
-  HSHM_ALWAYS_INLINE void UnsetModuleComplete() {
+  void UnsetModuleComplete() {
     // atask_flags_ |= TASK_MODULE_COMPLETE | TASK_COMPLETE;
     task_flags_.UnsetBits(TASK_MODULE_COMPLETE);
   }
 
   /** Set task as complete */
-  HSHM_ALWAYS_INLINE void SetComplete() {
+  void SetComplete() {
     // atask_flags_ |= TASK_MODULE_COMPLETE | TASK_COMPLETE;
     task_flags_.SetBits(TASK_MODULE_COMPLETE | TASK_COMPLETE);
   }
 
   /** Check if task is complete */
-  HSHM_ALWAYS_INLINE bool IsComplete() {
+  bool IsComplete() {
     // return atask_flags_ & TASK_COMPLETE;
     return task_flags_.Any(TASK_COMPLETE);
   }
 
   /** Unset task as complete */
-  HSHM_ALWAYS_INLINE void UnsetComplete() {
+  void UnsetComplete() {
     // atask_flags_ |= TASK_MODULE_COMPLETE | TASK_COMPLETE;
     task_flags_.UnsetBits(TASK_MODULE_COMPLETE | TASK_COMPLETE);
   }
 
   /** Set task as fire & forget */
-  HSHM_ALWAYS_INLINE void SetFireAndForget() {
+  void SetFireAndForget() {
     task_flags_.SetBits(TASK_FIRE_AND_FORGET);
   }
 
   /** Check if a task is fire & forget */
-  HSHM_ALWAYS_INLINE bool IsFireAndForget() {
+  bool IsFireAndForget() {
     return task_flags_.Any(TASK_FIRE_AND_FORGET);
   }
 
   /** Unset fire & forget */
-  HSHM_ALWAYS_INLINE void UnsetFireAndForget() {
+  void UnsetFireAndForget() {
     task_flags_.UnsetBits(TASK_FIRE_AND_FORGET);
   }
 
   /** Check if task is long running */
-  HSHM_ALWAYS_INLINE bool IsLongRunning() {
+  bool IsLongRunning() {
     return task_flags_.All(TASK_LONG_RUNNING);
   }
 
   /** Set task as data owner */
-  HSHM_ALWAYS_INLINE void SetDataOwner() {
+  void SetDataOwner() {
     task_flags_.SetBits(TASK_DATA_OWNER);
   }
 
   /** Check if task is data owner */
-  HSHM_ALWAYS_INLINE bool IsDataOwner() {
+  bool IsDataOwner() {
     return task_flags_.Any(TASK_DATA_OWNER);
   }
 
   /** Unset task as data owner */
-  HSHM_ALWAYS_INLINE void UnsetDataOwner() {
+  void UnsetDataOwner() {
     task_flags_.UnsetBits(TASK_DATA_OWNER);
   }
 
   /** Set this task as started */
-  HSHM_ALWAYS_INLINE void SetStarted() {
+  void SetStarted() {
     task_flags_.SetBits(TASK_HAS_STARTED);
   }
 
@@ -391,147 +391,147 @@ struct Task : public hipc::ShmContainer {
   }
 
   /** Check if task has started */
-  HSHM_ALWAYS_INLINE bool IsStarted() {
+  bool IsStarted() {
     return task_flags_.Any(TASK_HAS_STARTED);
   }
 
   /** Set blocked */
-  HSHM_ALWAYS_INLINE void SetBlocked() {
+  void SetBlocked() {
     task_flags_.SetBits(TASK_BLOCKED);
   }
 
   /** Unset blocked */
-  HSHM_ALWAYS_INLINE void UnsetBlocked() {
+  void UnsetBlocked() {
     task_flags_.UnsetBits(TASK_BLOCKED);
   }
 
   /** Check if task is blocked */
-  HSHM_ALWAYS_INLINE bool IsBlocked() {
+  bool IsBlocked() {
     return task_flags_.Any(TASK_BLOCKED);
   }
 
   /** Set this task as started */
-  HSHM_ALWAYS_INLINE void UnsetLongRunning() {
+  void UnsetLongRunning() {
     task_flags_.UnsetBits(TASK_LONG_RUNNING);
   }
 
   /** Set this task as blocking */
-  HSHM_ALWAYS_INLINE bool IsCoroutine() {
+  bool IsCoroutine() {
     return task_flags_.Any(TASK_COROUTINE);
   }
 
   /** Set this task as blocking */
-  HSHM_ALWAYS_INLINE void UnsetCoroutine() {
+  void UnsetCoroutine() {
     task_flags_.UnsetBits(TASK_COROUTINE);
   }
 
   /** Set period in nanoseconds */
-  HSHM_ALWAYS_INLINE void SetPeriodNs(double ns) {
+  void SetPeriodNs(double ns) {
     period_ns_ = ns;
   }
 
   /** Set period in microseconds */
-  HSHM_ALWAYS_INLINE void SetPeriodUs(double us) {
+  void SetPeriodUs(double us) {
     period_ns_ = us * 1000;
   }
 
   /** Set period in milliseconds */
-  HSHM_ALWAYS_INLINE void SetPeriodMs(double ms) {
+  void SetPeriodMs(double ms) {
     period_ns_ = ms * 1000000;
   }
 
   /** Set period in seconds */
-  HSHM_ALWAYS_INLINE void SetPeriodSec(double sec) {
+  void SetPeriodSec(double sec) {
     period_ns_ = sec * 1000000000;
   }
 
   /** Set period in minutes */
-  HSHM_ALWAYS_INLINE void SetPeriodMin(double min) {
+  void SetPeriodMin(double min) {
     period_ns_ = min * 60000000000;
   }
 
   /** This task flushes the runtime */
-  HSHM_ALWAYS_INLINE bool IsFlush() {
+  bool IsFlush() {
     return task_flags_.Any(TASK_FLUSH);
   }
 
   /** Set signal complete */
-  HSHM_ALWAYS_INLINE void SetSignalUnblock() {
+  void SetSignalUnblock() {
     task_flags_.SetBits(TASK_SIGNAL_COMPLETE);
   }
 
   /** Check if task should signal complete */
-  HSHM_ALWAYS_INLINE bool ShouldSignalUnblock() {
+  bool ShouldSignalUnblock() {
     return task_flags_.Any(TASK_SIGNAL_COMPLETE);
   }
 
   /** Unset signal complete */
-  HSHM_ALWAYS_INLINE void UnsetSignalUnblock() {
+  void UnsetSignalUnblock() {
     task_flags_.UnsetBits(TASK_SIGNAL_COMPLETE);
   }
 
   /** Set signal remote complete */
-  HSHM_ALWAYS_INLINE void SetSignalRemoteComplete() {
+  void SetSignalRemoteComplete() {
     task_flags_.SetBits(TASK_SIGNAL_REMOTE_COMPLETE);
   }
 
   /** Check if task should signal complete */
-  HSHM_ALWAYS_INLINE bool ShouldSignalRemoteComplete() {
+  bool ShouldSignalRemoteComplete() {
     return task_flags_.Any(TASK_SIGNAL_REMOTE_COMPLETE);
   }
 
   /** Unset signal complete */
-  HSHM_ALWAYS_INLINE void UnsetSignalRemoteComplete() {
+  void UnsetSignalRemoteComplete() {
     task_flags_.UnsetBits(TASK_SIGNAL_REMOTE_COMPLETE);
   }
 
   /** Mark this task as remote */
-  HSHM_ALWAYS_INLINE void SetRead() {
+  void SetRead() {
     task_flags_.SetBits(TASK_READ);
   }
 
   /** Check if task is remote */
-  HSHM_ALWAYS_INLINE bool IsRead() {
+  bool IsRead() {
     return task_flags_.Any(TASK_READ);
   }
 
   /** Unset remote */
-  HSHM_ALWAYS_INLINE void UnsetRead() {
+  void UnsetRead() {
     task_flags_.UnsetBits(TASK_READ);
   }
 
   /** Mark this task as remote */
-  HSHM_ALWAYS_INLINE void SetWrite() {
+  void SetWrite() {
     task_flags_.SetBits(TASK_WRITE);
   }
 
   /** Check if task is remote */
-  HSHM_ALWAYS_INLINE bool IsWrite() {
+  bool IsWrite() {
     return task_flags_.Any(TASK_WRITE);
   }
 
   /** Unset remote */
-  HSHM_ALWAYS_INLINE void UnsetWrite() {
+  void UnsetWrite() {
     task_flags_.UnsetBits(TASK_WRITE);
   }
 
   /** Mark this task as remote */
-  HSHM_ALWAYS_INLINE void SetRemote() {
+  void SetRemote() {
     task_flags_.SetBits(TASK_REMOTE);
   }
 
   /** Check if task is remote */
-  HSHM_ALWAYS_INLINE bool IsRemote() {
+  bool IsRemote() {
     return task_flags_.Any(TASK_REMOTE);
   }
 
   /** Unset remote */
-  HSHM_ALWAYS_INLINE void UnsetRemote() {
+  void UnsetRemote() {
     task_flags_.UnsetBits(TASK_REMOTE);
   }
 
   /** Determine if time has elapsed */
-  HSHM_ALWAYS_INLINE bool ShouldRun(hshm::Timepoint &cur_time, bool flushing) {
+  bool ShouldRun(hshm::Timepoint &cur_time, bool flushing) {
     if (!IsLongRunning()) {
       return true;
     }
@@ -547,7 +547,7 @@ struct Task : public hipc::ShmContainer {
   }
 
   /** Mark this task as having been run */
-  HSHM_ALWAYS_INLINE void DidRun(hshm::Timepoint &cur_time) {
+  void DidRun(hshm::Timepoint &cur_time) {
     start_ = cur_time;
   }
 
@@ -628,17 +628,17 @@ struct Task : public hipc::ShmContainer {
    * ===================================*/
 
   /** Default constructor */
-  HSHM_ALWAYS_INLINE explicit
+  explicit
   Task(int) {}
 
   /** Default SHM constructor */
-  HSHM_ALWAYS_INLINE explicit
+  explicit
   Task(hipc::Allocator *alloc) {
     shm_init_container(alloc);
   }
 
   /** SHM constructor */
-  HSHM_ALWAYS_INLINE explicit
+  explicit
   Task(hipc::Allocator *alloc,
        const TaskNode &task_node) {
     shm_init_container(alloc);
@@ -646,7 +646,7 @@ struct Task : public hipc::ShmContainer {
   }
 
   /** Emplace constructor */
-  HSHM_ALWAYS_INLINE explicit
+  explicit
   Task(hipc::Allocator *alloc,
        const TaskNode &task_node,
        const DomainQuery &dom_query,
@@ -669,11 +669,11 @@ struct Task : public hipc::ShmContainer {
    * ===================================*/
 
   /** SHM copy constructor */
-  HSHM_ALWAYS_INLINE explicit Task(hipc::Allocator *alloc,
+  explicit Task(hipc::Allocator *alloc,
                                    const Task &other) {}
 
   /** SHM copy assignment operator */
-  HSHM_ALWAYS_INLINE Task& operator=(const Task &other) {
+  Task& operator=(const Task &other) {
     return *this;
   }
 
@@ -692,10 +692,10 @@ struct Task : public hipc::ShmContainer {
    * ===================================*/
 
   /** SHM move constructor. */
-  HSHM_ALWAYS_INLINE Task(hipc::Allocator *alloc, Task &&other) noexcept {}
+  Task(hipc::Allocator *alloc, Task &&other) noexcept {}
 
   /** SHM move assignment operator. */
-  HSHM_ALWAYS_INLINE Task& operator=(Task &&other) noexcept {
+  Task& operator=(Task &&other) noexcept {
     return *this;
   }
 
@@ -704,13 +704,13 @@ struct Task : public hipc::ShmContainer {
    * ===================================*/
 
   /** SHM destructor.  */
-  HSHM_ALWAYS_INLINE void shm_destroy_main() {}
+  void shm_destroy_main() {}
 
   /** Check if the Task is empty */
-  HSHM_ALWAYS_INLINE bool IsNull() const { return false; }
+  bool IsNull() const { return false; }
 
   /** Sets this Task as empty */
-  HSHM_ALWAYS_INLINE void SetNull() {}
+  void SetNull() {}
 
   /**====================================
    * Serialization

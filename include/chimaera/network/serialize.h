@@ -115,7 +115,7 @@ struct TaskSegment {
 
   template<typename Ar>
   void serialize(Ar &ar) {
-    ar(task_state_, method_, task_addr_);
+    ar(task_state_, method_, task_addr_, dom_);
   }
 };
 

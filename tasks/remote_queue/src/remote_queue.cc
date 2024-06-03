@@ -153,20 +153,17 @@ class Server : public TaskLib {
           (TaskQueueEntry) {dom_query, replica.ptr_});
       replicas.emplace_back(replica);
     }
-    // Wait & combine replicas
-    if (!task->IsFireAndForget()) {
-      // Wait
-      task->Wait<TASK_YIELD_CO>(replicas, TASK_MODULE_COMPLETE);
-      // Combine
-      TaskState *exec = HRUN_TASK_REGISTRY->GetAnyTaskState(
-          orig_task->task_state_);
-      rctx.replicas_ = &replicas;
-      exec->Monitor(MonitorMode::kReplicaAgg, orig_task, rctx);
-      // Free
-      HILOG(kDebug, "Replicas were waited for and completed");
-      for (LPointer<Task> &replica : replicas) {
-        CHI_CLIENT->DelTask(exec, replica.ptr_);
-      }
+    // Wait
+    task->Wait<TASK_YIELD_CO>(replicas, TASK_MODULE_COMPLETE);
+    // Combine
+    TaskState *exec = HRUN_TASK_REGISTRY->GetAnyTaskState(
+        orig_task->task_state_);
+    rctx.replicas_ = &replicas;
+    exec->Monitor(MonitorMode::kReplicaAgg, orig_task, rctx);
+    // Free
+    HILOG(kDebug, "Replicas were waited for and completed");
+    for (LPointer<Task> &replica : replicas) {
+      CHI_CLIENT->DelTask(exec, replica.ptr_);
     }
   }
 
@@ -245,14 +242,6 @@ class Server : public TaskLib {
         t.Pause();
         HILOG(kDebug, "(node {}) Submitted tasks in {} usec",
               CHI_CLIENT->node_id_, t.GetUsec());
-
-        for (TaskSegment &task_seg : xfer.tasks_) {
-          Task *orig_task = (Task*)task_seg.task_addr_;
-          if (orig_task->IsFireAndForget()) {
-            orig_task->SetModuleComplete();
-            Worker::SignalUnblock(orig_task);
-          }
-        }
       }
     } catch (hshm::Error &e) {
       HELOG(kError, "(node {}) Worker {} caught an error: {}", CHI_CLIENT->node_id_, id_, e.what());
@@ -414,12 +403,9 @@ class Server : public TaskLib {
     orig_task->UnsetBlocked();
     orig_task->UnsetRemote();
     orig_task->SetDataOwner();
-//    orig_task->UnsetFireAndForget();
-//    orig_task->SetSignalRemoteComplete();
-    if (!orig_task->IsFireAndForget()) {
-      orig_task->UnsetLongRunning();
-      orig_task->SetSignalRemoteComplete();
-    }
+    orig_task->UnsetFireAndForget();
+    orig_task->UnsetLongRunning();
+    orig_task->SetSignalRemoteComplete();
     orig_task->task_flags_.SetBits(TASK_REMOTE_DEBUG_MARK);
 
     // Execute task
