@@ -4,7 +4,7 @@ pkgs:
   - pkg_type: chimaera_run
     pkg_name: chimaera_run
     sleep: 5
-    do_dbg: true
+    do_dbg: false
     dbg_port: 4000
     qlanes: 4
     dworkers: 2
@@ -15,5 +15,5 @@ pkgs:
     depth: 0
     ops: 500000
     async: false
-    do_dbg: true
+    do_dbg: false
     dbg_port: 4001
