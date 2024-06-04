@@ -1114,7 +1114,7 @@ class Worker {
 
   /** Set the CPU affinity of this worker */
   void SetCpuAffinity(int cpu_id) {
-    HILOG(kInfo, "Affining worker {} (pid={}) to {}", id_, pid_, cpu_id);
+    HILOG(kDebug, "Affining worker {} (pid={}) to {}", id_, pid_, cpu_id);
     affinity_ = cpu_id;
     ABT_xstream_set_affinity(xstream_, 1, &cpu_id);
   }
