@@ -288,7 +288,7 @@ class TaskRegistry {
       task->UnsetModuleComplete();
     }
     HILOG(kInfo, "(node {})  Created an instance of {} with name {} and ID {} ({} containers)",
-          CHI_CLIENT->node_id_, lib_name, pool_name, pool_id);
+          CHI_CLIENT->node_id_, lib_name, pool_name, pool_id, containers.size());
     return true;
   }
 
