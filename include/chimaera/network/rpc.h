@@ -307,7 +307,6 @@ class RpcContext {
           total_dom_size);
       ops.emplace_back(UpdateDomainInfo{
           dom_id, UpdateDomainOp::kExpand, range});
-      HILOG(kInfo, "{}", dom_id);
     }
     // Create the set of global lanes
     {
@@ -333,7 +332,6 @@ class RpcContext {
             DomainId(task_state, SubDomainId::kGlobalContainers, i),
             UpdateDomainOp::kExpand, res_glob});
       }
-      HILOG(kInfo, "{}", dom_id);
     }
     // Create the set of local lanes
     {
@@ -366,7 +364,6 @@ class RpcContext {
           ++lane_off;
         }
       }
-      HILOG(kInfo, "{}", dom_id);
     }
     // Create the set of caching lanes
     // TODO(llogan)
