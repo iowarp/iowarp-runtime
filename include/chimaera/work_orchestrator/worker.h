@@ -695,14 +695,14 @@ class Worker {
       task.shm_ = entry->p_;
       task.ptr_ = CHI_CLIENT->GetMainPointer<Task>(entry->p_);
       DomainQuery dom_query = task->dom_query_;
-//      HILOG(kDebug, "Received task {} dom_query {}",
-//            (size_t)task.ptr_, dom_query);
+      HILOG(kDebug, "(node {}) Received task {} and {}",
+            CHI_RPC->node_id_, (size_t)task.ptr_, dom_query);
       TaskRouteMode route = Reroute(task->pool_,
                                     dom_query,
                                     task,
                                     lane);
-//      HILOG(kDebug, "Resolved task {} dom_query {}",
-//            (size_t)task.ptr_, dom_query);
+      HILOG(kDebug, "(node {}) Resolved task {} to {}",
+            CHI_RPC->node_id_, (size_t)task.ptr_, dom_query);
       if (route == TaskRouteMode::kRemoteWorker) {
         task->SetRemote();
       }
