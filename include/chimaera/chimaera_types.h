@@ -828,7 +828,7 @@ struct ResolvedDomainQuery {
   /** Print operator */
   friend std::ostream& operator<<(
       std::ostream &os, const ResolvedDomainQuery &id) {
-    return os << std::to_string(id.node_);
+    return os << std::to_string(id.node_) << " / " << id.dom_;
   }
 
   /** Serialize */

@@ -411,8 +411,8 @@ class Server : public TaskLib {
     // Execute task
     MultiQueue *queue = CHI_CLIENT->GetQueue(QueueId(pool_id));
     HILOG(kDebug,
-          "(node {}) Submitting task (addr={}, task_node={}, task_state={}/{}, "
-          "pool_name={}, method={}, size={}, lane_hash={})",
+          "(node {}) Enqueuing task (addr={}, task_node={}, task_state={}/{}, "
+          "pool_name={}, method={}, size={}, domain={})",
           CHI_CLIENT->node_id_,
           (size_t)orig_task,
           orig_task->task_node_,
@@ -421,20 +421,20 @@ class Server : public TaskLib {
           exec->name_,
           method,
           xfer.size(),
-          orig_task->GetContainerId());
+          orig_task->dom_query_);
     queue->Emplace(orig_task->prio_,
                    orig_task->GetContainerId(), task_ptr.shm_);
-    HILOG(kDebug,
-          "(node {}) Done submitting (task_node={}, task_state={}/{}, "
-          "pool_name={}, method={}, size={}, lane_hash={})",
-          CHI_CLIENT->node_id_,
-          orig_task->task_node_,
-          orig_task->pool_,
-          pool_id,
-          exec->name_,
-          method,
-          xfer.size(),
-          orig_task->GetContainerId());
+//    HILOG(kDebug,
+//          "(node {}) Done submitting (task_node={}, task_state={}/{}, "
+//          "pool_name={}, method={}, size={}, lane_hash={})",
+//          CHI_CLIENT->node_id_,
+//          orig_task->task_node_,
+//          orig_task->pool_,
+//          pool_id,
+//          exec->name_,
+//          method,
+//          xfer.size(),
+//          orig_task->GetContainerId());
   }
 
   /** Receive task completion */
