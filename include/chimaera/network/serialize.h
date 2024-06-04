@@ -110,6 +110,7 @@ struct TaskSegment {
     pool_ = other.pool_;
     method_ = other.method_;
     task_addr_ = other.task_addr_;
+    dom_ = other.dom_;
     return *this;
   }
 
