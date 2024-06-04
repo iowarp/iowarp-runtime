@@ -391,6 +391,14 @@ class RpcContext {
     }
   }
 
+  /** Print the major domain */
+  void PrintSubdomainSet(const std::vector<SubDomainId> &ids) {
+    HILOG(kInfo, "Subdomain set: {} entries", ids.size());
+    for (const SubDomainId &id : ids) {
+      HILOG(kInfo, "SUB_ID: {}", id);
+    }
+  }
+
   /** Get the set of lanes on this node */
   std::vector<SubDomainId> GetLocalContainers(const PoolId &scope) {
     std::vector<SubDomainId> res;
