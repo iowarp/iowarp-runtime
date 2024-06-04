@@ -63,17 +63,17 @@ void Runtime::ServerInit(std::string server_config_path) {
   admin_task = hipc::make_mptr<Admin::CreateContainerTask>();
   task_registry_.RegisterTaskLib("chimaera_admin");
   ops = CHI_RPC->CreateDefaultDomains(
-      CHI_QM_CLIENT->admin_pool_,
-      CHI_QM_CLIENT->admin_pool_,
+      CHI_QM_CLIENT->admin_pool_id_,
+      CHI_QM_CLIENT->admin_pool_id_,
       DomainQuery::GetGlobal(chi::SubDomainId::kContainerSet, 0),
       CHI_RPC->hosts_.size(), 1);
   CHI_RPC->UpdateDomains(ops);
   containers =
-      CHI_RPC->GetLocalContainers(CHI_QM_CLIENT->admin_pool_);
+      CHI_RPC->GetLocalContainers(CHI_QM_CLIENT->admin_pool_id_);
   task_registry_.CreateContainer(
       "chimaera_admin",
       "chimaera_admin",
-      CHI_QM_CLIENT->admin_pool_,
+      CHI_QM_CLIENT->admin_pool_id_,
       admin_task.get(),
       containers);
 
@@ -83,7 +83,7 @@ void Runtime::ServerInit(std::string server_config_path) {
   task_registry_.RegisterTaskLib("worch_queue_round_robin");
   ops = CHI_RPC->CreateDefaultDomains(
       queue_sched_id,
-      CHI_QM_CLIENT->admin_pool_,
+      CHI_QM_CLIENT->admin_pool_id_,
       DomainQuery::GetGlobal(chi::SubDomainId::kLocalContainers, 0),
       1, 1);
   CHI_RPC->UpdateDomains(ops);
@@ -112,7 +112,7 @@ void Runtime::ServerInit(std::string server_config_path) {
   task_registry_.RegisterTaskLib("worch_proc_round_robin");
   ops = CHI_RPC->CreateDefaultDomains(
       proc_sched_id,
-      CHI_QM_CLIENT->admin_pool_,
+      CHI_QM_CLIENT->admin_pool_id_,
       DomainQuery::GetGlobal(chi::SubDomainId::kLocalContainers, 0),
       1, 1);
   CHI_RPC->UpdateDomains(ops);

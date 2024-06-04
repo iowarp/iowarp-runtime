@@ -32,13 +32,13 @@ class QueueManager {
   NodeId node_id_;             /**< The ID of the node this QueueManager is on */
   QueueId admin_queue_id_;     /**< The queue used to submit administrative requests */
   QueueId process_queue_id_;     /**< ID of process queue task */
-  PoolId admin_pool_;  /**< The ID of the admin queue */
+  PoolId admin_pool_id_;  /**< The ID of the admin queue */
 
  public:
   void Init(NodeId node_id) {
     node_id_ = node_id;
     admin_queue_id_ = QueueId(1, 0);
-    admin_pool_ = PoolId(1, 0);
+    admin_pool_id_ = PoolId(1, 0);
     process_queue_id_ = QueueId(1, 1);
   }
 

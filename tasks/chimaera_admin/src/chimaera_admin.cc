@@ -106,7 +106,7 @@ class Server : public TaskLib {
     // Update the default domains for the state
     std::vector<UpdateDomainInfo> ops = CHI_RPC->CreateDefaultDomains(
         task->ctx_.id_,
-        CHI_QM_CLIENT->admin_pool_,
+        CHI_QM_CLIENT->admin_pool_id_,
         task->scope_query_,
         global_containers,
         local_containers_pn);

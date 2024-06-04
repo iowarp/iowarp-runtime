@@ -30,7 +30,7 @@ struct RegisterTaskLibTaskTempl : public Task, TaskFlags<TF_SRL_SYM> {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrio::kLowLatency;
-    pool_ = CHI_QM_CLIENT->admin_pool_;
+    pool_ = CHI_QM_CLIENT->admin_pool_id_;
     if constexpr(method == 0) {
       method_ = Method::kRegisterTaskLib;
     } else {
@@ -105,7 +105,7 @@ struct CreateContainerTask : public Task, TaskFlags<TF_SRL_SYM> {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrio::kLowLatency;
-    pool_ = CHI_QM_CLIENT->admin_pool_;
+    pool_ = CHI_QM_CLIENT->admin_pool_id_;
     method_ = Method::kCreateContainer;
     task_flags_.SetBits(TASK_COROUTINE);
     dom_query_ = dom_query;
@@ -163,7 +163,7 @@ struct GetPoolIdTask : public Task, TaskFlags<TF_SRL_SYM> {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrio::kLowLatency;
-    pool_ = CHI_QM_CLIENT->admin_pool_;
+    pool_ = CHI_QM_CLIENT->admin_pool_id_;
     method_ = Method::kGetPoolId;
     task_flags_.SetBits(0);
     dom_query_ = dom_query; }
@@ -206,7 +206,7 @@ struct DestroyContainerTask : public Task, TaskFlags<TF_SRL_SYM> {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrio::kLowLatency;
-    pool_ = CHI_QM_CLIENT->admin_pool_;
+    pool_ = CHI_QM_CLIENT->admin_pool_id_;
     method_ = Method::kDestroyContainer;
     task_flags_.SetBits(0);
     dom_query_ = dom_query;
@@ -250,7 +250,7 @@ struct StopRuntimeTask : public Task, TaskFlags<TF_SRL_SYM> {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrio::kLowLatency;
-    pool_ = CHI_QM_CLIENT->admin_pool_;
+    pool_ = CHI_QM_CLIENT->admin_pool_id_;
     method_ = Method::kStopRuntime;
     task_flags_.SetBits(TASK_FLUSH | TASK_FIRE_AND_FORGET);
     dom_query_ = dom_query;
@@ -293,7 +293,7 @@ struct SetWorkOrchestratorPolicyTask : public Task, TaskFlags<TF_SRL_SYM> {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrio::kLowLatency;
-    pool_ = CHI_QM_CLIENT->admin_pool_;
+    pool_ = CHI_QM_CLIENT->admin_pool_id_;
     if constexpr(method == 0) {
       method_ = Method::kSetWorkOrchQueuePolicy;
     } else {
@@ -340,7 +340,7 @@ struct FlushTask : public Task, TaskFlags<TF_SRL_SYM> {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrio::kLowLatency;
-    pool_ = CHI_QM_CLIENT->admin_pool_;
+    pool_ = CHI_QM_CLIENT->admin_pool_id_;
     method_ = Method::kFlush;
     task_flags_.SetBits(TASK_FLUSH | TASK_COROUTINE);
     dom_query_ = dom_query;
@@ -384,7 +384,7 @@ struct GetDomainSizeTask : public Task, TaskFlags<TF_LOCAL> {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrio::kLowLatency;
-    pool_ = CHI_QM_CLIENT->admin_pool_;
+    pool_ = CHI_QM_CLIENT->admin_pool_id_;
     method_ = Method::kGetDomainSize;
     task_flags_.SetBits(0);
     dom_query_ = dom_query;
@@ -415,7 +415,7 @@ struct UpdateDomainTask : public Task, TaskFlags<TF_SRL_SYM> {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrio::kLowLatency;
-    pool_ = CHI_QM_CLIENT->admin_pool_;
+    pool_ = CHI_QM_CLIENT->admin_pool_id_;
     method_ = Method::kUpdateDomain;
     task_flags_.SetBits(0);
     dom_query_ = dom_query;

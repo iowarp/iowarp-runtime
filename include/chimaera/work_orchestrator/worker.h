@@ -695,14 +695,14 @@ class Worker {
       task.shm_ = entry->p_;
       task.ptr_ = CHI_CLIENT->GetMainPointer<Task>(entry->p_);
       DomainQuery dom_query = task->dom_query_;
-      HILOG(kDebug, "(node {}) Received task {} and {}",
-            CHI_RPC->node_id_, (size_t)task.ptr_, dom_query);
+      HILOG(kDebug, "(node {}) Received task {} pool {} and {}",
+            CHI_RPC->node_id_, (size_t)task.ptr_, task->pool_, dom_query);
       TaskRouteMode route = Reroute(task->pool_,
                                     dom_query,
                                     task,
                                     lane);
-      HILOG(kDebug, "(node {}) Resolved task {} to {}",
-            CHI_RPC->node_id_, (size_t)task.ptr_, dom_query);
+      HILOG(kDebug, "(node {}) Resolved task {} pool {} and {}",
+            CHI_RPC->node_id_, (size_t)task.ptr_, task->pool_, dom_query);
       if (route == TaskRouteMode::kRemoteWorker) {
         task->SetRemote();
       }
@@ -730,7 +730,7 @@ class Worker {
     if (resolved.size() == 1 && resolved[0].node_ == CHI_RPC->node_id_) {
       dom_query = resolved[0].dom_;
 #ifdef CHIMAERA_REMOTE_DEBUG
-      if (task->pool_ != CHI_QM_CLIENT->admin_pool_ &&
+      if (task->pool_ != CHI_QM_CLIENT->admin_pool_id_ &&
           !task->task_flags_.Any(TASK_REMOTE_DEBUG_MARK) &&
           !task->IsLongRunning() &&
           task->method_ != TaskMethod::kCreate &&
