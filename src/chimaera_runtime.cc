@@ -77,6 +77,11 @@ void Runtime::ServerInit(std::string server_config_path) {
       admin_task.get(),
       containers);
 
+  CHI_RPC->PrintDomainResolution(
+      CHI_QM_CLIENT->admin_pool_id_,
+      DomainQuery::GetGlobal(chi::SubDomainId::kGlobalContainers, 0));
+  CHI_RPC->PrintDomain(DomainId{CHI_QM_CLIENT->admin_pool_id_, 2});
+
   // Create the work orchestrator queue scheduling library
   PoolId queue_sched_id = CHI_CLIENT->MakePoolId();
   admin_task = hipc::make_mptr<Admin::CreateContainerTask>();
