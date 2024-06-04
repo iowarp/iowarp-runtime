@@ -172,7 +172,7 @@ class Server : public TaskLib {
     // Get domain IDs
     Task *orig_task = task->orig_task_;
     std::vector<ResolvedDomainQuery> dom_queries =
-        HRUN_RPC->ResolveDomainQuery(orig_task->pool_,
+        CHI_RPC->ResolveDomainQuery(orig_task->pool_,
                                      orig_task->dom_query_,
                                      false);
     if (dom_queries.size() == 0) {

@@ -254,7 +254,6 @@ class RpcContext {
                      const DomainQuery &dom_query,
                      bool full) {
     ScopedRwReadLock lock(domain_map_lock_, 0);
-    PrintDomainResolution(scope, dom_query);
     std::vector<ResolvedDomainQuery> res;
     if (dom_query.flags_.All(DomainQuery::kLocal | DomainQuery::kId)) {
       // Keep task on this node
