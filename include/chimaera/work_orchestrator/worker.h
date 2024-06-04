@@ -795,9 +795,18 @@ class Worker {
                PrivateTaskQueueEntry &entry,
                LPointer<Task> task,
                bool flushing) {
+    // Get task properties
+    bitfield32_t props =
+        GetTaskProperties(task.ptr_, cur_time_,
+                          flushing);
     // Get the task state
-    Container *exec = GetContainer(task->pool_,
-                                   entry.res_query_.sel_.id_);
+    Container *exec;
+    if (props.Any(HSHM_WORKER_IS_REMOTE)) {
+      exec = HRUN_TASK_REGISTRY->GetAnyContainer(task->pool_);
+    } else {
+      exec = HRUN_TASK_REGISTRY->GetContainer(task->pool_,
+                                              entry.res_query_.sel_.id_);
+    }
     if (!exec) {
       if (task->pool_ == PoolId::GetNull()) {
         HELOG(kFatal, "(node {}) Task {} has no task state",
@@ -817,10 +826,6 @@ class Worker {
     rctx.worker_id_ = id_;
     rctx.flush_ = &flush_;
     rctx.exec_ = exec;
-    // Get task properties
-    bitfield32_t props =
-        GetTaskProperties(task.ptr_, cur_time_,
-                          flushing);
     // Allocate remote task and execute here
     // Execute the task based on its properties
     if (!task->IsLongRunning()) {
@@ -947,8 +952,8 @@ class Worker {
     if (task->ShouldSignalUnblock()) {
       SignalUnblock(task->rctx_.pending_to_);
     } else if (task->ShouldSignalRemoteComplete()) {
-      Container *remote_exec = GetContainer(CHI_REMOTE_QUEUE->id_,
-                                            task->GetContainerId());
+      Container *remote_exec =
+          CHI_TASK_REGISTRY->GetAnyContainer(CHI_REMOTE_QUEUE->id_);
       remote_exec->Run(chi::remote_queue::Method::kServerPushComplete,
                        task.ptr_, task->rctx_);
       task->SetComplete();
@@ -1008,12 +1013,6 @@ class Worker {
       props.SetBits(HSHM_WORKER_LONG_RUNNING);
     }
     return props;
-  }
-
-  /** Get task state */
-  HSHM_ALWAYS_INLINE
-  Container* GetContainer(const PoolId &pool_id, u32 lane_id) {
-    return HRUN_TASK_REGISTRY->GetContainer(pool_id, lane_id);
   }
 
   /** Join worker */
