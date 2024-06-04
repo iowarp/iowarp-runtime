@@ -63,7 +63,7 @@ class Server : public TaskLib {
   /** Construct remote queue */
   void Create(CreateTask *task, RunContext &rctx) {
     HILOG(kInfo, "(node {}) Constructing remote queue (task_node={}, task_state={}, method={})",
-          CHI_CLIENT->node_id_, task->task_node_, task->task_state_, task->method_);
+          CHI_CLIENT->node_id_, task->task_node_, task->pool_, task->method_);
     if (rctx.shared_exec_ == this) {
       HRUN_THALLIUM->RegisterRpc(
           *HRUN_WORK_ORCHESTRATOR->rpc_pool_,
@@ -108,8 +108,8 @@ class Server : public TaskLib {
     // Replicate task
     bool deep = false;
     for (ResolvedDomainQuery &dom_query : dom_queries) {
-      TaskState *exec = HRUN_TASK_REGISTRY->GetAnyTaskState(
-          orig_task->task_state_);
+      Container *exec = HRUN_TASK_REGISTRY->GetAnyContainer(
+          orig_task->pool_);
       LPointer<Task> replica;
       exec->CopyStart(orig_task->method_, orig_task, replica, deep);
       replica->rctx_.pending_to_ = task;
@@ -140,8 +140,8 @@ class Server : public TaskLib {
     bool deep = dom_queries.size() > 1;
     for (ResolvedDomainQuery &dom_query : dom_queries) {
       LPointer<Task> replica;
-      TaskState *exec = HRUN_TASK_REGISTRY->GetAnyTaskState(
-          orig_task->task_state_);
+      Container *exec = HRUN_TASK_REGISTRY->GetAnyContainer(
+          orig_task->pool_);
       exec->CopyStart(orig_task->method_, orig_task, replica, deep);
       if (dom_query.dom_.flags_.Any(DomainQuery::kLocal)) {
         exec->Monitor(MonitorMode::kReplicaStart, orig_task, rctx);
@@ -156,8 +156,8 @@ class Server : public TaskLib {
     // Wait
     task->Wait<TASK_YIELD_CO>(replicas, TASK_MODULE_COMPLETE);
     // Combine
-    TaskState *exec = HRUN_TASK_REGISTRY->GetAnyTaskState(
-        orig_task->task_state_);
+    Container *exec = HRUN_TASK_REGISTRY->GetAnyContainer(
+        orig_task->pool_);
     rctx.replicas_ = &replicas;
     exec->Monitor(MonitorMode::kReplicaAgg, orig_task, rctx);
     // Free
@@ -172,7 +172,7 @@ class Server : public TaskLib {
     // Get domain IDs
     Task *orig_task = task->orig_task_;
     std::vector<ResolvedDomainQuery> dom_queries =
-        HRUN_RPC->ResolveDomainQuery(orig_task->task_state_,
+        HRUN_RPC->ResolveDomainQuery(orig_task->pool_,
                                      orig_task->dom_query_,
                                      false);
     if (dom_queries.size() == 0) {
@@ -218,11 +218,11 @@ class Server : public TaskLib {
           entries.emplace(entry.domain_.node_, BinaryOutputArchive<true>());
         }
         Task *orig_task = entry.task_;
-        TaskState *exec = HRUN_TASK_REGISTRY->GetAnyTaskState(
-            orig_task->task_state_);
+        Container *exec = HRUN_TASK_REGISTRY->GetAnyContainer(
+            orig_task->pool_);
         if (exec == nullptr) {
           HELOG(kFatal, "(node {}) Could not find the task state {}",
-                CHI_CLIENT->node_id_, orig_task->task_state_);
+                CHI_CLIENT->node_id_, orig_task->pool_);
           return;
         }
         orig_task->dom_query_ = entry.domain_.dom_;
@@ -302,8 +302,8 @@ class Server : public TaskLib {
         HILOG(kDebug, "(node {}) Sending completion for {} -> {}",
               CHI_CLIENT->node_id_, done_task->task_node_,
               entry.domain_);
-        TaskState *exec =
-            HRUN_TASK_REGISTRY->GetAnyTaskState(done_task->task_state_);
+        Container *exec =
+            HRUN_TASK_REGISTRY->GetAnyContainer(done_task->pool_);
         BinaryOutputArchive<false> &ar = entries[entry.domain_.node_];
         exec->SaveEnd(done_task->method_, ar, done_task);
         completed.emplace_back(entry);
@@ -324,8 +324,8 @@ class Server : public TaskLib {
       // Cleanup the queue
 //      for (TaskQueueEntry &centry : completed) {
 //        Task *done_task = centry.task_;
-//        TaskState *exec =
-//            HRUN_TASK_REGISTRY->GetTaskState(done_task->task_state_);
+//        Container *exec =
+//            HRUN_TASK_REGISTRY->GetContainer(done_task->pool_);
 //        CHI_CLIENT->DelTask(exec, done_task);
 //      }
     } catch (hshm::Error &e) {
@@ -376,12 +376,12 @@ class Server : public TaskLib {
                        BinaryInputArchive<true> &ar,
                        SegmentedTransfer &xfer) {
     // Deserialize task
-    TaskStateId state_id = xfer.tasks_[task_off].task_state_;
+    PoolId pool_id = xfer.tasks_[task_off].pool_;
     u32 method = xfer.tasks_[task_off].method_;
-    TaskState *exec = HRUN_TASK_REGISTRY->GetAnyTaskState(state_id);
+    Container *exec = HRUN_TASK_REGISTRY->GetAnyContainer(pool_id);
     if (exec == nullptr) {
       HELOG(kFatal, "(node {}) Could not find the task state {}",
-            CHI_CLIENT->node_id_, state_id);
+            CHI_CLIENT->node_id_, pool_id);
       return;
     }
     TaskPointer task_ptr = exec->LoadStart(method, ar);
@@ -409,15 +409,15 @@ class Server : public TaskLib {
     orig_task->task_flags_.SetBits(TASK_REMOTE_DEBUG_MARK);
 
     // Execute task
-    MultiQueue *queue = CHI_CLIENT->GetQueue(QueueId(state_id));
+    MultiQueue *queue = CHI_CLIENT->GetQueue(QueueId(pool_id));
     HILOG(kDebug,
           "(node {}) Submitting task (addr={}, task_node={}, task_state={}/{}, "
-          "state_name={}, method={}, size={}, lane_hash={})",
+          "pool_name={}, method={}, size={}, lane_hash={})",
           CHI_CLIENT->node_id_,
           (size_t)orig_task,
           orig_task->task_node_,
-          orig_task->task_state_,
-          state_id,
+          orig_task->pool_,
+          pool_id,
           exec->name_,
           method,
           xfer.size(),
@@ -426,11 +426,11 @@ class Server : public TaskLib {
                    orig_task->GetContainerId(), task_ptr.shm_);
     HILOG(kDebug,
           "(node {}) Done submitting (task_node={}, task_state={}/{}, "
-          "state_name={}, method={}, size={}, lane_hash={})",
+          "pool_name={}, method={}, size={}, lane_hash={})",
           CHI_CLIENT->node_id_,
           orig_task->task_node_,
-          orig_task->task_state_,
-          state_id,
+          orig_task->pool_,
+          pool_id,
           exec->name_,
           method,
           xfer.size(),
@@ -449,12 +449,12 @@ class Server : public TaskLib {
       for (size_t i = 0; i < xfer.tasks_.size(); ++i) {
         Task *orig_task = (Task*)xfer.tasks_[i].task_addr_;
         HILOG(kDebug, "(node {}) Deserializing return values for task {} (state {})",
-              CHI_CLIENT->node_id_, orig_task->task_node_, orig_task->task_state_);
-        TaskState *exec = HRUN_TASK_REGISTRY->GetAnyTaskState(
-            orig_task->task_state_);
+              CHI_CLIENT->node_id_, orig_task->task_node_, orig_task->pool_);
+        Container *exec = HRUN_TASK_REGISTRY->GetAnyContainer(
+            orig_task->pool_);
         if (exec == nullptr) {
           HELOG(kFatal, "(node {}) Could not find the task state {}",
-                CHI_CLIENT->node_id_, orig_task->task_state_);
+                CHI_CLIENT->node_id_, orig_task->pool_);
           return;
         }
         exec->LoadEnd(orig_task->method_, ar, orig_task);
@@ -466,7 +466,7 @@ class Server : public TaskLib {
         Task *orig_task = (Task*)xfer.tasks_[i].task_addr_;
         orig_task->SetModuleComplete();
         Task *pending_to = orig_task->rctx_.pending_to_;
-        if (pending_to->task_state_ != id_) {
+        if (pending_to->pool_ != id_) {
           HELOG(kFatal, "This shouldn't happen ever");
         }
         HILOG(kDebug, "(node {}) Unblocking task {} to worker {}",

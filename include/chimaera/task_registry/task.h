@@ -91,7 +91,7 @@ struct TaskMethod {
 /**
  * Let's say we have an I/O request to a device
  * I/O requests + MD operations need to be controlled for correctness
- * Is there a case where root tasks from different TaskStates need to be ordered? No.
+ * Is there a case where root tasks from different Containers need to be ordered? No.
  * Tasks spawned from the same root task need to be keyed to the same worker stack
  * Tasks apart of the same task group need to be ordered
  * */
@@ -287,7 +287,7 @@ struct RunContext {
 struct Task : public hipc::ShmContainer {
  SHM_CONTAINER_TEMPLATE((Task), (Task))
  public:
-  TaskStateId task_state_;     /**< The unique name of a task state */
+  PoolId pool_;     /**< The unique name of a task state */
   TaskNode task_node_;         /**< The unique ID of this task in the graph */
   DomainQuery dom_query_;         /**< The nodes that the task should run on */
   u32 prio_;                   /**< An indication of the priority of the request */
@@ -650,14 +650,14 @@ struct Task : public hipc::ShmContainer {
   Task(hipc::Allocator *alloc,
        const TaskNode &task_node,
        const DomainQuery &dom_query,
-       const TaskStateId &task_state,
+       const PoolId &task_state,
        u32 lane_hash,
        u32 method,
        bitfield32_t task_flags) {
     shm_init_container(alloc);
     task_node_ = task_node;
     prio_ = TaskPrio::kLowLatency;
-    task_state_ = task_state;
+    pool_ = task_state;
     method_ = method;
     dom_query_ = dom_query;
     task_flags_ = task_flags;
@@ -718,13 +718,13 @@ struct Task : public hipc::ShmContainer {
   template<typename Ar>
   void task_serialize(Ar &ar) {
     // NOTE(llogan): don't serialize start_ because of clock drift
-    ar(task_state_, task_node_, dom_query_, prio_, method_,
+    ar(pool_, task_node_, dom_query_, prio_, method_,
        task_flags_, period_ns_);  // , atask_flags_);
   }
 
   template<typename TaskT>
   void task_dup(TaskT &other) {
-    task_state_ = other.task_state_;
+    pool_ = other.pool_;
     task_node_ = other.task_node_;
     dom_query_ = other.dom_query_;
     prio_ = other.prio_;

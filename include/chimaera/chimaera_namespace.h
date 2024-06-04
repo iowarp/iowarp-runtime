@@ -25,7 +25,7 @@ using chi::MultiQueue;
 using chi::PriorityInfo;
 using chi::TaskNode;
 using chi::DomainQuery;
-using chi::TaskStateId;
+using chi::PoolId;
 using chi::QueueId;
 using chi::TaskFlags;
 using chi::DataTransfer;

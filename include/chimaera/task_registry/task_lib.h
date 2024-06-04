@@ -41,16 +41,16 @@ class MonitorMode {
  * */
 class TaskLib {
  public:
-  TaskStateId id_;    /**< The unique name of a task state */
+  PoolId id_;    /**< The unique name of a task state */
   QueueId queue_id_;  /**< The queue id of a task state */
   std::string name_;  /**< The unique semantic name of a task state */
   ContainerId container_id_;       /**< The lane id of a task state */
 
   /** Default constructor */
-  TaskLib() : id_(TaskStateId::GetNull()) {}
+  TaskLib() : id_(PoolId::GetNull()) {}
 
   /** Emplace Constructor */
-  void Init(const TaskStateId &id, const QueueId &queue_id,
+  void Init(const PoolId &id, const QueueId &queue_id,
             const std::string &name) {
     id_ = id;
     queue_id_ = queue_id;
@@ -89,17 +89,17 @@ class TaskLib {
 };
 
 /** Represents a TaskLib in action */
-typedef TaskLib TaskState;
+typedef TaskLib Container;
 
 /** Represents the TaskLib client-side */
 class TaskLibClient {
  public:
-  TaskStateId id_;
+  PoolId id_;
   QueueId queue_id_;
 
  public:
   /** Init from existing ID */
-  void Init(const TaskStateId &id,
+  void Init(const PoolId &id,
             const QueueId &queue_id) {
     if (id.IsNull()) {
       HELOG(kWarning, "Failed to create task state");
@@ -110,7 +110,7 @@ class TaskLibClient {
   }
 
   /** Init from existing ID */
-  void Init(const TaskStateId &id) {
+  void Init(const PoolId &id) {
     if (id.IsNull()) {
       HELOG(kWarning, "Failed to create task state");
     }
@@ -122,7 +122,7 @@ class TaskLibClient {
 
 extern "C" {
 /** Allocate a state (no construction) */
-typedef TaskState* (*alloc_state_t)(Task *task, const char *state_name);
+typedef Container* (*alloc_state_t)(Task *task, const char *pool_name);
 /** Get the name of a task */
 typedef const char* (*get_task_lib_name_t)(void);
 }  // extern c
@@ -130,10 +130,10 @@ typedef const char* (*get_task_lib_name_t)(void);
 /** Used internally by task source file */
 #define HRUN_TASK_CC(TRAIT_CLASS, TASK_NAME)\
   extern "C" {\
-  void* alloc_state(chi::Admin::CreateTaskStateTask *task, const char *state_name) {\
-    chi::TaskState *exec = reinterpret_cast<chi::TaskState*>(\
+  void* alloc_state(chi::Admin::CreateContainerTask *task, const char *pool_name) {\
+    chi::Container *exec = reinterpret_cast<chi::Container*>(\
         new TYPE_UNWRAP(TRAIT_CLASS)());\
-    exec->Init(task->ctx_.id_, CHI_CLIENT->GetQueueId(task->ctx_.id_), state_name);\
+    exec->Init(task->ctx_.id_, CHI_CLIENT->GetQueueId(task->ctx_.id_), pool_name);\
     return exec;\
   }\
   const char* get_task_lib_name(void) { return TASK_NAME; }\

@@ -87,27 +87,27 @@ using DataTransfer = DataTransferBase<true>;
 using PassDataTransfer = DataTransferBase<false>;
 
 struct TaskSegment {
-  TaskStateId task_state_;
+  PoolId pool_;
   u32 method_;
   size_t task_addr_;
   DomainQuery dom_;
 
   TaskSegment() = default;
 
-  TaskSegment(TaskStateId task_state, u32 method, size_t task_addr,
+  TaskSegment(PoolId task_state, u32 method, size_t task_addr,
               const DomainQuery &dom)
-      : task_state_(task_state), method_(method),
+      : pool_(task_state), method_(method),
         task_addr_(task_addr), dom_(dom) {}
 
-  TaskSegment(TaskStateId task_state, u32 method, size_t task_addr)
-  : task_state_(task_state), method_(method), task_addr_(task_addr) {}
+  TaskSegment(PoolId task_state, u32 method, size_t task_addr)
+  : pool_(task_state), method_(method), task_addr_(task_addr) {}
 
   TaskSegment(const TaskSegment &other)
-  : task_state_(other.task_state_), method_(other.method_),
+  : pool_(other.pool_), method_(other.method_),
     task_addr_(other.task_addr_) {}
 
   TaskSegment& operator=(const TaskSegment &other) {
-    task_state_ = other.task_state_;
+    pool_ = other.pool_;
     method_ = other.method_;
     task_addr_ = other.task_addr_;
     return *this;
@@ -115,7 +115,7 @@ struct TaskSegment {
 
   template<typename Ar>
   void serialize(Ar &ar) {
-    ar(task_state_, method_, task_addr_, dom_);
+    ar(pool_, method_, task_addr_, dom_);
   }
 };
 
@@ -237,7 +237,7 @@ class BinaryOutputArchive {
       if constexpr (IS_SRL(T)) {
         if constexpr (is_start) {
           var.template task_serialize<BinaryOutputArchive>((*this));
-          xfer_.tasks_.emplace_back(var.task_state_, var.method_,
+          xfer_.tasks_.emplace_back(var.pool_, var.method_,
                                     (size_t) &var,
                                     var.dom_query_);
           if constexpr (USES_SRL_START(T)) {
@@ -246,7 +246,7 @@ class BinaryOutputArchive {
             var.SaveStart(*this);
           }
         } else {
-          xfer_.tasks_.emplace_back(var.task_state_, var.method_,
+          xfer_.tasks_.emplace_back(var.pool_, var.method_,
                                     var.rctx_.ret_task_addr_);
           if constexpr (USES_SRL_END(T)) {
             var.SerializeEnd(*this);

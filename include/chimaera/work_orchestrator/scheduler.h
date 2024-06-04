@@ -35,11 +35,11 @@ struct ScheduleTask : public Task, TaskFlags<TF_LOCAL> {
   ScheduleTask(hipc::Allocator *alloc,
                const TaskNode &task_node,
                const DomainQuery &dom_query,
-               TaskStateId &state_id) : Task(alloc) {
+               PoolId &pool_id) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrio::kHighLatency;
-    task_state_ = state_id;
+    pool_ = pool_id;
     method_ = SchedulerMethod::kSchedule;
     task_flags_.SetBits(TASK_LONG_RUNNING | TASK_REMOTE_DEBUG_MARK);
     SetPeriodMs(250);

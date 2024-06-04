@@ -145,7 +145,7 @@ class RpcContext {
   /**
    * Get SubDomainId from domain query
    * */
-  SubDomainId GetSubDomainId(const TaskStateId &scope,
+  SubDomainId GetSubDomainId(const PoolId &scope,
                              const DomainQuery &dom_query) {
     if (dom_query.flags_.Any(DomainQuery::kId)) {
       return SubDomainId(dom_query.sub_id_, dom_query.sel_.id_);
@@ -162,14 +162,14 @@ class RpcContext {
   /**
    * Get DomainID from domain query
    * */
-  DomainId GetDomainId(const TaskStateId &scope, const DomainQuery &dom_query) {
+  DomainId GetDomainId(const PoolId &scope, const DomainQuery &dom_query) {
     return DomainId(scope, GetSubDomainId(scope, dom_query));
   }
 
   /**
    * Resolve the minor domain of a domain query
    * */
-  void ResolveMinorDomain(const TaskStateId &scope,
+  void ResolveMinorDomain(const PoolId &scope,
                           const DomainQuery &dom_query,
                           std::vector<ResolvedDomainQuery> &res,
                           bool full) {
@@ -200,7 +200,7 @@ class RpcContext {
   /**
    * Resolve the major domain of a domain query
    * */
-  void ResolveMajorDomain(const TaskStateId &scope,
+  void ResolveMajorDomain(const PoolId &scope,
                           const DomainQuery &dom_query,
                           std::vector<ResolvedDomainQuery> &res,
                           bool full) {
@@ -250,7 +250,7 @@ class RpcContext {
    * Convert a DomainQuery into a set of more concretized queries.
    * */
   std::vector<ResolvedDomainQuery>
-  ResolveDomainQuery(const TaskStateId &scope,
+  ResolveDomainQuery(const PoolId &scope,
                      const DomainQuery &dom_query,
                      bool full) {
     ScopedRwReadLock lock(domain_map_lock_, 0);
@@ -280,8 +280,8 @@ class RpcContext {
 
   /** Create the default domains */
   std::vector<UpdateDomainInfo>
-  CreateDefaultDomains(const TaskStateId &task_state,
-                       const TaskStateId &admin_state,
+  CreateDefaultDomains(const PoolId &task_state,
+                       const PoolId &admin_state,
                        const DomainQuery &scope_query,
                        u32 global_lanes,
                        u32 local_lanes_pn) {
@@ -371,7 +371,7 @@ class RpcContext {
   }
 
   /** Get the set of lanes on this node */
-  std::vector<SubDomainId> GetLocalContainers(const TaskStateId &scope) {
+  std::vector<SubDomainId> GetLocalContainers(const PoolId &scope) {
     std::vector<SubDomainId> res;
     size_t dom_size = GetDomainSize(DomainId(scope, SubDomainId::kContainerSet));
     ScopedRwReadLock lock(domain_map_lock_, 0);

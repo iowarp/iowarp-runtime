@@ -67,13 +67,13 @@ struct TaskLibInfo {
   }
 };
 
-struct TaskStateInfo {
-  TaskState *shared_state_;
-  std::unordered_map<ContainerId, TaskState*> states_;
+struct ContainerInfo {
+  Container *shared_state_;
+  std::unordered_map<ContainerId, Container*> containers_;
 };
 
 /**
- * Stores the registered set of TaskLibs and TaskStates
+ * Stores the registered set of TaskLibs and Containers
  * */
 class TaskRegistry {
  public:
@@ -84,9 +84,9 @@ class TaskRegistry {
   /** Map of a semantic lib name to lib info */
   std::unordered_map<std::string, TaskLibInfo> libs_;
   /** Map of a semantic exec name to exec id */
-  std::unordered_map<std::string, TaskStateId> task_state_ids_;
+  std::unordered_map<std::string, PoolId> pool_ids_;
   /** Map of a semantic exec id to state */
-  std::unordered_map<TaskStateId, TaskStateInfo> task_states_;
+  std::unordered_map<PoolId, ContainerInfo> pools_;
   /** A unique identifier counter */
   std::atomic<u64> *unique_;
   RwLock lock_;
@@ -192,35 +192,35 @@ class TaskRegistry {
 
   /** Allocate a task state ID */
   HSHM_ALWAYS_INLINE
-  TaskStateId CreateTaskStateId() {
-    return TaskStateId(node_id_, unique_->fetch_add(1));
+  PoolId CreatePoolId() {
+    return PoolId(node_id_, unique_->fetch_add(1));
   }
 
   /** Check if task state exists by ID */
   HSHM_ALWAYS_INLINE
-  bool TaskStateExists(const TaskStateId &state_id) {
+  bool ContainerExists(const PoolId &pool_id) {
     ScopedRwReadLock lock(lock_, 0);
-    auto it = task_states_.find(state_id);
-    return it != task_states_.end();
+    auto it = pools_.find(pool_id);
+    return it != pools_.end();
   }
 
   /**
    * Create a task state
-   * state_id must not be NULL.
+   * pool_id must not be NULL.
    * */
-  bool CreateTaskState(const char *lib_name,
-                       const char *state_name,
-                       const TaskStateId &state_id,
-                       Admin::CreateTaskStateTask *task,
+  bool CreateContainer(const char *lib_name,
+                       const char *pool_name,
+                       const PoolId &pool_id,
+                       Admin::CreateContainerTask *task,
                        const std::vector<SubDomainId> &containers) {
-    // Ensure state_id is not NULL
-    if (state_id.IsNull()) {
+    // Ensure pool_id is not NULL
+    if (pool_id.IsNull()) {
       HELOG(kError, "The task state ID cannot be null");
       task->SetModuleComplete();
       return false;
     }
 //    HILOG(kInfo, "(node {}) Creating an instance of {} with name {}",
-//          CHI_CLIENT->node_id_, lib_name, state_name)
+//          CHI_CLIENT->node_id_, lib_name, pool_name)
 
     // Find the task library to instantiate
     auto it = libs_.find(lib_name);
@@ -232,34 +232,34 @@ class TaskRegistry {
     TaskLibInfo &info = it->second;
 
     // Create shared state
-    if (task_states_.find(state_id) == task_states_.end()) {
+    if (pools_.find(pool_id) == pools_.end()) {
       // Allocate the state
-      task_states_[state_id] = TaskStateInfo();
-      TaskState *exec = info.alloc_state_(task, state_name);
+      pools_[pool_id] = ContainerInfo();
+      Container *exec = info.alloc_state_(task, pool_name);
       if (!exec) {
-        HELOG(kError, "Could not create the task state: {}", state_name);
+        HELOG(kError, "Could not create the task state: {}", pool_name);
         task->SetModuleComplete();
         return false;
       }
 
       // Add the state to the registry
-      exec->id_ = state_id;
-      exec->name_ = state_name;
+      exec->id_ = pool_id;
+      exec->name_ = pool_name;
       exec->container_id_ = 0;
       ScopedRwWriteLock lock(lock_, 0);
-      task_state_ids_.emplace(state_name, state_id);
-      task_states_[state_id].shared_state_ = exec;
+      pool_ids_.emplace(pool_name, pool_id);
+      pools_[pool_id].shared_state_ = exec;
 
       // Construct the state
-      task->ctx_.id_ = state_id;
-      task->rctx_.shared_exec_ = task_states_[state_id].shared_state_;
+      task->ctx_.id_ = pool_id;
+      task->rctx_.shared_exec_ = pools_[pool_id].shared_state_;
       exec->Run(TaskMethod::kCreate, task, task->rctx_);
       task->UnsetModuleComplete();
     }
 
     // Create partitioned state
-    std::unordered_map<ContainerId, TaskState*> &states =
-        task_states_[state_id].states_;
+    std::unordered_map<ContainerId, Container*> &states =
+        pools_[pool_id].containers_;
     for (const SubDomainId &container_id : containers) {
       // Don't repeat if state exists
       if (states.find(container_id.minor_) != states.end()) {
@@ -267,108 +267,108 @@ class TaskRegistry {
       }
 
       // Allocate the state
-      TaskState *exec = info.alloc_state_(task, state_name);
+      Container *exec = info.alloc_state_(task, pool_name);
       if (!exec) {
-        HELOG(kError, "Could not create the task state: {}", state_name);
+        HELOG(kError, "Could not create the task state: {}", pool_name);
         task->SetModuleComplete();
         return false;
       }
 
       // Add the state to the registry
-      exec->id_ = state_id;
-      exec->name_ = state_name;
+      exec->id_ = pool_id;
+      exec->name_ = pool_name;
       exec->container_id_ = container_id.minor_;
       ScopedRwWriteLock lock(lock_, 0);
-      task_states_[state_id].states_[exec->container_id_] = exec;
+      pools_[pool_id].containers_[exec->container_id_] = exec;
 
       // Construct the state
-      task->ctx_.id_ = state_id;
-      task->rctx_.shared_exec_ = task_states_[state_id].shared_state_;
+      task->ctx_.id_ = pool_id;
+      task->rctx_.shared_exec_ = pools_[pool_id].shared_state_;
       exec->Run(TaskMethod::kCreate, task, task->rctx_);
       task->UnsetModuleComplete();
     }
-    HILOG(kInfo, "(node {})  Created an instance of {} with name {} and ID {}",
-          CHI_CLIENT->node_id_, lib_name, state_name, state_id);
+    HILOG(kInfo, "(node {})  Created an instance of {} with name {} and ID {} ({} containers)",
+          CHI_CLIENT->node_id_, lib_name, pool_name, pool_id);
     return true;
   }
 
   /** Get or create a task state's ID */
-  TaskStateId GetOrCreateTaskStateId(const std::string &state_name) {
+  PoolId GetOrCreatePoolId(const std::string &pool_name) {
     ScopedRwReadLock lock(lock_, 0);
-    auto it = task_state_ids_.find(state_name);
-    if (it == task_state_ids_.end()) {
-      TaskStateId state_id = CreateTaskStateId();
-      task_state_ids_.emplace(state_name, state_id);
-      return state_id;
+    auto it = pool_ids_.find(pool_name);
+    if (it == pool_ids_.end()) {
+      PoolId pool_id = CreatePoolId();
+      pool_ids_.emplace(pool_name, pool_id);
+      return pool_id;
     }
     return it->second;
   }
 
   /** Get a task state's ID */
-  TaskStateId GetTaskStateId(const std::string &state_name) {
+  PoolId GetPoolId(const std::string &pool_name) {
     ScopedRwReadLock lock(lock_, 0);
-    auto it = task_state_ids_.find(state_name);
-    if (it == task_state_ids_.end()) {
-      return TaskStateId::GetNull();
+    auto it = pool_ids_.find(pool_name);
+    if (it == pool_ids_.end()) {
+      return PoolId::GetNull();
     }
     return it->second;
   }
 
   /** Get a task state instance */
-  TaskState* GetAnyTaskState(const TaskStateId &task_state_id) {
+  Container* GetAnyContainer(const PoolId &pool_id) {
     ScopedRwReadLock lock(lock_, 0);
-    auto it = task_states_.find(task_state_id);
-    if (it == task_states_.end()) {
+    auto it = pools_.find(pool_id);
+    if (it == pools_.end()) {
       return nullptr;
     }
     return it->second.shared_state_;
   }
 
   /** Get task state instance by name OR by ID */
-  TaskState* GetAnyTaskState(const std::string &task_name,
-                             const TaskStateId &task_state_id) {
+  Container* GetAnyContainer(const std::string &task_name,
+                             const PoolId &pool_id) {
     ScopedRwReadLock lock(lock_, 0);
-    TaskStateId id = GetTaskStateId(task_name);
+    PoolId id = GetPoolId(task_name);
     if (id.IsNull()) {
-      id = task_state_id;
+      id = pool_id;
     }
-    auto it = task_states_.find(id);
-    if (it == task_states_.end()) {
+    auto it = pools_.find(id);
+    if (it == pools_.end()) {
       return nullptr;
     }
     return it->second.shared_state_;
   }
 
   /** Get a task state instance */
-  TaskState* GetTaskState(const TaskStateId &task_state_id,
+  Container* GetContainer(const PoolId &pool_id,
                           ContainerId &container_id) {
     ScopedRwReadLock lock(lock_, 0);
-    auto it = task_states_.find(task_state_id);
-    if (it == task_states_.end()) {
-      HELOG(kFatal, "Could not find task state {}", task_state_id)
+    auto it = pools_.find(pool_id);
+    if (it == pools_.end()) {
+      HELOG(kFatal, "Could not find task state {}", pool_id)
       return nullptr;
     }
-    TaskState *exec = it->second.states_[container_id];
+    Container *exec = it->second.containers_[container_id];
     if (!exec) {
       HELOG(kFatal, "Could not find task state {} for container {}",
-            task_state_id, container_id)
+            pool_id, container_id)
     }
     return exec;
   }
 
   /** Destroy a task state */
-  void DestroyTaskState(const TaskStateId &task_state_id) {
+  void DestroyContainer(const PoolId &pool_id) {
     ScopedRwWriteLock lock(lock_, 0);
-    auto it = task_states_.find(task_state_id);
-    if (it == task_states_.end()) {
+    auto it = pools_.find(pool_id);
+    if (it == pools_.end()) {
       HELOG(kWarning, "Could not find the task state");
       return;
     }
-    TaskStateInfo &task_states = it->second;
-    std::string state_name = task_states.states_[0]->name_;
+    ContainerInfo &task_states = it->second;
+    std::string pool_name = task_states.containers_[0]->name_;
     // TODO(llogan): Iterate over shared_state + states and destroy them
-    task_state_ids_.erase(state_name);
-    task_states_.erase(it);
+    pool_ids_.erase(pool_name);
+    pools_.erase(it);
   }
 };
 

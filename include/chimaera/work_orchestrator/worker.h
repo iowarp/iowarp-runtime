@@ -371,8 +371,8 @@ class PrivateTaskMultiQueue {
   template<bool TYPE=0>
   bool push(const PrivateTaskQueueEntry &entry) {
     Task *task = entry.task_.ptr_;
-    if (task->task_state_ == CHI_ADMIN->id_ &&
-        task->method_ == chi::Admin::Method::kCreateTaskState) {
+    if (task->pool_ == CHI_ADMIN->id_ &&
+        task->method_ == chi::Admin::Method::kCreateContainer) {
       return GetConstruct().push(entry);
     } else if (task->IsFlush()) {
       return GetFlush().push(entry);
@@ -697,7 +697,7 @@ class Worker {
       DomainQuery dom_query = task->dom_query_;
 //      HILOG(kDebug, "Received task {} dom_query {}",
 //            (size_t)task.ptr_, dom_query);
-      TaskRouteMode route = Reroute(task->task_state_,
+      TaskRouteMode route = Reroute(task->pool_,
                                     dom_query,
                                     task,
                                     lane);
@@ -721,7 +721,7 @@ class Worker {
   /**
    * Detect if a DomainQuery is across nodes
    * */
-  static TaskRouteMode Reroute(const TaskStateId &scope,
+  static TaskRouteMode Reroute(const PoolId &scope,
                                DomainQuery &dom_query,
                                LPointer<Task> task,
                                Lane *lane) {
@@ -730,7 +730,7 @@ class Worker {
     if (resolved.size() == 1 && resolved[0].node_ == CHI_RPC->node_id_) {
       dom_query = resolved[0].dom_;
 #ifdef CHIMAERA_REMOTE_DEBUG
-      if (task->task_state_ != CHI_QM_CLIENT->admin_task_state_ &&
+      if (task->pool_ != CHI_QM_CLIENT->admin_pool_ &&
           !task->task_flags_.Any(TASK_REMOTE_DEBUG_MARK) &&
           !task->IsLongRunning() &&
           task->method_ != TaskMethod::kCreate &&
@@ -741,7 +741,7 @@ class Worker {
 #endif
       if (dom_query.flags_.All(DomainQuery::kLocal | DomainQuery::kId)) {
         MultiQueue *queue = CHI_CLIENT->GetQueue(
-            task->task_state_);
+            task->pool_);
         LaneGroup &lane_group = queue->GetGroup(task->prio_);
         u32 lane_id = dom_query.sel_.id_ % lane_group.num_lanes_;
         Lane &lane_cmp = lane_group.GetLane(lane_id);
@@ -796,10 +796,10 @@ class Worker {
                LPointer<Task> task,
                bool flushing) {
     // Get the task state
-    TaskState *exec = GetTaskState(task->task_state_,
+    Container *exec = GetContainer(task->pool_,
                                    entry.res_query_.sel_.id_);
     if (!exec) {
-      if (task->task_state_ == TaskStateId::GetNull()) {
+      if (task->pool_ == PoolId::GetNull()) {
         HELOG(kFatal, "(node {}) Task {} has no task state",
               CHI_CLIENT->node_id_, task->task_node_);
         task->SetModuleComplete();
@@ -807,7 +807,7 @@ class Worker {
       } else {
         HELOG(kFatal, "(node {}) Could not find the task state {} for task {}"
                         " with query: {}",
-              CHI_CLIENT->node_id_, task->task_state_, task->task_node_,
+              CHI_CLIENT->node_id_, task->pool_, task->task_node_,
               entry.res_query_);
       }
       return true;
@@ -853,7 +853,7 @@ class Worker {
                 PrivateTaskQueueEntry &entry,
                 Task *&task,
                 RunContext &rctx,
-                TaskState *&exec,
+                Container *&exec,
                 bitfield32_t &props) {
     // Determine if a task should be executed
     if (!props.All(HSHM_WORKER_SHOULD_RUN)) {
@@ -882,7 +882,7 @@ class Worker {
           DomainQuery::GetDirectHash(SubDomainId::kLocalContainers, 0),
           task);
       std::vector<ResolvedDomainQuery> resolved =
-          CHI_RPC->ResolveDomainQuery(remote_task->task_state_,
+          CHI_RPC->ResolveDomainQuery(remote_task->pool_,
                                       remote_task->dom_query_,
                                       false);
       PrivateTaskQueueEntry remote_entry{remote_task, resolved[0].dom_};
@@ -934,7 +934,7 @@ class Worker {
   static void CoroutineEntry(bctx::transfer_t t) {
     Task *task = reinterpret_cast<Task*>(t.data);
     RunContext &rctx = task->rctx_;
-    TaskState *&exec = rctx.exec_;
+    Container *&exec = rctx.exec_;
     rctx.jmp_ = t;
     exec->Run(task->method_, task, rctx);
     task->UnsetStarted();
@@ -943,11 +943,11 @@ class Worker {
 
   /** Free a task when it is no longer needed */
   HSHM_ALWAYS_INLINE
-  void EndTask(TaskState *exec, LPointer<Task> &task) {
+  void EndTask(Container *exec, LPointer<Task> &task) {
     if (task->ShouldSignalUnblock()) {
       SignalUnblock(task->rctx_.pending_to_);
     } else if (task->ShouldSignalRemoteComplete()) {
-      TaskState *remote_exec = GetTaskState(CHI_REMOTE_QUEUE->id_,
+      Container *remote_exec = GetContainer(CHI_REMOTE_QUEUE->id_,
                                             task->GetContainerId());
       remote_exec->Run(chi::remote_queue::Method::kServerPushComplete,
                        task.ptr_, task->rctx_);
@@ -1012,8 +1012,8 @@ class Worker {
 
   /** Get task state */
   HSHM_ALWAYS_INLINE
-  TaskState* GetTaskState(const TaskStateId &state_id, u32 lane_id) {
-    return HRUN_TASK_REGISTRY->GetTaskState(state_id, lane_id);
+  Container* GetContainer(const PoolId &pool_id, u32 lane_id) {
+    return HRUN_TASK_REGISTRY->GetContainer(pool_id, lane_id);
   }
 
   /** Join worker */

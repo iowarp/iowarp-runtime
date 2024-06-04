@@ -214,7 +214,7 @@ struct UniqueId {
 };
 
 /** Uniquely identify a task state */
-using TaskStateId = UniqueId<1>;
+using PoolId = UniqueId<1>;
 /** Uniquely identify a queue */
 using QueueId = UniqueId<2>;
 /** Uniquely identify a task */
@@ -236,7 +236,7 @@ enum class TaskRouteMode {
 
 /** Context used for creating objects */
 struct CreateContext {
-  TaskStateId id_ = TaskStateId::GetNull();
+  PoolId id_ = PoolId::GetNull();
   u32 global_containers_ = 0;
   u32 local_containers_pn_ = 0;
   u32 lanes_per_container_ = 0;
@@ -351,28 +351,28 @@ struct SubDomainId {
 
 /** Represents a scoped domain */
 struct DomainId {
-  TaskStateId scope_;
+  PoolId scope_;
   SubDomainId sub_id_;
 
   /** Default constructor */
   DomainId() = default;
 
   /** Emplace constructor */
-  DomainId(const TaskStateId &scope,
+  DomainId(const PoolId &scope,
            const SubDomainId &sub_id) {
     scope_ = scope;
     sub_id_ = sub_id;
   }
 
   /** Emplace constructor (2) */
-  DomainId(const TaskStateId &scope,
+  DomainId(const PoolId &scope,
            const SubDomainGroup &group) {
     scope_ = scope;
     sub_id_ = {group};
   }
 
   /** Emplace constructor (3) */
-  DomainId(const TaskStateId &scope,
+  DomainId(const PoolId &scope,
            const SubDomainGroup &group,
            const SubDomainMinor &minor) {
     scope_ = scope;

@@ -18,11 +18,11 @@ namespace chi::small_message {
 /**
  * A task to create small_message
  * */
-using chi::Admin::CreateTaskStateTask;
-struct CreateTask : public CreateTaskStateTask {
+using chi::Admin::CreateContainerTask;
+struct CreateTask : public CreateContainerTask {
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
-  CreateTask(hipc::Allocator *alloc) : CreateTaskStateTask(alloc) {}
+  CreateTask(hipc::Allocator *alloc) : CreateContainerTask(alloc) {}
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
@@ -30,27 +30,27 @@ struct CreateTask : public CreateTaskStateTask {
              const TaskNode &task_node,
              const DomainQuery &dom_query,
              const DomainQuery &scope_query,
-             const std::string &state_name,
+             const std::string &pool_name,
              const CreateContext &ctx)
-      : CreateTaskStateTask(alloc, task_node, dom_query, scope_query,
-                            state_name, "small_message", ctx) {
+      : CreateContainerTask(alloc, task_node, dom_query, scope_query,
+                            pool_name, "small_message", ctx) {
   }
 };
 
 /** A task to destroy small_message */
-using chi::Admin::DestroyTaskStateTask;
-struct DestructTask : public DestroyTaskStateTask {
+using chi::Admin::DestroyContainerTask;
+struct DestructTask : public DestroyContainerTask {
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
-  DestructTask(hipc::Allocator *alloc) : DestroyTaskStateTask(alloc) {}
+  DestructTask(hipc::Allocator *alloc) : DestroyContainerTask(alloc) {}
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE
   DestructTask(hipc::Allocator *alloc,
                const TaskNode &task_node,
                const DomainQuery &dom_query,
-               TaskStateId &state_id)
-      : DestroyTaskStateTask(alloc, task_node, dom_query, state_id) {}
+               PoolId &pool_id)
+      : DestroyContainerTask(alloc, task_node, dom_query, pool_id) {}
 };
 
 /**
@@ -69,13 +69,13 @@ struct MdTask : public Task, TaskFlags<TF_SRL_SYM> {
   MdTask(hipc::Allocator *alloc,
          const TaskNode &task_node,
          const DomainQuery &dom_query,
-         TaskStateId &state_id,
+         PoolId &pool_id,
          u32 depth,
          u32 flags) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrio::kLowLatency;
-    task_state_ = state_id;
+    pool_ = pool_id;
     method_ = Method::kMd;
     task_flags_.SetBits(TASK_COROUTINE | flags);
     dom_query_ = dom_query;
@@ -123,13 +123,13 @@ struct IoTask : public Task, TaskFlags<TF_SRL_SYM> {
   IoTask(hipc::Allocator *alloc,
          const TaskNode &task_node,
          const DomainQuery &dom_query,
-         TaskStateId &state_id,
+         PoolId &pool_id,
          size_t io_size,
          u32 io_flags) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrio::kLowLatency;
-    task_state_ = state_id;
+    pool_ = pool_id;
     method_ = Method::kIo;
     task_flags_.SetBits(TASK_DATA_OWNER);
     dom_query_ = dom_query;

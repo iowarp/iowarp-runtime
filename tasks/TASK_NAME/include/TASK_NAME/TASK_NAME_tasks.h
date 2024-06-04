@@ -18,12 +18,12 @@ namespace chi::TASK_NAME {
 /**
  * A task to create TASK_NAME
  * */
-using chi::Admin::CreateTaskStateTask;
-struct CreateTask : public CreateTaskStateTask {
+using chi::Admin::CreateContainerTask;
+struct CreateTask : public CreateContainerTask {
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
   CreateTask(hipc::Allocator *alloc)
-  : CreateTaskStateTask(alloc) {}
+  : CreateContainerTask(alloc) {}
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
@@ -31,10 +31,10 @@ struct CreateTask : public CreateTaskStateTask {
                 const TaskNode &task_node,
                 const DomainQuery &dom_query,
                 const DomainQuery &scope_query,
-                const std::string &state_name,
+                const std::string &pool_name,
                 const CreateContext &ctx)
-      : CreateTaskStateTask(alloc, task_node, dom_query, scope_query,
-                            state_name, "TASK_NAME", ctx) {
+      : CreateContainerTask(alloc, task_node, dom_query, scope_query,
+                            pool_name, "TASK_NAME", ctx) {
     // Custom params
   }
 
@@ -45,20 +45,20 @@ struct CreateTask : public CreateTaskStateTask {
 };
 
 /** A task to destroy TASK_NAME */
-using chi::Admin::DestroyTaskStateTask;
-struct DestructTask : public DestroyTaskStateTask {
+using chi::Admin::DestroyContainerTask;
+struct DestructTask : public DestroyContainerTask {
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
   DestructTask(hipc::Allocator *alloc)
-  : DestroyTaskStateTask(alloc) {}
+  : DestroyContainerTask(alloc) {}
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
   DestructTask(hipc::Allocator *alloc,
                const TaskNode &task_node,
                const DomainQuery &dom_query,
-               TaskStateId &state_id)
-  : DestroyTaskStateTask(alloc, task_node, dom_query, state_id) {}
+               PoolId &pool_id)
+  : DestroyContainerTask(alloc, task_node, dom_query, pool_id) {}
 };
 
 /**
@@ -74,11 +74,11 @@ struct CustomTask : public Task, TaskFlags<TF_SRL_SYM> {
   CustomTask(hipc::Allocator *alloc,
              const TaskNode &task_node,
              const DomainQuery &dom_query,
-             const TaskStateId &state_id) : Task(alloc) {
+             const PoolId &pool_id) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrio::kLowLatency;
-    task_state_ = state_id;
+    pool_ = pool_id;
     method_ = Method::kCustom;
     task_flags_.SetBits(0);
     dom_query_ = dom_query;

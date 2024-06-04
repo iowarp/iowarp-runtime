@@ -28,17 +28,17 @@ class Client : public TaskLibClient {
                             const TaskNode &task_node,
                             const DomainQuery &dom_query,
                             const DomainQuery &scope_query,
-                            const std::string &state_name,
+                            const std::string &pool_name,
                             const CreateContext &ctx) {
     CHI_CLIENT->ConstructTask<CreateTask>(
-        task, task_node, dom_query, scope_query, state_name, ctx);
+        task, task_node, dom_query, scope_query, pool_name, ctx);
   }
   void CreateRoot(const DomainQuery &dom_query,
                   const DomainQuery &scope_query,
-                  const std::string &state_name,
+                  const std::string &pool_name,
                   const CreateContext &ctx = CreateContext()) {
     LPointer<CreateTask> task = AsyncCreateRoot(
-        dom_query, scope_query, state_name, ctx);
+        dom_query, scope_query, pool_name, ctx);
     task->Wait();
     Init(task->ctx_.id_);
     CHI_CLIENT->DelTask(task);
@@ -48,7 +48,7 @@ class Client : public TaskLibClient {
   /** Destroy task state + queue */
   HSHM_ALWAYS_INLINE
   void DestroyRoot(const DomainQuery &dom_query) {
-    CHI_ADMIN->DestroyTaskStateRoot(dom_query, id_);
+    CHI_ADMIN->DestroyContainerRoot(dom_query, id_);
   }
 
   /** Construct submit aggregator */

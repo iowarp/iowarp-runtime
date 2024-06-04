@@ -10,7 +10,7 @@ class Client : public TaskLibClient {
  public:
   /** Default constructor */
   Client() {
-    id_ = TaskStateId(CHI_QM_CLIENT->admin_queue_id_);
+    id_ = PoolId(CHI_QM_CLIENT->admin_queue_id_);
     queue_id_ = CHI_QM_CLIENT->admin_queue_id_;
   }
 
@@ -56,49 +56,49 @@ class Client : public TaskLibClient {
   CHIMAERA_TASK_NODE_ROOT(DestroyTaskLib)
 
   /** Spawn a task state */
-  template<typename CreateTaskStateT>
+  template<typename CreateContainerT>
   HSHM_ALWAYS_INLINE
-  TaskStateId CreateTaskStateComplete(LPointer<CreateTaskStateT> task) {
-    return CreateTaskStateComplete(task.ptr_);
+  PoolId CreateContainerComplete(LPointer<CreateContainerT> task) {
+    return CreateContainerComplete(task.ptr_);
   }
 
   /** Get the ID of a task state */
-  void AsyncGetTaskStateIdConstruct(GetTaskStateIdTask *task,
+  void AsyncGetPoolIdConstruct(GetPoolIdTask *task,
                                     const TaskNode &task_node,
                                     const DomainQuery &dom_query,
-                                    const std::string &state_name) {
-    CHI_CLIENT->ConstructTask<GetTaskStateIdTask>(
-        task, task_node, dom_query, state_name);
+                                    const std::string &pool_name) {
+    CHI_CLIENT->ConstructTask<GetPoolIdTask>(
+        task, task_node, dom_query, pool_name);
   }
-  TaskStateId GetTaskStateIdRoot(const DomainQuery &dom_query,
-                                 const std::string &state_name) {
-    LPointer<GetTaskStateIdTask> task =
-        AsyncGetTaskStateIdRoot(dom_query, state_name);
+  PoolId GetPoolIdRoot(const DomainQuery &dom_query,
+                                 const std::string &pool_name) {
+    LPointer<GetPoolIdTask> task =
+        AsyncGetPoolIdRoot(dom_query, pool_name);
     task->Wait();
-    TaskStateId new_id = task->id_;
+    PoolId new_id = task->id_;
     CHI_CLIENT->DelTask(task);
     return new_id;
   }
-  CHIMAERA_TASK_NODE_ROOT(GetTaskStateId)
+  CHIMAERA_TASK_NODE_ROOT(GetPoolId)
 
   /** Terminate a task state */
   HSHM_ALWAYS_INLINE
-  void AsyncDestroyTaskStateConstruct(DestroyTaskStateTask *task,
+  void AsyncDestroyContainerConstruct(DestroyContainerTask *task,
                                       const TaskNode &task_node,
                                       const DomainQuery &dom_query,
-                                      const TaskStateId &id) {
-    CHI_CLIENT->ConstructTask<DestroyTaskStateTask>(
+                                      const PoolId &id) {
+    CHI_CLIENT->ConstructTask<DestroyContainerTask>(
         task, task_node, dom_query, id);
   }
   HSHM_ALWAYS_INLINE
-  void DestroyTaskStateRoot(const DomainQuery &dom_query,
-                            const TaskStateId &id) {
-    LPointer<DestroyTaskStateTask> task =
-        AsyncDestroyTaskStateRoot(dom_query, id);
+  void DestroyContainerRoot(const DomainQuery &dom_query,
+                            const PoolId &id) {
+    LPointer<DestroyContainerTask> task =
+        AsyncDestroyContainerRoot(dom_query, id);
     task->Wait();
     CHI_CLIENT->DelTask(task);
   }
-  CHIMAERA_TASK_NODE_ROOT(DestroyTaskState)
+  CHIMAERA_TASK_NODE_ROOT(DestroyContainer)
 
   /** Terminate the runtime */
   void AsyncStopRuntimeConstruct(StopRuntimeTask *task,
@@ -125,12 +125,12 @@ class Client : public TaskLibClient {
   void AsyncSetWorkOrchQueuePolicyConstruct(SetWorkOrchQueuePolicyTask *task,
                                             const TaskNode &task_node,
                                             const DomainQuery &dom_query,
-                                            const TaskStateId &policy) {
+                                            const PoolId &policy) {
     CHI_CLIENT->ConstructTask<SetWorkOrchQueuePolicyTask>(
         task, task_node, dom_query, policy);
   }
   void SetWorkOrchQueuePolicyRoot(const DomainQuery &dom_query,
-                                  const TaskStateId &policy) {
+                                  const PoolId &policy) {
     LPointer<SetWorkOrchQueuePolicyTask> task =
         AsyncSetWorkOrchQueuePolicyRoot(dom_query, policy);
     task->Wait();
@@ -142,12 +142,12 @@ class Client : public TaskLibClient {
   void AsyncSetWorkOrchProcPolicyConstruct(SetWorkOrchProcPolicyTask *task,
                                            const TaskNode &task_node,
                                            const DomainQuery &dom_query,
-                                           const TaskStateId &policy) {
+                                           const PoolId &policy) {
     CHI_CLIENT->ConstructTask<SetWorkOrchProcPolicyTask>(
         task, task_node, dom_query, policy);
   }
   void SetWorkOrchProcPolicyRoot(const DomainQuery &dom_query,
-                                 const TaskStateId &policy) {
+                                 const PoolId &policy) {
     LPointer<SetWorkOrchProcPolicyTask> task =
         AsyncSetWorkOrchProcPolicyRoot(dom_query, policy);
     task->Wait();

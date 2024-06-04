@@ -60,36 +60,36 @@ class Server : public TaskLib {
   }
 
   /** Create a task state */
-  void CreateTaskState(CreateTaskStateTask *task, RunContext &rctx) {
-    HILOG(kInfo, "REGISTERING kCreateTaskState for task {} on worker {} lane {} and state_name {}",
-          task->task_node_, rctx.worker_id_, container_id_, task->state_name_.str());
+  void CreateContainer(CreateContainerTask *task, RunContext &rctx) {
+    HILOG(kInfo, "REGISTERING kCreateContainer for task {} on worker {} lane {} and pool_name {}",
+          task->task_node_, rctx.worker_id_, container_id_, task->pool_name_.str());
     ScopedCoMutexTable<u32> lock(mutexes_, 0, task, rctx);
-    HILOG(kInfo, "BEGINNING kCreateTaskState for task {} on worker {} lane {}",
+    HILOG(kInfo, "BEGINNING kCreateContainer for task {} on worker {} lane {}",
           task->task_node_, rctx.worker_id_, container_id_);
     std::string lib_name = task->lib_name_.str();
-    std::string state_name = task->state_name_.str();
+    std::string pool_name = task->pool_name_.str();
     // Check local registry for task state
     bool state_existed = false;
-    TaskState *task_state = CHI_TASK_REGISTRY->GetAnyTaskState(
-        state_name, task->ctx_.id_);
+    Container *task_state = CHI_TASK_REGISTRY->GetAnyContainer(
+        pool_name, task->ctx_.id_);
     if (task_state) {
       task->ctx_.id_ = task_state->id_;
       state_existed = true;
       task->SetModuleComplete();
-      HILOG(kInfo, "ENDING kCreateTaskState for task {} on worker {}",
+      HILOG(kInfo, "ENDING kCreateContainer for task {} on worker {}",
             task->task_node_, rctx.worker_id_);
       return;
     }
     // Check global registry for task state
     if (task->ctx_.id_.IsNull()) {
-      task->ctx_.id_ = CHI_TASK_REGISTRY->GetOrCreateTaskStateId(state_name);
+      task->ctx_.id_ = CHI_TASK_REGISTRY->GetOrCreatePoolId(pool_name);
     }
     // Create the task state
     HILOG(kInfo, "(node {}) Creating task state {} with id {} (task_node={})",
-          CHI_CLIENT->node_id_, state_name, task->ctx_.id_, task->task_node_);
+          CHI_CLIENT->node_id_, pool_name, task->ctx_.id_, task->task_node_);
     if (task->ctx_.id_.IsNull()) {
       HELOG(kError, "(node {}) The task state {} with id {} is NULL.",
-            CHI_CLIENT->node_id_, state_name, task->ctx_.id_);
+            CHI_CLIENT->node_id_, pool_name, task->ctx_.id_);
       task->SetModuleComplete();
       return;
     }
@@ -106,7 +106,7 @@ class Server : public TaskLib {
     // Update the default domains for the state
     std::vector<UpdateDomainInfo> ops = CHI_RPC->CreateDefaultDomains(
         task->ctx_.id_,
-        CHI_QM_CLIENT->admin_task_state_,
+        CHI_QM_CLIENT->admin_pool_,
         task->scope_query_,
         global_containers,
         local_containers_pn);
@@ -114,23 +114,23 @@ class Server : public TaskLib {
     std::vector<SubDomainId> containers =
         CHI_RPC->GetLocalContainers(task->ctx_.id_);
     // Create the task state
-    CHI_TASK_REGISTRY->CreateTaskState(
+    CHI_TASK_REGISTRY->CreateContainer(
         lib_name.c_str(),
-        state_name.c_str(),
+        pool_name.c_str(),
         task->ctx_.id_,
         task, containers);
     if (task->root_) {
       // Broadcast the state creation to all nodes
-      TaskState *exec = CHI_TASK_REGISTRY->GetAnyTaskState(task->ctx_.id_);
+      Container *exec = CHI_TASK_REGISTRY->GetAnyContainer(task->ctx_.id_);
       LPointer<Task> bcast;
       exec->CopyStart(Method::kCreate, task, bcast, true);
-      auto *bcast_ptr = reinterpret_cast<CreateTaskStateTask *>(
+      auto *bcast_ptr = reinterpret_cast<CreateContainerTask *>(
           bcast.ptr_);
       bcast_ptr->task_node_ += 1;
       bcast_ptr->root_ = false;
       bcast_ptr->dom_query_ = bcast_ptr->scope_query_;
-      bcast_ptr->method_ = Method::kCreateTaskState;
-      bcast_ptr->task_state_ = CHI_ADMIN->id_;
+      bcast_ptr->method_ = Method::kCreateContainer;
+      bcast_ptr->pool_ = CHI_ADMIN->id_;
       MultiQueue *queue =
           CHI_QM_CLIENT->GetQueue(CHI_QM_CLIENT->admin_queue_id_);
       bcast->YieldInit(task);
@@ -138,16 +138,16 @@ class Server : public TaskLib {
       task->Wait<TASK_YIELD_CO>(bcast);
       exec->Del(Method::kCreate, bcast.ptr_);
     }
-    HILOG(kInfo, "ENDING kCreateTaskState for task {} on worker {} lane {}",
+    HILOG(kInfo, "ENDING kCreateContainer for task {} on worker {} lane {}",
           task->task_node_, rctx.worker_id_, container_id_);
     task->SetModuleComplete();
   }
-  void MonitorCreateTaskState(u32 mode, CreateTaskStateTask *task,
+  void MonitorCreateContainer(u32 mode, CreateContainerTask *task,
                               RunContext &rctx) {
     switch (mode) {
       case MonitorMode::kReplicaAgg: {
         std::vector<LPointer<Task>> &replicas = *rctx.replicas_;
-        auto replica = reinterpret_cast<CreateTaskStateTask *>(
+        auto replica = reinterpret_cast<CreateContainerTask *>(
             replicas[0].ptr_);
         task->ctx_ = replica->ctx_;
         HILOG(kDebug, "New aggregated task state {}", task->ctx_.id_);
@@ -156,18 +156,18 @@ class Server : public TaskLib {
   }
 
   /** Get task state id, fail if DNE */
-  void GetTaskStateId(GetTaskStateIdTask *task, RunContext &rctx) {
-    std::string state_name = task->state_name_.str();
-    task->id_ = CHI_TASK_REGISTRY->GetTaskStateId(state_name);
+  void GetPoolId(GetPoolIdTask *task, RunContext &rctx) {
+    std::string pool_name = task->pool_name_.str();
+    task->id_ = CHI_TASK_REGISTRY->GetPoolId(pool_name);
     task->SetModuleComplete();
   }
-  void MonitorGetTaskStateId(u32 mode,
-                             GetTaskStateIdTask *task,
+  void MonitorGetPoolId(u32 mode,
+                             GetPoolIdTask *task,
                              RunContext &rctx) {
     switch (mode) {
       case MonitorMode::kReplicaAgg: {
         std::vector<LPointer<Task>> &replicas = *rctx.replicas_;
-        auto replica = reinterpret_cast<GetTaskStateIdTask *>(
+        auto replica = reinterpret_cast<GetPoolIdTask *>(
             replicas[0].ptr_);
         task->id_ = replica->id_;
         HILOG(kDebug, "New aggregated task state {}", task->id_);
@@ -176,12 +176,12 @@ class Server : public TaskLib {
   }
 
   /** Destroy a task state */
-  void DestroyTaskState(DestroyTaskStateTask *task, RunContext &rctx) {
-    CHI_TASK_REGISTRY->DestroyTaskState(task->id_);
+  void DestroyContainer(DestroyContainerTask *task, RunContext &rctx) {
+    CHI_TASK_REGISTRY->DestroyContainer(task->id_);
     task->SetModuleComplete();
   }
-  void MonitorDestroyTaskState(u32 mode,
-                               DestroyTaskStateTask *task,
+  void MonitorDestroyContainer(u32 mode,
+                               DestroyContainerTask *task,
                                RunContext &rctx) {
   }
 

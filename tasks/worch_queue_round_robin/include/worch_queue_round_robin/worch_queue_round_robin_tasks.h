@@ -21,11 +21,11 @@ typedef SchedulerMethod Method;
 /**
  * A task to create worch_queue_round_robin
  * */
-using chi::Admin::CreateTaskStateTask;
-struct CreateTask : public CreateTaskStateTask {
+using chi::Admin::CreateContainerTask;
+struct CreateTask : public CreateContainerTask {
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
-  CreateTask(hipc::Allocator *alloc) : CreateTaskStateTask(alloc) {}
+  CreateTask(hipc::Allocator *alloc) : CreateContainerTask(alloc) {}
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE
@@ -33,10 +33,10 @@ struct CreateTask : public CreateTaskStateTask {
                 const TaskNode &task_node,
                 const DomainQuery &dom_query,
                 const DomainQuery &scope_query,
-                const std::string &state_name,
+                const std::string &pool_name,
                 const CreateContext &ctx)
-      : CreateTaskStateTask(alloc, task_node, dom_query, scope_query,
-                            state_name, "worch_queue_round_robin", ctx) {
+      : CreateContainerTask(alloc, task_node, dom_query, scope_query,
+                            pool_name, "worch_queue_round_robin", ctx) {
   }
 
   /** Destructor */
@@ -45,19 +45,19 @@ struct CreateTask : public CreateTaskStateTask {
 };
 
 /** A task to destroy worch_queue_round_robin */
-using chi::Admin::DestroyTaskStateTask;
-struct DestructTask : public DestroyTaskStateTask {
+using chi::Admin::DestroyContainerTask;
+struct DestructTask : public DestroyContainerTask {
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
-  DestructTask(hipc::Allocator *alloc) : DestroyTaskStateTask(alloc) {}
+  DestructTask(hipc::Allocator *alloc) : DestroyContainerTask(alloc) {}
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE
   DestructTask(hipc::Allocator *alloc,
                const TaskNode &task_node,
-               TaskStateId &state_id,
+               PoolId &pool_id,
                const DomainQuery &dom_query)
-      : DestroyTaskStateTask(alloc, task_node, dom_query, state_id) {}
+      : DestroyContainerTask(alloc, task_node, dom_query, pool_id) {}
 };
 
 }  // namespace chi::worch_queue_round_robin

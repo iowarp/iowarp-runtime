@@ -51,7 +51,7 @@ void Runtime::ServerInit(std::string server_config_path) {
   CHI_CLIENT->Create(server_config_path, "", true);
   HERMES_THREAD_MODEL->SetThreadModel(hshm::ThreadType::kArgobots);
   work_orchestrator_.ServerInit(&server_config_, queue_manager_);
-  hipc::mptr<Admin::CreateTaskStateTask> admin_task;
+  hipc::mptr<Admin::CreateContainerTask> admin_task;
   u32 max_containers_pn = CHI_RUNTIME->queue_manager_.max_containers_pn_;
   size_t max_workers = server_config_.wo_.max_dworkers_ +
                        server_config_.wo_.max_oworkers_;
@@ -59,42 +59,42 @@ void Runtime::ServerInit(std::string server_config_path) {
   std::vector<SubDomainId> containers;
 
   // Create the admin library
-  CHI_CLIENT->MakeTaskStateId();
-  admin_task = hipc::make_mptr<Admin::CreateTaskStateTask>();
+  CHI_CLIENT->MakePoolId();
+  admin_task = hipc::make_mptr<Admin::CreateContainerTask>();
   task_registry_.RegisterTaskLib("chimaera_admin");
   ops = CHI_RPC->CreateDefaultDomains(
-      CHI_QM_CLIENT->admin_task_state_,
-      CHI_QM_CLIENT->admin_task_state_,
+      CHI_QM_CLIENT->admin_pool_,
+      CHI_QM_CLIENT->admin_pool_,
       DomainQuery::GetGlobal(chi::SubDomainId::kContainerSet, 0),
       CHI_RPC->hosts_.size(), 1);
   CHI_RPC->UpdateDomains(ops);
   containers =
-      CHI_RPC->GetLocalContainers(CHI_QM_CLIENT->admin_task_state_);
-  task_registry_.CreateTaskState(
+      CHI_RPC->GetLocalContainers(CHI_QM_CLIENT->admin_pool_);
+  task_registry_.CreateContainer(
       "chimaera_admin",
       "chimaera_admin",
-      CHI_QM_CLIENT->admin_task_state_,
+      CHI_QM_CLIENT->admin_pool_,
       admin_task.get(),
       containers);
 
   // Create the work orchestrator queue scheduling library
-  TaskStateId queue_sched_id = CHI_CLIENT->MakeTaskStateId();
-  admin_task = hipc::make_mptr<Admin::CreateTaskStateTask>();
+  PoolId queue_sched_id = CHI_CLIENT->MakePoolId();
+  admin_task = hipc::make_mptr<Admin::CreateContainerTask>();
   task_registry_.RegisterTaskLib("worch_queue_round_robin");
   ops = CHI_RPC->CreateDefaultDomains(
       queue_sched_id,
-      CHI_QM_CLIENT->admin_task_state_,
+      CHI_QM_CLIENT->admin_pool_,
       DomainQuery::GetGlobal(chi::SubDomainId::kLocalContainers, 0),
       1, 1);
   CHI_RPC->UpdateDomains(ops);
   containers = CHI_RPC->GetLocalContainers(queue_sched_id);
-  task_registry_.CreateTaskState(
+  task_registry_.CreateContainer(
       "worch_queue_round_robin",
       "worch_queue_round_robin",
       queue_sched_id,
       admin_task.get(),
       containers);
-  TaskState *state = task_registry_.GetAnyTaskState(queue_sched_id);
+  Container *state = task_registry_.GetAnyContainer(queue_sched_id);
 
   // Initially schedule queues to workers
   auto queue_task = CHI_CLIENT->NewTask<ScheduleTask>(
@@ -107,17 +107,17 @@ void Runtime::ServerInit(std::string server_config_path) {
   CHI_CLIENT->DelTask(queue_task);
 
   // Create the work orchestrator process scheduling library
-  TaskStateId proc_sched_id = CHI_CLIENT->MakeTaskStateId();
-  admin_task = hipc::make_mptr<Admin::CreateTaskStateTask>();
+  PoolId proc_sched_id = CHI_CLIENT->MakePoolId();
+  admin_task = hipc::make_mptr<Admin::CreateContainerTask>();
   task_registry_.RegisterTaskLib("worch_proc_round_robin");
   ops = CHI_RPC->CreateDefaultDomains(
       proc_sched_id,
-      CHI_QM_CLIENT->admin_task_state_,
+      CHI_QM_CLIENT->admin_pool_,
       DomainQuery::GetGlobal(chi::SubDomainId::kLocalContainers, 0),
       1, 1);
   CHI_RPC->UpdateDomains(ops);
   containers = CHI_RPC->GetLocalContainers(proc_sched_id);
-  task_registry_.CreateTaskState(
+  task_registry_.CreateContainer(
       "worch_proc_round_robin",
       "worch_proc_round_robin",
       proc_sched_id,
@@ -138,7 +138,7 @@ void Runtime::ServerInit(std::string server_config_path) {
       DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0),
       DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0),
       "remote_queue",
-      CreateContext{CHI_CLIENT->MakeTaskStateId(), 1, max_containers_pn});
+      CreateContext{CHI_CLIENT->MakePoolId(), 1, max_containers_pn});
   remote_created_ = true;
 }
 

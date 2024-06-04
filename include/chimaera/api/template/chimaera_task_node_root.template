@@ -14,7 +14,7 @@ hipc::LPointer<CUSTOM##Task> Async##CUSTOM(Task *parent_task,
     task_node, std::forward<Args>(args)...);
   task->YieldInit(parent_task);
   std::vector<ResolvedDomainQuery> resolved =
-    CHI_RPC->ResolveDomainQuery(task->task_state_, task->dom_query_, false);
+    CHI_RPC->ResolveDomainQuery(task->pool_, task->dom_query_, false);
   MultiQueue *queue = CHI_CLIENT->GetQueue(queue_id_);
   DomainQuery dom_query = resolved[0].dom_;
   if (resolved.size() == 1 && resolved[0].node_ == CHI_RPC->node_id_ &&

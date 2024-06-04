@@ -27,7 +27,7 @@ TEST_CASE("TestTypeSizes") {
   HILOG(kInfo, "Size of float: {}", sizeof(float))
   HILOG(kInfo, "Size of double: {}", sizeof(double))
 
-  HILOG(kInfo, "Size of TaskStateId: {}", sizeof(chi::TaskStateId));
+  HILOG(kInfo, "Size of PoolId: {}", sizeof(chi::PoolId));
   HILOG(kInfo, "Size of TaskId: {}", sizeof(chi::TaskId));
   HILOG(kInfo, "Size of QueueId: {}", sizeof(chi::QueueId));
   HILOG(kInfo, "Size of DomainId: {}", sizeof(chi::DomainId));

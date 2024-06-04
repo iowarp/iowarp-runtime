@@ -102,8 +102,8 @@ class Client : public ConfigurationManager {
   }
 
   /** Create a unique ID */
-  TaskStateId MakeTaskStateId() {
-    return TaskStateId(header_->node_id_, unique_->fetch_add(1));
+  PoolId MakePoolId() {
+    return PoolId(header_->node_id_, unique_->fetch_add(1));
   }
 
   /** Create a default-constructed task */
@@ -180,7 +180,7 @@ class Client : public ConfigurationManager {
     HILOG(kDebug, "Freeing task {} / {}", (size_t)task, task)
     if (task->delcnt_ != 1) {
       HELOG(kFatal, "Freed task {} times: node={}, state={}. method={}",
-            task->delcnt_.load(), task->task_node_, task->task_state_, task->method_)
+            task->delcnt_.load(), task->task_node_, task->pool_, task->method_)
     }
 #endif
   }
@@ -214,9 +214,9 @@ class Client : public ConfigurationManager {
   }
 
   /** Destroy a task */
-  template<typename TaskStateT, typename TaskT>
+  template<typename ContainerT, typename TaskT>
   HSHM_ALWAYS_INLINE
-  void DelTask(TaskStateT *exec, TaskT *task) {
+  void DelTask(ContainerT *exec, TaskT *task) {
 #ifdef CHIMAERA_TASK_DEBUG
     MonitorTaskFrees(task);
 #else
@@ -228,9 +228,9 @@ class Client : public ConfigurationManager {
   }
 
   /** Destroy a task */
-  template<typename TaskStateT, typename TaskT>
+  template<typename ContainerT, typename TaskT>
   HSHM_ALWAYS_INLINE
-  void DelTask(TaskStateT *exec, LPointer<TaskT> &task) {
+  void DelTask(ContainerT *exec, LPointer<TaskT> &task) {
 #ifdef CHIMAERA_TASK_DEBUG
     MonitorTaskFrees(task);
 #else
@@ -371,7 +371,7 @@ class Client : public ConfigurationManager {
 
   /** Get the queue ID */
   HSHM_ALWAYS_INLINE
-  QueueId GetQueueId(const TaskStateId &id) {
+  QueueId GetQueueId(const PoolId &id) {
     if (id == CHI_QM_CLIENT->process_queue_id_) {
       return CHI_QM_CLIENT->process_queue_id_;
     } else {
@@ -413,7 +413,7 @@ hipc::LPointer<CUSTOM##Task> Async##CUSTOM(Task *parent_task,\
     task_node, std::forward<Args>(args)...);\
   task->YieldInit(parent_task);\
   std::vector<ResolvedDomainQuery> resolved =\
-    CHI_RPC->ResolveDomainQuery(task->task_state_, task->dom_query_, false);\
+    CHI_RPC->ResolveDomainQuery(task->pool_, task->dom_query_, false);\
   MultiQueue *queue = CHI_CLIENT->GetQueue(queue_id_);\
   DomainQuery dom_query = resolved[0].dom_;\
   if (resolved.size() == 1 && resolved[0].node_ == CHI_RPC->node_id_ &&\
