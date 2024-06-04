@@ -232,7 +232,7 @@ class Server : public TaskLib {
 
       for (auto it = entries.begin(); it != entries.end(); ++it) {
         SegmentedTransfer xfer = it->second.Get();
-        HILOG(kInfo, "(node {}) {}", CHI_RPC->node_id_, xfer);
+        HILOG(kInfo, "(node {}) (client xfer) {}", CHI_RPC->node_id_, xfer);
         xfer.ret_node_ = CHI_RPC->node_id_;
         hshm::Timer t;
         t.Resume();
@@ -349,6 +349,7 @@ class Server : public TaskLib {
                      tl::bulk &bulk,
                      SegmentedTransfer &xfer) {
     try {
+      HILOG(kInfo, "(node {}) (server xfer) {}", CHI_RPC->node_id_, xfer);
       xfer.AllocateSegmentsServer();
 //      HILOG(kDebug, "(node {}) Received submission of size {}",
 //            CHI_CLIENT->node_id_, xfer.size());
