@@ -232,7 +232,7 @@ class Server : public TaskLib {
 
       for (auto it = entries.begin(); it != entries.end(); ++it) {
         SegmentedTransfer xfer = it->second.Get();
-        xfer.ret_node_ = it->first;
+        xfer.ret_node_ = CHI_RPC->node_id_;
         hshm::Timer t;
         t.Resume();
         HRUN_THALLIUM->SyncIoCall<int>((i32)it->first,
