@@ -345,13 +345,13 @@ class TaskRegistry {
     ScopedRwReadLock lock(lock_, 0);
     auto it = pools_.find(pool_id);
     if (it == pools_.end()) {
-      HELOG(kFatal, "Could not find task state {}", pool_id)
+      HELOG(kFatal, "Could not find pool {}", pool_id)
       return nullptr;
     }
     Container *exec = it->second.containers_[container_id];
     if (!exec) {
-      HELOG(kFatal, "Could not find task state {} for container {}",
-            pool_id, container_id)
+      HELOG(kFatal, "Could not find container {} in pool {}: {}",
+            pool_id, container_id, DomainId{pool_id, container_id})
     }
     return exec;
   }
