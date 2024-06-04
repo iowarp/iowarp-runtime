@@ -55,16 +55,16 @@ class Server : public TaskLib {
             Worker &worker = *HRUN_WORK_ORCHESTRATOR->dworkers_[worker_off];
             worker.PollQueues({WorkEntry(lane_group.prio_, lane_id, &queue)});
             worker_id = worker.id_;
-            HILOG(kInfo, "(node {}) Scheduling the queue {} (prio {}, lane {}, worker {})",
-                  CHI_CLIENT->node_id_, queue.id_, lane_group.prio_, lane_id, worker.id_);
+//            HILOG(kInfo, "(node {}) Scheduling the queue {} (prio {}, lane {}, worker {})",
+//                  CHI_CLIENT->node_id_, queue.id_, lane_group.prio_, lane_id, worker.id_);
           } else {
             u32 worker_off = count_highlat_ % HRUN_WORK_ORCHESTRATOR->oworkers_.size();
             count_highlat_ += 1;
             Worker &worker = *HRUN_WORK_ORCHESTRATOR->oworkers_[worker_off];
             worker.PollQueues({WorkEntry(lane_group.prio_, lane_id, &queue)});
             worker_id = worker.id_;
-            HILOG(kInfo, "(node {}) Scheduling the queue {} (prio {}, lane {}, worker {})",
-                  CHI_CLIENT->node_id_, queue.id_, lane_group.prio_, lane_id, worker.id_);
+//            HILOG(kInfo, "(node {}) Scheduling the queue {} (prio {}, lane {}, worker {})",
+//                  CHI_CLIENT->node_id_, queue.id_, lane_group.prio_, lane_id, worker.id_);
           }
           Lane &lane = lane_group.GetLane(lane_id);
           lane.worker_id_ = worker_id;
