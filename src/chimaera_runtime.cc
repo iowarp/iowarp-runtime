@@ -124,6 +124,14 @@ void Runtime::ServerInit(std::string server_config_path) {
       admin_task.get(),
       containers);
 
+  CHI_RPC->PrintDomainResolution(
+      proc_sched_id,
+      DomainQuery::GetGlobal(chi::SubDomainId::kContainerSet, 0));
+  CHI_RPC->PrintDomainResolution(
+      proc_sched_id,
+      DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0));
+  HELOG(kFatal, "End here...");
+
   // Set the work orchestrator queue scheduler
   CHI_ADMIN->SetWorkOrchQueuePolicyRoot(
       DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0),

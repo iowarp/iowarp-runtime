@@ -283,8 +283,8 @@ class RpcContext {
   CreateDefaultDomains(const PoolId &task_state,
                        const PoolId &admin_state,
                        const DomainQuery &scope_query,
-                       u32 global_lanes,
-                       u32 local_lanes_pn) {
+                       u32 global_containers,
+                       u32 local_containers_pn) {
     std::vector<UpdateDomainInfo> ops;
     // Resolve the admin scope domain
     std::vector<ResolvedDomainQuery> dom = ResolveDomainQuery(
@@ -298,8 +298,8 @@ class RpcContext {
     // Create the set of all lanes
     {
       // Create the major LaneSet domain
-      size_t total_dom_size = global_lanes +
-          local_lanes_pn * dom.size();
+      size_t total_dom_size = global_containers +
+          local_containers_pn * dom.size();
       DomainId dom_id(task_state, SubDomainId::kContainerSet);
       SubDomainIdRange range(
           SubDomainId::kContainerSet,
@@ -315,10 +315,10 @@ class RpcContext {
       SubDomainIdRange range(
           SubDomainId::kGlobalContainers,
           1,
-          global_lanes);
+          global_containers);
       ops.emplace_back(UpdateDomainInfo{
           dom_id, UpdateDomainOp::kExpand, range});
-      for (size_t i = 1; i <= global_lanes; ++i) {
+      for (size_t i = 1; i <= global_containers; ++i) {
         // Update LaneSet
         SubDomainIdRange res_set(
             SubDomainId::kPhysicalNode, dom[i % dom.size()].node_, 1);
@@ -340,13 +340,13 @@ class RpcContext {
       SubDomainIdRange range(
           SubDomainId::kLocalContainers,
           1,
-          local_lanes_pn);
+          local_containers_pn);
       ops.emplace_back(UpdateDomainInfo{
           dom_id, UpdateDomainOp::kExpand, range});
       // Update LaneSet
-      u32 lane_off = global_lanes + 1;
+      u32 lane_off = global_containers + 1;
       for (u32 node_id = 1; node_id <= hosts_.size(); ++node_id) {
-        for (size_t i = 1; i <= local_lanes_pn; ++i) {
+        for (size_t i = 1; i <= local_containers_pn; ++i) {
           SubDomainIdRange res_set(
               SubDomainId::kPhysicalNode, node_id, 1);
           // Update LaneSet
@@ -368,6 +368,26 @@ class RpcContext {
     // Create the set of caching lanes
     // TODO(llogan)
     return ops;
+  }
+
+  /** Print the major domain */
+  void PrintDomain(const DomainId &domain_id) {
+    ScopedRwReadLock lock(domain_map_lock_, 0);
+    DomainMapEntry &entry = domain_map_[domain_id];
+    HILOG(kInfo, "Domain[{}]: {} entries", domain_id, entry.ids_.size());
+    for (const SubDomainId &id : entry.ids_) {
+      HILOG(kInfo, "Domain[{}]: {}", domain_id, id);
+    }
+  }
+
+  /** Print domain resolution */
+  void PrintDomainResolution(const PoolId &scope, const DomainQuery &dom_query) {
+    std::vector<ResolvedDomainQuery> res_query =
+        ResolveDomainQuery(scope, dom_query, true);
+    HILOG(kInfo, "Domain resolution for {}", dom_query);
+    for (const ResolvedDomainQuery &query : res_query) {
+      HILOG(kInfo, "Resolved: node={} / {}", query.node_, query.dom_);
+    }
   }
 
   /** Get the set of lanes on this node */

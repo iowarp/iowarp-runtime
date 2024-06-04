@@ -347,6 +347,12 @@ struct SubDomainId {
   size_t Hash() const {
     return std::hash<u32>{}(major_) + std::hash<u32>{}(minor_);
   }
+
+  /** Print operator */
+  friend std::ostream& operator<<(std::ostream &os,
+                                  const SubDomainId &subdom_id) {
+    return os << subdom_id.major_ << "." << subdom_id.minor_;
+  }
 };
 
 /** Represents a scoped domain */
@@ -419,6 +425,12 @@ struct DomainId {
   /** Hash function */
   size_t Hash() const {
     return scope_.Hash() + sub_id_.Hash();
+  }
+
+  /** Print operator */
+  friend std::ostream& operator<<(std::ostream &os,
+                                  const DomainId &subdom_id) {
+    return os << subdom_id.scope_ << "." << subdom_id.sub_id_;
   }
 };
 
