@@ -273,7 +273,7 @@ class RpcContext {
     } else if (dom_query.flags_.Any(DomainQuery::kGlobal)) {
       ResolveMajorDomain(scope, dom_query, res, full);
     } else {
-      HELOG(kFatal, "Unknown domain query type: {}", dom_query)
+      HELOG(kError, "Unknown domain query type: {}", dom_query)
     }
     return res;
   }
