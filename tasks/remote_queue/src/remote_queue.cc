@@ -210,7 +210,7 @@ class Server : public TaskLib {
       std::unordered_map<NodeId, BinaryOutputArchive<true>> entries;
       auto &submit = shared_->submit_;
       while (!submit[0].pop(entry).IsNull()) {
-        HILOG(kDebug, "(node {}) Submitting task {} ({}) to domain {}",
+        HILOG(kDebug, "(node {}) [1] Submitting task {} ({}) to domain {}",
               CHI_CLIENT->node_id_, entry.task_->task_node_,
               (size_t)entry.task_,
               entry.res_domain_);
@@ -226,8 +226,10 @@ class Server : public TaskLib {
           return;
         }
         orig_task->dom_query_ = entry.res_domain_.dom_;
-        HILOG(kInfo, "(node {}) (client submit) {}",
-              CHI_CLIENT->node_id_, orig_task->dom_query_);
+        HILOG(kDebug, "(node {}) [2] Submitting task {} ({}) to domain {}",
+              CHI_CLIENT->node_id_, entry.task_->task_node_,
+              (size_t)entry.task_,
+              orig_task->dom_query_);
         BinaryOutputArchive<true> &ar = entries[entry.res_domain_.node_];
         exec->SaveStart(orig_task->method_, ar, orig_task);
       }
