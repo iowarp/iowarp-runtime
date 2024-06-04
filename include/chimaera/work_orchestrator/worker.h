@@ -695,14 +695,14 @@ class Worker {
       task.shm_ = entry->p_;
       task.ptr_ = CHI_CLIENT->GetMainPointer<Task>(entry->p_);
       DomainQuery dom_query = task->dom_query_;
-      HILOG(kDebug, "Received task {} dom_query {}",
-            (size_t)task.ptr_, dom_query);
+//      HILOG(kDebug, "Received task {} dom_query {}",
+//            (size_t)task.ptr_, dom_query);
       TaskRouteMode route = Reroute(task->task_state_,
                                     dom_query,
                                     task,
                                     lane);
-      HILOG(kDebug, "Resolved task {} dom_query {}",
-            (size_t)task.ptr_, dom_query);
+//      HILOG(kDebug, "Resolved task {} dom_query {}",
+//            (size_t)task.ptr_, dom_query);
       if (route == TaskRouteMode::kRemoteWorker) {
         task->SetRemote();
       }
@@ -1040,12 +1040,12 @@ class Worker {
     while (!poll_queues_.pop(work_queue).IsNull()) {
       for (const WorkEntry &entry : work_queue) {
         if (entry.queue_->id_ == HRUN_QM_RUNTIME->process_queue_id_) {
-          HILOG(kDebug, "Worker {}: Scheduled queue {} (lane {}, prio {}) as a proc queue",
-                id_, entry.queue_->id_, entry.container_id_, entry.prio_);
+//          HILOG(kDebug, "Worker {}: Scheduled queue {} (lane {}, prio {}) as a proc queue",
+//                id_, entry.queue_->id_, entry.container_id_, entry.prio_);
           work_proc_queue_.emplace_back(entry);
         } else {
-          HILOG(kDebug, "Worker {}: Scheduled queue {} (lane {}, prio {}) as an inter queue",
-                id_, entry.queue_->id_, entry.container_id_, entry.prio_);
+//          HILOG(kDebug, "Worker {}: Scheduled queue {} (lane {}, prio {}) as an inter queue",
+//                id_, entry.queue_->id_, entry.container_id_, entry.prio_);
           work_inter_queue_.emplace_back(entry);
         }
       }
