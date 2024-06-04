@@ -232,6 +232,7 @@ class Server : public TaskLib {
 
       for (auto it = entries.begin(); it != entries.end(); ++it) {
         SegmentedTransfer xfer = it->second.Get();
+        HILOG(kInfo, "(node {}) {}", CHI_RPC->node_id_, xfer);
         xfer.ret_node_ = CHI_RPC->node_id_;
         hshm::Timer t;
         t.Resume();
