@@ -117,6 +117,13 @@ struct TaskSegment {
   void serialize(Ar &ar) {
     ar(pool_, method_, task_addr_, dom_);
   }
+
+  friend std::ostream& operator<<(std::ostream &os, const TaskSegment &task) {
+    os << hshm::Formatter::format(
+        "TaskSeg[{}]: pool={} method={} dom={}",
+        task.task_addr_, task.pool_, task.method_, task.dom_);
+    return os;
+  }
 };
 
 class SegmentedTransfer {
@@ -151,6 +158,13 @@ class SegmentedTransfer {
   template<typename Ar>
   void serialize(Ar &ar) {
     ar(ret_node_, tasks_, bulk_, md_);
+  }
+
+  friend std::ostream& operator<<(std::ostream &os, const SegmentedTransfer &xfer) {
+    for (const TaskSegment &task : xfer.tasks_) {
+      os << task << std::endl;
+    }
+    return os;
   }
 };
 

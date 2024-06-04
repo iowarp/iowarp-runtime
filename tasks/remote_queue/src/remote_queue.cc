@@ -25,7 +25,7 @@ namespace thallium {
 namespace chi::remote_queue {
 
 struct TaskQueueEntry {
-  ResolvedDomainQuery domain_;
+  ResolvedDomainQuery res_domain_;
   Task *task_;
 };
 
@@ -213,9 +213,9 @@ class Server : public TaskLib {
         HILOG(kDebug, "(node {}) Submitting task {} ({}) to domain {}",
               CHI_CLIENT->node_id_, entry.task_->task_node_,
               (size_t)entry.task_,
-              entry.domain_);
-        if (entries.find(entry.domain_.node_) == entries.end()) {
-          entries.emplace(entry.domain_.node_, BinaryOutputArchive<true>());
+              entry.res_domain_);
+        if (entries.find(entry.res_domain_.node_) == entries.end()) {
+          entries.emplace(entry.res_domain_.node_, BinaryOutputArchive<true>());
         }
         Task *orig_task = entry.task_;
         Container *exec = HRUN_TASK_REGISTRY->GetAnyContainer(
@@ -225,8 +225,8 @@ class Server : public TaskLib {
                 CHI_CLIENT->node_id_, orig_task->pool_);
           return;
         }
-        orig_task->dom_query_ = entry.domain_.dom_;
-        BinaryOutputArchive<true> &ar = entries[entry.domain_.node_];
+        orig_task->dom_query_ = entry.res_domain_.dom_;
+        BinaryOutputArchive<true> &ar = entries[entry.res_domain_.node_];
         exec->SaveStart(orig_task->method_, ar, orig_task);
       }
 
@@ -295,16 +295,16 @@ class Server : public TaskLib {
       std::vector<TaskQueueEntry> completed;
       completed.reserve(count);
       while (!complete[0].pop(entry).IsNull()) {
-        if (entries.find(entry.domain_.node_) == entries.end()) {
-          entries.emplace(entry.domain_.node_, BinaryOutputArchive<false>());
+        if (entries.find(entry.res_domain_.node_) == entries.end()) {
+          entries.emplace(entry.res_domain_.node_, BinaryOutputArchive<false>());
         }
         Task *done_task = entry.task_;
         HILOG(kDebug, "(node {}) Sending completion for {} -> {}",
               CHI_CLIENT->node_id_, done_task->task_node_,
-              entry.domain_);
+              entry.res_domain_);
         Container *exec =
             HRUN_TASK_REGISTRY->GetAnyContainer(done_task->pool_);
-        BinaryOutputArchive<false> &ar = entries[entry.domain_.node_];
+        BinaryOutputArchive<false> &ar = entries[entry.res_domain_.node_];
         exec->SaveEnd(done_task->method_, ar, done_task);
         completed.emplace_back(entry);
       }
