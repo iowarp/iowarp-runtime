@@ -61,11 +61,7 @@ class Server : public TaskLib {
 
   /** Create a task state */
   void CreateContainer(CreateContainerTask *task, RunContext &rctx) {
-    HILOG(kInfo, "REGISTERING kCreateContainer for task {} on worker {} lane {} and pool_name {}",
-          task->task_node_, rctx.worker_id_, container_id_, task->pool_name_.str());
     ScopedCoMutexTable<u32> lock(mutexes_, 0, task, rctx);
-    HILOG(kInfo, "BEGINNING kCreateContainer for task {} on worker {} lane {}",
-          task->task_node_, rctx.worker_id_, container_id_);
     std::string lib_name = task->lib_name_.str();
     std::string pool_name = task->pool_name_.str();
     // Check local registry for task state
@@ -76,8 +72,6 @@ class Server : public TaskLib {
       task->ctx_.id_ = task_state->id_;
       state_existed = true;
       task->SetModuleComplete();
-      HILOG(kInfo, "ENDING kCreateContainer for task {} on worker {}",
-            task->task_node_, rctx.worker_id_);
       return;
     }
     // Check global registry for task state
@@ -113,6 +107,9 @@ class Server : public TaskLib {
     CHI_RPC->UpdateDomains(ops);
     std::vector<SubDomainId> containers =
         CHI_RPC->GetLocalContainers(task->ctx_.id_);
+    // Print the created domain
+    HILOG(kInfo, "Creating a domain with {} globals and {} locals")
+    CHI_RPC->PrintDomain(DomainId{task->ctx_.id_, SubDomainId::kContainerSet});
     // Create the task state
     CHI_TASK_REGISTRY->CreateContainer(
         lib_name.c_str(),
