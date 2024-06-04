@@ -343,14 +343,17 @@ class TaskRegistry {
   Container* GetContainer(const PoolId &pool_id,
                           ContainerId &container_id) {
     ScopedRwReadLock lock(lock_, 0);
-    auto it = pools_.find(pool_id);
-    if (it == pools_.end()) {
+    auto pool_it = pools_.find(pool_id);
+    if (pool_it == pools_.end()) {
       HELOG(kFatal, "Could not find pool {}", pool_id)
       return nullptr;
     }
-    Container *exec = it->second.containers_[container_id];
+    Container *exec = pool_it->second.containers_[container_id];
     if (!exec) {
-      CHI_RPC->PrintDomain(DomainId{pool_id, container_id});
+      CHI_RPC->PrintDomain(DomainId{pool_id, SubDomainId::kContainerSet});
+      for (auto &kv : pool_it->second.containers_) {
+        HILOG(kInfo, "Container ID: {} {}", kv.first, kv.second)
+      }
       HELOG(kFatal, "Could not find container {} in pool {}",
             container_id, pool_id)
     }
