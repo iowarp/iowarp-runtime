@@ -226,6 +226,8 @@ class Server : public TaskLib {
           return;
         }
         orig_task->dom_query_ = entry.res_domain_.dom_;
+        HILOG(kInfo, "(node {}) (client submit) {}",
+              CHI_CLIENT->node_id_, orig_task->dom_query_);
         BinaryOutputArchive<true> &ar = entries[entry.res_domain_.node_];
         exec->SaveStart(orig_task->method_, ar, orig_task);
       }
