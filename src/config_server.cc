@@ -44,7 +44,7 @@ void ServerConfig::ParseQueueManager(YAML::Node yaml_conf) {
         yaml_conf["proc_queue_depth"].as<size_t>();
   }
   if (yaml_conf["max_lanes"]) {
-    queue_manager_.max_lanes_ = yaml_conf["max_lanes"].as<size_t>();
+    queue_manager_.max_containers_pn_ = yaml_conf["max_lanes"].as<size_t>();
   }
   if (yaml_conf["max_queues"]) {
     queue_manager_.max_queues_ = yaml_conf["max_queues"].as<size_t>();

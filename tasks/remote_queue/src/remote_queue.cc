@@ -45,10 +45,10 @@ struct SharedState {
     for (size_t i = 0; i < num_lanes; ++i) {
       submitters_[i] = CHI_REMOTE_QUEUE->AsyncClientSubmit(
           task, task->task_node_ + 1,
-          DomainQuery::GetDirectHash(SubDomainId::kLocalLaneSet, i));
+          DomainQuery::GetDirectHash(SubDomainId::kLocalContainers, i));
       completers_[i] = CHI_REMOTE_QUEUE->AsyncServerComplete(
           task, task->task_node_ + 1,
-          DomainQuery::GetDirectHash(SubDomainId::kLocalLaneSet, i));
+          DomainQuery::GetDirectHash(SubDomainId::kLocalContainers, i));
     }
   }
 };

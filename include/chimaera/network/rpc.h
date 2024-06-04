@@ -181,7 +181,7 @@ class RpcContext {
     for (const SubDomainId &id : entry.ids_) {
       if (id.IsPhysical()) {
         ResolvedDomainQuery sub_query;
-        sub_query.dom_ = DomainQuery::GetLocalId(SubDomainId::kLaneSet,
+        sub_query.dom_ = DomainQuery::GetLocalId(SubDomainId::kContainerSet,
                                                  dom_id.sub_id_.minor_);
         sub_query.node_ = id.minor_;
         res.emplace_back(sub_query);
@@ -300,9 +300,9 @@ class RpcContext {
       // Create the major LaneSet domain
       size_t total_dom_size = global_lanes +
           local_lanes_pn * dom.size();
-      DomainId dom_id(task_state, SubDomainId::kLaneSet);
+      DomainId dom_id(task_state, SubDomainId::kContainerSet);
       SubDomainIdRange range(
-          SubDomainId::kLaneSet,
+          SubDomainId::kContainerSet,
           1,
           total_dom_size);
       ops.emplace_back(UpdateDomainInfo{
@@ -311,9 +311,9 @@ class RpcContext {
     // Create the set of global lanes
     {
       // Create the major GlobalLaneSet domain
-      DomainId dom_id(task_state, SubDomainId::kGlobalLaneSet);
+      DomainId dom_id(task_state, SubDomainId::kGlobalContainers);
       SubDomainIdRange range(
-          SubDomainId::kGlobalLaneSet,
+          SubDomainId::kGlobalContainers,
           1,
           global_lanes);
       ops.emplace_back(UpdateDomainInfo{
@@ -323,22 +323,22 @@ class RpcContext {
         SubDomainIdRange res_set(
             SubDomainId::kPhysicalNode, dom[i % dom.size()].node_, 1);
         ops.emplace_back(UpdateDomainInfo{
-            DomainId(task_state, SubDomainId::kLaneSet, i),
+            DomainId(task_state, SubDomainId::kContainerSet, i),
             UpdateDomainOp::kExpand, res_set});
         // Update GlobalLaneSet
         SubDomainIdRange res_glob(
-            SubDomainId::kLaneSet, i, 1);
+            SubDomainId::kContainerSet, i, 1);
         ops.emplace_back(UpdateDomainInfo{
-            DomainId(task_state, SubDomainId::kGlobalLaneSet, i),
+            DomainId(task_state, SubDomainId::kGlobalContainers, i),
             UpdateDomainOp::kExpand, res_glob});
       }
     }
     // Create the set of local lanes
     {
       // Create the major LocalLaneSet domain
-      DomainId dom_id(task_state, SubDomainId::kLocalLaneSet);
+      DomainId dom_id(task_state, SubDomainId::kLocalContainers);
       SubDomainIdRange range(
-          SubDomainId::kLocalLaneSet,
+          SubDomainId::kLocalContainers,
           1,
           local_lanes_pn);
       ops.emplace_back(UpdateDomainInfo{
@@ -351,14 +351,14 @@ class RpcContext {
               SubDomainId::kPhysicalNode, node_id, 1);
           // Update LaneSet
           ops.emplace_back(UpdateDomainInfo{
-              DomainId(task_state, SubDomainId::kLaneSet, lane_off),
+              DomainId(task_state, SubDomainId::kContainerSet, lane_off),
               UpdateDomainOp::kExpand, res_set});
           if (node_id == node_id_) {
             // Update LocalLaneSet
             SubDomainIdRange res_loc(
-                SubDomainId::kLaneSet, lane_off, 1);
+                SubDomainId::kContainerSet, lane_off, 1);
             ops.emplace_back(UpdateDomainInfo{
-                DomainId(task_state, SubDomainId::kLocalLaneSet, i),
+                DomainId(task_state, SubDomainId::kLocalContainers, i),
                 UpdateDomainOp::kExpand, res_loc});
           }
           ++lane_off;
@@ -371,15 +371,15 @@ class RpcContext {
   }
 
   /** Get the set of lanes on this node */
-  std::vector<SubDomainId> GetLocalLanes(const TaskStateId &scope) {
+  std::vector<SubDomainId> GetLocalContainers(const TaskStateId &scope) {
     std::vector<SubDomainId> res;
-    size_t dom_size = GetDomainSize(DomainId(scope, SubDomainId::kLaneSet));
+    size_t dom_size = GetDomainSize(DomainId(scope, SubDomainId::kContainerSet));
     ScopedRwReadLock lock(domain_map_lock_, 0);
     for (u32 i = 0; i < dom_size; ++i) {
       std::vector<ResolvedDomainQuery> res_query = ResolveDomainQuery(
-          scope, DomainQuery::GetDirectHash(SubDomainId::kLaneSet, i), true);
+          scope, DomainQuery::GetDirectHash(SubDomainId::kContainerSet, i), true);
       if (res_query.size() == 1 && res_query[0].node_ == node_id_) {
-        res.emplace_back(SubDomainId::kLaneSet, res_query[0].dom_.sel_.id_);
+        res.emplace_back(SubDomainId::kContainerSet, res_query[0].dom_.sel_.id_);
       }
     }
     return res;

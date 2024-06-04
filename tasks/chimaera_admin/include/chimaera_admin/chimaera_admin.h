@@ -115,7 +115,7 @@ class Client : public TaskLibClient {
     FlushRoot(DomainQuery::GetLaneGlobalBcast());
     HILOG(kInfo, "Stopping the runtime");
     AsyncStopRuntimeRoot(DomainQuery::GetDirectHash(
-        SubDomainId::kLocalLaneSet, 0), true);
+        SubDomainId::kLocalContainers, 0), true);
     HILOG(kInfo, "All done!");
     exit(1);
   }

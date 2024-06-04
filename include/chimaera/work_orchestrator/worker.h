@@ -42,7 +42,7 @@ namespace chi {
 /** Uniquely identify a queue lane */
 struct WorkEntry {
   u32 prio_;
-  LaneId lane_id_;
+  LaneId container_id_;
   Lane *lane_;
   LaneGroup *group_;
   MultiQueue *queue_;
@@ -54,7 +54,7 @@ struct WorkEntry {
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE
   WorkEntry(u32 prio, LaneId lane_id, MultiQueue *queue)
-  : prio_(prio), lane_id_(lane_id), queue_(queue) {
+  : prio_(prio), container_id_(lane_id), queue_(queue) {
     group_ = &queue->GetGroup(prio);
     lane_ = &queue->GetLane(prio, lane_id);
   }
@@ -63,7 +63,7 @@ struct WorkEntry {
   HSHM_ALWAYS_INLINE
   WorkEntry(const WorkEntry &other) {
     prio_ = other.prio_;
-    lane_id_ = other.lane_id_;
+    container_id_ = other.container_id_;
     lane_ = other.lane_;
     group_ = other.group_;
     queue_ = other.queue_;
@@ -74,7 +74,7 @@ struct WorkEntry {
   WorkEntry& operator=(const WorkEntry &other) {
     if (this != &other) {
       prio_ = other.prio_;
-      lane_id_ = other.lane_id_;
+      container_id_ = other.container_id_;
       lane_ = other.lane_;
       group_ = other.group_;
       queue_ = other.queue_;
@@ -86,7 +86,7 @@ struct WorkEntry {
   HSHM_ALWAYS_INLINE
   WorkEntry(WorkEntry &&other) noexcept {
     prio_ = other.prio_;
-    lane_id_ = other.lane_id_;
+    container_id_ = other.container_id_;
     lane_ = other.lane_;
     group_ = other.group_;
     queue_ = other.queue_;
@@ -97,7 +97,7 @@ struct WorkEntry {
   WorkEntry& operator=(WorkEntry &&other) noexcept {
     if (this != &other) {
       prio_ = other.prio_;
-      lane_id_ = other.lane_id_;
+      container_id_ = other.container_id_;
       lane_ = other.lane_;
       group_ = other.group_;
       queue_ = other.queue_;
@@ -114,7 +114,7 @@ struct WorkEntry {
   /** Equality operator */
   HSHM_ALWAYS_INLINE
   bool operator==(const WorkEntry &other) const {
-    return queue_ == other.queue_ && lane_id_ == other.lane_id_ &&
+    return queue_ == other.queue_ && container_id_ == other.container_id_ &&
         prio_ == other.prio_;
   }
 };
@@ -129,7 +129,7 @@ struct hash<chi::WorkEntry> {
       std::size_t
   operator()(const chi::WorkEntry &key) const {
     return std::hash<chi::MultiQueue*>{}(key.queue_) +
-        std::hash<u32>{}(key.lane_id_) + std::hash<u64>{}(key.prio_);
+        std::hash<u32>{}(key.container_id_) + std::hash<u64>{}(key.prio_);
   }
 };
 }  // namespace std
@@ -505,7 +505,7 @@ class Worker {
     }
     // MAX_DEPTH * [LOW_LAT, LONG_LAT]
     config::QueueManagerInfo &qm = HRUN_QM_RUNTIME->config_->queue_manager_;
-    active_.Init(id_, qm.proc_queue_depth_, qm.queue_depth_, qm.max_lanes_);
+    active_.Init(id_, qm.proc_queue_depth_, qm.queue_depth_, qm.max_containers_pn_);
     cur_time_.Now();
 
     // Spawn threads
@@ -879,7 +879,7 @@ class Worker {
       LPointer<remote_queue::ClientPushSubmitTask> remote_task =
           CHI_REMOTE_QUEUE->AsyncClientPushSubmitAlloc(
           task->task_node_ + 1,
-          DomainQuery::GetDirectHash(SubDomainId::kLocalLaneSet, 0),
+          DomainQuery::GetDirectHash(SubDomainId::kLocalContainers, 0),
           task);
       std::vector<ResolvedDomainQuery> resolved =
           CHI_RPC->ResolveDomainQuery(remote_task->task_state_,
@@ -1041,11 +1041,11 @@ class Worker {
       for (const WorkEntry &entry : work_queue) {
         if (entry.queue_->id_ == HRUN_QM_RUNTIME->process_queue_id_) {
           HILOG(kDebug, "Worker {}: Scheduled queue {} (lane {}, prio {}) as a proc queue",
-                id_, entry.queue_->id_, entry.lane_id_, entry.prio_);
+                id_, entry.queue_->id_, entry.container_id_, entry.prio_);
           work_proc_queue_.emplace_back(entry);
         } else {
           HILOG(kDebug, "Worker {}: Scheduled queue {} (lane {}, prio {}) as an inter queue",
-                id_, entry.queue_->id_, entry.lane_id_, entry.prio_);
+                id_, entry.queue_->id_, entry.container_id_, entry.prio_);
           work_inter_queue_.emplace_back(entry);
         }
       }

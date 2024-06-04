@@ -62,10 +62,10 @@ class Server : public TaskLib {
   /** Create a task state */
   void CreateTaskState(CreateTaskStateTask *task, RunContext &rctx) {
     HILOG(kInfo, "REGISTERING kCreateTaskState for task {} on worker {} lane {} and state_name {}",
-          task->task_node_, rctx.worker_id_, lane_id_, task->state_name_.str());
+          task->task_node_, rctx.worker_id_, container_id_, task->state_name_.str());
     ScopedCoMutexTable<u32> lock(mutexes_, 0, task, rctx);
     HILOG(kInfo, "BEGINNING kCreateTaskState for task {} on worker {} lane {}",
-          task->task_node_, rctx.worker_id_, lane_id_);
+          task->task_node_, rctx.worker_id_, container_id_);
     std::string lib_name = task->lib_name_.str();
     std::string state_name = task->state_name_.str();
     // Check local registry for task state
@@ -94,30 +94,31 @@ class Server : public TaskLib {
       return;
     }
     // Get # of lanes to create
-    u32 global_lanes = task->ctx_.global_lanes_;
-    u32 local_lanes_pn = task->ctx_.local_lanes_pn_;
-    if (global_lanes == 0) {
-      global_lanes = CHI_RPC->hosts_.size() * CHI_RUNTIME->GetNumLanes();
+    u32 global_containers = task->ctx_.global_containers_;
+    u32 local_containers_pn = task->ctx_.local_containers_pn_;
+    u32 lanes_per_container = task->ctx_.lanes_per_container_;
+    if (global_containers == 0) {
+      global_containers = CHI_RPC->hosts_.size();
     }
-    if (local_lanes_pn == 0) {
-      local_lanes_pn = CHI_RUNTIME->GetNumLanes();
+    if (local_containers_pn == 0) {
+      local_containers_pn = CHI_RUNTIME->GetNumLanes();
     }
     // Update the default domains for the state
     std::vector<UpdateDomainInfo> ops = CHI_RPC->CreateDefaultDomains(
         task->ctx_.id_,
         CHI_QM_CLIENT->admin_task_state_,
         task->scope_query_,
-        global_lanes,
-        local_lanes_pn);
+        global_containers,
+        local_containers_pn);
     CHI_RPC->UpdateDomains(ops);
-    std::vector<SubDomainId> lanes =
-        CHI_RPC->GetLocalLanes(task->ctx_.id_);
+    std::vector<SubDomainId> containers =
+        CHI_RPC->GetLocalContainers(task->ctx_.id_);
     // Create the task state
     CHI_TASK_REGISTRY->CreateTaskState(
         lib_name.c_str(),
         state_name.c_str(),
         task->ctx_.id_,
-        task, lanes);
+        task, containers);
     if (task->root_) {
       // Broadcast the state creation to all nodes
       TaskState *exec = CHI_TASK_REGISTRY->GetAnyTaskState(task->ctx_.id_);
@@ -138,7 +139,7 @@ class Server : public TaskLib {
       exec->Del(Method::kCreate, bcast.ptr_);
     }
     HILOG(kInfo, "ENDING kCreateTaskState for task {} on worker {} lane {}",
-          task->task_node_, rctx.worker_id_, lane_id_);
+          task->task_node_, rctx.worker_id_, container_id_);
     task->SetModuleComplete();
   }
   void MonitorCreateTaskState(u32 mode, CreateTaskStateTask *task,
@@ -212,7 +213,7 @@ class Server : public TaskLib {
     }
     auto queue_sched = CHI_CLIENT->NewTask<ScheduleTask>(
         task->task_node_,
-        chi::DomainQuery::GetDirectHash(chi::SubDomainId::kLocalLaneSet, 0),
+        chi::DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0),
         task->policy_id_);
     queue_sched_ = queue_sched.ptr_;
     MultiQueue *queue = CHI_CLIENT->GetQueue(queue_id_);
@@ -235,7 +236,7 @@ class Server : public TaskLib {
     }
     auto proc_sched = CHI_CLIENT->NewTask<ScheduleTask>(
         task->task_node_,
-        chi::DomainQuery::GetDirectHash(chi::SubDomainId::kLocalLaneSet, 0),
+        chi::DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0),
         task->policy_id_);
     proc_sched_ = proc_sched.ptr_;
     MultiQueue *queue = CHI_CLIENT->GetQueue(queue_id_);

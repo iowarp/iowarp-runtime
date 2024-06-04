@@ -236,13 +236,14 @@ enum class TaskRouteMode {
 /** Context used for creating objects */
 struct CreateContext {
   TaskStateId id_ = TaskStateId::GetNull();
-  u32 global_lanes_ = 0;
-  u32 local_lanes_pn_ = 0;
+  u32 global_containers_ = 0;
+  u32 local_containers_pn_ = 0;
+  u32 lanes_per_container_ = 0;
 
   /** Serialization */
   template<typename Ar>
   void serialize(Ar &ar) {
-    ar(id_, global_lanes_, local_lanes_pn_);
+    ar(id_, global_containers_, local_containers_pn_, lanes_per_container_);
   }
 };
 
@@ -254,15 +255,15 @@ typedef u32 SubDomainMinor;
 
 /** An unscoped subdomain of nodes or lanes */
 struct SubDomainId {
-  SubDomainGroup major_;  /**< NodeSet, LaneSet, LaneCache ... */
-  SubDomainMinor minor_;  /**< NodeId, LaneId, LaneId ... */
+  SubDomainGroup major_;  /**< NodeSet, ContainerSet, ... */
+  SubDomainMinor minor_;  /**< NodeId, ContainerId, ... */
 
   /** Subdomain major groups */
   CLS_CONST SubDomainGroup kPhysicalNode = 0;
-  CLS_CONST SubDomainGroup kLaneSet = 1;
-  CLS_CONST SubDomainGroup kGlobalLaneSet = 2;
-  CLS_CONST SubDomainGroup kLocalLaneSet = 3;
-  CLS_CONST SubDomainGroup kLaneDataCache = 4;
+  CLS_CONST SubDomainGroup kContainerSet = 1;
+  CLS_CONST SubDomainGroup kGlobalContainers = 2;
+  CLS_CONST SubDomainGroup kLocalContainers = 3;
+  CLS_CONST SubDomainGroup kContainerCache = 4;
   CLS_CONST SubDomainGroup kLast = 5;
 
   /** Default constructor */
@@ -661,7 +662,7 @@ struct DomainQuery {
   static DomainQuery GetLaneGlobalBcast() {
     DomainQuery query;
     query.flags_.SetBits(kGlobal | kBroadcast);
-    query.sub_id_ = SubDomainId::kGlobalLaneSet;
+    query.sub_id_ = SubDomainId::kGlobalContainers;
     return query;
   }
 

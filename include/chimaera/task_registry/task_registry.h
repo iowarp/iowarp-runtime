@@ -212,7 +212,7 @@ class TaskRegistry {
                        const char *state_name,
                        const TaskStateId &state_id,
                        Admin::CreateTaskStateTask *task,
-                       const std::vector<SubDomainId> &lanes) {
+                       const std::vector<SubDomainId> &containers) {
     // Ensure state_id is not NULL
     if (state_id.IsNull()) {
       HELOG(kError, "The task state ID cannot be null");
@@ -245,7 +245,7 @@ class TaskRegistry {
       // Add the state to the registry
       exec->id_ = state_id;
       exec->name_ = state_name;
-      exec->lane_id_ = 0;
+      exec->container_id_ = 0;
       ScopedRwWriteLock lock(lock_, 0);
       task_state_ids_.emplace(state_name, state_id);
       task_states_[state_id].shared_state_ = exec;
@@ -260,9 +260,9 @@ class TaskRegistry {
     // Create partitioned state
     std::unordered_map<LaneId, TaskState*> &states =
         task_states_[state_id].states_;
-    for (const SubDomainId &lane_id : lanes) {
+    for (const SubDomainId &container_id : containers) {
       // Don't repeat if state exists
-      if (states.find(lane_id.minor_) != states.end()) {
+      if (states.find(container_id.minor_) != states.end()) {
         continue;
       }
 
@@ -277,9 +277,9 @@ class TaskRegistry {
       // Add the state to the registry
       exec->id_ = state_id;
       exec->name_ = state_name;
-      exec->lane_id_ = lane_id.minor_;
+      exec->container_id_ = container_id.minor_;
       ScopedRwWriteLock lock(lock_, 0);
-      task_states_[state_id].states_[exec->lane_id_] = exec;
+      task_states_[state_id].states_[exec->container_id_] = exec;
 
       // Construct the state
       task->ctx_.id_ = state_id;

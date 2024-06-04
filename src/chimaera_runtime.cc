@@ -52,11 +52,11 @@ void Runtime::ServerInit(std::string server_config_path) {
   HERMES_THREAD_MODEL->SetThreadModel(hshm::ThreadType::kArgobots);
   work_orchestrator_.ServerInit(&server_config_, queue_manager_);
   hipc::mptr<Admin::CreateTaskStateTask> admin_task;
-  u32 max_lanes = CHI_RUNTIME->queue_manager_.max_lanes_;
+  u32 max_containers_pn = CHI_RUNTIME->queue_manager_.max_containers_pn_;
   size_t max_workers = server_config_.wo_.max_dworkers_ +
                        server_config_.wo_.max_oworkers_;
   std::vector<UpdateDomainInfo> ops;
-  std::vector<SubDomainId> lanes;
+  std::vector<SubDomainId> containers;
 
   // Create the admin library
   CHI_CLIENT->MakeTaskStateId();
@@ -65,16 +65,17 @@ void Runtime::ServerInit(std::string server_config_path) {
   ops = CHI_RPC->CreateDefaultDomains(
       CHI_QM_CLIENT->admin_task_state_,
       CHI_QM_CLIENT->admin_task_state_,
-      DomainQuery::GetGlobal(chi::SubDomainId::kLaneSet, 0),
+      DomainQuery::GetGlobal(chi::SubDomainId::kContainerSet, 0),
       CHI_RPC->hosts_.size(), 1);
   CHI_RPC->UpdateDomains(ops);
-  lanes = CHI_RPC->GetLocalLanes(CHI_QM_CLIENT->admin_task_state_);
+  containers =
+      CHI_RPC->GetLocalContainers(CHI_QM_CLIENT->admin_task_state_);
   task_registry_.CreateTaskState(
       "chimaera_admin",
       "chimaera_admin",
       CHI_QM_CLIENT->admin_task_state_,
       admin_task.get(),
-      lanes);
+      containers);
 
   // Create the work orchestrator queue scheduling library
   TaskStateId queue_sched_id = CHI_CLIENT->MakeTaskStateId();
@@ -83,22 +84,22 @@ void Runtime::ServerInit(std::string server_config_path) {
   ops = CHI_RPC->CreateDefaultDomains(
       queue_sched_id,
       CHI_QM_CLIENT->admin_task_state_,
-      DomainQuery::GetGlobal(chi::SubDomainId::kLocalLaneSet, 0),
+      DomainQuery::GetGlobal(chi::SubDomainId::kLocalContainers, 0),
       1, 1);
   CHI_RPC->UpdateDomains(ops);
-  lanes = CHI_RPC->GetLocalLanes(queue_sched_id);
+  containers = CHI_RPC->GetLocalContainers(queue_sched_id);
   task_registry_.CreateTaskState(
       "worch_queue_round_robin",
       "worch_queue_round_robin",
       queue_sched_id,
       admin_task.get(),
-      lanes);
+      containers);
   TaskState *state = task_registry_.GetAnyTaskState(queue_sched_id);
 
   // Initially schedule queues to workers
   auto queue_task = CHI_CLIENT->NewTask<ScheduleTask>(
       CHI_CLIENT->MakeTaskNodeId(),
-      DomainQuery::GetDirectHash(chi::SubDomainId::kLocalLaneSet, 0),
+      DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0),
       queue_sched_id);
   state->Run(queue_task->method_,
              queue_task.ptr_,
@@ -112,32 +113,32 @@ void Runtime::ServerInit(std::string server_config_path) {
   ops = CHI_RPC->CreateDefaultDomains(
       proc_sched_id,
       CHI_QM_CLIENT->admin_task_state_,
-      DomainQuery::GetGlobal(chi::SubDomainId::kLocalLaneSet, 0),
+      DomainQuery::GetGlobal(chi::SubDomainId::kLocalContainers, 0),
       1, 1);
   CHI_RPC->UpdateDomains(ops);
-  lanes = CHI_RPC->GetLocalLanes(proc_sched_id);
+  containers = CHI_RPC->GetLocalContainers(proc_sched_id);
   task_registry_.CreateTaskState(
       "worch_proc_round_robin",
       "worch_proc_round_robin",
       proc_sched_id,
       admin_task.get(),
-      lanes);
+      containers);
 
   // Set the work orchestrator queue scheduler
   CHI_ADMIN->SetWorkOrchQueuePolicyRoot(
-      DomainQuery::GetDirectHash(chi::SubDomainId::kLocalLaneSet, 0),
+      DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0),
       queue_sched_id);
   CHI_ADMIN->SetWorkOrchProcPolicyRoot(
-      DomainQuery::GetDirectHash(chi::SubDomainId::kLocalLaneSet, 0),
+      DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0),
       proc_sched_id);
 
   // Create the remote queue library
   task_registry_.RegisterTaskLib("remote_queue");
   remote_queue_.CreateRoot(
-      DomainQuery::GetDirectHash(chi::SubDomainId::kLocalLaneSet, 0),
-      DomainQuery::GetDirectHash(chi::SubDomainId::kLocalLaneSet, 0),
+      DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0),
+      DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0),
       "remote_queue",
-      CreateContext{CHI_CLIENT->MakeTaskStateId(), 1, max_lanes});
+      CreateContext{CHI_CLIENT->MakeTaskStateId(), 1, max_containers_pn});
   remote_created_ = true;
 }
 

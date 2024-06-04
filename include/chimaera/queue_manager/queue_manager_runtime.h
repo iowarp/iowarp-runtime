@@ -26,7 +26,7 @@ class QueueManagerRuntime : public QueueManager {
  public:
   ServerConfig *config_;
   size_t max_queues_;
-  size_t max_lanes_;
+  size_t max_containers_pn_;
   hipc::split_ticket_queue<u64> *tickets_;
   NodeId node_id_;
 
@@ -44,7 +44,7 @@ class QueueManagerRuntime : public QueueManager {
     config::QueueManagerInfo &qm = config_->queue_manager_;
     // Initialize ticket queue (ticket 0 is for admin queue)
     max_queues_ = qm.max_queues_;
-    max_lanes_ = qm.max_lanes_;
+    max_containers_pn_ = qm.max_containers_pn_;
     HSHM_MAKE_AR(shm.tickets_, alloc, max_queues_)
     for (u64 i = 1; i <= max_queues_; ++i) {
       shm.tickets_->emplace(i);
@@ -56,13 +56,13 @@ class QueueManagerRuntime : public QueueManager {
     // Create the admin queue
     MultiQueue *queue;
     queue = CreateQueue(admin_queue_id_, {
-        {TaskPrio::kLowLatency, qm.max_lanes_, qm.max_lanes_, qm.queue_depth_, QUEUE_LOW_LATENCY},
-        {TaskPrio::kHighLatency, qm.max_lanes_, qm.max_lanes_, qm.queue_depth_,0},
+        {TaskPrio::kLowLatency, qm.max_containers_pn_, qm.max_containers_pn_, qm.queue_depth_, QUEUE_LOW_LATENCY},
+        {TaskPrio::kHighLatency, qm.max_containers_pn_, qm.max_containers_pn_, qm.queue_depth_,0},
     });
     queue->flags_.SetBits(QUEUE_READY);
     queue = CreateQueue(process_queue_id_, {
-        {TaskPrio::kLowLatency, qm.max_lanes_, qm.max_lanes_, qm.proc_queue_depth_, QUEUE_LOW_LATENCY},
-        {TaskPrio::kHighLatency, qm.max_lanes_, qm.max_lanes_, qm.proc_queue_depth_, 0},
+        {TaskPrio::kLowLatency, qm.max_containers_pn_, qm.max_containers_pn_, qm.proc_queue_depth_, QUEUE_LOW_LATENCY},
+        {TaskPrio::kHighLatency, qm.max_containers_pn_, qm.max_containers_pn_, qm.proc_queue_depth_, 0},
     });
     queue->flags_.SetBits(QUEUE_READY);
   }

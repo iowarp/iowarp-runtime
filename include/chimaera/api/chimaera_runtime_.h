@@ -72,7 +72,7 @@ class Runtime : public ConfigurationManager {
 
   /** Get # of lanes from QueueManager */
   size_t GetNumLanes() {
-    return queue_manager_.max_lanes_;
+    return queue_manager_.max_containers_pn_;
   }
 };
 

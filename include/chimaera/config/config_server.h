@@ -39,7 +39,7 @@ struct QueueManagerInfo {
   /** Maximum depth of process queue */
   u32 proc_queue_depth_;
   /** Maximum number of lanes per IPC queue */
-  u32 max_lanes_;
+  u32 max_containers_pn_;
   /** Maximum number of allocatable IPC queues */
   u32 max_queues_;
   /** Shared memory allocator */
