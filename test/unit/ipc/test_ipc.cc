@@ -29,7 +29,7 @@ TEST_CASE("TestIpc") {
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
   chi::small_message::Client client;
   CHI_ADMIN->RegisterTaskLibRoot(
-      chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
+      chi::DomainQuery::GetGlobal(chi::SubDomainId::kGlobalContainers, 0),
       "small_message");
   client.CreateRoot(
       chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
