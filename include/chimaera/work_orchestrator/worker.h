@@ -805,7 +805,7 @@ class Worker {
         task->SetModuleComplete();
         return false;
       } else {
-        HELOG(kWarning, "(node {}) Could not find the task state {} for task {}"
+        HELOG(kFatal, "(node {}) Could not find the task state {} for task {}"
                         " with query: {}",
               CHI_CLIENT->node_id_, task->task_state_, task->task_node_,
               entry.res_query_);
