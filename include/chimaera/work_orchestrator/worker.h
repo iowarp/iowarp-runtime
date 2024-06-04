@@ -726,7 +726,8 @@ class Worker {
                                LPointer<Task> task,
                                Lane *lane) {
     std::vector<ResolvedDomainQuery> resolved =
-        HRUN_RPC->ResolveDomainQuery(scope, dom_query, false);
+        CHI_RPC->ResolveDomainQuery(scope, dom_query, false);
+    CHI_RPC->PrintDomainResolution(scope, dom_query);
     if (resolved.size() == 1 && resolved[0].node_ == CHI_RPC->node_id_) {
       dom_query = resolved[0].dom_;
 #ifdef CHIMAERA_REMOTE_DEBUG
