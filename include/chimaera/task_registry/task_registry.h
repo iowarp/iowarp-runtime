@@ -350,8 +350,9 @@ class TaskRegistry {
     }
     Container *exec = it->second.containers_[container_id];
     if (!exec) {
-      HELOG(kFatal, "Could not find container {} in pool {}: {}",
-            pool_id, container_id, DomainId{pool_id, container_id})
+      CHI_RPC->PrintDomain(DomainId{pool_id, container_id});
+      HELOG(kFatal, "Could not find container {} in pool {}",
+            container_id, pool_id)
     }
     return exec;
   }
