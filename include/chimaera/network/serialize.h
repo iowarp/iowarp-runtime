@@ -244,14 +244,14 @@ class BinaryOutputArchive {
     if constexpr (IS_TASK(T)) {
       if constexpr (IS_SRL(T)) {
         if constexpr (is_start) {
-          HILOG(kInfo, "(node {}) (binary output client 1) {}",
-                CHI_CLIENT->node_id_, var.dom_query_);
+//          HILOG(kDebug, "(node {}) (binary output client 1) {}",
+//                CHI_CLIENT->node_id_, var.dom_query_);
           var.template task_serialize<BinaryOutputArchive>((*this));
           xfer_.tasks_.emplace_back(var.pool_, var.method_,
                                     (size_t) &var,
                                     var.dom_query_);
-          HILOG(kInfo, "(node {}) (binary output client 2) {}",
-                CHI_CLIENT->node_id_, var.dom_query_);
+//          HILOG(kDebug, "(node {}) (binary output client 2) {}",
+//                CHI_CLIENT->node_id_, var.dom_query_);
           if constexpr (USES_SRL_START(T)) {
             var.SerializeStart(*this);
           } else {
