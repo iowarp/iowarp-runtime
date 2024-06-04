@@ -672,7 +672,7 @@ struct DomainQuery {
    * @param sub_id The subdomain to query
    * @param iter_flags The iteration flags to set (e.g., kBroadcast)
    * */
-  static DomainQuery GetLaneGlobalBcast() {
+  static DomainQuery GetGlobalBcast() {
     DomainQuery query;
     query.flags_.SetBits(kGlobal | kBroadcast);
     query.sub_id_ = SubDomainId::kGlobalContainers;

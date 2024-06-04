@@ -30,10 +30,10 @@ void Summarize(size_t nprocs,
 void SyncIoTest(int rank, int nprocs, size_t msg_size, size_t ops) {
   chi::small_message::Client client;
   CHI_ADMIN->RegisterTaskLibRoot(
-      chi::DomainQuery::GetLaneGlobalBcast(), "small_message");
+      chi::DomainQuery::GetGlobalBcast(), "small_message");
   client.CreateRoot(
       chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
-      chi::DomainQuery::GetLaneGlobalBcast(),
+      chi::DomainQuery::GetGlobalBcast(),
       "ipc_test");
   size_t domain_size = CHI_ADMIN->GetDomainSizeRoot(
       chi::DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0),

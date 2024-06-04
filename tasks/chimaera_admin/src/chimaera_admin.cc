@@ -191,7 +191,7 @@ class Server : public TaskLib {
     if (task->root_) {
       CHI_ADMIN->AsyncStopRuntime(
           task, task->task_node_ + 1,
-          DomainQuery::GetLaneGlobalBcast(), false);
+          DomainQuery::GetGlobalBcast(), false);
     } else if (CHI_RPC->node_id_ == task->task_node_.root_.node_id_) {
       task->SetModuleComplete();
       return;

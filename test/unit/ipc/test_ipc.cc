@@ -29,11 +29,11 @@ TEST_CASE("TestIpc") {
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
   chi::small_message::Client client;
   CHI_ADMIN->RegisterTaskLibRoot(
-      chi::DomainQuery::GetGlobal(chi::SubDomainId::kGlobalContainers, 0),
+      chi::DomainQuery::GetGlobalBcast(),
       "small_message");
   client.CreateRoot(
       chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
-      chi::DomainQuery::GetLaneGlobalBcast(),
+      chi::DomainQuery::GetGlobalBcast(),
       "ipc_test");
   hshm::Timer t;
   size_t domain_size = CHI_ADMIN->GetDomainSizeRoot(
@@ -68,10 +68,10 @@ TEST_CASE("TestAsyncIpc") {
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
   chi::small_message::Client client;
   CHI_ADMIN->RegisterTaskLibRoot(
-      chi::DomainQuery::GetLaneGlobalBcast(), "small_message");
+      chi::DomainQuery::GetGlobalBcast(), "small_message");
   client.CreateRoot(
       chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
-      chi::DomainQuery::GetLaneGlobalBcast(),
+      chi::DomainQuery::GetGlobalBcast(),
       "ipc_test");
   MPI_Barrier(MPI_COMM_WORLD);
   hshm::Timer t;
@@ -110,10 +110,10 @@ TEST_CASE("TestFlush") {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
   chi::small_message::Client client;
-  CHI_ADMIN->RegisterTaskLibRoot(chi::DomainQuery::GetLaneGlobalBcast(), "small_message");
+  CHI_ADMIN->RegisterTaskLibRoot(chi::DomainQuery::GetGlobalBcast(), "small_message");
   client.CreateRoot(
       chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
-      chi::DomainQuery::GetLaneGlobalBcast(),
+      chi::DomainQuery::GetGlobalBcast(),
       "ipc_test");
   MPI_Barrier(MPI_COMM_WORLD);
   hshm::Timer t;
@@ -131,7 +131,7 @@ TEST_CASE("TestFlush") {
         chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, lane_id),
         0, 0);
   }
-  CHI_ADMIN->FlushRoot(DomainQuery::GetLaneGlobalBcast());
+  CHI_ADMIN->FlushRoot(DomainQuery::GetGlobalBcast());
   t.Pause();
 
   HILOG(kInfo, "Latency: {} MOps", ops / t.GetUsec());
@@ -141,10 +141,10 @@ void TestIpcMultithread(int nprocs) {
   CHIMAERA_CLIENT_INIT();
 
   chi::small_message::Client client;
-  CHI_ADMIN->RegisterTaskLibRoot(chi::DomainQuery::GetLaneGlobalBcast(), "small_message");
+  CHI_ADMIN->RegisterTaskLibRoot(chi::DomainQuery::GetGlobalBcast(), "small_message");
   client.CreateRoot(
       chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
-      chi::DomainQuery::GetLaneGlobalBcast(),
+      chi::DomainQuery::GetGlobalBcast(),
       "ipc_test");
 
 #pragma omp parallel shared(client, nprocs) num_threads(nprocs)
@@ -193,10 +193,10 @@ TEST_CASE("TestIO") {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
   chi::small_message::Client client;
-  CHI_ADMIN->RegisterTaskLibRoot(chi::DomainQuery::GetLaneGlobalBcast(), "small_message");
+  CHI_ADMIN->RegisterTaskLibRoot(chi::DomainQuery::GetGlobalBcast(), "small_message");
   client.CreateRoot(
       chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
-      chi::DomainQuery::GetLaneGlobalBcast(),
+      chi::DomainQuery::GetGlobalBcast(),
       "ipc_test");
   hshm::Timer t;
   size_t domain_size = CHI_ADMIN->GetDomainSizeRoot(

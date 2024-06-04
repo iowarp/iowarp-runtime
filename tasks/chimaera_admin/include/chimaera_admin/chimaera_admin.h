@@ -112,7 +112,7 @@ class Client : public TaskLibClient {
     HILOG(kInfo, "Beginning to flush the runtime.\n"
                  "If you did async I/O, this may take some time.\n"
                  "All unflushed data will be written to the PFS.");
-    FlushRoot(DomainQuery::GetLaneGlobalBcast());
+    FlushRoot(DomainQuery::GetGlobalBcast());
     HILOG(kInfo, "Stopping the runtime");
     AsyncStopRuntimeRoot(DomainQuery::GetDirectHash(
         SubDomainId::kLocalContainers, 0), true);

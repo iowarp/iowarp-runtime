@@ -29,10 +29,10 @@ void Summarize(size_t nprocs,
 void SyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
   chi::small_message::Client client;
   CHI_ADMIN->RegisterTaskLibRoot(
-      chi::DomainQuery::GetLaneGlobalBcast(), "small_message");
+      chi::DomainQuery::GetGlobalBcast(), "small_message");
   client.CreateRoot(
       chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
-      chi::DomainQuery::GetLaneGlobalBcast(),
+      chi::DomainQuery::GetGlobalBcast(),
       "ipc_test");
   MPI_Barrier(MPI_COMM_WORLD);
   hshm::MpiTimer t(MPI_COMM_WORLD);
@@ -56,11 +56,11 @@ void SyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
 void AsyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
   chi::small_message::Client client;
   CHI_ADMIN->RegisterTaskLibRoot(
-      chi::DomainQuery::GetLaneGlobalBcast(),
+      chi::DomainQuery::GetGlobalBcast(),
       "small_message");
   client.CreateRoot(
       chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
-      chi::DomainQuery::GetLaneGlobalBcast(),
+      chi::DomainQuery::GetGlobalBcast(),
       "ipc_test");
   MPI_Barrier(MPI_COMM_WORLD);
   hshm::MpiTimer t(MPI_COMM_WORLD);
