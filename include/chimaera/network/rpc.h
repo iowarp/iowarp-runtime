@@ -307,6 +307,7 @@ class RpcContext {
           total_dom_size);
       ops.emplace_back(UpdateDomainInfo{
           dom_id, UpdateDomainOp::kExpand, range});
+      HILOG(kInfo, "{}", dom_id);
     }
     // Create the set of global lanes
     {
@@ -332,6 +333,7 @@ class RpcContext {
             DomainId(task_state, SubDomainId::kGlobalContainers, i),
             UpdateDomainOp::kExpand, res_glob});
       }
+      HILOG(kInfo, "{}", dom_id);
     }
     // Create the set of local lanes
     {
@@ -345,15 +347,15 @@ class RpcContext {
           dom_id, UpdateDomainOp::kExpand, range});
       // Update LaneSet
       u32 lane_off = global_containers + 1;
-      for (u32 node_id = 1; node_id <= hosts_.size(); ++node_id) {
+      for (ResolvedDomainQuery &query : dom) {
         for (size_t i = 1; i <= local_containers_pn; ++i) {
           SubDomainIdRange res_set(
-              SubDomainId::kPhysicalNode, node_id, 1);
+              SubDomainId::kPhysicalNode, query.node_, 1);
           // Update LaneSet
           ops.emplace_back(UpdateDomainInfo{
               DomainId(task_state, SubDomainId::kContainerSet, lane_off),
               UpdateDomainOp::kExpand, res_set});
-          if (node_id == node_id_) {
+          if (query.node_ == node_id_) {
             // Update LocalLaneSet
             SubDomainIdRange res_loc(
                 SubDomainId::kContainerSet, lane_off, 1);
@@ -364,6 +366,7 @@ class RpcContext {
           ++lane_off;
         }
       }
+      HILOG(kInfo, "{}", dom_id);
     }
     // Create the set of caching lanes
     // TODO(llogan)
