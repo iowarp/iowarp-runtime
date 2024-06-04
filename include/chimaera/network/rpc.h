@@ -384,9 +384,9 @@ class RpcContext {
   void PrintDomainResolution(const PoolId &scope, const DomainQuery &dom_query) {
     std::vector<ResolvedDomainQuery> res_query =
         ResolveDomainQuery(scope, dom_query, true);
-    HILOG(kInfo, "Domain resolution for {}", dom_query);
+    HILOG(kInfo, "(node {}) Domain resolution for {}", node_id_, dom_query);
     for (const ResolvedDomainQuery &query : res_query) {
-      HILOG(kInfo, "Resolved: node={} / {}", query.node_, query.dom_);
+      HILOG(kInfo, "(node {}) Resolved: node={} / {}", node_id_, query.node_, query.dom_);
     }
   }
 
