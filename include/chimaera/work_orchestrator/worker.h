@@ -757,7 +757,7 @@ class Worker {
     } else if (resolved.size() >= 1) {
       return TaskRouteMode::kRemoteWorker;
     } else {
-      HELOG(kFatal, "Domain query resolved to no sub-queries");
+      HELOG(kFatal, "{} resolved to no sub-queries", dom_query);
     }
     return TaskRouteMode::kRemoteWorker;
   }
