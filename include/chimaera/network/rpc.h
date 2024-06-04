@@ -82,7 +82,7 @@ struct DomainMapEntry {
     ids_ = std::move(ids);
   }
 
-  SubDomainId& Get(LaneId hash) {
+  SubDomainId& Get(ContainerId hash) {
     return ids_[hash % size_];
   }
 };

@@ -69,7 +69,7 @@ struct TaskLibInfo {
 
 struct TaskStateInfo {
   TaskState *shared_state_;
-  std::unordered_map<LaneId, TaskState*> states_;
+  std::unordered_map<ContainerId, TaskState*> states_;
 };
 
 /**
@@ -258,7 +258,7 @@ class TaskRegistry {
     }
 
     // Create partitioned state
-    std::unordered_map<LaneId, TaskState*> &states =
+    std::unordered_map<ContainerId, TaskState*> &states =
         task_states_[state_id].states_;
     for (const SubDomainId &container_id : containers) {
       // Don't repeat if state exists
@@ -341,13 +341,19 @@ class TaskRegistry {
 
   /** Get a task state instance */
   TaskState* GetTaskState(const TaskStateId &task_state_id,
-                          LaneId lane_id) {
+                          ContainerId &container_id) {
     ScopedRwReadLock lock(lock_, 0);
     auto it = task_states_.find(task_state_id);
     if (it == task_states_.end()) {
+      HELOG(kFatal, "Could not find task state {}", task_state_id)
       return nullptr;
     }
-    return it->second.states_[lane_id];
+    TaskState *exec = it->second.states_[container_id];
+    if (!exec) {
+      HELOG(kFatal, "Could not find task state {} for container {}",
+            task_state_id, container_id)
+    }
+    return exec;
   }
 
   /** Destroy a task state */

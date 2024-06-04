@@ -75,6 +75,7 @@ using hipc::LPointer;
 
 typedef u32 NodeId;  /**< The ID of a node */
 typedef u32 LaneId;  /**< The ID of a lane */
+typedef u32 ContainerId;  /**< The ID of a container */
 
 /** Determine the mode that HRUN is initialized for */
 enum class HrunMode {

@@ -421,9 +421,9 @@ class Server : public TaskLib {
           exec->name_,
           method,
           xfer.size(),
-          orig_task->GetLaneId());
+          orig_task->GetContainerId());
     queue->Emplace(orig_task->prio_,
-                   orig_task->GetLaneId(), task_ptr.shm_);
+                   orig_task->GetContainerId(), task_ptr.shm_);
     HILOG(kDebug,
           "(node {}) Done submitting (task_node={}, task_state={}/{}, "
           "state_name={}, method={}, size={}, lane_hash={})",
@@ -434,7 +434,7 @@ class Server : public TaskLib {
           exec->name_,
           method,
           xfer.size(),
-          orig_task->GetLaneId());
+          orig_task->GetContainerId());
   }
 
   /** Receive task completion */

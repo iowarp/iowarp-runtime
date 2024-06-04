@@ -305,7 +305,7 @@ struct Task : public hipc::ShmContainer {
    * ===================================*/
 
   /** Get lane hash */
-  const u32 &GetLaneId() const {
+  const u32 &GetContainerId() const {
     return dom_query_.sel_.id_;
   }
 

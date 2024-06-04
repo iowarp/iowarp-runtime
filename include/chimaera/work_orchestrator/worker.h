@@ -42,7 +42,7 @@ namespace chi {
 /** Uniquely identify a queue lane */
 struct WorkEntry {
   u32 prio_;
-  LaneId container_id_;
+  ContainerId container_id_;
   Lane *lane_;
   LaneGroup *group_;
   MultiQueue *queue_;
@@ -948,7 +948,7 @@ class Worker {
       SignalUnblock(task->rctx_.pending_to_);
     } else if (task->ShouldSignalRemoteComplete()) {
       TaskState *remote_exec = GetTaskState(CHI_REMOTE_QUEUE->id_,
-                                            task->GetLaneId());
+                                            task->GetContainerId());
       remote_exec->Run(chi::remote_queue::Method::kServerPushComplete,
                        task.ptr_, task->rctx_);
       task->SetComplete();
