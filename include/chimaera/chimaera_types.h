@@ -764,8 +764,7 @@ struct DomainQuery {
     }
 
     std::string format = hshm::Formatter::format(
-        "DomainQuery will perform {} over the {} scope "
-        "of the {} selection {} of subdomain group {}",
+        "DomainQuery(iter_algo={}, scope={}, sel={}, range={}, subdom={})",
         iter, scope, sel, range, dom_query.sub_id_);
     return os << format;
   }
