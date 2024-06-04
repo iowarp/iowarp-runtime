@@ -286,6 +286,8 @@ class TaskRegistry {
       task->rctx_.shared_exec_ = pools_[pool_id].shared_state_;
       exec->Run(TaskMethod::kCreate, task, task->rctx_);
       task->UnsetModuleComplete();
+      HILOG(kInfo, "(node {})  Created container {} for lib={} pool={} id={}",
+            CHI_CLIENT->node_id_, lib_name, pool_name, pool_id, exec->container_id_);
     }
     HILOG(kInfo, "(node {})  Created an instance of {} with name {} and ID {} ({} containers)",
           CHI_CLIENT->node_id_, lib_name, pool_name, pool_id, containers.size());
