@@ -270,6 +270,8 @@ class Server : public TaskLib {
     if (task->rctx_.ret_task_addr_ == (size_t)task) {
       HILOG(kFatal, "This shouldn't happen ever");
     }
+    HILOG(kInfo, "[2] Task task_node={} ret_node={}",
+          task->task_node_, task->rctx_.ret_node_);
     NodeId ret_node = task->rctx_.ret_node_;
     size_t node_hash = std::hash<NodeId>{}(ret_node);
     auto &complete = shared_->complete_;
@@ -391,6 +393,8 @@ class Server : public TaskLib {
     if (orig_task->rctx_.ret_task_addr_ == (size_t)orig_task) {
       HILOG(kFatal, "This shouldn't happen ever");
     }
+    HILOG(kInfo, "[1] Task task_node={} ret_node={}",
+          orig_task->task_node_, orig_task->rctx_.ret_node_);
 
     // Unset task flags
     // NOTE(llogan): Remote tasks are executed to completion and
