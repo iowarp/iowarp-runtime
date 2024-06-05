@@ -67,8 +67,8 @@ void WorkOrchestrator::ServerInit(ServerConfig *config, QueueManager &qm) {
       cpu_id = num_dworkers + 1;
     }
   }
-  HILOG(kInfo, "Worker created RPC pool with {} threads",
-        HRUN_RPC->num_threads_)
+  HILOG(kInfo, "(node {}) Worker created RPC pool with {} threads",
+        CHI_RPC->node_id_, CHI_RPC->num_threads_)
 
   // Wait for pids to become non-zero
   while (true) {
@@ -88,7 +88,8 @@ void WorkOrchestrator::ServerInit(ServerConfig *config, QueueManager &qm) {
   // Dedicate CPU cores to this runtime
   DedicateCores();
 
-  HILOG(kInfo, "Started {} workers", num_workers);
+  HILOG(kInfo, "(node {}) Started {} workers",
+        CHI_RPC->node_id_, num_workers);
 }
 
 void WorkOrchestrator::Join() {

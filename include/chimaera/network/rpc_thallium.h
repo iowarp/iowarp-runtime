@@ -48,11 +48,11 @@ class ThalliumRpc {
       HELOG(kFatal, "RPC init failed for host: {}\n{}", addr, e.what());
     }
     std::string rpc_server_name = server_engine_->self();
-    HILOG(kInfo, "Serving {} (i.e., {}) with {} RPC threads as node id {}",
+    HILOG(kInfo, "(node {}) Serving {} (i.e., {}) with {} RPC threads",
+          rpc->node_id_,
           rpc_server_name,
           addr,
-          rpc->num_threads_,
-          rpc->node_id_);
+          rpc->num_threads_);
     ClientInit(rpc);
   }
 

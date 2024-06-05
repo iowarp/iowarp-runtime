@@ -135,8 +135,8 @@ class Server : public TaskLib {
       task->Wait<TASK_YIELD_CO>(bcast);
       exec->Del(Method::kCreate, bcast.ptr_);
     }
-    HILOG(kInfo, "ENDING kCreateContainer for task {} on worker {} lane {}",
-          task->task_node_, rctx.worker_id_, container_id_);
+    HILOG(kInfo, "(node {}) Created containers for task {}",
+          CHI_RPC->node_id_, task->task_node_);
     task->SetModuleComplete();
   }
   void MonitorCreateContainer(u32 mode, CreateContainerTask *task,
