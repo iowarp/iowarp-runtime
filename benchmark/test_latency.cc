@@ -79,7 +79,7 @@ void AsyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
         depth, TASK_FIRE_AND_FORGET);
   }
   CHI_ADMIN->FlushRoot(
-      DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0));
+      DomainQuery::GetGlobalBcast());
   t.Pause();
   t.Collect();
   Summarize(nprocs, t.GetUsec(), ops, depth);
