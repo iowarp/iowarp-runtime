@@ -334,10 +334,16 @@ class Server : public TaskLib {
 //        HILOG(kDebug, "(node {}) Sending completion of size {} to {}",
 //              CHI_CLIENT->node_id_, xfer.size(),
 //              it->first.GetId());
+        hshm::Timer t;
+        t.Resume();
         CHI_THALLIUM->SyncIoCall<int>((i32)it->first,
                                        "RpcTaskComplete",
                                        xfer,
                                        DT_SENDER_WRITE);
+        t.Pause();
+        HILOG(kInfo, "(node {}) Transferred {} tasks ({} bytes) in {} usec",
+              CHI_CLIENT->node_id_, xfer.tasks_.size(),
+              xfer.size(), t.GetUsec());
       }
 
       // Cleanup the queue
@@ -379,8 +385,8 @@ class Server : public TaskLib {
         DeserializeTask(i, ar, xfer);
       }
       t.Pause();
-      HILOG(kInfo, "(node {}) Submitted tasks in {} usec",
-            CHI_CLIENT->node_id_, t.GetUsec());
+      HILOG(kInfo, "(node {}) Enqueued {} tasks in {} usec",
+            CHI_CLIENT->node_id_, xfer.tasks_.size(), t.GetUsec());
     } catch (hshm::Error &e) {
       HELOG(kError, "(node {}) Worker {} caught an error: {}", CHI_CLIENT->node_id_, id_, e.what());
     } catch (std::exception &e) {
