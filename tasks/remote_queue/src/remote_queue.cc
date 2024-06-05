@@ -45,6 +45,9 @@ struct SharedState {
   }
 
   void AddAggregators(Task *task, TaskLib *exec) {
+    if (submitters_.size() == complete_.size()) {
+      return;
+    }
     DomainQuery dom_query = DomainQuery::GetDirectHash(
         SubDomainId::kContainerSet,
         exec->container_id_);
