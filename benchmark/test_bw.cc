@@ -14,20 +14,21 @@
 
 void Summarize(size_t nprocs,
                double time_usec,
-               size_t ops_per_node,
+               size_t ops_pp,
                size_t msg_size) {
-  size_t ops = ops_per_node * nprocs;
+  size_t ops = ops_pp * nprocs;
   int rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   if (rank == 0) {
-    HILOG(kInfo, "Performance: {} MOps, {} MBps, {} nprocs, {} ops-per-node",
+    HILOG(kInfo, "Performance: {} MOps, {} MBps, {} nprocs, {} ops-per-proc",
           ops / time_usec,
           msg_size * ops / time_usec,
-          nprocs, ops_per_node);
+          nprocs,
+          ops_pp);
   }
 }
 
-void SyncIoTest(int rank, int nprocs, size_t msg_size, size_t ops) {
+void SyncIoTest(int rank, int nprocs, size_t msg_size, size_t ops_pp) {
   chi::small_message::Client client;
   CHI_ADMIN->RegisterTaskLibRoot(
       chi::DomainQuery::GetGlobalBcast(), "small_message");
@@ -41,20 +42,21 @@ void SyncIoTest(int rank, int nprocs, size_t msg_size, size_t ops) {
 
   hshm::MpiTimer t(MPI_COMM_WORLD);
   t.Resume();
-  for (size_t i = 0; i < ops; ++i) {
-    int lane_id = i;
+  for (size_t i = 0; i < ops_pp; ++i) {
+    int container_id = i;
     size_t read_size, write_size;
     client.IoRoot(
-        chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, lane_id),
+        chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers,
+                                        container_id),
         msg_size,
         MD_IO_WRITE, write_size, read_size);
   }
   t.Pause();
   t.Collect();
-  Summarize(nprocs, t.GetUsec(), ops, msg_size);
+  Summarize(nprocs, t.GetUsec(), ops_pp, msg_size);
 }
 
-void AsyncIoTest(int rank, int nprocs, size_t msg_size, size_t ops) {
+void AsyncIoTest(int rank, int nprocs, size_t msg_size, size_t ops_pp) {
 }
 
 int main(int argc, char **argv) {
@@ -71,12 +73,12 @@ int main(int argc, char **argv) {
   }
 
   size_t msg_size = hshm::ConfigParse::ParseSize(argv[1]);
-  size_t ops = hshm::ConfigParse::ParseSize(argv[2]);
+  size_t ops_pp = hshm::ConfigParse::ParseSize(argv[2]);
   bool async = std::stoi(argv[3]);
   if (async) {
-    AsyncIoTest(rank, nprocs, msg_size, ops);
+    AsyncIoTest(rank, nprocs, msg_size, ops_pp);
   } else {
-    SyncIoTest(rank, nprocs, msg_size, ops);
+    SyncIoTest(rank, nprocs, msg_size, ops_pp);
   }
 
   MPI_Finalize();
