@@ -112,34 +112,6 @@ class Server : public TaskLib {
   void MonitorDestruct(u32 mode, DestructTask *task, RunContext &rctx) {
   }
 
-  /** Repeat task until success */
-  void FirstSuccess(Task *task,
-                    Task *orig_task,
-                    std::vector<ResolvedDomainQuery> &dom_queries) {
-    // Replicate task
-    bool deep = false;
-    for (ResolvedDomainQuery &dom_query : dom_queries) {
-      Container *exec = HRUN_TASK_REGISTRY->GetAnyContainer(
-          orig_task->pool_);
-      LPointer<Task> replica;
-      exec->CopyStart(orig_task->method_, orig_task, replica, deep);
-      replica->rctx_.pending_to_ = task;
-      size_t node_hash = std::hash<NodeId>{}(dom_query.node_);
-      auto &submit = shared_->submit_;
-      submit[node_hash % submit.size()].emplace(
-          (TaskQueueEntry) {dom_query, replica.ptr_});
-      // Wait
-      task->Wait<TASK_YIELD_CO>(replica, TASK_MODULE_COMPLETE);
-      bool success = true;  // TODO(llogan): Check for success
-      // Free
-      HILOG(kDebug, "Replicas were waited for and completed");
-      CHI_CLIENT->DelTask(exec, replica.ptr_);
-      if (success) {
-        break;
-      }
-    }
-  }
-
   /** Replicate the task across a node set */
   void Replicate(Task *task,
                  Task *orig_task,
@@ -182,6 +154,7 @@ class Server : public TaskLib {
   void ClientPushSubmit(ClientPushSubmitTask *task, RunContext &rctx) {
     // Get domain IDs
     Task *orig_task = task->orig_task_;
+    bool is_ff = orig_task->IsFireAndForget();
     std::vector<ResolvedDomainQuery> dom_queries =
         CHI_RPC->ResolveDomainQuery(orig_task->pool_,
                                      orig_task->dom_query_,
@@ -194,11 +167,13 @@ class Server : public TaskLib {
 
     HILOG(kDebug, "ClientPushTask: {} ({}), Original Task: {} ({})",
           (size_t)task, task, (size_t)orig_task, orig_task);
-    // Try task
     // Replicate task
     Replicate(task, orig_task, dom_queries, rctx);
 
     // Unblock original task
+    if (is_ff) {
+      orig_task->SetFireAndForget();
+    }
     if (!orig_task->IsLongRunning()) {
       orig_task->SetModuleComplete();
     }
@@ -345,14 +320,6 @@ class Server : public TaskLib {
               CHI_CLIENT->node_id_, xfer.tasks_.size(),
               xfer.size(), t.GetUsec());
       }
-
-      // Cleanup the queue
-//      for (TaskQueueEntry &centry : completed) {
-//        Task *done_task = centry.task_;
-//        Container *exec =
-//            HRUN_TASK_REGISTRY->GetContainer(done_task->pool_);
-//        CHI_CLIENT->DelTask(exec, done_task);
-//      }
     } catch (hshm::Error &e) {
       HELOG(kError, "(node {}) Worker {} caught an error: {}", CHI_CLIENT->node_id_, id_, e.what());
     } catch (std::exception &e) {
