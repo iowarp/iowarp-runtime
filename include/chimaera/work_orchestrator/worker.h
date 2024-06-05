@@ -954,9 +954,9 @@ class Worker {
     if (task->ShouldSignalRemoteComplete()) {
       Container *remote_exec =
           CHI_TASK_REGISTRY->GetAnyContainer(CHI_REMOTE_QUEUE->id_);
+      task->SetComplete();
       remote_exec->Run(chi::remote_queue::Method::kServerPushComplete,
                        task.ptr_, task->rctx_);
-      task->SetComplete();
       return;
     }
     if (task->ShouldSignalUnblock()) {
