@@ -28,12 +28,10 @@ class WorkOrchestrator {
   std::vector<std::unique_ptr<Worker>> workers_;  /**< Workers execute tasks */
   std::vector<Worker*> dworkers_;   /**< Core-dedicated workers */
   std::vector<Worker*> oworkers_;   /**< Undedicated workers */
-  std::atomic<bool> stop_runtime_;  /**< Begin killing the runtime */
   std::atomic<bool> kill_requested_;  /**< Kill flushing threads eventually */
   std::vector<tl::managed<tl::xstream>>
     rpc_xstreams_;  /**< RPC streams */
   tl::managed<tl::pool> rpc_pool_;  /**< RPC pool */
-
 
  public:
   /** Default constructor */
@@ -66,19 +64,14 @@ class WorkOrchestrator {
   /** Begin finalizing the runtime */
   HSHM_ALWAYS_INLINE
   void FinalizeRuntime() {
-    stop_runtime_.store(true);
+    HILOG(kInfo, "(node {}) Finalizing workers", CHI_RPC->node_id_)
+    kill_requested_.store(true);
   }
 
   /** Whether threads should still be executing */
   HSHM_ALWAYS_INLINE
   bool IsAlive() {
     return !kill_requested_.load();
-  }
-
-  /** Whether runtime should still be executing */
-  HSHM_ALWAYS_INLINE
-  bool IsRuntimeAlive() {
-    return !stop_runtime_.load();
   }
 
   /** Set the CPU affinity of this worker */

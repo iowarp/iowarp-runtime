@@ -52,7 +52,6 @@ void WorkOrchestrator::ServerInit(ServerConfig *config, QueueManager &qm) {
     worker.SetHighLatency();
     oworkers_.emplace_back(&worker);
   }
-  stop_runtime_ = false;
   kill_requested_ = false;
   // Create RPC worker threads
   rpc_pool_ = tl::pool::create(tl::pool::access::mpmc);
