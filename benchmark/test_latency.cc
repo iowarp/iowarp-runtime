@@ -30,11 +30,11 @@ void SyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
   chi::small_message::Client client;
   CHI_ADMIN->RegisterTaskLibRoot(
       chi::DomainQuery::GetGlobalBcast(), "small_message");
-  return;
   client.CreateRoot(
       chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
       chi::DomainQuery::GetGlobalBcast(),
       "ipc_test");
+  return;
   MPI_Barrier(MPI_COMM_WORLD);
   hshm::MpiTimer t(MPI_COMM_WORLD);
 
