@@ -77,7 +77,7 @@ void AsyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
         chi::DomainQuery::GetDirectHash(
             chi::SubDomainId::kGlobalContainers,
             container_id),
-        depth, TASK_FIRE_AND_FORGET);
+        depth, 0); // TASK_FIRE_AND_FORGET);
   }
   CHI_ADMIN->FlushRoot(
       DomainQuery::GetGlobalBcast());
