@@ -951,15 +951,16 @@ class Worker {
   /** Free a task when it is no longer needed */
   HSHM_ALWAYS_INLINE
   void EndTask(Container *exec, LPointer<Task> &task) {
-    if (task->ShouldSignalUnblock()) {
-      SignalUnblock(task->rctx_.pending_to_);
-    } else if (task->ShouldSignalRemoteComplete()) {
+    if (task->ShouldSignalRemoteComplete()) {
       Container *remote_exec =
           CHI_TASK_REGISTRY->GetAnyContainer(CHI_REMOTE_QUEUE->id_);
       remote_exec->Run(chi::remote_queue::Method::kServerPushComplete,
                        task.ptr_, task->rctx_);
       task->SetComplete();
       return;
+    }
+    if (task->ShouldSignalUnblock()) {
+      SignalUnblock(task->rctx_.pending_to_);
     }
     if (exec && task->IsFireAndForget()) {
       CHI_CLIENT->DelTask(exec, task.ptr_);
