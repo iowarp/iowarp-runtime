@@ -175,7 +175,8 @@ class TaskRegistry {
       if (libs_.find(task_lib_name) != libs_.end()) {
         return true;
       }
-      HILOG(kInfo, "Finished loading the lib: {}", task_lib_name)
+      HILOG(kInfo, "(node {}) Finished loading the lib: {}",
+            CHI_RPC->node_id_, task_lib_name)
       libs_.emplace(task_lib_name, std::move(info));
       return true;
     }
@@ -290,11 +291,11 @@ class TaskRegistry {
       task->rctx_.shared_exec_ = pools_[pool_id].shared_state_;
       exec->Run(TaskMethod::kCreate, task, task->rctx_);
       task->UnsetModuleComplete();
-      HILOG(kInfo, "(node {})  Created container {} for lib={} pool={} id={}",
-            CHI_CLIENT->node_id_, lib_name, pool_name, pool_id, exec->container_id_);
     }
-    HILOG(kInfo, "(node {})  Created an instance of {} with name {} and ID {} ({} containers)",
-          CHI_CLIENT->node_id_, lib_name, pool_name, pool_id, containers.size());
+    HILOG(kInfo, "(node {})  Created an instance of {} with pool name {} "
+                 "and pool ID {} ({} containers)",
+          CHI_CLIENT->node_id_, lib_name, pool_name,
+          pool_id, containers.size());
     return true;
   }
 
