@@ -261,6 +261,7 @@ class TaskRegistry {
     std::unordered_map<ContainerId, Container*> &states =
         pools_[pool_id].containers_;
     for (const SubDomainId &container_id : containers) {
+
       // Don't repeat if state exists
       if (states.find(container_id.minor_) != states.end()) {
         continue;

@@ -40,16 +40,20 @@ struct SharedState {
                    (hshm::mpsc_queue<TaskQueueEntry>) {queue_depth});
     complete_.resize(num_lanes,
                      (hshm::mpsc_queue<TaskQueueEntry>) {queue_depth});
-    submitters_.resize(num_lanes);
-    completers_.resize(num_lanes);
-    for (size_t i = 0; i < num_lanes; ++i) {
-      submitters_[i] = CHI_REMOTE_QUEUE->AsyncClientSubmit(
-          task, task->task_node_ + 1,
-          DomainQuery::GetDirectHash(SubDomainId::kLocalContainers, i));
-      completers_[i] = CHI_REMOTE_QUEUE->AsyncServerComplete(
-          task, task->task_node_ + 1,
-          DomainQuery::GetDirectHash(SubDomainId::kLocalContainers, i));
-    }
+    submitters_.reserve(num_lanes);
+    completers_.reserve(num_lanes);
+  }
+
+  void AddAggregators(Task *task, TaskLib *exec) {
+    DomainQuery dom_query = DomainQuery::GetDirectHash(
+        SubDomainId::kContainerSet,
+        exec->container_id_);
+    submitters_.emplace_back(
+        CHI_REMOTE_QUEUE->AsyncClientSubmit(
+            task, task->task_node_ + 1, dom_query));
+    completers_.emplace_back(
+        CHI_REMOTE_QUEUE->AsyncServerComplete(
+            task, task->task_node_ + 1, dom_query));
   }
 };
 
@@ -60,12 +64,17 @@ class Server : public TaskLib {
  public:
   Server() = default;
 
+  /** Construct state shared across containers on this node */
+  void CreateNodeState() {
+
+  }
+
   /** Construct remote queue */
   void Create(CreateTask *task, RunContext &rctx) {
     HILOG(kInfo, "(node {}) Constructing remote queue (task_node={}, task_state={}, method={})",
           CHI_CLIENT->node_id_, task->task_node_, task->pool_, task->method_);
     if (rctx.shared_exec_ == this) {
-      HRUN_THALLIUM->RegisterRpc(
+      CHI_THALLIUM->RegisterRpc(
           *HRUN_WORK_ORCHESTRATOR->rpc_pool_,
           "RpcTaskSubmit", [this](
               const tl::request &req,
@@ -73,7 +82,7 @@ class Server : public TaskLib {
               SegmentedTransfer &xfer) {
             this->RpcTaskSubmit(req, bulk, xfer);
           });
-      HRUN_THALLIUM->RegisterRpc(
+      CHI_THALLIUM->RegisterRpc(
           *HRUN_WORK_ORCHESTRATOR->rpc_pool_,
           "RpcTaskComplete", [this](
               const tl::request &req,
@@ -88,6 +97,7 @@ class Server : public TaskLib {
     } else {
       auto *root = (Server*)rctx.shared_exec_;
       shared_ = root->shared_;
+      shared_->AddAggregators(task, this);
     }
     task->SetModuleComplete();
   }
@@ -243,7 +253,7 @@ class Server : public TaskLib {
         xfer.ret_node_ = CHI_RPC->node_id_;
         hshm::Timer t;
         t.Resume();
-        HRUN_THALLIUM->SyncIoCall<int>((i32)it->first,
+        CHI_THALLIUM->SyncIoCall<int>((i32)it->first,
                                        "RpcTaskSubmit",
                                        xfer,
                                        DT_SENDER_WRITE);
@@ -323,7 +333,7 @@ class Server : public TaskLib {
 //        HILOG(kDebug, "(node {}) Sending completion of size {} to {}",
 //              CHI_CLIENT->node_id_, xfer.size(),
 //              it->first.GetId());
-        HRUN_THALLIUM->SyncIoCall<int>((i32)it->first,
+        CHI_THALLIUM->SyncIoCall<int>((i32)it->first,
                                        "RpcTaskComplete",
                                        xfer,
                                        DT_SENDER_WRITE);
@@ -360,7 +370,7 @@ class Server : public TaskLib {
       xfer.AllocateSegmentsServer();
 //      HILOG(kDebug, "(node {}) Received submission of size {}",
 //            CHI_CLIENT->node_id_, xfer.size());
-      HRUN_THALLIUM->IoCallServerWrite(req, bulk, xfer);
+      CHI_THALLIUM->IoCallServerWrite(req, bulk, xfer);
       BinaryInputArchive<true> ar(xfer);
       hshm::Timer t;
       t.Resume();
@@ -469,7 +479,7 @@ class Server : public TaskLib {
         exec->LoadEnd(orig_task->method_, ar, orig_task);
       }
       // Process bulk message
-      HRUN_THALLIUM->IoCallServerWrite(req, bulk, xfer);
+      CHI_THALLIUM->IoCallServerWrite(req, bulk, xfer);
       // Unblock completed tasks
       for (size_t i = 0; i < xfer.tasks_.size(); ++i) {
         Task *orig_task = (Task*)xfer.tasks_[i].task_addr_;
