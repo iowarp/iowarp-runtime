@@ -198,8 +198,8 @@ class Server : public TaskLib {
     }
     HILOG(kInfo, "(node {}) Handling runtime stop (task_node={})",
           CHI_RPC->node_id_, task->task_node_);
-    CHI_WORK_ORCHESTRATOR->FinalizeRuntime();
     CHI_THALLIUM->StopThisDaemon();
+    CHI_WORK_ORCHESTRATOR->FinalizeRuntime();
     task->SetModuleComplete();
   }
   void MonitorStopRuntime(u32 mode, StopRuntimeTask *task, RunContext &rctx) {

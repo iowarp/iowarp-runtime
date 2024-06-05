@@ -184,12 +184,14 @@ struct TaskNode {
   void serialize(Ar &ar) {
     ar(root_, node_depth_);
   }
-};
 
-/** Allow TaskNode to be printed as strings */
-static inline std::ostream &operator<<(std::ostream &os, const TaskNode &obj) {
-  return os << obj.root_ << "/" << std::to_string(obj.node_depth_);
-}
+
+
+  /** Allow TaskNode to be printed as strings */
+  friend std::ostream &operator<<(std::ostream &os, const TaskNode &obj) {
+    return os << obj.root_ << "/" << std::to_string(obj.node_depth_);
+  }
+};
 
 /** This task supports replication */
 #define TF_REPLICA BIT_OPT(u32, 31)
