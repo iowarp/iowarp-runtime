@@ -259,7 +259,7 @@ class Server : public TaskLib {
                                        xfer,
                                        DT_SENDER_WRITE);
         t.Pause();
-        HILOG(kDebug, "(node {}) Submitted tasks in {} usec",
+        HILOG(kInfo, "(node {}) Submitted tasks in {} usec",
               CHI_CLIENT->node_id_, t.GetUsec());
       }
     } catch (hshm::Error &e) {
@@ -334,16 +334,16 @@ class Server : public TaskLib {
 //        HILOG(kDebug, "(node {}) Sending completion of size {} to {}",
 //              CHI_CLIENT->node_id_, xfer.size(),
 //              it->first.GetId());
-//        hshm::Timer t;
-//        t.Resume();
+        hshm::Timer t;
+        t.Resume();
         CHI_THALLIUM->SyncIoCall<int>((i32)it->first,
                                        "RpcTaskComplete",
                                        xfer,
                                        DT_SENDER_WRITE);
-//        t.Pause();
-//        HILOG(kInfo, "(node {}) Transferred {} tasks ({} bytes) in {} usec",
-//              CHI_CLIENT->node_id_, xfer.tasks_.size(),
-//              xfer.size(), t.GetUsec());
+        t.Pause();
+        HILOG(kInfo, "(node {}) Returned {} tasks ({} bytes) in {} usec",
+              CHI_CLIENT->node_id_, xfer.tasks_.size(),
+              xfer.size(), t.GetUsec());
       }
 
       // Cleanup the queue
