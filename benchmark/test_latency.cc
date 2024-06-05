@@ -36,14 +36,11 @@ void SyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
       "ipc_test");
   MPI_Barrier(MPI_COMM_WORLD);
   hshm::MpiTimer t(MPI_COMM_WORLD);
-  size_t domain_size = CHI_ADMIN->GetDomainSizeRoot(
-      chi::DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0),
-      chi::DomainId(client.id_, chi::SubDomainId::kGlobalContainers));
 
   HILOG(kInfo, "OPS: {}", ops)
   t.Resume();
   for (size_t i = 0; i < ops; ++i) {
-    int container_id = 1 + (i % domain_size);
+    int container_id = i;
     client.MdRoot(
         chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers,
                                         container_id),
@@ -65,9 +62,6 @@ void AsyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
       "ipc_test");
   MPI_Barrier(MPI_COMM_WORLD);
   hshm::MpiTimer t(MPI_COMM_WORLD);
-  size_t domain_size = CHI_ADMIN->GetDomainSizeRoot(
-      chi::DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0),
-      chi::DomainId(client.id_, chi::SubDomainId::kGlobalContainers));
 
   t.Resume();
   for (size_t i = 0; i < ops; ++i) {
