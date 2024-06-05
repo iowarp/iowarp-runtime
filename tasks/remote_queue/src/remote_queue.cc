@@ -71,8 +71,6 @@ class Server : public TaskLib {
 
   /** Construct remote queue */
   void Create(CreateTask *task, RunContext &rctx) {
-    HILOG(kInfo, "(node {}) Constructing remote queue (task_node={}, task_state={}, method={})",
-          CHI_CLIENT->node_id_, task->task_node_, task->pool_, task->method_);
     if (rctx.shared_exec_ == this) {
       CHI_THALLIUM->RegisterRpc(
           *HRUN_WORK_ORCHESTRATOR->rpc_pool_,

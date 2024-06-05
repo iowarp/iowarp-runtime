@@ -108,9 +108,8 @@ class Server : public TaskLib {
     std::vector<SubDomainId> containers =
         CHI_RPC->GetLocalContainers(task->ctx_.id_);
     // Print the created domain
-    HILOG(kInfo, "Creating a domain with {} globals and {} locals")
-    CHI_RPC->PrintDomain(DomainId{task->ctx_.id_, SubDomainId::kContainerSet});
-    CHI_RPC->PrintSubdomainSet(containers);
+//    CHI_RPC->PrintDomain(DomainId{task->ctx_.id_, SubDomainId::kContainerSet});
+//    CHI_RPC->PrintSubdomainSet(containers);
     // Create the task state
     CHI_TASK_REGISTRY->CreateContainer(
         lib_name.c_str(),
