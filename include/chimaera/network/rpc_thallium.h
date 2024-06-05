@@ -40,9 +40,7 @@ class ThalliumRpc {
   /** Initialize server */
   void ServerInit(RpcContext *rpc) {
     rpc_ = rpc;
-    HILOG(kInfo, "Initializing RPC server");
     std::string addr = rpc->GetMyRpcAddress();
-    HILOG(kInfo, "Attempting to start server on: {}", addr);
     try {
       server_engine_ = std::make_unique<tl::engine>(
           addr, THALLIUM_SERVER_MODE);
@@ -65,8 +63,8 @@ class ThalliumRpc {
     client_engine_ = std::make_unique<tl::engine>(protocol,
                                                   THALLIUM_CLIENT_MODE,
                                                   true, 1);
-    HILOG(kInfo, "This client is on node {} (i.e., {}, proto: {})",
-          rpc->node_id_, rpc->GetHostNameFromNodeId(rpc->node_id_), protocol);
+//    HILOG(kInfo, "This client is on node {} (i.e., {}, proto: {})",
+//          rpc->node_id_, rpc->GetHostNameFromNodeId(rpc->node_id_), protocol);
   }
 
   /** Run the daemon */
