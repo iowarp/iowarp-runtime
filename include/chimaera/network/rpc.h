@@ -476,8 +476,10 @@ class RpcContext {
   std::string GetIpAddressFromNodeId(NodeId node_id){
     // NOTE(llogan): node_id 0 is reserved as the NULL node
     if (node_id <= 0 || node_id > (u32)hosts_.size()) {
-      HELOG(kFatal, "Attempted to get from node {}, which is out of "
-                    "the range 1-{}", node_id, hosts_.size())
+      throw std::runtime_error(
+          hshm::Formatter::format(
+              "Attempted to get from node {}, which is out of "
+              "the range 1-{}", node_id, hosts_.size()));
     }
     u32 index = node_id - 1;
     return hosts_[index].ip_addr_;
