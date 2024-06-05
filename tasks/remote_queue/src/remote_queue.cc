@@ -154,7 +154,6 @@ class Server : public TaskLib {
   void ClientPushSubmit(ClientPushSubmitTask *task, RunContext &rctx) {
     // Get domain IDs
     Task *orig_task = task->orig_task_;
-    bool is_ff = orig_task->IsFireAndForget();
     std::vector<ResolvedDomainQuery> dom_queries =
         CHI_RPC->ResolveDomainQuery(orig_task->pool_,
                                      orig_task->dom_query_,
@@ -167,13 +166,19 @@ class Server : public TaskLib {
 
     HILOG(kDebug, "ClientPushTask: {} ({}), Original Task: {} ({})",
           (size_t)task, task, (size_t)orig_task, orig_task);
+    // Handle fire & forget
+    bool is_ff = orig_task->IsFireAndForget();
+    orig_task->UnsetFireAndForget();
+
     // Replicate task
     Replicate(task, orig_task, dom_queries, rctx);
 
-    // Unblock original task
+    // Handle fire & forget
     if (is_ff) {
       orig_task->SetFireAndForget();
     }
+
+    // Unblock original task
     if (!orig_task->IsLongRunning()) {
       orig_task->SetModuleComplete();
     }
