@@ -184,15 +184,20 @@ class Server : public TaskLib {
 
   /** Stop this runtime */
   void StopRuntime(StopRuntimeTask *task, RunContext &rctx) {
-    HILOG(kInfo, "Stopping (server mode)");
     if (task->root_) {
+      HILOG(kInfo, "(node {}) Broadcasting runtime stop (task_node={})",
+            CHI_RPC->node_id_, task->task_node_);
       CHI_ADMIN->AsyncStopRuntime(
           task, task->task_node_ + 1,
           DomainQuery::GetGlobalBcast(), false);
     } else if (CHI_RPC->node_id_ == task->task_node_.root_.node_id_) {
       task->SetModuleComplete();
+      HILOG(kInfo, "(node {}) Ignoring runtime stop (task_node={})",
+            CHI_RPC->node_id_, task->task_node_);
       return;
     }
+    HILOG(kInfo, "(node {}) Handling runtime stop (task_node={})",
+          CHI_RPC->node_id_, task->task_node_);
     CHI_WORK_ORCHESTRATOR->FinalizeRuntime();
     CHI_THALLIUM->StopThisDaemon();
     task->SetModuleComplete();
