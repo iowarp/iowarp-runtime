@@ -69,9 +69,9 @@ class ThalliumRpc {
 
   /** Run the daemon */
   void RunDaemon() {
-    HILOG(kInfo, "Daemon has started on node: {}", rpc_->node_id_);
+    HILOG(kInfo, "(node {}) Daemon has started", rpc_->node_id_);
     server_engine_->wait_for_finalize();
-    HILOG(kInfo, "Daemon has stopped on node: {}", rpc_->node_id_);
+    HILOG(kInfo, "(node {}) Daemon has stopped", rpc_->node_id_);
   }
 
   /** Stop this daemon */
