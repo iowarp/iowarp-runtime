@@ -447,7 +447,7 @@ class PrivateTaskMultiQueue {
     PrivateTaskQueueEntry entry;
     blocked_.pop(blocked_task->rctx_.pending_key_, entry);
     if (blocked_task.ptr_ != entry.task_.ptr_) {
-      HILOG(kFatal, "A blocked task was lost");
+      HELOG(kFatal, "A blocked task was lost");
     }
     blocked_task->UnsetBlocked();
     push<true>(entry);

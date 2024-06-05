@@ -124,9 +124,9 @@ class Server : public TaskLib {
       LPointer<Task> replica;
       exec->CopyStart(orig_task->method_, orig_task, replica, deep);
       replica->rctx_.pending_to_ = task;
-      size_t lane_hash = std::hash<NodeId>{}(dom_query.node_);
+      size_t node_hash = std::hash<NodeId>{}(dom_query.node_);
       auto &submit = shared_->submit_;
-      submit[lane_hash % submit.size()].emplace(
+      submit[node_hash % submit.size()].emplace(
           (TaskQueueEntry) {dom_query, replica.ptr_});
       // Wait
       task->Wait<TASK_YIELD_CO>(replica, TASK_MODULE_COMPLETE);
@@ -158,9 +158,9 @@ class Server : public TaskLib {
         exec->Monitor(MonitorMode::kReplicaStart, orig_task, rctx);
       }
       replica->rctx_.pending_to_ = task;
-      size_t lane_hash = std::hash<NodeId>{}(dom_query.node_);
+      size_t node_hash = std::hash<NodeId>{}(dom_query.node_);
       auto &submit = shared_->submit_;
-      submit[lane_hash % submit.size()].emplace(
+      submit[node_hash % submit.size()].emplace(
           (TaskQueueEntry) {dom_query, replica.ptr_});
       replicas.emplace_back(replica);
     }
@@ -259,8 +259,8 @@ class Server : public TaskLib {
                                        xfer,
                                        DT_SENDER_WRITE);
         t.Pause();
-        HILOG(kInfo, "(node {}) Submitted tasks in {} usec",
-              CHI_CLIENT->node_id_, t.GetUsec());
+        HILOG(kInfo, "(node {}) Submitted {} tasks in {} usec",
+              CHI_CLIENT->node_id_, xfer.tasks_.size(), t.GetUsec());
       }
     } catch (hshm::Error &e) {
       HELOG(kError, "(node {}) Worker {} caught an error: {}", CHI_CLIENT->node_id_, id_, e.what());
@@ -291,9 +291,9 @@ class Server : public TaskLib {
       HILOG(kFatal, "This shouldn't happen ever");
     }
     NodeId ret_node = task->rctx_.ret_node_;
-    size_t lane_hash = std::hash<NodeId>{}(ret_node);
+    size_t node_hash = std::hash<NodeId>{}(ret_node);
     auto &complete = shared_->complete_;
-    complete[lane_hash % complete.size()].emplace((TaskQueueEntry){
+    complete[node_hash % complete.size()].emplace((TaskQueueEntry){
         ret_node, task
     });
   }
@@ -452,7 +452,7 @@ class Server : public TaskLib {
                    orig_task->GetContainerId(), task_ptr.shm_);
 //    HILOG(kDebug,
 //          "(node {}) Done submitting (task_node={}, task_state={}/{}, "
-//          "pool_name={}, method={}, size={}, lane_hash={})",
+//          "pool_name={}, method={}, size={}, node_hash={})",
 //          CHI_CLIENT->node_id_,
 //          orig_task->task_node_,
 //          orig_task->pool_,

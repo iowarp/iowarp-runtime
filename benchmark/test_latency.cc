@@ -74,8 +74,9 @@ void AsyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
     HILOG(kDebug, "Sending message {}", i)
     int container_id = i;
     client.AsyncMdRoot(
-        chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers,
-                                        container_id),
+        chi::DomainQuery::GetDirectHash(
+            chi::SubDomainId::kGlobalContainers,
+            container_id),
         depth, TASK_FIRE_AND_FORGET);
   }
   CHI_ADMIN->FlushRoot(
