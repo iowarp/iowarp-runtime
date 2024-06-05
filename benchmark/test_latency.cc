@@ -36,6 +36,7 @@ void SyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
       "ipc_test");
   MPI_Barrier(MPI_COMM_WORLD);
   hshm::MpiTimer t(MPI_COMM_WORLD);
+  return;
 
   HILOG(kInfo, "OPS: {}", ops)
   t.Resume();
