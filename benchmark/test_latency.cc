@@ -19,9 +19,9 @@ void Summarize(size_t nprocs,
   int rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   if (rank == 0) {
-    HILOG(kInfo, "Latency: {} MOps, {} MTasks, {} nprocs, {} ops-per-node",
-          ops / time_usec,
-          ops * (depth + 1) / time_usec,
+    HILOG(kInfo, "Latency: {} KOps, {} KTasks, {} nprocs, {} ops-per-node",
+          1000 * ops / time_usec,
+          1000 * ops * (depth + 1) / time_usec,
           nprocs, ops_per_node);
   }
 }
