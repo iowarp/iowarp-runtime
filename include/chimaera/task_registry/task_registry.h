@@ -353,11 +353,11 @@ class TaskRegistry {
     }
     Container *exec = pool_it->second.containers_[container_id];
     if (!exec) {
-      CHI_RPC->PrintDomain(DomainId{pool_id, SubDomainId::kContainerSet});
-      for (auto &kv : pool_it->second.containers_) {
-        HILOG(kInfo, "Container ID: {} {}", kv.first, kv.second)
-      }
-      HELOG(kFatal, "Could not find container {} in pool {}",
+//      CHI_RPC->PrintDomain(DomainId{pool_id, SubDomainId::kContainerSet});
+//      for (auto &kv : pool_it->second.containers_) {
+//        HILOG(kInfo, "Container ID: {} {}", kv.first, kv.second)
+//      }
+      HELOG(kError, "Could not find container {} in pool {}",
             container_id, pool_id)
     }
     return exec;

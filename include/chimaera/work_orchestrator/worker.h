@@ -811,15 +811,15 @@ class Worker {
     }
     if (!exec) {
       if (task->pool_ == PoolId::GetNull()) {
-        HELOG(kFatal, "(node {}) Task {} has no task state",
+        HELOG(kFatal, "(node {}) Task {} pool does not exist",
               CHI_CLIENT->node_id_, task->task_node_);
         task->SetModuleComplete();
         return false;
       } else {
-        HELOG(kFatal, "(node {}) Could not find the task state {} for task {}"
-                        " with query: {}",
-              CHI_CLIENT->node_id_, task->pool_, task->task_node_,
-              entry.res_query_);
+//        HELOG(kFatal, "(node {}) Could not find the pool {} for task {}"
+//                        " with query: {}",
+//              CHI_CLIENT->node_id_, task->pool_, task->task_node_,
+//              entry.res_query_);
       }
       return true;
     }
