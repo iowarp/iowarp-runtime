@@ -32,7 +32,7 @@ Runtime* Runtime::Create(std::string server_config_path) {
 /** Initialize */
 void Runtime::ServerInit(std::string server_config_path) {
   HILOG(kInfo, "(node {}) Loading server configuration: {}",
-        server_config_path);
+        CHI_RPC->node_id_, server_config_path);
   LoadServerConfig(server_config_path);
   // HILOG(kInfo, "Initializing shared memory")
   InitSharedMemory();
