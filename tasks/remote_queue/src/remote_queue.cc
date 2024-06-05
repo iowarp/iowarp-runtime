@@ -76,7 +76,7 @@ class Server : public TaskLib {
   void Create(CreateTask *task, RunContext &rctx) {
     if (rctx.shared_exec_ == this) {
       CHI_THALLIUM->RegisterRpc(
-          *HRUN_WORK_ORCHESTRATOR->rpc_pool_,
+          *CHI_WORK_ORCHESTRATOR->rpc_pool_,
           "RpcTaskSubmit", [this](
               const tl::request &req,
               tl::bulk &bulk,
@@ -84,7 +84,7 @@ class Server : public TaskLib {
             this->RpcTaskSubmit(req, bulk, xfer);
           });
       CHI_THALLIUM->RegisterRpc(
-          *HRUN_WORK_ORCHESTRATOR->rpc_pool_,
+          *CHI_WORK_ORCHESTRATOR->rpc_pool_,
           "RpcTaskComplete", [this](
               const tl::request &req,
               tl::bulk &bulk,

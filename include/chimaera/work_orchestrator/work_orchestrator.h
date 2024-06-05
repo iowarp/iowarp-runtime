@@ -10,8 +10,8 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef HRUN_INCLUDE_HRUN_WORK_ORCHESTRATOR_WORK_ORCHESTRATOR_H_
-#define HRUN_INCLUDE_HRUN_WORK_ORCHESTRATOR_WORK_ORCHESTRATOR_H_
+#ifndef HRUN_INCLUDE_CHI_WORK_ORCHESTRATOR_WORK_ORCHESTRATOR_H_
+#define HRUN_INCLUDE_CHI_WORK_ORCHESTRATOR_WORK_ORCHESTRATOR_H_
 
 #include "chimaera/chimaera_types.h"
 #include "chimaera/queue_manager/queue_manager_runtime.h"
@@ -118,7 +118,7 @@ class WorkOrchestrator {
 
 }  // namespace chi
 
-#define HRUN_WORK_ORCHESTRATOR \
+#define CHI_WORK_ORCHESTRATOR \
   (&CHI_RUNTIME->work_orchestrator_)
 
-#endif  // HRUN_INCLUDE_HRUN_WORK_ORCHESTRATOR_WORK_ORCHESTRATOR_H_
+#endif  // HRUN_INCLUDE_CHI_WORK_ORCHESTRATOR_WORK_ORCHESTRATOR_H_

@@ -196,14 +196,14 @@ void Runtime::RunDaemon() {
   thallium_.RunDaemon();
   HILOG(kInfo, "(node {}) Finishing up last requests",
         CHI_CLIENT->node_id_)
-  HRUN_WORK_ORCHESTRATOR->Join();
+  CHI_WORK_ORCHESTRATOR->Join();
   HILOG(kInfo, "(node {}) Daemon is exiting",
         CHI_CLIENT->node_id_)
 }
 
 /** Stop the Hermes core Daemon */
 void Runtime::StopDaemon() {
-  HRUN_WORK_ORCHESTRATOR->FinalizeRuntime();
+  CHI_WORK_ORCHESTRATOR->FinalizeRuntime();
 }
 
 }  // namespace chi

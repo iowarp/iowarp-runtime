@@ -10,8 +10,8 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef HRUN_INCLUDE_HRUN_WORK_ORCHESTRATOR_WORKER_H_
-#define HRUN_INCLUDE_HRUN_WORK_ORCHESTRATOR_WORKER_H_
+#ifndef HRUN_INCLUDE_CHI_WORK_ORCHESTRATOR_WORKER_H_
+#define HRUN_INCLUDE_CHI_WORK_ORCHESTRATOR_WORKER_H_
 
 #include "chimaera/chimaera_types.h"
 #include "chimaera/queue_manager/queue_manager_runtime.h"
@@ -512,7 +512,7 @@ class Worker {
     xstream_ = xstream;
     // thread_ = std::make_unique<std::thread>(&Worker::Loop, this);
     // pthread_id_ = thread_->native_handle();
-    tl_thread_ = HRUN_WORK_ORCHESTRATOR->SpawnAsyncThread(
+    tl_thread_ = CHI_WORK_ORCHESTRATOR->SpawnAsyncThread(
         xstream_, &Worker::WorkerEntryPoint, this);
   }
 
@@ -599,7 +599,7 @@ class Worker {
     if (IsContinuousPolling()) {
       MakeDedicated();
     }
-    WorkOrchestrator *orch = HRUN_WORK_ORCHESTRATOR;
+    WorkOrchestrator *orch = CHI_WORK_ORCHESTRATOR;
     cur_time_.Now();
     size_t work = 0;
     while (orch->IsAlive()) {
@@ -983,7 +983,7 @@ class Worker {
   /** Externally signal a task as complete */
   HSHM_ALWAYS_INLINE
   static void SignalUnblock(LPointer<Task> &unblock_task) {
-    Worker &worker = HRUN_WORK_ORCHESTRATOR->GetWorker(
+    Worker &worker = CHI_WORK_ORCHESTRATOR->GetWorker(
         unblock_task->rctx_.worker_id_);
     PrivateTaskMultiQueue &pending =
         worker.GetPendingQueue(unblock_task.ptr_);
@@ -1026,7 +1026,7 @@ class Worker {
   /** Get the pending queue for a worker */
   PrivateTaskMultiQueue& GetPendingQueue(Task *task) {
     PrivateTaskMultiQueue &pending =
-        HRUN_WORK_ORCHESTRATOR->workers_[task->rctx_.worker_id_]->active_;
+        CHI_WORK_ORCHESTRATOR->workers_[task->rctx_.worker_id_]->active_;
     return pending;
   }
 
@@ -1159,4 +1159,4 @@ class Worker {
 
 }  // namespace chi
 
-#endif  // HRUN_INCLUDE_HRUN_WORK_ORCHESTRATOR_WORKER_H_
+#endif  // HRUN_INCLUDE_CHI_WORK_ORCHESTRATOR_WORKER_H_

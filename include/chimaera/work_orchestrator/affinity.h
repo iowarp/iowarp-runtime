@@ -10,8 +10,8 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef HRUN_INCLUDE_HRUN_WORK_ORCHESTRATOR_AFFINITY_H_
-#define HRUN_INCLUDE_HRUN_WORK_ORCHESTRATOR_AFFINITY_H_
+#ifndef HRUN_INCLUDE_CHI_WORK_ORCHESTRATOR_AFFINITY_H_
+#define HRUN_INCLUDE_CHI_WORK_ORCHESTRATOR_AFFINITY_H_
 
 #include <sched.h>
 #include <vector>
@@ -177,4 +177,4 @@ class ProcessAffiner {
   }
 };
 
-#endif  // HRUN_INCLUDE_HRUN_WORK_ORCHESTRATOR_AFFINITY_H_
+#endif  // HRUN_INCLUDE_CHI_WORK_ORCHESTRATOR_AFFINITY_H_

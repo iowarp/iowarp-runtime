@@ -193,8 +193,8 @@ class Server : public TaskLib {
       task->SetModuleComplete();
       return;
     }
-    HRUN_WORK_ORCHESTRATOR->FinalizeRuntime();
-    HRUN_THALLIUM->StopThisDaemon();
+    CHI_WORK_ORCHESTRATOR->FinalizeRuntime();
+    CHI_THALLIUM->StopThisDaemon();
     task->SetModuleComplete();
   }
   void MonitorStopRuntime(u32 mode, StopRuntimeTask *task, RunContext &rctx) {
