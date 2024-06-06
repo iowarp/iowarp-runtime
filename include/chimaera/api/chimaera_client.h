@@ -392,7 +392,7 @@ class Client : public ConfigurationManager {
                            LPointer<TaskT> &task,
                            const QueueId &queue_id) {
     task->YieldInit(parent_task);
-    MultiQueue *queue = CHI_CLIENT->GetQueue(queue_id);
+    MultiQueue *queue = GetQueue(queue_id);
     queue->Emplace(TaskPrio::kLowLatency,
                    std::hash<chi::DomainQuery>{}(task->dom_query_),
                    task.shm_);
