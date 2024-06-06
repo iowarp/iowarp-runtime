@@ -142,6 +142,7 @@ class Server : public TaskLib {
     }
     // Wait
     submit_task->Wait<TASK_YIELD_CO>(replicas, TASK_MODULE_COMPLETE);
+    HILOG(kInfo, "Finished waiting on replicas");
     // Combine
     Container *exec = CHI_TASK_REGISTRY->GetAnyContainer(
         orig_task->pool_);
@@ -149,8 +150,8 @@ class Server : public TaskLib {
     exec->Monitor(MonitorMode::kReplicaAgg, orig_task, rctx);
     // Free
     for (LPointer<Task> &replica : replicas) {
-      HILOG(kInfo, "[TASK_CHECK] Completing rep_task {} ({} -> {})",
-            replica.ptr_, CHI_RPC->node_id_, replica.ptr_->task_node_)
+      HILOG(kInfo, "[TASK_CHECK] Completing rep_task {} on node {}",
+            replica.ptr_, CHI_RPC->node_id_);
       CHI_CLIENT->DelTask(exec, replica.ptr_);
     }
   }
