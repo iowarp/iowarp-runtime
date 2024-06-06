@@ -53,4 +53,4 @@ class Server : public TaskLib {
 
 }  // namespace chi::TASK_NAME
 
-HRUN_TASK_CC(chi::TASK_NAME::Server, "TASK_NAME");
+CHI_TASK_CC(chi::TASK_NAME::Server, "TASK_NAME");

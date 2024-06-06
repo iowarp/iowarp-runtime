@@ -32,6 +32,7 @@ struct TaskLibInfo {
   void *lib_;  /**< The dlfcn library */
   alloc_state_t alloc_state_;   /**< The create task function */
   get_task_lib_name_t get_task_lib_name; /**< The get task name function */
+  Container *static_state_;  /**< An allocation for static functions */
 
   /** Default constructor */
   TaskLibInfo() = default;
@@ -239,7 +240,7 @@ class TaskRegistry {
     if (pools_.find(pool_id) == pools_.end()) {
       // Allocate the state
       pools_[pool_id] = ContainerInfo();
-      Container *exec = info.alloc_state_(task, pool_name);
+      Container *exec = info.alloc_state_(&pool_id, pool_name);
       if (!exec) {
         HELOG(kError, "Could not create the task state: {}", pool_name);
         task->SetModuleComplete();
@@ -272,7 +273,7 @@ class TaskRegistry {
       }
 
       // Allocate the state
-      Container *exec = info.alloc_state_(task, pool_name);
+      Container *exec = info.alloc_state_(&pool_id, pool_name);
       if (!exec) {
         HELOG(kError, "Could not create the task state: {}", pool_name);
         task->SetModuleComplete();
@@ -386,7 +387,6 @@ class TaskRegistry {
 /** Singleton macro for task registry */
 #define CHI_TASK_REGISTRY \
   (&CHI_RUNTIME->task_registry_)
-#define HRUN_TASK_REGISTRY CHI_TASK_REGISTRY
 }  // namespace chi
 
 #endif  // HRUN_INCLUDE_HRUN_TASK_TASK_REGISTRY_H_

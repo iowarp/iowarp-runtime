@@ -81,4 +81,4 @@ class Server : public TaskLib {
 
 }  // namespace chi
 
-HRUN_TASK_CC(chi::worch_queue_round_robin::Server, "worch_queue_round_robin");
+CHI_TASK_CC(chi::worch_queue_round_robin::Server, "worch_queue_round_robin");

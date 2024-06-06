@@ -123,7 +123,7 @@ class Server : public TaskLib {
     bool deep = dom_queries.size() > 1;
     for (ResolvedDomainQuery &dom_query : dom_queries) {
       LPointer<Task> replica;
-      Container *exec = HRUN_TASK_REGISTRY->GetAnyContainer(
+      Container *exec = CHI_TASK_REGISTRY->GetAnyContainer(
           orig_task->pool_);
       exec->CopyStart(orig_task->method_, orig_task, replica, deep);
       if (dom_query.dom_.flags_.Any(DomainQuery::kLocal)) {
@@ -139,7 +139,7 @@ class Server : public TaskLib {
     // Wait
     task->Wait<TASK_YIELD_CO>(replicas, TASK_MODULE_COMPLETE);
     // Combine
-    Container *exec = HRUN_TASK_REGISTRY->GetAnyContainer(
+    Container *exec = CHI_TASK_REGISTRY->GetAnyContainer(
         orig_task->pool_);
     rctx.replicas_ = &replicas;
     exec->Monitor(MonitorMode::kReplicaAgg, orig_task, rctx);
@@ -209,7 +209,7 @@ class Server : public TaskLib {
           entries.emplace(entry.res_domain_.node_, BinaryOutputArchive<true>());
         }
         Task *orig_task = entry.task_;
-        Container *exec = HRUN_TASK_REGISTRY->GetAnyContainer(
+        Container *exec = CHI_TASK_REGISTRY->GetAnyContainer(
             orig_task->pool_);
         if (exec == nullptr) {
           HELOG(kFatal, "(node {}) Could not find the task state {}",
@@ -304,7 +304,7 @@ class Server : public TaskLib {
               CHI_CLIENT->node_id_, done_task->task_node_,
               entry.res_domain_);
         Container *exec =
-            HRUN_TASK_REGISTRY->GetAnyContainer(done_task->pool_);
+            CHI_TASK_REGISTRY->GetAnyContainer(done_task->pool_);
         BinaryOutputArchive<false> &ar = entries[entry.res_domain_.node_];
         exec->SaveEnd(done_task->method_, ar, done_task);
         completed.emplace_back(entry);
@@ -379,7 +379,7 @@ class Server : public TaskLib {
     // Deserialize task
     PoolId pool_id = xfer.tasks_[task_off].pool_;
     u32 method = xfer.tasks_[task_off].method_;
-    Container *exec = HRUN_TASK_REGISTRY->GetAnyContainer(pool_id);
+    Container *exec = CHI_TASK_REGISTRY->GetAnyContainer(pool_id);
     if (exec == nullptr) {
       HELOG(kFatal, "(node {}) Could not find the task state {}",
             CHI_CLIENT->node_id_, pool_id);
@@ -453,7 +453,7 @@ class Server : public TaskLib {
         Task *orig_task = (Task*)xfer.tasks_[i].task_addr_;
         HILOG(kDebug, "(node {}) Deserializing return values for task {} (state {})",
               CHI_CLIENT->node_id_, orig_task->task_node_, orig_task->pool_);
-        Container *exec = HRUN_TASK_REGISTRY->GetAnyContainer(
+        Container *exec = CHI_TASK_REGISTRY->GetAnyContainer(
             orig_task->pool_);
         if (exec == nullptr) {
           HELOG(kFatal, "(node {}) Could not find the task state {}",
@@ -493,4 +493,4 @@ class Server : public TaskLib {
 };
 }  // namespace chi
 
-HRUN_TASK_CC(chi::remote_queue::Server, "remote_queue");
+CHI_TASK_CC(chi::remote_queue::Server, "remote_queue");

@@ -283,4 +283,4 @@ class Server : public TaskLib {
 
 }  // namespace chi
 
-HRUN_TASK_CC(chi::Admin::Server, "chimaera_admin");
+CHI_TASK_CC(chi::Admin::Server, "chimaera_admin");

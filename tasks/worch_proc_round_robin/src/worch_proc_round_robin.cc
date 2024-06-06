@@ -44,4 +44,4 @@ class Server : public TaskLib {
 
 }  // namespace chi
 
-HRUN_TASK_CC(chi::worch_proc_round_robin::Server, "worch_proc_round_robin");
+CHI_TASK_CC(chi::worch_proc_round_robin::Server, "worch_proc_round_robin");

@@ -804,9 +804,9 @@ class Worker {
     // Get the task state
     Container *exec;
     if (props.Any(HSHM_WORKER_IS_REMOTE)) {
-      exec = HRUN_TASK_REGISTRY->GetAnyContainer(task->pool_);
+      exec = CHI_TASK_REGISTRY->GetAnyContainer(task->pool_);
     } else {
-      exec = HRUN_TASK_REGISTRY->GetContainer(task->pool_,
+      exec = CHI_TASK_REGISTRY->GetContainer(task->pool_,
                                               entry.res_query_.sel_.id_);
     }
     if (!exec) {

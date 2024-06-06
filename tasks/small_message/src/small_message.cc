@@ -91,4 +91,4 @@ class Server : public TaskLib {
 
 }  // namespace chi
 
-HRUN_TASK_CC(chi::small_message::Server, "small_message");
+CHI_TASK_CC(chi::small_message::Server, "small_message");

@@ -122,18 +122,19 @@ class TaskLibClient {
 
 extern "C" {
 /** Allocate a state (no construction) */
-typedef Container* (*alloc_state_t)(Task *task, const char *pool_name);
+typedef Container* (*alloc_state_t)(
+    const chi::PoolId *pool_id, const char *pool_name);
 /** Get the name of a task */
 typedef const char* (*get_task_lib_name_t)(void);
 }  // extern c
 
 /** Used internally by task source file */
-#define HRUN_TASK_CC(TRAIT_CLASS, TASK_NAME)\
+#define CHI_TASK_CC(TRAIT_CLASS, TASK_NAME)\
   extern "C" {\
-  void* alloc_state(chi::Admin::CreateContainerTask *task, const char *pool_name) {\
+  void* alloc_state(const chi::PoolId *pool_id, const char *pool_name) {\
     chi::Container *exec = reinterpret_cast<chi::Container*>(\
         new TYPE_UNWRAP(TRAIT_CLASS)());\
-    exec->Init(task->ctx_.id_, CHI_CLIENT->GetQueueId(task->ctx_.id_), pool_name);\
+    exec->Init(*pool_id, CHI_CLIENT->GetQueueId(*pool_id), pool_name);\
     return exec;\
   }\
   const char* get_task_lib_name(void) { return TASK_NAME; }\
