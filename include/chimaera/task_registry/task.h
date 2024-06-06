@@ -734,6 +734,7 @@ struct Task : public hipc::ShmContainer {
     task_flags_ = other.task_flags_;
     UnsetStarted();
     UnsetSignalUnblock();
+    UnsetSignalRemoteComplete();
     UnsetBlocked();
     UnsetRemote();
     UnsetComplete();
