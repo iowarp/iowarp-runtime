@@ -196,69 +196,6 @@ class Server : public TaskLib {
                                RunContext &rctx) {
   }
 
-  void ClientSubmit(ClientSubmitTask *task, RunContext &rctx) {
-    try {
-      TaskQueueEntry entry;
-      std::unordered_map<NodeId, BinaryOutputArchive<true>> entries;
-      auto &submit = shared_->submit_;
-      while (!submit[0].pop(entry).IsNull()) {
-        HILOG(kDebug, "(node {}) [1] Submitting task {} ({}) to domain {}",
-              CHI_CLIENT->node_id_, entry.task_->task_node_,
-              (size_t)entry.task_,
-              entry.res_domain_);
-        BinaryOutputArchive<true> ar;
-        Task *orig_task = entry.task_;
-        Container *exec = CHI_TASK_REGISTRY->GetAnyContainer(
-            orig_task->pool_);
-        if (exec == nullptr) {
-          HELOG(kFatal, "(node {}) Could not find the task state {}",
-                CHI_CLIENT->node_id_, orig_task->pool_);
-          return;
-        }
-        orig_task->dom_query_ = entry.res_domain_.dom_;
-        HILOG(kDebug, "(node {}) [2] Serialized task {} ({}) to domain {}"
-                      "(submit={}, complete={})",
-              CHI_CLIENT->node_id_, entry.task_->task_node_,
-              (size_t)entry.task_,
-              orig_task->dom_query_,
-              shared_->sreqs_,
-              shared_->creqs_);
-        exec->SaveStart(orig_task->method_, ar, orig_task);
-
-        SegmentedTransfer xfer = ar.Get();
-        HILOG(kDebug, "(node {}) (client xfer) {}",
-              CHI_RPC->node_id_, xfer);
-        xfer.ret_node_ = CHI_RPC->node_id_;
-        hshm::Timer t;
-        t.Resume();
-        CHI_THALLIUM->SyncIoCall<int>((i32)entry.res_domain_.node_,
-                                      "RpcTaskSubmit",
-                                      xfer,
-                                      DT_SENDER_WRITE);
-        t.Pause();
-        HILOG(kInfo, "(node {}) Submitted {} tasks in {} usec",
-              CHI_CLIENT->node_id_, xfer.tasks_.size(), t.GetUsec());
-      }
-    } catch (hshm::Error &e) {
-      HELOG(kError, "(node {}) Worker {} caught an error: {}", CHI_CLIENT->node_id_, id_, e.what());
-    } catch (std::exception &e) {
-      HELOG(kError, "(node {}) Worker {} caught an exception: {}", CHI_CLIENT->node_id_, id_, e.what());
-    } catch (...) {
-      HELOG(kError, "(node {}) Worker {} caught an unknown exception", CHI_CLIENT->node_id_, id_);
-    }
-  }
-  void MonitorClientSubmit(u32 mode,
-                           ClientSubmitTask *task,
-                           RunContext &rctx) {
-    switch (mode) {
-      case MonitorMode::kFlushStat: {
-        hshm::mpsc_queue<TaskQueueEntry> &submit = shared_->submit_[0];
-        hshm::mpsc_queue<TaskQueueEntry> &complete = shared_->complete_[0];
-        rctx.flush_->count_ += submit.GetSize() + complete.GetSize();
-      }
-    }
-  }
-
   /** Push operation called on client */
   void ClientSubmit(ClientSubmitTask *task, RunContext &rctx) {
     try {
