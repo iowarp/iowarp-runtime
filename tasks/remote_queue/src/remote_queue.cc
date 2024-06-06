@@ -271,9 +271,6 @@ class Server : public TaskLib {
       TaskQueueEntry entry;
       std::unordered_map<NodeId, BinaryOutputArchive<false>> entries;
       auto &complete = shared_->complete_;
-      size_t count = complete[0].GetSize();
-      std::vector<TaskQueueEntry> completed;
-      completed.reserve(count);
       while (!complete[0].pop(entry).IsNull()) {
         if (entries.find(entry.res_domain_.node_) == entries.end()) {
           entries.emplace(entry.res_domain_.node_, BinaryOutputArchive<false>());
@@ -283,7 +280,6 @@ class Server : public TaskLib {
             CHI_TASK_REGISTRY->GetAnyContainer(done_task->pool_);
         BinaryOutputArchive<false> &ar = entries[entry.res_domain_.node_];
         exec->SaveEnd(done_task->method_, ar, done_task);
-        completed.emplace_back(entry);
         // CHI_CLIENT->DelTask(done_task)
         HILOG(kInfo, "[TASK_CHECK] Server completed rep_task {} on node {}",
               done_task, CHI_RPC->node_id_);
