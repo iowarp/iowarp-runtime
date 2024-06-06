@@ -426,7 +426,7 @@ hipc::LPointer<CUSTOM##Task> Async##CUSTOM(Task *parent_task,\
                                            Args&& ...args) {\
   hipc::LPointer<CUSTOM##Task> task = Async##CUSTOM##Alloc(\
     task_node, std::forward<Args>(args)...);\
-  CHI_CLIENT->ScheduleTaskRuntime(parent_task, task, queue_id_)\
+  CHI_CLIENT->ScheduleTaskRuntime(parent_task, task, queue_id_);\
   return task;\
 }\
 template<typename ...Args>\
