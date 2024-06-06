@@ -34,6 +34,7 @@ struct SharedState {
   std::vector<hshm::mpsc_queue<TaskQueueEntry>> complete_;
   std::vector<LPointer<ClientSubmitTask>> submitters_;
   std::vector<LPointer<ServerCompleteTask>> completers_;
+  std::atomic<size_t> sreqs_ = 0, creqs_ = 0;
 
   SharedState(Task *task, size_t queue_depth, size_t num_lanes) {
     submit_.resize(num_lanes,
@@ -135,6 +136,7 @@ class Server : public TaskLib {
       submit[node_hash % submit.size()].emplace(
           (TaskQueueEntry) {dom_query, replica.ptr_});
       replicas.emplace_back(replica);
+      ++shared_->sreqs_;
     }
     // Wait
     task->Wait<TASK_YIELD_CO>(replicas, TASK_MODULE_COMPLETE);
@@ -217,19 +219,20 @@ class Server : public TaskLib {
           return;
         }
         orig_task->dom_query_ = entry.res_domain_.dom_;
-        HILOG(kDebug, "(node {}) [2] Submitting task {} ({}) to domain {}",
+        HILOG(kInfo, "(node {}) [2] Serialized task {} ({}) to domain {}"
+                     "(submit={}, complete={})",
               CHI_CLIENT->node_id_, entry.task_->task_node_,
               (size_t)entry.task_,
-              orig_task->dom_query_);
+              orig_task->dom_query_,
+              shared_->sreqs_,
+              shared_->creqs_);
         BinaryOutputArchive<true> &ar = entries[entry.res_domain_.node_];
         exec->SaveStart(orig_task->method_, ar, orig_task);
       }
 
       for (auto it = entries.begin(); it != entries.end(); ++it) {
-        HILOG(kDebug, "(node {}) [3] (client xfer) {}",
-              CHI_RPC->node_id_, it->second.xfer_);
         SegmentedTransfer xfer = it->second.Get();
-        HILOG(kDebug, "(node {}) [4] (client xfer) {}",
+        HILOG(kDebug, "(node {}) (client xfer) {}",
               CHI_RPC->node_id_, xfer);
         xfer.ret_node_ = CHI_RPC->node_id_;
         hshm::Timer t;
@@ -468,10 +471,14 @@ class Server : public TaskLib {
         if (pending_to->pool_ != id_) {
           HELOG(kFatal, "This shouldn't happen ever");
         }
-        HILOG(kDebug, "(node {}) Unblocking task {} to worker {}",
+        ++shared_->creqs_;
+        HILOG(kInfo, "(node {}) Unblocking task {} to worker {}"
+                      "(submit={}/complete={})",
               CHI_CLIENT->node_id_,
               (size_t)pending_to,
-              pending_to->rctx_.worker_id_);
+              pending_to->rctx_.worker_id_,
+              shared_->sreqs_,
+              shared_->creqs_);
         Worker::SignalUnblock(pending_to);
       }
     } catch (hshm::Error &e) {
