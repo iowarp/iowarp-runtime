@@ -68,7 +68,7 @@ int main(int argc, char **argv) {
   CHIMAERA_CLIENT_INIT();
 
   if (argc < 3) {
-    HILOG(kFatal, "Usage: test_ipc <msg_size> <ops> <async>");
+    HELOG(kFatal, "Usage: test_ipc <msg_size> <ops> <async>");
     return 1;
   }
 

@@ -355,7 +355,7 @@ class Server : public TaskLib {
     orig_task->rctx_.ret_task_addr_ = xfer.tasks_[task_off].task_addr_;
     orig_task->rctx_.ret_node_ = xfer.ret_node_;
     if (orig_task->rctx_.ret_task_addr_ == (size_t)orig_task) {
-      HILOG(kFatal, "This shouldn't happen ever");
+      HELOG(kFatal, "This shouldn't happen ever");
     }
 
     // Unset task flags
