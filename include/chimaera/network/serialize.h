@@ -132,7 +132,6 @@ class SegmentedTransfer {
       LPointer<char> data = CHI_CLIENT->AllocateBufferServer<TASK_YIELD_ABT>(
           xfer.data_size_);
       xfer.data_ = data.ptr_;
-      HILOG(kDebug, "NEW DATA POINTER: {}", data.shm_)
     }
   }
 
@@ -186,11 +185,6 @@ class BinaryOutputArchive {
                             size_t &data_size) {
     char *data_ptr = HERMES_MEMORY_MANAGER->Convert<char>(data);
     bulk(flags, data_ptr, data_size);
-    if constexpr (is_start) {
-      HILOG(kDebug, "BinaryOutputArchive (start) DATA POINTER: {}", data);
-    } else {
-      HILOG(kDebug, "BinaryOutputArchive (end) DATA POINTER: {}", data);
-    }
     return *this;
   }
 
@@ -240,14 +234,10 @@ class BinaryOutputArchive {
     if constexpr (IS_TASK(T)) {
       if constexpr (IS_SRL(T)) {
         if constexpr (is_start) {
-//          HILOG(kDebug, "(node {}) (binary output client 1) {}",
-//                CHI_CLIENT->node_id_, var.dom_query_);
           var.template task_serialize<BinaryOutputArchive>((*this));
           xfer_.tasks_.emplace_back(var.pool_, var.method_,
                                     (size_t) &var,
                                     var.dom_query_);
-//          HILOG(kDebug, "(node {}) (binary output client 2) {}",
-//                CHI_CLIENT->node_id_, var.dom_query_);
           if constexpr (USES_SRL_START(T)) {
             var.SerializeStart(*this);
           } else {
@@ -304,12 +294,10 @@ class BinaryInputArchive {
     char *xfer_data;
     if constexpr (!is_start) {
       xfer_data = HERMES_MEMORY_MANAGER->Convert<char>(data);
-      HILOG(kDebug, "BinaryInputArchive (end) DATA POINTER: {}", data);
     }
     bulk(flags, xfer_data, data_size);
     if constexpr (is_start) {
       data = HERMES_MEMORY_MANAGER->Convert<void, hipc::Pointer>(xfer_data);
-      HILOG(kDebug, "BinaryInputArchive (start) DATA POINTER: {}", data);
     }
     return *this;
   }

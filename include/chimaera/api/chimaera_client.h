@@ -144,11 +144,8 @@ class Client : public ConfigurationManager {
       hipc::LPointer<TaskT> AllocateTask() {
     hipc::LPointer<TaskT> task = main_alloc_->AllocateLocalPtr<TaskT>(sizeof(TaskT));
     if (task.shm_.IsNull()) {
-      // throw std::runtime_error("Could not allocate buffer");
       HELOG(kFatal, "Could not allocate buffer (3)");
     }
-//    HILOG(kDebug, "Heap size: {}",
-//          main_alloc_->GetCurrentlyAllocatedSize());
     return task;
   }
 
@@ -162,8 +159,6 @@ class Client : public ConfigurationManager {
       // throw std::runtime_error("Could not allocate buffer");
       HELOG(kFatal, "Could not allocate buffer (4)");
     }
-//    HILOG(kDebug, "Heap size: {}",
-//          main_alloc_->GetCurrentlyAllocatedSize());
     return ptr;
   }
 
@@ -177,7 +172,6 @@ class Client : public ConfigurationManager {
   void MonitorTaskFrees(Task *task) {
 #ifdef CHIMAERA_TASK_DEBUG
     task->delcnt_++;
-    HILOG(kDebug, "Freeing task {} / {}", (size_t)task, task)
     if (task->delcnt_ != 1) {
       HELOG(kFatal, "Freed task {} times: node={}, state={}. method={}",
             task->delcnt_.load(), task->task_node_, task->pool_, task->method_)
@@ -192,11 +186,8 @@ class Client : public ConfigurationManager {
 #ifdef CHIMAERA_TASK_DEBUG
     MonitorTaskFrees(task);
 #else
-    // HILOG(kInfo, "Actually deleting task")
     main_alloc_->DelObj<TaskT>(task);
 #endif
-//    HILOG(kDebug, "Heap size: {}",
-//          main_alloc_->GetCurrentlyAllocatedSize());
   }
 
   /** Destroy a task */
@@ -206,11 +197,8 @@ class Client : public ConfigurationManager {
 #ifdef CHIMAERA_TASK_DEBUG
     MonitorTaskFrees(task);
 #else
-    // HILOG(kInfo, "Actually deleting task")
     main_alloc_->DelObjLocal<TaskT>(task);
 #endif
-//    HILOG(kDebug, "Heap size: {}",
-//          main_alloc_->GetCurrentlyAllocatedSize());
   }
 
   /** Destroy a task */
@@ -220,11 +208,8 @@ class Client : public ConfigurationManager {
 #ifdef CHIMAERA_TASK_DEBUG
     MonitorTaskFrees(task);
 #else
-    // HILOG(kInfo, "Actually deleting task")
     exec->Del(task->method_, task);
 #endif
-//    HILOG(kDebug, "Heap size: {}",
-//          main_alloc_->GetCurrentlyAllocatedSize());
   }
 
   /** Destroy a task */
@@ -234,11 +219,8 @@ class Client : public ConfigurationManager {
 #ifdef CHIMAERA_TASK_DEBUG
     MonitorTaskFrees(task);
 #else
-    // HILOG(kInfo, "Actually deleting task")
     exec->Del(task->method_, task);
 #endif
-//    HILOG(kDebug, "Heap size: {}",
-//          main_alloc_->GetCurrentlyAllocatedSize());
   }
 
   /** Convert pointer to char* */
@@ -292,10 +274,6 @@ class Client : public ConfigurationManager {
   template<int THREAD_MODEL>
   HSHM_ALWAYS_INLINE
   LPointer<char> AllocateBufferSafe(Allocator *alloc, size_t size) {
-    HILOG(kDebug, "Heap size for {}/{}: {}",
-          alloc->GetId().bits_.major_,
-          alloc->GetId().bits_.minor_,
-          alloc->GetCurrentlyAllocatedSize());
     LPointer<char> p;
     while (true) {
       try {
@@ -307,7 +285,6 @@ class Client : public ConfigurationManager {
         break;
       }
       Yield<THREAD_MODEL>();
-      HILOG(kDebug, "{} Waiting to allocate buffer of size {} (1)?", size);
     }
     return p;
   }
@@ -317,10 +294,6 @@ class Client : public ConfigurationManager {
   HSHM_ALWAYS_INLINE
   LPointer<char> AllocateBufferSafe(Allocator *alloc, size_t size,
                                     Task *yield_task) {
-    HILOG(kDebug, "Heap size for {}/{}: {}",
-          alloc->GetId().bits_.major_,
-          alloc->GetId().bits_.minor_,
-          alloc->GetCurrentlyAllocatedSize());
     LPointer<char> p;
     while (true) {
       try {
@@ -332,7 +305,6 @@ class Client : public ConfigurationManager {
         break;
       }
       Yield<THREAD_MODEL>(yield_task);
-      HILOG(kDebug, "{} Waiting to allocate buffer of size {} (1)?", size);
     }
     return p;
   }
@@ -341,13 +313,8 @@ class Client : public ConfigurationManager {
   /** Free a buffer */
   HSHM_ALWAYS_INLINE
   void FreeBuffer(hipc::Pointer &p) {
-    HILOG(kDebug, "Freeing buffer {}", p);
     auto alloc = HERMES_MEMORY_MANAGER->GetAllocator(p.allocator_id_);
     alloc->Free(p);
-    HILOG(kDebug, "Heap size for {}/{}: {}",
-          alloc->GetId().bits_.major_,
-          alloc->GetId().bits_.minor_,
-          alloc->GetCurrentlyAllocatedSize());
   }
 
   /** Free a buffer */
@@ -355,10 +322,6 @@ class Client : public ConfigurationManager {
   void FreeBuffer(LPointer<char> &p) {
     auto alloc = HERMES_MEMORY_MANAGER->GetAllocator(p.shm_.allocator_id_);
     alloc->FreeLocalPtr(p);
-    HILOG(kDebug, "Heap size for {}/{}: {}",
-          alloc->GetId().bits_.major_,
-          alloc->GetId().bits_.minor_,
-          alloc->GetCurrentlyAllocatedSize());
   }
 
   /** Convert pointer to char* */

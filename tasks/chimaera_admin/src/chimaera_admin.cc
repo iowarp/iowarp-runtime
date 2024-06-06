@@ -147,7 +147,6 @@ class Server : public TaskLib {
         auto replica = reinterpret_cast<CreateContainerTask *>(
             replicas[0].ptr_);
         task->ctx_ = replica->ctx_;
-        HILOG(kDebug, "New aggregated task state {}", task->ctx_.id_);
       }
     }
   }
@@ -167,7 +166,6 @@ class Server : public TaskLib {
         auto replica = reinterpret_cast<GetPoolIdTask *>(
             replicas[0].ptr_);
         task->id_ = replica->id_;
-        HILOG(kDebug, "New aggregated task state {}", task->id_);
       }
     }
   }

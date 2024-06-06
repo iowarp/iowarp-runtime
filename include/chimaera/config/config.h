@@ -52,7 +52,6 @@ class BaseConfig {
     auto real_path = hshm::ConfigParse::ExpandPath(path);
     try {
       YAML::Node yaml_conf = YAML::LoadFile(real_path);
-      HILOG(kDebug, "Loaded configuration {}", real_path)
       ParseYAML(yaml_conf);
     } catch (std::exception &e) {
       HELOG(kFatal, e.what())

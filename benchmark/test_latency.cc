@@ -65,7 +65,6 @@ void AsyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
 
   t.Resume();
   for (size_t i = 0; i < ops; ++i) {
-    HILOG(kDebug, "Sending message {}", i)
     int container_id = i;
     client.AsyncMdRoot(
         chi::DomainQuery::GetDirectHash(

@@ -170,7 +170,6 @@ class Client : public TaskLibClient {
       task->Wait();
       work_done = task->work_done_;
       CHI_CLIENT->DelTask(task);
-      HILOG(kDebug, "Total flush work done: {}", work_done);
     } while (work_done > 0);
   }
   CHIMAERA_TASK_NODE_ROOT(Flush);

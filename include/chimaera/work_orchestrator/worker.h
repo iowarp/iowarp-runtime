@@ -415,22 +415,10 @@ class PrivateTaskMultiQueue {
   void block(PrivateTaskQueueEntry &entry) {
     LPointer<Task> blocked_task = entry.task_;
     blocked_.emplace(entry, blocked_task->rctx_.pending_key_);
-    HILOG(kDebug, "Blocking task {} (id: {}) with pending key {} "
-                 "on queue {} / worker {}",
-          (size_t)blocked_task.ptr_,
-          blocked_task->task_node_,
-          blocked_task->rctx_.pending_key_,
-          (size_t)&blocked_, id_);
   }
 
   void signal_unblock(PrivateTaskMultiQueue &worker_pending,
                       LPointer<Task> &blocked_task) {
-    HILOG(kDebug, "Signalling unblock task {} (id: {}) "
-                 "to queue {} / worker {}",
-          (size_t)blocked_task.ptr_,
-          blocked_task->task_node_,
-          (size_t)&worker_pending.blocked_,
-          worker_pending.id_);
     worker_pending.GetCompletion().emplace(blocked_task);
   }
 
@@ -440,13 +428,6 @@ class PrivateTaskMultiQueue {
     if (complete.pop(blocked_task).IsNull()) {
       return false;
     }
-    HILOG(kDebug, "Unblocking task {} (id: {}) with pending key {} "
-                 "on queue {} / worker {}",
-          (size_t)blocked_task.ptr_,
-          blocked_task->task_node_,
-          blocked_task->rctx_.pending_key_,
-          (size_t)&blocked_,
-          id_);
     if (!blocked_task->IsBlocked()) {
       return true;
     }
@@ -701,14 +682,10 @@ class Worker {
       task.shm_ = entry->p_;
       task.ptr_ = CHI_CLIENT->GetMainPointer<Task>(entry->p_);
       DomainQuery dom_query = task->dom_query_;
-      HILOG(kDebug, "(node {}) Received task {} pool {} and {}",
-            CHI_RPC->node_id_, (size_t)task.ptr_, task->pool_, dom_query);
       TaskRouteMode route = Reroute(task->pool_,
                                     dom_query,
                                     task,
                                     lane);
-      HILOG(kDebug, "(node {}) Resolved task {} pool {} and {}",
-            CHI_RPC->node_id_, (size_t)task.ptr_, task->pool_, dom_query);
       if (route == TaskRouteMode::kRemoteWorker) {
         task->SetRemote();
       }
@@ -836,20 +813,12 @@ class Worker {
     rctx.exec_ = exec;
     // Allocate remote task and execute here
     // Execute the task based on its properties
-    if (!task->IsLongRunning()) {
-      HILOG(kDebug, "Worker {}: Running task {} (id: {}) on queue {}",
-            id_, (size_t)task.ptr_,
-            task->task_node_, queue.id_);
-    }
     if (!task->IsModuleComplete()) {
       ExecTask(queue, entry, task.ptr_, rctx, exec, props);
     }
     // Cleanup allocations
     bool pushback = true;
     if (task->IsModuleComplete()) {
-      HILOG(kDebug, "Worker {}: Ending task {} (id: {}) on queue {}",
-            id_, (size_t)task.ptr_,
-            task->task_node_, queue.id_);
       pushback = false;
       // active_.erase(queue.id_);
       active_.erase(queue.id_, entry);
@@ -1049,12 +1018,8 @@ class Worker {
     while (!poll_queues_.pop(work_queue).IsNull()) {
       for (const WorkEntry &entry : work_queue) {
         if (entry.queue_->id_ == CHI_QM_RUNTIME->process_queue_id_) {
-//          HILOG(kDebug, "Worker {}: Scheduled queue {} (lane {}, prio {}) as a proc queue",
-//                id_, entry.queue_->id_, entry.container_id_, entry.prio_);
           work_proc_queue_.emplace_back(entry);
         } else {
-//          HILOG(kDebug, "Worker {}: Scheduled queue {} (lane {}, prio {}) as an inter queue",
-//                id_, entry.queue_->id_, entry.container_id_, entry.prio_);
           work_inter_queue_.emplace_back(entry);
         }
       }
@@ -1122,7 +1087,6 @@ class Worker {
 
   /** Set the CPU affinity of this worker */
   void SetCpuAffinity(int cpu_id) {
-    HILOG(kDebug, "Affining worker {} (pid={}) to {}", id_, pid_, cpu_id);
     affinity_ = cpu_id;
     ABT_xstream_set_affinity(xstream_, 1, &cpu_id);
   }

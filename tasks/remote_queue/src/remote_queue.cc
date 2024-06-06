@@ -146,7 +146,6 @@ class Server : public TaskLib {
     rctx.replicas_ = &replicas;
     exec->Monitor(MonitorMode::kReplicaAgg, orig_task, rctx);
     // Free
-    HILOG(kDebug, "Replicas were waited for and completed");
     for (LPointer<Task> &replica : replicas) {
       CHI_CLIENT->DelTask(exec, replica.ptr_);
     }
@@ -165,9 +164,6 @@ class Server : public TaskLib {
       Worker::SignalUnblock(orig_task);
       return;
     }
-
-    HILOG(kDebug, "ClientPushTask: {} ({}), Original Task: {} ({})",
-          (size_t)task, task, (size_t)orig_task, orig_task);
     // Handle fire & forget
     bool is_ff = orig_task->IsFireAndForget();
     orig_task->UnsetFireAndForget();
@@ -184,8 +180,6 @@ class Server : public TaskLib {
     if (!orig_task->IsLongRunning()) {
       orig_task->SetModuleComplete();
     }
-    HILOG(kDebug, "Will unblock the task {} to worker {}",
-          (size_t)orig_task, orig_task->rctx_.worker_id_);
     Worker::SignalUnblock(orig_task);
 
     // Set this task as complete
@@ -203,10 +197,6 @@ class Server : public TaskLib {
       std::unordered_map<NodeId, BinaryOutputArchive<true>> entries;
       auto &submit = shared_->submit_;
       while (!submit[0].pop(entry).IsNull()) {
-        HILOG(kDebug, "(node {}) [1] Submitting task {} ({}) to domain {}",
-              CHI_CLIENT->node_id_, entry.task_->task_node_,
-              (size_t)entry.task_,
-              entry.res_domain_);
         if (entries.find(entry.res_domain_.node_) == entries.end()) {
           entries.emplace(entry.res_domain_.node_, BinaryOutputArchive<true>());
         }
@@ -219,21 +209,12 @@ class Server : public TaskLib {
           return;
         }
         orig_task->dom_query_ = entry.res_domain_.dom_;
-        HILOG(kDebug, "(node {}) [2] Serialized task {} ({}) to domain {}"
-                     "(submit={}, complete={})",
-              CHI_CLIENT->node_id_, entry.task_->task_node_,
-              (size_t)entry.task_,
-              orig_task->dom_query_,
-              shared_->sreqs_,
-              shared_->creqs_);
         BinaryOutputArchive<true> &ar = entries[entry.res_domain_.node_];
         exec->SaveStart(orig_task->method_, ar, orig_task);
       }
 
       for (auto it = entries.begin(); it != entries.end(); ++it) {
         SegmentedTransfer xfer = it->second.Get();
-        HILOG(kDebug, "(node {}) (client xfer) {}",
-              CHI_RPC->node_id_, xfer);
         xfer.ret_node_ = CHI_RPC->node_id_;
         hshm::Timer t;
         t.Resume();
@@ -268,8 +249,6 @@ class Server : public TaskLib {
   /** Complete the task (on the remote node) */
   void ServerPushComplete(ServerPushCompleteTask *task,
                           RunContext &rctx) {
-    HILOG(kDebug, "(node {}) Task finished server-side {}",
-          CHI_CLIENT->node_id_, task->task_node_);
     NodeId ret_node = task->rctx_.ret_node_;
     size_t node_hash = std::hash<NodeId>{}(ret_node);
     auto &complete = shared_->complete_;
@@ -298,9 +277,6 @@ class Server : public TaskLib {
           entries.emplace(entry.res_domain_.node_, BinaryOutputArchive<false>());
         }
         Task *done_task = entry.task_;
-        HILOG(kDebug, "(node {}) Sending completion for {} -> {}",
-              CHI_CLIENT->node_id_, done_task->task_node_,
-              entry.res_domain_);
         Container *exec =
             CHI_TASK_REGISTRY->GetAnyContainer(done_task->pool_);
         BinaryOutputArchive<false> &ar = entries[entry.res_domain_.node_];
@@ -312,9 +288,6 @@ class Server : public TaskLib {
       // Do transfers
       for (auto it = entries.begin(); it != entries.end(); ++it) {
         SegmentedTransfer xfer = it->second.Get();
-//        HILOG(kDebug, "(node {}) Sending completion of size {} to {}",
-//              CHI_CLIENT->node_id_, xfer.size(),
-//              it->first.GetId());
         hshm::Timer t;
         t.Resume();
         CHI_THALLIUM->SyncIoCall<int>((i32)it->first,
@@ -346,20 +319,12 @@ class Server : public TaskLib {
                      tl::bulk &bulk,
                      SegmentedTransfer &xfer) {
     try {
-//      HILOG(kDebug, "(node {}) (server xfer) {}", CHI_RPC->node_id_, xfer);
       xfer.AllocateSegmentsServer();
-//      HILOG(kDebug, "(node {}) Received submission of size {}",
-//            CHI_CLIENT->node_id_, xfer.size());
       CHI_THALLIUM->IoCallServerWrite(req, bulk, xfer);
       BinaryInputArchive<true> ar(xfer);
-//      hshm::Timer t;
-//      t.Resume();
       for (size_t i = 0; i < xfer.tasks_.size(); ++i) {
         DeserializeTask(i, ar, xfer);
       }
-//      t.Pause();
-//      HILOG(kInfo, "(node {}) Enqueued {} tasks in {} usec",
-//            CHI_CLIENT->node_id_, xfer.tasks_.size(), t.GetUsec());
     } catch (hshm::Error &e) {
       HELOG(kError, "(node {}) Worker {} caught an error: {}", CHI_CLIENT->node_id_, id_, e.what());
     } catch (std::exception &e) {
@@ -408,18 +373,6 @@ class Server : public TaskLib {
     orig_task->task_flags_.SetBits(TASK_REMOTE_DEBUG_MARK);
 
     // Execute task
-    HILOG(kDebug,
-          "(node {}) Enqueuing task (addr={}, task_node={}, task_state={}/{}, "
-          "pool_name={}, method={}, size={}, domain={})",
-          CHI_CLIENT->node_id_,
-          (size_t)orig_task,
-          orig_task->task_node_,
-          orig_task->pool_,
-          pool_id,
-          exec->name_,
-          method,
-          xfer.size(),
-          orig_task->dom_query_);
     CHI_CLIENT->ScheduleTaskRuntime(nullptr, orig_task_ptr,
                                     QueueId(pool_id));
 //    HILOG(kDebug,
@@ -440,14 +393,10 @@ class Server : public TaskLib {
                        tl::bulk &bulk,
                        SegmentedTransfer &xfer) {
     try {
-      HILOG(kDebug, "(node {}) Received completion of size {}",
-            CHI_CLIENT->node_id_, xfer.size());
       // Deserialize message parameters
       BinaryInputArchive<false> ar(xfer);
       for (size_t i = 0; i < xfer.tasks_.size(); ++i) {
         Task *orig_task = (Task*)xfer.tasks_[i].task_addr_;
-        HILOG(kDebug, "(node {}) Deserializing return values for task {} (state {})",
-              CHI_CLIENT->node_id_, orig_task->task_node_, orig_task->pool_);
         Container *exec = CHI_TASK_REGISTRY->GetAnyContainer(
             orig_task->pool_);
         if (exec == nullptr) {
@@ -468,13 +417,6 @@ class Server : public TaskLib {
           HELOG(kFatal, "This shouldn't happen ever");
         }
         ++shared_->creqs_;
-        HILOG(kDebug, "(node {}) Unblocking task {} to worker {}"
-                      "(submit={}/complete={})",
-              CHI_CLIENT->node_id_,
-              (size_t)pending_to,
-              pending_to->rctx_.worker_id_,
-              shared_->sreqs_,
-              shared_->creqs_);
         Worker::SignalUnblock(pending_to);
       }
     } catch (hshm::Error &e) {

@@ -84,7 +84,6 @@ class ConfigurationManager {
     if (config_path.empty()) {
       config_path = Constants::GetEnvSafe(Constants::kClientConfEnv);
     }
-    HILOG(kDebug, "Loading client configuration: {}", config_path);
     client_config_.LoadFromFile(config_path);
   }
 

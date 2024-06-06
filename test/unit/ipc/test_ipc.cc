@@ -45,7 +45,6 @@ TEST_CASE("TestIpc") {
   t.Resume();
   int depth = 0;
   for (size_t i = 0; i < ops; ++i) {
-    HILOG(kDebug, "Sending message {}", i);
     int lane_id = i;
     int ret = client.MdRoot(
         chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, lane_id),

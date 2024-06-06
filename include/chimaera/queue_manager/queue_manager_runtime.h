@@ -78,7 +78,6 @@ class QueueManagerRuntime : public QueueManager {
       HELOG(kError, "Queue {} already exists", id);
       return nullptr;
     }
-    // HILOG(kDebug, "Creating queue {}", id);
     queue_map_->replace(queue_map_->begin() + id.unique_, id, queue_info);
     return queue;
   }
