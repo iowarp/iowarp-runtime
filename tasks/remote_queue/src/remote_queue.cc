@@ -254,6 +254,8 @@ class Server : public TaskLib {
     NodeId ret_node = task->rctx_.ret_node_;
     size_t node_hash = std::hash<NodeId>{}(ret_node);
     auto &complete = shared_->complete_;
+    HILOG(kInfo, "[TASK_CHECK] Server completed rep_task {} on node {}",
+          task, CHI_RPC->node_id_);
     complete[node_hash % complete.size()].emplace((TaskQueueEntry){
         ret_node, task
     });
@@ -281,8 +283,6 @@ class Server : public TaskLib {
         BinaryOutputArchive<false> &ar = entries[entry.res_domain_.node_];
         exec->SaveEnd(done_task->method_, ar, done_task);
         // CHI_CLIENT->DelTask(done_task)
-        HILOG(kInfo, "[TASK_CHECK] Server completed rep_task {} on node {}",
-              done_task, CHI_RPC->node_id_);
       }
 
       // Do transfers
