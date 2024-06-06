@@ -56,7 +56,7 @@ void WorkOrchestrator::ServerInit(ServerConfig *config, QueueManager &qm) {
   // Create RPC worker threads
   rpc_pool_ = tl::pool::create(tl::pool::access::mpmc);
   ++cpu_id;
-  for(int i = 0; i < HRUN_RPC->num_threads_; i++) {
+  for(int i = 0; i < CHI_RPC->num_threads_; i++) {
     tl::managed<tl::xstream> es
         = tl::xstream::create(tl::scheduler::predef::deflt, *rpc_pool_);
     es->set_cpubind(cpu_id);

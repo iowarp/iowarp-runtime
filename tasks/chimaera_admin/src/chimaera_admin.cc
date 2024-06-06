@@ -29,7 +29,7 @@ class Server : public TaskLib {
   /** Update number of lanes */
   void UpdateDomain(UpdateDomainTask *task, RunContext &rctx) {
     std::vector<UpdateDomainInfo> ops = task->ops_.vec();
-    HRUN_RPC->UpdateDomains(ops);
+    CHI_RPC->UpdateDomains(ops);
     task->SetModuleComplete();
   }
   void MonitorUpdateDomain(u32 mode,
@@ -269,7 +269,7 @@ class Server : public TaskLib {
   /** Get the domain size */
   void GetDomainSize(GetDomainSizeTask *task, RunContext &rctx) {
     task->dom_size_ =
-        HRUN_RPC->GetDomainSize(task->dom_id_);
+        CHI_RPC->GetDomainSize(task->dom_id_);
     task->SetModuleComplete();
   }
   void MonitorGetDomainSize(u32 mode, GetDomainSizeTask *task, RunContext &rctx) {

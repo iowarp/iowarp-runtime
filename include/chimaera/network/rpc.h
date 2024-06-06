@@ -10,8 +10,8 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef HRUN_RPC_H_
-#define HRUN_RPC_H_
+#ifndef CHI_RPC_H_
+#define CHI_RPC_H_
 
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -33,7 +33,6 @@ namespace chi {
 /** Create RPC singleton */
 #define CHI_RPC \
   hshm::Singleton<RpcContext>::GetInstance()
-#define HRUN_RPC CHI_RPC
 
 /** Uniquely identify a host machine */
 struct HostInfo {
@@ -571,4 +570,4 @@ class RpcContext {
 
 }  // namespace hermes
 
-#endif  // HRUN_RPC_H_
+#endif  // CHI_RPC_H_
