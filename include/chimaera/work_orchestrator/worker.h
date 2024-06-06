@@ -871,6 +871,8 @@ class Worker {
       if (task->IsLongRunning()) {
         exec->Monitor(MonitorMode::kFlushStat, task, rctx);
       } else {
+        HILOG(kInfo, "(node {}) Worker {}: Flushing task {} (id: {})",
+              CHI_CLIENT->node_id_, id_, (size_t)task, task->task_node_);
         flush_.count_ += 1;
       }
     }
