@@ -73,10 +73,8 @@ void AsyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
             container_id),
         depth, TASK_FIRE_AND_FORGET);
   }
-  HILOG(kInfo, "FLUSHING")
   CHI_ADMIN->FlushRoot(
       DomainQuery::GetGlobalBcast());
-  HILOG(kInfo, "FINISHED FLUSHING")
   t.Pause();
   t.Collect();
   Summarize(nprocs, t.GetUsec(), ops, depth);
