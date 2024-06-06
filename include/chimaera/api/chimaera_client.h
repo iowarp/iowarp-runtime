@@ -387,8 +387,9 @@ class Client : public ConfigurationManager {
   }
 
   /** Schedule a task locally */
+  template<typename TaskT>
   void ScheduleTaskRuntime(Task *parent_task,
-                           LPointer<Task> &task,
+                           LPointer<TaskT> &task,
                            const QueueId &queue_id) {
     task->YieldInit(parent_task);
     std::vector<ResolvedDomainQuery> resolved =
