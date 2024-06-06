@@ -383,9 +383,9 @@ class Server : public TaskLib {
             CHI_CLIENT->node_id_, pool_id);
       return;
     }
-    TaskPointer task_ptr = exec->LoadStart(method, ar);
-    Task *orig_task = task_ptr.ptr_;
-    orig_task = task_ptr.ptr_;
+    TaskPointer orig_task_ptr = exec->LoadStart(method, ar);
+    Task *orig_task = orig_task_ptr.ptr_;
+    orig_task = orig_task_ptr.ptr_;
     orig_task->dom_query_ = xfer.tasks_[task_off].dom_;
     orig_task->rctx_.ret_task_addr_ = xfer.tasks_[task_off].task_addr_;
     orig_task->rctx_.ret_node_ = xfer.ret_node_;
@@ -408,7 +408,6 @@ class Server : public TaskLib {
     orig_task->task_flags_.SetBits(TASK_REMOTE_DEBUG_MARK);
 
     // Execute task
-    MultiQueue *queue = CHI_CLIENT->GetQueue(QueueId(pool_id));
     HILOG(kDebug,
           "(node {}) Enqueuing task (addr={}, task_node={}, task_state={}/{}, "
           "pool_name={}, method={}, size={}, domain={})",
@@ -421,8 +420,8 @@ class Server : public TaskLib {
           method,
           xfer.size(),
           orig_task->dom_query_);
-    queue->Emplace(orig_task->prio_,
-                   orig_task->GetContainerId(), task_ptr.shm_);
+    CHI_CLIENT->ScheduleTaskRuntime(nullptr, orig_task_ptr,
+                                    QueueId(pool_id));
 //    HILOG(kDebug,
 //          "(node {}) Done submitting (task_node={}, task_state={}/{}, "
 //          "pool_name={}, method={}, size={}, node_hash={})",

@@ -385,15 +385,29 @@ class Client : public ConfigurationManager {
     QueueId real_id = GetQueueId(queue_id);
     return queue_manager_.GetQueue(real_id);
   }
-};
 
-/** A function which creates a new TaskNode value */
-#define HRUN_TASK_NODE_ROOT(CUSTOM)\
-  template<typename ...Args>\
-  auto CUSTOM##Root(Args&& ...args) {\
-    TaskNode task_node = CHI_CLIENT->MakeTaskNodeId();\
-    return CUSTOM(nullptr, task_node, std::forward<Args>(args)...);\
+  /** Schedule a task locally */
+  void ScheduleTaskRuntime(Task *parent_task,
+                           LPointer<Task> &task,
+                           const QueueId &queue_id) {
+    task->YieldInit(parent_task);
+    std::vector<ResolvedDomainQuery> resolved =
+        CHI_RPC->ResolveDomainQuery(task->pool_, task->dom_query_, false);
+    MultiQueue *queue = GetQueue(queue_id);
+    DomainQuery dom_query = resolved[0].dom_;
+    if (resolved.size() == 1 && resolved[0].node_ == CHI_RPC->node_id_ &&
+        dom_query.flags_.All(DomainQuery::kLocal | DomainQuery::kId)) {
+      LaneGroup &lane_group = queue->GetGroup(task->prio_);
+      u32 lane_id = dom_query.sel_.id_ % lane_group.num_lanes_;
+      Lane &lane = lane_group.GetLane(lane_id);
+      lane.emplace(task.shm_);
+    } else {
+      queue->Emplace(task->prio_,
+                     std::hash<chi::DomainQuery>{}(task->dom_query_),
+                     task.shm_);
+    }
   }
+};
 
 /** The default asynchronous method behavior */
 #define CHIMAERA_TASK_NODE_ROOT(CUSTOM)\
@@ -411,22 +425,7 @@ hipc::LPointer<CUSTOM##Task> Async##CUSTOM(Task *parent_task,\
                                            Args&& ...args) {\
   hipc::LPointer<CUSTOM##Task> task = Async##CUSTOM##Alloc(\
     task_node, std::forward<Args>(args)...);\
-  task->YieldInit(parent_task);\
-  std::vector<ResolvedDomainQuery> resolved =\
-    CHI_RPC->ResolveDomainQuery(task->pool_, task->dom_query_, false);\
-  MultiQueue *queue = CHI_CLIENT->GetQueue(queue_id_);\
-  DomainQuery dom_query = resolved[0].dom_;\
-  if (resolved.size() == 1 && resolved[0].node_ == CHI_RPC->node_id_ &&\
-      dom_query.flags_.All(DomainQuery::kLocal | DomainQuery::kId)) {\
-    LaneGroup &lane_group = queue->GetGroup(task->prio_);\
-    u32 lane_id = dom_query.sel_.id_ % lane_group.num_lanes_;\
-    Lane &lane = lane_group.GetLane(lane_id);\
-    lane.emplace(task.shm_);\
-  } else {\
-    queue->Emplace(task->prio_,\
-                   std::hash<chi::DomainQuery>{}(task->dom_query_),\
-                   task.shm_);\
-  }\
+  CHI_CLIENT->ScheduleTaskRuntime(parent_task, task, queue_id_)\
   return task;\
 }\
 template<typename ...Args>\
