@@ -285,6 +285,8 @@ class Server : public TaskLib {
         exec->SaveEnd(done_task->method_, ar, done_task);
         completed.emplace_back(entry);
         // CHI_CLIENT->DelTask(done_task)
+        HILOG(kInfo, "[TASK_CHECK] Server completed rep_task {} on node {}",
+              done_task, CHI_RPC->node_id_);
       }
 
       // Do transfers
