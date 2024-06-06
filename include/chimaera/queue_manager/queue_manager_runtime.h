@@ -18,7 +18,7 @@
 
 namespace chi {
 
-#define HRUN_QM_RUNTIME \
+#define CHI_QM_RUNTIME \
   (&CHI_RUNTIME->queue_manager_)
 
 /** Administrative queuing actions */

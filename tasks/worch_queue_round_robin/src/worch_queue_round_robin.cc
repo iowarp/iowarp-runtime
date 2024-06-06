@@ -41,7 +41,7 @@ class Server : public TaskLib {
   /** Schedule work orchestrator queues */
   void Schedule(ScheduleTask *task, RunContext &rctx) {
     // Check if any new queues need to be scheduled
-    for (MultiQueue &queue : *HRUN_QM_RUNTIME->queue_map_) {
+    for (MultiQueue &queue : *CHI_QM_RUNTIME->queue_map_) {
       if (queue.id_.IsNull() || !queue.flags_.Any(QUEUE_READY)) {
         continue;
       }

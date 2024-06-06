@@ -93,7 +93,7 @@ class Server : public TaskLib {
             this->RpcTaskComplete(req, bulk, xfer);
           });
       CHI_REMOTE_QUEUE->Init(id_);
-      QueueManagerInfo &qm = HRUN_QM_RUNTIME->config_->queue_manager_;
+      QueueManagerInfo &qm = CHI_QM_RUNTIME->config_->queue_manager_;
       shared_ = std::make_shared<SharedState>(
           task, qm.queue_depth_, qm.max_containers_pn_);
     } else {
@@ -114,7 +114,7 @@ class Server : public TaskLib {
   }
 
   /** Replicate the task across a node set */
-  void Replicate(Task *task,
+  void Replicate(Task *submit_task,
                  Task *orig_task,
                  std::vector<ResolvedDomainQuery> &dom_queries,
                  RunContext &rctx) {
@@ -130,7 +130,7 @@ class Server : public TaskLib {
       if (dom_query.dom_.flags_.Any(DomainQuery::kLocal)) {
         exec->Monitor(MonitorMode::kReplicaStart, orig_task, rctx);
       }
-      replica->rctx_.pending_to_ = task;
+      replica->rctx_.pending_to_ = submit_task;
       size_t node_hash = std::hash<NodeId>{}(dom_query.node_);
       auto &submit = shared_->submit_;
       submit[node_hash % submit.size()].emplace(
@@ -139,7 +139,7 @@ class Server : public TaskLib {
       ++shared_->sreqs_;
     }
     // Wait
-    task->Wait<TASK_YIELD_CO>(replicas, TASK_MODULE_COMPLETE);
+    submit_task->Wait<TASK_YIELD_CO>(replicas, TASK_MODULE_COMPLETE);
     // Combine
     Container *exec = CHI_TASK_REGISTRY->GetAnyContainer(
         orig_task->pool_);
@@ -147,9 +147,9 @@ class Server : public TaskLib {
     exec->Monitor(MonitorMode::kReplicaAgg, orig_task, rctx);
     // Free
     HILOG(kDebug, "Replicas were waited for and completed");
-    for (LPointer<Task> &replica : replicas) {
-      CHI_CLIENT->DelTask(exec, replica.ptr_);
-    }
+//    for (LPointer<Task> &replica : replicas) {
+//      CHI_CLIENT->DelTask(exec, replica.ptr_);
+//    }
   }
 
   /** Push operation called on client */

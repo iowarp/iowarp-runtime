@@ -504,7 +504,7 @@ class Worker {
       stacks_.emplace(malloc(stack_size_));
     }
     // MAX_DEPTH * [LOW_LAT, LONG_LAT]
-    config::QueueManagerInfo &qm = HRUN_QM_RUNTIME->config_->queue_manager_;
+    config::QueueManagerInfo &qm = CHI_QM_RUNTIME->config_->queue_manager_;
     active_.Init(id_, qm.proc_queue_depth_, qm.queue_depth_, qm.max_containers_pn_);
     cur_time_.Now();
 
@@ -1041,7 +1041,7 @@ class Worker {
     std::vector<WorkEntry> work_queue;
     while (!poll_queues_.pop(work_queue).IsNull()) {
       for (const WorkEntry &entry : work_queue) {
-        if (entry.queue_->id_ == HRUN_QM_RUNTIME->process_queue_id_) {
+        if (entry.queue_->id_ == CHI_QM_RUNTIME->process_queue_id_) {
 //          HILOG(kDebug, "Worker {}: Scheduled queue {} (lane {}, prio {}) as a proc queue",
 //                id_, entry.queue_->id_, entry.container_id_, entry.prio_);
           work_proc_queue_.emplace_back(entry);
