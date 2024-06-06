@@ -349,7 +349,7 @@ class Server : public TaskLib {
       HELOG(kFatal, "This shouldn't happen ever");
     }
     HILOG(kInfo, "[TASK_CHECK] Deserialized rep_task {} from node {}",
-          rep_task, rep_task->rctx_.ret_node_);
+          (void*)rep_task->rctx_.ret_task_addr_, rep_task->rctx_.ret_node_);
 
     // Unset task flags
     // NOTE(llogan): Remote tasks are executed to completion and
