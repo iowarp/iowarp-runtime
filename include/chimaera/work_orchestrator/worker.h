@@ -890,17 +890,17 @@ class Worker {
       task->SetBlocked();
       active_.block(entry);
       LPointer<remote_queue::ClientPushSubmitTask> remote_task =
-          CHI_REMOTE_QUEUE->AsyncClientPushSubmitAlloc(
-          task->task_node_ + 1,
+          CHI_REMOTE_QUEUE->AsyncClientPushSubmit(
+          nullptr, task->task_node_ + 1,
           DomainQuery::GetDirectHash(SubDomainId::kLocalContainers, 0),
           task);
-      std::vector<ResolvedDomainQuery> resolved =
-          CHI_RPC->ResolveDomainQuery(remote_task->pool_,
-                                      remote_task->dom_query_,
-                                      false);
-      PrivateTaskQueueEntry remote_entry{remote_task, resolved[0].dom_};
-      active_.GetRemote().push(remote_entry);
-      PollPrivateQueue(active_.GetRemote(), false);
+//      std::vector<ResolvedDomainQuery> resolved =
+//          CHI_RPC->ResolveDomainQuery(remote_task->pool_,
+//                                      remote_task->dom_query_,
+//                                      false);
+//      PrivateTaskQueueEntry remote_entry{remote_task, resolved[0].dom_};
+//      active_.GetRemote().push(remote_entry);
+//      PollPrivateQueue(active_.GetRemote(), false);
       return;
     }
 
