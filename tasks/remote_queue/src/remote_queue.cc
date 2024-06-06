@@ -304,10 +304,16 @@ class Server : public TaskLib {
       completed.emplace_back(entry);
       SegmentedTransfer xfer = ar.Get();
       // CHI_CLIENT->DelTask(done_task)
+      hshm::Timer t;
+      t.Resume();
       CHI_THALLIUM->SyncIoCall<int>((i32)entry.res_domain_.node_,
                                     "RpcTaskComplete",
                                     xfer,
                                     DT_SENDER_WRITE);
+      t.Pause();
+      HILOG(kInfo, "(node {}) Returned {} tasks ({} bytes) in {} usec",
+            CHI_CLIENT->node_id_, xfer.tasks_.size(),
+            xfer.size(), t.GetUsec());
     }
   }
   void MonitorServerComplete(u32 mode,
