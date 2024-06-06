@@ -351,9 +351,6 @@ class Server : public TaskLib {
     if (rep_task->rctx_.ret_task_addr_ == (size_t)rep_task) {
       HELOG(kFatal, "This shouldn't happen ever");
     }
-    HILOG(kInfo, "[TASK_CHECK] Deserialized rep_task {} ({} -> {})",
-          (void*)rep_task->rctx_.ret_task_addr_,
-          rep_task->rctx_.ret_node_, CHI_RPC->node_id_);
 
     // Unset task flags
     // NOTE(llogan): Remote tasks are executed to completion and
@@ -372,17 +369,9 @@ class Server : public TaskLib {
     // Execute task
     CHI_CLIENT->ScheduleTaskRuntime(nullptr, rep_task_ptr,
                                     QueueId(pool_id));
-//    HILOG(kDebug,
-//          "(node {}) Done submitting (task_node={}, task_state={}/{}, "
-//          "pool_name={}, method={}, size={}, node_hash={})",
-//          CHI_CLIENT->node_id_,
-//          rep_task->task_node_,
-//          rep_task->pool_,
-//          pool_id,
-//          exec->name_,
-//          method,
-//          xfer.size(),
-//          rep_task->GetContainerId());
+    HILOG(kInfo, "[TASK_CHECK] Deserialized rep_task {} ({} -> {})",
+          (void*)rep_task->rctx_.ret_task_addr_,
+          rep_task->rctx_.ret_node_, CHI_RPC->node_id_);
   }
 
   /** Receive task completion */

@@ -13,6 +13,7 @@ with open(log_path, 'r') as fp:
     serialize = {}
     deserialize = {}
     running = {}
+    server_complete = {}
     signal_complete = {}
     complete = {}
 
@@ -20,6 +21,7 @@ with open(log_path, 'r') as fp:
     serialize_lines = []
     deserialize_lines = []
     running_lines = []
+    server_complete_lines = []
     signal_complete_lines = []
     complete_lines = []
 
@@ -42,11 +44,19 @@ with open(log_path, 'r') as fp:
         elif 'Signal complete' in line:
             signal_complete[task_addr] = line
             signal_complete_lines.append(line)
+        elif 'Server completed rep_task' in line:
+            server_complete[task_addr] = line
+            server_complete_lines.append(line)
         elif 'Completing rep_task' in line:
             complete[task_addr] = line
             complete_lines.append(line)
 
-print(f'Sizes: rep={len(rep)}, serialize={len(serialize)}, deserialize={len(deserialize)}, running={len(running)}, signal_complete={len(signal_complete)}, complete={len(complete)}')
-print(f'Line Counts: rep={len(rep_lines)}, serialize={len(serialize_lines)}, deserialize={len(deserialize_lines)}, running={len(running_lines)}, signal_complete={len(signal_complete_lines)}, complete={len(complete_lines)}')
+print(f'Sizes: rep={len(rep)}, serialize={len(serialize)}, deserialize={len(deserialize)}, running={len(running)}, '
+      f'server_complete={len(server_complete)}, signal_complete={len(signal_complete)}, complete={len(complete)}')
+print(f'Line Counts: rep={len(rep_lines)}, serialize={len(serialize_lines)}, deserialize={len(deserialize_lines)}, '
+      f'running={len(running_lines)}, server_complete={len(server_complete_lines)}, '
+      f'signal_complete={len(signal_complete_lines)}, complete={len(complete_lines)}')
 srl_dsrl_diff = set(serialize.keys()) - set(deserialize.keys())
 print(f'Diffs: {srl_dsrl_diff}')
+# dsrl_complete_diff = set(deserialize.keys()) - set(server_complete.keys())
+# print(f'Diffs: {dsrl_complete_diff}')
