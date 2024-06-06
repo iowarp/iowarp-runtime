@@ -314,7 +314,8 @@ class PrivateTaskMultiQueue {
   inline static const int HIGH_LAT = 3;
   inline static const int LONG_RUNNING = 4;
   inline static const int FLUSH = 5;
-  inline static const int NUM_QUEUES = 6;
+  inline static const int REMOTE = 6;
+  inline static const int NUM_QUEUES = 7;
 
  public:
   size_t root_count_;
@@ -333,6 +334,7 @@ class PrivateTaskMultiQueue {
     queues_[HIGH_LAT].Init(HIGH_LAT, max_lanes * qdepth);
     queues_[LONG_RUNNING].Init(LONG_RUNNING, max_lanes * qdepth);
     queues_[FLUSH].Init(LONG_RUNNING, max_lanes * qdepth);
+    queues_[REMOTE].Init(REMOTE, max_lanes * qdepth);
     blocked_.Init(max_lanes * qdepth);
     complete_ = std::make_unique<hshm::mpsc_queue<LPointer<Task>>>(
         max_lanes * qdepth);
@@ -362,6 +364,10 @@ class PrivateTaskMultiQueue {
 
   PrivateTaskQueue& GetFlush() {
     return queues_[FLUSH];
+  }
+
+  PrivateTaskQueue& GetRemote() {
+    return queues_[REMOTE];
   }
 
   hshm::mpsc_queue<LPointer<Task>>& GetCompletion() {
@@ -893,7 +899,8 @@ class Worker {
                                       remote_task->dom_query_,
                                       false);
       PrivateTaskQueueEntry remote_entry{remote_task, resolved[0].dom_};
-      RunTask(queue, remote_entry, remote_entry.task_, false);
+      active_.GetRemote().push(remote_entry);
+      PollPrivateQueue(active_.GetRemote(), false);
       return;
     }
 

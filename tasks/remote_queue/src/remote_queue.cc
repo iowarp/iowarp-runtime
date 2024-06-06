@@ -147,9 +147,9 @@ class Server : public TaskLib {
     exec->Monitor(MonitorMode::kReplicaAgg, orig_task, rctx);
     // Free
     HILOG(kDebug, "Replicas were waited for and completed");
-//    for (LPointer<Task> &replica : replicas) {
-//      CHI_CLIENT->DelTask(exec, replica.ptr_);
-//    }
+    for (LPointer<Task> &replica : replicas) {
+      CHI_CLIENT->DelTask(exec, replica.ptr_);
+    }
   }
 
   /** Push operation called on client */
