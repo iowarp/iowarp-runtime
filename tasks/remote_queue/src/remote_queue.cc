@@ -95,7 +95,7 @@ class Server : public TaskLib {
       CHI_REMOTE_QUEUE->Init(id_);
       QueueManagerInfo &qm = HRUN_QM_RUNTIME->config_->queue_manager_;
       shared_ = std::make_shared<SharedState>(
-          task, qm.queue_depth_, 1);
+          task, qm.queue_depth_, qm.max_containers_pn_);
     } else {
       auto *root = (Server*)rctx.shared_exec_;
       shared_ = root->shared_;
