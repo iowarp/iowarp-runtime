@@ -127,10 +127,6 @@ class SegmentedTransfer {
   std::vector<DataTransfer> bulk_;   /**< Data payloads */
   std::string md_;                   /**< Metadata */
 
-  std::string& GetMd() {
-    return md_;
-  }
-
   void AllocateSegmentsServer() {
     for (DataTransfer &xfer : bulk_) {
       LPointer<char> data = CHI_CLIENT->AllocateBufferServer<TASK_YIELD_ABT>(
