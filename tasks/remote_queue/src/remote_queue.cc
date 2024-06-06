@@ -239,8 +239,8 @@ class Server : public TaskLib {
                                        xfer,
                                        DT_SENDER_WRITE);
         t.Pause();
-//        HILOG(kInfo, "(node {}) Submitted {} tasks in {} usec",
-//              CHI_CLIENT->node_id_, xfer.tasks_.size(), t.GetUsec());
+        HILOG(kInfo, "(node {}) Submitted {} tasks in {} usec",
+              CHI_CLIENT->node_id_, xfer.tasks_.size(), t.GetUsec());
       }
     } catch (hshm::Error &e) {
       HELOG(kError, "(node {}) Worker {} caught an error: {}", CHI_CLIENT->node_id_, id_, e.what());
@@ -322,9 +322,9 @@ class Server : public TaskLib {
                                        xfer,
                                        DT_SENDER_WRITE);
         t.Pause();
-//        HILOG(kInfo, "(node {}) Returned {} tasks ({} bytes) in {} usec",
-//              CHI_CLIENT->node_id_, xfer.tasks_.size(),
-//              xfer.size(), t.GetUsec());
+        HILOG(kInfo, "(node {}) Returned {} tasks ({} bytes) in {} usec",
+              CHI_CLIENT->node_id_, xfer.tasks_.size(),
+              xfer.size(), t.GetUsec());
       }
     } catch (hshm::Error &e) {
       HELOG(kError, "(node {}) Worker {} caught an error: {}", CHI_CLIENT->node_id_, id_, e.what());
