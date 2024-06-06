@@ -411,7 +411,7 @@ class Server : public TaskLib {
         }
         ++shared_->creqs_;
         HILOG(kInfo, "[TASK_CHECK] Complete rep_task {} on node {}",
-              rep_task, rep_task->rctx_.ret_node_);
+              rep_task, CHI_RPC->node_id_);
         Worker::SignalUnblock(submit_task);
       }
     } catch (hshm::Error &e) {
