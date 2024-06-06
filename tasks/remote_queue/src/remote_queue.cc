@@ -122,20 +122,20 @@ class Server : public TaskLib {
     replicas.reserve(dom_queries.size());
     // Replicate task
     bool deep = dom_queries.size() > 1;
-    for (ResolvedDomainQuery &dom_query : dom_queries) {
-      LPointer<Task> replica;
+    for (ResolvedDomainQuery &res_query : dom_queries) {
+      LPointer<Task> rep_task;
       Container *exec = CHI_TASK_REGISTRY->GetAnyContainer(
           orig_task->pool_);
-      exec->CopyStart(orig_task->method_, orig_task, replica, deep);
-      if (dom_query.dom_.flags_.Any(DomainQuery::kLocal)) {
+      exec->CopyStart(orig_task->method_, orig_task, rep_task, deep);
+      if (res_query.dom_.flags_.Any(DomainQuery::kLocal)) {
         exec->Monitor(MonitorMode::kReplicaStart, orig_task, rctx);
       }
-      replica->rctx_.pending_to_ = submit_task;
-      size_t node_hash = std::hash<NodeId>{}(dom_query.node_);
+      rep_task->rctx_.pending_to_ = submit_task;
+      size_t node_hash = std::hash<NodeId>{}(res_query.node_);
       auto &submit = shared_->submit_;
       submit[node_hash % submit.size()].emplace(
-          (TaskQueueEntry) {dom_query, replica.ptr_});
-      replicas.emplace_back(replica);
+          (TaskQueueEntry) {res_query, rep_task.ptr_});
+      replicas.emplace_back(rep_task);
       ++shared_->sreqs_;
     }
     // Wait
@@ -200,31 +200,28 @@ class Server : public TaskLib {
         if (entries.find(entry.res_domain_.node_) == entries.end()) {
           entries.emplace(entry.res_domain_.node_, BinaryOutputArchive<true>());
         }
-        Task *orig_task = entry.task_;
+        Task *rep_task = entry.task_;
         Container *exec = CHI_TASK_REGISTRY->GetAnyContainer(
-            orig_task->pool_);
+            rep_task->pool_);
         if (exec == nullptr) {
           HELOG(kFatal, "(node {}) Could not find the task state {}",
-                CHI_CLIENT->node_id_, orig_task->pool_);
+                CHI_CLIENT->node_id_, rep_task->pool_);
           return;
         }
-        orig_task->dom_query_ = entry.res_domain_.dom_;
+        rep_task->dom_query_ = entry.res_domain_.dom_;
         BinaryOutputArchive<true> &ar = entries[entry.res_domain_.node_];
-        exec->SaveStart(orig_task->method_, ar, orig_task);
+        exec->SaveStart(rep_task->method_, ar, rep_task);
+        HILOG(kInfo, "[TASK_CHECK] Serializing rep_task {} to node {}",
+              rep_task, entry.res_domain_.node_);
       }
 
       for (auto it = entries.begin(); it != entries.end(); ++it) {
         SegmentedTransfer xfer = it->second.Get();
         xfer.ret_node_ = CHI_RPC->node_id_;
-        hshm::Timer t;
-        t.Resume();
         CHI_THALLIUM->SyncIoCall<int>((i32)it->first,
                                        "RpcTaskSubmit",
                                        xfer,
                                        DT_SENDER_WRITE);
-        t.Pause();
-        HILOG(kInfo, "(node {}) Submitted {} tasks in {} usec",
-              CHI_CLIENT->node_id_, xfer.tasks_.size(), t.GetUsec());
       }
     } catch (hshm::Error &e) {
       HELOG(kError, "(node {}) Worker {} caught an error: {}", CHI_CLIENT->node_id_, id_, e.what());
@@ -288,16 +285,10 @@ class Server : public TaskLib {
       // Do transfers
       for (auto it = entries.begin(); it != entries.end(); ++it) {
         SegmentedTransfer xfer = it->second.Get();
-        hshm::Timer t;
-        t.Resume();
         CHI_THALLIUM->SyncIoCall<int>((i32)it->first,
                                        "RpcTaskComplete",
                                        xfer,
                                        DT_SENDER_WRITE);
-        t.Pause();
-        HILOG(kInfo, "(node {}) Returned {} tasks ({} bytes) in {} usec",
-              CHI_CLIENT->node_id_, xfer.tasks_.size(),
-              xfer.size(), t.GetUsec());
       }
     } catch (hshm::Error &e) {
       HELOG(kError, "(node {}) Worker {} caught an error: {}", CHI_CLIENT->node_id_, id_, e.what());
@@ -348,44 +339,46 @@ class Server : public TaskLib {
             CHI_CLIENT->node_id_, pool_id);
       return;
     }
-    TaskPointer orig_task_ptr = exec->LoadStart(method, ar);
-    Task *orig_task = orig_task_ptr.ptr_;
-    orig_task = orig_task_ptr.ptr_;
-    orig_task->dom_query_ = xfer.tasks_[task_off].dom_;
-    orig_task->rctx_.ret_task_addr_ = xfer.tasks_[task_off].task_addr_;
-    orig_task->rctx_.ret_node_ = xfer.ret_node_;
-    if (orig_task->rctx_.ret_task_addr_ == (size_t)orig_task) {
+    TaskPointer rep_task_ptr = exec->LoadStart(method, ar);
+    Task *rep_task = rep_task_ptr.ptr_;
+    rep_task = rep_task_ptr.ptr_;
+    rep_task->dom_query_ = xfer.tasks_[task_off].dom_;
+    rep_task->rctx_.ret_task_addr_ = xfer.tasks_[task_off].task_addr_;
+    rep_task->rctx_.ret_node_ = xfer.ret_node_;
+    if (rep_task->rctx_.ret_task_addr_ == (size_t)rep_task) {
       HELOG(kFatal, "This shouldn't happen ever");
     }
+    HILOG(kInfo, "[TASK_CHECK] Deserialized rep_task {} from node {}",
+          rep_task, rep_task->rctx_.ret_node_);
 
     // Unset task flags
     // NOTE(llogan): Remote tasks are executed to completion and
     // return values sent back to the remote host. This is
     // for things like long-running monitoring tasks.
-    orig_task->UnsetStarted();
-    orig_task->UnsetSignalUnblock();
-    orig_task->UnsetBlocked();
-    orig_task->UnsetRemote();
-    orig_task->SetDataOwner();
-    orig_task->UnsetFireAndForget();
-    orig_task->UnsetLongRunning();
-    orig_task->SetSignalRemoteComplete();
-    orig_task->task_flags_.SetBits(TASK_REMOTE_DEBUG_MARK);
+    rep_task->UnsetStarted();
+    rep_task->UnsetSignalUnblock();
+    rep_task->UnsetBlocked();
+    rep_task->UnsetRemote();
+    rep_task->SetDataOwner();
+    rep_task->UnsetFireAndForget();
+    rep_task->UnsetLongRunning();
+    rep_task->SetSignalRemoteComplete();
+    rep_task->task_flags_.SetBits(TASK_REMOTE_DEBUG_MARK);
 
     // Execute task
-    CHI_CLIENT->ScheduleTaskRuntime(nullptr, orig_task_ptr,
+    CHI_CLIENT->ScheduleTaskRuntime(nullptr, rep_task_ptr,
                                     QueueId(pool_id));
 //    HILOG(kDebug,
 //          "(node {}) Done submitting (task_node={}, task_state={}/{}, "
 //          "pool_name={}, method={}, size={}, node_hash={})",
 //          CHI_CLIENT->node_id_,
-//          orig_task->task_node_,
-//          orig_task->pool_,
+//          rep_task->task_node_,
+//          rep_task->pool_,
 //          pool_id,
 //          exec->name_,
 //          method,
 //          xfer.size(),
-//          orig_task->GetContainerId());
+//          rep_task->GetContainerId());
   }
 
   /** Receive task completion */
@@ -396,28 +389,30 @@ class Server : public TaskLib {
       // Deserialize message parameters
       BinaryInputArchive<false> ar(xfer);
       for (size_t i = 0; i < xfer.tasks_.size(); ++i) {
-        Task *orig_task = (Task*)xfer.tasks_[i].task_addr_;
+        Task *rep_task = (Task*)xfer.tasks_[i].task_addr_;
         Container *exec = CHI_TASK_REGISTRY->GetAnyContainer(
-            orig_task->pool_);
+            rep_task->pool_);
         if (exec == nullptr) {
           HELOG(kFatal, "(node {}) Could not find the task state {}",
-                CHI_CLIENT->node_id_, orig_task->pool_);
+                CHI_CLIENT->node_id_, rep_task->pool_);
           return;
         }
-        exec->LoadEnd(orig_task->method_, ar, orig_task);
+        exec->LoadEnd(rep_task->method_, ar, rep_task);
       }
       // Process bulk message
       CHI_THALLIUM->IoCallServerWrite(req, bulk, xfer);
       // Unblock completed tasks
       for (size_t i = 0; i < xfer.tasks_.size(); ++i) {
-        Task *orig_task = (Task*)xfer.tasks_[i].task_addr_;
-        orig_task->SetModuleComplete();
-        Task *pending_to = orig_task->rctx_.pending_to_;
-        if (pending_to->pool_ != id_) {
+        Task *rep_task = (Task*)xfer.tasks_[i].task_addr_;
+        rep_task->SetModuleComplete();
+        Task *submit_task = rep_task->rctx_.pending_to_;
+        if (submit_task->pool_ != id_) {
           HELOG(kFatal, "This shouldn't happen ever");
         }
         ++shared_->creqs_;
-        Worker::SignalUnblock(pending_to);
+        HILOG(kInfo, "[TASK_CHECK] Complete rep_task {} on node {}",
+              rep_task, rep_task->rctx_.ret_node_);
+        Worker::SignalUnblock(submit_task);
       }
     } catch (hshm::Error &e) {
       HELOG(kError, "(node {}) Worker {} caught an error: {}", CHI_CLIENT->node_id_, id_, e.what());

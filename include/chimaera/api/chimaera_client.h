@@ -354,26 +354,21 @@ class Client : public ConfigurationManager {
   void ScheduleTaskRuntime(Task *parent_task,
                            LPointer<TaskT> &task,
                            const QueueId &queue_id) {
-    task->YieldInit(parent_task);
+    std::vector<ResolvedDomainQuery> resolved =
+        CHI_RPC->ResolveDomainQuery(task->pool_, task->dom_query_, false);
     MultiQueue *queue = GetQueue(queue_id);
-    queue->Emplace(TaskPrio::kLowLatency,
-                   std::hash<chi::DomainQuery>{}(task->dom_query_),
-                   task.shm_);
-//    std::vector<ResolvedDomainQuery> resolved =
-//        CHI_RPC->ResolveDomainQuery(task->pool_, task->dom_query_, false);
-//    MultiQueue *queue = GetQueue(queue_id);
-//    DomainQuery dom_query = resolved[0].dom_;
-//    if (resolved.size() == 1 && resolved[0].node_ == CHI_RPC->node_id_ &&
-//        dom_query.flags_.All(DomainQuery::kLocal | DomainQuery::kId)) {
-//      LaneGroup &lane_group = queue->GetGroup(task->prio_);
-//      u32 lane_id = dom_query.sel_.id_ % lane_group.num_lanes_;
-//      Lane &lane = lane_group.GetLane(lane_id);
-//      lane.emplace(task.shm_);
-//    } else {
-//      queue->Emplace(task->prio_,
-//                     std::hash<chi::DomainQuery>{}(task->dom_query_),
-//                     task.shm_);
-//    }
+    DomainQuery dom_query = resolved[0].dom_;
+    if (resolved.size() == 1 && resolved[0].node_ == CHI_RPC->node_id_ &&
+        dom_query.flags_.All(DomainQuery::kLocal | DomainQuery::kId)) {
+      LaneGroup &lane_group = queue->GetGroup(task->prio_);
+      u32 lane_id = dom_query.sel_.id_ % lane_group.num_lanes_;
+      Lane &lane = lane_group.GetLane(lane_id);
+      lane.emplace(task.shm_);
+    } else {
+      queue->Emplace(task->prio_,
+                     std::hash<chi::DomainQuery>{}(task->dom_query_),
+                     task.shm_);
+    }
   }
 };
 
