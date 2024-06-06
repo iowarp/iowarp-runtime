@@ -219,7 +219,7 @@ class Server : public TaskLib {
           return;
         }
         orig_task->dom_query_ = entry.res_domain_.dom_;
-        HILOG(kInfo, "(node {}) [2] Serialized task {} ({}) to domain {}"
+        HILOG(kDebug, "(node {}) [2] Serialized task {} ({}) to domain {}"
                      "(submit={}, complete={})",
               CHI_CLIENT->node_id_, entry.task_->task_node_,
               (size_t)entry.task_,
@@ -270,9 +270,6 @@ class Server : public TaskLib {
                           RunContext &rctx) {
     HILOG(kDebug, "(node {}) Task finished server-side {}",
           CHI_CLIENT->node_id_, task->task_node_);
-    if (task->rctx_.ret_task_addr_ == (size_t)task) {
-      HILOG(kFatal, "This shouldn't happen ever");
-    }
     NodeId ret_node = task->rctx_.ret_node_;
     size_t node_hash = std::hash<NodeId>{}(ret_node);
     auto &complete = shared_->complete_;
@@ -288,59 +285,92 @@ class Server : public TaskLib {
   /** Complete the task (on the remote node) */
   void ServerComplete(ServerCompleteTask *task,
                       RunContext &rctx) {
-    try {
-      // Serialize task completions
-      TaskQueueEntry entry;
-      std::unordered_map<NodeId, BinaryOutputArchive<false>> entries;
-      auto &complete = shared_->complete_;
-      size_t count = complete[0].GetSize();
-      std::vector<TaskQueueEntry> completed;
-      completed.reserve(count);
-      while (!complete[0].pop(entry).IsNull()) {
-        if (entries.find(entry.res_domain_.node_) == entries.end()) {
-          entries.emplace(entry.res_domain_.node_, BinaryOutputArchive<false>());
-        }
-        Task *done_task = entry.task_;
-        HILOG(kDebug, "(node {}) Sending completion for {} -> {}",
-              CHI_CLIENT->node_id_, done_task->task_node_,
-              entry.res_domain_);
-        Container *exec =
-            CHI_TASK_REGISTRY->GetAnyContainer(done_task->pool_);
-        BinaryOutputArchive<false> &ar = entries[entry.res_domain_.node_];
-        exec->SaveEnd(done_task->method_, ar, done_task);
-        completed.emplace_back(entry);
-        // CHI_CLIENT->DDelTask(done_task)
-      }
-
-      // Do transfers
-      for (auto it = entries.begin(); it != entries.end(); ++it) {
-        SegmentedTransfer xfer = it->second.Get();
-//        HILOG(kDebug, "(node {}) Sending completion of size {} to {}",
-//              CHI_CLIENT->node_id_, xfer.size(),
-//              it->first.GetId());
-        hshm::Timer t;
-        t.Resume();
-        CHI_THALLIUM->SyncIoCall<int>((i32)it->first,
-                                       "RpcTaskComplete",
-                                       xfer,
-                                       DT_SENDER_WRITE);
-        t.Pause();
-        HILOG(kInfo, "(node {}) Returned {} tasks ({} bytes) in {} usec",
-              CHI_CLIENT->node_id_, xfer.tasks_.size(),
-              xfer.size(), t.GetUsec());
-      }
-    } catch (hshm::Error &e) {
-      HELOG(kError, "(node {}) Worker {} caught an error: {}", CHI_CLIENT->node_id_, id_, e.what());
-    } catch (std::exception &e) {
-      HELOG(kError, "(node {}) Worker {} caught an exception: {}", CHI_CLIENT->node_id_, id_, e.what());
-    } catch (...) {
-      HELOG(kError, "(node {}) Worker {} caught an unknown exception", CHI_CLIENT->node_id_, id_);
+    // Serialize task completions
+    TaskQueueEntry entry;
+    std::unordered_map<NodeId, BinaryOutputArchive<false>> entries;
+    auto &complete = shared_->complete_;
+    size_t count = complete[0].GetSize();
+    std::vector<TaskQueueEntry> completed;
+    completed.reserve(count);
+    while (!complete[0].pop(entry).IsNull()) {
+      BinaryOutputArchive<false> ar;
+      Task *done_task = entry.task_;
+      HILOG(kDebug, "(node {}) Sending completion for {} -> {}",
+            CHI_CLIENT->node_id_, done_task->task_node_,
+            entry.res_domain_);
+      Container *exec =
+          CHI_TASK_REGISTRY->GetAnyContainer(done_task->pool_);
+      exec->SaveEnd(done_task->method_, ar, done_task);
+      completed.emplace_back(entry);
+      SegmentedTransfer xfer = ar.Get();
+      // CHI_CLIENT->DelTask(done_task)
+      CHI_THALLIUM->SyncIoCall<int>((i32)entry.res_domain_.node_,
+                                    "RpcTaskComplete",
+                                    xfer,
+                                    DT_SENDER_WRITE);
     }
   }
   void MonitorServerComplete(u32 mode,
                              ServerCompleteTask *task,
                              RunContext &rctx) {
   }
+
+  /** Complete the task (on the remote node) */
+//  void ServerComplete(ServerCompleteTask *task,
+//                      RunContext &rctx) {
+//    try {
+//      // Serialize task completions
+//      TaskQueueEntry entry;
+//      std::unordered_map<NodeId, BinaryOutputArchive<false>> entries;
+//      auto &complete = shared_->complete_;
+//      size_t count = complete[0].GetSize();
+//      std::vector<TaskQueueEntry> completed;
+//      completed.reserve(count);
+//      while (!complete[0].pop(entry).IsNull()) {
+//        if (entries.find(entry.res_domain_.node_) == entries.end()) {
+//          entries.emplace(entry.res_domain_.node_, BinaryOutputArchive<false>());
+//        }
+//        Task *done_task = entry.task_;
+//        HILOG(kDebug, "(node {}) Sending completion for {} -> {}",
+//              CHI_CLIENT->node_id_, done_task->task_node_,
+//              entry.res_domain_);
+//        Container *exec =
+//            CHI_TASK_REGISTRY->GetAnyContainer(done_task->pool_);
+//        BinaryOutputArchive<false> &ar = entries[entry.res_domain_.node_];
+//        exec->SaveEnd(done_task->method_, ar, done_task);
+//        completed.emplace_back(entry);
+//        // CHI_CLIENT->DelTask(done_task)
+//      }
+//
+//      // Do transfers
+//      for (auto it = entries.begin(); it != entries.end(); ++it) {
+//        SegmentedTransfer xfer = it->second.Get();
+////        HILOG(kDebug, "(node {}) Sending completion of size {} to {}",
+////              CHI_CLIENT->node_id_, xfer.size(),
+////              it->first.GetId());
+//        hshm::Timer t;
+//        t.Resume();
+//        CHI_THALLIUM->SyncIoCall<int>((i32)it->first,
+//                                       "RpcTaskComplete",
+//                                       xfer,
+//                                       DT_SENDER_WRITE);
+//        t.Pause();
+//        HILOG(kInfo, "(node {}) Returned {} tasks ({} bytes) in {} usec",
+//              CHI_CLIENT->node_id_, xfer.tasks_.size(),
+//              xfer.size(), t.GetUsec());
+//      }
+//    } catch (hshm::Error &e) {
+//      HELOG(kError, "(node {}) Worker {} caught an error: {}", CHI_CLIENT->node_id_, id_, e.what());
+//    } catch (std::exception &e) {
+//      HELOG(kError, "(node {}) Worker {} caught an exception: {}", CHI_CLIENT->node_id_, id_, e.what());
+//    } catch (...) {
+//      HELOG(kError, "(node {}) Worker {} caught an unknown exception", CHI_CLIENT->node_id_, id_);
+//    }
+//  }
+//  void MonitorServerComplete(u32 mode,
+//                             ServerCompleteTask *task,
+//                             RunContext &rctx) {
+//  }
 
 
  private:
@@ -472,7 +502,7 @@ class Server : public TaskLib {
           HELOG(kFatal, "This shouldn't happen ever");
         }
         ++shared_->creqs_;
-        HILOG(kInfo, "(node {}) Unblocking task {} to worker {}"
+        HILOG(kDebug, "(node {}) Unblocking task {} to worker {}"
                       "(submit={}/complete={})",
               CHI_CLIENT->node_id_,
               (size_t)pending_to,

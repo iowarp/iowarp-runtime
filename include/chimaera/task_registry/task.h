@@ -313,37 +313,31 @@ struct Task : public hipc::ShmContainer {
 
   /** Set task as externally complete */
   void SetModuleComplete() {
-    // atask_flags_ |= TASK_MODULE_COMPLETE;
     task_flags_.SetBits(TASK_MODULE_COMPLETE);
   }
 
   /** Check if a task marked complete externally */
   bool IsModuleComplete() {
-    // return atask_flags_.load() & TASK_MODULE_COMPLETE;
     return task_flags_.Any(TASK_MODULE_COMPLETE);
   }
 
   /** Unset task as complete */
   void UnsetModuleComplete() {
-    // atask_flags_ |= TASK_MODULE_COMPLETE | TASK_COMPLETE;
     task_flags_.UnsetBits(TASK_MODULE_COMPLETE);
   }
 
   /** Set task as complete */
   void SetComplete() {
-    // atask_flags_ |= TASK_MODULE_COMPLETE | TASK_COMPLETE;
     task_flags_.SetBits(TASK_MODULE_COMPLETE | TASK_COMPLETE);
   }
 
   /** Check if task is complete */
   bool IsComplete() {
-    // return atask_flags_ & TASK_COMPLETE;
     return task_flags_.Any(TASK_COMPLETE);
   }
 
   /** Unset task as complete */
   void UnsetComplete() {
-    // atask_flags_ |= TASK_MODULE_COMPLETE | TASK_COMPLETE;
     task_flags_.UnsetBits(TASK_MODULE_COMPLETE | TASK_COMPLETE);
   }
 
@@ -738,7 +732,6 @@ struct Task : public hipc::ShmContainer {
     UnsetBlocked();
     UnsetRemote();
     UnsetComplete();
-    // atask_flags_ = other.atask_flags_.load();
     period_ns_ = other.period_ns_;
     start_ = other.start_;
   }
