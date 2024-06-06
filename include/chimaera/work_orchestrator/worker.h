@@ -687,7 +687,7 @@ class Worker {
                                     task,
                                     lane);
       if (task->ShouldSignalRemoteComplete()) {
-        HILOG(kInfo, "[TASK_CHECK] Running rep_task {} from node {}",
+        HILOG(kInfo, "[TASK_CHECK] Running rep_task {} on node {}",
               (void*)task->rctx_.ret_task_addr_, CHI_RPC->node_id_);
       }
       if (route == TaskRouteMode::kRemoteWorker) {

@@ -211,8 +211,8 @@ class Server : public TaskLib {
         rep_task->dom_query_ = entry.res_domain_.dom_;
         BinaryOutputArchive<true> &ar = entries[entry.res_domain_.node_];
         exec->SaveStart(rep_task->method_, ar, rep_task);
-        HILOG(kInfo, "[TASK_CHECK] Serializing rep_task {} to node {}",
-              rep_task, entry.res_domain_.node_);
+        HILOG(kInfo, "[TASK_CHECK] Serializing rep_task {} ({} -> {})",
+              rep_task, CHI_RPC->node_id_, entry.res_domain_.node_);
       }
 
       for (auto it = entries.begin(); it != entries.end(); ++it) {
@@ -348,8 +348,9 @@ class Server : public TaskLib {
     if (rep_task->rctx_.ret_task_addr_ == (size_t)rep_task) {
       HELOG(kFatal, "This shouldn't happen ever");
     }
-    HILOG(kInfo, "[TASK_CHECK] Deserialized rep_task {} from node {}",
-          (void*)rep_task->rctx_.ret_task_addr_, rep_task->rctx_.ret_node_);
+    HILOG(kInfo, "[TASK_CHECK] Deserialized rep_task {} ({} -> {})",
+          (void*)rep_task->rctx_.ret_task_addr_,
+          rep_task->rctx_.ret_node_, CHI_RPC->node_id_);
 
     // Unset task flags
     // NOTE(llogan): Remote tasks are executed to completion and
@@ -410,7 +411,7 @@ class Server : public TaskLib {
           HELOG(kFatal, "This shouldn't happen ever");
         }
         ++shared_->creqs_;
-        HILOG(kInfo, "[TASK_CHECK] Complete rep_task {} on node {}",
+        HILOG(kInfo, "[TASK_CHECK] Signal complete rep_task {} on node {}",
               rep_task, CHI_RPC->node_id_);
         Worker::SignalUnblock(submit_task);
       }
