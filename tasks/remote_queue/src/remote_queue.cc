@@ -342,15 +342,10 @@ class Server : public TaskLib {
             CHI_CLIENT->node_id_, pool_id);
       return;
     }
-    TaskPointer rep_task_ptr = exec->LoadStart(method, ar);
-    Task *rep_task = rep_task_ptr.ptr_;
-    rep_task = rep_task_ptr.ptr_;
+    TaskPointer rep_task = exec->LoadStart(method, ar);
     rep_task->dom_query_ = xfer.tasks_[task_off].dom_;
     rep_task->rctx_.ret_task_addr_ = xfer.tasks_[task_off].task_addr_;
     rep_task->rctx_.ret_node_ = xfer.ret_node_;
-    if (rep_task->rctx_.ret_task_addr_ == (size_t)rep_task) {
-      HELOG(kFatal, "This shouldn't happen ever");
-    }
 
     // Unset task flags
     // NOTE(llogan): Remote tasks are executed to completion and
@@ -367,7 +362,7 @@ class Server : public TaskLib {
     rep_task->task_flags_.SetBits(TASK_REMOTE_DEBUG_MARK);
 
     // Execute task
-    CHI_CLIENT->ScheduleTaskRuntime(nullptr, rep_task_ptr,
+    CHI_CLIENT->ScheduleTaskRuntime(nullptr, rep_task,
                                     QueueId(pool_id));
     HILOG(kInfo, "[TASK_CHECK] Deserialized rep_task {} ({} -> {})",
           (void*)rep_task->rctx_.ret_task_addr_,
