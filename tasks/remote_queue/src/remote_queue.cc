@@ -34,7 +34,6 @@ struct SharedState {
   std::vector<hshm::mpsc_queue<TaskQueueEntry>> complete_;
   std::vector<LPointer<ClientSubmitTask>> submitters_;
   std::vector<LPointer<ServerCompleteTask>> completers_;
-  std::atomic<size_t> sreqs_ = 0, creqs_ = 0;
 
   SharedState(Task *task, size_t queue_depth, size_t num_lanes) {
     submit_.resize(num_lanes,
@@ -67,11 +66,6 @@ class Server : public TaskLib {
 
  public:
   Server() = default;
-
-  /** Construct state shared across containers on this node */
-  void CreateNodeState() {
-
-  }
 
   /** Construct remote queue */
   void Create(CreateTask *task, RunContext &rctx) {
@@ -136,7 +130,6 @@ class Server : public TaskLib {
       submit[node_hash % submit.size()].emplace(
           (TaskQueueEntry) {res_query, rep_task.ptr_});
       replicas.emplace_back(rep_task);
-      ++shared_->sreqs_;
       HILOG(kInfo, "[TASK_CHECK] Replicated task {} ({} -> {})",
             rep_task.ptr_, CHI_RPC->node_id_, res_query.node_);
     }
@@ -397,7 +390,6 @@ class Server : public TaskLib {
         if (submit_task->pool_ != id_) {
           HELOG(kFatal, "This shouldn't happen ever");
         }
-        ++shared_->creqs_;
         HILOG(kInfo, "[TASK_CHECK] Signal complete rep_task {} on node {}",
               rep_task, CHI_RPC->node_id_);
         Worker::SignalUnblock(submit_task);

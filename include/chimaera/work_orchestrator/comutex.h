@@ -38,7 +38,7 @@ class CoMutex {
       ++rep_;
       return;
     }
-    task->SetBlocked();
+    task->SetBlocked(1);
     if (blocked_map_.find(task_root) == blocked_map_.end()) {
       blocked_map_[task_root] = COMUTEX_QUEUE_T();
     }

@@ -141,6 +141,7 @@ struct PrivateTaskQueueEntry {
   LPointer<Task> task_;
   DomainQuery res_query_;
   size_t next_, prior_;
+  ssize_t block_count_ = 1;          /**< Count used for unblocking */
 
  public:
   PrivateTaskQueueEntry() = default;
@@ -414,6 +415,7 @@ class PrivateTaskMultiQueue {
 
   void block(PrivateTaskQueueEntry &entry) {
     LPointer<Task> blocked_task = entry.task_;
+    entry.block_count_ = (ssize_t)blocked_task->rctx_.block_count_;
     blocked_.emplace(entry, blocked_task->rctx_.pending_key_);
   }
 
@@ -429,15 +431,18 @@ class PrivateTaskMultiQueue {
       return false;
     }
     if (!blocked_task->IsBlocked()) {
-      return true;
+      HELOG(kFatal, "An unblocked task was unblocked again");
     }
     PrivateTaskQueueEntry entry;
     blocked_.pop(blocked_task->rctx_.pending_key_, entry);
     if (blocked_task.ptr_ != entry.task_.ptr_) {
       HELOG(kFatal, "A blocked task was lost");
     }
-    blocked_task->UnsetBlocked();
-    push<true>(entry);
+    entry.block_count_ -= 1;
+    if (entry.block_count_ == 0) {
+      blocked_task->UnsetBlocked();
+      push<true>(entry);
+    }
     return true;
   }
 };
@@ -860,7 +865,7 @@ class Worker {
     // Attempt to run the task if it's ready and runnable
     if (props.Any(HSHM_WORKER_IS_REMOTE)) {
 //      HILOG(kInfo, "Automaking remote task {}", (size_t)task);
-      task->SetBlocked();
+      task->SetBlocked(1);
       active_.block(entry);
       LPointer<remote_queue::ClientPushSubmitTask> remote_task =
           CHI_REMOTE_QUEUE->AsyncClientPushSubmit(

@@ -283,6 +283,7 @@ struct RunContext {
   std::vector<LPointer<Task>> *replicas_;
   size_t ret_task_addr_;
   NodeId ret_node_;
+  size_t block_count_;
 };
 
 /** A generic task base class */
@@ -392,8 +393,9 @@ struct Task : public hipc::ShmContainer {
   }
 
   /** Set blocked */
-  void SetBlocked() {
+  void SetBlocked(size_t count) {
     task_flags_.SetBits(TASK_BLOCKED);
+    rctx_.block_count_ = count;
   }
 
   /** Unset blocked */
@@ -600,8 +602,8 @@ struct Task : public hipc::ShmContainer {
   /** This task waits for subtask to complete */
   template<int THREAD_MODEL = 0>
   void Wait(Task *subtask, u32 flags = TASK_COMPLETE) {
+    SetBlocked(1);
     while (!subtask->task_flags_.All(flags)) {
-      SetBlocked();
       Yield<THREAD_MODEL>();
     }
     UnsetBlocked();
@@ -610,9 +612,9 @@ struct Task : public hipc::ShmContainer {
   /** This task waits for a set of tasks to complete */
   template<int THREAD_MODEL = 0>
   void Wait(std::vector<LPointer<Task>> &subtasks, u32 flags = TASK_COMPLETE) {
+    SetBlocked(subtasks.size());
     for (auto &subtask : subtasks) {
       while (!subtask->task_flags_.All(flags)) {
-        SetBlocked();
         Yield<THREAD_MODEL>();
       }
     }
