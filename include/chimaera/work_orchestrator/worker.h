@@ -156,39 +156,13 @@ struct PrivateTaskQueueEntry {
     task_.shm_ = task.shm_;
   }
 
-  PrivateTaskQueueEntry(const PrivateTaskQueueEntry &other) {
-    task_ = other.task_;
-    res_query_ = other.res_query_;
-    next_ = other.next_;
-    prior_ = other.prior_;
-  }
+  PrivateTaskQueueEntry(const PrivateTaskQueueEntry &other) = default;
 
-  PrivateTaskQueueEntry& operator=(const PrivateTaskQueueEntry &other) {
-    if (this != &other) {
-      task_ = other.task_;
-      res_query_ = other.res_query_;
-      next_ = other.next_;
-      prior_ = other.prior_;
-    }
-    return *this;
-  }
+  PrivateTaskQueueEntry& operator=(const PrivateTaskQueueEntry &other) = default;
 
-  PrivateTaskQueueEntry(PrivateTaskQueueEntry &&other) noexcept {
-    task_ = other.task_;
-    res_query_ = other.res_query_;
-    next_ = other.next_;
-    prior_ = other.prior_;
-  }
+  PrivateTaskQueueEntry(PrivateTaskQueueEntry &&other) noexcept = default;
 
-  PrivateTaskQueueEntry& operator=(PrivateTaskQueueEntry &&other) noexcept {
-    if (this != &other) {
-      task_ = other.task_;
-      res_query_ = other.res_query_;
-      next_ = other.next_;
-      prior_ = other.prior_;
-    }
-    return *this;
-  }
+  PrivateTaskQueueEntry& operator=(PrivateTaskQueueEntry &&other) noexcept  = default;
 };
 
 class PrivateTaskSet {
