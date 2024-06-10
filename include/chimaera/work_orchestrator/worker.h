@@ -403,17 +403,18 @@ class PrivateTaskMultiQueue {
     if (!blocked_task->IsBlocked()) {
       HELOG(kFatal, "An unblocked task was unblocked again");
     }
-    PrivateTaskQueueEntry entry;
-    blocked_.pop(blocked_task->rctx_.pending_key_, entry);
-    if (blocked_task.ptr_ != entry.task_.ptr_) {
+    PrivateTaskQueueEntry *entry;
+    blocked_.peek(blocked_task->rctx_.pending_key_, entry);
+    if (blocked_task.ptr_ != entry->task_.ptr_) {
       HELOG(kFatal, "A blocked task was lost");
     }
-    entry.block_count_ -= 1;
+    entry->block_count_ -= 1;
     HILOG(kInfo, "(node {}) Unblocking task {} with count {}",
-          CHI_RPC->node_id_, (void*)blocked_task.ptr_, entry.block_count_);
-    if (entry.block_count_ == 0) {
+          CHI_RPC->node_id_, (void*)blocked_task.ptr_, entry->block_count_);
+    if (entry->block_count_ == 0) {
       blocked_task->UnsetBlocked();
-      push<true>(entry);
+      blocked_.erase(blocked_task->rctx_.pending_key_);
+      push<true>(*entry);
     }
     return true;
   }
