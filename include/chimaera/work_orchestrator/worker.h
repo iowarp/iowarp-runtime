@@ -407,12 +407,6 @@ class PrivateTaskMultiQueue {
 //    }
   }
 
-  void block(int queue_id) {
-    PrivateTaskQueueEntry entry;
-    queues_[queue_id].pop(entry);
-    blocked_.emplace(entry, entry.task_->rctx_.pending_key_);
-  }
-
   void block(PrivateTaskQueueEntry &entry) {
     LPointer<Task> blocked_task = entry.task_;
     entry.block_count_ = (ssize_t)blocked_task->rctx_.block_count_;
