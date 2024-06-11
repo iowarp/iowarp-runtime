@@ -26,6 +26,8 @@ target_compile_definitions(bench_chimaera_latency PUBLIC ${TEST_OPTS})
 add_executable(bench_chimaera_bw
         test_bw.cc
         ../include/chimaera/work_orchestrator/comutex.h
+        ../include/chimaera/util/key_set.h
+        ../include/chimaera/util/key_queue.h
 )
 add_dependencies(bench_chimaera_bw ${Chimaera_CLIENT_DEPS})
 target_link_libraries(bench_chimaera_bw ${TEST_LIBS})

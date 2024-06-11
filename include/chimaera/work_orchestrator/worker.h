@@ -23,6 +23,9 @@
 #include "affinity.h"
 #include "chimaera/network/rpc_thallium.h"
 
+#include "chimaera/util/key_queue.h"
+#include "chimaera/util/key_set.h"
+
 static inline pid_t GetLinuxTid() {
   return syscall(SYS_gettid);
 }
@@ -165,121 +168,8 @@ struct PrivateTaskQueueEntry {
   PrivateTaskQueueEntry& operator=(PrivateTaskQueueEntry &&other) noexcept  = default;
 };
 
-class PrivateTaskSet {
- public:
-  hshm::spsc_queue<size_t> keys_;
-  std::vector<PrivateTaskQueueEntry> set_;
-  size_t size_;
-
- public:
-  void Init(size_t max_size) {
-    keys_.Resize(max_size);
-    set_.resize(max_size);
-    for (size_t i = 0; i < max_size; ++i) {
-      keys_.emplace(i);
-    }
-    size_ = 0;
-  }
-
-  void resize() {
-    size_t old_size = set_.size();
-    size_t new_size = set_.size() * 2;
-    keys_.Resize(new_size);
-    for (size_t i = old_size; i < new_size; ++i) {
-      keys_.emplace(i);
-    }
-    set_.resize(new_size);
-  }
-
-  void emplace(const PrivateTaskQueueEntry &entry, size_t &key) {
-    if (keys_.pop(key).IsNull()) {
-      resize();
-      keys_.pop(key);
-    }
-    set_[key] = entry;
-    size_ += 1;
-  }
-
-  void peek(size_t key, PrivateTaskQueueEntry *&entry) {
-    entry = &set_[key];
-  }
-
-  void pop(size_t key, PrivateTaskQueueEntry &entry) {
-    entry = set_[key];
-    erase(key);
-  }
-
-  void erase(size_t key) {
-    keys_.emplace(key);
-    size_ -= 1;
-  }
-};
-
-class PrivateTaskQueue {
- public:
-  PrivateTaskSet queue_;
-  size_t size_, head_, tail_;
-  int id_;
-
- public:
-  void Init(int id, size_t queue_depth) {
-    queue_.Init(queue_depth);
-    size_ = 0;
-    tail_ = 0;
-    head_ = 0;
-    id_ = id;
-  }
-
-  HSHM_ALWAYS_INLINE
-  bool push(const PrivateTaskQueueEntry &entry) {
-    size_t key;
-    queue_.emplace(entry, key);
-    if (size_ == 0) {
-      head_ = key;
-      tail_ = key;
-    } else {
-      PrivateTaskQueueEntry *point;
-      // Tail is entry's prior
-      queue_.peek(key, point);
-      point->prior_ = tail_;
-      // Prior's next is entry
-      queue_.peek(tail_, point);
-      point->next_ = key;
-      // Update tail
-      tail_ = key;
-    }
-    ++size_;
-    return true;
-  }
-
-  HSHM_ALWAYS_INLINE
-  void peek(PrivateTaskQueueEntry *&entry, size_t off) {
-    queue_.peek(off, entry);
-  }
-
-  HSHM_ALWAYS_INLINE
-  void peek(PrivateTaskQueueEntry *&entry) {
-    queue_.peek(head_, entry);
-  }
-
-  HSHM_ALWAYS_INLINE
-  void pop(PrivateTaskQueueEntry &entry) {
-    PrivateTaskQueueEntry *point;
-    peek(point);
-    entry = *point;
-    erase();
-  }
-
-  HSHM_ALWAYS_INLINE
-  void erase() {
-    PrivateTaskQueueEntry *point;
-    queue_.peek(head_, point);
-    size_t head = point->next_;
-    queue_.erase(head_);
-    head_ = head;
-    --size_;
-  }
-};
+typedef KeySet<PrivateTaskQueueEntry> PrivateTaskSet;
+typedef KeyQueue<PrivateTaskQueueEntry> PrivateTaskQueue;
 
 class PrivateTaskMultiQueue {
  public:
