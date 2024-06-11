@@ -65,6 +65,8 @@ class TaskLib;
 /** This task is a remote task */
 #define TASK_REMOTE BIT_OPT(u32, 22)
 /** This task is apart of remote debugging */
+#define TASK_REMOTE_RECV_MARK BIT_OPT(u32, 30)
+/** This task is apart of remote debugging */
 #define TASK_REMOTE_DEBUG_MARK BIT_OPT(u32, 31)
 
 /** Used to define task methods */

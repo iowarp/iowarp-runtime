@@ -247,8 +247,6 @@ class Server : public TaskLib {
     NodeId ret_node = task->rctx_.ret_node_;
     size_t node_hash = std::hash<NodeId>{}(ret_node);
     auto &complete = shared_->complete_;
-    HILOG(kInfo, "[TASK_CHECK] Server completed rep_task {} on node {}",
-          (void*)task->rctx_.ret_task_addr_, CHI_RPC->node_id_);
     complete[node_hash % complete.size()].emplace((TaskQueueEntry){
         ret_node, task
     });
@@ -356,6 +354,7 @@ class Server : public TaskLib {
     rep_task->UnsetLongRunning();
     rep_task->SetSignalRemoteComplete();
     rep_task->task_flags_.SetBits(TASK_REMOTE_DEBUG_MARK);
+    rep_task->task_flags_.SetBits(TASK_REMOTE_RECV_MARK);
 
     // Execute task
     CHI_CLIENT->ScheduleTaskRuntime(nullptr, rep_task,

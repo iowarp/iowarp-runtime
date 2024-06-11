@@ -800,9 +800,9 @@ class Worker {
   /** Free a task when it is no longer needed */
   HSHM_ALWAYS_INLINE
   void EndTask(Container *exec, LPointer<Task> &task) {
-    if (task->task_flags_.Any(TASK_REMOTE_DEBUG_MARK)) {
+    if (task->task_flags_.Any(TASK_REMOTE_RECV_MARK)) {
       HILOG(kInfo, "[TASK_CHECK] Server completed rep_task {} on node {}",
-            (void *) task->rctx_.ret_task_addr_, CHI_RPC->node_id_);
+            (void*)task->rctx_.ret_task_addr_, CHI_RPC->node_id_);
     }
     if (task->ShouldSignalUnblock()) {
       SignalUnblock(task->rctx_.pending_to_);
