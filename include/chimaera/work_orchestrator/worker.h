@@ -239,7 +239,6 @@ class PrivateTaskMultiQueue {
     return *complete_;
   }
 
-  template<bool TYPE=0>
   bool push(const PrivateTaskQueueEntry &entry) {
     Task *task = entry.task_.ptr_;
     if (task->pool_ == CHI_ADMIN->id_ &&
@@ -304,7 +303,7 @@ class PrivateTaskMultiQueue {
     if (entry->block_count_ == 0) {
       blocked_task->UnsetBlocked();
       blocked_.erase(blocked_task->rctx_.pending_key_);
-      push<true>(*entry);
+      push(*entry);
     }
     return true;
   }
@@ -523,7 +522,7 @@ class Worker {
   HSHM_ALWAYS_INLINE
   void IngestProcLanes(bool flushing) {
     for (WorkEntry &work_entry : work_proc_queue_) {
-      IngestLane<0>(work_entry);
+      IngestLane(work_entry);
     }
   }
 
@@ -531,12 +530,11 @@ class Worker {
   HSHM_ALWAYS_INLINE
   void IngestInterLanes(bool flushing) {
     for (WorkEntry &work_entry : work_inter_queue_) {
-      IngestLane<1>(work_entry);
+      IngestLane(work_entry);
     }
   }
 
   /** Ingest a lane */
-  template<int TYPE>
   HSHM_ALWAYS_INLINE
   void IngestLane(WorkEntry &lane_info) {
     // Ingest tasks from the ingress queues
@@ -560,11 +558,7 @@ class Worker {
       if (route == TaskRouteMode::kLocalWorker) {
         lane->pop();
       } else {
-        if (active_.push<TYPE>(PrivateTaskQueueEntry{task, dom_query})) {
-          if (task->ShouldSignalRemoteComplete()) {
-            HILOG(kInfo, "[TASK_CHECK] Running rep_task {} on node {}",
-                  (void*)task->rctx_.ret_task_addr_, CHI_RPC->node_id_);
-          }
+        if (active_.push(PrivateTaskQueueEntry{task, dom_query})) {
           lane->pop();
         } else {
           break;
@@ -721,9 +715,14 @@ class Worker {
         flush_.count_ += 1;
       }
     }
+
     // Monitoring callback
     if (!task->IsStarted()) {
       exec->Monitor(MonitorMode::kBeginTrainTime, task, rctx);
+      if (task->ShouldSignalRemoteComplete()) {
+        HILOG(kInfo, "[TASK_CHECK] Running rep_task {} on node {}",
+              (void*)task->rctx_.ret_task_addr_, CHI_RPC->node_id_);
+      }
     }
     // Attempt to run the task if it's ready and runnable
     if (props.Any(HSHM_WORKER_IS_REMOTE)) {
