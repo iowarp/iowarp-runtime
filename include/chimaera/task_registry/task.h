@@ -379,6 +379,21 @@ struct Task : public hipc::ShmContainer {
   }
 
   /** Set this task as started */
+  void SetRemoteDebug() {
+    task_flags_.SetBits(TASK_REMOTE_DEBUG_MARK);
+  }
+
+  /** Set this task as started */
+  void UnsetRemoteDebug() {
+    task_flags_.UnsetBits(TASK_REMOTE_DEBUG_MARK);
+  }
+
+  /** Check if task has started */
+  bool IsRemoteDebug() {
+    return task_flags_.Any(TASK_REMOTE_DEBUG_MARK);
+  }
+
+  /** Set this task as started */
   void SetStarted() {
     rctx_.run_flags_.SetBits(TASK_HAS_STARTED);
   }
