@@ -719,10 +719,6 @@ class Worker {
     // Monitoring callback
     if (!task->IsStarted()) {
       exec->Monitor(MonitorMode::kBeginTrainTime, task, rctx);
-      if (task->ShouldSignalRemoteComplete()) {
-        HILOG(kInfo, "[TASK_CHECK] Running rep_task {} on node {}",
-              (void*)task->rctx_.ret_task_addr_, CHI_RPC->node_id_);
-      }
     }
     // Attempt to run the task if it's ready and runnable
     if (props.Any(HSHM_WORKER_IS_REMOTE)) {
@@ -782,6 +778,10 @@ class Worker {
     rctx.jmp_ = bctx::jump_fcontext(rctx.jmp_.fctx, task);
     if (!task->IsStarted()) {
       FreeStack(rctx.stack_ptr_);
+      if (task->ShouldSignalRemoteComplete()) {
+        HILOG(kInfo, "[TASK_CHECK] Running rep_task {} on node {}",
+              (void*)task->rctx_.ret_task_addr_, CHI_RPC->node_id_);
+      }
     }
   }
 
