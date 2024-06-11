@@ -248,7 +248,7 @@ class Server : public TaskLib {
     size_t node_hash = std::hash<NodeId>{}(ret_node);
     auto &complete = shared_->complete_;
     HILOG(kInfo, "[TASK_CHECK] Server completed rep_task {} on node {}",
-          task, CHI_RPC->node_id_);
+          (void*)task->rctx_.ret_task_addr_, CHI_RPC->node_id_);
     complete[node_hash % complete.size()].emplace((TaskQueueEntry){
         ret_node, task
     });
