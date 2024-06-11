@@ -249,10 +249,6 @@ class PrivateTaskMultiQueue {
     } else if (task->IsLongRunning()) {
       return GetLongRunning().push(entry);
     } else if (task->task_node_.node_depth_ == 0) {
-      ++root_count_;
-      if (root_count_ > max_root_count_) {
-          return false;
-      }
       return GetRoot().push(entry);
     } else if (task->prio_ == TaskPrio::kLowLatency) {
       return GetLowLat().push(entry);
@@ -262,16 +258,10 @@ class PrivateTaskMultiQueue {
   }
 
   void erase(int queue_id) {
-    if (queue_id == ROOT) {
-      --root_count_;
-    }
     queues_[queue_id].erase();
   }
 
   void erase(int queue_id, PrivateTaskQueueEntry&) {
-    if (queue_id == ROOT) {
-      --root_count_;
-    }
   }
 
   void block(PrivateTaskQueueEntry &entry) {
