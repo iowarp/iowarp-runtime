@@ -271,6 +271,7 @@ struct Task;
 
 /** Context passed to the Run method of a task */
 struct RunContext {
+  bitfield32_t run_flags_;  /**< Properties of the task */
   u32 worker_id_;         /**< The worker id of the task */
   bctx::transfer_t jmp_;  /**< Stack info for coroutines */
   void *stack_ptr_;       /**< Stack pointer (coroutine) */
@@ -379,33 +380,33 @@ struct Task : public hipc::ShmContainer {
 
   /** Set this task as started */
   void SetStarted() {
-    task_flags_.SetBits(TASK_HAS_STARTED);
+    rctx_.run_flags_.SetBits(TASK_HAS_STARTED);
   }
 
   /** Set this task as started */
   void UnsetStarted() {
-    task_flags_.UnsetBits(TASK_HAS_STARTED);
+    rctx_.run_flags_.UnsetBits(TASK_HAS_STARTED);
   }
 
   /** Check if task has started */
   bool IsStarted() {
-    return task_flags_.Any(TASK_HAS_STARTED);
+    return rctx_.run_flags_.Any(TASK_HAS_STARTED);
   }
 
   /** Set blocked */
   void SetBlocked(size_t count) {
-    task_flags_.SetBits(TASK_BLOCKED);
+    rctx_.run_flags_.SetBits(TASK_BLOCKED);
     rctx_.block_count_ = count;
   }
 
   /** Unset blocked */
   void UnsetBlocked() {
-    task_flags_.UnsetBits(TASK_BLOCKED);
+    rctx_.run_flags_.UnsetBits(TASK_BLOCKED);
   }
 
   /** Check if task is blocked */
   bool IsBlocked() {
-    return task_flags_.Any(TASK_BLOCKED);
+    return rctx_.run_flags_.Any(TASK_BLOCKED);
   }
 
   /** Set this task as started */
@@ -455,32 +456,32 @@ struct Task : public hipc::ShmContainer {
 
   /** Set signal complete */
   void SetSignalUnblock() {
-    task_flags_.SetBits(TASK_SIGNAL_COMPLETE);
+    rctx_.run_flags_.SetBits(TASK_SIGNAL_COMPLETE);
   }
 
   /** Check if task should signal complete */
   bool ShouldSignalUnblock() {
-    return task_flags_.Any(TASK_SIGNAL_COMPLETE);
+    return rctx_.run_flags_.Any(TASK_SIGNAL_COMPLETE);
   }
 
   /** Unset signal complete */
   void UnsetSignalUnblock() {
-    task_flags_.UnsetBits(TASK_SIGNAL_COMPLETE);
+    rctx_.run_flags_.UnsetBits(TASK_SIGNAL_COMPLETE);
   }
 
   /** Set signal remote complete */
   void SetSignalRemoteComplete() {
-    task_flags_.SetBits(TASK_SIGNAL_REMOTE_COMPLETE);
+    rctx_.run_flags_.SetBits(TASK_SIGNAL_REMOTE_COMPLETE);
   }
 
   /** Check if task should signal complete */
   bool ShouldSignalRemoteComplete() {
-    return task_flags_.Any(TASK_SIGNAL_REMOTE_COMPLETE);
+    return rctx_.run_flags_.Any(TASK_SIGNAL_REMOTE_COMPLETE);
   }
 
   /** Unset signal complete */
   void UnsetSignalRemoteComplete() {
-    task_flags_.UnsetBits(TASK_SIGNAL_REMOTE_COMPLETE);
+    rctx_.run_flags_.UnsetBits(TASK_SIGNAL_REMOTE_COMPLETE);
   }
 
   /** Mark this task as remote */
@@ -515,17 +516,17 @@ struct Task : public hipc::ShmContainer {
 
   /** Mark this task as remote */
   void SetRemote() {
-    task_flags_.SetBits(TASK_REMOTE);
+    rctx_.run_flags_.SetBits(TASK_REMOTE);
   }
 
   /** Check if task is remote */
   bool IsRemote() {
-    return task_flags_.Any(TASK_REMOTE);
+    return rctx_.run_flags_.Any(TASK_REMOTE);
   }
 
   /** Unset remote */
   void UnsetRemote() {
-    task_flags_.UnsetBits(TASK_REMOTE);
+    rctx_.run_flags_.UnsetBits(TASK_REMOTE);
   }
 
   /** Determine if time has elapsed */
@@ -738,11 +739,11 @@ struct Task : public hipc::ShmContainer {
     prio_ = other.prio_;
     method_ = other.method_;
     task_flags_ = other.task_flags_;
-    UnsetStarted();
-    UnsetSignalUnblock();
-    UnsetSignalRemoteComplete();
-    UnsetBlocked();
-    UnsetRemote();
+//    UnsetStarted();
+//    UnsetSignalUnblock();
+//    UnsetSignalRemoteComplete();
+//    UnsetBlocked();
+//    UnsetRemote();
     UnsetComplete();
     period_ns_ = other.period_ns_;
     start_ = other.start_;
