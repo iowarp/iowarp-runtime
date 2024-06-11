@@ -778,10 +778,6 @@ class Worker {
     rctx.jmp_ = bctx::jump_fcontext(rctx.jmp_.fctx, task);
     if (!task->IsStarted()) {
       FreeStack(rctx.stack_ptr_);
-      if (task->ShouldSignalRemoteComplete()) {
-        HILOG(kInfo, "[TASK_CHECK] Running rep_task {} on node {}",
-              (void*)task->rctx_.ret_task_addr_, CHI_RPC->node_id_);
-      }
     }
   }
 
@@ -793,6 +789,11 @@ class Worker {
     rctx.jmp_ = t;
     exec->Run(task->method_, task, rctx);
     task->UnsetStarted();
+    if (task->ShouldSignalRemoteComplete()) {
+      HILOG(kInfo, "[TASK_CHECK] Running rep_task {} on node {} (long running: {})",
+            (void*)task->rctx_.ret_task_addr_, CHI_RPC->node_id_,
+            task->IsLongRunning());
+    }
     task->Yield<TASK_YIELD_CO>();
   }
 
