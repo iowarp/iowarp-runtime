@@ -717,6 +717,9 @@ class Worker {
         exec->Monitor(MonitorMode::kFlushStat, task, rctx);
       } else if (!task->IsFlush()) {
         flush_.count_ += 1;
+        HILOG(kInfo, "(node {}) Flushing task {} pool {} method {}",
+              CHI_RPC->node_id_, (void*)task,
+              task->pool_, task->method_);
       }
     }
 
