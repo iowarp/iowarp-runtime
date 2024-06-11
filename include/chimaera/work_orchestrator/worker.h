@@ -741,12 +741,13 @@ class Worker {
     }
 
     // Actually execute the task
-    if (task->IsCoroutine()) {
-      ExecCoroutine(task, rctx);
-    } else {
-      exec->Run(task->method_, task, rctx);
-      task->SetStarted();
-    }
+    ExecCoroutine(task, rctx);
+//    if (task->IsCoroutine()) {
+//      ExecCoroutine(task, rctx);
+//    } else {
+//      exec->Run(task->method_, task, rctx);
+//      task->SetStarted();
+//    }
     // Monitoring callback
     if (task->IsModuleComplete()) {
       exec->Monitor(MonitorMode::kEndTrainTime, task, rctx);

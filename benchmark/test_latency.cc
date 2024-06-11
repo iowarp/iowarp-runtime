@@ -72,6 +72,7 @@ void AsyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
             container_id),
         depth, 0);
   }
+  sleep(100);
   CHI_ADMIN->FlushRoot(
       DomainQuery::GetGlobalBcast());
   t.Pause();
