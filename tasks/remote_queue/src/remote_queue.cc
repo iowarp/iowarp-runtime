@@ -130,12 +130,11 @@ class Server : public TaskLib {
       submit[node_hash % submit.size()].emplace(
           (TaskQueueEntry) {res_query, rep_task.ptr_});
       replicas.emplace_back(rep_task);
-      HILOG(kInfo, "[TASK_CHECK] Replicated task {} ({} -> {})",
-            rep_task.ptr_, CHI_RPC->node_id_, res_query.node_);
+//      HILOG(kInfo, "[TASK_CHECK] Replicated task {} ({} -> {})",
+//            rep_task.ptr_, CHI_RPC->node_id_, res_query.node_);
     }
     // Wait
     submit_task->Wait<TASK_YIELD_CO>(replicas, TASK_MODULE_COMPLETE);
-    HILOG(kInfo, "Finished waiting on replicas");
     // Combine
     Container *exec = CHI_TASK_REGISTRY->GetAnyContainer(
         orig_task->pool_);
@@ -143,8 +142,8 @@ class Server : public TaskLib {
     exec->Monitor(MonitorMode::kReplicaAgg, orig_task, rctx);
     // Free
     for (LPointer<Task> &replica : replicas) {
-      HILOG(kInfo, "[TASK_CHECK] Completing rep_task {} on node {}",
-            replica.ptr_, CHI_RPC->node_id_);
+//      HILOG(kInfo, "[TASK_CHECK] Completing rep_task {} on node {}",
+//            replica.ptr_, CHI_RPC->node_id_);
       CHI_CLIENT->DelTask(exec, replica.ptr_);
     }
   }
@@ -209,8 +208,8 @@ class Server : public TaskLib {
         rep_task->dom_query_ = entry.res_domain_.dom_;
         BinaryOutputArchive<true> &ar = entries[entry.res_domain_.node_];
         exec->SaveStart(rep_task->method_, ar, rep_task);
-        HILOG(kInfo, "[TASK_CHECK] Serializing rep_task {} ({} -> {})",
-              rep_task, CHI_RPC->node_id_, entry.res_domain_.node_);
+//        HILOG(kInfo, "[TASK_CHECK] Serializing rep_task {} ({} -> {})",
+//              rep_task, CHI_RPC->node_id_, entry.res_domain_.node_);
       }
 
       for (auto it = entries.begin(); it != entries.end(); ++it) {
@@ -359,9 +358,9 @@ class Server : public TaskLib {
     // Execute task
     CHI_CLIENT->ScheduleTaskRuntime(nullptr, rep_task,
                                     QueueId(pool_id));
-    HILOG(kInfo, "[TASK_CHECK] Deserialized rep_task {} ({} -> {})",
-          (void*)rep_task->rctx_.ret_task_addr_,
-          rep_task->rctx_.ret_node_, CHI_RPC->node_id_);
+//    HILOG(kInfo, "[TASK_CHECK] Deserialized rep_task {} ({} -> {})",
+//          (void*)rep_task->rctx_.ret_task_addr_,
+//          rep_task->rctx_.ret_node_, CHI_RPC->node_id_);
   }
 
   /** Receive task completion */
@@ -392,8 +391,8 @@ class Server : public TaskLib {
         if (submit_task->pool_ != id_) {
           HELOG(kFatal, "This shouldn't happen ever");
         }
-        HILOG(kInfo, "[TASK_CHECK] Signal complete rep_task {} on node {}",
-              rep_task, CHI_RPC->node_id_);
+//        HILOG(kInfo, "[TASK_CHECK] Signal complete rep_task {} on node {}",
+//              rep_task, CHI_RPC->node_id_);
         Worker::SignalUnblock(submit_task);
       }
     } catch (hshm::Error &e) {

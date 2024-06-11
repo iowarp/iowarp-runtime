@@ -274,8 +274,8 @@ class PrivateTaskMultiQueue {
     LPointer<Task> blocked_task = entry.task_;
     entry.block_count_ = (ssize_t)blocked_task->rctx_.block_count_;
     blocked_.emplace(entry, blocked_task->rctx_.pending_key_);
-    HILOG(kInfo, "(node {}) Blocking task {} with count {}",
-          CHI_RPC->node_id_, (void*)blocked_task.ptr_, entry.block_count_);
+//    HILOG(kInfo, "(node {}) Blocking task {} with count {}",
+//          CHI_RPC->node_id_, (void*)blocked_task.ptr_, entry.block_count_);
   }
 
   void signal_unblock(PrivateTaskMultiQueue &worker_pending,
@@ -298,8 +298,8 @@ class PrivateTaskMultiQueue {
       HELOG(kFatal, "A blocked task was lost");
     }
     entry->block_count_ -= 1;
-    HILOG(kInfo, "(node {}) Unblocking task {} with count {}",
-          CHI_RPC->node_id_, (void*)blocked_task.ptr_, entry->block_count_);
+//    HILOG(kInfo, "(node {}) Unblocking task {} with count {}",
+//          CHI_RPC->node_id_, (void*)blocked_task.ptr_, entry->block_count_);
     if (entry->block_count_ == 0) {
       blocked_task->UnsetBlocked();
       blocked_.erase(blocked_task->rctx_.pending_key_);
@@ -554,10 +554,10 @@ class Worker {
         lane->pop();
       } else {
         if (active_.push(PrivateTaskQueueEntry{task, dom_query})) {
-          HILOG(kInfo, "[TASK_CHECK] Running rep_task {} on node {} (long running: {})"
-                       " pool={} method={}",
-                (void*)task->rctx_.ret_task_addr_, CHI_RPC->node_id_,
-                task->IsLongRunning(), task->pool_, task->method_);
+//          HILOG(kInfo, "[TASK_CHECK] Running rep_task {} on node {} (long running: {})"
+//                       " pool={} method={}",
+//                (void*)task->rctx_.ret_task_addr_, CHI_RPC->node_id_,
+//                task->IsLongRunning(), task->pool_, task->method_);
           lane->pop();
         } else {
           break;
@@ -712,9 +712,6 @@ class Worker {
         exec->Monitor(MonitorMode::kFlushStat, task, rctx);
       } else if (!task->IsFlush()) {
         flush_.count_ += 1;
-        HILOG(kInfo, "(node {}) Flushing task {} pool {} method {}",
-              CHI_RPC->node_id_, (void*)task,
-              task->pool_, task->method_);
       }
     }
 
@@ -724,7 +721,6 @@ class Worker {
     }
     // Attempt to run the task if it's ready and runnable
     if (props.Any(HSHM_WORKER_IS_REMOTE)) {
-//      HILOG(kInfo, "Automaking remote task {}", (size_t)task);
       task->SetBlocked(1);
       active_.block(entry);
       LPointer<remote_queue::ClientPushSubmitTask> remote_task =
@@ -797,10 +793,10 @@ class Worker {
   /** Free a task when it is no longer needed */
   HSHM_ALWAYS_INLINE
   void EndTask(Container *exec, LPointer<Task> &task) {
-    if (task->task_flags_.Any(TASK_REMOTE_RECV_MARK)) {
-      HILOG(kInfo, "[TASK_CHECK] Server completed rep_task {} on node {}",
-            (void*)task->rctx_.ret_task_addr_, CHI_RPC->node_id_);
-    }
+//    if (task->task_flags_.Any(TASK_REMOTE_RECV_MARK)) {
+//      HILOG(kInfo, "[TASK_CHECK] Server completed rep_task {} on node {}",
+//            (void*)task->rctx_.ret_task_addr_, CHI_RPC->node_id_);
+//    }
     if (task->ShouldSignalUnblock()) {
       SignalUnblock(task->rctx_.pending_to_);
     }
