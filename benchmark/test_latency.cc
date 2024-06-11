@@ -70,7 +70,7 @@ void AsyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
         chi::DomainQuery::GetDirectHash(
             chi::SubDomainId::kGlobalContainers,
             container_id),
-        depth, 0);
+        depth, TASK_FIRE_AND_FORGET);
   }
   HILOG(kInfo, "Begin Flushing")
   CHI_ADMIN->FlushRoot(
