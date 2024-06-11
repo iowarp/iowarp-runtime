@@ -409,7 +409,8 @@ class Worker {
     if (flush_.count_ != flush_.work_done_) {
       flush_.work_done_ = flush_.count_.load();
       flush_.did_work_ = true;
-      HILOG(kInfo, "Did {} work", flush_.count_ - flush_.work_done_);
+      HILOG(kInfo, "(node {}) Worker {} Flush count: {} Last count: {}",
+            CHI_RPC->node_id_, id_, flush_.count_, flush_.work_done_);
       return;
     }
     flush_.did_work_ = false;
