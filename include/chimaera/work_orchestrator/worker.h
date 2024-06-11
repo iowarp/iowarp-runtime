@@ -398,6 +398,7 @@ class Worker {
     if (flush_.flush_iter_ == 0 && active_.GetFlush().size()) {
       for (std::unique_ptr<Worker> &worker : orch->workers_) {
         worker->flush_.flushing_ = true;
+        worker->flush_.did_work_ = true;
       }
     }
     ++flush_.flush_iter_;
