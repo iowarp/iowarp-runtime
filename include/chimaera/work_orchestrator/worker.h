@@ -398,7 +398,6 @@ class Worker {
     if (flush_.flush_iter_ == 0 && active_.GetFlush().size()) {
       for (std::unique_ptr<Worker> &worker : orch->workers_) {
         worker->flush_.flushing_ = true;
-        worker->flush_.did_work_ = true;
       }
     }
     ++flush_.flush_iter_;
@@ -406,38 +405,40 @@ class Worker {
 
   /** Check if work has been done */
   void EndFlush(WorkOrchestrator *orch) {
-    // Update the work count
-    if (flush_.count_ != flush_.work_done_) {
-      HILOG(kInfo, "(node {}) Worker {} Flush count: {} Last count: {}",
-            CHI_RPC->node_id_, id_, flush_.count_, flush_.work_done_);
-      flush_.work_done_ = flush_.count_;
-      flush_.did_work_ = true;
-      return;
+    // Barrier for all workers to complete
+    flush_.flushing_ = false;
+    while (AnyFlushing(orch)) {
+      HERMES_THREAD_MODEL->Yield();
     }
-    flush_.did_work_ = false;
-    HILOG(kInfo, "(node {}) Worker {} Flush count: {} Last count: {}",
-          CHI_RPC->node_id_, id_, flush_.count_, flush_.work_done_);
-    // Check if each worker has finished flushing
-    if (FinishedFlushingWork(orch)) {
-      flush_.flush_iter_ = 0;
-      flush_.flushing_ = false;
-      flush_.did_work_ = true;
-      PollPrivateQueue(active_.GetFlush(), false);
-      HILOG(kInfo, "(node {}) Ending flushing for worker {}",
-            CHI_RPC->node_id_, id_);
+    // Detect if any work has been done
+    if (active_.GetFlush().size()) {
+      if (AnyFlushWorkDone(orch)) {
+        flush_.flush_iter_ = 0;
+      } else {
+        PollPrivateQueue(active_.GetFlush(), false);
+      }
     }
   }
 
-  /** Barrier for all workers to flush */
-  bool FinishedFlushingWork(WorkOrchestrator *orch) {
+  /** Check if any worker is still flushing */
+  bool AnyFlushing(WorkOrchestrator *orch) {
     for (std::unique_ptr<Worker> &worker : orch->workers_) {
-      if (worker->flush_.did_work_) {
-        HILOG(kInfo, "(node {}) Worker {} still has work to do",
-              CHI_RPC->node_id_, worker->id_);
-        return false;
+      if (worker->flush_.flushing_) {
+        return true;
       }
     }
-    return true;
+    return false;
+  }
+
+  /** Check if any worker did work */
+  bool AnyFlushWorkDone(WorkOrchestrator *orch) {
+    bool ret = false;
+    for (std::unique_ptr<Worker> &worker : orch->workers_) {
+      if (worker->flush_.count_ != worker->flush_.work_done_) {
+        worker->flush_.work_done_ = worker->flush_.count_;
+      }
+    }
+    return ret;
   }
 
   /** Worker loop iteration */

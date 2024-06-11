@@ -260,7 +260,6 @@ class TaskPrio {
 struct WorkPending {
   size_t count_ = 0;
   size_t work_done_ = 0;
-  std::atomic<bool> did_work_ = true;
   std::atomic<bool> flushing_ = false;
   size_t flush_iter_ = 0;
 };
