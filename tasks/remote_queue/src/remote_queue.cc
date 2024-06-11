@@ -272,7 +272,7 @@ class Server : public TaskLib {
             CHI_TASK_REGISTRY->GetAnyContainer(done_task->pool_);
         BinaryOutputArchive<false> &ar = entries[entry.res_domain_.node_];
         exec->SaveEnd(done_task->method_, ar, done_task);
-        // CHI_CLIENT->DelTask(done_task)
+        CHI_CLIENT->DelTask(exec, done_task);
       }
 
       // Do transfers
