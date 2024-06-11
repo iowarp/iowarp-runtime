@@ -557,6 +557,10 @@ class Worker {
       }
       if (route == TaskRouteMode::kLocalWorker) {
         lane->pop();
+        HILOG(kInfo, "[TASK_CHECK] Running rep_task {} on node {} (long running: {})"
+                     " pool={} method={}",
+              (void*)task->rctx_.ret_task_addr_, CHI_RPC->node_id_,
+              task->IsLongRunning(), task->pool_, task->method_);
       } else {
         if (active_.push(PrivateTaskQueueEntry{task, dom_query})) {
           lane->pop();
@@ -789,18 +793,6 @@ class Worker {
     rctx.jmp_ = t;
     exec->Run(task->method_, task, rctx);
     task->UnsetStarted();
-    if (task->ShouldSignalRemoteComplete()) {
-      HILOG(kInfo, "[TASK_CHECK] Running rep_task {} on node {} (long running: {})"
-                   " pool={} method={}",
-            (void*)task->rctx_.ret_task_addr_, CHI_RPC->node_id_,
-            task->IsLongRunning(), task->pool_, task->method_);
-      if (!task->IsModuleComplete() && !task->IsLongRunning()) {
-        HELOG(kFatal, "Failed rep_task {} on node {} (long running: {})"
-                      " pool={} method={}",
-              (void*)task->rctx_.ret_task_addr_, CHI_RPC->node_id_,
-              task->IsLongRunning(), task->pool_, task->method_);
-      }
-    }
     task->Yield<TASK_YIELD_CO>();
   }
 
