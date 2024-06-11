@@ -432,6 +432,8 @@ class Worker {
   bool FinishedFlushingWork(WorkOrchestrator *orch) {
     for (std::unique_ptr<Worker> &worker : orch->workers_) {
       if (worker->flush_.did_work_) {
+        HILOG(kInfo, "(node {}) Worker {} still has work to do",
+              CHI_RPC->node_id_, worker->id_);
         return false;
       }
     }
