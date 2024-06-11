@@ -74,6 +74,10 @@ class KeyQueue {
     head_ = head;
     --size_;
   }
+
+  size_t size() {
+    return size_;
+  }
 };
 
 

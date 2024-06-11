@@ -34,6 +34,7 @@ class WorkOrchestrator {
     rpc_xstreams_;  /**< RPC streams */
   tl::managed<tl::pool> rpc_pool_;  /**< RPC pool */
   TlsKey worker_tls_key_;  /**< Thread-local storage key */
+  std::atomic<bool> flushing_ = false;  /**< Flushing in progress */
 
  public:
   /** Default constructor */

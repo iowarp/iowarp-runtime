@@ -250,9 +250,7 @@ class Server : public TaskLib {
 
   /** Flush the runtime */
   void Flush(FlushTask *task, RunContext &rctx) {
-    if (!rctx.flush_->flushing_) {
-      task->SetModuleComplete();
-    }
+    task->SetModuleComplete();
   }
   void MonitorFlush(u32 mode, FlushTask *task, RunContext &rctx) {
     switch (mode) {

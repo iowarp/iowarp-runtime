@@ -237,8 +237,6 @@ class Server : public TaskLib {
         hshm::mpsc_queue<TaskQueueEntry> &submit = shared_->submit_[0];
         hshm::mpsc_queue<TaskQueueEntry> &complete = shared_->complete_[0];
         rctx.flush_->count_ += submit.GetSize() + complete.GetSize();
-        HILOG(kInfo, "Submit: {} Complete: {}",
-              submit.GetSize(), complete.GetSize());
       }
     }
   }

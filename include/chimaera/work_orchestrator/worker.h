@@ -331,13 +331,14 @@ class Worker {
   std::unordered_map<hshm::charbuf, TaskNode>
       group_map_;        /**< Determine if a task can be executed right now */
   hshm::charbuf group_;  /**< The current group */
-  WorkPending flush_;    /**< Info needed for flushing ops */
   hshm::spsc_queue<void*> stacks_;  /**< Cache of stacks for tasks */
   int num_stacks_ = 256;  /**< Number of stacks */
   int stack_size_ = KILOBYTES(64);
   PrivateTaskMultiQueue
       active_;  /** Tasks pending to complete */
   hshm::Timepoint cur_time_;  /**< The current timepoint */
+  WorkPending flush_;    /**< Info needed for flushing ops */
+
 
  public:
   /**===============================================================
@@ -394,56 +395,40 @@ class Worker {
 
   /** Flush the worker's tasks */
   void BeginFlush(WorkOrchestrator *orch) {
-    // Reset flushing counters
-    flush_.count_ = 0;
-    flush_.flushing_ = true;
-    PollPrivateQueue(active_.GetFlush(), false);
+    if (flush_.flush_iter_ == 0 && active_.GetFlush().size()) {
+      for (std::unique_ptr<Worker> &worker : orch->workers_) {
+        worker->flush_.flushing_ = true;
+      }
+    }
+    ++flush_.flush_iter_;
   }
 
   /** Check if work has been done */
   void EndFlush(WorkOrchestrator *orch) {
-    // Keep flushing until count is 0
-    if (flush_.count_ > 0) {
-      flush_.work_done_ += flush_.count_;
+    // Update the work count
+    if (flush_.count_ != flush_.work_done_) {
+      flush_.work_done_ = flush_.count_.load();
+      flush_.did_work_ = true;
       return;
     }
-    flush_.flushing_ = false;
-
-    // Check if all workers have finished flushing
-    if (active_.GetFlush().size_ > 0) {
-      size_t work_done = 0;
-      size_t consensus = 0;
-      for (std::unique_ptr<Worker> &worker : orch->workers_) {
-        if (!worker->flush_.flushing_) {
-          work_done += flush_.work_done_;
-          if (worker->flush_.work_done_ == 0) {
-            ++consensus;
-          }
-          flush_.work_done_ = 0;
-        }
-      }
-      if (consensus == orch->workers_.size()) {
-        PrivateTaskQueue &queue = active_.GetFlush();
-        PollPrivateQueue(active_.GetFlush(), false);
-      } else {
-        for (std::unique_ptr<Worker> &worker : orch->workers_) {
-          UpdateFlushCount(*worker, work_done);
-          worker->flush_.flushing_ = true;
-        }
-      }
+    flush_.did_work_ = false;
+    // Check if each worker has finished flushing
+    if (FinishedFlushingWork(orch)) {
+      flush_.flush_iter_ = 0;
+      flush_.flushing_ = false;
+      flush_.did_work_ = true;
+      PollPrivateQueue(active_.GetFlush(), false);
     }
   }
 
-  /** Update work count for flush tasks */
-  void UpdateFlushCount(Worker &worker, size_t count) {
-    PrivateTaskQueue &queue = worker.active_.GetFlush();
-    for (size_t i = 0; i < queue.size_; ++i) {
-        PrivateTaskQueueEntry *entry;
-        queue.peek(entry, queue.head_ + i);
-        chi::Admin::FlushTask *flush_task =
-            (chi::Admin::FlushTask *)entry->task_.ptr_;
-        flush_task->work_done_ += count;
+  /** Barrier for all workers to flush */
+  bool FinishedFlushingWork(WorkOrchestrator *orch) {
+    for (std::unique_ptr<Worker> &worker : orch->workers_) {
+      if (worker->flush_.did_work_) {
+        return false;
+      }
     }
+    return true;
   }
 
   /** Worker loop iteration */
