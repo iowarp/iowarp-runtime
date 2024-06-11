@@ -339,6 +339,9 @@ class Server : public TaskLib {
     rep_task->dom_query_ = xfer.tasks_[task_off].dom_;
     rep_task->rctx_.ret_task_addr_ = xfer.tasks_[task_off].task_addr_;
     rep_task->rctx_.ret_node_ = xfer.ret_node_;
+    if (rep_task->rctx_.ret_task_addr_ == (size_t)rep_task.ptr_) {
+      HELOG(kFatal, "This shouldn't happen ever");
+    }
 
     // Unset task flags
     // NOTE(llogan): Remote tasks are executed to completion and

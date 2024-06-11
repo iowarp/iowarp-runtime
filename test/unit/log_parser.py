@@ -5,7 +5,10 @@ log_path = sys.argv[1]
 
 def get_task_addr(line):
     # 0x7fc2c1694328
-    return re.search('0x[0-9a-f]+', line).group(0)
+    res = re.search('0x[0-9a-f]+', line)
+    if res:
+        return res.group(0)
+    return None
 
 with open(log_path, 'r') as fp:
     lines = fp.readlines()
@@ -29,6 +32,8 @@ with open(log_path, 'r') as fp:
         if '[TASK_CHECK]' not in line:
             continue
         task_addr = get_task_addr(line)
+        if task_addr is None:
+            continue
         if 'Replicated task' in line:
             rep[task_addr] = line
             rep_lines.append(line)
@@ -45,6 +50,8 @@ with open(log_path, 'r') as fp:
             signal_complete[task_addr] = line
             signal_complete_lines.append(line)
         elif 'Server completed rep_task' in line:
+            if task_addr not in running:
+                continue
             server_complete[task_addr] = line
             server_complete_lines.append(line)
         elif 'Completing rep_task' in line:
