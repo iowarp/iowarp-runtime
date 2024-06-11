@@ -5,7 +5,7 @@ add_library(small_message SHARED
         small_message.cc)
 add_dependencies(small_message ${Chimaera_RUNTIME_DEPS})
 target_link_libraries(small_message ${Chimaera_RUNTIME_LIBRARIES})
-
+target_compile_definitions(small_message PRIVATE ${Chimaera_RUNTIME_DEFINITIONS})
 #------------------------------------------------------------------------------
 # Install Small Message Task Library
 #------------------------------------------------------------------------------

@@ -8,7 +8,7 @@ add_library(remote_queue SHARED
 add_dependencies(remote_queue ${Chimaera_RUNTIME_DEPS})
 target_link_libraries(remote_queue
         chimaera_runtime ${libfabric_LIBRARIES})
-
+target_compile_definitions(remote_queue PRIVATE ${Chimaera_RUNTIME_DEFINITIONS})
 #------------------------------------------------------------------------------
 # Install Small Message Task Library
 #------------------------------------------------------------------------------

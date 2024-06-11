@@ -5,7 +5,7 @@ add_library(worch_proc_round_robin SHARED
         worch_proc_round_robin.cc)
 add_dependencies(worch_proc_round_robin ${Chimaera_RUNTIME_DEPS})
 target_link_libraries(worch_proc_round_robin ${Chimaera_RUNTIME_LIBRARIES})
-
+target_compile_definitions(worch_proc_round_robin PRIVATE ${Chimaera_RUNTIME_DEFINITIONS})
 #------------------------------------------------------------------------------
 # Install Small Message Task Library
 #------------------------------------------------------------------------------

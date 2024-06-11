@@ -187,6 +187,8 @@ set(Chimaera_RUNTIME_LIBRARIES
         ${Boost_LIBRARIES})
 set(Chimaera_RUNTIME_DEPS
         chimaera_client chimaera_runtime)
+set(Chimaera_RUNTIME_DEFINITIONS
+        CHIMAERA_RUNTIME)
 
 set(TEST_MAIN ${CMAKE_SOURCE_DIR}/test/unit)
 add_subdirectory(tasks)

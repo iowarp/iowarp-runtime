@@ -4,7 +4,7 @@
 # None for now
 
 #------------------------------------------------------------------------------
-# Build Hrun Client Library
+# Build Chimaera Client Library
 #------------------------------------------------------------------------------
 add_library(chimaera_client SHARED
         ${CMAKE_CURRENT_SOURCE_DIR}/config_client.cc
@@ -20,7 +20,7 @@ target_link_libraries(chimaera_client
   ${ALLOCATOR_LIBRARIES})
 
 #------------------------------------------------------------------------------
-# Build Hrun Runtime Library
+# Build Chimaera Runtime Library
 #------------------------------------------------------------------------------
 add_library(chimaera_runtime
         work_orchestrator.cc
@@ -28,8 +28,9 @@ add_library(chimaera_runtime
         ${ALLOCATOR_LIBRARIES})
 add_dependencies(chimaera_runtime ${Chimaera_CLIENT_DEPS})
 target_link_libraries(chimaera_runtime thallium ${Chimaera_CLIENT_LIBRARIES})
+target_compile_definitions(chimaera_runtime PRIVATE ${Chimaera_RUNTIME_DEFINITIONS})
 #------------------------------------------------------------------------------
-# Build Hrun Runtime Start Function
+# Build Chimaera Runtime Start Function
 #------------------------------------------------------------------------------
 add_executable(chimaera_start_runtime
         chimaera_start_runtime.cc)
@@ -38,11 +39,11 @@ target_link_libraries(chimaera_start_runtime ${Chimaera_RUNTIME_LIBRARIES}
         ${ALLOCATOR_LIBRARIES})
 
 #------------------------------------------------------------------------------
-# Build HRUN Runtime Stop Function
+# Build Chimaera Runtime Stop Function
 #------------------------------------------------------------------------------
 add_executable(chimaera_stop_runtime chimaera_stop_runtime.cc)
-add_dependencies(chimaera_stop_runtime ${Chimaera_RUNTIME_DEPS})
-target_link_libraries(chimaera_stop_runtime ${Chimaera_RUNTIME_LIBRARIES}
+add_dependencies(chimaera_stop_runtime ${Chimaera_CLIENT_DEPS})
+target_link_libraries(chimaera_stop_runtime ${Chimaera_CLIENT_LIBRARIES}
         ${ALLOCATOR_LIBRARIES})
 
 #-----------------------------------------------------------------------------
