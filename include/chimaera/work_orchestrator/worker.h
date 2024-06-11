@@ -789,7 +789,7 @@ class Worker {
     rctx.jmp_ = t;
     exec->Run(task->method_, task, rctx);
     task->UnsetStarted();
-    if (task->ShouldSignalRemoteComplete()) {
+    if (task->ShouldSignalRemoteComplete() && task->IsModuleComplete()) {
       HILOG(kInfo, "[TASK_CHECK] Running rep_task {} on node {} (long running: {})",
             (void*)task->rctx_.ret_task_addr_, CHI_RPC->node_id_,
             task->IsLongRunning());
