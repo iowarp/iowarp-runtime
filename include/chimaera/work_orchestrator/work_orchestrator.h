@@ -21,6 +21,7 @@
 namespace chi {
 
 class Worker;
+typedef ABT_key TlsKey;
 
 class WorkOrchestrator {
  public:
@@ -32,6 +33,7 @@ class WorkOrchestrator {
   std::vector<tl::managed<tl::xstream>>
     rpc_xstreams_;  /**< RPC streams */
   tl::managed<tl::pool> rpc_pool_;  /**< RPC pool */
+  TlsKey worker_tls_key_;  /**< Thread-local storage key */
 
  public:
   /** Default constructor */
@@ -106,6 +108,32 @@ class WorkOrchestrator {
   /** Wait for argobots thread */
   void JoinAsyncThread(ABT_thread tl_thread) {
     ABT_thread_join(tl_thread);
+  }
+
+  /** Create thread-local storage */
+  void CreateThreadLocalBlock() {
+    int ret = ABT_key_create(NULL, &worker_tls_key_);
+    if (ret != ABT_SUCCESS) {
+      HELOG(kFatal, "Could not create thread-local storage");
+    }
+  }
+
+  /** Get thread-local storage */
+  void SetThreadLocalBlock(Worker *worker) {
+    int ret = ABT_key_set(worker_tls_key_, worker);
+    if (ret != ABT_SUCCESS) {
+      HELOG(kFatal, "Could not set thread-local storage");
+    }
+  }
+
+  /** Get thread-local storage */
+  Worker* GetThreadLocalBlock() {
+    Worker *worker;
+    int ret = ABT_key_get(worker_tls_key_, (void**)&worker);
+    if (ret != ABT_SUCCESS) {
+      HELOG(kFatal, "Could not get thread-local storage");
+    }
+    return worker;
   }
 };
 

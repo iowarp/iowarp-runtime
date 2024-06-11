@@ -21,6 +21,9 @@ void WorkOrchestrator::ServerInit(ServerConfig *config, QueueManager &qm) {
   // Initialize argobots
   ABT_init(0, nullptr);
 
+  // Create thread-local storage key
+  CreateThreadLocalBlock();
+
   // Spawn workers on the stream
   size_t num_workers = config_->wo_.max_dworkers_ + config->wo_.max_oworkers_;
   workers_.reserve(num_workers);
