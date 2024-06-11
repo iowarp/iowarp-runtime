@@ -421,6 +421,8 @@ class Worker {
       flush_.flushing_ = false;
       flush_.did_work_ = true;
       PollPrivateQueue(active_.GetFlush(), false);
+      HILOG(kInfo, "(node {}) Ending flushing for worker {}",
+            CHI_RPC->node_id_, id_);
     }
   }
 
