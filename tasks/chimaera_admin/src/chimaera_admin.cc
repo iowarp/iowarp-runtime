@@ -259,7 +259,6 @@ class Server : public TaskLib {
         auto replica = reinterpret_cast<FlushTask *>(
             replicas[0].ptr_);
         task->work_done_ += replica->work_done_;
-        HILOG(kInfo, "Total work done in this task: {}", task->work_done_);
       }
     }
   }
