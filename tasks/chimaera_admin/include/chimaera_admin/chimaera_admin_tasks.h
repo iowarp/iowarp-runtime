@@ -342,7 +342,7 @@ struct FlushTask : public Task, TaskFlags<TF_SRL_SYM> {
     prio_ = TaskPrio::kLowLatency;
     pool_ = CHI_QM_CLIENT->admin_pool_id_;
     method_ = Method::kFlush;
-    task_flags_.SetBits(TASK_FLUSH | TASK_COROUTINE);
+    task_flags_.SetBits(TASK_FLUSH);
     dom_query_ = dom_query;
 
     // Custom
