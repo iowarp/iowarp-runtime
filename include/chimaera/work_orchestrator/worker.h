@@ -408,13 +408,15 @@ class Worker {
   void EndFlush(WorkOrchestrator *orch) {
     // Update the work count
     if (flush_.count_ != flush_.work_done_) {
-      flush_.work_done_ = flush_.count_.load();
-      flush_.did_work_ = true;
       HILOG(kInfo, "(node {}) Worker {} Flush count: {} Last count: {}",
             CHI_RPC->node_id_, id_, flush_.count_, flush_.work_done_);
+      flush_.work_done_ = flush_.count_;
+      flush_.did_work_ = true;
       return;
     }
     flush_.did_work_ = false;
+    HILOG(kInfo, "(node {}) Worker {} Flush count: {} Last count: {}",
+          CHI_RPC->node_id_, id_, flush_.count_, flush_.work_done_);
     // Check if each worker has finished flushing
     if (FinishedFlushingWork(orch)) {
       flush_.flush_iter_ = 0;
