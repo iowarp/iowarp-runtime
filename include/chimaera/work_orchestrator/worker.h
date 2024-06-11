@@ -557,12 +557,12 @@ class Worker {
       }
       if (route == TaskRouteMode::kLocalWorker) {
         lane->pop();
-        HILOG(kInfo, "[TASK_CHECK] Running rep_task {} on node {} (long running: {})"
-                     " pool={} method={}",
-              (void*)task->rctx_.ret_task_addr_, CHI_RPC->node_id_,
-              task->IsLongRunning(), task->pool_, task->method_);
       } else {
         if (active_.push(PrivateTaskQueueEntry{task, dom_query})) {
+          HILOG(kInfo, "[TASK_CHECK] Running rep_task {} on node {} (long running: {})"
+                       " pool={} method={}",
+                (void*)task->rctx_.ret_task_addr_, CHI_RPC->node_id_,
+                task->IsLongRunning(), task->pool_, task->method_);
           lane->pop();
         } else {
           break;
@@ -715,7 +715,7 @@ class Worker {
     if (props.Any(HSHM_WORKER_IS_FLUSHING)) {
       if (task->IsLongRunning()) {
         exec->Monitor(MonitorMode::kFlushStat, task, rctx);
-      } else {
+      } else if (!task->IsFlush()) {
         flush_.count_ += 1;
       }
     }
