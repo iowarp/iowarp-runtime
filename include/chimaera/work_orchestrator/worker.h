@@ -395,31 +395,31 @@ class Worker {
 
   /** Flush the worker's tasks */
   void BeginFlush(WorkOrchestrator *orch) {
-    PollPrivateQueue(active_.GetFlush(), false);
-//    if (flush_.flush_iter_ == 0 && active_.GetFlush().size()) {
-//      for (std::unique_ptr<Worker> &worker : orch->workers_) {
-//        worker->flush_.flushing_ = true;
-//      }
-//    }
-//    ++flush_.flush_iter_;
+    if (flush_.flush_iter_ == 0 && active_.GetFlush().size()) {
+      for (std::unique_ptr<Worker> &worker : orch->workers_) {
+        worker->flush_.flushing_ = true;
+      }
+    }
+    ++flush_.flush_iter_;
   }
 
   /** Check if work has been done */
   void EndFlush(WorkOrchestrator *orch) {
-//    // Update the work count
-//    if (flush_.count_ != flush_.work_done_) {
-//      flush_.work_done_ = flush_.count_.load();
-//      flush_.did_work_ = true;
-//      return;
-//    }
-//    flush_.did_work_ = false;
-//    // Check if each worker has finished flushing
-//    if (FinishedFlushingWork(orch)) {
-//      flush_.flush_iter_ = 0;
-//      flush_.flushing_ = false;
-//      flush_.did_work_ = true;
-//      PollPrivateQueue(active_.GetFlush(), false);
-//    }
+    // Update the work count
+    if (flush_.count_ != flush_.work_done_) {
+      flush_.work_done_ = flush_.count_.load();
+      flush_.did_work_ = true;
+      HILOG(kInfo, "Did {} work", flush_.count_ - flush_.work_done_);
+      return;
+    }
+    flush_.did_work_ = false;
+    // Check if each worker has finished flushing
+    if (FinishedFlushingWork(orch)) {
+      flush_.flush_iter_ = 0;
+      flush_.flushing_ = false;
+      flush_.did_work_ = true;
+      PollPrivateQueue(active_.GetFlush(), false);
+    }
   }
 
   /** Barrier for all workers to flush */
