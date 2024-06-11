@@ -568,12 +568,14 @@ struct Task : public hipc::ShmContainer {
   /** Yield a task to a different task */
   HSHM_ALWAYS_INLINE
   void YieldInit(Task *parent_task) {
+#ifdef CHIMAERA_RUNTIME
     if (parent_task &&
         !IsFireAndForget() &&
         !IsLongRunning()) {
       rctx_.pending_to_ = parent_task;
       SetSignalUnblock();
     }
+#endif
   }
 
   /** Wait for task to complete */
@@ -602,23 +604,31 @@ struct Task : public hipc::ShmContainer {
   /** This task waits for subtask to complete */
   template<int THREAD_MODEL = 0>
   void Wait(Task *subtask, u32 flags = TASK_COMPLETE) {
+#ifdef CHIMAERA_RUNTIME
     SetBlocked(1);
+#endif
     while (!subtask->task_flags_.All(flags)) {
       Yield<THREAD_MODEL>();
     }
+#ifdef CHIMAERA_RUNTIME
     UnsetBlocked();
+#endif
   }
 
   /** This task waits for a set of tasks to complete */
   template<int THREAD_MODEL = 0>
   void Wait(std::vector<LPointer<Task>> &subtasks, u32 flags = TASK_COMPLETE) {
+#ifdef CHIMAERA_RUNTIME
     SetBlocked(subtasks.size());
+#endif
     for (auto &subtask : subtasks) {
       while (!subtask->task_flags_.All(flags)) {
         Yield<THREAD_MODEL>();
       }
     }
+#ifdef CHIMAERA_RUNTIME
     UnsetBlocked();
+#endif
   }
 
   /**====================================
