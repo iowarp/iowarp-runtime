@@ -804,6 +804,8 @@ class Worker {
       SignalUnblock(task->rctx_.pending_to_);
     }
     if (task->ShouldSignalRemoteComplete()) {
+      HILOG(kInfo, "[TASK_CHECK] Server completed rep_task {} on node {}",
+            (void*)task->rctx_.ret_task_addr_, CHI_RPC->node_id_);
       Container *remote_exec =
           CHI_TASK_REGISTRY->GetAnyContainer(CHI_REMOTE_QUEUE->id_);
       task->SetComplete();
