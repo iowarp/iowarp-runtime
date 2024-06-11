@@ -49,7 +49,7 @@ class TaskLib;
 /** This task is fire and forget. Free when completed */
 #define TASK_FIRE_AND_FORGET BIT_OPT(u32, 12)
 /** This task should not be run at this time (deprecated) */
-#define TASK_DISABLE_RUN 0
+#define TASK_DISABLE_RUN BIT_OPT(u32, 13)
 /** This task owns the data in the task */
 #define TASK_DATA_OWNER BIT_OPT(u32, 14)
 /** This task uses co-routine wait */
