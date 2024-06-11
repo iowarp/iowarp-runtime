@@ -554,10 +554,6 @@ class Worker {
                                     dom_query,
                                     task,
                                     lane);
-      if (task->ShouldSignalRemoteComplete()) {
-        HILOG(kInfo, "[TASK_CHECK] Running rep_task {} on node {}",
-              (void*)task->rctx_.ret_task_addr_, CHI_RPC->node_id_);
-      }
       if (route == TaskRouteMode::kRemoteWorker) {
         task->SetRemote();
       }
@@ -565,6 +561,10 @@ class Worker {
         lane->pop();
       } else {
         if (active_.push<TYPE>(PrivateTaskQueueEntry{task, dom_query})) {
+          if (task->ShouldSignalRemoteComplete()) {
+            HILOG(kInfo, "[TASK_CHECK] Running rep_task {} on node {}",
+                  (void*)task->rctx_.ret_task_addr_, CHI_RPC->node_id_);
+          }
           lane->pop();
         } else {
           break;
