@@ -12,12 +12,7 @@ add_library(chimaera_client SHARED
         ${CMAKE_CURRENT_SOURCE_DIR}/chimaera_client.cc
         ../benchmark/test_latency.cc)
 target_link_libraries(chimaera_client
-  ${HermesShm_LIBRARIES}
-  yaml-cpp
-  cereal::cereal
-  thallium
-  -ldl -lrt -lc -pthread
-  ${ALLOCATOR_LIBRARIES})
+  ${Chimaera_CLIENT_LIBRARIES_})
 
 #------------------------------------------------------------------------------
 # Build Chimaera Runtime Library
@@ -27,7 +22,7 @@ add_library(chimaera_runtime
         chimaera_runtime.cc
         ${ALLOCATOR_LIBRARIES})
 add_dependencies(chimaera_runtime ${Chimaera_CLIENT_DEPS})
-target_link_libraries(chimaera_runtime thallium ${Chimaera_CLIENT_LIBRARIES})
+target_link_libraries(chimaera_runtime ${Chimaera_RUNTIME_LIBRARIES_})
 target_compile_definitions(chimaera_runtime PRIVATE ${Chimaera_RUNTIME_DEFINITIONS})
 #------------------------------------------------------------------------------
 # Build Chimaera Runtime Start Function
