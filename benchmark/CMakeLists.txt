@@ -25,14 +25,18 @@ target_compile_definitions(bench_chimaera_latency PUBLIC ${TEST_OPTS})
 
 add_executable(bench_chimaera_bw
         test_bw.cc
-        ../include/chimaera/work_orchestrator/comutex.h
-        ../include/chimaera/util/key_set.h
-        ../include/chimaera/util/key_queue.h
 )
 add_dependencies(bench_chimaera_bw ${Chimaera_CLIENT_DEPS})
 target_link_libraries(bench_chimaera_bw ${TEST_LIBS})
 target_compile_definitions(bench_chimaera_bw PUBLIC ${TEST_OPTS})
 
+
+add_executable(bench_zlib
+        test_zlib.cc
+)
+add_dependencies(bench_zlib ${Chimaera_CLIENT_DEPS})
+target_link_libraries(bench_zlib ${TEST_LIBS})
+target_compile_definitions(bench_zlib PUBLIC ${TEST_OPTS})
 
 #------------------------------------------------------------------------------
 # Test Cases
@@ -48,6 +52,7 @@ target_compile_definitions(bench_chimaera_bw PUBLIC ${TEST_OPTS})
 install(TARGETS
         bench_chimaera_latency
         bench_chimaera_bw
+        bench_zlib
         EXPORT
         ${CHIMAERA_EXPORTED_TARGETS}
         LIBRARY DESTINATION ${CHIMAERA_INSTALL_LIB_DIR}
