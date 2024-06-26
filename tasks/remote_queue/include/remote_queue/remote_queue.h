@@ -27,18 +27,18 @@ class Client : public TaskLibClient {
   void AsyncCreateConstruct(CreateTask *task,
                             const TaskNode &task_node,
                             const DomainQuery &dom_query,
-                            const DomainQuery &scope_query,
+                            const DomainQuery &affinity,
                             const std::string &pool_name,
                             const CreateContext &ctx) {
     CHI_CLIENT->ConstructTask<CreateTask>(
-        task, task_node, dom_query, scope_query, pool_name, ctx);
+        task, task_node, dom_query, affinity, pool_name, ctx);
   }
   void CreateRoot(const DomainQuery &dom_query,
-                  const DomainQuery &scope_query,
+                  const DomainQuery &affinity,
                   const std::string &pool_name,
                   const CreateContext &ctx = CreateContext()) {
     LPointer<CreateTask> task = AsyncCreateRoot(
-        dom_query, scope_query, pool_name, ctx);
+        dom_query, affinity, pool_name, ctx);
     task->Wait();
     Init(task->ctx_.id_);
     CHI_CLIENT->DelTask(task);

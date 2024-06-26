@@ -120,7 +120,7 @@ class Server : public TaskLib {
       LPointer<Task> rep_task;
       Container *exec = CHI_TASK_REGISTRY->GetAnyContainer(
           orig_task->pool_);
-      exec->CopyStart(orig_task->method_, orig_task, rep_task, deep);
+      exec->NewCopyStart(orig_task->method_, orig_task, rep_task, deep);
       if (res_query.dom_.flags_.Any(DomainQuery::kLocal)) {
         exec->Monitor(MonitorMode::kReplicaStart, orig_task, rctx);
       }

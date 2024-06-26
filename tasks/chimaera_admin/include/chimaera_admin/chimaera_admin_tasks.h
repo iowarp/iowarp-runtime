@@ -80,7 +80,7 @@ class CreateContainerPhase {
 struct CreateContainerTask : public Task, TaskFlags<TF_SRL_SYM> {
   IN hipc::string lib_name_;
   IN hipc::string pool_name_;
-  IN DomainQuery scope_query_;
+  IN DomainQuery affinity_;
   IN bool root_ = true;
   INOUT CreateContext ctx_;
 
@@ -95,7 +95,7 @@ struct CreateContainerTask : public Task, TaskFlags<TF_SRL_SYM> {
   CreateContainerTask(hipc::Allocator *alloc,
                       const TaskNode &task_node,
                       const DomainQuery &dom_query,
-                      const DomainQuery &scope_query,
+                      const DomainQuery &affinity,
                       const std::string &pool_name,
                       const std::string &lib_name,
                       const CreateContext &ctx)
@@ -111,7 +111,7 @@ struct CreateContainerTask : public Task, TaskFlags<TF_SRL_SYM> {
     dom_query_ = dom_query;
 
     // Initialize
-    scope_query_ = scope_query;
+    affinity_ = affinity;
     ctx_ = ctx;
   }
 
@@ -119,26 +119,44 @@ struct CreateContainerTask : public Task, TaskFlags<TF_SRL_SYM> {
   ~CreateContainerTask() {}
 
   /** Duplicate message */
+  void CopyStart(const CreateContainerTask &other, bool deep) {
+    // Get the static container for the lib
+//    Container *exec =
+//        CHI_TASK_REGISTRY->GetStaticContainer(other.lib_name_.str());
+//    exec->CopyStart(other.method_, &other, (*this), deep);
+  }
+
+  /** (De)serialize message call */
+  template<typename Ar>
+  void SerializeStart(Ar &ar) {
+  }
+
+  /** (De)serialize message return */
+  template<typename Ar>
+  void SerializeEnd(Ar &ar) {
+  }
+
+  /** Duplicate message */
   template<typename CreateTaskT = CreateContainerTask>
-  void CopyStart(const CreateTaskT &other, bool deep) {
+  void BaseCopyStart(const CreateTaskT &other, bool deep) {
     lib_name_ = other.lib_name_;
     pool_name_ = other.pool_name_;
     ctx_ = other.ctx_;
     root_ = other.root_;
-    scope_query_ = other.scope_query_;
+    affinity_ = other.affinity_;
 //    HILOG(kInfo, "Copying CreateContainerTask: {} {} {}",
 //          lib_name_.str(), pool_name_.str(), ctx_.id_)
   }
 
   /** (De)serialize message call */
   template<typename Ar>
-  void SerializeStart(Ar &ar) {
-    ar(lib_name_, pool_name_, ctx_, root_, scope_query_);
+  void BaseSerializeStart(Ar &ar) {
+    ar(lib_name_, pool_name_, ctx_, root_, affinity_);
   }
 
   /** (De)serialize message return */
   template<typename Ar>
-  void SerializeEnd(Ar &ar) {
+  void BaseSerializeEnd(Ar &ar) {
     ar(ctx_.id_);
   }
 };
@@ -259,7 +277,7 @@ struct StopRuntimeTask : public Task, TaskFlags<TF_SRL_SYM> {
   }
 
   /** Duplicate message */
-  void CopyStart(StopRuntimeTask &other, bool deep) {
+  void CopyStart(const StopRuntimeTask &other, bool deep) {
     root_ = other.root_;
   }
 
@@ -307,7 +325,7 @@ struct SetWorkOrchestratorPolicyTask : public Task, TaskFlags<TF_SRL_SYM> {
   }
 
   /** Duplicate message */
-  void CopyStart(SetWorkOrchestratorPolicyTask &other, bool deep) {
+  void CopyStart(const SetWorkOrchestratorPolicyTask &other, bool deep) {
     policy_id_ = other.policy_id_;
   }
 
@@ -350,7 +368,7 @@ struct FlushTask : public Task, TaskFlags<TF_SRL_SYM> {
   }
 
   /** Duplicate message */
-  void CopyStart(FlushTask &other, bool deep) {
+  void CopyStart(const FlushTask &other, bool deep) {
     work_done_ = other.work_done_;
   }
 
@@ -425,7 +443,7 @@ struct UpdateDomainTask : public Task, TaskFlags<TF_SRL_SYM> {
   }
 
   /** Duplicate message */
-  void CopyStart(UpdateDomainTask &other, bool deep) {
+  void CopyStart(const UpdateDomainTask &other, bool deep) {
     ops_ = other.ops_;
   }
 

@@ -149,50 +149,121 @@ void Del(u32 method, Task *task) override {
   }
 }
 /** Duplicate a task */
-void CopyStart(u32 method, Task *orig_task, LPointer<Task> &dup_task, bool deep) override {
+void CopyStart(u32 method, const Task *orig_task, Task *dup_task, bool deep) override {
   switch (method) {
     case Method::kCreateContainer: {
-      chi::CALL_COPY_START(reinterpret_cast<CreateContainerTask*>(orig_task), dup_task, deep);
+      chi::CALL_COPY_START(
+        reinterpret_cast<const CreateContainerTask*>(orig_task), 
+        reinterpret_cast<CreateContainerTask*>(dup_task), deep);
       break;
     }
     case Method::kDestroyContainer: {
-      chi::CALL_COPY_START(reinterpret_cast<DestroyContainerTask*>(orig_task), dup_task, deep);
+      chi::CALL_COPY_START(
+        reinterpret_cast<const DestroyContainerTask*>(orig_task), 
+        reinterpret_cast<DestroyContainerTask*>(dup_task), deep);
       break;
     }
     case Method::kRegisterTaskLib: {
-      chi::CALL_COPY_START(reinterpret_cast<RegisterTaskLibTask*>(orig_task), dup_task, deep);
+      chi::CALL_COPY_START(
+        reinterpret_cast<const RegisterTaskLibTask*>(orig_task), 
+        reinterpret_cast<RegisterTaskLibTask*>(dup_task), deep);
       break;
     }
     case Method::kDestroyTaskLib: {
-      chi::CALL_COPY_START(reinterpret_cast<DestroyTaskLibTask*>(orig_task), dup_task, deep);
+      chi::CALL_COPY_START(
+        reinterpret_cast<const DestroyTaskLibTask*>(orig_task), 
+        reinterpret_cast<DestroyTaskLibTask*>(dup_task), deep);
       break;
     }
     case Method::kGetPoolId: {
-      chi::CALL_COPY_START(reinterpret_cast<GetPoolIdTask*>(orig_task), dup_task, deep);
+      chi::CALL_COPY_START(
+        reinterpret_cast<const GetPoolIdTask*>(orig_task), 
+        reinterpret_cast<GetPoolIdTask*>(dup_task), deep);
       break;
     }
     case Method::kStopRuntime: {
-      chi::CALL_COPY_START(reinterpret_cast<StopRuntimeTask*>(orig_task), dup_task, deep);
+      chi::CALL_COPY_START(
+        reinterpret_cast<const StopRuntimeTask*>(orig_task), 
+        reinterpret_cast<StopRuntimeTask*>(dup_task), deep);
       break;
     }
     case Method::kSetWorkOrchQueuePolicy: {
-      chi::CALL_COPY_START(reinterpret_cast<SetWorkOrchQueuePolicyTask*>(orig_task), dup_task, deep);
+      chi::CALL_COPY_START(
+        reinterpret_cast<const SetWorkOrchQueuePolicyTask*>(orig_task), 
+        reinterpret_cast<SetWorkOrchQueuePolicyTask*>(dup_task), deep);
       break;
     }
     case Method::kSetWorkOrchProcPolicy: {
-      chi::CALL_COPY_START(reinterpret_cast<SetWorkOrchProcPolicyTask*>(orig_task), dup_task, deep);
+      chi::CALL_COPY_START(
+        reinterpret_cast<const SetWorkOrchProcPolicyTask*>(orig_task), 
+        reinterpret_cast<SetWorkOrchProcPolicyTask*>(dup_task), deep);
       break;
     }
     case Method::kFlush: {
-      chi::CALL_COPY_START(reinterpret_cast<FlushTask*>(orig_task), dup_task, deep);
+      chi::CALL_COPY_START(
+        reinterpret_cast<const FlushTask*>(orig_task), 
+        reinterpret_cast<FlushTask*>(dup_task), deep);
       break;
     }
     case Method::kGetDomainSize: {
-      chi::CALL_COPY_START(reinterpret_cast<GetDomainSizeTask*>(orig_task), dup_task, deep);
+      chi::CALL_COPY_START(
+        reinterpret_cast<const GetDomainSizeTask*>(orig_task), 
+        reinterpret_cast<GetDomainSizeTask*>(dup_task), deep);
       break;
     }
     case Method::kUpdateDomain: {
-      chi::CALL_COPY_START(reinterpret_cast<UpdateDomainTask*>(orig_task), dup_task, deep);
+      chi::CALL_COPY_START(
+        reinterpret_cast<const UpdateDomainTask*>(orig_task), 
+        reinterpret_cast<UpdateDomainTask*>(dup_task), deep);
+      break;
+    }
+  }
+}
+/** Duplicate a task */
+void NewCopyStart(u32 method, const Task *orig_task, LPointer<Task> &dup_task, bool deep) override {
+  switch (method) {
+    case Method::kCreateContainer: {
+      chi::CALL_NEW_COPY_START(reinterpret_cast<const CreateContainerTask*>(orig_task), dup_task, deep);
+      break;
+    }
+    case Method::kDestroyContainer: {
+      chi::CALL_NEW_COPY_START(reinterpret_cast<const DestroyContainerTask*>(orig_task), dup_task, deep);
+      break;
+    }
+    case Method::kRegisterTaskLib: {
+      chi::CALL_NEW_COPY_START(reinterpret_cast<const RegisterTaskLibTask*>(orig_task), dup_task, deep);
+      break;
+    }
+    case Method::kDestroyTaskLib: {
+      chi::CALL_NEW_COPY_START(reinterpret_cast<const DestroyTaskLibTask*>(orig_task), dup_task, deep);
+      break;
+    }
+    case Method::kGetPoolId: {
+      chi::CALL_NEW_COPY_START(reinterpret_cast<const GetPoolIdTask*>(orig_task), dup_task, deep);
+      break;
+    }
+    case Method::kStopRuntime: {
+      chi::CALL_NEW_COPY_START(reinterpret_cast<const StopRuntimeTask*>(orig_task), dup_task, deep);
+      break;
+    }
+    case Method::kSetWorkOrchQueuePolicy: {
+      chi::CALL_NEW_COPY_START(reinterpret_cast<const SetWorkOrchQueuePolicyTask*>(orig_task), dup_task, deep);
+      break;
+    }
+    case Method::kSetWorkOrchProcPolicy: {
+      chi::CALL_NEW_COPY_START(reinterpret_cast<const SetWorkOrchProcPolicyTask*>(orig_task), dup_task, deep);
+      break;
+    }
+    case Method::kFlush: {
+      chi::CALL_NEW_COPY_START(reinterpret_cast<const FlushTask*>(orig_task), dup_task, deep);
+      break;
+    }
+    case Method::kGetDomainSize: {
+      chi::CALL_NEW_COPY_START(reinterpret_cast<const GetDomainSizeTask*>(orig_task), dup_task, deep);
+      break;
+    }
+    case Method::kUpdateDomain: {
+      chi::CALL_NEW_COPY_START(reinterpret_cast<const UpdateDomainTask*>(orig_task), dup_task, deep);
       break;
     }
   }

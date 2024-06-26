@@ -30,7 +30,8 @@ namespace chi {
 /** All information needed to create a trait */
 struct TaskLibInfo {
   void *lib_;  /**< The dlfcn library */
-  alloc_state_t alloc_state_;   /**< The create task function */
+  alloc_state_t alloc_state_;   /**< The static create function */
+  new_state_t new_state_;   /**< The non-static create function */
   get_task_lib_name_t get_task_lib_name; /**< The get task name function */
   Container *static_state_;  /**< An allocation for static functions */
 
@@ -44,27 +45,46 @@ struct TaskLibInfo {
     }
   }
 
-  /** Emplace constructor */
-  explicit TaskLibInfo(void *lib,
-                       alloc_state_t alloc_state,
-                       get_task_lib_name_t get_task_name)
-      : lib_(lib), alloc_state_(alloc_state),
-      get_task_lib_name(get_task_name) {}
-
   /** Copy constructor */
-  TaskLibInfo(const TaskLibInfo &other)
-      : lib_(other.lib_),
-        alloc_state_(other.alloc_state_),
-        get_task_lib_name(other.get_task_lib_name) {}
+  TaskLibInfo(const TaskLibInfo &other) {
+    lib_ = other.lib_;
+    alloc_state_ = other.alloc_state_;
+    new_state_ = other.new_state_;
+    get_task_lib_name = other.get_task_lib_name;
+    static_state_ = other.static_state_;
+  }
 
   /** Move constructor */
-  TaskLibInfo(TaskLibInfo &&other) noexcept
-      : lib_(other.lib_),
-        alloc_state_(other.alloc_state_),
-        get_task_lib_name(other.get_task_lib_name) {
-    other.lib_ = nullptr;
-    other.alloc_state_ = nullptr;
-    other.get_task_lib_name = nullptr;
+  TaskLibInfo(TaskLibInfo &&other) noexcept {
+    lib_ = other.lib_;
+    alloc_state_ = other.alloc_state_;
+    new_state_ = other.new_state_;
+    get_task_lib_name = other.get_task_lib_name;
+    static_state_ = other.static_state_;
+  }
+
+  /** Copy assignment operator */
+  TaskLibInfo& operator=(const TaskLibInfo &other) {
+    if (this != &other) {
+      lib_ = other.lib_;
+      alloc_state_ = other.alloc_state_;
+      new_state_ = other.new_state_;
+      get_task_lib_name = other.get_task_lib_name;
+      static_state_ = other.static_state_;
+    }
+    return *this;
+  }
+
+  /** Move assignment operator */
+  TaskLibInfo& operator=(TaskLibInfo &&other) noexcept {
+    if (this != &other) {
+      lib_ = other.lib_;
+      alloc_state_ = other.alloc_state_;
+      new_state_ = other.new_state_;
+      get_task_lib_name = other.get_task_lib_name;
+      static_state_ = other.static_state_;
+    }
+    return *this;
   }
 };
 
@@ -158,6 +178,8 @@ class TaskRegistry {
         HELOG(kError, "Could not open the lib library: {}. Reason: {}", lib_path, dlerror());
         return false;
       }
+
+      // Get the allocate state function
       info.alloc_state_ = (alloc_state_t)dlsym(
           info.lib_, "alloc_state");
       if (!info.alloc_state_) {
@@ -165,6 +187,17 @@ class TaskRegistry {
               lib_path);
         return false;
       }
+
+      // Get the new state function
+      info.new_state_ = (new_state_t)dlsym(
+          info.lib_, "new_state");
+      if (!info.new_state_) {
+        HELOG(kError, "The lib {} does not have alloc_state symbol",
+              lib_path);
+        return false;
+      }
+
+      // Get the task lib name function
       info.get_task_lib_name = (get_task_lib_name_t)dlsym(
           info.lib_, "get_task_lib_name");
       if (!info.get_task_lib_name) {
@@ -172,12 +205,15 @@ class TaskRegistry {
               lib_path);
         return false;
       }
+
+      // Check if the lib is already loaded
       std::string task_lib_name = info.get_task_lib_name();
       if (libs_.find(task_lib_name) != libs_.end()) {
         return true;
       }
       HILOG(kInfo, "(node {}) Finished loading the lib: {}",
-            CHI_RPC->node_id_, task_lib_name)
+            CHI_RPC->node_id_, task_lib_name);
+      info.static_state_ = info.alloc_state_();
       libs_.emplace(task_lib_name, std::move(info));
       return true;
     }
@@ -199,14 +235,6 @@ class TaskRegistry {
   HSHM_ALWAYS_INLINE
   PoolId CreatePoolId() {
     return PoolId(node_id_, unique_->fetch_add(1));
-  }
-
-  /** Check if task state exists by ID */
-  HSHM_ALWAYS_INLINE
-  bool ContainerExists(const PoolId &pool_id) {
-    ScopedRwReadLock lock(lock_, 0);
-    auto it = pools_.find(pool_id);
-    return it != pools_.end();
   }
 
   /**
@@ -240,7 +268,7 @@ class TaskRegistry {
     if (pools_.find(pool_id) == pools_.end()) {
       // Allocate the state
       pools_[pool_id] = ContainerInfo();
-      Container *exec = info.alloc_state_(&pool_id, pool_name);
+      Container *exec = info.new_state_(&pool_id, pool_name);
       if (!exec) {
         HELOG(kError, "Could not create the task state: {}", pool_name);
         task->SetModuleComplete();
@@ -266,14 +294,13 @@ class TaskRegistry {
     std::unordered_map<ContainerId, Container*> &states =
         pools_[pool_id].containers_;
     for (const SubDomainId &container_id : containers) {
-
       // Don't repeat if state exists
       if (states.find(container_id.minor_) != states.end()) {
         continue;
       }
 
       // Allocate the state
-      Container *exec = info.alloc_state_(&pool_id, pool_name);
+      Container *exec = info.new_state_(&pool_id, pool_name);
       if (!exec) {
         HELOG(kError, "Could not create the task state: {}", pool_name);
         task->SetModuleComplete();
@@ -320,6 +347,16 @@ class TaskRegistry {
       return PoolId::GetNull();
     }
     return it->second;
+  }
+
+  /** Get the static state instance */
+  Container* GetStaticContainer(const std::string &task_name) {
+    ScopedRwReadLock lock(lock_, 0);
+    auto it = libs_.find(task_name);
+    if (it == libs_.end()) {
+      return nullptr;
+    }
+    return it->second.static_state_;
   }
 
   /** Get a task state instance */

@@ -408,16 +408,26 @@ Async##CUSTOM##Root(Args&& ...args) {\
 
 /** Call duplicate if applicable */
 template<typename TaskT>
-constexpr inline void CALL_COPY_START(TaskT *orig_task,
-                                      LPointer<Task> &udup_task,
+constexpr inline void CALL_COPY_START(const TaskT *orig_task,
+                                      TaskT *dup_task,
                                       bool deep) {
   if constexpr (TaskT::REPLICA) {
-    LPointer<TaskT> dup_task = CHI_CLIENT->NewEmptyTask<TaskT>();
     dup_task->task_dup(*orig_task);
     if (!deep) {
       dup_task->UnsetDataOwner();
     }
     dup_task->CopyStart(*orig_task, deep);
+  }
+}
+
+/** Call duplicate if applicable */
+template<typename TaskT>
+constexpr inline void CALL_NEW_COPY_START(const TaskT *orig_task,
+                                          LPointer<Task> &udup_task,
+                                          bool deep) {
+  if constexpr (TaskT::REPLICA) {
+    LPointer<TaskT> dup_task = CHI_CLIENT->NewEmptyTask<TaskT>();
+    CALL_COPY_START(orig_task, dup_task.ptr_, deep);
     udup_task.ptr_ = (Task *) dup_task.ptr_;
     udup_task.shm_ = dup_task.shm_;
   }

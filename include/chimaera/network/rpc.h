@@ -282,13 +282,13 @@ class RpcContext {
   std::vector<UpdateDomainInfo>
   CreateDefaultDomains(const PoolId &task_state,
                        const PoolId &admin_state,
-                       const DomainQuery &scope_query,
+                       const DomainQuery &affinity,
                        u32 global_containers,
                        u32 local_containers_pn) {
     std::vector<UpdateDomainInfo> ops;
     // Resolve the admin scope domain
     std::vector<ResolvedDomainQuery> dom = ResolveDomainQuery(
-        admin_state, scope_query, true);
+        admin_state, affinity, true);
     size_t dom_size = dom.size();
     if (dom_size == 0) {
       for (u32 i = 1; i <= hosts_.size(); ++i) {

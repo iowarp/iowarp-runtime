@@ -97,13 +97,29 @@ def refresh_methods(TASK_ROOT):
 
     ## Create the CopyStart method
     lines += ['/** Duplicate a task */',
-              'void CopyStart(u32 method, Task *orig_task, LPointer<Task> &dup_task, bool deep) override {',
+              'void CopyStart(u32 method, const Task *orig_task, Task *dup_task, bool deep) override {',
               '  switch (method) {']
     for method_enum_name, method_off in methods:
         method_name = method_enum_name.replace('k', '', 1)
         task_name = method_name + "Task"
         lines += [f'    case Method::{method_enum_name}: {{',
-                  f'      chi::CALL_COPY_START(reinterpret_cast<{task_name}*>(orig_task), dup_task, deep);',
+                  f'      chi::CALL_COPY_START(',
+                  f'        reinterpret_cast<const {task_name}*>(orig_task), ',
+                  f'        reinterpret_cast<{task_name}*>(dup_task), deep);',
+                  f'      break;',
+                  f'    }}']
+    lines += ['  }']
+    lines += ['}']
+
+    ## Create the CopyStart method
+    lines += ['/** Duplicate a task */',
+              'void NewCopyStart(u32 method, const Task *orig_task, LPointer<Task> &dup_task, bool deep) override {',
+              '  switch (method) {']
+    for method_enum_name, method_off in methods:
+        method_name = method_enum_name.replace('k', '', 1)
+        task_name = method_name + "Task"
+        lines += [f'    case Method::{method_enum_name}: {{',
+                  f'      chi::CALL_NEW_COPY_START(reinterpret_cast<const {task_name}*>(orig_task), dup_task, deep);',
                   f'      break;',
                   f'    }}']
     lines += ['  }']

@@ -69,11 +69,17 @@ class TaskLib {
   /** Delete a task */
   virtual void Del(u32 method, Task *task) = 0;
 
-  /** Duplicate a task */
+  /** Duplicate a task into an existing task */
   virtual void CopyStart(u32 method,
-                         Task *orig_task,
-                         LPointer<Task> &dup_task,
+                         const Task *orig_task,
+                         Task *dup_task,
                          bool deep) = 0;
+
+  /** Duplicate a task into a new task */
+  virtual void NewCopyStart(u32 method,
+                            const Task *orig_task,
+                            LPointer<Task> &dup_task,
+                            bool deep) = 0;
 
   /** Serialize a task when initially pushing into remote */
   virtual void SaveStart(u32 method, BinaryOutputArchive<true> &ar, Task *task) = 0;
@@ -122,7 +128,9 @@ class TaskLibClient {
 
 extern "C" {
 /** Allocate a state (no construction) */
-typedef Container* (*alloc_state_t)(
+typedef Container* (*alloc_state_t)();
+/** New state (with construction) */
+typedef Container* (*new_state_t)(
     const chi::PoolId *pool_id, const char *pool_name);
 /** Get the name of a task */
 typedef const char* (*get_task_lib_name_t)(void);
@@ -132,6 +140,11 @@ typedef const char* (*get_task_lib_name_t)(void);
 #define CHI_TASK_CC(TRAIT_CLASS, TASK_NAME)\
   extern "C" {\
   void* alloc_state(const chi::PoolId *pool_id, const char *pool_name) {\
+    chi::Container *exec = reinterpret_cast<chi::Container*>(\
+        new TYPE_UNWRAP(TRAIT_CLASS)());\
+    return exec;\
+  }\
+  void* new_state(const chi::PoolId *pool_id, const char *pool_name) {\
     chi::Container *exec = reinterpret_cast<chi::Container*>(\
         new TYPE_UNWRAP(TRAIT_CLASS)());\
     exec->Init(*pool_id, CHI_CLIENT->GetQueueId(*pool_id), pool_name);\

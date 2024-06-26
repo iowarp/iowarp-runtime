@@ -173,6 +173,7 @@ include_directories(${CMAKE_SOURCE_DIR}/tasks/remote_queue/include)
 include_directories(${CMAKE_SOURCE_DIR}/tasks/worch_proc_round_robin/include)
 include_directories(${CMAKE_SOURCE_DIR}/tasks/worch_queue_round_robin/include)
 include_directories(${CMAKE_SOURCE_DIR}/tasks/proc_queue/include)
+include_directories(${CMAKE_SOURCE_DIR}/tasks/bdev/include)
 
 set(Chimaera_CLIENT_LIBRARIES_
         ${HermesShm_LIBRARIES}

@@ -53,18 +53,41 @@ void Del(u32 method, Task *task) override {
   }
 }
 /** Duplicate a task */
-void CopyStart(u32 method, Task *orig_task, LPointer<Task> &dup_task, bool deep) override {
+void CopyStart(u32 method, const Task *orig_task, Task *dup_task, bool deep) override {
   switch (method) {
     case Method::kCreate: {
-      chi::CALL_COPY_START(reinterpret_cast<CreateTask*>(orig_task), dup_task, deep);
+      chi::CALL_COPY_START(
+        reinterpret_cast<const CreateTask*>(orig_task), 
+        reinterpret_cast<CreateTask*>(dup_task), deep);
       break;
     }
     case Method::kDestruct: {
-      chi::CALL_COPY_START(reinterpret_cast<DestructTask*>(orig_task), dup_task, deep);
+      chi::CALL_COPY_START(
+        reinterpret_cast<const DestructTask*>(orig_task), 
+        reinterpret_cast<DestructTask*>(dup_task), deep);
       break;
     }
     case Method::kSchedule: {
-      chi::CALL_COPY_START(reinterpret_cast<ScheduleTask*>(orig_task), dup_task, deep);
+      chi::CALL_COPY_START(
+        reinterpret_cast<const ScheduleTask*>(orig_task), 
+        reinterpret_cast<ScheduleTask*>(dup_task), deep);
+      break;
+    }
+  }
+}
+/** Duplicate a task */
+void NewCopyStart(u32 method, const Task *orig_task, LPointer<Task> &dup_task, bool deep) override {
+  switch (method) {
+    case Method::kCreate: {
+      chi::CALL_NEW_COPY_START(reinterpret_cast<const CreateTask*>(orig_task), dup_task, deep);
+      break;
+    }
+    case Method::kDestruct: {
+      chi::CALL_NEW_COPY_START(reinterpret_cast<const DestructTask*>(orig_task), dup_task, deep);
+      break;
+    }
+    case Method::kSchedule: {
+      chi::CALL_NEW_COPY_START(reinterpret_cast<const ScheduleTask*>(orig_task), dup_task, deep);
       break;
     }
   }

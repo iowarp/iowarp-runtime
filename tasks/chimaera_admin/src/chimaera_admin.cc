@@ -101,7 +101,7 @@ class Server : public TaskLib {
     std::vector<UpdateDomainInfo> ops = CHI_RPC->CreateDefaultDomains(
         task->ctx_.id_,
         CHI_QM_CLIENT->admin_pool_id_,
-        task->scope_query_,
+        task->affinity_,
         global_containers,
         local_containers_pn);
     CHI_RPC->UpdateDomains(ops);
@@ -120,12 +120,12 @@ class Server : public TaskLib {
       // Broadcast the state creation to all nodes
       Container *exec = CHI_TASK_REGISTRY->GetAnyContainer(task->ctx_.id_);
       LPointer<Task> bcast;
-      exec->CopyStart(Method::kCreate, task, bcast, true);
+      exec->NewCopyStart(Method::kCreate, task, bcast, true);
       auto *bcast_ptr = reinterpret_cast<CreateContainerTask *>(
           bcast.ptr_);
       bcast_ptr->task_node_ += 1;
       bcast_ptr->root_ = false;
-      bcast_ptr->dom_query_ = bcast_ptr->scope_query_;
+      bcast_ptr->dom_query_ = bcast_ptr->affinity_;
       bcast_ptr->method_ = Method::kCreateContainer;
       bcast_ptr->pool_ = CHI_ADMIN->id_;
       MultiQueue *queue =

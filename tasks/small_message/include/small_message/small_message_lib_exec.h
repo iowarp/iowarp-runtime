@@ -65,22 +65,51 @@ void Del(u32 method, Task *task) override {
   }
 }
 /** Duplicate a task */
-void CopyStart(u32 method, Task *orig_task, LPointer<Task> &dup_task, bool deep) override {
+void CopyStart(u32 method, const Task *orig_task, Task *dup_task, bool deep) override {
   switch (method) {
     case Method::kCreate: {
-      chi::CALL_COPY_START(reinterpret_cast<CreateTask*>(orig_task), dup_task, deep);
+      chi::CALL_COPY_START(
+        reinterpret_cast<const CreateTask*>(orig_task), 
+        reinterpret_cast<CreateTask*>(dup_task), deep);
       break;
     }
     case Method::kDestruct: {
-      chi::CALL_COPY_START(reinterpret_cast<DestructTask*>(orig_task), dup_task, deep);
+      chi::CALL_COPY_START(
+        reinterpret_cast<const DestructTask*>(orig_task), 
+        reinterpret_cast<DestructTask*>(dup_task), deep);
       break;
     }
     case Method::kMd: {
-      chi::CALL_COPY_START(reinterpret_cast<MdTask*>(orig_task), dup_task, deep);
+      chi::CALL_COPY_START(
+        reinterpret_cast<const MdTask*>(orig_task), 
+        reinterpret_cast<MdTask*>(dup_task), deep);
       break;
     }
     case Method::kIo: {
-      chi::CALL_COPY_START(reinterpret_cast<IoTask*>(orig_task), dup_task, deep);
+      chi::CALL_COPY_START(
+        reinterpret_cast<const IoTask*>(orig_task), 
+        reinterpret_cast<IoTask*>(dup_task), deep);
+      break;
+    }
+  }
+}
+/** Duplicate a task */
+void NewCopyStart(u32 method, const Task *orig_task, LPointer<Task> &dup_task, bool deep) override {
+  switch (method) {
+    case Method::kCreate: {
+      chi::CALL_NEW_COPY_START(reinterpret_cast<const CreateTask*>(orig_task), dup_task, deep);
+      break;
+    }
+    case Method::kDestruct: {
+      chi::CALL_NEW_COPY_START(reinterpret_cast<const DestructTask*>(orig_task), dup_task, deep);
+      break;
+    }
+    case Method::kMd: {
+      chi::CALL_NEW_COPY_START(reinterpret_cast<const MdTask*>(orig_task), dup_task, deep);
+      break;
+    }
+    case Method::kIo: {
+      chi::CALL_NEW_COPY_START(reinterpret_cast<const IoTask*>(orig_task), dup_task, deep);
       break;
     }
   }

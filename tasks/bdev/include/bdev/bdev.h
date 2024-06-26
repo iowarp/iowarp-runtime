@@ -10,14 +10,14 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef HRUN_TASK_NAME_H_
-#define HRUN_TASK_NAME_H_
+#ifndef HRUN_bdev_H_
+#define HRUN_bdev_H_
 
-#include "TASK_NAME_tasks.h"
+#include "bdev_tasks.h"
 
-namespace chi::TASK_NAME {
+namespace chi::bdev {
 
-/** Create TASK_NAME requests */
+/** Create bdev requests */
 class Client : public TaskLibClient {
 
  public:
@@ -33,16 +33,21 @@ class Client : public TaskLibClient {
                             const DomainQuery &dom_query,
                             const DomainQuery &affinity,
                             const std::string &pool_name,
-                            const CreateContext &ctx) {
+                            const CreateContext &ctx,
+                            const std::string &path,
+                            size_t max_size) {
     CHI_CLIENT->ConstructTask<CreateTask>(
-        task, task_node, dom_query, affinity, pool_name, ctx);
+        task, task_node, dom_query, affinity, pool_name, ctx,
+        path, max_size);
   }
   void CreateRoot(const DomainQuery &dom_query,
                   const DomainQuery &affinity,
                   const std::string &pool_name,
+                  const std::string &path,
+                  size_t max_size,
                   const CreateContext &ctx = CreateContext()) {
     LPointer<CreateTask> task = AsyncCreateRoot(
-        dom_query, affinity, pool_name, ctx);
+        dom_query, affinity, pool_name, ctx, path, max_size);
     task->Wait();
     Init(task->ctx_.id_);
     CHI_CLIENT->DelTask(task);
@@ -57,20 +62,27 @@ class Client : public TaskLibClient {
 
   /** Call a custom method */
   HSHM_ALWAYS_INLINE
-  void AsyncCustomConstruct(CustomTask *task,
-                            const TaskNode &task_node,
-                            const DomainQuery &dom_query) {
-    CHI_CLIENT->ConstructTask<CustomTask>(
-        task, task_node, dom_query, id_);
+  void AsyncWriteConstruct(WriteTask *task,
+                           const TaskNode &task_node,
+                           const DomainQuery &dom_query,
+                           const hipc::Pointer &data,
+                           size_t size,
+                           size_t off) {
+    CHI_CLIENT->ConstructTask<WriteTask>(
+        task, task_node, dom_query, id_,
+        data, size, off);
   }
   HSHM_ALWAYS_INLINE
-  void CustomRoot(const DomainQuery &dom_query) {
-    LPointer<CustomTask> task = AsyncCustomRoot(dom_query);
+  void WriteRoot(const DomainQuery &dom_query,
+                 const hipc::Pointer &data,
+                 size_t size,
+                 size_t off) {
+    LPointer<WriteTask> task = AsyncWriteRoot(dom_query, data, size, off);
     task.ptr_->Wait();
   }
-  CHI_TASK_METHODS(Custom);
+  CHI_TASK_METHODS(Write);
 };
 
 }  // namespace chi
 
-#endif  // HRUN_TASK_NAME_H_
+#endif  // HRUN_bdev_H_

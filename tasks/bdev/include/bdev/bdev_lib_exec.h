@@ -1,5 +1,5 @@
-#ifndef HRUN_WORCH_PROC_ROUND_ROBIN_LIB_EXEC_H_
-#define HRUN_WORCH_PROC_ROUND_ROBIN_LIB_EXEC_H_
+#ifndef HRUN_BDEV_LIB_EXEC_H_
+#define HRUN_BDEV_LIB_EXEC_H_
 
 /** Execute a task */
 void Run(u32 method, Task *task, RunContext &rctx) override {
@@ -12,8 +12,12 @@ void Run(u32 method, Task *task, RunContext &rctx) override {
       Destruct(reinterpret_cast<DestructTask *>(task), rctx);
       break;
     }
-    case Method::kSchedule: {
-      Schedule(reinterpret_cast<ScheduleTask *>(task), rctx);
+    case Method::kWrite: {
+      Write(reinterpret_cast<WriteTask *>(task), rctx);
+      break;
+    }
+    case Method::kRead: {
+      Read(reinterpret_cast<ReadTask *>(task), rctx);
       break;
     }
   }
@@ -29,8 +33,12 @@ void Monitor(u32 mode, Task *task, RunContext &rctx) override {
       MonitorDestruct(mode, reinterpret_cast<DestructTask *>(task), rctx);
       break;
     }
-    case Method::kSchedule: {
-      MonitorSchedule(mode, reinterpret_cast<ScheduleTask *>(task), rctx);
+    case Method::kWrite: {
+      MonitorWrite(mode, reinterpret_cast<WriteTask *>(task), rctx);
+      break;
+    }
+    case Method::kRead: {
+      MonitorRead(mode, reinterpret_cast<ReadTask *>(task), rctx);
       break;
     }
   }
@@ -46,8 +54,12 @@ void Del(u32 method, Task *task) override {
       CHI_CLIENT->DelTask<DestructTask>(reinterpret_cast<DestructTask *>(task));
       break;
     }
-    case Method::kSchedule: {
-      CHI_CLIENT->DelTask<ScheduleTask>(reinterpret_cast<ScheduleTask *>(task));
+    case Method::kWrite: {
+      CHI_CLIENT->DelTask<WriteTask>(reinterpret_cast<WriteTask *>(task));
+      break;
+    }
+    case Method::kRead: {
+      CHI_CLIENT->DelTask<ReadTask>(reinterpret_cast<ReadTask *>(task));
       break;
     }
   }
@@ -67,10 +79,16 @@ void CopyStart(u32 method, const Task *orig_task, Task *dup_task, bool deep) ove
         reinterpret_cast<DestructTask*>(dup_task), deep);
       break;
     }
-    case Method::kSchedule: {
+    case Method::kWrite: {
       chi::CALL_COPY_START(
-        reinterpret_cast<const ScheduleTask*>(orig_task), 
-        reinterpret_cast<ScheduleTask*>(dup_task), deep);
+        reinterpret_cast<const WriteTask*>(orig_task), 
+        reinterpret_cast<WriteTask*>(dup_task), deep);
+      break;
+    }
+    case Method::kRead: {
+      chi::CALL_COPY_START(
+        reinterpret_cast<const ReadTask*>(orig_task), 
+        reinterpret_cast<ReadTask*>(dup_task), deep);
       break;
     }
   }
@@ -86,8 +104,12 @@ void NewCopyStart(u32 method, const Task *orig_task, LPointer<Task> &dup_task, b
       chi::CALL_NEW_COPY_START(reinterpret_cast<const DestructTask*>(orig_task), dup_task, deep);
       break;
     }
-    case Method::kSchedule: {
-      chi::CALL_NEW_COPY_START(reinterpret_cast<const ScheduleTask*>(orig_task), dup_task, deep);
+    case Method::kWrite: {
+      chi::CALL_NEW_COPY_START(reinterpret_cast<const WriteTask*>(orig_task), dup_task, deep);
+      break;
+    }
+    case Method::kRead: {
+      chi::CALL_NEW_COPY_START(reinterpret_cast<const ReadTask*>(orig_task), dup_task, deep);
       break;
     }
   }
@@ -103,8 +125,12 @@ void SaveStart(u32 method, BinaryOutputArchive<true> &ar, Task *task) override {
       ar << *reinterpret_cast<DestructTask*>(task);
       break;
     }
-    case Method::kSchedule: {
-      ar << *reinterpret_cast<ScheduleTask*>(task);
+    case Method::kWrite: {
+      ar << *reinterpret_cast<WriteTask*>(task);
+      break;
+    }
+    case Method::kRead: {
+      ar << *reinterpret_cast<ReadTask*>(task);
       break;
     }
   }
@@ -123,9 +149,14 @@ TaskPointer LoadStart(u32 method, BinaryInputArchive<true> &ar) override {
       ar >> *reinterpret_cast<DestructTask*>(task_ptr.ptr_);
       break;
     }
-    case Method::kSchedule: {
-      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<ScheduleTask>(task_ptr.shm_);
-      ar >> *reinterpret_cast<ScheduleTask*>(task_ptr.ptr_);
+    case Method::kWrite: {
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<WriteTask>(task_ptr.shm_);
+      ar >> *reinterpret_cast<WriteTask*>(task_ptr.ptr_);
+      break;
+    }
+    case Method::kRead: {
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<ReadTask>(task_ptr.shm_);
+      ar >> *reinterpret_cast<ReadTask*>(task_ptr.ptr_);
       break;
     }
   }
@@ -142,8 +173,12 @@ void SaveEnd(u32 method, BinaryOutputArchive<false> &ar, Task *task) override {
       ar << *reinterpret_cast<DestructTask*>(task);
       break;
     }
-    case Method::kSchedule: {
-      ar << *reinterpret_cast<ScheduleTask*>(task);
+    case Method::kWrite: {
+      ar << *reinterpret_cast<WriteTask*>(task);
+      break;
+    }
+    case Method::kRead: {
+      ar << *reinterpret_cast<ReadTask*>(task);
       break;
     }
   }
@@ -159,11 +194,15 @@ void LoadEnd(u32 method, BinaryInputArchive<false> &ar, Task *task) override {
       ar >> *reinterpret_cast<DestructTask*>(task);
       break;
     }
-    case Method::kSchedule: {
-      ar >> *reinterpret_cast<ScheduleTask*>(task);
+    case Method::kWrite: {
+      ar >> *reinterpret_cast<WriteTask*>(task);
+      break;
+    }
+    case Method::kRead: {
+      ar >> *reinterpret_cast<ReadTask*>(task);
       break;
     }
   }
 }
 
-#endif  // HRUN_WORCH_PROC_ROUND_ROBIN_METHODS_H_
+#endif  // HRUN_BDEV_METHODS_H_
