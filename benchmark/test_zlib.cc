@@ -3,8 +3,20 @@
 //
 #include <hermes_shm/util/config_parse.h>
 #include "mpi.h"
-#include "hermes_shm/util/compress/zlib.h"
+#include "hermes_shm/util/compress/snappy.h"
 #include "hermes_shm/util/random.h"
+
+std::vector<int> MakeDist(size_t xfer_count) {
+  // Create a normal distribution
+  hshm::NormalDistribution normal;
+  normal.Shape(0, 128);
+  std::vector<int> data(xfer_count);
+  normal.GetInt();
+  for (size_t i = 0; i < xfer_count; ++i) {
+    data[i] = normal.GetInt();
+  }
+  return data;
+}
 
 int main(int argc, char *argv[]) {
   MPI_Init(&argc, &argv);
@@ -24,29 +36,30 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "Failed to open file\n");
     return 1;
   }
-
-  // Create a normal distribution
-  hshm::NormalDistribution normal;
-  normal.Shape(0, 512);
-  std::vector<int> data(xfer_count);
-  normal.GetInt();
-  for (size_t i = 0; i < iter; ++i) {
-    data[i] = normal.GetInt();
-  }
+  std::vector<int> data = MakeDist(xfer_count);
 
   // Write compressed data repeatedly
   for (size_t i = 0; i < iter; ++i) {
+    // Write the data
+    size_t write_sz = 0;
+    hshm::Timer t;
+    t.Resume();
     if (do_compress) {
-      hshm::Zlib compress;
+      hshm::Snappy compress;
       size_t compressed_size = xfer;
       std::vector<int> compressed(xfer_count);
       compress.Compress(compressed.data(), compressed_size,
                         data.data(), xfer);
       fwrite(compressed.data(), sizeof(char), compressed_size, file);
+      write_sz = compressed_size;
     } else {
       fwrite(data.data(), sizeof(char), xfer, file);
+      write_sz = xfer;
     }
-    fseek(file, 0, SEEK_SET);
+    fflush(file);
+    t.Pause();
+    // fseek(file, 0, SEEK_SET);
+    HILOG(kInfo, "Wrote {} bytes in {} usec", write_sz, t.GetUsec());
   }
   MPI_Finalize();
 }

@@ -29,23 +29,25 @@ class ChimaeraZlibBench(Application):
                 'name': 'nprocs',
                 'msg': 'The number of processes to spawn',
                 'type': int,
-                'default': None,
+                'default': 1,
             },
             {
                 'name': 'ppn',
                 'msg': 'The number of processes per node',
                 'type': int,
-                'default': 1,
+                'default': 16,
             },
             {
                 'name': 'xfer',
                 'msg': 'I/O size of individual transfer',
-                'type': bool,
+                'type': str,
+                'default': '1m'
             },
             {
                 'name': 'block',
                 'msg': 'I/O size per proc',
-                'type': bool,
+                'type': str,
+                'default': '16m'
             },
             {
                 'name': 'compress',
@@ -90,11 +92,11 @@ class ChimaeraZlibBench(Application):
             'bench_chimaera_zlib',
             str(self.config['block']),
             str(self.config['xfer']),
-            str(self.config['compress']),
             compress,
             path,
         ]
         cmd = ' '.join(cmd)
+        Mkdir(path, PsshExecInfo(hostfile=self.jarvis.hostfile))
         Exec(cmd,
              MpiExecInfo(hostfile=self.jarvis.hostfile,
                          nprocs=nprocs,
