@@ -120,10 +120,7 @@ struct CreateContainerTask : public Task, TaskFlags<TF_SRL_SYM> {
 
   /** Duplicate message */
   void CopyStart(const CreateContainerTask &other, bool deep) {
-    // Get the static container for the lib
-//    Container *exec =
-//        CHI_TASK_REGISTRY->GetStaticContainer(other.lib_name_.str());
-//    exec->CopyStart(other.method_, &other, (*this), deep);
+    // Should never be called...
   }
 
   /** (De)serialize message call */

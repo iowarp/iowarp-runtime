@@ -57,6 +57,7 @@ struct TaskLibInfo {
   /** Move constructor */
   TaskLibInfo(TaskLibInfo &&other) noexcept {
     lib_ = other.lib_;
+    other.lib_ = nullptr;
     alloc_state_ = other.alloc_state_;
     new_state_ = other.new_state_;
     get_task_lib_name = other.get_task_lib_name;

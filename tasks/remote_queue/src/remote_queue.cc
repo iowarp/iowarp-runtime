@@ -114,13 +114,22 @@ class Server : public TaskLib {
                  RunContext &rctx) {
     std::vector<LPointer<Task>> replicas;
     replicas.reserve(dom_queries.size());
+
+    // Get the container
+    Container *exec = CHI_TASK_REGISTRY->GetAnyContainer(
+        orig_task->pool_);
+    Container *copy_exec = exec;
+    if (orig_task->method_ == Admin::Method::kCreateContainer) {
+      CreateContainerTask *orig_task2 = (CreateContainerTask*)orig_task;
+      copy_exec = CHI_TASK_REGISTRY->GetStaticContainer(
+          orig_task2->lib_name_.str());
+    }
+
     // Replicate task
     bool deep = dom_queries.size() > 1;
     for (ResolvedDomainQuery &res_query : dom_queries) {
       LPointer<Task> rep_task;
-      Container *exec = CHI_TASK_REGISTRY->GetAnyContainer(
-          orig_task->pool_);
-      exec->NewCopyStart(orig_task->method_, orig_task, rep_task, deep);
+      copy_exec->NewCopyStart(orig_task->method_, orig_task, rep_task, deep);
       if (res_query.dom_.flags_.Any(DomainQuery::kLocal)) {
         exec->Monitor(MonitorMode::kReplicaStart, orig_task, rctx);
       }
@@ -136,15 +145,13 @@ class Server : public TaskLib {
     // Wait
     submit_task->Wait<TASK_YIELD_CO>(replicas, TASK_MODULE_COMPLETE);
     // Combine
-    Container *exec = CHI_TASK_REGISTRY->GetAnyContainer(
-        orig_task->pool_);
     rctx.replicas_ = &replicas;
     exec->Monitor(MonitorMode::kReplicaAgg, orig_task, rctx);
     // Free
     for (LPointer<Task> &replica : replicas) {
 //      HILOG(kInfo, "[TASK_CHECK] Completing rep_task {} on node {}",
 //            replica.ptr_, CHI_RPC->node_id_);
-      CHI_CLIENT->DelTask(exec, replica.ptr_);
+      CHI_CLIENT->DelTask(copy_exec, replica.ptr_);
     }
   }
 
