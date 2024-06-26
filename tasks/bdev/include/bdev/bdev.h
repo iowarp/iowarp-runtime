@@ -60,7 +60,48 @@ class Client : public TaskLibClient {
     CHI_ADMIN->DestroyContainerRoot(dom_query, id_);
   }
 
-  /** Call a custom method */
+  /** Allocate a section of the block device */
+  HSHM_ALWAYS_INLINE
+  void AsyncAllocateConstruct(AllocateTask *task,
+                              const TaskNode &task_node,
+                              const DomainQuery &dom_query,
+                              size_t size) {
+    CHI_CLIENT->ConstructTask<AllocateTask>(
+        task, task_node, dom_query, id_, size);
+  }
+  HSHM_ALWAYS_INLINE
+  void AllocateRoot(const DomainQuery &dom_query,
+                    const hipc::Pointer &data,
+                    size_t size,
+                    size_t off) {
+    LPointer<AllocateTask> task = AsyncReadRoot(dom_query, data, size, off);
+    task.ptr_->Wait();
+    CHI_CLIENT->DelTask(task);
+  }
+  CHI_TASK_METHODS(Allocate);
+
+  /** Free a section of the block device */
+  HSHM_ALWAYS_INLINE
+  void AsyncFreeConstruct(FreeTask *task,
+                          const TaskNode &task_node,
+                          const DomainQuery &dom_query,
+                          size_t size,
+                          size_t off) {
+    CHI_CLIENT->ConstructTask<FreeTask>(
+        task, task_node, dom_query, id_,
+        size, off);
+  }
+  HSHM_ALWAYS_INLINE
+  void FreeRoot(const DomainQuery &dom_query,
+                size_t size,
+                size_t off) {
+    LPointer<FreeTask> task = AsyncFreeRoot(dom_query, size, off);
+    task.ptr_->Wait();
+    CHI_CLIENT->DelTask(task);
+  }
+  CHI_TASK_METHODS(Free);
+
+  /** Write to the block device */
   HSHM_ALWAYS_INLINE
   void AsyncWriteConstruct(WriteTask *task,
                            const TaskNode &task_node,
@@ -79,8 +120,32 @@ class Client : public TaskLibClient {
                  size_t off) {
     LPointer<WriteTask> task = AsyncWriteRoot(dom_query, data, size, off);
     task.ptr_->Wait();
+    CHI_CLIENT->DelTask(task);
   }
   CHI_TASK_METHODS(Write);
+
+  /** Read from the block device */
+  HSHM_ALWAYS_INLINE
+  void AsyncReadConstruct(ReadTask *task,
+                          const TaskNode &task_node,
+                          const DomainQuery &dom_query,
+                          const hipc::Pointer &data,
+                          size_t size,
+                          size_t off) {
+    CHI_CLIENT->ConstructTask<ReadTask>(
+        task, task_node, dom_query, id_,
+        data, size, off);
+  }
+  HSHM_ALWAYS_INLINE
+  void ReadRoot(const DomainQuery &dom_query,
+                const hipc::Pointer &data,
+                size_t size,
+                size_t off) {
+    LPointer<ReadTask> task = AsyncReadRoot(dom_query, data, size, off);
+    task.ptr_->Wait();
+    CHI_CLIENT->DelTask(task);
+  }
+  CHI_TASK_METHODS(Read);
 };
 
 }  // namespace chi

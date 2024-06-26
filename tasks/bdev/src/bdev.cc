@@ -34,7 +34,35 @@ class Server : public TaskLib {
   void MonitorDestruct(u32 mode, DestructTask *task, RunContext &rctx) {
   }
 
-  /** A custom method */
+  /** Allocate a section of the block device */
+  void Allocate(AllocateTask *task, RunContext &rctx) {
+    task->SetModuleComplete();
+  }
+  void MonitorAllocate(u32 mode, AllocateTask *task, RunContext &rctx) {
+    switch (mode) {
+      case MonitorMode::kReplicaAgg: {
+        std::vector<LPointer<Task>> &replicas = *rctx.replicas_;
+        auto replica = reinterpret_cast<AllocateTask *>(
+            replicas[0].ptr_);
+      }
+    }
+  }
+
+  /** Free a section of the block device */
+  void Free(FreeTask *task, RunContext &rctx) {
+    task->SetModuleComplete();
+  }
+  void MonitorFree(u32 mode, FreeTask *task, RunContext &rctx) {
+    switch (mode) {
+      case MonitorMode::kReplicaAgg: {
+        std::vector<LPointer<Task>> &replicas = *rctx.replicas_;
+        auto replica = reinterpret_cast<ReadTask *>(
+            replicas[0].ptr_);
+      }
+    }
+  }
+
+  /** Write to the block device */
   void Write(WriteTask *task, RunContext &rctx) {
     task->SetModuleComplete();
   }
@@ -48,7 +76,7 @@ class Server : public TaskLib {
     }
   }
 
-  /** A custom method */
+  /** Read from the block device */
   void Read(ReadTask *task, RunContext &rctx) {
     task->SetModuleComplete();
   }

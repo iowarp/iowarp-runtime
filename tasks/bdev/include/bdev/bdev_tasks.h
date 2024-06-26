@@ -91,6 +91,104 @@ struct DestructTask : public DestroyContainerTask {
 /**
  * A custom task in bdev
  * */
+struct AllocateTask : public Task, TaskFlags<TF_SRL_SYM> {
+  IN size_t size_;
+  OUT size_t off_;
+
+  /** SHM default constructor */
+  HSHM_ALWAYS_INLINE explicit
+  AllocateTask(hipc::Allocator *alloc) : Task(alloc) {}
+
+  /** Emplace constructor */
+  HSHM_ALWAYS_INLINE explicit
+  AllocateTask(hipc::Allocator *alloc,
+               const TaskNode &task_node,
+               const DomainQuery &dom_query,
+               const PoolId &pool_id,
+               size_t size) : Task(alloc) {
+    // Initialize task
+    task_node_ = task_node;
+    prio_ = TaskPrio::kLowLatency;
+    pool_ = pool_id;
+    method_ = Method::kAllocate;
+    task_flags_.SetBits(0);
+    dom_query_ = dom_query;
+
+    // Custom params
+    size_ = size;
+  }
+
+  /** Duplicate message */
+  void CopyStart(const AllocateTask &other, bool deep) {
+    size_ = other.size_;
+    off_ = other.off_;
+  }
+
+  /** (De)serialize message call */
+  template<typename Ar>
+  void SerializeStart(Ar &ar) {
+    ar(size_);
+  }
+
+  /** (De)serialize message return */
+  template<typename Ar>
+  void SerializeEnd(Ar &ar) {
+    ar(off_);
+  }
+};
+
+/**
+ * A custom task in bdev
+ * */
+struct FreeTask : public Task, TaskFlags<TF_SRL_SYM> {
+  IN size_t size_;
+  IN size_t off_;
+
+  /** SHM default constructor */
+  HSHM_ALWAYS_INLINE explicit
+  FreeTask(hipc::Allocator *alloc) : Task(alloc) {}
+
+  /** Emplace constructor */
+  HSHM_ALWAYS_INLINE explicit
+  FreeTask(hipc::Allocator *alloc,
+           const TaskNode &task_node,
+           const DomainQuery &dom_query,
+           const PoolId &pool_id,
+           size_t size,
+           size_t off) : Task(alloc) {
+    // Initialize task
+    task_node_ = task_node;
+    prio_ = TaskPrio::kLowLatency;
+    pool_ = pool_id;
+    method_ = Method::kFree;
+    task_flags_.SetBits(0);
+    dom_query_ = dom_query;
+
+    // Custom params
+    size_ = size;
+    off_ = off;
+  }
+
+  /** Duplicate message */
+  void CopyStart(const FreeTask &other, bool deep) {
+    size_ = other.size_;
+    off_ = other.off_;
+  }
+
+  /** (De)serialize message call */
+  template<typename Ar>
+  void SerializeStart(Ar &ar) {
+    ar(size_, off_);
+  }
+
+  /** (De)serialize message return */
+  template<typename Ar>
+  void SerializeEnd(Ar &ar) {}
+};
+
+/**
+ * A custom task in bdev
+ * */
 struct WriteTask : public Task, TaskFlags<TF_SRL_SYM> {
   IN hipc::Pointer data_;
   IN size_t size_;

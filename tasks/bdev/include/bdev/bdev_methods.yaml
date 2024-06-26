@@ -1,2 +1,4 @@
-kWrite: 0
-kRead: 1
+kAllocate: 0
+kFree: 1
+kWrite: 2
+kRead: 3

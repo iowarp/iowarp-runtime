@@ -12,6 +12,14 @@ void Run(u32 method, Task *task, RunContext &rctx) override {
       Destruct(reinterpret_cast<DestructTask *>(task), rctx);
       break;
     }
+    case Method::kAllocate: {
+      Allocate(reinterpret_cast<AllocateTask *>(task), rctx);
+      break;
+    }
+    case Method::kFree: {
+      Free(reinterpret_cast<FreeTask *>(task), rctx);
+      break;
+    }
     case Method::kWrite: {
       Write(reinterpret_cast<WriteTask *>(task), rctx);
       break;
@@ -33,6 +41,14 @@ void Monitor(u32 mode, Task *task, RunContext &rctx) override {
       MonitorDestruct(mode, reinterpret_cast<DestructTask *>(task), rctx);
       break;
     }
+    case Method::kAllocate: {
+      MonitorAllocate(mode, reinterpret_cast<AllocateTask *>(task), rctx);
+      break;
+    }
+    case Method::kFree: {
+      MonitorFree(mode, reinterpret_cast<FreeTask *>(task), rctx);
+      break;
+    }
     case Method::kWrite: {
       MonitorWrite(mode, reinterpret_cast<WriteTask *>(task), rctx);
       break;
@@ -52,6 +68,14 @@ void Del(u32 method, Task *task) override {
     }
     case Method::kDestruct: {
       CHI_CLIENT->DelTask<DestructTask>(reinterpret_cast<DestructTask *>(task));
+      break;
+    }
+    case Method::kAllocate: {
+      CHI_CLIENT->DelTask<AllocateTask>(reinterpret_cast<AllocateTask *>(task));
+      break;
+    }
+    case Method::kFree: {
+      CHI_CLIENT->DelTask<FreeTask>(reinterpret_cast<FreeTask *>(task));
       break;
     }
     case Method::kWrite: {
@@ -79,6 +103,18 @@ void CopyStart(u32 method, const Task *orig_task, Task *dup_task, bool deep) ove
         reinterpret_cast<DestructTask*>(dup_task), deep);
       break;
     }
+    case Method::kAllocate: {
+      chi::CALL_COPY_START(
+        reinterpret_cast<const AllocateTask*>(orig_task), 
+        reinterpret_cast<AllocateTask*>(dup_task), deep);
+      break;
+    }
+    case Method::kFree: {
+      chi::CALL_COPY_START(
+        reinterpret_cast<const FreeTask*>(orig_task), 
+        reinterpret_cast<FreeTask*>(dup_task), deep);
+      break;
+    }
     case Method::kWrite: {
       chi::CALL_COPY_START(
         reinterpret_cast<const WriteTask*>(orig_task), 
@@ -104,6 +140,14 @@ void NewCopyStart(u32 method, const Task *orig_task, LPointer<Task> &dup_task, b
       chi::CALL_NEW_COPY_START(reinterpret_cast<const DestructTask*>(orig_task), dup_task, deep);
       break;
     }
+    case Method::kAllocate: {
+      chi::CALL_NEW_COPY_START(reinterpret_cast<const AllocateTask*>(orig_task), dup_task, deep);
+      break;
+    }
+    case Method::kFree: {
+      chi::CALL_NEW_COPY_START(reinterpret_cast<const FreeTask*>(orig_task), dup_task, deep);
+      break;
+    }
     case Method::kWrite: {
       chi::CALL_NEW_COPY_START(reinterpret_cast<const WriteTask*>(orig_task), dup_task, deep);
       break;
@@ -123,6 +167,14 @@ void SaveStart(u32 method, BinaryOutputArchive<true> &ar, Task *task) override {
     }
     case Method::kDestruct: {
       ar << *reinterpret_cast<DestructTask*>(task);
+      break;
+    }
+    case Method::kAllocate: {
+      ar << *reinterpret_cast<AllocateTask*>(task);
+      break;
+    }
+    case Method::kFree: {
+      ar << *reinterpret_cast<FreeTask*>(task);
       break;
     }
     case Method::kWrite: {
@@ -149,6 +201,16 @@ TaskPointer LoadStart(u32 method, BinaryInputArchive<true> &ar) override {
       ar >> *reinterpret_cast<DestructTask*>(task_ptr.ptr_);
       break;
     }
+    case Method::kAllocate: {
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<AllocateTask>(task_ptr.shm_);
+      ar >> *reinterpret_cast<AllocateTask*>(task_ptr.ptr_);
+      break;
+    }
+    case Method::kFree: {
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<FreeTask>(task_ptr.shm_);
+      ar >> *reinterpret_cast<FreeTask*>(task_ptr.ptr_);
+      break;
+    }
     case Method::kWrite: {
       task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<WriteTask>(task_ptr.shm_);
       ar >> *reinterpret_cast<WriteTask*>(task_ptr.ptr_);
@@ -173,6 +235,14 @@ void SaveEnd(u32 method, BinaryOutputArchive<false> &ar, Task *task) override {
       ar << *reinterpret_cast<DestructTask*>(task);
       break;
     }
+    case Method::kAllocate: {
+      ar << *reinterpret_cast<AllocateTask*>(task);
+      break;
+    }
+    case Method::kFree: {
+      ar << *reinterpret_cast<FreeTask*>(task);
+      break;
+    }
     case Method::kWrite: {
       ar << *reinterpret_cast<WriteTask*>(task);
       break;
@@ -192,6 +262,14 @@ void LoadEnd(u32 method, BinaryInputArchive<false> &ar, Task *task) override {
     }
     case Method::kDestruct: {
       ar >> *reinterpret_cast<DestructTask*>(task);
+      break;
+    }
+    case Method::kAllocate: {
+      ar >> *reinterpret_cast<AllocateTask*>(task);
+      break;
+    }
+    case Method::kFree: {
+      ar >> *reinterpret_cast<FreeTask*>(task);
       break;
     }
     case Method::kWrite: {
