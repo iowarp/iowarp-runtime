@@ -8,7 +8,7 @@
 #include "chimaera/queue_manager/queue.h"
 #include "mpsc_queue.h"
 
-namespace chi {
+namespace chi::ingress {
 
 /** The data stored in a lane */
 struct LaneData {
@@ -366,7 +366,7 @@ struct MultiQueueT<Hshm> : public hipc::ShmContainer {
   }
 };
 
-}  // namespace chi
+}  // namespace chi::ingress
 
 
 #endif  // HRUN_INCLUDE_HRUN_QUEUE_MANAGER_HSHM_QUEUE_H_

@@ -15,7 +15,7 @@
 
 #include "queues/hshm_queue.h"
 
-namespace chi {
+namespace chi::ingress {
 
 #ifdef QUEUE_TYPE
 using MultiQueue = MultiQueueT<QUEUE_TYPE>;

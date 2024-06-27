@@ -21,14 +21,14 @@ namespace chi {
 
 /** Shared-memory representation of the QueueManager */
 struct QueueManagerShm {
-  hipc::ShmArchive<hipc::vector<MultiQueue>> queue_map_;
+  hipc::ShmArchive<hipc::vector<ingress::MultiQueue>> queue_map_;
   hipc::ShmArchive<hipc::split_ticket_queue<size_t>> tickets_;
 };
 
 /** A base class inherited by Client & Server QueueManagers */
 class QueueManager {
  public:
-  hipc::vector<MultiQueue> *queue_map_;   /**< Queues which directly interact with tasks states */
+  hipc::vector<ingress::MultiQueue> *queue_map_;   /**< Queues which directly interact with tasks states */
   NodeId node_id_;             /**< The ID of the node this QueueManager is on */
   QueueId admin_queue_id_;     /**< The queue used to submit administrative requests */
   QueueId process_queue_id_;     /**< ID of process queue task */
@@ -47,7 +47,7 @@ class QueueManager {
    *
    * TODO(llogan): Maybe make a local hashtable to map id -> ticket?
    * */
-  HSHM_ALWAYS_INLINE MultiQueue* GetQueue(const QueueId &id) {
+  HSHM_ALWAYS_INLINE ingress::MultiQueue* GetQueue(const QueueId &id) {
     return &(*queue_map_)[id.unique_];
   }
 };

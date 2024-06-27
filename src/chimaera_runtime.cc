@@ -94,7 +94,7 @@ void Runtime::ServerInit(std::string server_config_path) {
       queue_sched_id,
       admin_task.get(),
       containers);
-  Container *state = task_registry_.GetAnyContainer(queue_sched_id);
+  Container *state = task_registry_.GetStaticContainer(queue_sched_id);
 
   // Initially schedule queues to workers
   auto queue_task = CHI_CLIENT->NewTask<ScheduleTask>(

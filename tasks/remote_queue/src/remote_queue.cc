@@ -29,75 +29,56 @@ struct TaskQueueEntry {
   Task *task_;
 };
 
-struct SharedState {
+class Server : public TaskLib {
+ public:
   std::vector<hshm::mpsc_queue<TaskQueueEntry>> submit_;
   std::vector<hshm::mpsc_queue<TaskQueueEntry>> complete_;
   std::vector<LPointer<ClientSubmitTask>> submitters_;
   std::vector<LPointer<ServerCompleteTask>> completers_;
-
-  SharedState(Task *task, size_t queue_depth, size_t num_lanes) {
-    submit_.resize(num_lanes,
-                   (hshm::mpsc_queue<TaskQueueEntry>) {queue_depth});
-    complete_.resize(num_lanes,
-                     (hshm::mpsc_queue<TaskQueueEntry>) {queue_depth});
-    submitters_.reserve(num_lanes);
-    completers_.reserve(num_lanes);
-  }
-
-  void AddAggregators(Task *task, TaskLib *exec) {
-    if (submitters_.size() == complete_.size()) {
-      return;
-    }
-    DomainQuery dom_query = DomainQuery::GetDirectHash(
-        SubDomainId::kContainerSet,
-        exec->container_id_);
-    submitters_.emplace_back(
-        CHI_REMOTE_QUEUE->AsyncClientSubmit(
-            task, task->task_node_ + 1, dom_query));
-    completers_.emplace_back(
-        CHI_REMOTE_QUEUE->AsyncServerComplete(
-            task, task->task_node_ + 1, dom_query));
-  }
-};
-
-class Server : public TaskLib {
- public:
-  std::shared_ptr<SharedState> shared_;
 
  public:
   Server() = default;
 
   /** Construct remote queue */
   void Create(CreateTask *task, RunContext &rctx) {
-    if (rctx.shared_exec_ == this) {
-      CHI_THALLIUM->RegisterRpc(
-          *CHI_WORK_ORCHESTRATOR->rpc_pool_,
-          "RpcTaskSubmit", [this](
-              const tl::request &req,
-              tl::bulk &bulk,
-              SegmentedTransfer &xfer) {
-            this->RpcTaskSubmit(req, bulk, xfer);
-          });
-      CHI_THALLIUM->RegisterRpc(
-          *CHI_WORK_ORCHESTRATOR->rpc_pool_,
-          "RpcTaskComplete", [this](
-              const tl::request &req,
-              tl::bulk &bulk,
-              SegmentedTransfer &xfer) {
-            this->RpcTaskComplete(req, bulk, xfer);
-          });
-      CHI_REMOTE_QUEUE->Init(id_);
-      QueueManagerInfo &qm = CHI_QM_RUNTIME->config_->queue_manager_;
-      shared_ = std::make_shared<SharedState>(
-          task, qm.queue_depth_, 1);
-    } else {
-      auto *root = (Server*)rctx.shared_exec_;
-      shared_ = root->shared_;
-      shared_->AddAggregators(task, this);
-    }
+    // Registering RPCs
+    CHI_THALLIUM->RegisterRpc(
+        *CHI_WORK_ORCHESTRATOR->rpc_pool_,
+        "RpcTaskSubmit", [this](
+            const tl::request &req,
+            tl::bulk &bulk,
+            SegmentedTransfer &xfer) {
+          this->RpcTaskSubmit(req, bulk, xfer);
+        });
+    CHI_THALLIUM->RegisterRpc(
+        *CHI_WORK_ORCHESTRATOR->rpc_pool_,
+        "RpcTaskComplete", [this](
+            const tl::request &req,
+            tl::bulk &bulk,
+            SegmentedTransfer &xfer) {
+          this->RpcTaskComplete(req, bulk, xfer);
+        });
+    CHI_REMOTE_QUEUE->Init(id_);
+
+    // Creating submitter and completer queues
+    DomainQuery dom_query = DomainQuery::GetDirectHash(
+        SubDomainId::kContainerSet,
+        container_id_);
+    QueueManagerInfo &qm = CHI_QM_RUNTIME->config_->queue_manager_;
+    submitters_.emplace_back(
+        CHI_REMOTE_QUEUE->AsyncClientSubmit(
+            task, task->task_node_ + 1, dom_query));
+    completers_.emplace_back(
+        CHI_REMOTE_QUEUE->AsyncServerComplete(
+            task, task->task_node_ + 1, dom_query));
     task->SetModuleComplete();
   }
   void MonitorCreate(u32 mode, CreateTask *task, RunContext &rctx) {
+  }
+
+  /** Route a task to a bdev lane */
+  LaneId Route(const Task *task) override {
+    return 0;
   }
 
   /** Destroy remote queue */
@@ -116,7 +97,7 @@ class Server : public TaskLib {
     replicas.reserve(dom_queries.size());
 
     // Get the container
-    Container *exec = CHI_TASK_REGISTRY->GetAnyContainer(
+    Container *exec = CHI_TASK_REGISTRY->GetStaticContainer(
         orig_task->pool_);
     Container *copy_exec = exec;
     if (orig_task->method_ == Admin::Method::kCreateContainer) {
@@ -135,7 +116,7 @@ class Server : public TaskLib {
       }
       rep_task->rctx_.pending_to_ = submit_task;
       size_t node_hash = std::hash<NodeId>{}(res_query.node_);
-      auto &submit = shared_->submit_;
+      auto &submit = submit_;
       submit[node_hash % submit.size()].emplace(
           (TaskQueueEntry) {res_query, rep_task.ptr_});
       replicas.emplace_back(rep_task);
@@ -199,13 +180,13 @@ class Server : public TaskLib {
     try {
       TaskQueueEntry entry;
       std::unordered_map<NodeId, BinaryOutputArchive<true>> entries;
-      auto &submit = shared_->submit_;
+      auto &submit = submit_;
       while (!submit[0].pop(entry).IsNull()) {
         if (entries.find(entry.res_domain_.node_) == entries.end()) {
           entries.emplace(entry.res_domain_.node_, BinaryOutputArchive<true>());
         }
         Task *rep_task = entry.task_;
-        Container *exec = CHI_TASK_REGISTRY->GetAnyContainer(
+        Container *exec = CHI_TASK_REGISTRY->GetStaticContainer(
             rep_task->pool_);
         if (exec == nullptr) {
           HELOG(kFatal, "(node {}) Could not find the task state {}",
@@ -240,8 +221,8 @@ class Server : public TaskLib {
                            RunContext &rctx) {
     switch (mode) {
       case MonitorMode::kFlushStat: {
-        hshm::mpsc_queue<TaskQueueEntry> &submit = shared_->submit_[0];
-        hshm::mpsc_queue<TaskQueueEntry> &complete = shared_->complete_[0];
+        hshm::mpsc_queue<TaskQueueEntry> &submit = submit_[0];
+        hshm::mpsc_queue<TaskQueueEntry> &complete = complete_[0];
         rctx.flush_->count_ += submit.GetSize() + complete.GetSize();
       }
     }
@@ -252,7 +233,7 @@ class Server : public TaskLib {
                           RunContext &rctx) {
     NodeId ret_node = task->rctx_.ret_node_;
     size_t node_hash = std::hash<NodeId>{}(ret_node);
-    auto &complete = shared_->complete_;
+    auto &complete = complete_;
     complete[node_hash % complete.size()].emplace((TaskQueueEntry){
         ret_node, task
     });
@@ -269,14 +250,14 @@ class Server : public TaskLib {
       // Serialize task completions
       TaskQueueEntry entry;
       std::unordered_map<NodeId, BinaryOutputArchive<false>> entries;
-      auto &complete = shared_->complete_;
+      auto &complete = complete_;
       while (!complete[0].pop(entry).IsNull()) {
         if (entries.find(entry.res_domain_.node_) == entries.end()) {
           entries.emplace(entry.res_domain_.node_, BinaryOutputArchive<false>());
         }
         Task *done_task = entry.task_;
         Container *exec =
-            CHI_TASK_REGISTRY->GetAnyContainer(done_task->pool_);
+            CHI_TASK_REGISTRY->GetStaticContainer(done_task->pool_);
         BinaryOutputArchive<false> &ar = entries[entry.res_domain_.node_];
         exec->SaveEnd(done_task->method_, ar, done_task);
         CHI_CLIENT->DelTask(exec, done_task);
@@ -333,7 +314,7 @@ class Server : public TaskLib {
     // Deserialize task
     PoolId pool_id = xfer.tasks_[task_off].pool_;
     u32 method = xfer.tasks_[task_off].method_;
-    Container *exec = CHI_TASK_REGISTRY->GetAnyContainer(pool_id);
+    Container *exec = CHI_TASK_REGISTRY->GetStaticContainer(pool_id);
     if (exec == nullptr) {
       HELOG(kFatal, "(node {}) Could not find the task state {}",
             CHI_CLIENT->node_id_, pool_id);
@@ -379,7 +360,7 @@ class Server : public TaskLib {
       BinaryInputArchive<false> ar(xfer);
       for (size_t i = 0; i < xfer.tasks_.size(); ++i) {
         Task *rep_task = (Task*)xfer.tasks_[i].task_addr_;
-        Container *exec = CHI_TASK_REGISTRY->GetAnyContainer(
+        Container *exec = CHI_TASK_REGISTRY->GetStaticContainer(
             rep_task->pool_);
         if (exec == nullptr) {
           HELOG(kFatal, "(node {}) Could not find the task state {}",

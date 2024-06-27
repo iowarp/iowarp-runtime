@@ -273,7 +273,6 @@ struct RunContext {
   bctx::transfer_t jmp_;  /**< Stack info for coroutines */
   void *stack_ptr_;       /**< Stack pointer (coroutine) */
   TaskLib *exec_;
-  TaskLib *shared_exec_;
   WorkPending *flush_;
   hshm::Timer timer_;
   Task *pending_to_;

@@ -344,7 +344,7 @@ class Client : public ConfigurationManager {
 
   /** Get a queue by its ID */
   HSHM_ALWAYS_INLINE
-  MultiQueue* GetQueue(const QueueId &queue_id) {
+  ingress::MultiQueue* GetQueue(const QueueId &queue_id) {
     QueueId real_id = GetQueueId(queue_id);
     return queue_manager_.GetQueue(real_id);
   }
@@ -356,13 +356,13 @@ class Client : public ConfigurationManager {
                            const QueueId &queue_id) {
     std::vector<ResolvedDomainQuery> resolved =
         CHI_RPC->ResolveDomainQuery(task->pool_, task->dom_query_, false);
-    MultiQueue *queue = GetQueue(queue_id);
+    ingress::MultiQueue *queue = GetQueue(queue_id);
     DomainQuery dom_query = resolved[0].dom_;
     if (resolved.size() == 1 && resolved[0].node_ == CHI_RPC->node_id_ &&
         dom_query.flags_.All(DomainQuery::kLocal | DomainQuery::kId)) {
-      LaneGroup &lane_group = queue->GetGroup(task->prio_);
+      ingress::LaneGroup &lane_group = queue->GetGroup(task->prio_);
       u32 lane_id = dom_query.sel_.id_ % lane_group.num_lanes_;
-      Lane &lane = lane_group.GetLane(lane_id);
+      ingress::Lane &lane = lane_group.GetLane(lane_id);
       lane.emplace(task.shm_);
     } else {
       queue->Emplace(task->prio_,
@@ -397,7 +397,7 @@ Async##CUSTOM##Root(Args&& ...args) {\
   TaskNode task_node = CHI_CLIENT->MakeTaskNodeId();\
   hipc::LPointer<CUSTOM##Task> task = Async##CUSTOM##Alloc(\
       task_node, std::forward<Args>(args)...);\
-  MultiQueue *queue = CHI_CLIENT->GetQueue(queue_id_);\
+  ingress::MultiQueue *queue = CHI_CLIENT->GetQueue(queue_id_);\
   queue->Emplace(TaskPrio::kLowLatency,\
                  std::hash<chi::DomainQuery>{}(task->dom_query_),\
                  task.shm_);\

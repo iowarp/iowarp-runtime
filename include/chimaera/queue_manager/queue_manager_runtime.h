@@ -54,12 +54,13 @@ class QueueManagerRuntime : public QueueManager {
     queue_map_ = shm.queue_map_.get();
     queue_map_->resize(max_queues_);
     // Create the admin queue
-    MultiQueue *queue;
+    ingress::MultiQueue *queue;
     queue = CreateQueue(admin_queue_id_, {
         {TaskPrio::kLowLatency, qm.max_containers_pn_, qm.max_containers_pn_, qm.queue_depth_, QUEUE_LOW_LATENCY},
         {TaskPrio::kHighLatency, qm.max_containers_pn_, qm.max_containers_pn_, qm.queue_depth_,0},
     });
     queue->flags_.SetBits(QUEUE_READY);
+    // Create the process (ingress) queue
     queue = CreateQueue(process_queue_id_, {
         {TaskPrio::kLowLatency, qm.max_containers_pn_, qm.max_containers_pn_, qm.proc_queue_depth_, QUEUE_LOW_LATENCY},
         {TaskPrio::kHighLatency, qm.max_containers_pn_, qm.max_containers_pn_, qm.proc_queue_depth_, 0},
@@ -68,8 +69,10 @@ class QueueManagerRuntime : public QueueManager {
   }
 
   /** Create a new queue (with pre-allocated ID) in the map */
-  MultiQueue* CreateQueue(const QueueId &id, const std::vector<PriorityInfo> &queue_info) {
-    MultiQueue *queue = GetQueue(id);
+  ingress::MultiQueue* CreateQueue(
+      const QueueId &id,
+      const std::vector<ingress::PriorityInfo> &queue_info) {
+    ingress::MultiQueue *queue = GetQueue(id);
     if (id.IsNull()) {
       HELOG(kError, "Cannot create null queue {}", id);
       return nullptr;

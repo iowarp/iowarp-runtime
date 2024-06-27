@@ -21,7 +21,7 @@ Async##CUSTOM##Root(Args&& ...args) {
   TaskNode task_node = CHI_CLIENT->MakeTaskNodeId();
   hipc::LPointer<CUSTOM##Task> task = Async##CUSTOM##Alloc(
       task_node, std::forward<Args>(args)...);
-  MultiQueue *queue = CHI_CLIENT->GetQueue(queue_id_);
+  ingress::MultiQueue *queue = CHI_CLIENT->GetQueue(queue_id_);
   queue->Emplace(TaskPrio::kLowLatency,
                  std::hash<chi::DomainQuery>{}(task->dom_query_),
                  task.shm_);

@@ -46,9 +46,9 @@ namespace chi {
 struct WorkEntry {
   u32 prio_;
   ContainerId container_id_;
-  Lane *lane_;
-  LaneGroup *group_;
-  MultiQueue *queue_;
+  ingress::Lane *lane_;
+  ingress::LaneGroup *group_;
+  ingress::MultiQueue *queue_;
 
   /** Default constructor */
   HSHM_ALWAYS_INLINE
@@ -56,7 +56,7 @@ struct WorkEntry {
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE
-  WorkEntry(u32 prio, LaneId lane_id, MultiQueue *queue)
+  WorkEntry(u32 prio, LaneId lane_id, ingress::MultiQueue *queue)
   : prio_(prio), container_id_(lane_id), queue_(queue) {
     group_ = &queue->GetGroup(prio);
     lane_ = &queue->GetLane(prio, lane_id);
@@ -131,7 +131,7 @@ struct hash<chi::WorkEntry> {
   HSHM_ALWAYS_INLINE
       std::size_t
   operator()(const chi::WorkEntry &key) const {
-    return std::hash<chi::MultiQueue*>{}(key.queue_) +
+    return std::hash<chi::ingress::MultiQueue*>{}(key.queue_) +
         std::hash<u32>{}(key.container_id_) + std::hash<u64>{}(key.prio_);
   }
 };
@@ -527,8 +527,8 @@ class Worker {
   HSHM_ALWAYS_INLINE
   void IngestLane(WorkEntry &lane_info) {
     // Ingest tasks from the ingress queues
-    Lane *&lane = lane_info.lane_;
-    LaneData *entry;
+    ingress::Lane *&lane = lane_info.lane_;
+    ingress::LaneData *entry;
     while (true) {
       if (lane->peek(entry).IsNull()) {
         break;
@@ -566,7 +566,7 @@ class Worker {
   static TaskRouteMode Reroute(const PoolId &scope,
                                DomainQuery &dom_query,
                                LPointer<Task> task,
-                               Lane *lane) {
+                               ingress::Lane *lane) {
     std::vector<ResolvedDomainQuery> resolved =
         CHI_RPC->ResolveDomainQuery(scope, dom_query, false);
     if (resolved.size() == 1 && resolved[0].node_ == CHI_RPC->node_id_) {
@@ -582,11 +582,11 @@ class Worker {
       }
 #endif
       if (dom_query.flags_.All(DomainQuery::kLocal | DomainQuery::kId)) {
-        MultiQueue *queue = CHI_CLIENT->GetQueue(
+        ingress::MultiQueue *queue = CHI_CLIENT->GetQueue(
             task->pool_);
-        LaneGroup &lane_group = queue->GetGroup(task->prio_);
+        ingress::LaneGroup &lane_group = queue->GetGroup(task->prio_);
         u32 lane_id = dom_query.sel_.id_ % lane_group.num_lanes_;
-        Lane &lane_cmp = lane_group.GetLane(lane_id);
+        ingress::Lane &lane_cmp = lane_group.GetLane(lane_id);
         if (&lane_cmp == lane) {
           return TaskRouteMode::kThisWorker;
         } else {
@@ -646,7 +646,7 @@ class Worker {
     // Get the task state
     Container *exec;
     if (props.Any(HSHM_WORKER_IS_REMOTE)) {
-      exec = CHI_TASK_REGISTRY->GetAnyContainer(task->pool_);
+      exec = CHI_TASK_REGISTRY->GetStaticContainer(task->pool_);
     } else {
       exec = CHI_TASK_REGISTRY->GetContainer(task->pool_,
                                               entry.res_query_.sel_.id_);
@@ -796,7 +796,7 @@ class Worker {
     }
     if (task->ShouldSignalRemoteComplete()) {
       Container *remote_exec =
-          CHI_TASK_REGISTRY->GetAnyContainer(CHI_REMOTE_QUEUE->id_);
+          CHI_TASK_REGISTRY->GetStaticContainer(CHI_REMOTE_QUEUE->id_);
       task->SetComplete();
       remote_exec->Run(chi::remote_queue::Method::kServerPushComplete,
                        task.ptr_, task->rctx_);

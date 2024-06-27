@@ -26,6 +26,11 @@ class Server : public TaskLib {
  public:
   Server() : queue_sched_(nullptr), proc_sched_(nullptr) {}
 
+  /** Route a task to a bdev lane */
+  LaneId Route(const Task *task) override {
+    return 0;
+  }
+
   /** Update number of lanes */
   void UpdateDomain(UpdateDomainTask *task, RunContext &rctx) {
     std::vector<UpdateDomainInfo> ops = task->ops_.vec();
@@ -66,10 +71,10 @@ class Server : public TaskLib {
     std::string pool_name = task->pool_name_.str();
     // Check local registry for task state
     bool state_existed = false;
-    Container *task_state = CHI_TASK_REGISTRY->GetAnyContainer(
+    PoolId found_pool = CHI_TASK_REGISTRY->PoolExists(
         pool_name, task->ctx_.id_);
-    if (task_state) {
-      task->ctx_.id_ = task_state->id_;
+    if (!found_pool.IsNull()) {
+      task->ctx_.id_ = found_pool;
       state_existed = true;
       task->SetModuleComplete();
       return;
@@ -118,7 +123,7 @@ class Server : public TaskLib {
         task, containers);
     if (task->root_) {
       // Broadcast the state creation to all nodes
-      Container *exec = CHI_TASK_REGISTRY->GetAnyContainer(task->ctx_.id_);
+      Container *exec = CHI_TASK_REGISTRY->GetStaticContainer(task->ctx_.id_);
       LPointer<Task> bcast;
       exec->NewCopyStart(Method::kCreate, task, bcast, true);
       auto *bcast_ptr = reinterpret_cast<CreateContainerTask *>(
@@ -128,7 +133,7 @@ class Server : public TaskLib {
       bcast_ptr->dom_query_ = bcast_ptr->affinity_;
       bcast_ptr->method_ = Method::kCreateContainer;
       bcast_ptr->pool_ = CHI_ADMIN->id_;
-      MultiQueue *queue =
+      ingress::MultiQueue *queue =
           CHI_QM_CLIENT->GetQueue(CHI_QM_CLIENT->admin_queue_id_);
       bcast->YieldInit(task);
       queue->Emplace(bcast->prio_, bcast->GetContainerId(), bcast.shm_);
@@ -216,7 +221,7 @@ class Server : public TaskLib {
         chi::DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0),
         task->policy_id_);
     queue_sched_ = queue_sched.ptr_;
-    MultiQueue *queue = CHI_CLIENT->GetQueue(queue_id_);
+    ingress::MultiQueue *queue = CHI_CLIENT->GetQueue(queue_id_);
     queue->Emplace(TaskPrio::kLowLatency, 0, queue_sched.shm_);
     task->SetModuleComplete();
   }
@@ -239,7 +244,7 @@ class Server : public TaskLib {
         chi::DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0),
         task->policy_id_);
     proc_sched_ = proc_sched.ptr_;
-    MultiQueue *queue = CHI_CLIENT->GetQueue(queue_id_);
+    ingress::MultiQueue *queue = CHI_CLIENT->GetQueue(queue_id_);
     queue->Emplace(0, 0, proc_sched.shm_);
     task->SetModuleComplete();
   }

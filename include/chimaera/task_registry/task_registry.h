@@ -89,8 +89,8 @@ struct TaskLibInfo {
   }
 };
 
-struct ContainerInfo {
-  Container *shared_state_;
+struct PoolInfo {
+  std::string lib_name_;
   std::unordered_map<ContainerId, Container*> containers_;
 };
 
@@ -108,7 +108,7 @@ class TaskRegistry {
   /** Map of a semantic exec name to exec id */
   std::unordered_map<std::string, PoolId> pool_ids_;
   /** Map of a semantic exec id to state */
-  std::unordered_map<PoolId, ContainerInfo> pools_;
+  std::unordered_map<PoolId, PoolInfo> pools_;
   /** A unique identifier counter */
   std::atomic<u64> *unique_;
   RwLock lock_;
@@ -265,33 +265,8 @@ class TaskRegistry {
     }
     TaskLibInfo &info = it->second;
 
-    // Create shared state
-    if (pools_.find(pool_id) == pools_.end()) {
-      // Allocate the state
-      pools_[pool_id] = ContainerInfo();
-      Container *exec = info.new_state_(&pool_id, pool_name);
-      if (!exec) {
-        HELOG(kError, "Could not create the task state: {}", pool_name);
-        task->SetModuleComplete();
-        return false;
-      }
-
-      // Add the state to the registry
-      exec->id_ = pool_id;
-      exec->name_ = pool_name;
-      exec->container_id_ = 0;
-      ScopedRwWriteLock lock(lock_, 0);
-      pool_ids_.emplace(pool_name, pool_id);
-      pools_[pool_id].shared_state_ = exec;
-
-      // Construct the state
-      task->ctx_.id_ = pool_id;
-      task->rctx_.shared_exec_ = pools_[pool_id].shared_state_;
-      exec->Run(TaskMethod::kCreate, task, task->rctx_);
-      task->UnsetModuleComplete();
-    }
-
     // Create partitioned state
+    pools_[pool_id].lib_name_ = lib_name;
     std::unordered_map<ContainerId, Container*> &states =
         pools_[pool_id].containers_;
     for (const SubDomainId &container_id : containers) {
@@ -317,7 +292,6 @@ class TaskRegistry {
 
       // Construct the state
       task->ctx_.id_ = pool_id;
-      task->rctx_.shared_exec_ = pools_[pool_id].shared_state_;
       exec->Run(TaskMethod::kCreate, task, task->rctx_);
       task->UnsetModuleComplete();
     }
@@ -351,38 +325,43 @@ class TaskRegistry {
   }
 
   /** Get the static state instance */
-  Container* GetStaticContainer(const std::string &task_name) {
+  Container* GetStaticContainer(const std::string &lib_name) {
     ScopedRwReadLock lock(lock_, 0);
-    auto it = libs_.find(task_name);
+    auto it = libs_.find(lib_name);
     if (it == libs_.end()) {
       return nullptr;
     }
     return it->second.static_state_;
   }
 
-  /** Get a task state instance */
-  Container* GetAnyContainer(const PoolId &pool_id) {
+  /** Get the static state instance */
+  Container* GetStaticContainer(const PoolId &pool_id) {
     ScopedRwReadLock lock(lock_, 0);
-    auto it = pools_.find(pool_id);
-    if (it == pools_.end()) {
+    auto pool_it = pools_.find(pool_id);
+    if (pool_it == pools_.end()) {
       return nullptr;
     }
-    return it->second.shared_state_;
+    PoolInfo &pool = pool_it->second;
+    auto it = libs_.find(pool.lib_name_);
+    if (it == libs_.end()) {
+      return nullptr;
+    }
+    return it->second.static_state_;
   }
 
   /** Get task state instance by name OR by ID */
-  Container* GetAnyContainer(const std::string &task_name,
-                             const PoolId &pool_id) {
+  PoolId PoolExists(const std::string &pool_name,
+                        const PoolId &pool_id) {
     ScopedRwReadLock lock(lock_, 0);
-    PoolId id = GetPoolId(task_name);
+    PoolId id = GetPoolId(pool_name);
     if (id.IsNull()) {
       id = pool_id;
     }
     auto it = pools_.find(id);
     if (it == pools_.end()) {
-      return nullptr;
+      return PoolId::GetNull();
     }
-    return it->second.shared_state_;
+    return id;
   }
 
   /** Get a task state instance */
@@ -414,7 +393,7 @@ class TaskRegistry {
       HELOG(kWarning, "Could not find the task state");
       return;
     }
-    ContainerInfo &task_states = it->second;
+    PoolInfo &task_states = it->second;
     std::string pool_name = task_states.containers_[0]->name_;
     // TODO(llogan): Iterate over shared_state + states and destroy them
     pool_ids_.erase(pool_name);

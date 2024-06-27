@@ -32,7 +32,7 @@
 /** Requests in this queue should not be scheduled on a traditional worker */
 #define QUEUE_DISABLED BIT_OPT(u32, 6)
 
-namespace chi {
+namespace chi::ingress {
 
 /** Prioritization info needed to be set by client */
 struct PriorityInfo {
@@ -130,6 +130,6 @@ struct PriorityInfo {
 template <typename QueueT>
 class MultiQueueT;
 
-}  // namespace chi
+}  // chi::ingress
 
 #endif  // HRUN_INCLUDE_HRUN_QUEUE_MANAGER_QUEUE_H_

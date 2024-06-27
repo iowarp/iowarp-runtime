@@ -30,6 +30,11 @@ class Server : public TaskLib {
   void MonitorCreate(u32 mode, CreateTask *task, RunContext &rctx) {
   }
 
+  /** Route a task to a bdev lane */
+  LaneId Route(const Task *task) override {
+    return 0;
+  }
+
   /** Destroy small_message */
   void Destruct(DestructTask *task, RunContext &rctx) {
     task->SetModuleComplete();

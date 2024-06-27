@@ -31,6 +31,11 @@ class Server : public TaskLib {
   void MonitorCreate(u32 mode, CreateTask *task, RunContext &rctx) {
   }
 
+  /** Route a task to a bdev lane */
+  LaneId Route(const Task *task) override {
+    return 0;
+  }
+
   /** Destroy work orchestrator queue scheduler */
   void Destruct(DestructTask *task, RunContext &rctx) {
     task->SetModuleComplete();
@@ -45,7 +50,7 @@ class Server : public TaskLib {
       if (queue.id_.IsNull() || !queue.flags_.Any(QUEUE_READY)) {
         continue;
       }
-      for (LaneGroup &lane_group : queue.groups_) {
+      for (ingress::LaneGroup &lane_group : queue.groups_) {
         u32 num_lanes = lane_group.num_lanes_;
         for (LaneId lane_id = lane_group.num_scheduled_; lane_id < num_lanes; ++lane_id) {
           u32 worker_id;
@@ -66,7 +71,7 @@ class Server : public TaskLib {
 //            HILOG(kInfo, "(node {}) Scheduling the queue {} (prio {}, lane {}, worker {})",
 //                  CHI_CLIENT->node_id_, queue.id_, lane_group.prio_, lane_id, worker.id_);
           }
-          Lane &lane = lane_group.GetLane(lane_id);
+          ingress::Lane &lane = lane_group.GetLane(lane_id);
           lane.worker_id_ = worker_id;
         }
         lane_group.num_scheduled_ = num_lanes;
