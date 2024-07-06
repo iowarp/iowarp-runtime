@@ -58,6 +58,10 @@ class KeySet {
     keys_.emplace(key);
     size_ -= 1;
   }
+
+  /** Filter the queue by some key */
+  hshm::spsc_queue<T> extract() {
+  }
 };
 
 }  // namespace chi

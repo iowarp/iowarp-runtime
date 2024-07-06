@@ -20,12 +20,17 @@
 #include <filesystem>
 #include "task_lib.h"
 #include "chimaera/config/config_server.h"
-#include "chimaera_admin/chimaera_admin.h"
-// #include "chimaera/network/rpc.h"
+// #include "chimaera_admin/chimaera_admin.h"
+#include "chimaera/network/rpc.h"
 
 namespace stdfs = std::filesystem;
 
 namespace chi {
+
+/** Forward declaration of CreateContainerTask */
+namespace Admin {
+class CreateContainerTask;
+}  // namespace Admin
 
 /** All information needed to create a trait */
 struct TaskLibInfo {
@@ -246,61 +251,7 @@ class TaskRegistry {
                        const char *pool_name,
                        const PoolId &pool_id,
                        Admin::CreateContainerTask *task,
-                       const std::vector<SubDomainId> &containers) {
-    // Ensure pool_id is not NULL
-    if (pool_id.IsNull()) {
-      HELOG(kError, "The task state ID cannot be null");
-      task->SetModuleComplete();
-      return false;
-    }
-//    HILOG(kInfo, "(node {}) Creating an instance of {} with name {}",
-//          CHI_CLIENT->node_id_, lib_name, pool_name)
-
-    // Find the task library to instantiate
-    auto it = libs_.find(lib_name);
-    if (it == libs_.end()) {
-      HELOG(kError, "Could not find the task lib: {}", lib_name);
-      task->SetModuleComplete();
-      return false;
-    }
-    TaskLibInfo &info = it->second;
-
-    // Create partitioned state
-    pools_[pool_id].lib_name_ = lib_name;
-    std::unordered_map<ContainerId, Container*> &states =
-        pools_[pool_id].containers_;
-    for (const SubDomainId &container_id : containers) {
-      // Don't repeat if state exists
-      if (states.find(container_id.minor_) != states.end()) {
-        continue;
-      }
-
-      // Allocate the state
-      Container *exec = info.new_state_(&pool_id, pool_name);
-      if (!exec) {
-        HELOG(kError, "Could not create the task state: {}", pool_name);
-        task->SetModuleComplete();
-        return false;
-      }
-
-      // Add the state to the registry
-      exec->id_ = pool_id;
-      exec->name_ = pool_name;
-      exec->container_id_ = container_id.minor_;
-      ScopedRwWriteLock lock(lock_, 0);
-      pools_[pool_id].containers_[exec->container_id_] = exec;
-
-      // Construct the state
-      task->ctx_.id_ = pool_id;
-      exec->Run(TaskMethod::kCreate, task, task->rctx_);
-      task->UnsetModuleComplete();
-    }
-    HILOG(kInfo, "(node {})  Created an instance of {} with pool name {} "
-                 "and pool ID {} ({} containers)",
-          CHI_CLIENT->node_id_, lib_name, pool_name,
-          pool_id, containers.size());
-    return true;
-  }
+                       const std::vector<SubDomainId> &containers);
 
   /** Get or create a task state's ID */
   PoolId GetOrCreatePoolId(const std::string &pool_name) {

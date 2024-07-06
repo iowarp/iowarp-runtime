@@ -28,15 +28,15 @@ class Server : public TaskLib {
   }
 
   /** Route a task to a bdev lane */
-  LaneId Route(const Task *task) override {
-    return 0;
+  Lane* Route(const Task *task) override {
+    return nullptr;
   }
 
   /** Destroy bdev */
-  void Destruct(DestructTask *task, RunContext &rctx) {
+  void Destroy(DestroyTask *task, RunContext &rctx) {
     task->SetModuleComplete();
   }
-  void MonitorDestruct(u32 mode, DestructTask *task, RunContext &rctx) {
+  void MonitorDestroy(u32 mode, DestroyTask *task, RunContext &rctx) {
   }
 
   /** Allocate a section of the block device */

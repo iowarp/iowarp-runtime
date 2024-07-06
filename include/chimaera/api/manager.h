@@ -32,7 +32,6 @@ struct HrunShm {
 /** The configuration used inherited by runtime + client */
 class ConfigurationManager {
  public:
-  HrunMode mode_;
   HrunShm *header_;
   ClientConfig client_config_;
   ServerConfig server_config_;

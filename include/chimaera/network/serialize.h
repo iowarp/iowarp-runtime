@@ -15,7 +15,7 @@
 
 #include "chimaera/chimaera_types.h"
 #include "chimaera/task_registry/task.h"
-#include "chimaera/api/chimaera_client.h"
+//  #include "chimaera/api/chimaera_client.h"
 #include <sstream>
 
 namespace chi {
@@ -127,13 +127,7 @@ class SegmentedTransfer {
   std::vector<DataTransfer> bulk_;   /**< Data payloads */
   std::string md_;                   /**< Metadata */
 
-  void AllocateSegmentsServer() {
-    for (DataTransfer &xfer : bulk_) {
-      LPointer<char> data = CHI_CLIENT->AllocateBufferServer<TASK_YIELD_ABT>(
-          xfer.data_size_);
-      xfer.data_ = data.ptr_;
-    }
-  }
+  void AllocateSegmentsServer();
 
   size_t size() const {
     size_t size = 0;

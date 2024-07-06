@@ -22,21 +22,26 @@ class Server : public TaskLib {
 
   /** Construct TASK_NAME */
   void Create(CreateTask *task, RunContext &rctx) {
+    // Create a set of lanes for holding tasks
+    CreateLaneGroup(0, 1);
     task->SetModuleComplete();
   }
   void MonitorCreate(u32 mode, CreateTask *task, RunContext &rctx) {
   }
 
-  /** Route a task to a bdev lane */
-  LaneId Route(const Task *task) override {
-    return 0;
+  /** Route a task to a lane */
+  Lane* Route(const Task *task) override {
+    // Route tasks to lanes based on their properties
+    // E.g., a strongly consistent filesystem could map tasks to a lane
+    // by the hash of an absolute filename path.
+    return GetLaneByHash(0, 0);
   }
 
   /** Destroy TASK_NAME */
-  void Destruct(DestructTask *task, RunContext &rctx) {
+  void Destroy(DestroyTask *task, RunContext &rctx) {
     task->SetModuleComplete();
   }
-  void MonitorDestruct(u32 mode, DestructTask *task, RunContext &rctx) {
+  void MonitorDestroy(u32 mode, DestroyTask *task, RunContext &rctx) {
   }
 
   /** A custom method */

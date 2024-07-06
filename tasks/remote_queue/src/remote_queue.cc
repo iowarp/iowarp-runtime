@@ -35,6 +35,7 @@ class Server : public TaskLib {
   std::vector<hshm::mpsc_queue<TaskQueueEntry>> complete_;
   std::vector<LPointer<ClientSubmitTask>> submitters_;
   std::vector<LPointer<ServerCompleteTask>> completers_;
+  int NODES = 0;
 
  public:
   Server() = default;
@@ -60,11 +61,16 @@ class Server : public TaskLib {
         });
     CHI_REMOTE_QUEUE->Init(id_);
 
+    // Create lanes
+    CreateLaneGroup(NODES, 4);
+
     // Creating submitter and completer queues
     DomainQuery dom_query = DomainQuery::GetDirectHash(
         SubDomainId::kContainerSet,
         container_id_);
     QueueManagerInfo &qm = CHI_QM_RUNTIME->config_->queue_manager_;
+    submit_.emplace_back(qm.queue_depth_);
+    complete_.emplace_back(qm.queue_depth_);
     submitters_.emplace_back(
         CHI_REMOTE_QUEUE->AsyncClientSubmit(
             task, task->task_node_ + 1, dom_query));
@@ -76,16 +82,16 @@ class Server : public TaskLib {
   void MonitorCreate(u32 mode, CreateTask *task, RunContext &rctx) {
   }
 
-  /** Route a task to a bdev lane */
-  LaneId Route(const Task *task) override {
-    return 0;
+  /** Route a task to a lane */
+  Lane* Route(const Task *task) override {
+    return GetLaneByHash(NODES, std::hash<DomainQuery>()(task->dom_query_));
   }
 
   /** Destroy remote queue */
-  void Destruct(DestructTask *task, RunContext &rctx) {
+  void Destroy(DestroyTask *task, RunContext &rctx) {
     task->SetModuleComplete();
   }
-  void MonitorDestruct(u32 mode, DestructTask *task, RunContext &rctx) {
+  void MonitorDestroy(u32 mode, DestroyTask *task, RunContext &rctx) {
   }
 
   /** Replicate the task across a node set */

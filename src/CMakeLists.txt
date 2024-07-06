@@ -9,8 +9,7 @@
 add_library(chimaera_client SHARED
         ${CMAKE_CURRENT_SOURCE_DIR}/config_client.cc
         ${CMAKE_CURRENT_SOURCE_DIR}/config_server.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/chimaera_client.cc
-        ../benchmark/test_latency.cc)
+        ${CMAKE_CURRENT_SOURCE_DIR}/chimaera_client.cc)
 target_link_libraries(chimaera_client
   ${Chimaera_CLIENT_LIBRARIES_})
 

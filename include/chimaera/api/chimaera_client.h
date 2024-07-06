@@ -45,7 +45,6 @@ class Client : public ConfigurationManager {
     if (is_initialized_) {
       return this;
     }
-    mode_ = HrunMode::kClient;
     is_being_initialized_ = true;
     ClientInit(std::move(server_config_path),
                std::move(client_config_path),
@@ -349,27 +348,19 @@ class Client : public ConfigurationManager {
     return queue_manager_.GetQueue(real_id);
   }
 
-  /** Schedule a task locally */
+  /** Performs the lpointer conversion */
   template<typename TaskT>
-  void ScheduleTaskRuntime(Task *parent_task,
+  void ScheduleTaskRuntimeTempl(Task *parent_task,
                            LPointer<TaskT> &task,
                            const QueueId &queue_id) {
-    std::vector<ResolvedDomainQuery> resolved =
-        CHI_RPC->ResolveDomainQuery(task->pool_, task->dom_query_, false);
-    ingress::MultiQueue *queue = GetQueue(queue_id);
-    DomainQuery dom_query = resolved[0].dom_;
-    if (resolved.size() == 1 && resolved[0].node_ == CHI_RPC->node_id_ &&
-        dom_query.flags_.All(DomainQuery::kLocal | DomainQuery::kId)) {
-      ingress::LaneGroup &lane_group = queue->GetGroup(task->prio_);
-      u32 lane_id = dom_query.sel_.id_ % lane_group.num_lanes_;
-      ingress::Lane &lane = lane_group.GetLane(lane_id);
-      lane.emplace(task.shm_);
-    } else {
-      queue->Emplace(task->prio_,
-                     std::hash<chi::DomainQuery>{}(task->dom_query_),
-                     task.shm_);
-    }
+    LPointer<Task> task_ptr = task;
+    ScheduleTaskRuntime(parent_task, task_ptr, queue_id);
   }
+
+  /** Schedule a task locally */
+  void ScheduleTaskRuntime(Task *parent_task,
+                           LPointer<Task> &task,
+                           const QueueId &queue_id);
 };
 
 /** The default asynchronous method behavior */
@@ -388,7 +379,7 @@ hipc::LPointer<CUSTOM##Task> Async##CUSTOM(Task *parent_task,\
                                            Args&& ...args) {\
   hipc::LPointer<CUSTOM##Task> task = Async##CUSTOM##Alloc(\
     task_node, std::forward<Args>(args)...);\
-  CHI_CLIENT->ScheduleTaskRuntime(parent_task, task, queue_id_);\
+  CHI_CLIENT->ScheduleTaskRuntimeTempl(parent_task, task, queue_id_);\
   return task;\
 }\
 template<typename ...Args>\

@@ -35,6 +35,17 @@ class MonitorMode {
   TASK_METHOD_T kOrder = 6;
 };
 
+/** The information of a lane */
+struct Lane {
+  LaneId lane_id_;
+  u32 worker_id_;
+  size_t load_ = 0;
+};
+
+struct LaneGroup {
+  std::vector<Lane> lanes_;
+};
+
 /**
  * Represents a custom operation to perform.
  * Tasks are independent of Hermes.
@@ -44,7 +55,10 @@ class TaskLib {
   PoolId id_;    /**< The unique name of a task state */
   QueueId queue_id_;  /**< The queue id of a task state */
   std::string name_;  /**< The unique semantic name of a task state */
-  ContainerId container_id_;       /**< The lane id of a task state */
+  ContainerId container_id_;       /**< The logical id of a container */
+  LaneId lane_counter_ = 0;
+  std::unordered_map<LaneGroupId, LaneGroup>
+      lane_groups_;  /**< The lanes of a task state */
 
   /** Default constructor */
   TaskLib() : id_(PoolId::GetNull()) {}
@@ -57,11 +71,32 @@ class TaskLib {
     name_ = name;
   }
 
+  /** Create a lane group */
+  void CreateLaneGroup(const LaneGroupId &id, u32 count) {
+    lane_groups_.emplace(id, LaneGroup());
+    LaneGroup &lane_group = lane_groups_[id];
+    lane_group.lanes_.reserve(count);
+    for (u32 i = 0; i < count; ++i) {
+      lane_group.lanes_.emplace_back(Lane{lane_counter_++, 0});
+    }
+  }
+
+  /** Get lane */
+  Lane *GetLaneByHash(const LaneGroupId &group, u32 hash) {
+    LaneGroup &lane_group = lane_groups_[group];
+    return &lane_group.lanes_[hash % lane_group.lanes_.size()];
+  }
+
+  /** Get number of lanes */
+  size_t GetNumLanes() {
+    return lane_counter_;
+  }
+
   /** Virtual destructor */
   virtual ~TaskLib() = default;
 
   /** Route to a virtual lane */
-  virtual LaneId Route(const Task *task) = 0;
+  virtual Lane* Route(const Task *task) = 0;
 
   /** Run a method of the task */
   virtual void Run(u32 method, Task *task, RunContext &rctx) = 0;

@@ -20,21 +20,22 @@ class Server : public TaskLib {
  public:
   /** Construct the work orchestrator process scheduler */
   void Create(CreateTask *task, RunContext &rctx) {
+    CreateLaneGroup(0, 1);
     task->SetModuleComplete();
   }
   void MonitorCreate(u32 mode, CreateTask *task, RunContext &rctx) {
   }
 
-  /** Route a task to a bdev lane */
-  LaneId Route(const Task *task) override {
-    return 0;
+  /** Route a task to a lane */
+  Lane* Route(const Task *task) override {
+    return GetLaneByHash(0, 0);
   }
 
   /** Destroy the work orchestrator process queue */
-  void Destruct(DestructTask *task, RunContext &rctx) {
+  void Destroy(DestroyTask *task, RunContext &rctx) {
     task->SetModuleComplete();
   }
-  void MonitorDestruct(u32 mode, DestructTask *task, RunContext &rctx) {
+  void MonitorDestroy(u32 mode, DestroyTask *task, RunContext &rctx) {
   }
 
   /** Schedule running processes */

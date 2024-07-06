@@ -25,9 +25,8 @@ def refresh_methods(TASK_ROOT):
     if 'kLast' in methods:
         del methods['kLast']
     methods = sorted(methods.items(), key=lambda x: x[1])
-    if TASK_NAME != 'chimaera_admin':
-        methods.insert(0, ('kCreate', -2))
-        methods.insert(1, ('kDestruct', -1))
+    methods.insert(0, ('kCreate', -2))
+    methods.insert(1, ('kDestroy', -1))
     monitor_modes = ['kEstTime', 'kTrainTime', 'kFlushStat']
 
     # Produce the TASK_NAME_methods.h file
@@ -40,7 +39,7 @@ def refresh_methods(TASK_ROOT):
     for method_enum_name, method_off in methods:
         if method_enum_name == 'kCreate':
             continue
-        if method_enum_name == 'kDestruct':
+        if method_enum_name == 'kDestroy':
             continue
         lines += f'  TASK_METHOD_T {method_enum_name} = kLast + {method_off};',
     lines += ['};', '', f'#endif  // {METHOD_MACRO}']

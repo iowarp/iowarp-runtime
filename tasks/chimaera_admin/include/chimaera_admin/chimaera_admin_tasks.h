@@ -66,16 +66,6 @@ using RegisterTaskLibTask = RegisterTaskLibTaskTempl<0>;
 /** A task to destroy a Task Library */
 using DestroyTaskLibTask = RegisterTaskLibTaskTempl<1>;
 
-class CreateContainerPhase {
- public:
-  // NOTE(llogan): kLast is intentially 0 so that the constructor
-  // can seamlessly pass data to submethods
-  TASK_METHOD_T kIdAllocStart = 0;
-  TASK_METHOD_T kIdAllocWait = 1;
-  TASK_METHOD_T kStateCreate = 2;
-  TASK_METHOD_T kLast = 0;
-};
-
 /** A task to register a Task state + Create a queue */
 struct CreateContainerTask : public Task, TaskFlags<TF_SRL_SYM> {
   IN hipc::string lib_name_;
@@ -155,6 +145,15 @@ struct CreateContainerTask : public Task, TaskFlags<TF_SRL_SYM> {
   template<typename Ar>
   void BaseSerializeEnd(Ar &ar) {
     ar(ctx_.id_);
+  }
+};
+
+/** A task to register a Task state + Create a queue */
+struct CreateTask : public CreateContainerTask {
+  /** SHM default constructor */
+  HSHM_ALWAYS_INLINE explicit
+  CreateTask(hipc::Allocator *alloc) : CreateContainerTask(alloc) {
+    method_ = Method::kCreate;
   }
 };
 
@@ -246,6 +245,15 @@ struct DestroyContainerTask : public Task, TaskFlags<TF_SRL_SYM> {
   /** (De)serialize message return */
   template<typename Ar>
   void SerializeEnd(Ar &ar) {
+  }
+};
+
+/** A task to register a Task state + Create a queue */
+struct DestroyTask : public DestroyContainerTask {
+  /** SHM default constructor */
+  HSHM_ALWAYS_INLINE explicit
+  DestroyTask(hipc::Allocator *alloc) : DestroyContainerTask(alloc) {
+    method_ = Method::kDestroy;
   }
 };
 

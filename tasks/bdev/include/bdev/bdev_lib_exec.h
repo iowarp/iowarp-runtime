@@ -8,8 +8,8 @@ void Run(u32 method, Task *task, RunContext &rctx) override {
       Create(reinterpret_cast<CreateTask *>(task), rctx);
       break;
     }
-    case Method::kDestruct: {
-      Destruct(reinterpret_cast<DestructTask *>(task), rctx);
+    case Method::kDestroy: {
+      Destroy(reinterpret_cast<DestroyTask *>(task), rctx);
       break;
     }
     case Method::kAllocate: {
@@ -37,8 +37,8 @@ void Monitor(u32 mode, Task *task, RunContext &rctx) override {
       MonitorCreate(mode, reinterpret_cast<CreateTask *>(task), rctx);
       break;
     }
-    case Method::kDestruct: {
-      MonitorDestruct(mode, reinterpret_cast<DestructTask *>(task), rctx);
+    case Method::kDestroy: {
+      MonitorDestroy(mode, reinterpret_cast<DestroyTask *>(task), rctx);
       break;
     }
     case Method::kAllocate: {
@@ -66,8 +66,8 @@ void Del(u32 method, Task *task) override {
       CHI_CLIENT->DelTask<CreateTask>(reinterpret_cast<CreateTask *>(task));
       break;
     }
-    case Method::kDestruct: {
-      CHI_CLIENT->DelTask<DestructTask>(reinterpret_cast<DestructTask *>(task));
+    case Method::kDestroy: {
+      CHI_CLIENT->DelTask<DestroyTask>(reinterpret_cast<DestroyTask *>(task));
       break;
     }
     case Method::kAllocate: {
@@ -97,10 +97,10 @@ void CopyStart(u32 method, const Task *orig_task, Task *dup_task, bool deep) ove
         reinterpret_cast<CreateTask*>(dup_task), deep);
       break;
     }
-    case Method::kDestruct: {
+    case Method::kDestroy: {
       chi::CALL_COPY_START(
-        reinterpret_cast<const DestructTask*>(orig_task), 
-        reinterpret_cast<DestructTask*>(dup_task), deep);
+        reinterpret_cast<const DestroyTask*>(orig_task), 
+        reinterpret_cast<DestroyTask*>(dup_task), deep);
       break;
     }
     case Method::kAllocate: {
@@ -136,8 +136,8 @@ void NewCopyStart(u32 method, const Task *orig_task, LPointer<Task> &dup_task, b
       chi::CALL_NEW_COPY_START(reinterpret_cast<const CreateTask*>(orig_task), dup_task, deep);
       break;
     }
-    case Method::kDestruct: {
-      chi::CALL_NEW_COPY_START(reinterpret_cast<const DestructTask*>(orig_task), dup_task, deep);
+    case Method::kDestroy: {
+      chi::CALL_NEW_COPY_START(reinterpret_cast<const DestroyTask*>(orig_task), dup_task, deep);
       break;
     }
     case Method::kAllocate: {
@@ -165,8 +165,8 @@ void SaveStart(u32 method, BinaryOutputArchive<true> &ar, Task *task) override {
       ar << *reinterpret_cast<CreateTask*>(task);
       break;
     }
-    case Method::kDestruct: {
-      ar << *reinterpret_cast<DestructTask*>(task);
+    case Method::kDestroy: {
+      ar << *reinterpret_cast<DestroyTask*>(task);
       break;
     }
     case Method::kAllocate: {
@@ -196,9 +196,9 @@ TaskPointer LoadStart(u32 method, BinaryInputArchive<true> &ar) override {
       ar >> *reinterpret_cast<CreateTask*>(task_ptr.ptr_);
       break;
     }
-    case Method::kDestruct: {
-      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<DestructTask>(task_ptr.shm_);
-      ar >> *reinterpret_cast<DestructTask*>(task_ptr.ptr_);
+    case Method::kDestroy: {
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<DestroyTask>(task_ptr.shm_);
+      ar >> *reinterpret_cast<DestroyTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kAllocate: {
@@ -231,8 +231,8 @@ void SaveEnd(u32 method, BinaryOutputArchive<false> &ar, Task *task) override {
       ar << *reinterpret_cast<CreateTask*>(task);
       break;
     }
-    case Method::kDestruct: {
-      ar << *reinterpret_cast<DestructTask*>(task);
+    case Method::kDestroy: {
+      ar << *reinterpret_cast<DestroyTask*>(task);
       break;
     }
     case Method::kAllocate: {
@@ -260,8 +260,8 @@ void LoadEnd(u32 method, BinaryInputArchive<false> &ar, Task *task) override {
       ar >> *reinterpret_cast<CreateTask*>(task);
       break;
     }
-    case Method::kDestruct: {
-      ar >> *reinterpret_cast<DestructTask*>(task);
+    case Method::kDestroy: {
+      ar >> *reinterpret_cast<DestroyTask*>(task);
       break;
     }
     case Method::kAllocate: {

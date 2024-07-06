@@ -15,13 +15,102 @@
 
 namespace chi {
 
+/** Create a container */
+bool TaskRegistry::CreateContainer(const char *lib_name,
+                                   const char *pool_name,
+                                   const PoolId &pool_id,
+                                   Admin::CreateContainerTask *task,
+                                   const std::vector<SubDomainId> &containers) {
+  // Ensure pool_id is not NULL
+  if (pool_id.IsNull()) {
+    HELOG(kError, "The task state ID cannot be null");
+    task->SetModuleComplete();
+    return false;
+  }
+//    HILOG(kInfo, "(node {}) Creating an instance of {} with name {}",
+//          CHI_CLIENT->node_id_, lib_name, pool_name)
+
+  // Find the task library to instantiate
+  auto it = libs_.find(lib_name);
+  if (it == libs_.end()) {
+    HELOG(kError, "Could not find the task lib: {}", lib_name);
+    task->SetModuleComplete();
+    return false;
+  }
+  TaskLibInfo &info = it->second;
+
+  // Create partitioned state
+  pools_[pool_id].lib_name_ = lib_name;
+  std::unordered_map<ContainerId, Container*> &states =
+      pools_[pool_id].containers_;
+  for (const SubDomainId &container_id : containers) {
+    // Don't repeat if state exists
+    if (states.find(container_id.minor_) != states.end()) {
+      continue;
+    }
+
+    // Allocate the state
+    Container *exec = info.new_state_(&pool_id, pool_name);
+    if (!exec) {
+      HELOG(kError, "Could not create the task state: {}", pool_name);
+      task->SetModuleComplete();
+      return false;
+    }
+
+    // Add the state to the registry
+    exec->id_ = pool_id;
+    exec->name_ = pool_name;
+    exec->container_id_ = container_id.minor_;
+    ScopedRwWriteLock lock(lock_, 0);
+    pools_[pool_id].containers_[exec->container_id_] = exec;
+
+    // Construct the state
+    task->ctx_.id_ = pool_id;
+    exec->Run(TaskMethod::kCreate, task, task->rctx_);
+    task->UnsetModuleComplete();
+  }
+  HILOG(kInfo, "(node {})  Created an instance of {} with pool name {} "
+               "and pool ID {} ({} containers)",
+        CHI_CLIENT->node_id_, lib_name, pool_name,
+        pool_id, containers.size());
+  return true;
+}
+
+/** Schedule a task locally */
+void Client::ScheduleTaskRuntime(Task *parent_task,
+                                 LPointer<Task> &task,
+                                 const QueueId &queue_id) {
+  std::vector<ResolvedDomainQuery> resolved =
+      CHI_RPC->ResolveDomainQuery(task->pool_, task->dom_query_, false);
+  ingress::MultiQueue *queue = GetQueue(queue_id);
+  DomainQuery dom_query = resolved[0].dom_;
+  if (resolved.size() == 1 && resolved[0].node_ == CHI_RPC->node_id_ &&
+      dom_query.flags_.All(DomainQuery::kLocal | DomainQuery::kId)) {
+    // Determine the lane the task should map to within container
+    ContainerId container_id = dom_query.sel_.id_;
+    Container *exec = CHI_TASK_REGISTRY->GetContainer(task->pool_,
+                                                      container_id);
+    chi::Lane *chi_lane = exec->Route(task.ptr_);
+
+    // Get the worker queue for the lane
+    ingress::LaneGroup &lane_group = queue->GetGroup(task->prio_);
+    u32 ig_lane_id = chi_lane->worker_id_ % lane_group.num_lanes_;
+    ingress::Lane &ig_lane = lane_group.GetLane(ig_lane_id);
+    ig_lane.emplace(task.shm_);
+  } else {
+    // Place on whatever queue...
+    queue->Emplace(task->prio_,
+                   std::hash<chi::DomainQuery>{}(task->dom_query_),
+                   task.shm_);
+  }
+}
+
 /** Create the server-side API */
 Runtime* Runtime::Create(std::string server_config_path) {
   hshm::ScopedMutex lock(lock_, 1);
   if (is_initialized_) {
     return this;
   }
-  mode_ = HrunMode::kServer;
   is_being_initialized_ = true;
   ServerInit(std::move(server_config_path));
   is_initialized_ = true;
@@ -51,7 +140,8 @@ void Runtime::ServerInit(std::string server_config_path) {
   CHI_CLIENT->Create(server_config_path, "", true);
   HERMES_THREAD_MODEL->SetThreadModel(hshm::ThreadType::kArgobots);
   work_orchestrator_.ServerInit(&server_config_, queue_manager_);
-  hipc::mptr<Admin::CreateContainerTask> admin_task;
+  hipc::mptr<Admin::CreateTask> admin_create_task;
+  hipc::mptr<Admin::CreateContainerTask> create_task;
   u32 max_containers_pn = CHI_RUNTIME->queue_manager_.max_containers_pn_;
   size_t max_workers = server_config_.wo_.max_dworkers_ +
                        server_config_.wo_.max_oworkers_;
@@ -60,7 +150,7 @@ void Runtime::ServerInit(std::string server_config_path) {
 
   // Create the admin library
   CHI_CLIENT->MakePoolId();
-  admin_task = hipc::make_mptr<Admin::CreateContainerTask>();
+  admin_create_task = hipc::make_mptr<Admin::CreateTask>();
   task_registry_.RegisterTaskLib("chimaera_admin");
   ops = CHI_RPC->CreateDefaultDomains(
       CHI_QM_CLIENT->admin_pool_id_,
@@ -74,12 +164,12 @@ void Runtime::ServerInit(std::string server_config_path) {
       "chimaera_admin",
       "chimaera_admin",
       CHI_QM_CLIENT->admin_pool_id_,
-      admin_task.get(),
+      admin_create_task.get(),
       containers);
 
   // Create the work orchestrator queue scheduling library
   PoolId queue_sched_id = CHI_CLIENT->MakePoolId();
-  admin_task = hipc::make_mptr<Admin::CreateContainerTask>();
+  create_task = hipc::make_mptr<Admin::CreateContainerTask>();
   task_registry_.RegisterTaskLib("worch_queue_round_robin");
   ops = CHI_RPC->CreateDefaultDomains(
       queue_sched_id,
@@ -92,7 +182,7 @@ void Runtime::ServerInit(std::string server_config_path) {
       "worch_queue_round_robin",
       "worch_queue_round_robin",
       queue_sched_id,
-      admin_task.get(),
+      create_task.get(),
       containers);
   Container *state = task_registry_.GetStaticContainer(queue_sched_id);
 
@@ -100,7 +190,8 @@ void Runtime::ServerInit(std::string server_config_path) {
   auto queue_task = CHI_CLIENT->NewTask<ScheduleTask>(
       CHI_CLIENT->MakeTaskNodeId(),
       DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0),
-      queue_sched_id);
+      queue_sched_id,
+      250);
   state->Run(queue_task->method_,
              queue_task.ptr_,
              queue_task->rctx_);
@@ -108,7 +199,7 @@ void Runtime::ServerInit(std::string server_config_path) {
 
   // Create the work orchestrator process scheduling library
   PoolId proc_sched_id = CHI_CLIENT->MakePoolId();
-  admin_task = hipc::make_mptr<Admin::CreateContainerTask>();
+  create_task = hipc::make_mptr<Admin::CreateContainerTask>();
   task_registry_.RegisterTaskLib("worch_proc_round_robin");
   ops = CHI_RPC->CreateDefaultDomains(
       proc_sched_id,
@@ -121,7 +212,7 @@ void Runtime::ServerInit(std::string server_config_path) {
       "worch_proc_round_robin",
       "worch_proc_round_robin",
       proc_sched_id,
-      admin_task.get(),
+      create_task.get(),
       containers);
 
 //  CHI_RPC->PrintDomainResolution(

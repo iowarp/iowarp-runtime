@@ -26,9 +26,25 @@ class Server : public TaskLib {
  public:
   Server() : queue_sched_(nullptr), proc_sched_(nullptr) {}
 
-  /** Route a task to a bdev lane */
-  LaneId Route(const Task *task) override {
-    return 0;
+  /** Create the state */
+  void Create(CreateTask *task, RunContext &rctx) {
+    CreateLaneGroup(0, 1);
+    task->SetModuleComplete();
+  }
+  void MonitorCreate(u32 mode, CreateTask *task, RunContext &rctx) {
+  }
+
+  /** Destroy the state */
+  void Destroy(DestroyTask *task, RunContext &rctx) {
+    CreateLaneGroup(0, 1);
+    task->SetModuleComplete();
+  }
+  void MonitorDestroy(u32 mode, DestroyTask *task, RunContext &rctx) {
+  }
+
+  /** Route a task to a lane */
+  Lane* Route(const Task *task) override {
+    return GetLaneByHash(0, 0);
   }
 
   /** Update number of lanes */
@@ -219,7 +235,8 @@ class Server : public TaskLib {
     auto queue_sched = CHI_CLIENT->NewTask<ScheduleTask>(
         task->task_node_,
         chi::DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0),
-        task->policy_id_);
+        task->policy_id_,
+        250);
     queue_sched_ = queue_sched.ptr_;
     ingress::MultiQueue *queue = CHI_CLIENT->GetQueue(queue_id_);
     queue->Emplace(TaskPrio::kLowLatency, 0, queue_sched.shm_);
@@ -242,7 +259,8 @@ class Server : public TaskLib {
     auto proc_sched = CHI_CLIENT->NewTask<ScheduleTask>(
         task->task_node_,
         chi::DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0),
-        task->policy_id_);
+        task->policy_id_,
+        1000);
     proc_sched_ = proc_sched.ptr_;
     ingress::MultiQueue *queue = CHI_CLIENT->GetQueue(queue_id_);
     queue->Emplace(0, 0, proc_sched.shm_);

@@ -26,55 +26,53 @@ class Server : public TaskLib {
   void Create(CreateTask *task, RunContext &rctx) {
     count_lowlat_ = 0;
     count_highlat_ = 0;
+    CreateLaneGroup(0, 1);
     task->SetModuleComplete();
   }
   void MonitorCreate(u32 mode, CreateTask *task, RunContext &rctx) {
   }
 
-  /** Route a task to a bdev lane */
-  LaneId Route(const Task *task) override {
-    return 0;
+  /** Route a task to a lane */
+  Lane* Route(const Task *task) override {
+    return GetLaneByHash(0, 0);
   }
 
   /** Destroy work orchestrator queue scheduler */
-  void Destruct(DestructTask *task, RunContext &rctx) {
+  void Destroy(DestroyTask *task, RunContext &rctx) {
     task->SetModuleComplete();
   }
-  void MonitorDestruct(u32 mode, DestructTask *task, RunContext &rctx) {
+  void MonitorDestroy(u32 mode, DestroyTask *task, RunContext &rctx) {
   }
 
   /** Schedule work orchestrator queues */
   void Schedule(ScheduleTask *task, RunContext &rctx) {
-    // Check if any new queues need to be scheduled
-    for (MultiQueue &queue : *CHI_QM_RUNTIME->queue_map_) {
-      if (queue.id_.IsNull() || !queue.flags_.Any(QUEUE_READY)) {
-        continue;
-      }
-      for (ingress::LaneGroup &lane_group : queue.groups_) {
-        u32 num_lanes = lane_group.num_lanes_;
-        for (LaneId lane_id = lane_group.num_scheduled_; lane_id < num_lanes; ++lane_id) {
-          u32 worker_id;
-          if (lane_group.IsLowLatency()) {
-            u32 worker_off = count_lowlat_ % CHI_WORK_ORCHESTRATOR->dworkers_.size();
-            count_lowlat_ += 1;
-            Worker &worker = *CHI_WORK_ORCHESTRATOR->dworkers_[worker_off];
-            worker.PollQueues({WorkEntry(lane_group.prio_, lane_id, &queue)});
-            worker_id = worker.id_;
-//            HILOG(kInfo, "(node {}) Scheduling the queue {} (prio {}, lane {}, worker {})",
-//                  CHI_CLIENT->node_id_, queue.id_, lane_group.prio_, lane_id, worker.id_);
-          } else {
-            u32 worker_off = count_highlat_ % CHI_WORK_ORCHESTRATOR->oworkers_.size();
-            count_highlat_ += 1;
-            Worker &worker = *CHI_WORK_ORCHESTRATOR->oworkers_[worker_off];
-            worker.PollQueues({WorkEntry(lane_group.prio_, lane_id, &queue)});
-            worker_id = worker.id_;
-//            HILOG(kInfo, "(node {}) Scheduling the queue {} (prio {}, lane {}, worker {})",
-//                  CHI_CLIENT->node_id_, queue.id_, lane_group.prio_, lane_id, worker.id_);
+    // Iterate over the set of ChiContainers
+    ScopedRwReadLock lock(CHI_TASK_REGISTRY->lock_, 0);
+    for (auto pool_it = CHI_TASK_REGISTRY->pools_.begin();
+         pool_it != CHI_TASK_REGISTRY->pools_.end(); ++pool_it) {
+      for (auto cont_it = pool_it->second.containers_.begin();
+           cont_it != pool_it->second.containers_.end(); ++cont_it) {
+        Container *container = cont_it->second;
+        for (auto lane_grp_it = container->lane_groups_.begin();
+             lane_grp_it != container->lane_groups_.end(); ++lane_grp_it) {
+          LaneGroup &lane_grp = lane_grp_it->second;
+          for (auto lane_it = lane_grp.lanes_.begin();
+               lane_it != lane_grp.lanes_.end(); ++lane_it) {
+            Lane &lane = *lane_it;
+            // Check the worker the container maps to
+            Worker *worker =
+                CHI_WORK_ORCHESTRATOR->workers_[lane.worker_id_].get();
+            // Check if this ChiLane is low latency.
+
+
+            if (worker->IsLowLatency()) {
+            }
+            // If not, the worker should perform vertical migration.
           }
-          ingress::Lane &lane = lane_group.GetLane(lane_id);
-          lane.worker_id_ = worker_id;
         }
-        lane_group.num_scheduled_ = num_lanes;
+        // Check the worker the container maps to
+        // Does this match the worker it is on?
+        // If not, the worker should perform vertical migration.
       }
     }
   }

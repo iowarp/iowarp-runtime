@@ -179,8 +179,7 @@ class PrivateTaskMultiQueue {
   inline static const int HIGH_LAT = 3;
   inline static const int LONG_RUNNING = 4;
   inline static const int FLUSH = 5;
-  inline static const int REMOTE = 6;
-  inline static const int NUM_QUEUES = 7;
+  inline static const int NUM_QUEUES = 6;
 
  public:
   size_t root_count_;
@@ -199,7 +198,6 @@ class PrivateTaskMultiQueue {
     queues_[HIGH_LAT].Init(HIGH_LAT, max_lanes * qdepth);
     queues_[LONG_RUNNING].Init(LONG_RUNNING, max_lanes * qdepth);
     queues_[FLUSH].Init(LONG_RUNNING, max_lanes * qdepth);
-    queues_[REMOTE].Init(REMOTE, max_lanes * qdepth);
     blocked_.Init(max_lanes * qdepth);
     complete_ = std::make_unique<hshm::mpsc_queue<LPointer<Task>>>(
         max_lanes * qdepth);
@@ -229,10 +227,6 @@ class PrivateTaskMultiQueue {
 
   PrivateTaskQueue& GetFlush() {
     return queues_[FLUSH];
-  }
-
-  PrivateTaskQueue& GetRemote() {
-    return queues_[REMOTE];
   }
 
   hshm::mpsc_queue<LPointer<Task>>& GetCompletion() {
@@ -332,6 +326,8 @@ class Worker {
       active_;  /** Tasks pending to complete */
   hshm::Timepoint cur_time_;  /**< The current timepoint */
   WorkPending flush_;    /**< Info needed for flushing ops */
+  std::unordered_map<TaskId, u32>
+      active_graphs_;  /**< Active task graphs */
 
 
  public:
@@ -527,10 +523,10 @@ class Worker {
   HSHM_ALWAYS_INLINE
   void IngestLane(WorkEntry &lane_info) {
     // Ingest tasks from the ingress queues
-    ingress::Lane *&lane = lane_info.lane_;
+    ingress::Lane *&ig_lane = lane_info.lane_;
     ingress::LaneData *entry;
     while (true) {
-      if (lane->peek(entry).IsNull()) {
+      if (ig_lane->peek(entry).IsNull()) {
         break;
       }
       LPointer<Task> task;
@@ -540,19 +536,19 @@ class Worker {
       TaskRouteMode route = Reroute(task->pool_,
                                     dom_query,
                                     task,
-                                    lane);
+                                    ig_lane);
       if (route == TaskRouteMode::kRemoteWorker) {
         task->SetRemote();
       }
       if (route == TaskRouteMode::kLocalWorker) {
-        lane->pop();
+        ig_lane->pop();
       } else {
         if (active_.push(PrivateTaskQueueEntry{task, dom_query})) {
 //          HILOG(kInfo, "[TASK_CHECK] Running rep_task {} on node {} (long running: {})"
 //                       " pool={} method={}",
 //                (void*)task->rctx_.ret_task_addr_, CHI_RPC->node_id_,
 //                task->IsLongRunning(), task->pool_, task->method_);
-          lane->pop();
+          ig_lane->pop();
         } else {
           break;
         }
@@ -563,10 +559,10 @@ class Worker {
   /**
    * Detect if a DomainQuery is across nodes
    * */
-  static TaskRouteMode Reroute(const PoolId &scope,
-                               DomainQuery &dom_query,
-                               LPointer<Task> task,
-                               ingress::Lane *lane) {
+  TaskRouteMode Reroute(const PoolId &scope,
+                        DomainQuery &dom_query,
+                        LPointer<Task> task,
+                        ingress::Lane *lane) {
     std::vector<ResolvedDomainQuery> resolved =
         CHI_RPC->ResolveDomainQuery(scope, dom_query, false);
     if (resolved.size() == 1 && resolved[0].node_ == CHI_RPC->node_id_) {
@@ -582,15 +578,12 @@ class Worker {
       }
 #endif
       if (dom_query.flags_.All(DomainQuery::kLocal | DomainQuery::kId)) {
-        ingress::MultiQueue *queue = CHI_CLIENT->GetQueue(
-            task->pool_);
-        ingress::LaneGroup &lane_group = queue->GetGroup(task->prio_);
-        u32 lane_id = dom_query.sel_.id_ % lane_group.num_lanes_;
-        ingress::Lane &lane_cmp = lane_group.GetLane(lane_id);
-        if (&lane_cmp == lane) {
+        Container *exec = CHI_TASK_REGISTRY->GetContainer(
+            task->pool_, dom_query.sel_.id_);
+        chi::Lane *chi_lane = exec->Route(task.ptr_);
+        if (chi_lane->worker_id_ == id_) {
           return TaskRouteMode::kThisWorker;
         } else {
-          lane_cmp.emplace(task.shm_);
           return TaskRouteMode::kLocalWorker;
         }
       }
@@ -643,13 +636,13 @@ class Worker {
     bitfield32_t props =
         GetTaskProperties(task.ptr_, cur_time_,
                           flushing);
-    // Get the task state
+    // Get the task container
     Container *exec;
     if (props.Any(HSHM_WORKER_IS_REMOTE)) {
       exec = CHI_TASK_REGISTRY->GetStaticContainer(task->pool_);
     } else {
       exec = CHI_TASK_REGISTRY->GetContainer(task->pool_,
-                                              entry.res_query_.sel_.id_);
+                                             entry.res_query_.sel_.id_);
     }
     if (!exec) {
       if (task->pool_ == PoolId::GetNull()) {
@@ -665,6 +658,16 @@ class Worker {
       }
       return true;
     }
+    // Check if the task is apart of a plugged lane
+    // TODO(llogan): Upgrade + migrate
+//    chi::Lane *chi_lane = exec->Route(task.ptr_);
+//    if (chi_lane->IsPlugged()) {
+//      if (active_graphs_.find(task->task_node_.root_) == active_graphs_.end()) {
+//        // Place into plug list
+//        return false;
+//      }
+//    }
+//    ++chi_lane->active_;
     // Pack runtime context
     RunContext &rctx = task->rctx_;
     rctx.worker_id_ = id_;
@@ -712,6 +715,11 @@ class Worker {
     // Monitoring callback
     if (!task->IsStarted()) {
       exec->Monitor(MonitorMode::kBeginTrainTime, task, rctx);
+      if (active_graphs_.find(task->task_node_.root_) == active_graphs_.end()) {
+        active_graphs_.emplace(task->task_node_.root_, 0);
+      } else {
+        active_graphs_[task->task_node_.root_] += 1;
+      }
     }
     // Attempt to run the task if it's ready and runnable
     if (props.Any(HSHM_WORKER_IS_REMOTE)) {
@@ -733,16 +741,20 @@ class Worker {
     }
 
     // Actually execute the task
-    // ExecCoroutine(task, rctx);
-    if (task->IsCoroutine()) {
-      ExecCoroutine(task, rctx);
-    } else {
-      exec->Run(task->method_, task, rctx);
-      task->SetStarted();
-    }
+    ExecCoroutine(task, rctx);
+//    if (task->IsCoroutine()) {
+//      ExecCoroutine(task, rctx);
+//    } else {
+//      exec->Run(task->method_, task, rctx);
+//      task->SetStarted();
+//    }
     // Monitoring callback
-    if (task->IsModuleComplete()) {
+    if (!task->IsStarted()) {
       exec->Monitor(MonitorMode::kEndTrainTime, task, rctx);
+      active_graphs_[task->task_node_.root_] -= 1;
+      if (active_graphs_[task->task_node_.root_] == 0) {
+        active_graphs_.erase(task->task_node_.root_);
+      }
     }
     task->DidRun(cur_time_);
     // Block the task
@@ -812,6 +824,12 @@ class Worker {
   /**===============================================================
    * Helpers
    * =============================================================== */
+
+  /** Migrate a lane from this worker to another */
+  void MigrateLane(Lane *lane, u32 new_worker) {
+    // Blocked + ingressed ops need to be located and removed from queues
+
+  }
 
   /** Unblock a task */
   static void SignalUnblock(Task *unblock_task) {

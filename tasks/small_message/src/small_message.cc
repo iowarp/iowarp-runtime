@@ -26,20 +26,23 @@ class Server : public TaskLib {
   void Create(CreateTask *task, RunContext &rctx) {
     client_.Init(id_, CHI_ADMIN->queue_id_);
     task->SetModuleComplete();
+
+    CreateLaneGroup(0, 4);
   }
   void MonitorCreate(u32 mode, CreateTask *task, RunContext &rctx) {
   }
 
-  /** Route a task to a bdev lane */
-  LaneId Route(const Task *task) override {
-    return 0;
+  /** Route a task to a lane */
+  Lane* Route(const Task *task) override {
+    count_ += 1;
+    return GetLaneByHash(0, count_);
   }
 
   /** Destroy small_message */
-  void Destruct(DestructTask *task, RunContext &rctx) {
+  void Destroy(DestroyTask *task, RunContext &rctx) {
     task->SetModuleComplete();
   }
-  void MonitorDestruct(u32 mode, DestructTask *task, RunContext &rctx) {
+  void MonitorDestroy(u32 mode, DestroyTask *task, RunContext &rctx) {
   }
 
   /** A metadata operation */

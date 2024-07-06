@@ -90,6 +90,41 @@ void WorkOrchestrator::ServerInit(ServerConfig *config, QueueManager &qm) {
   // Dedicate CPU cores to this runtime
   DedicateCores();
 
+  // Assign ingress queues to workers
+  size_t count_lowlat_ = 0;
+  size_t count_highlat_ = 0;
+  for (MultiQueue &queue : *CHI_QM_RUNTIME->queue_map_) {
+    if (queue.id_.IsNull() || !queue.flags_.Any(QUEUE_READY)) {
+      continue;
+    }
+    for (ingress::LaneGroup &lane_group : queue.groups_) {
+      u32 num_lanes = lane_group.num_lanes_;
+      for (LaneId lane_id = lane_group.num_scheduled_; lane_id < num_lanes; ++lane_id) {
+        u32 worker_id;
+        if (lane_group.IsLowLatency()) {
+          u32 worker_off = count_lowlat_ % CHI_WORK_ORCHESTRATOR->dworkers_.size();
+          count_lowlat_ += 1;
+          Worker &worker = *CHI_WORK_ORCHESTRATOR->dworkers_[worker_off];
+          worker.PollQueues({WorkEntry(lane_group.prio_, lane_id, &queue)});
+          worker_id = worker.id_;
+//            HILOG(kInfo, "(node {}) Scheduling the queue {} (prio {}, lane {}, worker {})",
+//                  CHI_CLIENT->node_id_, queue.id_, lane_group.prio_, lane_id, worker.id_);
+        } else {
+          u32 worker_off = count_highlat_ % CHI_WORK_ORCHESTRATOR->oworkers_.size();
+          count_highlat_ += 1;
+          Worker &worker = *CHI_WORK_ORCHESTRATOR->oworkers_[worker_off];
+          worker.PollQueues({WorkEntry(lane_group.prio_, lane_id, &queue)});
+          worker_id = worker.id_;
+//            HILOG(kInfo, "(node {}) Scheduling the queue {} (prio {}, lane {}, worker {})",
+//                  CHI_CLIENT->node_id_, queue.id_, lane_group.prio_, lane_id, worker.id_);
+        }
+        ingress::Lane &lane = lane_group.GetLane(lane_id);
+        lane.worker_id_ = worker_id;
+      }
+      lane_group.num_scheduled_ = num_lanes;
+    }
+  }
+
   HILOG(kInfo, "(node {}) Started {} workers",
         CHI_RPC->node_id_, num_workers);
 }

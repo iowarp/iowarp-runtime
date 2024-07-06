@@ -64,14 +64,14 @@ struct CreateTask : public CreateContainerTask {
 
 /** A task to destroy worch_queue_round_robin */
 using chi::Admin::DestroyContainerTask;
-struct DestructTask : public DestroyContainerTask {
+struct DestroyTask : public DestroyContainerTask {
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
-  DestructTask(hipc::Allocator *alloc) : DestroyContainerTask(alloc) {}
+  DestroyTask(hipc::Allocator *alloc) : DestroyContainerTask(alloc) {}
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE
-  DestructTask(hipc::Allocator *alloc,
+  DestroyTask(hipc::Allocator *alloc,
                const TaskNode &task_node,
                PoolId &pool_id,
                const DomainQuery &dom_query)

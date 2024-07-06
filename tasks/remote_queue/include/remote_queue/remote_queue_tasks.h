@@ -66,14 +66,14 @@ struct CreateTask : public CreateContainerTask {
 
 /** A task to destroy remote_queue */
 using chi::Admin::DestroyContainerTask;
-struct DestructTask : public DestroyContainerTask {
+struct DestroyTask : public DestroyContainerTask {
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
-  DestructTask(hipc::Allocator *alloc) : DestroyContainerTask(alloc) {}
+  DestroyTask(hipc::Allocator *alloc) : DestroyContainerTask(alloc) {}
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
-  DestructTask(hipc::Allocator *alloc,
+  DestroyTask(hipc::Allocator *alloc,
                const TaskNode &task_node,
                const DomainQuery &dom_query,
                PoolId &pool_id)
