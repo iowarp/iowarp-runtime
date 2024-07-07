@@ -40,13 +40,13 @@ class Client : public TaskLibClient {
         task, task_node, dom_query, affinity, pool_name, ctx,
         path, max_size);
   }
-  void CreateRoot(const DomainQuery &dom_query,
+  void Create(const DomainQuery &dom_query,
                   const DomainQuery &affinity,
                   const std::string &pool_name,
                   const std::string &path,
                   size_t max_size,
                   const CreateContext &ctx = CreateContext()) {
-    LPointer<CreateTask> task = AsyncCreateRoot(
+    LPointer<CreateTask> task = AsyncCreate(
         dom_query, affinity, pool_name, ctx, path, max_size);
     task->Wait();
     Init(task->ctx_.id_);
@@ -56,8 +56,8 @@ class Client : public TaskLibClient {
 
   /** Destroy task state + queue */
   HSHM_ALWAYS_INLINE
-  void DestroyRoot(const DomainQuery &dom_query) {
-    CHI_ADMIN->DestroyContainerRoot(dom_query, id_);
+  void Destroy(const DomainQuery &dom_query) {
+    CHI_ADMIN->DestroyContainer(dom_query, id_);
   }
 
   /** Allocate a section of the block device */
@@ -70,11 +70,11 @@ class Client : public TaskLibClient {
         task, task_node, dom_query, id_, size);
   }
   HSHM_ALWAYS_INLINE
-  void AllocateRoot(const DomainQuery &dom_query,
+  void Allocate(const DomainQuery &dom_query,
                     const hipc::Pointer &data,
                     size_t size,
                     size_t off) {
-    LPointer<AllocateTask> task = AsyncReadRoot(dom_query, data, size, off);
+    LPointer<AllocateTask> task = AsyncRead(dom_query, data, size, off);
     task.ptr_->Wait();
     CHI_CLIENT->DelTask(task);
   }
@@ -92,10 +92,10 @@ class Client : public TaskLibClient {
         size, off);
   }
   HSHM_ALWAYS_INLINE
-  void FreeRoot(const DomainQuery &dom_query,
+  void Free(const DomainQuery &dom_query,
                 size_t size,
                 size_t off) {
-    LPointer<FreeTask> task = AsyncFreeRoot(dom_query, size, off);
+    LPointer<FreeTask> task = AsyncFree(dom_query, size, off);
     task.ptr_->Wait();
     CHI_CLIENT->DelTask(task);
   }
@@ -114,11 +114,11 @@ class Client : public TaskLibClient {
         data, size, off);
   }
   HSHM_ALWAYS_INLINE
-  void WriteRoot(const DomainQuery &dom_query,
+  void Write(const DomainQuery &dom_query,
                  const hipc::Pointer &data,
                  size_t size,
                  size_t off) {
-    LPointer<WriteTask> task = AsyncWriteRoot(dom_query, data, size, off);
+    LPointer<WriteTask> task = AsyncWrite(dom_query, data, size, off);
     task.ptr_->Wait();
     CHI_CLIENT->DelTask(task);
   }
@@ -137,11 +137,11 @@ class Client : public TaskLibClient {
         data, size, off);
   }
   HSHM_ALWAYS_INLINE
-  void ReadRoot(const DomainQuery &dom_query,
+  void Read(const DomainQuery &dom_query,
                 const hipc::Pointer &data,
                 size_t size,
                 size_t off) {
-    LPointer<ReadTask> task = AsyncReadRoot(dom_query, data, size, off);
+    LPointer<ReadTask> task = AsyncRead(dom_query, data, size, off);
     task.ptr_->Wait();
     CHI_CLIENT->DelTask(task);
   }

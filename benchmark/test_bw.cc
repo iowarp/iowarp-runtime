@@ -30,13 +30,13 @@ void Summarize(size_t nprocs,
 
 void SyncIoTest(int rank, int nprocs, size_t msg_size, size_t ops_pp) {
   chi::small_message::Client client;
-  CHI_ADMIN->RegisterTaskLibRoot(
+  CHI_ADMIN->RegisterTaskLib(
       chi::DomainQuery::GetGlobalBcast(), "small_message");
-  client.CreateRoot(
+  client.Create(
       chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
       chi::DomainQuery::GetGlobalBcast(),
       "ipc_test");
-  size_t domain_size = CHI_ADMIN->GetDomainSizeRoot(
+  size_t domain_size = CHI_ADMIN->GetDomainSize(
       chi::DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0),
       chi::DomainId(client.id_, chi::SubDomainId::kGlobalContainers));
 
@@ -45,7 +45,7 @@ void SyncIoTest(int rank, int nprocs, size_t msg_size, size_t ops_pp) {
   for (size_t i = 0; i < ops_pp; ++i) {
     int container_id = i;
     size_t read_size, write_size;
-    client.IoRoot(
+    client.Io(
         chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers,
                                         container_id),
         msg_size,

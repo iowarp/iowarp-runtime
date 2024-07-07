@@ -75,9 +75,8 @@ class TaskLib;
 /** Used to indicate Yield to use */
 #define TASK_YIELD_STD 0
 #define TASK_YIELD_CO 1
-#define TASK_YIELD_CO_NOBLK 2
-#define TASK_YIELD_ABT 3
-#define TASK_YIELD_EMPTY 4
+#define TASK_YIELD_ABT 2
+#define TASK_YIELD_EMPTY 3
 
 /** The baseline set of tasks */
 struct TaskMethod {
@@ -177,7 +176,7 @@ struct TaskNode {
 
   /** Check if the root task */
   HSHM_ALWAYS_INLINE
-  bool IsRoot() const {
+  bool Is() const {
     return node_depth_ == 0;
   }
 
@@ -562,20 +561,37 @@ struct Task : public hipc::ShmContainer {
     start_ = cur_time;
   }
 
-  /** Yield the task */
+  /** Yield in general */
   template<int THREAD_MODEL = 0>
   HSHM_ALWAYS_INLINE
-  void Yield() {
+  static void StaticYieldFactory() {
     if constexpr (THREAD_MODEL == TASK_YIELD_STD) {
       HERMES_THREAD_MODEL->Yield();
-    } else if constexpr (THREAD_MODEL == TASK_YIELD_CO ||
-                         THREAD_MODEL == TASK_YIELD_CO_NOBLK) {
-      rctx_.jmp_ = bctx::jump_fcontext(rctx_.jmp_.fctx, nullptr);
     } else if constexpr (THREAD_MODEL == TASK_YIELD_ABT) {
       ABT_thread_yield();
     }
+  }
+
+  /** Yield the task */
+  template<int THREAD_MODEL = 0>
+  HSHM_ALWAYS_INLINE
+  void YieldFactory() {
+    if constexpr (THREAD_MODEL == TASK_YIELD_CO) {
+      rctx_.jmp_ = bctx::jump_fcontext(rctx_.jmp_.fctx, nullptr);
+    } else {
+      StaticYieldFactory<THREAD_MODEL>();
+    }
     // NOTE(llogan): TASK_YIELD_NOCO is not here because it shouldn't
     // actually yield anything. Would longjmp be worthwhile here?
+  }
+
+  HSHM_ALWAYS_INLINE
+  void Yield() {
+#ifdef CHIMAERA_RUNTIME
+    YieldFactory<TASK_YIELD_CO>();
+#else
+    YieldFactory<TASK_YIELD_STD>();
+#endif
   }
 
   /** Yield a task to a different task */
@@ -592,36 +608,35 @@ struct Task : public hipc::ShmContainer {
   }
 
   /** Wait for task to complete */
-  template<int THREAD_MODEL = TASK_YIELD_STD>
   void Wait(u32 flags = TASK_COMPLETE) {
     while (!task_flags_.All(flags)) {
-      if constexpr (THREAD_MODEL == TASK_YIELD_STD) {
-        for (;;) {
-          std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);
-          if (task_flags_.All(flags)) {
-            // std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);
-            return;
-          }
+#ifdef CHIMAERA_RUNTIME
+      Yield();
+#else
+      for (;;) {
+        std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);
+        if (task_flags_.All(flags)) {
+          // std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);
+          return;
         }
       }
-      Yield<THREAD_MODEL>();
+#endif
     }
   }
 
   /** This task waits for subtask to complete */
-  template<int THREAD_MODEL = 0, typename TaskT=Task>
+  template<typename TaskT=Task>
   void Wait(LPointer<TaskT> &subtask, u32 flags = TASK_COMPLETE) {
-    Wait<THREAD_MODEL>(subtask.ptr_, flags);
+    Wait(subtask.ptr_, flags);
   }
 
   /** This task waits for subtask to complete */
-  template<int THREAD_MODEL = 0>
   void Wait(Task *subtask, u32 flags = TASK_COMPLETE) {
 #ifdef CHIMAERA_RUNTIME
     SetBlocked(1);
 #endif
     while (!subtask->task_flags_.All(flags)) {
-      Yield<THREAD_MODEL>();
+      Yield();
     }
 #ifdef CHIMAERA_RUNTIME
     UnsetBlocked();
@@ -629,14 +644,13 @@ struct Task : public hipc::ShmContainer {
   }
 
   /** This task waits for a set of tasks to complete */
-  template<int THREAD_MODEL = 0>
   void Wait(std::vector<LPointer<Task>> &subtasks, u32 flags = TASK_COMPLETE) {
 #ifdef CHIMAERA_RUNTIME
     SetBlocked(subtasks.size());
 #endif
     for (auto &subtask : subtasks) {
       while (!subtask->task_flags_.All(flags)) {
-        Yield<THREAD_MODEL>();
+        Yield();
       }
     }
 #ifdef CHIMAERA_RUNTIME
@@ -696,16 +710,6 @@ struct Task : public hipc::ShmContainer {
   /** SHM copy assignment operator */
   Task& operator=(const Task &other) {
     return *this;
-  }
-
-  /** Get state */
-  void GetState(Task &state_buf) {
-    state_buf = *this;
-  }
-
-  /** Restore state */
-  void RestoreState(Task &state_buf) {
-    (*this) = state_buf;
   }
 
   /**====================================

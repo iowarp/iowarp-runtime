@@ -116,7 +116,7 @@ class Server : public TaskLib {
       global_containers = CHI_RPC->hosts_.size();
     }
     if (local_containers_pn == 0) {
-      local_containers_pn = CHI_RUNTIME->GetNumLanes();
+      local_containers_pn = CHI_RUNTIME->GetMaxContainersPn();
     }
     // Update the default domains for the state
     std::vector<UpdateDomainInfo> ops = CHI_RPC->CreateDefaultDomains(
@@ -153,7 +153,7 @@ class Server : public TaskLib {
           CHI_QM_CLIENT->GetQueue(CHI_QM_CLIENT->admin_queue_id_);
       bcast->YieldInit(task);
       queue->Emplace(bcast->prio_, bcast->GetContainerId(), bcast.shm_);
-      task->Wait<TASK_YIELD_CO>(bcast);
+      task->Wait(bcast);
       exec->Del(Method::kCreate, bcast.ptr_);
     }
     HILOG(kInfo, "(node {}) Created containers for task {}",
@@ -207,7 +207,6 @@ class Server : public TaskLib {
       HILOG(kInfo, "(node {}) Broadcasting runtime stop (task_node={})",
             CHI_RPC->node_id_, task->task_node_);
       CHI_ADMIN->AsyncStopRuntime(
-          task, task->task_node_ + 1,
           DomainQuery::GetGlobalBcast(), false);
     } else if (CHI_RPC->node_id_ == task->task_node_.root_.node_id_) {
       task->SetModuleComplete();

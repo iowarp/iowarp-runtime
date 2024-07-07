@@ -29,11 +29,11 @@ class Client : public TaskLibClient {
     CHI_CLIENT->ConstructTask<CreateTask>(
         task, task_node, dom_query, affinity, pool_name, ctx);
   }
-  void CreateRoot(const DomainQuery &dom_query,
+  void Create(const DomainQuery &dom_query,
                   const DomainQuery &affinity,
                   const std::string &pool_name,
                   const CreateContext &ctx = CreateContext()) {
-    LPointer<CreateTask> task = AsyncCreateRoot(
+    LPointer<CreateTask> task = AsyncCreate(
         dom_query, affinity, pool_name, ctx);
     task->Wait();
     Init(task->ctx_.id_);
@@ -43,8 +43,8 @@ class Client : public TaskLibClient {
 
   /** Destroy state + queue */
   HSHM_ALWAYS_INLINE
-  void DestroyRoot(const DomainQuery &dom_query) {
-    CHI_ADMIN->DestroyContainerRoot(dom_query, id_);
+  void Destroy(const DomainQuery &dom_query) {
+    CHI_ADMIN->DestroyContainer(dom_query, id_);
   }
 
   /** Metadata task */
@@ -55,9 +55,9 @@ class Client : public TaskLibClient {
     CHI_CLIENT->ConstructTask<MdTask>(
         task, task_node, dom_query, id_, depth, flags);
   }
-  int MdRoot(const DomainQuery &dom_query, u32 depth, u32 flags) {
+  int Md(const DomainQuery &dom_query, u32 depth, u32 flags) {
     LPointer<MdTask> task =
-        AsyncMdRoot(dom_query, depth, flags);
+        AsyncMd(dom_query, depth, flags);
     task->Wait();
     int ret = task->ret_;
     CHI_CLIENT->DelTask(task);
@@ -73,10 +73,10 @@ class Client : public TaskLibClient {
     CHI_CLIENT->ConstructTask<IoTask>(
         task, task_node, dom_query, id_, io_size, io_flags);
   }
-  void IoRoot(const DomainQuery &dom_query, size_t io_size,
+  void Io(const DomainQuery &dom_query, size_t io_size,
              u32 io_flags, size_t &write_ret, size_t &read_ret) {
     LPointer<IoTask> task =
-        AsyncIoRoot(dom_query, io_size, io_flags);
+        AsyncIo(dom_query, io_size, io_flags);
     task->Wait();
     write_ret = task->ret_;
     char *data = CHI_CLIENT->GetDataPointer(task->data_);

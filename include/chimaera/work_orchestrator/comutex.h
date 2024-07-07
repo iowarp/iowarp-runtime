@@ -44,7 +44,7 @@ class CoMutex {
     }
     COMUTEX_QUEUE_T &blocked = blocked_map_[task_root];
     blocked.emplace_back((CoMutexEntry){task, &rctx});
-    task->Yield<TASK_YIELD_CO>();
+    task->Yield();
   }
 
   void Unlock() {

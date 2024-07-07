@@ -354,7 +354,7 @@ class TaskRegistry {
 
 /** Singleton macro for task registry */
 #define CHI_TASK_REGISTRY \
-  (&CHI_RUNTIME->task_registry_)
+  hshm::Singleton<chi::TaskRegistry>::GetInstance()
 }  // namespace chi
 
 #endif  // HRUN_INCLUDE_HRUN_TASK_TASK_REGISTRY_H_

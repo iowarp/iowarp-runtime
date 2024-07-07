@@ -18,9 +18,6 @@
 
 namespace chi {
 
-#define CHI_QM_RUNTIME \
-  (&CHI_RUNTIME->queue_manager_)
-
 /** Administrative queuing actions */
 class QueueManagerRuntime : public QueueManager {
  public:
@@ -96,6 +93,9 @@ class QueueManagerRuntime : public QueueManager {
     tickets_->emplace(id.unique_);
   }
 };
+
+#define CHI_QM_RUNTIME \
+  hshm::Singleton<chi::QueueManagerRuntime>::GetInstance()
 
 }  // namespace chi
 

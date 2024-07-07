@@ -18,7 +18,7 @@
 #include "hermes_shm/util/singleton.h"
 
 #include "rpc.h"
-#include "serialize.h"
+#include "serialize_defn.h"
 
 namespace tl = thallium;
 

@@ -72,11 +72,9 @@ class Server : public TaskLib {
     submit_.emplace_back(qm.queue_depth_);
     complete_.emplace_back(qm.queue_depth_);
     submitters_.emplace_back(
-        CHI_REMOTE_QUEUE->AsyncClientSubmit(
-            task, task->task_node_ + 1, dom_query));
+        CHI_REMOTE_QUEUE->AsyncClientSubmit(dom_query));
     completers_.emplace_back(
-        CHI_REMOTE_QUEUE->AsyncServerComplete(
-            task, task->task_node_ + 1, dom_query));
+        CHI_REMOTE_QUEUE->AsyncServerComplete(dom_query));
     task->SetModuleComplete();
   }
   void MonitorCreate(u32 mode, CreateTask *task, RunContext &rctx) {
@@ -130,7 +128,7 @@ class Server : public TaskLib {
 //            rep_task.ptr_, CHI_RPC->node_id_, res_query.node_);
     }
     // Wait
-    submit_task->Wait<TASK_YIELD_CO>(replicas, TASK_MODULE_COMPLETE);
+    submit_task->Wait(replicas, TASK_MODULE_COMPLETE);
     // Combine
     rctx.replicas_ = &replicas;
     exec->Monitor(MonitorMode::kReplicaAgg, orig_task, rctx);

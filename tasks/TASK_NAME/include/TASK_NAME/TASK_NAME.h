@@ -37,11 +37,11 @@ class Client : public TaskLibClient {
     CHI_CLIENT->ConstructTask<CreateTask>(
         task, task_node, dom_query, affinity, pool_name, ctx);
   }
-  void CreateRoot(const DomainQuery &dom_query,
+  void Create(const DomainQuery &dom_query,
                   const DomainQuery &affinity,
                   const std::string &pool_name,
                   const CreateContext &ctx = CreateContext()) {
-    LPointer<CreateTask> task = AsyncCreateRoot(
+    LPointer<CreateTask> task = AsyncCreate(
         dom_query, affinity, pool_name, ctx);
     task->Wait();
     Init(task->ctx_.id_);
@@ -51,8 +51,8 @@ class Client : public TaskLibClient {
 
   /** Destroy task state + queue */
   HSHM_ALWAYS_INLINE
-  void DestroyRoot(const DomainQuery &dom_query) {
-    CHI_ADMIN->DestroyContainerRoot(dom_query, id_);
+  void Destroy(const DomainQuery &dom_query) {
+    CHI_ADMIN->DestroyContainer(dom_query, id_);
   }
 
   /** Call a custom method */
@@ -64,8 +64,8 @@ class Client : public TaskLibClient {
         task, task_node, dom_query, id_);
   }
   HSHM_ALWAYS_INLINE
-  void CustomRoot(const DomainQuery &dom_query) {
-    LPointer<CustomTask> task = AsyncCustomRoot(dom_query);
+  void Custom(const DomainQuery &dom_query) {
+    LPointer<CustomTask> task = AsyncCustom(dom_query);
     task.ptr_->Wait();
   }
   CHI_TASK_METHODS(Custom);

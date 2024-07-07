@@ -27,10 +27,10 @@ class Client : public TaskLibClient {
         task, task_node, dom_query, lib_name);
   }
   HSHM_ALWAYS_INLINE
-  void RegisterTaskLibRoot(const DomainQuery &dom_query,
+  void RegisterTaskLib(const DomainQuery &dom_query,
                            const std::string &lib_name) {
     LPointer<RegisterTaskLibTask> task =
-        AsyncRegisterTaskLibRoot(dom_query, lib_name);
+        AsyncRegisterTaskLib(dom_query, lib_name);
     task->Wait();
     CHI_CLIENT->DelTask(task);
   }
@@ -46,11 +46,11 @@ class Client : public TaskLibClient {
         task, task_node, dom_query, lib_name);
   }
   HSHM_ALWAYS_INLINE
-  void DestroyTaskLibRoot(const TaskNode &task_node,
+  void DestroyTaskLib(const TaskNode &task_node,
                               const DomainQuery &dom_query,
                               const std::string &lib_name) {
     LPointer<DestroyTaskLibTask> task =
-        AsyncDestroyTaskLibRoot(dom_query, lib_name);
+        AsyncDestroyTaskLib(dom_query, lib_name);
     task->Wait();
     CHI_CLIENT->DelTask(task);
   }
@@ -71,10 +71,10 @@ class Client : public TaskLibClient {
     CHI_CLIENT->ConstructTask<GetPoolIdTask>(
         task, task_node, dom_query, pool_name);
   }
-  PoolId GetPoolIdRoot(const DomainQuery &dom_query,
+  PoolId GetPoolId(const DomainQuery &dom_query,
                                  const std::string &pool_name) {
     LPointer<GetPoolIdTask> task =
-        AsyncGetPoolIdRoot(dom_query, pool_name);
+        AsyncGetPoolId(dom_query, pool_name);
     task->Wait();
     PoolId new_id = task->id_;
     CHI_CLIENT->DelTask(task);
@@ -92,10 +92,10 @@ class Client : public TaskLibClient {
         task, task_node, dom_query, id);
   }
   HSHM_ALWAYS_INLINE
-  void DestroyContainerRoot(const DomainQuery &dom_query,
+  void DestroyContainer(const DomainQuery &dom_query,
                             const PoolId &id) {
     LPointer<DestroyContainerTask> task =
-        AsyncDestroyContainerRoot(dom_query, id);
+        AsyncDestroyContainer(dom_query, id);
     task->Wait();
     CHI_CLIENT->DelTask(task);
   }
@@ -109,13 +109,13 @@ class Client : public TaskLibClient {
     CHI_CLIENT->ConstructTask<StopRuntimeTask>(
         task, task_node, dom_query, root);
   }
-  void StopRuntimeRoot() {
+  void StopRuntime() {
     HILOG(kInfo, "Beginning to flush the runtime.\n"
                  "If you did async I/O, this may take some time.\n"
                  "All unflushed data will be written to the PFS.");
-    FlushRoot(DomainQuery::GetGlobalBcast());
+    Flush(DomainQuery::GetGlobalBcast());
     HILOG(kInfo, "Stopping the runtime");
-    AsyncStopRuntimeRoot(DomainQuery::GetDirectHash(
+    AsyncStopRuntime(DomainQuery::GetDirectHash(
         SubDomainId::kLocalContainers, 0), true);
     HILOG(kInfo, "All done!");
     exit(1);
@@ -130,10 +130,10 @@ class Client : public TaskLibClient {
     CHI_CLIENT->ConstructTask<SetWorkOrchQueuePolicyTask>(
         task, task_node, dom_query, policy);
   }
-  void SetWorkOrchQueuePolicyRoot(const DomainQuery &dom_query,
+  void SetWorkOrchQueuePolicy(const DomainQuery &dom_query,
                                   const PoolId &policy) {
     LPointer<SetWorkOrchQueuePolicyTask> task =
-        AsyncSetWorkOrchQueuePolicyRoot(dom_query, policy);
+        AsyncSetWorkOrchQueuePolicy(dom_query, policy);
     task->Wait();
     CHI_CLIENT->DelTask(task);
   }
@@ -147,10 +147,10 @@ class Client : public TaskLibClient {
     CHI_CLIENT->ConstructTask<SetWorkOrchProcPolicyTask>(
         task, task_node, dom_query, policy);
   }
-  void SetWorkOrchProcPolicyRoot(const DomainQuery &dom_query,
+  void SetWorkOrchProcPolicy(const DomainQuery &dom_query,
                                  const PoolId &policy) {
     LPointer<SetWorkOrchProcPolicyTask> task =
-        AsyncSetWorkOrchProcPolicyRoot(dom_query, policy);
+        AsyncSetWorkOrchProcPolicy(dom_query, policy);
     task->Wait();
     CHI_CLIENT->DelTask(task);
   }
@@ -163,11 +163,11 @@ class Client : public TaskLibClient {
     CHI_CLIENT->ConstructTask<FlushTask>(
         task, task_node, dom_query);
   }
-  void FlushRoot(const DomainQuery &dom_query) {
+  void Flush(const DomainQuery &dom_query) {
     size_t work_done = 0;
     do {
       LPointer<FlushTask> task =
-          AsyncFlushRoot(dom_query);
+          AsyncFlush(dom_query);
       task->Wait();
       work_done = task->work_done_;
       CHI_CLIENT->DelTask(task);
@@ -183,10 +183,10 @@ class Client : public TaskLibClient {
     CHI_CLIENT->ConstructTask<GetDomainSizeTask>(
         task, task_node, dom_query, dom_id);
   }
-  size_t GetDomainSizeRoot(const DomainQuery &dom_query,
+  size_t GetDomainSize(const DomainQuery &dom_query,
                            const DomainId &dom_id) {
     LPointer<GetDomainSizeTask> task =
-        AsyncGetDomainSizeRoot(dom_query, dom_id);
+        AsyncGetDomainSize(dom_query, dom_id);
     task->Wait();
     size_t dom_size = task->dom_size_;
     CHI_CLIENT->DelTask(task);

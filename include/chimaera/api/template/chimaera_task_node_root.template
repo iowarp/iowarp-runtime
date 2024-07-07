@@ -7,17 +7,24 @@ hipc::LPointer<CUSTOM##Task> Async##CUSTOM##Alloc(const TaskNode &task_node,
   return task;
 }
 template<typename ...Args>
-hipc::LPointer<CUSTOM##Task> Async##CUSTOM(Task *parent_task,
+hipc::LPointer<CUSTOM##Task> Async##CUSTOM(Args&& ...args) {
+  Task *parent_task = CHI_WORK_ORCHESTRATOR->GetCurrentTask();
+  return Async##CUSTOM##Base(parent_task,
+                             parent_task->task_node_ + 1,
+                             std::forward<Args>(args)...);
+}
+template<typename ...Args>
+hipc::LPointer<CUSTOM##Task> Async##CUSTOM##Base(Task *parent_task,
                                            const TaskNode &task_node,
                                            Args&& ...args) {
   hipc::LPointer<CUSTOM##Task> task = Async##CUSTOM##Alloc(
     task_node, std::forward<Args>(args)...);
-  CHI_CLIENT->ScheduleTaskRuntimeTempl(parent_task, task, queue_id_);
+  CHI_CLIENT->ScheduleTaskRuntime(parent_task, task, queue_id_);
   return task;
 }
 template<typename ...Args>
 hipc::LPointer<CUSTOM##Task>
-Async##CUSTOM##Root(Args&& ...args) {
+Async##CUSTOM(Args&& ...args) {
   TaskNode task_node = CHI_CLIENT->MakeTaskNodeId();
   hipc::LPointer<CUSTOM##Task> task = Async##CUSTOM##Alloc(
       task_node, std::forward<Args>(args)...);

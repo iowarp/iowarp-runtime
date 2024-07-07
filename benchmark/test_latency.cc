@@ -28,9 +28,9 @@ void Summarize(size_t nprocs,
 
 void SyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
   chi::small_message::Client client;
-  CHI_ADMIN->RegisterTaskLibRoot(
+  CHI_ADMIN->RegisterTaskLib(
       chi::DomainQuery::GetGlobalBcast(), "small_message");
-  client.CreateRoot(
+  client.Create(
       chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
       chi::DomainQuery::GetGlobalBcast(),
       "ipc_test");
@@ -41,7 +41,7 @@ void SyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
   t.Resume();
   for (size_t i = 0; i < ops; ++i) {
     int container_id = i;
-    client.MdRoot(
+    client.Md(
         chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers,
                                         container_id),
         depth, 0);
@@ -53,10 +53,10 @@ void SyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
 
 void AsyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
   chi::small_message::Client client;
-  CHI_ADMIN->RegisterTaskLibRoot(
+  CHI_ADMIN->RegisterTaskLib(
       chi::DomainQuery::GetGlobalBcast(),
       "small_message");
-  client.CreateRoot(
+  client.Create(
       chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
       chi::DomainQuery::GetGlobalBcast(),
       "ipc_test");
@@ -66,13 +66,13 @@ void AsyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
   t.Resume();
   for (size_t i = 0; i < ops; ++i) {
     int container_id = i;
-    client.AsyncMdRoot(
+    client.AsyncMd(
         chi::DomainQuery::GetDirectHash(
             chi::SubDomainId::kGlobalContainers,
             container_id),
         depth, TASK_FIRE_AND_FORGET);
   }
-  CHI_ADMIN->FlushRoot(
+  CHI_ADMIN->Flush(
       DomainQuery::GetGlobalBcast());
   t.Pause();
   t.Collect();

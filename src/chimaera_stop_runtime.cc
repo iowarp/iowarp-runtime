@@ -14,5 +14,5 @@
 
 int main() {
   CHIMAERA_CLIENT_INIT();
-  CHI_ADMIN->StopRuntimeRoot();
+  CHI_ADMIN->StopRuntime();
 }

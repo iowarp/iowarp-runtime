@@ -17,7 +17,7 @@
 #include "chimaera/chimaera_types.h"
 #include "chimaera/queue_manager/queue_factory.h"
 #include "task.h"
-#include "chimaera/network/serialize.h"
+#include "chimaera/network/serialize_defn.h"
 
 namespace chi {
 
@@ -82,7 +82,7 @@ class TaskLib {
   }
 
   /** Get number of lanes */
-  size_t GetNumLanes() {
+  size_t GetMaxContainersPn() {
     return lane_counter_;
   }
 
