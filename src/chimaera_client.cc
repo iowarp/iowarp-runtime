@@ -25,11 +25,6 @@ void SegmentedTransfer::AllocateSegmentsServer() {
   }
 }
 
-/** Schedule a task locally */
-void Client::ScheduleTaskRuntime(Task *parent_task,
-                                 LPointer<Task> &task,
-                                 const QueueId &queue_id) {}
-
 }  // namespace chi
 
 /** Runtime singleton */

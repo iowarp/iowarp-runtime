@@ -63,8 +63,6 @@ class Server : public TaskLib {
             Worker *worker =
                 CHI_WORK_ORCHESTRATOR->workers_[lane.worker_id_].get();
             // Check if this ChiLane is low latency.
-
-
             if (worker->IsLowLatency()) {
             }
             // If not, the worker should perform vertical migration.

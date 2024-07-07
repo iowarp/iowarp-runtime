@@ -158,15 +158,11 @@ struct LaneGroup : public PriorityInfo, public hipc::ShmContainer {
   }
 };
 
-/** Represents the HSHM queue type */
-class Hshm {};
-
 /**
  * The shared-memory representation of a Queue
  * */
-template<>
-struct MultiQueueT<Hshm> : public hipc::ShmContainer {
-  SHM_CONTAINER_TEMPLATE((MultiQueueT), (MultiQueueT))
+struct MultiQueue : public hipc::ShmContainer {
+  SHM_CONTAINER_TEMPLATE((MultiQueue), (MultiQueue))
   QueueId id_;          /**< Globally unique ID of this queue */
   hipc::vector<LaneGroup> groups_;  /**< Divide the lanes into groups */
   bitfield32_t flags_;  /**< Flags for the queue */
@@ -177,13 +173,13 @@ struct MultiQueueT<Hshm> : public hipc::ShmContainer {
    * ===================================*/
 
   /** SHM constructor. Default. */
-  explicit MultiQueueT(hipc::Allocator *alloc) : groups_(alloc) {
+  explicit MultiQueue(hipc::Allocator *alloc) : groups_(alloc) {
     shm_init_container(alloc);
     SetNull();
   }
 
   /** SHM constructor. */
-  explicit MultiQueueT(hipc::Allocator *alloc, const QueueId &id,
+  explicit MultiQueue(hipc::Allocator *alloc, const QueueId &id,
                        const std::vector<PriorityInfo> &prios)
   : groups_(alloc, prios.size()) {
     shm_init_container(alloc);
@@ -197,7 +193,8 @@ struct MultiQueueT<Hshm> : public hipc::ShmContainer {
       for (LaneId lane_id = 0;
            lane_id < lane_group.num_lanes_;
            ++lane_id) {
-        lane_group.lanes_.emplace_back(lane_group.depth_, id_);
+        lane_group.lanes_.emplace_back(
+            lane_group.depth_, QueueId{prio_info.prio_, lane_id});
         Lane &lane = lane_group.lanes_.back();
         lane.flags_ = prio_info.flags_;
       }
@@ -209,7 +206,7 @@ struct MultiQueueT<Hshm> : public hipc::ShmContainer {
    * ===================================*/
 
   /** SHM copy constructor */
-  explicit MultiQueueT(hipc::Allocator *alloc, const MultiQueueT &other)
+  explicit MultiQueue(hipc::Allocator *alloc, const MultiQueue &other)
   : groups_(alloc) {
     shm_init_container(alloc);
     SetNull();
@@ -217,7 +214,7 @@ struct MultiQueueT<Hshm> : public hipc::ShmContainer {
   }
 
   /** SHM copy assignment operator */
-  MultiQueueT& operator=(const MultiQueueT &other) {
+  MultiQueue& operator=(const MultiQueue &other) {
     if (this != &other) {
       shm_destroy();
       shm_strong_copy_construct_and_op(other);
@@ -226,7 +223,7 @@ struct MultiQueueT<Hshm> : public hipc::ShmContainer {
   }
 
   /** SHM copy constructor + operator main */
-  void shm_strong_copy_construct_and_op(const MultiQueueT &other) {
+  void shm_strong_copy_construct_and_op(const MultiQueue &other) {
     groups_ = other.groups_;
   }
 
@@ -235,8 +232,8 @@ struct MultiQueueT<Hshm> : public hipc::ShmContainer {
    * ===================================*/
 
   /** SHM move constructor. */
-  MultiQueueT(hipc::Allocator *alloc,
-              MultiQueueT &&other) noexcept : groups_(alloc) {
+  MultiQueue(hipc::Allocator *alloc,
+              MultiQueue &&other) noexcept : groups_(alloc) {
     shm_init_container(alloc);
     if (GetAllocator() == other.GetAllocator()) {
       groups_ = std::move(other.groups_);
@@ -248,7 +245,7 @@ struct MultiQueueT<Hshm> : public hipc::ShmContainer {
   }
 
   /** SHM move assignment operator. */
-  MultiQueueT& operator=(MultiQueueT &&other) noexcept {
+  MultiQueue& operator=(MultiQueue &&other) noexcept {
     if (this != &other) {
       shm_destroy();
       if (GetAllocator() == other.GetAllocator()) {

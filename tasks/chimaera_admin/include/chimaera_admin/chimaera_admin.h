@@ -29,7 +29,8 @@ class Client : public TaskLibClient {
   HSHM_ALWAYS_INLINE
   void RegisterTaskLibRoot(const DomainQuery &dom_query,
                            const std::string &lib_name) {
-    LPointer<RegisterTaskLibTask> task = AsyncRegisterTaskLibRoot(dom_query, lib_name);
+    LPointer<RegisterTaskLibTask> task =
+        AsyncRegisterTaskLibRoot(dom_query, lib_name);
     task->Wait();
     CHI_CLIENT->DelTask(task);
   }

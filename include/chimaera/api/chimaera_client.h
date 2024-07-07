@@ -348,6 +348,7 @@ class Client : public ConfigurationManager {
     return queue_manager_.GetQueue(real_id);
   }
 
+#ifdef CHIMAERA_RUNTIME
   /** Performs the lpointer conversion */
   template<typename TaskT>
   void ScheduleTaskRuntimeTempl(Task *parent_task,
@@ -361,9 +362,11 @@ class Client : public ConfigurationManager {
   void ScheduleTaskRuntime(Task *parent_task,
                            LPointer<Task> &task,
                            const QueueId &queue_id);
+#endif
 };
 
 /** The default asynchronous method behavior */
+#ifdef CHIMAERA_RUNTIME
 #define CHIMAERA_TASK_NODE_ROOT(CUSTOM)\
 template<typename ...Args>\
 hipc::LPointer<CUSTOM##Task> Async##CUSTOM##Alloc(const TaskNode &task_node,\
@@ -381,6 +384,16 @@ hipc::LPointer<CUSTOM##Task> Async##CUSTOM(Task *parent_task,\
     task_node, std::forward<Args>(args)...);\
   CHI_CLIENT->ScheduleTaskRuntimeTempl(parent_task, task, queue_id_);\
   return task;\
+}
+#else
+#define CHIMAERA_TASK_NODE_ROOT(CUSTOM)\
+template<typename ...Args>\
+hipc::LPointer<CUSTOM##Task> Async##CUSTOM##Alloc(const TaskNode &task_node,\
+                                                  Args&& ...args) {\
+  hipc::LPointer<CUSTOM##Task> task =\
+    CHI_CLIENT->AllocateTask<CUSTOM##Task>();\
+  Async##CUSTOM##Construct(task.ptr_, task_node, std::forward<Args>(args)...);\
+  return task;\
 }\
 template<typename ...Args>\
 hipc::LPointer<CUSTOM##Task>\
@@ -394,6 +407,7 @@ Async##CUSTOM##Root(Args&& ...args) {\
                  task.shm_);\
   return task;\
 }
+#endif
 
 #define CHI_TASK_METHODS(CUSTOM) CHIMAERA_TASK_NODE_ROOT(CUSTOM)
 

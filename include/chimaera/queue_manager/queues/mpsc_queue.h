@@ -57,7 +57,7 @@ class mpsc_queue : public ShmContainer {
   std::atomic<_qtok_t> head_;
   bitfield32_t flags_;
   QueueId id_;
-  u32 worker_id_;
+  i32 worker_id_ = -1;
 
  public:
   /**====================================

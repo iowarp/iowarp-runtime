@@ -328,6 +328,8 @@ class Worker {
   WorkPending flush_;    /**< Info needed for flushing ops */
   std::unordered_map<TaskId, u32>
       active_graphs_;  /**< Active task graphs */
+  float load_ = 0;  /** Total load of this worker */
+  Task *cur_task_ = nullptr;  /** Currently executing task */
 
 
  public:
@@ -433,6 +435,7 @@ class Worker {
 
   /** Worker loop iteration */
   void Loop() {
+    CHI_WORK_ORCHESTRATOR->SetThreadLocalBlock(this);
     pid_ = GetLinuxTid();
     SetCpuAffinity(affinity_);
     if (IsContinuousPolling()) {
@@ -581,7 +584,7 @@ class Worker {
         Container *exec = CHI_TASK_REGISTRY->GetContainer(
             task->pool_, dom_query.sel_.id_);
         chi::Lane *chi_lane = exec->Route(task.ptr_);
-        if (chi_lane->worker_id_ == id_) {
+        if (chi_lane->ingress_id_ == lane->id_) {
           return TaskRouteMode::kThisWorker;
         } else {
           return TaskRouteMode::kLocalWorker;
@@ -711,7 +714,8 @@ class Worker {
         flush_.count_ += 1;
       }
     }
-
+    // Make this task current
+    cur_task_ = task;
     // Monitoring callback
     if (!task->IsStarted()) {
       exec->Monitor(MonitorMode::kBeginTrainTime, task, rctx);

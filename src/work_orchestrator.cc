@@ -180,4 +180,22 @@ void WorkOrchestrator::DedicateCores() {
   // HILOG(kInfo, "Affining {} processes to {} cores", count, cpu_ids.size());
 }
 
+/** Get the least-loaded ingress queue */
+ingress::Lane* WorkOrchestrator::GetLeastLoadedIngressLane(
+    u32 lane_group_id) {
+  ingress:MultiQueue *queue =
+    CHI_QM_RUNTIME->GetQueue(CHI_QM_RUNTIME->admin_queue_id_);
+  ingress::LaneGroup &lane_group = queue->groups_[lane_group_id];
+  ingress::Lane *min_lane = nullptr;
+  float min_load = std::numeric_limits<float>::max();
+  for (ingress::Lane &lane : lane_group.lanes_) {
+    Worker &worker = GetWorker(lane.worker_id_);
+    if (worker.load_ < min_load) {
+      min_load = worker.load_;
+      min_lane = &lane;
+    }
+  }
+  return min_lane;
+}
+
 }  // namespace chi

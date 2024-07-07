@@ -136,6 +136,9 @@ class WorkOrchestrator {
     }
     return worker;
   }
+
+  /** Get the least-loaded ingress queue */
+  ingress::Lane* GetLeastLoadedIngressLane(u32 lane_group_id);
 };
 
 }  // namespace chi

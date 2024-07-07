@@ -15,13 +15,4 @@
 
 #include "queues/hshm_queue.h"
 
-namespace chi::ingress {
-
-#ifdef QUEUE_TYPE
-using MultiQueue = MultiQueueT<QUEUE_TYPE>;
-#else
-using MultiQueue = MultiQueueT<Hshm>;
-#endif
-}  // namespace chi
-
 #endif  // HRUN_INCLUDE_HRUN_QUEUE_MANAGER_QUEUE_FACTORY_H_
