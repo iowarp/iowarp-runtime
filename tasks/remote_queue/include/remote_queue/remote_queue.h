@@ -39,7 +39,7 @@ class Client : public TaskLibClient {
                   const CreateContext &ctx = CreateContext()) {
     LPointer<CreateTask> task = AsyncCreate(
         dom_query, affinity, pool_name, ctx);
-    task->Wait();
+    task->SpinWait();
     Init(task->ctx_.id_);
     CHI_CLIENT->DelTask(task);
   }

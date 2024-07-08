@@ -140,6 +140,9 @@ class WorkOrchestrator {
   /** Get thread-local storage */
   Task* GetCurrentTask() {
     Worker *worker = GetCurrentWorker();
+    if (worker == nullptr) {
+      return nullptr;
+    }
     return worker->cur_task_;
   }
 

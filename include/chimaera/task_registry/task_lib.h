@@ -37,7 +37,7 @@ class MonitorMode {
 
 /** The information of a lane */
 struct Lane {
-  LaneId lane_id_;
+  QueueId lane_id_;
   QueueId ingress_id_;
   i32 worker_id_;
   size_t load_ = 0;
@@ -76,9 +76,14 @@ class TaskLib {
   void CreateLaneGroup(const LaneGroupId &id, u32 count, u32 flags = 0);
 
   /** Get lane */
-  Lane *GetLaneByHash(const LaneGroupId &group, u32 hash) {
+  Lane* GetLaneByHash(const LaneGroupId &group, u32 hash) {
     LaneGroup &lane_group = lane_groups_[group];
     return &lane_group.lanes_[hash % lane_group.lanes_.size()];
+  }
+
+  /** Get lane */
+  Lane* GetLane(const QueueId &lane_id) {
+    return GetLaneByHash(lane_id.node_id_, lane_id.unique_);
   }
 
   /** Get number of lanes */

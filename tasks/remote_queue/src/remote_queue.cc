@@ -65,7 +65,7 @@ class Server : public TaskLib {
     CreateLaneGroup(NODES, 4);
 
     // Creating submitter and completer queues
-    DomainQuery dom_query = DomainQuery::GetDirectHash(
+    DomainQuery dom_query = DomainQuery::GetDirectId(
         SubDomainId::kContainerSet,
         container_id_);
     QueueManagerInfo &qm = CHI_QM_RUNTIME->config_->queue_manager_;

@@ -297,7 +297,7 @@ class Client : public ConfigurationManager {
   template<typename TaskT>
   void ScheduleTaskRuntime(Task *parent_task,
                            LPointer<TaskT> &task,
-                           const QueueId &queue_id);
+                           const QueueId &ig_queue_id);
 #endif
 };
 
@@ -315,9 +315,15 @@ hipc::LPointer<CUSTOM##Task> Async##CUSTOM##Alloc(const TaskNode &task_node,\
 template<typename ...Args>\
 hipc::LPointer<CUSTOM##Task> Async##CUSTOM(Args&& ...args) {\
   Task *parent_task = CHI_WORK_ORCHESTRATOR->GetCurrentTask();\
-  return Async##CUSTOM##Base(parent_task,\
-                             parent_task->task_node_ + 1,\
-                             std::forward<Args>(args)...);\
+  if (parent_task) {\
+    return Async##CUSTOM##Base(parent_task,\
+                               parent_task->task_node_ + 1,\
+                               std::forward<Args>(args)...);\
+  } else {\
+    return Async##CUSTOM##Base(nullptr,\
+                               CHI_CLIENT->MakeTaskNodeId(),\
+                               std::forward<Args>(args)...);\
+  }\
 }\
 template<typename ...Args>\
 hipc::LPointer<CUSTOM##Task> Async##CUSTOM##Base(Task *parent_task,\

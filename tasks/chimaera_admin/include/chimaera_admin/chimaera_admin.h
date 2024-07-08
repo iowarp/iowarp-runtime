@@ -137,6 +137,17 @@ class Client : public TaskLibClient {
     task->Wait();
     CHI_CLIENT->DelTask(task);
   }
+#ifdef CHIMAERA_RUNTIME
+  void SetWorkOrchQueuePolicyRN(const DomainQuery &dom_query,
+                                const PoolId &policy) {
+    LPointer<SetWorkOrchQueuePolicyTask> task =
+        AsyncSetWorkOrchQueuePolicyBase(nullptr,
+                                        CHI_CLIENT->MakeTaskNodeId(),
+                                        dom_query, policy);
+    task->SpinWait();
+    CHI_CLIENT->DelTask(task);
+  }
+#endif
   CHIMAERA_TASK_NODE_ROOT(SetWorkOrchQueuePolicy);
 
   /** Set work orchestrator process policy */
@@ -154,6 +165,17 @@ class Client : public TaskLibClient {
     task->Wait();
     CHI_CLIENT->DelTask(task);
   }
+#ifdef CHIMAERA_RUNTIME
+  void SetWorkOrchProcPolicyRN(const DomainQuery &dom_query,
+                               const PoolId &policy) {
+    LPointer<SetWorkOrchProcPolicyTask> task =
+        AsyncSetWorkOrchProcPolicyBase(
+            nullptr, CHI_CLIENT->MakeTaskNodeId(),
+            dom_query, policy);
+    task->SpinWait();
+    CHI_CLIENT->DelTask(task);
+  }
+#endif
   CHIMAERA_TASK_NODE_ROOT(SetWorkOrchProcPolicy);
 
   /** Flush the runtime */

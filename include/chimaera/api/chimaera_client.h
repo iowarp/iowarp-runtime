@@ -49,12 +49,22 @@ LPointer<char> Client::AllocateBufferSafe(Allocator *alloc, size_t size) {
 template<typename TaskT>
 void Client::ScheduleTaskRuntime(Task *parent_task,
                                  LPointer<TaskT> &task,
-                                 const QueueId &queue_id) {
+                                 const QueueId &ig_queue_id) {
   std::vector<ResolvedDomainQuery> resolved =
       CHI_RPC->ResolveDomainQuery(task->pool_, task->dom_query_, false);
   task->YieldInit(parent_task);
-  ingress::MultiQueue *queue = GetQueue(queue_id);
+  ingress::MultiQueue *queue = GetQueue(ig_queue_id);
   DomainQuery dom_query = resolved[0].dom_;
+#ifdef CHIMAERA_REMOTE_DEBUG
+  if (task->pool_ != CHI_QM_CLIENT->admin_pool_id_ &&
+        !task->task_flags_.Any(TASK_REMOTE_DEBUG_MARK) &&
+        !task->IsLongRunning() &&
+        task->method_ != TaskMethod::kCreate &&
+        CHI_RUNTIME->remote_created_ &&
+        !task->IsRemote()) {
+      task->SetRemote();
+    }
+#endif
   if (resolved.size() == 1 && resolved[0].node_ == CHI_RPC->node_id_ &&
       dom_query.flags_.All(DomainQuery::kLocal | DomainQuery::kId)) {
     // Determine the lane the task should map to within container
@@ -62,17 +72,28 @@ void Client::ScheduleTaskRuntime(Task *parent_task,
     Container *exec = CHI_TASK_REGISTRY->GetContainer(task->pool_,
                                                       container_id);
     chi::Lane *chi_lane = exec->Route(task.ptr_);
+    task->rctx_.route_container_ = container_id;
+    task->rctx_.route_lane_ = chi_lane->lane_id_;
+    task->SetRouted();
 
     // Get the worker queue for the lane
-    ingress::LaneGroup &lane_group = queue->GetGroup(task->prio_);
-    u32 ig_lane_id = chi_lane->worker_id_ % lane_group.num_lanes_;
-    ingress::Lane &ig_lane = lane_group.GetLane(ig_lane_id);
+    ingress::LaneGroup &ig_lane_group = queue->GetGroup(
+        chi_lane->ingress_id_.node_id_);
+    ingress::Lane &ig_lane = ig_lane_group.GetLane(
+        chi_lane->ingress_id_.unique_);
     ig_lane.emplace(task.shm_);
   } else {
     // Place on whatever queue...
-    queue->Emplace(task->prio_,
-                   std::hash<chi::DomainQuery>{}(task->dom_query_),
-                   task.shm_);
+    task->SetRemote();
+    task->rctx_.route_lane_.node_id_ = task->prio_;
+    ingress::LaneGroup &ig_lane_group = queue->GetGroup(
+        task->rctx_.route_lane_.node_id_);
+    task->rctx_.route_lane_.unique_ =
+        std::hash<chi::DomainQuery>{}(task->dom_query_) %
+        ig_lane_group.num_lanes_;
+    ingress::Lane &ig_lane = ig_lane_group.GetLane(
+        task->rctx_.route_lane_.unique_);
+    ig_lane.emplace(task.shm_);
   }
 }
 #endif

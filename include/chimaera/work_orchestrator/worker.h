@@ -281,40 +281,72 @@ void Worker::IngestLane(WorkEntry &lane_info) {
 TaskRouteMode Worker::Reroute(const PoolId &scope,
                               DomainQuery &dom_query,
                               LPointer<Task> task,
-                              ingress::Lane *lane) {
-  std::vector<ResolvedDomainQuery> resolved =
-      CHI_RPC->ResolveDomainQuery(scope, dom_query, false);
-  if (resolved.size() == 1 && resolved[0].node_ == CHI_RPC->node_id_) {
-    dom_query = resolved[0].dom_;
-#ifdef CHIMAERA_REMOTE_DEBUG
-    if (task->pool_ != CHI_QM_CLIENT->admin_pool_id_ &&
-        !task->task_flags_.Any(TASK_REMOTE_DEBUG_MARK) &&
-        !task->IsLongRunning() &&
-        task->method_ != TaskMethod::kCreate &&
-        CHI_RUNTIME->remote_created_ &&
-        !task->IsRemote()) {
-      return TaskRouteMode::kRemoteWorker;
-    }
-#endif
-    if (dom_query.flags_.All(DomainQuery::kLocal | DomainQuery::kId)) {
-      Container *exec = CHI_TASK_REGISTRY->GetContainer(
-          task->pool_, dom_query.sel_.id_);
-      chi::Lane *chi_lane = exec->Route(task.ptr_);
-      if (chi_lane->ingress_id_ == lane->id_) {
-        return TaskRouteMode::kThisWorker;
-      } else {
-        return TaskRouteMode::kLocalWorker;
-      }
-    }
-    return TaskRouteMode::kRemoteWorker;
-  } else if (resolved.size() >= 1) {
+                              ingress::Lane *ig_lane) {
+  if (!task->IsRouted()) {
+    CHI_CLIENT->ScheduleTaskRuntime(nullptr, task, ig_lane->id_);
+    return TaskRouteMode::kLocalWorker;
+  } else if (task->IsRemote()) {
     return TaskRouteMode::kRemoteWorker;
   } else {
-    HELOG(kFatal, "{} resolved to no sub-queries for "
-                  "task_node={} pool={}",
-                  dom_query, task->task_node_, task->pool_);
+    dom_query = DomainQuery::GetDirectId(dom_query.sub_id_,
+                                         task->rctx_.route_container_);
+    Container *exec = CHI_TASK_REGISTRY->GetContainer(
+        task->pool_, dom_query.sel_.id_);
+    chi::Lane *chi_lane = exec->GetLane(task->rctx_.route_lane_);
+    if (chi_lane->ingress_id_ == ig_lane->id_) {
+      return TaskRouteMode::kThisWorker;
+    } else {
+      MultiQueue *queue = CHI_CLIENT->GetQueue(
+          CHI_QM_RUNTIME->admin_queue_id_);
+      ingress::LaneGroup &ig_lane_group =
+          queue->GetGroup(chi_lane->ingress_id_.node_id_);
+      ingress::Lane &new_ig_lane = ig_lane_group.GetLane(
+          chi_lane->ingress_id_.unique_);
+      new_ig_lane.emplace(task.shm_);
+      return TaskRouteMode::kLocalWorker;
+    }
   }
-  return TaskRouteMode::kRemoteWorker;
+//
+//  std::vector<ResolvedDomainQuery> resolved =
+//      CHI_RPC->ResolveDomainQuery(scope, dom_query, false);
+//  if (resolved.size() == 1 && resolved[0].node_ == CHI_RPC->node_id_) {
+//    dom_query = resolved[0].dom_;
+//#ifdef CHIMAERA_REMOTE_DEBUG
+//    if (task->pool_ != CHI_QM_CLIENT->admin_pool_id_ &&
+//        !task->task_flags_.Any(TASK_REMOTE_DEBUG_MARK) &&
+//        !task->IsLongRunning() &&
+//        task->method_ != TaskMethod::kCreate &&
+//        CHI_RUNTIME->remote_created_ &&
+//        !task->IsRemote()) {
+//      return TaskRouteMode::kRemoteWorker;
+//    }
+//#endif
+//    if (dom_query.flags_.All(DomainQuery::kLocal | DomainQuery::kId)) {
+//      Container *exec = CHI_TASK_REGISTRY->GetContainer(
+//          task->pool_, dom_query.sel_.id_);
+//      chi::Lane *chi_lane = exec->G;
+//      if (chi_lane->ingress_id_ == ig_lane->id_) {
+//        return TaskRouteMode::kThisWorker;
+//      } else {
+//        MultiQueue *queue = CHI_CLIENT->GetQueue(
+//            CHI_QM_RUNTIME->admin_queue_id_);
+//        ingress::LaneGroup &ig_lane_group =
+//            queue->GetGroup(chi_lane->ingress_id_.node_id_);
+//        ingress::Lane &new_ig_lane = ig_lane_group.GetLane(
+//            chi_lane->ingress_id_.unique_);
+//        new_ig_lane.emplace(task.shm_);
+//        return TaskRouteMode::kLocalWorker;
+//      }
+//    }
+//    return TaskRouteMode::kRemoteWorker;
+//  } else if (resolved.size() >= 1) {
+//    return TaskRouteMode::kRemoteWorker;
+//  } else {
+//    HELOG(kFatal, "{} resolved to no sub-queries for "
+//                  "task_node={} pool={}",
+//                  dom_query, task->task_node_, task->pool_);
+//  }
+//  return TaskRouteMode::kRemoteWorker;
 }
 
 /** Process completion events */

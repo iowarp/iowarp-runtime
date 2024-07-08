@@ -64,6 +64,8 @@ class TaskLib;
 #define TASK_SIGNAL_COMPLETE BIT_OPT(u32, 21)
 /** This task is a remote task */
 #define TASK_REMOTE BIT_OPT(u32, 22)
+/** This task has been scheduled to a lane */
+#define TASK_IS_ROUTED BIT_OPT(u32, 23)
 /** This task is apart of remote debugging */
 #define TASK_REMOTE_RECV_MARK BIT_OPT(u32, 30)
 /** This task is apart of remote debugging */
@@ -280,6 +282,8 @@ struct RunContext {
   size_t ret_task_addr_;
   NodeId ret_node_;
   size_t block_count_;
+  ContainerId route_container_;
+  QueueId route_lane_;
 };
 
 /** A generic task base class */
@@ -418,6 +422,21 @@ struct Task : public hipc::ShmContainer {
   /** Check if task is blocked */
   bool IsBlocked() {
     return rctx_.run_flags_.Any(TASK_BLOCKED);
+  }
+
+  /** Mark task as routed */
+  void SetRouted() {
+    rctx_.run_flags_.SetBits(TASK_IS_ROUTED);
+  }
+
+  /** Check if task is routed */
+  bool IsRouted() {
+    return rctx_.run_flags_.Any(TASK_IS_ROUTED);
+  }
+
+  /** Unset task as routed */
+  void UnsetRouted() {
+    rctx_.run_flags_.UnsetBits(TASK_IS_ROUTED);
   }
 
   /** Set this task as started */
@@ -613,14 +632,19 @@ struct Task : public hipc::ShmContainer {
 #ifdef CHIMAERA_RUNTIME
       Yield();
 #else
-      for (;;) {
-        std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);
-        if (task_flags_.All(flags)) {
-          // std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);
-          return;
-        }
-      }
+      SpinWait(flags);
 #endif
+    }
+  }
+
+  /** Spin wait */
+  void SpinWait(u32 flags = TASK_COMPLETE) {
+    for (;;) {
+      std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);
+      if (task_flags_.All(flags)) {
+        // std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);
+        return;
+      }
     }
   }
 

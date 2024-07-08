@@ -135,10 +135,10 @@ void Runtime::ServerInit(std::string server_config_path) {
 //  HELOG(kFatal, "End here...");
 
   // Set the work orchestrator queue scheduler
-  CHI_ADMIN->SetWorkOrchQueuePolicy(
+  CHI_ADMIN->SetWorkOrchQueuePolicyRN(
       DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0),
       queue_sched_id);
-  CHI_ADMIN->SetWorkOrchProcPolicy(
+  CHI_ADMIN->SetWorkOrchProcPolicyRN(
       DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0),
       proc_sched_id);
 
@@ -226,7 +226,7 @@ void TaskLib::CreateLaneGroup(const LaneGroupId &id, u32 count, u32 flags) {
         lane_prio);
     Worker &worker = CHI_WORK_ORCHESTRATOR->GetWorker(ig_lane->worker_id_);
     worker.load_ += 1;
-    lane_group.lanes_.emplace_back(Lane{lane_counter_++,
+    lane_group.lanes_.emplace_back(Lane{QueueId{id, lane_counter_++},
                                         ig_lane->id_,
                                         ig_lane->worker_id_});
   }
@@ -278,8 +278,10 @@ bool TaskRegistry::CreateContainer(const char *lib_name,
     exec->id_ = pool_id;
     exec->name_ = pool_name;
     exec->container_id_ = container_id.minor_;
-    ScopedRwWriteLock lock(lock_, 0);
-    pools_[pool_id].containers_[exec->container_id_] = exec;
+    {
+      ScopedRwWriteLock lock(lock_, 0);
+      pools_[pool_id].containers_[exec->container_id_] = exec;
+    }
 
     // Construct the state
     task->ctx_.id_ = pool_id;
