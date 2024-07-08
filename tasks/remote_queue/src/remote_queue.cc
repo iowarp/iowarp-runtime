@@ -104,7 +104,8 @@ class Server : public TaskLib {
     Container *exec = CHI_TASK_REGISTRY->GetStaticContainer(
         orig_task->pool_);
     Container *copy_exec = exec;
-    if (orig_task->method_ == Admin::Method::kCreateContainer) {
+    if (orig_task->pool_ == CHI_ADMIN->id_ &&
+        orig_task->method_ == Admin::Method::kCreateContainer) {
       CreateContainerTask *orig_task2 = (CreateContainerTask*)orig_task;
       copy_exec = CHI_TASK_REGISTRY->GetStaticContainer(
           orig_task2->lib_name_.str());

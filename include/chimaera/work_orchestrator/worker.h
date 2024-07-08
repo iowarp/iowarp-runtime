@@ -282,6 +282,16 @@ TaskRouteMode Worker::Reroute(const PoolId &scope,
                               DomainQuery &dom_query,
                               LPointer<Task> task,
                               ingress::Lane *ig_lane) {
+#ifdef CHIMAERA_REMOTE_DEBUG
+  if (task->pool_ != CHI_QM_CLIENT->admin_pool_id_ &&
+      !task->task_flags_.Any(TASK_REMOTE_DEBUG_MARK) &&
+      !task->IsLongRunning() &&
+      task->method_ != TaskMethod::kCreate &&
+      CHI_RUNTIME->remote_created_ &&
+      !task->IsRemote()) {
+    task->SetRemote();
+  }
+#endif
   if (!task->IsRouted()) {
     CHI_CLIENT->ScheduleTaskRuntime(nullptr, task, ig_lane->id_);
     return TaskRouteMode::kLocalWorker;
@@ -473,7 +483,7 @@ void Worker::ExecTask(PrivateTaskQueue &queue,
       active_graphs_[task->task_node_.root_] += 1;
     }
   }
-  // Attempt to run the task if it's ready and runnable
+  // Submit the task to the local remote container
   if (props.Any(HSHM_WORKER_IS_REMOTE)) {
     task->SetBlocked(1);
     active_.block(entry);
@@ -481,7 +491,7 @@ void Worker::ExecTask(PrivateTaskQueue &queue,
     LPointer<remote_queue::ClientPushSubmitTask> remote_task =
         CHI_REMOTE_QUEUE->AsyncClientPushSubmitBase(
             nullptr, task->task_node_ + 1,
-            DomainQuery::GetDirectHash(SubDomainId::kLocalContainers, 0),
+            DomainQuery::GetDirectId(SubDomainId::kGlobalContainers, 1),
             task);
 //      std::vector<ResolvedDomainQuery> resolved =
 //          CHI_RPC->ResolveDomainQuery(remote_task->pool_,
@@ -561,7 +571,7 @@ void Worker::EndTask(Container *exec, LPointer<Task> &task) {
   }
   if (task->ShouldSignalRemoteComplete()) {
     Container *remote_exec =
-        CHI_TASK_REGISTRY->GetStaticContainer(CHI_REMOTE_QUEUE->id_);
+        CHI_TASK_REGISTRY->GetContainer(CHI_REMOTE_QUEUE->id_, 1);
     task->SetComplete();
     remote_exec->Run(chi::remote_queue::Method::kServerPushComplete,
                      task.ptr_, task->rctx_);

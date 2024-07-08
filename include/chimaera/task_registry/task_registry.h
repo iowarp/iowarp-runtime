@@ -317,7 +317,7 @@ class TaskRegistry {
 
   /** Get a task state instance */
   Container* GetContainer(const PoolId &pool_id,
-                          ContainerId &container_id) {
+                          const ContainerId &container_id) {
     ScopedRwReadLock lock(lock_, 0);
     auto pool_it = pools_.find(pool_id);
     if (pool_it == pools_.end()) {

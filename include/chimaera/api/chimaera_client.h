@@ -55,16 +55,6 @@ void Client::ScheduleTaskRuntime(Task *parent_task,
   task->YieldInit(parent_task);
   ingress::MultiQueue *queue = GetQueue(ig_queue_id);
   DomainQuery dom_query = resolved[0].dom_;
-#ifdef CHIMAERA_REMOTE_DEBUG
-  if (task->pool_ != CHI_QM_CLIENT->admin_pool_id_ &&
-        !task->task_flags_.Any(TASK_REMOTE_DEBUG_MARK) &&
-        !task->IsLongRunning() &&
-        task->method_ != TaskMethod::kCreate &&
-        CHI_RUNTIME->remote_created_ &&
-        !task->IsRemote()) {
-      task->SetRemote();
-    }
-#endif
   if (resolved.size() == 1 && resolved[0].node_ == CHI_RPC->node_id_ &&
       dom_query.flags_.All(DomainQuery::kLocal | DomainQuery::kId)) {
     // Determine the lane the task should map to within container

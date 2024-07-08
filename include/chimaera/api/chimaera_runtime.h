@@ -18,7 +18,7 @@
 #include "chimaera/queue_manager/queue_manager_runtime.h"
 #include "chimaera_admin/chimaera_admin.h"
 #include "remote_queue/remote_queue.h"
-#include "chimaera_client.h"
+#include "chimaera_client_defn.h"
 #include "manager.h"
 #include "chimaera/network/rpc.h"
 #include "chimaera/network/rpc_thallium.h"
