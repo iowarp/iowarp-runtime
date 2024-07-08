@@ -474,6 +474,7 @@ void Worker::ExecTask(PrivateTaskQueue &queue,
   }
   // Make this task current
   cur_task_ = task;
+  cur_lane_ = exec->GetLane(task->rctx_.route_lane_);
   // Monitoring callback
   if (!task->IsStarted()) {
     exec->Monitor(MonitorMode::kBeginTrainTime, task, rctx);
@@ -488,6 +489,7 @@ void Worker::ExecTask(PrivateTaskQueue &queue,
     task->SetBlocked(1);
     active_.block(entry);
     cur_task_ = nullptr;
+    cur_lane_ = nullptr;
     LPointer<remote_queue::ClientPushSubmitTask> remote_task =
         CHI_REMOTE_QUEUE->AsyncClientPushSubmitBase(
             nullptr, task->task_node_ + 1,

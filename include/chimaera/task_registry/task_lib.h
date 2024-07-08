@@ -18,6 +18,7 @@
 #include "chimaera/queue_manager/queue_factory.h"
 #include "task.h"
 #include "chimaera/network/serialize_defn.h"
+#include "chimaera/work_orchestrator/comutex_defn.h"
 
 namespace chi {
 
@@ -41,6 +42,7 @@ struct Lane {
   QueueId ingress_id_;
   i32 worker_id_;
   size_t load_ = 0;
+  CoMutex comux_;
 };
 
 struct LaneGroup {

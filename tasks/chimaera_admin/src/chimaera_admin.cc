@@ -21,7 +21,6 @@ class Server : public TaskLib {
  public:
   Task *queue_sched_;
   Task *proc_sched_;
-  CoMutexTable<u32> mutexes_;
 
  public:
   Server() : queue_sched_(nullptr), proc_sched_(nullptr) {}
@@ -82,7 +81,7 @@ class Server : public TaskLib {
 
   /** Create a task state */
   void CreateContainer(CreateContainerTask *task, RunContext &rctx) {
-    ScopedCoMutexTable<u32> lock(mutexes_, 0, task, rctx);
+    ScopedCoMutex lock(CHI_WORK_ORCHESTRATOR->GetCurrentLane()->comux_);
     std::string lib_name = task->lib_name_.str();
     std::string pool_name = task->pool_name_.str();
     // Check local registry for task state

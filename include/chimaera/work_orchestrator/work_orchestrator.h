@@ -127,7 +127,7 @@ class WorkOrchestrator {
     }
   }
 
-  /** Get thread-local storage */
+  /** Get currently-executing worker */
   Worker* GetCurrentWorker() {
     Worker *worker;
     int ret = ABT_key_get(worker_tls_key_, (void**)&worker);
@@ -137,13 +137,22 @@ class WorkOrchestrator {
     return worker;
   }
 
-  /** Get thread-local storage */
+  /** Get currently-executing task */
   Task* GetCurrentTask() {
     Worker *worker = GetCurrentWorker();
     if (worker == nullptr) {
       return nullptr;
     }
     return worker->cur_task_;
+  }
+
+  /** Get the currently-executing lane */
+  Lane* GetCurrentLane() {
+    Worker *worker = GetCurrentWorker();
+    if (worker == nullptr) {
+      return nullptr;
+    }
+    return worker->cur_lane_;
   }
 
   /** Get the least-loaded ingress queue */
