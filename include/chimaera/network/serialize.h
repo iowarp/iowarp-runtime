@@ -14,7 +14,7 @@
 #define HRUN_INCLUDE_HRUN_NETWORK_SERIALIZE_H_
 
 #include "serialize_defn.h"
-#include "chimaera/api/chimaera_client_defn.h"
+#include "chimaera/api/chimaera_client.h"
 
 namespace chi {
 

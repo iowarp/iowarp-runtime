@@ -81,6 +81,9 @@ class Server : public TaskLib {
 
   /** Create a task state */
   void CreateContainer(CreateContainerTask *task, RunContext &rctx) {
+    HILOG(kInfo, "I'm on worker {} ({})",
+          CHI_WORK_ORCHESTRATOR->GetCurrentWorker()->id_,
+          CHI_WORK_ORCHESTRATOR->GetCurrentWorker());
     ScopedCoMutex lock(CHI_WORK_ORCHESTRATOR->GetCurrentLane()->comux_);
     std::string lib_name = task->lib_name_.str();
     std::string pool_name = task->pool_name_.str();

@@ -295,11 +295,10 @@ class RpcContext {
         dom.emplace_back(ResolvedDomainQuery{i});
       }
     }
-    // Create the set of all lanes
+    // Create major domains
     {
       // Create the major LaneSet domain
-      size_t total_dom_size = global_containers +
-          local_containers_pn * dom.size();
+      size_t total_dom_size = dom.size();
       DomainId dom_id(task_state, SubDomainId::kContainerSet);
       SubDomainIdRange range(
           SubDomainId::kContainerSet,
@@ -308,65 +307,35 @@ class RpcContext {
       ops.emplace_back(UpdateDomainInfo{
           dom_id, UpdateDomainOp::kExpand, range});
     }
-    // Create the set of global lanes
     {
-      // Create the major GlobalLaneSet domain
-      DomainId dom_id(task_state, SubDomainId::kGlobalContainers);
-      SubDomainIdRange range(
-          SubDomainId::kGlobalContainers,
-          1,
-          global_containers);
-      ops.emplace_back(UpdateDomainInfo{
-          dom_id, UpdateDomainOp::kExpand, range});
-      for (size_t i = 1; i <= global_containers; ++i) {
-        // Update LaneSet
-        SubDomainIdRange res_set(
-            SubDomainId::kPhysicalNode, dom[i % dom.size()].node_, 1);
-        ops.emplace_back(UpdateDomainInfo{
-            DomainId(task_state, SubDomainId::kContainerSet, i),
-            UpdateDomainOp::kExpand, res_set});
-        // Update GlobalLaneSet
-        SubDomainIdRange res_glob(
-            SubDomainId::kContainerSet, i, 1);
-        ops.emplace_back(UpdateDomainInfo{
-            DomainId(task_state, SubDomainId::kGlobalContainers, i),
-            UpdateDomainOp::kExpand, res_glob});
-      }
-    }
-    // Create the set of local lanes
-    {
-      // Create the major LocalLaneSet domain
+      // Create the major LocalContainer domain
       DomainId dom_id(task_state, SubDomainId::kLocalContainers);
       SubDomainIdRange range(
           SubDomainId::kLocalContainers,
-          1,
-          local_containers_pn);
+          1, 1);
       ops.emplace_back(UpdateDomainInfo{
           dom_id, UpdateDomainOp::kExpand, range});
-      // Update LaneSet
-      u32 lane_off = global_containers + 1;
-      for (ResolvedDomainQuery &query : dom) {
-        for (size_t i = 1; i <= local_containers_pn; ++i) {
-          SubDomainIdRange res_set(
-              SubDomainId::kPhysicalNode, query.node_, 1);
-          // Update LaneSet
-          ops.emplace_back(UpdateDomainInfo{
-              DomainId(task_state, SubDomainId::kContainerSet, lane_off),
-              UpdateDomainOp::kExpand, res_set});
-          if (query.node_ == node_id_) {
-            // Update LocalLaneSet
+    }
+    // Create the set of global lanes
+    {
+      for (size_t i = 1; i <= global_containers; ++i) {
+        // Update GlobalContainers
+        NodeId node_id = dom[(i - 1) % dom.size()].node_;
+        SubDomainIdRange res_set(
+            SubDomainId::kPhysicalNode, node_id, 1);
+        ops.emplace_back(UpdateDomainInfo{
+            DomainId(task_state, SubDomainId::kContainerSet, i),
+            UpdateDomainOp::kExpand, res_set});
+        if (node_id == node_id_) {
+            // Update LocalContainers
             SubDomainIdRange res_loc(
-                SubDomainId::kContainerSet, lane_off, 1);
+                SubDomainId::kContainerSet, i, 1);
             ops.emplace_back(UpdateDomainInfo{
-                DomainId(task_state, SubDomainId::kLocalContainers, i),
+                DomainId(task_state, SubDomainId::kLocalContainers, 1),
                 UpdateDomainOp::kExpand, res_loc});
-          }
-          ++lane_off;
         }
       }
     }
-    // Create the set of caching lanes
-    // TODO(llogan)
     return ops;
   }
 

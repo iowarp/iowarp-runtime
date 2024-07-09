@@ -326,6 +326,7 @@ struct Task : public hipc::ShmContainer {
   /** Unset task as complete */
   void UnsetModuleComplete() {
     task_flags_.UnsetBits(TASK_MODULE_COMPLETE);
+    SetStarted();
   }
 
   /** Set task as complete */
@@ -580,14 +581,29 @@ struct Task : public hipc::ShmContainer {
     start_ = cur_time;
   }
 
+  /** Yield (coroutine) */
+  void YieldCo() {
+    rctx_.jmp_ = bctx::jump_fcontext(rctx_.jmp_.fctx, nullptr);
+  }
+
+  /** Yield (standard) */
+  static void YieldStd() {
+    HERMES_THREAD_MODEL->Yield();
+  }
+
+  /** Yield (argobots) */
+  static void YieldArgo() {
+    ABT_thread_yield();
+  }
+
   /** Yield in general */
   template<int THREAD_MODEL = 0>
   HSHM_ALWAYS_INLINE
   static void StaticYieldFactory() {
     if constexpr (THREAD_MODEL == TASK_YIELD_STD) {
-      HERMES_THREAD_MODEL->Yield();
+      YieldStd();
     } else if constexpr (THREAD_MODEL == TASK_YIELD_ABT) {
-      ABT_thread_yield();
+      YieldArgo();
     }
   }
 
@@ -596,7 +612,7 @@ struct Task : public hipc::ShmContainer {
   HSHM_ALWAYS_INLINE
   void YieldFactory() {
     if constexpr (THREAD_MODEL == TASK_YIELD_CO) {
-      rctx_.jmp_ = bctx::jump_fcontext(rctx_.jmp_.fctx, nullptr);
+      YieldCo();
     } else {
       StaticYieldFactory<THREAD_MODEL>();
     }
