@@ -19,8 +19,10 @@
 
 /** Requests in this queue can be processed in any order */
 #define QUEUE_READY BIT_OPT(u32, 0)
-/** This queue contains only latency-sensitive tasks */
+/** This queue contains primarily latency-sensitive tasks */
 #define QUEUE_LOW_LATENCY BIT_OPT(u32, 1)
+/** This queue contains primarily throughput-intense tasks */
+#define QUEUE_HIGH_LATENCY 0
 /** This queue is currently being resized */
 #define QUEUE_RESIZE BIT_OPT(u32, 2)
 /** This queue is currently processing updates */

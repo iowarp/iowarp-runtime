@@ -196,7 +196,6 @@ class PrivateTaskMultiQueue {
  public:
   void Init(size_t id, size_t pqdepth, size_t qdepth, size_t max_lanes) {
     id_ = id;
-    queues_[ROOT].Init(ROOT, max_lanes * qdepth);
     queues_[CONSTRUCT].Init(CONSTRUCT, max_lanes * qdepth);
     queues_[LOW_LAT].Init(LOW_LAT, max_lanes * qdepth);
     queues_[HIGH_LAT].Init(HIGH_LAT, max_lanes * qdepth);
@@ -207,10 +206,6 @@ class PrivateTaskMultiQueue {
         max_lanes * qdepth);
     root_count_ = 0;
     max_root_count_ = max_lanes * pqdepth;
-  }
-
-  PrivateTaskQueue& Get() {
-    return queues_[ROOT];
   }
 
   PrivateTaskQueue& GetConstruct() {

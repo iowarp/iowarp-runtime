@@ -20,7 +20,7 @@ class Server : public TaskLib {
  public:
   /** Construct the work orchestrator process scheduler */
   void Create(CreateTask *task, RunContext &rctx) {
-    CreateLaneGroup(0, 1);
+    CreateLaneGroup(0, 1, QUEUE_HIGH_LATENCY);
     task->SetModuleComplete();
   }
   void MonitorCreate(u32 mode, CreateTask *task, RunContext &rctx) {

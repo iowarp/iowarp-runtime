@@ -23,7 +23,7 @@ class Server : public TaskLib {
   /** Construct TASK_NAME */
   void Create(CreateTask *task, RunContext &rctx) {
     // Create a set of lanes for holding tasks
-    CreateLaneGroup(0, 1);
+    CreateLaneGroup(0, 1, QUEUE_LOW_LATENCY);
     task->SetModuleComplete();
   }
   void MonitorCreate(u32 mode, CreateTask *task, RunContext &rctx) {

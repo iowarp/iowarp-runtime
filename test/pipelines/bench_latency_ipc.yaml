@@ -7,13 +7,14 @@ pkgs:
     do_dbg: false
     dbg_port: 4000
     qlanes: 4
-    dworkers: 2
+    dworkers: 4
+    pqdepth: 48
   - pkg_type: chimaera_latency_bench
     pkg_name: chimaera_latency_bench
     nprocs: 4
     ppn: 16
     depth: 0
-    ops: 8192
-    async: false
+    ops: 100000
+    async: true
     do_dbg: false
     dbg_port: 4001

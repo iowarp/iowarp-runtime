@@ -75,7 +75,7 @@ class TaskLib {
   }
 
   /** Create a lane group */
-  void CreateLaneGroup(const LaneGroupId &id, u32 count, u32 flags = 0);
+  void CreateLaneGroup(const LaneGroupId &id, u32 count, u32 flags);
 
   /** Get lane */
   Lane* GetLaneByHash(const LaneGroupId &group, u32 hash) {

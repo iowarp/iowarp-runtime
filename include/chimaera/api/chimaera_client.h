@@ -74,6 +74,7 @@ void Client::ScheduleTaskRuntime(Task *parent_task,
     ig_lane.emplace(task.shm_);
   } else {
     // Place on whatever queue...
+    HILOG(kInfo, "Setting as remote task")
     task->SetRemote();
     task->rctx_.route_lane_.node_id_ = task->prio_;
     ingress::LaneGroup &ig_lane_group = queue->GetGroup(

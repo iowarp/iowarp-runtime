@@ -40,8 +40,6 @@ bool PrivateTaskMultiQueue::push(const PrivateTaskQueueEntry &entry) {
     return GetFlush().push(entry);
   } else if (task->IsLongRunning()) {
     return GetLongRunning().push(entry);
-  } else if (task->task_node_.node_depth_ == 0) {
-    return Get().push(entry);
   } else if (task->prio_ == TaskPrio::kLowLatency) {
     return GetLowLat().push(entry);
   } else {
@@ -195,6 +193,8 @@ void Worker::Loop() {
 
 /** Run a single iteration over all queues */
 size_t Worker::Run(bool flushing) {
+//  hshm::Timer t;
+//  t.Resume();
   // Are there any queues pending scheduling
   if (poll_queues_.size() > 0) {
     _PollQueues();
@@ -206,19 +206,25 @@ size_t Worker::Run(bool flushing) {
   // Process tasks in the pending queues
   size_t work = 0;
   IngestProcLanes(flushing);
-  work += PollPrivateQueue(active_.Get(), flushing);
+  size_t latwork = 0;
   for (size_t i = 0; i < 8192; ++i) {
     size_t diff = 0;
     IngestInterLanes(flushing);
     diff += PollPrivateQueue(active_.GetConstruct(), flushing);
     diff += PollPrivateQueue(active_.GetLowLat(), flushing);
-    if (diff == 0) {
-      break;
-    }
+//    if (diff == 0) {
+//      break;
+//    }
+    latwork += diff;
     work += diff;
   }
   work += PollPrivateQueue(active_.GetHighLat(), flushing);
   PollPrivateQueue(active_.GetLongRunning(), flushing);
+//  t.Pause();
+//  if (latwork) {
+//    HILOG(kInfo, "Worker iteration took {} us (work {})",
+//          t.GetUsec(), latwork);
+//  }
   return work;
 }
 
@@ -256,9 +262,6 @@ void Worker::IngestLane(WorkEntry &lane_info) {
                                   dom_query,
                                   task,
                                   ig_lane);
-    if (route == TaskRouteMode::kRemoteWorker) {
-      task->SetRemote();
-    }
     if (route == TaskRouteMode::kLocalWorker) {
       ig_lane->pop();
     } else {
@@ -437,11 +440,11 @@ void Worker::ExecTask(PrivateTaskQueue &queue,
   // Monitoring callback
   if (!task->IsStarted()) {
     exec->Monitor(MonitorMode::kBeginTrainTime, task, rctx);
-    if (active_graphs_.find(task->task_node_.root_) == active_graphs_.end()) {
-      active_graphs_.emplace(task->task_node_.root_, 0);
-    } else {
-      active_graphs_[task->task_node_.root_] += 1;
-    }
+//    if (active_graphs_.find(task->task_node_.root_) == active_graphs_.end()) {
+//      active_graphs_.emplace(task->task_node_.root_, 0);
+//    } else {
+//      active_graphs_[task->task_node_.root_] += 1;
+//    }
   }
   // Submit the task to the local remote container
   if (props.Any(HSHM_WORKER_IS_REMOTE)) {
@@ -454,13 +457,6 @@ void Worker::ExecTask(PrivateTaskQueue &queue,
             nullptr, task->task_node_ + 1,
             DomainQuery::GetDirectId(SubDomainId::kGlobalContainers, 1),
             task);
-//      std::vector<ResolvedDomainQuery> resolved =
-//          CHI_RPC->ResolveDomainQuery(remote_task->pool_,
-//                                      remote_task->dom_query_,
-//                                      false);
-//      PrivateTaskQueueEntry remote_entry{remote_task, resolved[0].dom_};
-//      active_.GetRemote().push(remote_entry);
-//      PollPrivateQueue(active_.GetRemote(), false);
     return;
   }
 
@@ -475,10 +471,10 @@ void Worker::ExecTask(PrivateTaskQueue &queue,
   // Monitoring callback
   if (!task->IsStarted()) {
     exec->Monitor(MonitorMode::kEndTrainTime, task, rctx);
-    active_graphs_[task->task_node_.root_] -= 1;
-    if (active_graphs_[task->task_node_.root_] == 0) {
-      active_graphs_.erase(task->task_node_.root_);
-    }
+//    active_graphs_[task->task_node_.root_] -= 1;
+//    if (active_graphs_[task->task_node_.root_] == 0) {
+//      active_graphs_.erase(task->task_node_.root_);
+//    }
   }
   task->DidRun(cur_time_);
   // Block the task

@@ -26,7 +26,7 @@ class Server : public TaskLib {
   void Create(CreateTask *task, RunContext &rctx) {
     count_lowlat_ = 0;
     count_highlat_ = 0;
-    CreateLaneGroup(0, 1);
+    CreateLaneGroup(0, 1, QUEUE_HIGH_LATENCY);
     task->SetModuleComplete();
   }
   void MonitorCreate(u32 mode, CreateTask *task, RunContext &rctx) {

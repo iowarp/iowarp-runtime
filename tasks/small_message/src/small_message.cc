@@ -27,7 +27,7 @@ class Server : public TaskLib {
     client_.Init(id_, CHI_ADMIN->queue_id_);
     task->SetModuleComplete();
 
-    CreateLaneGroup(0, 4);
+    CreateLaneGroup(0, 4, QUEUE_LOW_LATENCY);
   }
   void MonitorCreate(u32 mode, CreateTask *task, RunContext &rctx) {
   }

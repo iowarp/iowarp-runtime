@@ -27,7 +27,7 @@ class Server : public TaskLib {
 
   /** Create the state */
   void Create(CreateTask *task, RunContext &rctx) {
-    CreateLaneGroup(0, 1);
+    CreateLaneGroup(0, 1, QUEUE_LOW_LATENCY);
     task->SetModuleComplete();
   }
   void MonitorCreate(u32 mode, CreateTask *task, RunContext &rctx) {
@@ -35,7 +35,6 @@ class Server : public TaskLib {
 
   /** Destroy the state */
   void Destroy(DestroyTask *task, RunContext &rctx) {
-    CreateLaneGroup(0, 1);
     task->SetModuleComplete();
   }
   void MonitorDestroy(u32 mode, DestroyTask *task, RunContext &rctx) {
@@ -81,9 +80,6 @@ class Server : public TaskLib {
 
   /** Create a task state */
   void CreateContainer(CreateContainerTask *task, RunContext &rctx) {
-    HILOG(kInfo, "I'm on worker {} ({})",
-          CHI_WORK_ORCHESTRATOR->GetCurrentWorker()->id_,
-          CHI_WORK_ORCHESTRATOR->GetCurrentWorker());
     ScopedCoMutex lock(CHI_WORK_ORCHESTRATOR->GetCurrentLane()->comux_);
     std::string lib_name = task->lib_name_.str();
     std::string pool_name = task->pool_name_.str();

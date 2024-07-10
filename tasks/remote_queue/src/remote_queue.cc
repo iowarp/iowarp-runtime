@@ -62,7 +62,7 @@ class Server : public TaskLib {
     CHI_REMOTE_QUEUE->Init(id_);
 
     // Create lanes
-    CreateLaneGroup(NODES, 4);
+    CreateLaneGroup(NODES, 4, QUEUE_LOW_LATENCY);
 
     // Creating submitter and completer queues
     DomainQuery dom_query = DomainQuery::GetDirectId(
