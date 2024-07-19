@@ -11,6 +11,7 @@
 namespace chi {
 
 void CoMutex::Lock() {
+  hshm::ScopedMutex scoped(mux_, 0);
   Task *task = CHI_WORK_ORCHESTRATOR->GetCurrentTask();
   TaskId task_root = task->task_node_.root_;
   if (root_.IsNull() || root_ == task_root) {
@@ -24,14 +25,16 @@ void CoMutex::Lock() {
   }
   COMUTEX_QUEUE_T &blocked = blocked_map_[task_root];
   blocked.emplace_back((CoMutexEntry){task});
+  scoped.Unlock();
   task->Yield();
 }
 
 void CoMutex::Unlock() {
+  hshm::ScopedMutex scoped(mux_, 0);
   if (--rep_ == 0) {
     root_.SetNull();
   }
-  if (blocked_map_.size() == 0) {
+  if (blocked_map_.empty()) {
     return;
   }
   COMUTEX_QUEUE_T &blocked = blocked_map_.begin()->second;

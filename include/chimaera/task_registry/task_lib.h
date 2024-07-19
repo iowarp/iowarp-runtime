@@ -37,12 +37,61 @@ class MonitorMode {
 };
 
 /** The information of a lane */
-struct Lane {
+class Lane {
+ public:
   QueueId lane_id_;
   QueueId ingress_id_;
   i32 worker_id_;
   size_t load_ = 0;
+  bitfield32_t flags_;
+  std::unordered_map<TaskId, int> active_;
   CoMutex comux_;
+
+ public:
+  CLS_CONST u32 kPlugged = 0x1;
+
+ public:
+  Lane(QueueId lane_id, QueueId ingress_id, i32 worker_id) :
+      lane_id_(lane_id), ingress_id_(ingress_id), worker_id_(worker_id) {
+    flags_.Clear();
+  }
+
+  bool IsActive(TaskId id) {
+    return active_.find(id) != active_.end();
+  }
+
+  void SetActive(TaskId id) {
+    if (!IsActive(id)) {
+      active_[id] = 1;
+    } else {
+      active_[id] += 1;
+    }
+  }
+
+  void UnsetActive(TaskId id) {
+    if (IsActive(id)) {
+      active_[id] -= 1;
+      if (active_[id] == 0) {
+        active_.erase(id);
+      }
+    }
+  }
+
+  size_t GetNumActive() {
+    return active_.size();
+  }
+
+  bool IsPlugged() {
+    return flags_.All(kPlugged);
+  }
+
+  void SetPlugged() {
+    flags_.SetBits(kPlugged);
+  }
+
+  void UnsetPlugged() {
+    flags_.UnsetBits(kPlugged);
+  }
 };
 
 struct LaneGroup {

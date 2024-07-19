@@ -309,8 +309,6 @@ class Worker {
       active_;  /** Tasks pending to complete */
   hshm::Timepoint cur_time_;  /**< The current timepoint */
   WorkPending flush_;    /**< Info needed for flushing ops */
-  std::unordered_map<TaskId, u32>
-      active_graphs_;  /**< Active task graphs */
   float load_ = 0;  /** Total load of this worker */
   Task *cur_task_ = nullptr;  /** Currently executing task */
   Lane *cur_lane_ = nullptr;  /** Currently executing lane */

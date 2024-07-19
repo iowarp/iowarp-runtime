@@ -14,7 +14,7 @@ pkgs:
     nprocs: 4
     ppn: 16
     depth: 0
-    ops: 100000
+    ops: 5000
     async: true
     do_dbg: false
     dbg_port: 4001

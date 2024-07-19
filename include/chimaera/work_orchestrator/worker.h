@@ -381,16 +381,16 @@ bool Worker::RunTask(PrivateTaskQueue &queue,
     }
     return true;
   }
+  // Make this task current
+  cur_task_ = task.ptr_;
+  cur_lane_ = exec->GetLane(task->rctx_.route_lane_);
   // Check if the task is apart of a plugged lane
-  // TODO(llogan): Upgrade + migrate
-//    chi::Lane *chi_lane = exec->Route(task.ptr_);
-//    if (chi_lane->IsPlugged()) {
-//      if (active_graphs_.find(task->task_node_.root_) == active_graphs_.end()) {
-//        // Place into plug list
-//        return false;
-//      }
-//    }
-//    ++chi_lane->active_;
+  if (cur_lane_->IsPlugged()) {
+    if (!cur_lane_->IsActive(task->task_node_.root_)) {
+      // TODO(llogan): insert into plug list.
+      return true;
+    }
+  }
   // Pack runtime context
   RunContext &rctx = task->rctx_;
   rctx.worker_id_ = id_;
@@ -434,17 +434,10 @@ void Worker::ExecTask(PrivateTaskQueue &queue,
       flush_.count_ += 1;
     }
   }
-  // Make this task current
-  cur_task_ = task;
-  cur_lane_ = exec->GetLane(task->rctx_.route_lane_);
   // Monitoring callback
   if (!task->IsStarted()) {
     exec->Monitor(MonitorMode::kBeginTrainTime, task, rctx);
-//    if (active_graphs_.find(task->task_node_.root_) == active_graphs_.end()) {
-//      active_graphs_.emplace(task->task_node_.root_, 0);
-//    } else {
-//      active_graphs_[task->task_node_.root_] += 1;
-//    }
+    cur_lane_->SetActive(task->task_node_.root_);
   }
   // Submit the task to the local remote container
   if (props.Any(HSHM_WORKER_IS_REMOTE)) {
@@ -471,10 +464,7 @@ void Worker::ExecTask(PrivateTaskQueue &queue,
   // Monitoring callback
   if (!task->IsStarted()) {
     exec->Monitor(MonitorMode::kEndTrainTime, task, rctx);
-//    active_graphs_[task->task_node_.root_] -= 1;
-//    if (active_graphs_[task->task_node_.root_] == 0) {
-//      active_graphs_.erase(task->task_node_.root_);
-//    }
+    cur_lane_->UnsetActive(task->task_node_.root_);
   }
   task->DidRun(cur_time_);
   // Block the task

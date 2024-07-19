@@ -22,11 +22,13 @@ class CoMutex {
   TaskId root_;
   size_t rep_;
   std::unordered_map<TaskId, COMUTEX_QUEUE_T> blocked_map_;
+  hshm::Mutex mux_;
 
  public:
   CoMutex() {
     root_.SetNull();
     rep_ = 0;
+    mux_.Init();
   }
 
   void Lock();
