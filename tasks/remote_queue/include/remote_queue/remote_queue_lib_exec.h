@@ -1,5 +1,5 @@
-#ifndef HRUN_REMOTE_QUEUE_LIB_EXEC_H_
-#define HRUN_REMOTE_QUEUE_LIB_EXEC_H_
+#ifndef CHI_REMOTE_QUEUE_LIB_EXEC_H_
+#define CHI_REMOTE_QUEUE_LIB_EXEC_H_
 
 /** Execute a task */
 void Run(u32 method, Task *task, RunContext &rctx) override {
@@ -283,4 +283,4 @@ void LoadEnd(u32 method, BinaryInputArchive<false> &ar, Task *task) override {
   }
 }
 
-#endif  // HRUN_REMOTE_QUEUE_METHODS_H_
+#endif  // CHI_REMOTE_QUEUE_METHODS_H_

@@ -1,5 +1,5 @@
-#ifndef HRUN_TASK_NAME_LIB_EXEC_H_
-#define HRUN_TASK_NAME_LIB_EXEC_H_
+#ifndef CHI_TASK_NAME_LIB_EXEC_H_
+#define CHI_TASK_NAME_LIB_EXEC_H_
 
 /** Execute a task */
 void Run(u32 method, Task *task, RunContext &rctx) override {
@@ -166,4 +166,4 @@ void LoadEnd(u32 method, BinaryInputArchive<false> &ar, Task *task) override {
   }
 }
 
-#endif  // HRUN_TASK_NAME_METHODS_H_
+#endif  // CHI_TASK_NAME_METHODS_H_

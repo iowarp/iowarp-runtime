@@ -24,18 +24,6 @@ namespace chi {
 
 typedef LPointer<Task> TaskPointer;
 
-/** Monitoring modes */
-class MonitorMode {
- public:
-  TASK_METHOD_T kBeginTrainTime = 0;
-  TASK_METHOD_T kEndTrainTime = 1;
-  TASK_METHOD_T kEstTime = 2;
-  TASK_METHOD_T kFlushStat = 3;
-  TASK_METHOD_T kReplicaStart = 4;
-  TASK_METHOD_T kReplicaAgg = 5;
-  TASK_METHOD_T kOrder = 6;
-};
-
 /** The information of a lane */
 class Lane {
  public:

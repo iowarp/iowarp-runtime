@@ -1,5 +1,5 @@
-#ifndef HRUN_SMALL_MESSAGE_LIB_EXEC_H_
-#define HRUN_SMALL_MESSAGE_LIB_EXEC_H_
+#ifndef CHI_SMALL_MESSAGE_LIB_EXEC_H_
+#define CHI_SMALL_MESSAGE_LIB_EXEC_H_
 
 /** Execute a task */
 void Run(u32 method, Task *task, RunContext &rctx) override {
@@ -205,4 +205,4 @@ void LoadEnd(u32 method, BinaryInputArchive<false> &ar, Task *task) override {
   }
 }
 
-#endif  // HRUN_SMALL_MESSAGE_METHODS_H_
+#endif  // CHI_SMALL_MESSAGE_METHODS_H_

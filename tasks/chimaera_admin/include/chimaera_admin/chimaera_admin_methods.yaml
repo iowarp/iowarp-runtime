@@ -1,11 +1,20 @@
-kCreateContainer: 0
-kDestroyContainer: 1
-kRegisterModule: 2
-kDestroyModule: 3
-kGetPoolId: 4
-kStopRuntime: 5
-kSetWorkOrchQueuePolicy: 6
-kSetWorkOrchProcPolicy: 7
-kFlush: 8
-kGetDomainSize: 9
-kUpdateDomain: 10
+# Inherited Methods
+kCreate: 0        # 0
+kDestroy: 1       # 1
+kNodeFailure: -1  # 2
+kRecover: -1      # 3
+kMigrate: -1      # 4
+kUpdate: -1       # 5
+
+# Custom Methods
+kCreateContainer: 10
+kDestroyContainer: 11
+kRegisterModule: 12
+kDestroyModule: 13
+kGetPoolId: 14
+kStopRuntime: 15
+kSetWorkOrchQueuePolicy: 16
+kSetWorkOrchProcPolicy: 17
+kFlush: 18
+kGetDomainSize: 19
+kUpdateDomain: 20

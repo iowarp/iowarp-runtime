@@ -1,12 +1,14 @@
-#ifndef HRUN_BDEV_METHODS_H_
-#define HRUN_BDEV_METHODS_H_
+#ifndef CHI_BDEV_METHODS_H_
+#define CHI_BDEV_METHODS_H_
 
 /** The set of methods in the admin task */
 struct Method : public TaskMethod {
-  TASK_METHOD_T kAllocate = kLast + 0;
-  TASK_METHOD_T kFree = kLast + 1;
-  TASK_METHOD_T kWrite = kLast + 2;
-  TASK_METHOD_T kRead = kLast + 3;
+  TASK_METHOD_T kCreate = 0;
+  TASK_METHOD_T kDestroy = 1;
+  TASK_METHOD_T kAllocate = 10;
+  TASK_METHOD_T kFree = 11;
+  TASK_METHOD_T kWrite = 12;
+  TASK_METHOD_T kRead = 13;
 };
 
-#endif  // HRUN_BDEV_METHODS_H_
+#endif  // CHI_BDEV_METHODS_H_

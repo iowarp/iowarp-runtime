@@ -91,6 +91,18 @@ struct TaskMethod {
   TASK_METHOD_T kLast = 6;      /**< Where the next method should take place */
 };
 
+/** Monitoring modes */
+class MonitorMode {
+ public:
+  TASK_METHOD_T kBeginTrainTime = 0;
+  TASK_METHOD_T kEndTrainTime = 1;
+  TASK_METHOD_T kEstTime = 2;
+  TASK_METHOD_T kFlushStat = 3;
+  TASK_METHOD_T kReplicaStart = 4;
+  TASK_METHOD_T kReplicaAgg = 5;
+  TASK_METHOD_T kOrder = 6;
+};
+
 /**
  * Let's say we have an I/O request to a device
  * I/O requests + MD operations need to be controlled for correctness
