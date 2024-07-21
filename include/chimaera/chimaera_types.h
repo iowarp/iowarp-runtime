@@ -71,6 +71,7 @@ using hshm::bitfield32_t;
 typedef hshm::bitfield<uint64_t> bitfield64_t;
 using hshm::ScopedRwReadLock;
 using hshm::ScopedRwWriteLock;
+using hshm::ScopedMutex;
 using hipc::LPointer;
 
 typedef u32 NodeId;  /**< The ID of a node */

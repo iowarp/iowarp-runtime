@@ -238,6 +238,7 @@ bool TaskRegistry::CreateContainer(const char *lib_name,
                                    const PoolId &pool_id,
                                    Admin::CreateContainerTask *task,
                                    const std::vector<SubDomainId> &containers) {
+  ScopedMutex lock(lock_, 0);
   // Ensure pool_id is not NULL
   if (pool_id.IsNull()) {
     HELOG(kError, "The task state ID cannot be null");
@@ -278,14 +279,13 @@ bool TaskRegistry::CreateContainer(const char *lib_name,
     exec->id_ = pool_id;
     exec->name_ = pool_name;
     exec->container_id_ = container_id.minor_;
-    {
-      ScopedRwWriteLock lock(lock_, 0);
-      pools_[pool_id].containers_[exec->container_id_] = exec;
-    }
+    pools_[pool_id].containers_[exec->container_id_] = exec;
 
     // Construct the state
     task->ctx_.id_ = pool_id;
+    lock.Unlock();
     exec->Run(TaskMethod::kCreate, task, task->rctx_);
+    lock.Lock(0);
     task->UnsetModuleComplete();
   }
   HILOG(kInfo, "(node {})  Created an instance of {} with pool name {} "

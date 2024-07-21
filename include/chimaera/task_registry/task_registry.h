@@ -116,7 +116,7 @@ class TaskRegistry {
   std::unordered_map<PoolId, PoolInfo> pools_;
   /** A unique identifier counter */
   std::atomic<u64> *unique_;
-  RwLock lock_;
+  Mutex lock_;
 
  public:
   /** Default constructor */
@@ -255,7 +255,7 @@ class TaskRegistry {
 
   /** Get or create a task state's ID */
   PoolId GetOrCreatePoolId(const std::string &pool_name) {
-    ScopedRwReadLock lock(lock_, 0);
+    ScopedMutex lock(lock_, 0);
     auto it = pool_ids_.find(pool_name);
     if (it == pool_ids_.end()) {
       PoolId pool_id = CreatePoolId();
@@ -267,7 +267,7 @@ class TaskRegistry {
 
   /** Get a task state's ID */
   PoolId GetPoolId(const std::string &pool_name) {
-    ScopedRwReadLock lock(lock_, 0);
+    ScopedMutex lock(lock_, 0);
     auto it = pool_ids_.find(pool_name);
     if (it == pool_ids_.end()) {
       return PoolId::GetNull();
@@ -277,7 +277,7 @@ class TaskRegistry {
 
   /** Get the static state instance */
   Container* GetStaticContainer(const std::string &lib_name) {
-    ScopedRwReadLock lock(lock_, 0);
+    ScopedMutex lock(lock_, 0);
     auto it = libs_.find(lib_name);
     if (it == libs_.end()) {
       return nullptr;
@@ -287,7 +287,7 @@ class TaskRegistry {
 
   /** Get the static state instance */
   Container* GetStaticContainer(const PoolId &pool_id) {
-    ScopedRwReadLock lock(lock_, 0);
+    ScopedMutex lock(lock_, 0);
     auto pool_it = pools_.find(pool_id);
     if (pool_it == pools_.end()) {
       return nullptr;
@@ -303,8 +303,8 @@ class TaskRegistry {
   /** Get task state instance by name OR by ID */
   PoolId PoolExists(const std::string &pool_name,
                         const PoolId &pool_id) {
-    ScopedRwReadLock lock(lock_, 0);
     PoolId id = GetPoolId(pool_name);
+    ScopedMutex lock(lock_, 0);
     if (id.IsNull()) {
       id = pool_id;
     }
@@ -318,7 +318,7 @@ class TaskRegistry {
   /** Get a task state instance */
   Container* GetContainer(const PoolId &pool_id,
                           const ContainerId &container_id) {
-    ScopedRwReadLock lock(lock_, 0);
+    ScopedMutex lock(lock_, 0);
     auto pool_it = pools_.find(pool_id);
     if (pool_it == pools_.end()) {
       HELOG(kFatal, "Could not find pool {}", pool_id)
@@ -338,7 +338,7 @@ class TaskRegistry {
 
   /** Destroy a task state */
   void DestroyContainer(const PoolId &pool_id) {
-    ScopedRwWriteLock lock(lock_, 0);
+    ScopedMutex lock(lock_, 0);
     auto it = pools_.find(pool_id);
     if (it == pools_.end()) {
       HELOG(kWarning, "Could not find the task state");
