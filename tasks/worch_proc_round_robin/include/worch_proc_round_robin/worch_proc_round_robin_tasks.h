@@ -6,7 +6,7 @@
 #define HRUN_WORCH_PROC_ROUND_ROBIN_TASKS_H__
 
 #include "chimaera/api/chimaera_client.h"
-#include "chimaera/task_registry/task_lib.h"
+#include "chimaera/module_registry/module.h"
 #include "chimaera/work_orchestrator/scheduler.h"
 #include "chimaera_admin/chimaera_admin.h"
 #include "chimaera/queue_manager/queue_manager_client.h"

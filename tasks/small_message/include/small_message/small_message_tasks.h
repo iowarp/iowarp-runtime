@@ -6,7 +6,7 @@
 #define HRUN_TASKS_SMALL_MESSAGE_INCLUDE_SMALL_MESSAGE_SMALL_MESSAGE_TASKS_H_
 
 #include "chimaera/api/chimaera_client.h"
-#include "chimaera/task_registry/task_lib.h"
+#include "chimaera/module_registry/module.h"
 #include "chimaera_admin/chimaera_admin.h"
 #include "chimaera/queue_manager/queue_manager_client.h"
 

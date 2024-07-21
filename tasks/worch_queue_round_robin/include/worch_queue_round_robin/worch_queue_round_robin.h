@@ -10,7 +10,7 @@
 namespace chi::worch_queue_round_robin {
 
 /** Create admin requests */
-class Client : public TaskLibClient {
+class Client : public ModuleClient {
 
  public:
   /** Default constructor */

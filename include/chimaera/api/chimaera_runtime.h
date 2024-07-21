@@ -13,7 +13,7 @@
 #ifndef HRUN_INCLUDE_CHI_CLIENT_HRUN_SERVER_H_
 #define HRUN_INCLUDE_CHI_CLIENT_HRUN_SERVER_H_
 
-#include "chimaera/task_registry/task_registry.h"
+#include "chimaera/module_registry/module_registry.h"
 #include "chimaera/work_orchestrator/work_orchestrator.h"
 #include "chimaera/queue_manager/queue_manager_runtime.h"
 #include "chimaera_admin/chimaera_admin.h"

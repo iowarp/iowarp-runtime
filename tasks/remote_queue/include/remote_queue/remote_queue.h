@@ -15,7 +15,7 @@ namespace chi::remote_queue {
  * This is ONLY used in the Hermes runtime, and
  * should never be called in client programs!!!
  * */
-class Client : public TaskLibClient {
+class Client : public ModuleClient {
  public:
   /** Default constructor */
   Client() = default;

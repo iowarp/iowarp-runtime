@@ -16,7 +16,7 @@
 
 namespace chi::bdev {
 
-class Server : public TaskLib {
+class Server : public Module {
  public:
   Server() = default;
 

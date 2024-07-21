@@ -13,7 +13,7 @@
 #ifndef HRUN_INCLUDE_CHI_WORK_ORCHESTRATOR_SCHEDULER_H_
 #define HRUN_INCLUDE_CHI_WORK_ORCHESTRATOR_SCHEDULER_H_
 
-#include "chimaera/task_registry/task.h"
+#include "chimaera/module_registry/task.h"
 
 namespace chi {
 

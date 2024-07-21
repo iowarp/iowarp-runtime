@@ -19,7 +19,7 @@
 
 #include "chimaera/chimaera_types.h"
 #include "chimaera/queue_manager/queue_manager_runtime.h"
-#include "chimaera/task_registry/task_registry.h"
+#include "chimaera/module_registry/module_registry.h"
 #include <thread>
 #include <queue>
 #include "affinity.h"

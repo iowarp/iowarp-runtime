@@ -102,7 +102,7 @@ struct LaneGroup {
  * Represents a custom operation to perform.
  * Tasks are independent of Hermes.
  * */
-class TaskLib {
+class Module {
  public:
   PoolId id_;    /**< The unique name of a task state */
   QueueId queue_id_;  /**< The queue id of a task state */
@@ -113,7 +113,7 @@ class TaskLib {
       lane_groups_;  /**< The lanes of a task state */
 
   /** Default constructor */
-  TaskLib() : id_(PoolId::GetNull()) {}
+  Module() : id_(PoolId::GetNull()) {}
 
   /** Emplace Constructor */
   void Init(const PoolId &id, const QueueId &queue_id,
@@ -143,7 +143,7 @@ class TaskLib {
   }
 
   /** Virtual destructor */
-  virtual ~TaskLib() = default;
+  virtual ~Module() = default;
 
   /** Route to a virtual lane */
   virtual Lane* Route(const Task *task) = 0;
@@ -182,11 +182,11 @@ class TaskLib {
   virtual void LoadEnd(u32 method, BinaryInputArchive<false> &ar, Task *task) = 0;
 };
 
-/** Represents a TaskLib in action */
-typedef TaskLib Container;
+/** Represents a Module in action */
+typedef Module Container;
 
-/** Represents the TaskLib client-side */
-class TaskLibClient {
+/** Represents the Module client-side */
+class ModuleClient {
  public:
   PoolId id_;
   QueueId queue_id_;
@@ -221,7 +221,7 @@ typedef Container* (*alloc_state_t)();
 typedef Container* (*new_state_t)(
     const chi::PoolId *pool_id, const char *pool_name);
 /** Get the name of a task */
-typedef const char* (*get_task_lib_name_t)(void);
+typedef const char* (*get_module_name_t)(void);
 }  // extern c
 
 /** Used internally by task source file */
@@ -238,7 +238,7 @@ typedef const char* (*get_task_lib_name_t)(void);
     exec->Init(*pool_id, CHI_CLIENT->GetQueueId(*pool_id), pool_name);\
     return exec;\
   }\
-  const char* get_task_lib_name(void) { return TASK_NAME; }\
+  const char* get_module_name(void) { return TASK_NAME; }\
   bool is_chimaera_task_ = true;\
   }
 

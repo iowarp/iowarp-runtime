@@ -30,7 +30,7 @@ void Summarize(size_t nprocs,
 
 void SyncIoTest(int rank, int nprocs, size_t msg_size, size_t ops_pp) {
   chi::small_message::Client client;
-  CHI_ADMIN->RegisterTaskLib(
+  CHI_ADMIN->RegisterModule(
       chi::DomainQuery::GetGlobalBcast(), "small_message");
   client.Create(
       chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),

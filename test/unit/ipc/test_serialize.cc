@@ -12,7 +12,7 @@
 
 #include "basic_test.h"
 #include "chimaera/network/serialize.h"
-#include "chimaera/task_registry/task.h"
+#include "chimaera/module_registry/task.h"
 
 using chi::DomainQuery;
 using chi::BinaryOutputArchive;

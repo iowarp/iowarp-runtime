@@ -28,7 +28,7 @@ void Summarize(size_t nprocs,
 
 void SyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
   chi::small_message::Client client;
-  CHI_ADMIN->RegisterTaskLib(
+  CHI_ADMIN->RegisterModule(
       chi::DomainQuery::GetGlobalBcast(), "small_message");
   client.Create(
       chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
@@ -53,7 +53,7 @@ void SyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
 
 void AsyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
   chi::small_message::Client client;
-  CHI_ADMIN->RegisterTaskLib(
+  CHI_ADMIN->RegisterModule(
       chi::DomainQuery::GetGlobalBcast(),
       "small_message");
   client.Create(

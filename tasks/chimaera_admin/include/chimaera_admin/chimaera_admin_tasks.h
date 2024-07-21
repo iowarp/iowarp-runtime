@@ -12,17 +12,17 @@ namespace chi::Admin {
 
 /** A template to register or destroy a task library */
 template<int method>
-struct RegisterTaskLibTaskTempl : public Task, TaskFlags<TF_SRL_SYM> {
+struct RegisterModuleTaskTempl : public Task, TaskFlags<TF_SRL_SYM> {
   IN hipc::string lib_name_;
 
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
-  RegisterTaskLibTaskTempl(hipc::Allocator *alloc)
+  RegisterModuleTaskTempl(hipc::Allocator *alloc)
   : Task(alloc), lib_name_(alloc) {}
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
-  RegisterTaskLibTaskTempl(hipc::Allocator *alloc,
+  RegisterModuleTaskTempl(hipc::Allocator *alloc,
                            const TaskNode &task_node,
                            const DomainQuery &dom_query,
                            const std::string &lib_name)
@@ -32,19 +32,19 @@ struct RegisterTaskLibTaskTempl : public Task, TaskFlags<TF_SRL_SYM> {
     prio_ = TaskPrio::kLowLatency;
     pool_ = CHI_QM_CLIENT->admin_pool_id_;
     if constexpr(method == 0) {
-      method_ = Method::kRegisterTaskLib;
+      method_ = Method::kRegisterModule;
     } else {
-      method_ = Method::kDestroyTaskLib;
+      method_ = Method::kDestroyModule;
     }
     task_flags_.SetBits(0);
     dom_query_ = dom_query;
   }
 
   /** Destructor */
-  ~RegisterTaskLibTaskTempl() {}
+  ~RegisterModuleTaskTempl() {}
 
   /** Duplicate message */
-  void CopyStart(const RegisterTaskLibTaskTempl &other, bool deep) {
+  void CopyStart(const RegisterModuleTaskTempl &other, bool deep) {
     lib_name_ = other.lib_name_;
   }
 
@@ -61,10 +61,10 @@ struct RegisterTaskLibTaskTempl : public Task, TaskFlags<TF_SRL_SYM> {
 };
 
 /** A task to register a Task Library */
-using RegisterTaskLibTask = RegisterTaskLibTaskTempl<0>;
+using RegisterModuleTask = RegisterModuleTaskTempl<0>;
 
 /** A task to destroy a Task Library */
-using DestroyTaskLibTask = RegisterTaskLibTaskTempl<1>;
+using DestroyModuleTask = RegisterModuleTaskTempl<1>;
 
 /** A task to register a Task state + Create a queue */
 struct CreateContainerTask : public Task, TaskFlags<TF_SRL_SYM> {

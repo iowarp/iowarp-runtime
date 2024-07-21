@@ -14,7 +14,7 @@
 #define HRUN_INCLUDE_HRUN_QUEUE_MANAGER_QUEUE_H_
 
 #include "chimaera/chimaera_types.h"
-#include "chimaera/task_registry/task.h"
+#include "chimaera/module_registry/task.h"
 #include <vector>
 
 /** Requests in this queue can be processed in any order */

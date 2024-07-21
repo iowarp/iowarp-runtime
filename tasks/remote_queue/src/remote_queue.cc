@@ -29,7 +29,7 @@ struct TaskQueueEntry {
   Task *task_;
 };
 
-class Server : public TaskLib {
+class Server : public Module {
  public:
   std::vector<hshm::mpsc_queue<TaskQueueEntry>> submit_;
   std::vector<hshm::mpsc_queue<TaskQueueEntry>> complete_;

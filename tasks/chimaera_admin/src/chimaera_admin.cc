@@ -17,7 +17,7 @@
 
 namespace chi::Admin {
 
-class Server : public TaskLib {
+class Server : public Module {
  public:
   Task *queue_sched_;
   Task *proc_sched_;
@@ -57,24 +57,24 @@ class Server : public TaskLib {
   }
 
   /** Register a task library dynamically */
-  void RegisterTaskLib(RegisterTaskLibTask *task, RunContext &rctx) {
+  void RegisterModule(RegisterModuleTask *task, RunContext &rctx) {
     std::string lib_name = task->lib_name_.str();
-    CHI_TASK_REGISTRY->RegisterTaskLib(lib_name);
+    CHI_TASK_REGISTRY->RegisterModule(lib_name);
     task->SetModuleComplete();
   }
-  void MonitorRegisterTaskLib(u32 mode,
-                              RegisterTaskLibTask *task,
+  void MonitorRegisterModule(u32 mode,
+                              RegisterModuleTask *task,
                               RunContext &rctx) {
   }
 
   /** Destroy a task library */
-  void DestroyTaskLib(DestroyTaskLibTask *task, RunContext &rctx) {
+  void DestroyModule(DestroyModuleTask *task, RunContext &rctx) {
     std::string lib_name = task->lib_name_.str();
-    CHI_TASK_REGISTRY->DestroyTaskLib(lib_name);
+    CHI_TASK_REGISTRY->DestroyModule(lib_name);
     task->SetModuleComplete();
   }
-  void MonitorDestroyTaskLib(u32 mode,
-                             DestroyTaskLibTask *task,
+  void MonitorDestroyModule(u32 mode,
+                             DestroyModuleTask *task,
                              RunContext &rctx) {
   }
 

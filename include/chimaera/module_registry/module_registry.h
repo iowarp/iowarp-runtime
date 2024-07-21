@@ -18,7 +18,7 @@
 #include <sstream>
 #include <unordered_map>
 #include <filesystem>
-#include "task_lib.h"
+#include "module.h"
 #include "chimaera/config/config_server.h"
 // #include "chimaera_admin/chimaera_admin.h"
 #include "chimaera/network/rpc.h"
@@ -33,61 +33,61 @@ class CreateContainerTask;
 }  // namespace Admin
 
 /** All information needed to create a trait */
-struct TaskLibInfo {
+struct ModuleInfo {
   void *lib_;  /**< The dlfcn library */
   alloc_state_t alloc_state_;   /**< The static create function */
   new_state_t new_state_;   /**< The non-static create function */
-  get_task_lib_name_t get_task_lib_name; /**< The get task name function */
+  get_module_name_t get_module_name; /**< The get task name function */
   Container *static_state_;  /**< An allocation for static functions */
 
   /** Default constructor */
-  TaskLibInfo() = default;
+  ModuleInfo() = default;
 
   /** Destructor */
-  ~TaskLibInfo() {
+  ~ModuleInfo() {
     if (lib_) {
       dlclose(lib_);
     }
   }
 
   /** Copy constructor */
-  TaskLibInfo(const TaskLibInfo &other) {
+  ModuleInfo(const ModuleInfo &other) {
     lib_ = other.lib_;
     alloc_state_ = other.alloc_state_;
     new_state_ = other.new_state_;
-    get_task_lib_name = other.get_task_lib_name;
+    get_module_name = other.get_module_name;
     static_state_ = other.static_state_;
   }
 
   /** Move constructor */
-  TaskLibInfo(TaskLibInfo &&other) noexcept {
+  ModuleInfo(ModuleInfo &&other) noexcept {
     lib_ = other.lib_;
     other.lib_ = nullptr;
     alloc_state_ = other.alloc_state_;
     new_state_ = other.new_state_;
-    get_task_lib_name = other.get_task_lib_name;
+    get_module_name = other.get_module_name;
     static_state_ = other.static_state_;
   }
 
   /** Copy assignment operator */
-  TaskLibInfo& operator=(const TaskLibInfo &other) {
+  ModuleInfo& operator=(const ModuleInfo &other) {
     if (this != &other) {
       lib_ = other.lib_;
       alloc_state_ = other.alloc_state_;
       new_state_ = other.new_state_;
-      get_task_lib_name = other.get_task_lib_name;
+      get_module_name = other.get_module_name;
       static_state_ = other.static_state_;
     }
     return *this;
   }
 
   /** Move assignment operator */
-  TaskLibInfo& operator=(TaskLibInfo &&other) noexcept {
+  ModuleInfo& operator=(ModuleInfo &&other) noexcept {
     if (this != &other) {
       lib_ = other.lib_;
       alloc_state_ = other.alloc_state_;
       new_state_ = other.new_state_;
-      get_task_lib_name = other.get_task_lib_name;
+      get_module_name = other.get_module_name;
       static_state_ = other.static_state_;
     }
     return *this;
@@ -100,7 +100,7 @@ struct PoolInfo {
 };
 
 /**
- * Stores the registered set of TaskLibs and Containers
+ * Stores the registered set of Modules and Containers
  * */
 class TaskRegistry {
  public:
@@ -109,7 +109,7 @@ class TaskRegistry {
   /** The dirs to search for task libs */
   std::vector<std::string> lib_dirs_;
   /** Map of a semantic lib name to lib info */
-  std::unordered_map<std::string, TaskLibInfo> libs_;
+  std::unordered_map<std::string, ModuleInfo> libs_;
   /** Map of a semantic exec name to exec id */
   std::unordered_map<std::string, PoolId> pool_ids_;
   /** Map of a semantic exec id to state */
@@ -150,15 +150,15 @@ class TaskRegistry {
     }
 
     // Find each lib in LD_LIBRARY_PATH
-    for (const std::string &lib_name : config->task_libs_) {
-      if (!RegisterTaskLib(lib_name)) {
+    for (const std::string &lib_name : config->modules_) {
+      if (!RegisterModule(lib_name)) {
         HELOG(kWarning, "Failed to load the lib: {}", lib_name);
       }
     }
   }
 
   /** Load a task lib */
-  bool RegisterTaskLib(const std::string &lib_name) {
+  bool RegisterModule(const std::string &lib_name) {
     std::string lib_dir;
     for (const std::string &lib_dir : lib_dirs_) {
       // Determine if this directory contains the library
@@ -178,7 +178,7 @@ class TaskRegistry {
       }
 
       // Load the library
-      TaskLibInfo info;
+      ModuleInfo info;
       info.lib_ = dlopen(lib_path.c_str(), RTLD_GLOBAL | RTLD_NOW);
       if (!info.lib_) {
         HELOG(kError, "Could not open the lib library: {}. Reason: {}", lib_path, dlerror());
@@ -204,23 +204,23 @@ class TaskRegistry {
       }
 
       // Get the task lib name function
-      info.get_task_lib_name = (get_task_lib_name_t)dlsym(
-          info.lib_, "get_task_lib_name");
-      if (!info.get_task_lib_name) {
-        HELOG(kError, "The lib {} does not have get_task_lib_name symbol",
+      info.get_module_name = (get_module_name_t)dlsym(
+          info.lib_, "get_module_name");
+      if (!info.get_module_name) {
+        HELOG(kError, "The lib {} does not have get_module_name symbol",
               lib_path);
         return false;
       }
 
       // Check if the lib is already loaded
-      std::string task_lib_name = info.get_task_lib_name();
-      if (libs_.find(task_lib_name) != libs_.end()) {
+      std::string module_name = info.get_module_name();
+      if (libs_.find(module_name) != libs_.end()) {
         return true;
       }
       HILOG(kInfo, "(node {}) Finished loading the lib: {}",
-            CHI_RPC->node_id_, task_lib_name);
+            CHI_RPC->node_id_, module_name);
       info.static_state_ = info.alloc_state_();
-      libs_.emplace(task_lib_name, std::move(info));
+      libs_.emplace(module_name, std::move(info));
       return true;
     }
     HELOG(kError, "Could not find the lib: {}", lib_name);
@@ -228,7 +228,7 @@ class TaskRegistry {
   }
 
   /** Destroy a task lib */
-  void DestroyTaskLib(const std::string &lib_name) {
+  void DestroyModule(const std::string &lib_name) {
     auto it = libs_.find(lib_name);
     if (it == libs_.end()) {
       HELOG(kError, "Could not find the task lib: {}", lib_name);

@@ -88,7 +88,7 @@ class ServerConfig : public BaseConfig {
   /** The RPC information */
   RpcInfo rpc_;
   /** Bootstrap task registry */
-  std::vector<std::string> task_libs_;
+  std::vector<std::string> modules_;
 
  public:
   ServerConfig() = default;

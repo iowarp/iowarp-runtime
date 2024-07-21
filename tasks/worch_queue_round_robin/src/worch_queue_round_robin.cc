@@ -16,7 +16,7 @@
 
 namespace chi::worch_queue_round_robin {
 
-class Server : public TaskLib {
+class Server : public Module {
  public:
   u32 count_lowlat_;
   u32 count_highlat_;

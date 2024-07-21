@@ -1,7 +1,7 @@
 kCreateContainer: 0
 kDestroyContainer: 1
-kRegisterTaskLib: 2
-kDestroyTaskLib: 3
+kRegisterModule: 2
+kDestroyModule: 3
 kGetPoolId: 4
 kStopRuntime: 5
 kSetWorkOrchQueuePolicy: 6

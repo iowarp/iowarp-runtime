@@ -62,7 +62,7 @@ void Runtime::ServerInit(std::string server_config_path) {
   // Create the admin library
   CHI_CLIENT->MakePoolId();
   admin_create_task = hipc::make_mptr<Admin::CreateTask>();
-  CHI_TASK_REGISTRY->RegisterTaskLib("chimaera_admin");
+  CHI_TASK_REGISTRY->RegisterModule("chimaera_admin");
   ops = CHI_RPC->CreateDefaultDomains(
       CHI_QM_CLIENT->admin_pool_id_,
       CHI_QM_CLIENT->admin_pool_id_,
@@ -81,7 +81,7 @@ void Runtime::ServerInit(std::string server_config_path) {
   // Create the work orchestrator queue scheduling library
   PoolId queue_sched_id = CHI_CLIENT->MakePoolId();
   create_task = hipc::make_mptr<Admin::CreateContainerTask>();
-  CHI_TASK_REGISTRY->RegisterTaskLib("worch_queue_round_robin");
+  CHI_TASK_REGISTRY->RegisterModule("worch_queue_round_robin");
   ops = CHI_RPC->CreateDefaultDomains(
       queue_sched_id,
       CHI_QM_CLIENT->admin_pool_id_,
@@ -111,7 +111,7 @@ void Runtime::ServerInit(std::string server_config_path) {
   // Create the work orchestrator process scheduling library
   PoolId proc_sched_id = CHI_CLIENT->MakePoolId();
   create_task = hipc::make_mptr<Admin::CreateContainerTask>();
-  CHI_TASK_REGISTRY->RegisterTaskLib("worch_proc_round_robin");
+  CHI_TASK_REGISTRY->RegisterModule("worch_proc_round_robin");
   ops = CHI_RPC->CreateDefaultDomains(
       proc_sched_id,
       CHI_QM_CLIENT->admin_pool_id_,
@@ -143,7 +143,7 @@ void Runtime::ServerInit(std::string server_config_path) {
       proc_sched_id);
 
   // Create the remote queue library
-  CHI_TASK_REGISTRY->RegisterTaskLib("remote_queue");
+  CHI_TASK_REGISTRY->RegisterModule("remote_queue");
   remote_queue_.Create(
       DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0),
       DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0),
@@ -208,8 +208,8 @@ void Runtime::StopDaemon() {
   CHI_WORK_ORCHESTRATOR->FinalizeRuntime();
 }
 
-/** Create lanes for the TaskLib */
-void TaskLib::CreateLaneGroup(const LaneGroupId &id, u32 count, u32 flags) {
+/** Create lanes for the Module */
+void Module::CreateLaneGroup(const LaneGroupId &id, u32 count, u32 flags) {
   lane_groups_.emplace(id, LaneGroup());
   LaneGroup &lane_group = lane_groups_[id];
   lane_group.lanes_.reserve(count);
@@ -255,7 +255,7 @@ bool TaskRegistry::CreateContainer(const char *lib_name,
     task->SetModuleComplete();
     return false;
   }
-  TaskLibInfo &info = it->second;
+  ModuleInfo &info = it->second;
 
   // Create partitioned state
   pools_[pool_id].lib_name_ = lib_name;

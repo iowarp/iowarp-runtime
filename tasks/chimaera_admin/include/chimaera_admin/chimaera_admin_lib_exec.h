@@ -20,12 +20,12 @@ void Run(u32 method, Task *task, RunContext &rctx) override {
       DestroyContainer(reinterpret_cast<DestroyContainerTask *>(task), rctx);
       break;
     }
-    case Method::kRegisterTaskLib: {
-      RegisterTaskLib(reinterpret_cast<RegisterTaskLibTask *>(task), rctx);
+    case Method::kRegisterModule: {
+      RegisterModule(reinterpret_cast<RegisterModuleTask *>(task), rctx);
       break;
     }
-    case Method::kDestroyTaskLib: {
-      DestroyTaskLib(reinterpret_cast<DestroyTaskLibTask *>(task), rctx);
+    case Method::kDestroyModule: {
+      DestroyModule(reinterpret_cast<DestroyModuleTask *>(task), rctx);
       break;
     }
     case Method::kGetPoolId: {
@@ -77,12 +77,12 @@ void Monitor(u32 mode, Task *task, RunContext &rctx) override {
       MonitorDestroyContainer(mode, reinterpret_cast<DestroyContainerTask *>(task), rctx);
       break;
     }
-    case Method::kRegisterTaskLib: {
-      MonitorRegisterTaskLib(mode, reinterpret_cast<RegisterTaskLibTask *>(task), rctx);
+    case Method::kRegisterModule: {
+      MonitorRegisterModule(mode, reinterpret_cast<RegisterModuleTask *>(task), rctx);
       break;
     }
-    case Method::kDestroyTaskLib: {
-      MonitorDestroyTaskLib(mode, reinterpret_cast<DestroyTaskLibTask *>(task), rctx);
+    case Method::kDestroyModule: {
+      MonitorDestroyModule(mode, reinterpret_cast<DestroyModuleTask *>(task), rctx);
       break;
     }
     case Method::kGetPoolId: {
@@ -134,12 +134,12 @@ void Del(u32 method, Task *task) override {
       CHI_CLIENT->DelTask<DestroyContainerTask>(reinterpret_cast<DestroyContainerTask *>(task));
       break;
     }
-    case Method::kRegisterTaskLib: {
-      CHI_CLIENT->DelTask<RegisterTaskLibTask>(reinterpret_cast<RegisterTaskLibTask *>(task));
+    case Method::kRegisterModule: {
+      CHI_CLIENT->DelTask<RegisterModuleTask>(reinterpret_cast<RegisterModuleTask *>(task));
       break;
     }
-    case Method::kDestroyTaskLib: {
-      CHI_CLIENT->DelTask<DestroyTaskLibTask>(reinterpret_cast<DestroyTaskLibTask *>(task));
+    case Method::kDestroyModule: {
+      CHI_CLIENT->DelTask<DestroyModuleTask>(reinterpret_cast<DestroyModuleTask *>(task));
       break;
     }
     case Method::kGetPoolId: {
@@ -199,16 +199,16 @@ void CopyStart(u32 method, const Task *orig_task, Task *dup_task, bool deep) ove
         reinterpret_cast<DestroyContainerTask*>(dup_task), deep);
       break;
     }
-    case Method::kRegisterTaskLib: {
+    case Method::kRegisterModule: {
       chi::CALL_COPY_START(
-        reinterpret_cast<const RegisterTaskLibTask*>(orig_task), 
-        reinterpret_cast<RegisterTaskLibTask*>(dup_task), deep);
+        reinterpret_cast<const RegisterModuleTask*>(orig_task),
+        reinterpret_cast<RegisterModuleTask*>(dup_task), deep);
       break;
     }
-    case Method::kDestroyTaskLib: {
+    case Method::kDestroyModule: {
       chi::CALL_COPY_START(
-        reinterpret_cast<const DestroyTaskLibTask*>(orig_task), 
-        reinterpret_cast<DestroyTaskLibTask*>(dup_task), deep);
+        reinterpret_cast<const DestroyModuleTask*>(orig_task),
+        reinterpret_cast<DestroyModuleTask*>(dup_task), deep);
       break;
     }
     case Method::kGetPoolId: {
@@ -274,12 +274,12 @@ void NewCopyStart(u32 method, const Task *orig_task, LPointer<Task> &dup_task, b
       chi::CALL_NEW_COPY_START(reinterpret_cast<const DestroyContainerTask*>(orig_task), dup_task, deep);
       break;
     }
-    case Method::kRegisterTaskLib: {
-      chi::CALL_NEW_COPY_START(reinterpret_cast<const RegisterTaskLibTask*>(orig_task), dup_task, deep);
+    case Method::kRegisterModule: {
+      chi::CALL_NEW_COPY_START(reinterpret_cast<const RegisterModuleTask*>(orig_task), dup_task, deep);
       break;
     }
-    case Method::kDestroyTaskLib: {
-      chi::CALL_NEW_COPY_START(reinterpret_cast<const DestroyTaskLibTask*>(orig_task), dup_task, deep);
+    case Method::kDestroyModule: {
+      chi::CALL_NEW_COPY_START(reinterpret_cast<const DestroyModuleTask*>(orig_task), dup_task, deep);
       break;
     }
     case Method::kGetPoolId: {
@@ -331,12 +331,12 @@ void SaveStart(u32 method, BinaryOutputArchive<true> &ar, Task *task) override {
       ar << *reinterpret_cast<DestroyContainerTask*>(task);
       break;
     }
-    case Method::kRegisterTaskLib: {
-      ar << *reinterpret_cast<RegisterTaskLibTask*>(task);
+    case Method::kRegisterModule: {
+      ar << *reinterpret_cast<RegisterModuleTask*>(task);
       break;
     }
-    case Method::kDestroyTaskLib: {
-      ar << *reinterpret_cast<DestroyTaskLibTask*>(task);
+    case Method::kDestroyModule: {
+      ar << *reinterpret_cast<DestroyModuleTask*>(task);
       break;
     }
     case Method::kGetPoolId: {
@@ -393,14 +393,14 @@ TaskPointer LoadStart(u32 method, BinaryInputArchive<true> &ar) override {
       ar >> *reinterpret_cast<DestroyContainerTask*>(task_ptr.ptr_);
       break;
     }
-    case Method::kRegisterTaskLib: {
-      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<RegisterTaskLibTask>(task_ptr.shm_);
-      ar >> *reinterpret_cast<RegisterTaskLibTask*>(task_ptr.ptr_);
+    case Method::kRegisterModule: {
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<RegisterModuleTask>(task_ptr.shm_);
+      ar >> *reinterpret_cast<RegisterModuleTask*>(task_ptr.ptr_);
       break;
     }
-    case Method::kDestroyTaskLib: {
-      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<DestroyTaskLibTask>(task_ptr.shm_);
-      ar >> *reinterpret_cast<DestroyTaskLibTask*>(task_ptr.ptr_);
+    case Method::kDestroyModule: {
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<DestroyModuleTask>(task_ptr.shm_);
+      ar >> *reinterpret_cast<DestroyModuleTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kGetPoolId: {
@@ -460,12 +460,12 @@ void SaveEnd(u32 method, BinaryOutputArchive<false> &ar, Task *task) override {
       ar << *reinterpret_cast<DestroyContainerTask*>(task);
       break;
     }
-    case Method::kRegisterTaskLib: {
-      ar << *reinterpret_cast<RegisterTaskLibTask*>(task);
+    case Method::kRegisterModule: {
+      ar << *reinterpret_cast<RegisterModuleTask*>(task);
       break;
     }
-    case Method::kDestroyTaskLib: {
-      ar << *reinterpret_cast<DestroyTaskLibTask*>(task);
+    case Method::kDestroyModule: {
+      ar << *reinterpret_cast<DestroyModuleTask*>(task);
       break;
     }
     case Method::kGetPoolId: {
@@ -517,12 +517,12 @@ void LoadEnd(u32 method, BinaryInputArchive<false> &ar, Task *task) override {
       ar >> *reinterpret_cast<DestroyContainerTask*>(task);
       break;
     }
-    case Method::kRegisterTaskLib: {
-      ar >> *reinterpret_cast<RegisterTaskLibTask*>(task);
+    case Method::kRegisterModule: {
+      ar >> *reinterpret_cast<RegisterModuleTask*>(task);
       break;
     }
-    case Method::kDestroyTaskLib: {
-      ar >> *reinterpret_cast<DestroyTaskLibTask*>(task);
+    case Method::kDestroyModule: {
+      ar >> *reinterpret_cast<DestroyModuleTask*>(task);
       break;
     }
     case Method::kGetPoolId: {

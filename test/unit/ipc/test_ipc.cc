@@ -28,7 +28,7 @@ TEST_CASE("TestIpc") {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
   chi::small_message::Client client;
-  CHI_ADMIN->RegisterTaskLib(
+  CHI_ADMIN->RegisterModule(
       chi::DomainQuery::GetGlobalBcast(),
       "small_message");
   client.Create(
@@ -66,7 +66,7 @@ TEST_CASE("TestAsyncIpc") {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
   chi::small_message::Client client;
-  CHI_ADMIN->RegisterTaskLib(
+  CHI_ADMIN->RegisterModule(
       chi::DomainQuery::GetGlobalBcast(), "small_message");
   client.Create(
       chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
@@ -109,7 +109,7 @@ TEST_CASE("TestFlush") {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
   chi::small_message::Client client;
-  CHI_ADMIN->RegisterTaskLib(chi::DomainQuery::GetGlobalBcast(), "small_message");
+  CHI_ADMIN->RegisterModule(chi::DomainQuery::GetGlobalBcast(), "small_message");
   client.Create(
       chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
       chi::DomainQuery::GetGlobalBcast(),
@@ -140,7 +140,7 @@ void TestIpcMultithread(int nprocs) {
   CHIMAERA_CLIENT_INIT();
 
   chi::small_message::Client client;
-  CHI_ADMIN->RegisterTaskLib(chi::DomainQuery::GetGlobalBcast(), "small_message");
+  CHI_ADMIN->RegisterModule(chi::DomainQuery::GetGlobalBcast(), "small_message");
   client.Create(
       chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
       chi::DomainQuery::GetGlobalBcast(),
@@ -192,7 +192,7 @@ TEST_CASE("TestIO") {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
   chi::small_message::Client client;
-  CHI_ADMIN->RegisterTaskLib(chi::DomainQuery::GetGlobalBcast(), "small_message");
+  CHI_ADMIN->RegisterModule(chi::DomainQuery::GetGlobalBcast(), "small_message");
   client.Create(
       chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
       chi::DomainQuery::GetGlobalBcast(),

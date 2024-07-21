@@ -5,6 +5,6 @@ extern "C" {
     exec->Init(task->ctx_.id_, CHI_CLIENT->GetQueueId(task->ctx_.id_), pool_name);
     return exec;
   }
-  const char* get_task_lib_name(void) { return TASK_NAME; }
+  const char* get_module_name(void) { return TASK_NAME; }
   bool is_chimaera_task_ = true;
 }

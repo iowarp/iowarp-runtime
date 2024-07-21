@@ -14,7 +14,7 @@
 #define HRUN_INCLUDE_HRUN_HRUN_NAMESPACE_H_
 
 #include "chimaera/api/chimaera_client.h"
-#include "chimaera/task_registry/task_lib.h"
+#include "chimaera/module_registry/module.h"
 
 using chi::TaskMethod;
 using chi::BinaryOutputArchive;
@@ -30,8 +30,8 @@ using chi::QueueId;
 using chi::TaskFlags;
 using chi::DataTransfer;
 using chi::SegmentedTransfer;
-using chi::TaskLib;
-using chi::TaskLibClient;
+using chi::Module;
+using chi::ModuleClient;
 using chi::config::QueueManagerInfo;
 using chi::TaskPrio;
 using chi::RunContext;

@@ -6,7 +6,7 @@
 namespace chi::Admin {
 
 /** Create admin requests */
-class Client : public TaskLibClient {
+class Client : public ModuleClient {
  public:
   /** Default constructor */
   Client() {
@@ -19,42 +19,42 @@ class Client : public TaskLibClient {
 
   /** Register a task library */
   HSHM_ALWAYS_INLINE
-  void AsyncRegisterTaskLibConstruct(RegisterTaskLibTask *task,
+  void AsyncRegisterModuleConstruct(RegisterModuleTask *task,
                                      const TaskNode &task_node,
                                      const DomainQuery &dom_query,
                                      const std::string &lib_name) {
-    CHI_CLIENT->ConstructTask<RegisterTaskLibTask>(
+    CHI_CLIENT->ConstructTask<RegisterModuleTask>(
         task, task_node, dom_query, lib_name);
   }
   HSHM_ALWAYS_INLINE
-  void RegisterTaskLib(const DomainQuery &dom_query,
+  void RegisterModule(const DomainQuery &dom_query,
                            const std::string &lib_name) {
-    LPointer<RegisterTaskLibTask> task =
-        AsyncRegisterTaskLib(dom_query, lib_name);
+    LPointer<RegisterModuleTask> task =
+        AsyncRegisterModule(dom_query, lib_name);
     task->Wait();
     CHI_CLIENT->DelTask(task);
   }
-  CHIMAERA_TASK_NODE_ROOT(RegisterTaskLib)
+  CHIMAERA_TASK_NODE_ROOT(RegisterModule)
 
   /** Unregister a task */
   HSHM_ALWAYS_INLINE
-  void AsyncDestroyTaskLibConstruct(DestroyTaskLibTask *task,
+  void AsyncDestroyModuleConstruct(DestroyModuleTask *task,
                                     const TaskNode &task_node,
                                     const DomainQuery &dom_query,
                                     const std::string &lib_name) {
-    CHI_CLIENT->ConstructTask<DestroyTaskLibTask>(
+    CHI_CLIENT->ConstructTask<DestroyModuleTask>(
         task, task_node, dom_query, lib_name);
   }
   HSHM_ALWAYS_INLINE
-  void DestroyTaskLib(const TaskNode &task_node,
+  void DestroyModule(const TaskNode &task_node,
                               const DomainQuery &dom_query,
                               const std::string &lib_name) {
-    LPointer<DestroyTaskLibTask> task =
-        AsyncDestroyTaskLib(dom_query, lib_name);
+    LPointer<DestroyModuleTask> task =
+        AsyncDestroyModule(dom_query, lib_name);
     task->Wait();
     CHI_CLIENT->DelTask(task);
   }
-  CHIMAERA_TASK_NODE_ROOT(DestroyTaskLib)
+  CHIMAERA_TASK_NODE_ROOT(DestroyModule)
 
   /** Spawn a task state */
   template<typename CreateContainerT>

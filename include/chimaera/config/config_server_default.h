@@ -58,6 +58,6 @@ const inline char* kHrunServerDefaultConfigStr =
 "  num_threads: 4\n"
 "\n"
 "### Task Registry\n"
-"task_registry: [\n"
+"module_registry: [\n"
 "]\n";
 #endif  // HRUN_SRC_CONFIG_HRUN_SERVER_DEFAULT_H_

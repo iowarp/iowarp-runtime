@@ -18,7 +18,7 @@
 namespace chi::TASK_NAME {
 
 /** Create TASK_NAME requests */
-class Client : public TaskLibClient {
+class Client : public ModuleClient {
 
  public:
   /** Default constructor */

@@ -16,7 +16,7 @@
 
 namespace chi::worch_proc_round_robin {
 
-class Server : public TaskLib {
+class Server : public Module {
  public:
   /** Construct the work orchestrator process scheduler */
   void Create(CreateTask *task, RunContext &rctx) {

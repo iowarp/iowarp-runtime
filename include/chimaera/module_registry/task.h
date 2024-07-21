@@ -20,7 +20,7 @@
 
 namespace chi {
 
-class TaskLib;
+class Module;
 
 /** This task reads a state */
 #define TASK_READ BIT_OPT(u32, 0)
@@ -273,7 +273,7 @@ struct RunContext {
   u32 worker_id_;         /**< The worker id of the task */
   bctx::transfer_t jmp_;  /**< Stack info for coroutines */
   void *stack_ptr_;       /**< Stack pointer (coroutine) */
-  TaskLib *exec_;
+  Module *exec_;
   WorkPending *flush_;
   hshm::Timer timer_;
   Task *pending_to_;

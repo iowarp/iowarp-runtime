@@ -18,7 +18,7 @@
 namespace chi::bdev {
 
 /** Create bdev requests */
-class Client : public TaskLibClient {
+class Client : public ModuleClient {
 
  public:
   /** Default constructor */

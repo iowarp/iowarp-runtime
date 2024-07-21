@@ -16,7 +16,7 @@
 
 namespace chi::small_message {
 
-class Server : public TaskLib {
+class Server : public Module {
  public:
   int count_ = 0;
   Client client_;

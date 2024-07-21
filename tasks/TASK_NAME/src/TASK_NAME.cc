@@ -16,7 +16,7 @@
 
 namespace chi::TASK_NAME {
 
-class Server : public TaskLib {
+class Server : public Module {
  public:
   Server() = default;
 

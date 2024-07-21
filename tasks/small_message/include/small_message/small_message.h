@@ -10,7 +10,7 @@
 namespace chi::small_message {
 
 /** Create admin requests */
-class Client : public TaskLibClient {
+class Client : public ModuleClient {
 
  public:
   /** Default constructor */

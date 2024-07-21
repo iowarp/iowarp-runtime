@@ -14,7 +14,7 @@
 #define HRUN_INCLUDE_HRUN_NETWORK_SERIALIZE_DEFN_H_
 
 #include "chimaera/chimaera_types.h"
-#include "chimaera/task_registry/task.h"
+#include "chimaera/module_registry/task.h"
 //  #include "chimaera/api/chimaera_client.h"
 #include <sstream>
 

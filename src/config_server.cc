@@ -116,8 +116,8 @@ void ServerConfig::ParseYAML(YAML::Node &yaml_conf) {
   if (yaml_conf["rpc"]) {
     ParseRpcInfo(yaml_conf["rpc"]);
   }
-  if (yaml_conf["task_registry"]) {
-    ParseVector<std::string>(yaml_conf["task_registry"], task_libs_);
+  if (yaml_conf["module_registry"]) {
+    ParseVector<std::string>(yaml_conf["module_registry"], modules_);
   }
 }
 

@@ -5,7 +5,7 @@
 #ifndef CHIMAERA_INCLUDE_CHIMAERA_WORK_ORCHESTRATOR_COMUTEX_DEFN_H_
 #define CHIMAERA_INCLUDE_CHIMAERA_WORK_ORCHESTRATOR_COMUTEX_DEFN_H_
 
-#include "chimaera/task_registry/task.h"
+#include "chimaera/module_registry/task.h"
 
 namespace chi {
 
