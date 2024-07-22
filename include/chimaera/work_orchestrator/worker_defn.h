@@ -297,7 +297,6 @@ class Worker {
   /**< A set of queues to stop polling in a worker */
   hshm::spsc_queue<std::vector<WorkEntry>> relinquish_queues_;
   size_t sleep_us_;     /**< Time the worker should sleep after a run */
-  u32 retries_;         /**< The number of times to repeat the internal run loop before sleeping */
   bitfield32_t flags_;  /**< Worker metadata flags */
   std::unordered_map<hshm::charbuf, TaskNode>
       group_map_;        /**< Determine if a task can be executed right now */
@@ -312,6 +311,7 @@ class Worker {
   float load_ = 0;  /** Total load of this worker */
   Task *cur_task_ = nullptr;  /** Currently executing task */
   Lane *cur_lane_ = nullptr;  /** Currently executing lane */
+  size_t iter_count_ = 0;   /** Number of iterations the worker has done */
 
 
  public:
@@ -448,7 +448,7 @@ class Worker {
   bool IsRelinquishingQueues();
 
   /** Set the sleep cycle */
-  void SetPollingFrequency(size_t sleep_us, u32 num_retries);
+  void SetPollingFrequency(size_t sleep_us);
 
   /** Enable continuous polling */
   void EnableContinuousPolling();

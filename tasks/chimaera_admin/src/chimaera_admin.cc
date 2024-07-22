@@ -84,6 +84,7 @@ class Server : public Module {
     std::string lib_name = task->lib_name_.str();
     std::vector<Container*> containers =
         CHI_TASK_REGISTRY->GetContainers(lib_name);
+    std::vector<Container*> new_containers;
     // Load the updated code
     ModuleInfo new_info;
     CHI_TASK_REGISTRY->LoadModule(lib_name, new_info);
@@ -92,11 +93,40 @@ class Server : public Module {
       Container *new_container = new_info.alloc_state_();
       (*new_container) = (*container);
       new_container->Run(Method::kUpgrade, task, rctx);
+      new_containers.emplace_back(new_container);
     }
-    // Plug & flush all module-related lanes
-    /**
-     * Do we really need shared_ptr for this upgrade procedure?
-     * */
+    // Get current iter count for each worker
+    std::vector<size_t> iter_counts;
+    for (std::unique_ptr<Worker> &worker : CHI_WORK_ORCHESTRATOR->workers_) {
+      iter_counts.push_back(worker->iter_count_);
+    }
+    // Plug all module-related lanes
+    for (Container *container : containers) {
+      container->PlugAllLanes();
+    }
+    // Wait for at least two iterations per-worker
+    for (size_t i = 0; i < iter_counts.size(); ++i) {
+      while (CHI_WORK_ORCHESTRATOR->workers_[i]->iter_count_ < iter_counts[i] + 2) {
+        task->Yield();
+      }
+    }
+    // Wait for all active tasks to complete
+    for (Container *container : containers) {
+      while (container->GetNumActiveTasks() > 0) {
+        task->Yield();
+      }
+    }
+    // Plug the module & replace pointers
+    CHI_TASK_REGISTRY->PlugModule(lib_name);
+    CHI_TASK_REGISTRY->ReplaceModule(new_info);
+    for (Container *new_container : new_containers) {
+      CHI_TASK_REGISTRY->ReplaceContainer(new_container);
+    }
+    // Unplug everything
+    for (Container *container : containers) {
+      container->UnplugAllLanes();
+    }
+    CHI_TASK_REGISTRY->UnplugModule(lib_name);
     task->SetModuleComplete();
   }
   void MonitorUpgradeModule(u32 mode,

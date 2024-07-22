@@ -99,6 +99,7 @@ class Module {
   LaneId lane_counter_ = 0;
   std::unordered_map<LaneGroupId, LaneGroup>
       lane_groups_;  /**< The lanes of a task state */
+  bitfield32_t mod_flags_;
 
   /** Default constructor */
   Module() : id_(PoolId::GetNull()) {}
@@ -125,9 +126,33 @@ class Module {
     return GetLaneByHash(lane_id.node_id_, lane_id.unique_);
   }
 
-  /** Get number of lanes */
-  size_t GetMaxContainersPn() {
-    return lane_counter_;
+  /** Plug all lanes */
+  void PlugAllLanes() {
+    for (auto &lane_group : lane_groups_) {
+      for (Lane &lane : lane_group.second.lanes_) {
+        lane.UnsetPlugged();
+      }
+    }
+  }
+
+  /** Unplug all lanes */
+  void UnplugAllLanes() {
+    for (auto &lane_group : lane_groups_) {
+      for (Lane &lane : lane_group.second.lanes_) {
+        lane.UnsetPlugged();
+      }
+    }
+  }
+
+  /** Get number of active tasks */
+  size_t GetNumActiveTasks() {
+    size_t num_active = 0;
+    for (auto &lane_group : lane_groups_) {
+      for (Lane &lane : lane_group.second.lanes_) {
+        num_active += lane.GetNumActive();
+      }
+    }
+    return num_active;
   }
 
   /** Virtual destructor */

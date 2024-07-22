@@ -57,7 +57,6 @@ Worker::Worker(u32 id, int cpu_id, ABT_xstream &xstream) {
   relinquish_queues_.Resize(1024);
   id_ = id;
   sleep_us_ = 0;
-  retries_ = 1;
   pid_ = 0;
   affinity_ = cpu_id;
   stacks_.Resize(num_stacks_);
@@ -84,7 +83,6 @@ Worker::Worker(u32 id) {
   id_ = id;
   sleep_us_ = 0;
   EnableContinuousPolling();
-  retries_ = 1;
   pid_ = 0;
   // pthread_id_ = GetLinuxTid();
 }
@@ -173,6 +171,7 @@ void Worker::Loop() {
         work = 0;
         cur_time_.Now();
       }
+      iter_count_ += 1;
     } catch (hshm::Error &e) {
       HELOG(kError, "(node {}) Worker {} caught an error: {}", CHI_CLIENT->node_id_, id_, e.what());
     } catch (std::exception &e) {
@@ -305,6 +304,14 @@ TaskRouteMode Worker::Reroute(const PoolId &scope,
                                          task->rctx_.route_container_);
     Container *exec = CHI_TASK_REGISTRY->GetContainer(
         task->pool_, dom_query.sel_.id_);
+    if (!exec) {
+      // NOTE(llogan): exec may be null if there is an update happening
+      // For now, simply push back into the queue. This may technically
+      // break strong consistency since tasks will be handled out-of order.
+      // TODO(llogan): Should add another queue to maintain consistency.
+      ig_lane->emplace(task.shm_);
+      return TaskRouteMode::kLocalWorker;
+    }
     chi::Lane *chi_lane = exec->GetLane(task->rctx_.route_lane_);
     if (chi_lane->ingress_id_ == ig_lane->id_) {
       return TaskRouteMode::kThisWorker;
@@ -373,11 +380,6 @@ bool Worker::RunTask(PrivateTaskQueue &queue,
             CHI_CLIENT->node_id_, task->task_node_);
       task->SetModuleComplete();
       return false;
-    } else {
-//        HELOG(kFatal, "(node {}) Could not find the pool {} for task {}"
-//                        " with query: {}",
-//              CHI_CLIENT->node_id_, task->pool_, task->task_node_,
-//              entry.res_query_);
     }
     return true;
   }
@@ -637,9 +639,8 @@ bool Worker::IsRelinquishingQueues() {
 }
 
 /** Set the sleep cycle */
-void Worker::SetPollingFrequency(size_t sleep_us, u32 num_retries) {
+void Worker::SetPollingFrequency(size_t sleep_us) {
   sleep_us_ = sleep_us;
-  retries_ = num_retries;
   flags_.UnsetBits(WORKER_CONTINUOUS_POLLING);
 }
 

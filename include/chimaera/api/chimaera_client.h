@@ -61,6 +61,15 @@ void Client::ScheduleTaskRuntime(Task *parent_task,
     ContainerId container_id = dom_query.sel_.id_;
     Container *exec = CHI_TASK_REGISTRY->GetContainer(task->pool_,
                                                       container_id);
+    if (!exec) {
+      // NOTE(llogan): exec is null if there is an update happening.
+      // Just send to some worker for now and do not set as routed.
+      ingress::LaneGroup &ig_lane_group = queue->GetGroup(
+        task->prio_);
+      ingress::Lane &ig_lane = ig_lane_group.GetLane(0);
+      ig_lane.emplace(task.shm_);
+      return;
+    }
     chi::Lane *chi_lane = exec->Route(task.ptr_);
     task->rctx_.route_container_ = container_id;
     task->rctx_.route_lane_ = chi_lane->lane_id_;

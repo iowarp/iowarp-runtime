@@ -39,6 +39,20 @@ struct ModuleInfo {
   new_state_t new_state_;   /**< The non-static create function */
   get_module_name_t get_module_name; /**< The get task name function */
   Container *static_state_;  /**< An allocation for static functions */
+  bitfield32_t flags_;
+  CLS_CONST u32 kPlugged = 0;
+
+  void SetPlugged() {
+    flags_.SetBits(kPlugged);
+  }
+
+  void UnsetPlugged() {
+    flags_.UnsetBits(kPlugged);
+  }
+
+  bool IsPlugged() {
+    return flags_.All(kPlugged);
+  }
 
   /** Default constructor */
   ModuleInfo() = default;
@@ -95,6 +109,7 @@ struct ModuleInfo {
 };
 
 struct PoolInfo {
+  ModuleInfo *module_;
   std::string lib_name_;
   std::unordered_map<ContainerId, Container*> containers_;
 };
@@ -277,6 +292,20 @@ class ModuleRegistry {
                        Admin::CreateContainerTask *task,
                        const std::vector<SubDomainId> &containers);
 
+  /** Replace a container */
+  void ReplaceContainer(Container *new_container) {
+    ScopedMutex lock(lock_, 0);
+    PoolId pool_id = new_container->id_;
+    auto it = pools_.find(pool_id);
+    if (it == pools_.end()) {
+      HELOG(kError, "Could not find the pool: {}", pool_id)
+      return;
+    }
+    PoolInfo &pool = it->second;
+    ContainerId container_id = new_container->container_id_;
+    pool.containers_[container_id] = new_container;
+  }
+
   /** Get or create a pool's ID */
   PoolId GetOrCreatePoolId(const std::string &pool_name) {
     ScopedMutex lock(lock_, 0);
@@ -306,7 +335,11 @@ class ModuleRegistry {
     if (it == libs_.end()) {
       return nullptr;
     }
-    return it->second.static_state_;
+    ModuleInfo &info = it->second;
+    if (info.IsPlugged()) {
+      return nullptr;
+    }
+    return info.static_state_;
   }
 
   /** Get the static state instance */
@@ -317,6 +350,9 @@ class ModuleRegistry {
       return nullptr;
     }
     PoolInfo &pool = pool_it->second;
+    if (pool.module_->IsPlugged()) {
+      return nullptr;
+    }
     auto it = libs_.find(pool.lib_name_);
     if (it == libs_.end()) {
       return nullptr;
@@ -348,14 +384,18 @@ class ModuleRegistry {
       HELOG(kFatal, "Could not find pool {}", pool_id)
       return nullptr;
     }
-    Container *exec = pool_it->second.containers_[container_id];
+    PoolInfo &pool = pool_it->second;
+    if (pool.module_->IsPlugged()) {
+      return nullptr;
+    }
+    Container *exec = pool.containers_[container_id];
     if (!exec) {
 //      CHI_RPC->PrintDomain(DomainId{pool_id, SubDomainId::kContainerSet});
 //      for (auto &kv : pool_it->second.containers_) {
 //        HILOG(kInfo, "Container ID: {} {}", kv.first, kv.second)
 //      }
       HELOG(kError, "Could not find container {} in pool {}",
-            container_id, pool_id)
+            container_id, pool_id);
     }
     return exec;
   }
@@ -388,6 +428,30 @@ class ModuleRegistry {
       }
     }
     return containers;
+  }
+
+  /** Plug Module */
+  void PlugModule(const std::string &lib_name) {
+    ScopedMutex lock(lock_, 0);
+    auto it = libs_.find(lib_name);
+    if (it == libs_.end()) {
+      HELOG(kError, "Could not find the module: {}", lib_name);
+      return;
+    }
+    ModuleInfo &info = it->second;
+    info.SetPlugged();
+  }
+
+  /** Unplug Module */
+  void UnplugModule(const std::string &lib_name) {
+    ScopedMutex lock(lock_, 0);
+    auto it = libs_.find(lib_name);
+    if (it == libs_.end()) {
+      HELOG(kError, "Could not find the module: {}", lib_name);
+      return;
+    }
+    ModuleInfo &info = it->second;
+    info.UnsetPlugged();
   }
 };
 

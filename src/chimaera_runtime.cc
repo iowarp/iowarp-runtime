@@ -248,7 +248,7 @@ bool ModuleRegistry::CreateContainer(const char *lib_name,
 //    HILOG(kInfo, "(node {}) Creating an instance of {} with name {}",
 //          CHI_CLIENT->node_id_, lib_name, pool_name)
 
-  // Find the task library to instantiate
+  // Find the module to instantiate
   auto it = libs_.find(lib_name);
   if (it == libs_.end()) {
     HELOG(kError, "Could not find the task lib: {}", lib_name);
@@ -256,6 +256,7 @@ bool ModuleRegistry::CreateContainer(const char *lib_name,
     return false;
   }
   ModuleInfo &info = it->second;
+  pools_[pool_id].module_ = &info;
 
   // Create partitioned state
   pools_[pool_id].lib_name_ = lib_name;
