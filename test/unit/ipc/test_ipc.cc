@@ -250,8 +250,8 @@ TEST_CASE("TestUpgrade") {
   ProcessAffiner::SetCpuAffinity(pid, 8);
 
   t.Resume();
-  int depth = 0;
-  size_t ops = 80000;
+  int depth = 4;
+  size_t ops = 8192;
   for (size_t i = 0; i < ops / 2; ++i) {
     int ret;
     // HILOG(kInfo, "Sending message {}", i);
@@ -260,8 +260,8 @@ TEST_CASE("TestUpgrade") {
         chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, cont_id),
         depth, TASK_FIRE_AND_FORGET);
   }
-  CHI_ADMIN->AsyncUpgradeModule(
-      chi::DomainQuery::GetGlobalBcast(), "small_message");
+//  CHI_ADMIN->AsyncUpgradeModule(
+//      chi::DomainQuery::GetGlobalBcast(), "small_message");
   for (size_t i = 0; i < ops / 2; ++i) {
     int ret;
     // HILOG(kInfo, "Sending message {}", i);

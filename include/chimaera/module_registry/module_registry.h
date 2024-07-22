@@ -303,7 +303,9 @@ class ModuleRegistry {
     }
     PoolInfo &pool = it->second;
     ContainerId container_id = new_container->container_id_;
+    Container *old = pool.containers_[container_id];
     pool.containers_[container_id] = new_container;
+    delete old;
   }
 
   /** Get or create a pool's ID */

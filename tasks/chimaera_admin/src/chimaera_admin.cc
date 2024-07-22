@@ -112,9 +112,12 @@ class Server : public Module {
         task->Yield();
       }
     }
+    HILOG(kInfo, "Upgrading on worker {}",
+          CHI_WORK_ORCHESTRATOR->GetCurrentWorker()->id_);
     // Wait for all active tasks to complete
     for (Container *container : containers) {
       while (container->GetNumActiveTasks() > 0) {
+        HILOG(kInfo, "Active tasks: {}", container->GetNumActiveTasks());
         task->Yield();
       }
     }

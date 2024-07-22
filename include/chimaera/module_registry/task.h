@@ -10,8 +10,8 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef HRUN_INCLUDE_HRUN_QUEUE_MANAGER_REQUEST_H_
-#define HRUN_INCLUDE_HRUN_QUEUE_MANAGER_REQUEST_H_
+#ifndef CHI_TASK_DEFN_H
+#define CHI_TASK_DEFN_H
 
 #include "chimaera/chimaera_types.h"
 #include "chimaera/network/local_serialize.h"
@@ -655,15 +655,7 @@ struct Task : public hipc::ShmContainer {
   }
 
   /** Wait for task to complete */
-  void Wait(u32 flags = TASK_COMPLETE) {
-    while (!task_flags_.All(flags)) {
-#ifdef CHIMAERA_RUNTIME
-      Yield();
-#else
-      SpinWait(flags);
-#endif
-    }
-  }
+  void Wait(u32 flags = TASK_COMPLETE);
 
   /** Spin wait */
   void SpinWait(u32 flags = TASK_COMPLETE) {
@@ -673,6 +665,17 @@ struct Task : public hipc::ShmContainer {
         // std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);
         return;
       }
+    }
+  }
+
+  /** Spin wait */
+  void SpinWaitCo(u32 flags = TASK_COMPLETE) {
+    for (;;) {
+      if (task_flags_.All(flags)) {
+        // std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);
+        return;
+      }
+      Yield();
     }
   }
 
@@ -826,4 +829,4 @@ struct Task : public hipc::ShmContainer {
 
 }  // namespace chi
 
-#endif  // HRUN_INCLUDE_HRUN_QUEUE_MANAGER_REQUEST_H_
+#endif  // CHI_TASK_DEFN_H

@@ -97,7 +97,7 @@ class Module {
   std::string name_;  /**< The unique semantic name of a task state */
   ContainerId container_id_;       /**< The logical id of a container */
   LaneId lane_counter_ = 0;
-  std::unordered_map<LaneGroupId, LaneGroup>
+  std::unordered_map<LaneGroupId, std::shared_ptr<LaneGroup>>
       lane_groups_;  /**< The lanes of a task state */
   bitfield32_t mod_flags_;
 
@@ -117,7 +117,7 @@ class Module {
 
   /** Get lane */
   Lane* GetLaneByHash(const LaneGroupId &group, u32 hash) {
-    LaneGroup &lane_group = lane_groups_[group];
+    LaneGroup &lane_group = *lane_groups_[group];
     return &lane_group.lanes_[hash % lane_group.lanes_.size()];
   }
 
@@ -129,7 +129,7 @@ class Module {
   /** Plug all lanes */
   void PlugAllLanes() {
     for (auto &lane_group : lane_groups_) {
-      for (Lane &lane : lane_group.second.lanes_) {
+      for (Lane &lane : lane_group.second->lanes_) {
         lane.UnsetPlugged();
       }
     }
@@ -138,7 +138,7 @@ class Module {
   /** Unplug all lanes */
   void UnplugAllLanes() {
     for (auto &lane_group : lane_groups_) {
-      for (Lane &lane : lane_group.second.lanes_) {
+      for (Lane &lane : lane_group.second->lanes_) {
         lane.UnsetPlugged();
       }
     }
@@ -148,7 +148,7 @@ class Module {
   size_t GetNumActiveTasks() {
     size_t num_active = 0;
     for (auto &lane_group : lane_groups_) {
-      for (Lane &lane : lane_group.second.lanes_) {
+      for (Lane &lane : lane_group.second->lanes_) {
         num_active += lane.GetNumActive();
       }
     }

@@ -57,14 +57,13 @@ class Server : public Module {
 
   /** A metadata operation */
   void Md(MdTask *task, RunContext &rctx) {
-//    if (task->depth_ > 0) {
-//      LPointer<MdTask> depth_task =
-//          client_.AsyncMd(task->dom_query_,
-//                          task->depth_ - 1, 0);
-//      task->Wait<TASK_YIELD_CO>(depth_task);
-//      CHI_CLIENT->DelTask(depth_task);
-//    }
+    if (task->depth_ > 0) {
+      client_.Md(task->dom_query_,
+                 task->depth_ - 1, 0);
+    }
     task->ret_ = 1;
+    HILOG(kInfo, "Executing small message on worker {}",
+          CHI_WORK_ORCHESTRATOR->GetCurrentWorker()->id_);
     task->SetModuleComplete();
   }
   void MonitorMd(u32 mode, MdTask *task, RunContext &rctx) {

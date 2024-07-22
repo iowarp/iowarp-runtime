@@ -162,7 +162,7 @@ set(Chimaera_CLIENT_LIBRARIES
         chimaera_client)
 set(Chimaera_CLIENT_LIBRARY_DIRS ${Chimaera_LIBRARY_DIRS})
 set(_Chimaera_RUNTIME_LIBRARIES
-        ${Chimaera_CLIENT_LIBRARIES}
+        ${_Chimaera_CLIENT_LIBRARIES}
         ${Boost_LIBRARIES})
 set(Chimaera_RUNTIME_LIBRARIES
         ${_Chimaera_RUNTIME_LIBRARIES}

@@ -12,6 +12,7 @@
 
 #include "chimaera/work_orchestrator/work_orchestrator.h"
 #include "chimaera/work_orchestrator/worker.h"
+#include "chimaera/module_registry/task.h"
 
 namespace chi {
 

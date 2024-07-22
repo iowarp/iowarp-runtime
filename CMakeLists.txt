@@ -175,7 +175,7 @@ include_directories(${CMAKE_SOURCE_DIR}/tasks/worch_queue_round_robin/include)
 include_directories(${CMAKE_SOURCE_DIR}/tasks/proc_queue/include)
 include_directories(${CMAKE_SOURCE_DIR}/tasks/bdev/include)
 
-set(Chimaera_CLIENT_LIBRARIES_
+set(_Chimaera_CLIENT_LIBRARIES
         ${HermesShm_LIBRARIES}
         yaml-cpp
         cereal::cereal
@@ -183,15 +183,15 @@ set(Chimaera_CLIENT_LIBRARIES_
         -ldl -lrt -lc -pthread
         ${ALLOCATOR_LIBRARIES})
 set(Chimaera_CLIENT_LIBRARIES
-        ${Chimaera_CLIENT_LIBRARIES_}
+        ${_Chimaera_CLIENT_LIBRARIES}
         chimaera_client)
 set(Chimaera_CLIENT_DEPS
         chimaera_client)
-set(Chimaera_RUNTIME_LIBRARIES_
-        ${Chimaera_CLIENT_LIBRARIES}
+set(_Chimaera_RUNTIME_LIBRARIES
+        ${_Chimaera_CLIENT_LIBRARIES}
         ${Boost_LIBRARIES})
 set(Chimaera_RUNTIME_LIBRARIES
-        ${Chimaera_RUNTIME_LIBRARIES_}
+        ${_Chimaera_RUNTIME_LIBRARIES}
         chimaera_runtime)
 set(Chimaera_RUNTIME_DEPS
         chimaera_client chimaera_runtime)

@@ -7,21 +7,30 @@
 # Build Chimaera Client Library
 #------------------------------------------------------------------------------
 add_library(chimaera_client SHARED
-        ${CMAKE_CURRENT_SOURCE_DIR}/config_client.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/config_server.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/chimaera_client.cc)
+        config_client.cc
+        config_server.cc
+        chimaera_client.cc
+        module.cc
+        task.cc
+)
 target_link_libraries(chimaera_client
-  ${Chimaera_CLIENT_LIBRARIES_})
+  ${_Chimaera_CLIENT_LIBRARIES})
 
 #------------------------------------------------------------------------------
 # Build Chimaera Runtime Library
 #------------------------------------------------------------------------------
 add_library(chimaera_runtime
+        config_client.cc
+        config_server.cc
+        chimaera_client.cc
+        module.cc
+        task.cc
+        module_registry.cc
         work_orchestrator.cc
         chimaera_runtime.cc
-        ${ALLOCATOR_LIBRARIES})
+)
 add_dependencies(chimaera_runtime ${Chimaera_CLIENT_DEPS})
-target_link_libraries(chimaera_runtime ${Chimaera_RUNTIME_LIBRARIES_})
+target_link_libraries(chimaera_runtime ${_Chimaera_RUNTIME_LIBRARIES})
 target_compile_definitions(chimaera_runtime PRIVATE ${Chimaera_RUNTIME_DEFINITIONS})
 #------------------------------------------------------------------------------
 # Build Chimaera Runtime Start Function

@@ -20,6 +20,7 @@
 #ifdef CHIMAERA_RUNTIME
 #include "chimaera/work_orchestrator/work_orchestrator.h"
 #endif
+#include "chimaera/module_registry/task.h"
 
 // Singleton macros
 #define CHI_CLIENT hshm::Singleton<chi::Client>::GetInstance()
