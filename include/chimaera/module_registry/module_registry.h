@@ -106,7 +106,7 @@ class ModuleRegistry {
  public:
   /** The node the registry is on */
   NodeId node_id_;
-  /** The dirs to search for task libs */
+  /** The dirs to search for modules */
   std::vector<std::string> lib_dirs_;
   /** Map of a semantic lib name to lib info */
   std::unordered_map<std::string, ModuleInfo> libs_;
@@ -204,7 +204,7 @@ class ModuleRegistry {
         return false;
       }
 
-      // Get the task lib name function
+      // Get the module name function
       info.get_module_name = (get_module_name_t)dlsym(
           info.lib_, "get_module_name");
       if (!info.get_module_name) {
@@ -223,7 +223,7 @@ class ModuleRegistry {
     return false;
   }
 
-  /** Load a task lib */
+  /** Load a module */
   bool RegisterModule(const std::string &lib_name) {
     ScopedMutex lock(lock_, 0);
     if (libs_.find(lib_name) != libs_.end()) {
@@ -238,25 +238,37 @@ class ModuleRegistry {
     return false;
   }
 
-  /** Destroy a task lib */
+  /** Replace a module */
+  void ReplaceModule(ModuleInfo &info) {
+    ScopedMutex lock(lock_, 0);
+    std::string module_name = info.get_module_name();
+    auto it = libs_.find(module_name);
+    if (it == libs_.end()) {
+      HELOG(kError, "Could not find the module: {}", module_name);
+      return;
+    }
+    it->second = std::move(info);
+  }
+
+  /** Destroy a module */
   void DestroyModule(const std::string &lib_name) {
     ScopedMutex lock(lock_, 0);
     auto it = libs_.find(lib_name);
     if (it == libs_.end()) {
-      HELOG(kError, "Could not find the task lib: {}", lib_name);
+      HELOG(kError, "Could not find the module: {}", lib_name);
       return;
     }
     libs_.erase(it);
   }
 
-  /** Allocate a task state ID */
+  /** Allocate a pool ID */
   HSHM_ALWAYS_INLINE
   PoolId CreatePoolId() {
     return PoolId(node_id_, unique_->fetch_add(1));
   }
 
   /**
-   * Create a task state
+   * Create a pool
    * pool_id must not be NULL.
    * */
   bool CreateContainer(const char *lib_name,
@@ -265,7 +277,7 @@ class ModuleRegistry {
                        Admin::CreateContainerTask *task,
                        const std::vector<SubDomainId> &containers);
 
-  /** Get or create a task state's ID */
+  /** Get or create a pool's ID */
   PoolId GetOrCreatePoolId(const std::string &pool_name) {
     ScopedMutex lock(lock_, 0);
     auto it = pool_ids_.find(pool_name);
@@ -277,7 +289,7 @@ class ModuleRegistry {
     return it->second;
   }
 
-  /** Get a task state's ID */
+  /** Get a pool's ID */
   PoolId GetPoolId(const std::string &pool_name) {
     ScopedMutex lock(lock_, 0);
     auto it = pool_ids_.find(pool_name);
@@ -312,7 +324,7 @@ class ModuleRegistry {
     return it->second.static_state_;
   }
 
-  /** Get task state instance by name OR by ID */
+  /** Get pool instance by name OR by ID */
   PoolId PoolExists(const std::string &pool_name,
                         const PoolId &pool_id) {
     PoolId id = GetPoolId(pool_name);
@@ -327,7 +339,7 @@ class ModuleRegistry {
     return id;
   }
 
-  /** Get a task state instance */
+  /** Get a pool instance */
   Container* GetContainer(const PoolId &pool_id,
                           const ContainerId &container_id) {
     ScopedMutex lock(lock_, 0);
@@ -348,12 +360,12 @@ class ModuleRegistry {
     return exec;
   }
 
-  /** Destroy a task state */
+  /** Destroy a pool */
   void DestroyContainer(const PoolId &pool_id) {
     ScopedMutex lock(lock_, 0);
     auto it = pools_.find(pool_id);
     if (it == pools_.end()) {
-      HELOG(kWarning, "Could not find the task state");
+      HELOG(kWarning, "Could not find the pool");
       return;
     }
     PoolInfo &task_states = it->second;
