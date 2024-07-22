@@ -233,7 +233,7 @@ void Module::CreateLaneGroup(const LaneGroupId &id, u32 count, u32 flags) {
 }
 
 /** Create a container */
-bool TaskRegistry::CreateContainer(const char *lib_name,
+bool ModuleRegistry::CreateContainer(const char *lib_name,
                                    const char *pool_name,
                                    const PoolId &pool_id,
                                    Admin::CreateContainerTask *task,
@@ -301,5 +301,5 @@ bool TaskRegistry::CreateContainer(const char *lib_name,
 DEFINE_SINGLETON_CC(chi::Runtime)
 DEFINE_SINGLETON_CC(chi::RpcContext)
 DEFINE_SINGLETON_CC(chi::WorkOrchestrator)
-DEFINE_SINGLETON_CC(chi::TaskRegistry)
+DEFINE_SINGLETON_CC(chi::ModuleRegistry)
 DEFINE_SINGLETON_CC(chi::QueueManagerRuntime)

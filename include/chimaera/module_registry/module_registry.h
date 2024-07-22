@@ -102,7 +102,7 @@ struct PoolInfo {
 /**
  * Stores the registered set of Modules and Containers
  * */
-class TaskRegistry {
+class ModuleRegistry {
  public:
   /** The node the registry is on */
   NodeId node_id_;
@@ -120,7 +120,9 @@ class TaskRegistry {
 
  public:
   /** Default constructor */
-  TaskRegistry() {}
+  ModuleRegistry() {
+    lock_.Init();
+  }
 
   /** Initialize the Task Registry */
   void ServerInit(ServerConfig *config, NodeId node_id, std::atomic<u64> &unique) {
@@ -159,6 +161,7 @@ class TaskRegistry {
 
   /** Load a task lib */
   bool RegisterModule(const std::string &lib_name) {
+    ScopedMutex lock(lock_, 0);
     std::string lib_dir;
     for (const std::string &lib_dir : lib_dirs_) {
       // Determine if this directory contains the library
@@ -229,6 +232,7 @@ class TaskRegistry {
 
   /** Destroy a task lib */
   void DestroyModule(const std::string &lib_name) {
+    ScopedMutex lock(lock_, 0);
     auto it = libs_.find(lib_name);
     if (it == libs_.end()) {
       HELOG(kError, "Could not find the task lib: {}", lib_name);
@@ -354,7 +358,7 @@ class TaskRegistry {
 
 /** Singleton macro for task registry */
 #define CHI_TASK_REGISTRY \
-  hshm::Singleton<chi::TaskRegistry>::GetInstance()
+  hshm::Singleton<chi::ModuleRegistry>::GetInstance()
 }  // namespace chi
 
 #endif  // HRUN_INCLUDE_HRUN_TASK_TASK_REGISTRY_H_

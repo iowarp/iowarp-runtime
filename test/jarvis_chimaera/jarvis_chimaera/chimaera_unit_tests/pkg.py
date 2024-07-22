@@ -19,7 +19,8 @@ class ChimaeraUnitTests(Application):
                                'TestIO',
                                'TestIpcMultithread4',
                                'TestIpcMultithread8',
-                               'TestSerialize']
+                               'TestSerialize',
+                               'TestUpgrade']
 
     def _configure_menu(self):
         """

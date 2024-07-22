@@ -66,6 +66,51 @@ using RegisterModuleTask = RegisterModuleTaskTempl<0>;
 /** A task to destroy a Task Library */
 using DestroyModuleTask = RegisterModuleTaskTempl<1>;
 
+/** A template to register or destroy a task library */
+struct UpgradeModuleTask : public Task, TaskFlags<TF_SRL_SYM> {
+  IN hipc::string lib_name_;
+
+  /** SHM default constructor */
+  HSHM_ALWAYS_INLINE explicit
+  UpgradeModuleTask(hipc::Allocator *alloc)
+      : Task(alloc), lib_name_(alloc) {}
+
+  /** Emplace constructor */
+  HSHM_ALWAYS_INLINE explicit
+  UpgradeModuleTask(hipc::Allocator *alloc,
+                          const TaskNode &task_node,
+                          const DomainQuery &dom_query,
+                          const std::string &lib_name)
+      : Task(alloc), lib_name_(alloc, lib_name) {
+    // Initialize task
+    task_node_ = task_node;
+    prio_ = TaskPrio::kLowLatency;
+    pool_ = CHI_QM_CLIENT->admin_pool_id_;
+    method_ = Method::kUpgradeModule;
+    task_flags_.SetBits(0);
+    dom_query_ = dom_query;
+  }
+
+  /** Destructor */
+  ~UpgradeModuleTask() {}
+
+  /** Duplicate message */
+  void CopyStart(const UpgradeModuleTask &other, bool deep) {
+    lib_name_ = other.lib_name_;
+  }
+
+  /** (De)serialize message call */
+  template<typename Ar>
+  void SerializeStart(Ar &ar) {
+    ar(lib_name_);
+  }
+
+  /** (De)serialize message return */
+  template<typename Ar>
+  void SerializeEnd(Ar &ar) {
+  }
+};
+
 /** A task to register a Task state + Create a queue */
 struct CreateContainerTask : public Task, TaskFlags<TF_SRL_SYM> {
   IN hipc::string lib_name_;

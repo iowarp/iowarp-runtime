@@ -33,7 +33,7 @@ def refresh_methods(TASK_ROOT):
               '/** The set of methods in the admin task */',
               'struct Method : public TaskMethod {']
     for method_enum_name, method_off in methods:
-        if method_off < 0:
+        if method_off < 10:
             continue
         lines += f'  TASK_METHOD_T {method_enum_name} = {method_off};',
     lines += ['};', '', f'#endif  // {METHOD_MACRO}']

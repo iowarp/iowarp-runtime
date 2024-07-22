@@ -226,6 +226,52 @@ TEST_CASE("TestIO") {
   HILOG(kInfo, "Latency: {} MOps", ops / t.GetUsec());
 }
 
+TEST_CASE("TestUpgrade") {
+  CHIMAERA_CLIENT_INIT();
+
+  int rank, nprocs;
+  MPI_Barrier(MPI_COMM_WORLD);
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+  chi::small_message::Client client;
+  CHI_ADMIN->RegisterModule(
+      chi::DomainQuery::GetGlobalBcast(), "small_message");
+  client.Create(
+      chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
+      chi::DomainQuery::GetGlobalBcast(),
+      "ipc_test");
+  MPI_Barrier(MPI_COMM_WORLD);
+  hshm::Timer t;
+  size_t domain_size = CHI_ADMIN->GetDomainSize(
+      chi::DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0),
+      chi::DomainId(client.id_, chi::SubDomainId::kGlobalContainers));
+
+  int pid = getpid();
+  ProcessAffiner::SetCpuAffinity(pid, 8);
+
+  t.Resume();
+  int depth = 8;
+  size_t ops = 8192;
+  for (size_t i = 0; i < ops; ++i) {
+    int ret;
+    // HILOG(kInfo, "Sending message {}", i);
+    int lane_id = i;
+    client.AsyncMd(
+        chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, lane_id),
+        depth, TASK_FIRE_AND_FORGET);
+  }
+  CHI_ADMIN->UpgradeModule(
+      chi::DomainQuery::GetGlobalBcast(), "small_message");
+
+  CHI_ADMIN->Flush(
+      DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0));
+  t.Pause();
+
+  HILOG(kInfo, "Latency: {} MOps, {} MTasks",
+        ops / t.GetUsec(),
+        ops * (depth + 1) / t.GetUsec());
+}
+
 // TEST_CASE("TestHostfile") {
 //  for (NodeId lane_id = 1; node_id <
 //  HRUN_THALLIUM->rpc_->hosts_.size() + 1; ++node_id) {

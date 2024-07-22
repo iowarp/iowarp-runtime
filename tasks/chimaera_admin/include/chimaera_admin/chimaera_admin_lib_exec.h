@@ -28,6 +28,10 @@ void Run(u32 method, Task *task, RunContext &rctx) override {
       DestroyModule(reinterpret_cast<DestroyModuleTask *>(task), rctx);
       break;
     }
+    case Method::kUpgradeModule: {
+      UpgradeModule(reinterpret_cast<UpgradeModuleTask *>(task), rctx);
+      break;
+    }
     case Method::kGetPoolId: {
       GetPoolId(reinterpret_cast<GetPoolIdTask *>(task), rctx);
       break;
@@ -85,6 +89,10 @@ void Monitor(u32 mode, Task *task, RunContext &rctx) override {
       MonitorDestroyModule(mode, reinterpret_cast<DestroyModuleTask *>(task), rctx);
       break;
     }
+    case Method::kUpgradeModule: {
+      MonitorUpgradeModule(mode, reinterpret_cast<UpgradeModuleTask *>(task), rctx);
+      break;
+    }
     case Method::kGetPoolId: {
       MonitorGetPoolId(mode, reinterpret_cast<GetPoolIdTask *>(task), rctx);
       break;
@@ -140,6 +148,10 @@ void Del(u32 method, Task *task) override {
     }
     case Method::kDestroyModule: {
       CHI_CLIENT->DelTask<DestroyModuleTask>(reinterpret_cast<DestroyModuleTask *>(task));
+      break;
+    }
+    case Method::kUpgradeModule: {
+      CHI_CLIENT->DelTask<UpgradeModuleTask>(reinterpret_cast<UpgradeModuleTask *>(task));
       break;
     }
     case Method::kGetPoolId: {
@@ -209,6 +221,12 @@ void CopyStart(u32 method, const Task *orig_task, Task *dup_task, bool deep) ove
       chi::CALL_COPY_START(
         reinterpret_cast<const DestroyModuleTask*>(orig_task), 
         reinterpret_cast<DestroyModuleTask*>(dup_task), deep);
+      break;
+    }
+    case Method::kUpgradeModule: {
+      chi::CALL_COPY_START(
+        reinterpret_cast<const UpgradeModuleTask*>(orig_task), 
+        reinterpret_cast<UpgradeModuleTask*>(dup_task), deep);
       break;
     }
     case Method::kGetPoolId: {
@@ -282,6 +300,10 @@ void NewCopyStart(u32 method, const Task *orig_task, LPointer<Task> &dup_task, b
       chi::CALL_NEW_COPY_START(reinterpret_cast<const DestroyModuleTask*>(orig_task), dup_task, deep);
       break;
     }
+    case Method::kUpgradeModule: {
+      chi::CALL_NEW_COPY_START(reinterpret_cast<const UpgradeModuleTask*>(orig_task), dup_task, deep);
+      break;
+    }
     case Method::kGetPoolId: {
       chi::CALL_NEW_COPY_START(reinterpret_cast<const GetPoolIdTask*>(orig_task), dup_task, deep);
       break;
@@ -337,6 +359,10 @@ void SaveStart(u32 method, BinaryOutputArchive<true> &ar, Task *task) override {
     }
     case Method::kDestroyModule: {
       ar << *reinterpret_cast<DestroyModuleTask*>(task);
+      break;
+    }
+    case Method::kUpgradeModule: {
+      ar << *reinterpret_cast<UpgradeModuleTask*>(task);
       break;
     }
     case Method::kGetPoolId: {
@@ -401,6 +427,11 @@ TaskPointer LoadStart(u32 method, BinaryInputArchive<true> &ar) override {
     case Method::kDestroyModule: {
       task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<DestroyModuleTask>(task_ptr.shm_);
       ar >> *reinterpret_cast<DestroyModuleTask*>(task_ptr.ptr_);
+      break;
+    }
+    case Method::kUpgradeModule: {
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<UpgradeModuleTask>(task_ptr.shm_);
+      ar >> *reinterpret_cast<UpgradeModuleTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kGetPoolId: {
@@ -468,6 +499,10 @@ void SaveEnd(u32 method, BinaryOutputArchive<false> &ar, Task *task) override {
       ar << *reinterpret_cast<DestroyModuleTask*>(task);
       break;
     }
+    case Method::kUpgradeModule: {
+      ar << *reinterpret_cast<UpgradeModuleTask*>(task);
+      break;
+    }
     case Method::kGetPoolId: {
       ar << *reinterpret_cast<GetPoolIdTask*>(task);
       break;
@@ -523,6 +558,10 @@ void LoadEnd(u32 method, BinaryInputArchive<false> &ar, Task *task) override {
     }
     case Method::kDestroyModule: {
       ar >> *reinterpret_cast<DestroyModuleTask*>(task);
+      break;
+    }
+    case Method::kUpgradeModule: {
+      ar >> *reinterpret_cast<UpgradeModuleTask*>(task);
       break;
     }
     case Method::kGetPoolId: {

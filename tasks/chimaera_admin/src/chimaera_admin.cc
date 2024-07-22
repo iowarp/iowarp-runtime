@@ -56,7 +56,7 @@ class Server : public Module {
                            RunContext &rctx) {
   }
 
-  /** Register a task library dynamically */
+  /** Register a module dynamically */
   void RegisterModule(RegisterModuleTask *task, RunContext &rctx) {
     std::string lib_name = task->lib_name_.str();
     CHI_TASK_REGISTRY->RegisterModule(lib_name);
@@ -67,7 +67,7 @@ class Server : public Module {
                               RunContext &rctx) {
   }
 
-  /** Destroy a task library */
+  /** Destroy a module */
   void DestroyModule(DestroyModuleTask *task, RunContext &rctx) {
     std::string lib_name = task->lib_name_.str();
     CHI_TASK_REGISTRY->DestroyModule(lib_name);
@@ -76,6 +76,15 @@ class Server : public Module {
   void MonitorDestroyModule(u32 mode,
                              DestroyModuleTask *task,
                              RunContext &rctx) {
+  }
+
+  /** Upgrade a module dynamically */
+  void UpgradeModule(UpgradeModuleTask *task, RunContext &rctx) {
+    task->SetModuleComplete();
+  }
+  void MonitorUpgradeModule(u32 mode,
+                            UpgradeModuleTask *task,
+                            RunContext &rctx) {
   }
 
   /** Create a task state */
