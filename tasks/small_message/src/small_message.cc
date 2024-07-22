@@ -62,8 +62,8 @@ class Server : public Module {
                  task->depth_ - 1, 0);
     }
     task->ret_ = 1;
-    HILOG(kInfo, "Executing small message on worker {}",
-          CHI_WORK_ORCHESTRATOR->GetCurrentWorker()->id_);
+//    HILOG(kInfo, "Executing small message on worker {}",
+//          CHI_WORK_ORCHESTRATOR->GetCurrentWorker()->id_);
     task->SetModuleComplete();
   }
   void MonitorMd(u32 mode, MdTask *task, RunContext &rctx) {

@@ -260,8 +260,8 @@ TEST_CASE("TestUpgrade") {
         chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, cont_id),
         depth, TASK_FIRE_AND_FORGET);
   }
-//  CHI_ADMIN->AsyncUpgradeModule(
-//      chi::DomainQuery::GetGlobalBcast(), "small_message");
+  CHI_ADMIN->AsyncUpgradeModule(
+      chi::DomainQuery::GetGlobalBcast(), "small_message");
   for (size_t i = 0; i < ops / 2; ++i) {
     int ret;
     // HILOG(kInfo, "Sending message {}", i);

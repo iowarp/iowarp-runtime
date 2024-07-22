@@ -117,7 +117,7 @@ class Server : public Module {
     // Wait for all active tasks to complete
     for (Container *container : containers) {
       while (container->GetNumActiveTasks() > 0) {
-        HILOG(kInfo, "Active tasks: {}", container->GetNumActiveTasks());
+//        HILOG(kInfo, "Active tasks: {}", container->GetNumActiveTasks());
         task->Yield();
       }
     }

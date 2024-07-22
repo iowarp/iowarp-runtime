@@ -554,9 +554,6 @@ HSHM_ALWAYS_INLINE
 void Worker::SignalUnblock(LPointer<Task> &unblock_task) {
   Worker &worker = CHI_WORK_ORCHESTRATOR->GetWorker(
       unblock_task->rctx_.worker_id_);
-  HILOG(kInfo, "Signalling worker {} ({})",
-        unblock_task->rctx_.worker_id_,
-        &worker);
   PrivateTaskMultiQueue &pending =
       worker.GetPendingQueue(unblock_task.ptr_);
   pending.signal_unblock(pending, unblock_task);
