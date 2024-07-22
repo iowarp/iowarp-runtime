@@ -40,7 +40,7 @@ struct ModuleInfo {
   get_module_name_t get_module_name; /**< The get task name function */
   Container *static_state_;  /**< An allocation for static functions */
   bitfield32_t flags_;
-  CLS_CONST u32 kPlugged = 0;
+  CLS_CONST u32 kPlugged = BIT_OPT(u32, 0);
 
   void SetPlugged() {
     flags_.SetBits(kPlugged);

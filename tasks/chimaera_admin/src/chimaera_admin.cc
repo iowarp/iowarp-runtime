@@ -92,6 +92,7 @@ class Server : public Module {
     for (Container *container : containers) {
       Container *new_container = new_info.alloc_state_();
       (*new_container) = (*container);
+      task->old_ = container;
       new_container->Run(Method::kUpgrade, task, rctx);
       new_containers.emplace_back(new_container);
     }

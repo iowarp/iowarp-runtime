@@ -69,6 +69,7 @@ using DestroyModuleTask = RegisterModuleTaskTempl<1>;
 /** A template to register or destroy a task library */
 struct UpgradeModuleTask : public Task, TaskFlags<TF_SRL_SYM> {
   IN hipc::string lib_name_;
+  TEMP Container *old_;
 
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
@@ -108,6 +109,11 @@ struct UpgradeModuleTask : public Task, TaskFlags<TF_SRL_SYM> {
   /** (De)serialize message return */
   template<typename Ar>
   void SerializeEnd(Ar &ar) {
+  }
+
+  template<typename T>
+  T* Get() {
+    return reinterpret_cast<T *>(old_);
   }
 };
 
@@ -294,13 +300,7 @@ struct DestroyContainerTask : public Task, TaskFlags<TF_SRL_SYM> {
 };
 
 /** A task to register a Task state + Create a queue */
-struct DestroyTask : public DestroyContainerTask {
-  /** SHM default constructor */
-  HSHM_ALWAYS_INLINE explicit
-  DestroyTask(hipc::Allocator *alloc) : DestroyContainerTask(alloc) {
-    method_ = Method::kDestroy;
-  }
-};
+typedef chi::Admin::DestroyContainerTask DestroyTask;
 
 /** A task to stop a runtime */
 struct StopRuntimeTask : public Task, TaskFlags<TF_SRL_SYM> {

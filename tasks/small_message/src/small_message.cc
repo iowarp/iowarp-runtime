@@ -20,6 +20,7 @@ class Server : public Module {
  public:
   int count_ = 0;
   Client client_;
+  int upgrade_count_ = 0;
 
  public:
   /** Construct small_message */
@@ -43,6 +44,15 @@ class Server : public Module {
     task->SetModuleComplete();
   }
   void MonitorDestroy(u32 mode, DestroyTask *task, RunContext &rctx) {
+  }
+
+  /** Upgrade small_message */
+  void Upgrade(UpgradeTask *task, RunContext &rctx) {
+    auto *old = task->Get<Server>();
+    upgrade_count_ = old->upgrade_count_ + 1;
+    task->SetModuleComplete();
+  }
+  void MonitorUpgrade(u32 mode, UpgradeTask *task, RunContext &rctx) {
   }
 
   /** A metadata operation */

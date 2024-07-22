@@ -56,20 +56,12 @@ struct CreateTask : public CreateContainerTask {
 };
 
 /** A task to destroy small_message */
-using chi::Admin::DestroyContainerTask;
-struct DestroyTask : public DestroyContainerTask {
-  /** SHM default constructor */
-  HSHM_ALWAYS_INLINE explicit
-  DestroyTask(hipc::Allocator *alloc) : DestroyContainerTask(alloc) {}
+typedef chi::Admin::DestroyContainerTask DestroyTask;
 
-  /** Emplace constructor */
-  HSHM_ALWAYS_INLINE
-  DestroyTask(hipc::Allocator *alloc,
-               const TaskNode &task_node,
-               const DomainQuery &dom_query,
-               PoolId &pool_id)
-      : DestroyContainerTask(alloc, task_node, dom_query, pool_id) {}
-};
+/**
+ * A task to upgrade small_message
+ * */
+typedef chi::Admin::UpgradeModuleTask UpgradeTask;
 
 /**
  * A custom task in small_message

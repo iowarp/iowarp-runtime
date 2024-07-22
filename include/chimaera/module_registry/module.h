@@ -36,7 +36,7 @@ class Lane {
   CoMutex comux_;
 
  public:
-  CLS_CONST u32 kPlugged = 0x1;
+  CLS_CONST u32 kPlugged = BIT_OPT(u32, 1);
 
  public:
   Lane(QueueId lane_id, QueueId ingress_id, i32 worker_id) :
