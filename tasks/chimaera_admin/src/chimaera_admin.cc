@@ -80,6 +80,13 @@ class Server : public Module {
 
   /** Upgrade a module dynamically */
   void UpgradeModule(UpgradeModuleTask *task, RunContext &rctx) {
+    // Get the set of ChiContainers
+    std::string lib_name = task->lib_name_.str();
+    std::vector<Container*> containers =
+        CHI_TASK_REGISTRY->GetContainers(lib_name);
+    // Copy the old state to the new
+    for (Container *container : containers) {
+    }
     task->SetModuleComplete();
   }
   void MonitorUpgradeModule(u32 mode,

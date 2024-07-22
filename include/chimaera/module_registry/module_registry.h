@@ -159,9 +159,8 @@ class ModuleRegistry {
     }
   }
 
-  /** Load a task lib */
-  bool RegisterModule(const std::string &lib_name) {
-    ScopedMutex lock(lock_, 0);
+  /** Load a module */
+  bool LoadModule(const std::string &lib_name, ModuleInfo &info) {
     std::string lib_dir;
     for (const std::string &lib_dir : lib_dirs_) {
       // Determine if this directory contains the library
@@ -181,7 +180,6 @@ class ModuleRegistry {
       }
 
       // Load the library
-      ModuleInfo info;
       info.lib_ = dlopen(lib_path.c_str(), RTLD_GLOBAL | RTLD_NOW);
       if (!info.lib_) {
         HELOG(kError, "Could not open the lib library: {}. Reason: {}", lib_path, dlerror());
@@ -217,16 +215,26 @@ class ModuleRegistry {
 
       // Check if the lib is already loaded
       std::string module_name = info.get_module_name();
-      if (libs_.find(module_name) != libs_.end()) {
-        return true;
-      }
       HILOG(kInfo, "(node {}) Finished loading the lib: {}",
             CHI_RPC->node_id_, module_name);
       info.static_state_ = info.alloc_state_();
-      libs_.emplace(module_name, std::move(info));
       return true;
     }
-    HELOG(kError, "Could not find the lib: {}", lib_name);
+    return false;
+  }
+
+  /** Load a task lib */
+  bool RegisterModule(const std::string &lib_name) {
+    ScopedMutex lock(lock_, 0);
+    if (libs_.find(lib_name) != libs_.end()) {
+      return true;
+    }
+    ModuleInfo info;
+    if (!LoadModule(lib_name, info)) {
+      HELOG(kError, "Could not find the lib: {}", lib_name);
+      return false;
+    }
+    libs_.emplace(lib_name, std::move(info));
     return false;
   }
 
@@ -353,6 +361,21 @@ class ModuleRegistry {
     // TODO(llogan): Iterate over shared_state + states and destroy them
     pool_ids_.erase(pool_name);
     pools_.erase(it);
+  }
+
+  /** Get all ChiContainers matching the module name */
+  std::vector<Container*> GetContainers(const std::string &lib_name) {
+    ScopedMutex lock(lock_, 0);
+    std::vector<Container*> containers;
+    for (auto &kv : pools_) {
+      PoolInfo &pool = kv.second;
+      if (pool.lib_name_ == lib_name) {
+        for (auto &kv2 : pool.containers_) {
+          containers.emplace_back(kv2.second);
+        }
+      }
+    }
+    return containers;
   }
 };
 
