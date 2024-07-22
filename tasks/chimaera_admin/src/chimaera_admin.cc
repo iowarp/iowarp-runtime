@@ -96,6 +96,7 @@ class Server : public Module {
       new_container->Run(Method::kUpgrade, task, rctx);
       new_containers.emplace_back(new_container);
     }
+    task->UnsetModuleComplete();
     // Get current iter count for each worker
     std::vector<size_t> iter_counts;
     for (std::unique_ptr<Worker> &worker : CHI_WORK_ORCHESTRATOR->workers_) {

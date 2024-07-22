@@ -45,9 +45,9 @@ TEST_CASE("TestIpc") {
   t.Resume();
   int depth = 0;
   for (size_t i = 0; i < ops; ++i) {
-    int lane_id = i;
+    int cont_id = i;
     int ret = client.Md(
-        chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, lane_id),
+        chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, cont_id),
         depth, 0);
     REQUIRE(ret == 1);
   }
@@ -87,9 +87,9 @@ TEST_CASE("TestAsyncIpc") {
   for (size_t i = 0; i < ops; ++i) {
     int ret;
     // HILOG(kInfo, "Sending message {}", i);
-    int lane_id = i;
+    int cont_id = i;
     client.AsyncMd(
-        chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, lane_id),
+        chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, cont_id),
         depth, TASK_FIRE_AND_FORGET);
   }
   CHI_ADMIN->Flush(
@@ -125,9 +125,9 @@ TEST_CASE("TestFlush") {
   for (size_t i = 0; i < ops; ++i) {
     int ret;
     HILOG(kInfo, "Sending message {}", i);
-    int lane_id = 1 + ((i + 1) % nprocs);
+    int cont_id = 1 + ((i + 1) % nprocs);
     LPointer<chi::small_message::MdTask> task = client.AsyncMd(
-        chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, lane_id),
+        chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, cont_id),
         0, 0);
   }
   CHI_ADMIN->Flush(DomainQuery::GetGlobalBcast());
@@ -154,9 +154,9 @@ void TestIpcMultithread(int nprocs) {
     size_t ops = (1 << 20);
     for (size_t i = 0; i < ops; ++i) {
       int ret;
-      int lane_id = 1 + ((i + 1) % nprocs);
+      int cont_id = 1 + ((i + 1) % nprocs);
       ret = client.Md(
-          chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, lane_id),
+          chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, cont_id),
           0, 0);
       REQUIRE(ret == 1);
     }
@@ -212,9 +212,9 @@ TEST_CASE("TestIO") {
   for (size_t i = 0; i < ops; ++i) {
     size_t write_ret = 0, read_ret = 0;
     HILOG(kInfo, "Sending message {}", i);
-    int lane_id = i;
+    int cont_id = i;
     client.Io(
-        chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, lane_id),
+        chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, cont_id),
         KILOBYTES(4),
         MD_IO_WRITE | MD_IO_READ,
         write_ret, read_ret);
@@ -250,18 +250,26 @@ TEST_CASE("TestUpgrade") {
   ProcessAffiner::SetCpuAffinity(pid, 8);
 
   t.Resume();
-  int depth = 8;
-  size_t ops = 8192;
-  for (size_t i = 0; i < ops; ++i) {
+  int depth = 0;
+  size_t ops = 80000;
+  for (size_t i = 0; i < ops / 2; ++i) {
     int ret;
     // HILOG(kInfo, "Sending message {}", i);
-    int lane_id = i;
+    int cont_id = i;
     client.AsyncMd(
-        chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, lane_id),
+        chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, cont_id),
         depth, TASK_FIRE_AND_FORGET);
   }
-  CHI_ADMIN->UpgradeModule(
+  CHI_ADMIN->AsyncUpgradeModule(
       chi::DomainQuery::GetGlobalBcast(), "small_message");
+  for (size_t i = 0; i < ops / 2; ++i) {
+    int ret;
+    // HILOG(kInfo, "Sending message {}", i);
+    int cont_id = i;
+    client.AsyncMd(
+        chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, cont_id),
+        depth, TASK_FIRE_AND_FORGET);
+  }
 
   CHI_ADMIN->Flush(
       DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0));
@@ -273,7 +281,7 @@ TEST_CASE("TestUpgrade") {
 }
 
 // TEST_CASE("TestHostfile") {
-//  for (NodeId lane_id = 1; node_id <
+//  for (NodeId cont_id = 1; node_id <
 //  HRUN_THALLIUM->rpc_->hosts_.size() + 1; ++node_id) {
 //    HILOG(kInfo, "Node {}: {}", node_id,
 //    HRUN_THALLIUM->GetServerName(node_id));
