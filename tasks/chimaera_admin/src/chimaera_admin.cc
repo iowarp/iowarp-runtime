@@ -84,9 +84,19 @@ class Server : public Module {
     std::string lib_name = task->lib_name_.str();
     std::vector<Container*> containers =
         CHI_TASK_REGISTRY->GetContainers(lib_name);
+    // Load the updated code
+    ModuleInfo new_info;
+    CHI_TASK_REGISTRY->LoadModule(lib_name, new_info);
     // Copy the old state to the new
     for (Container *container : containers) {
+      Container *new_container = new_info.alloc_state_();
+      (*new_container) = (*container);
+      new_container->Run(Method::kUpgrade, task, rctx);
     }
+    // Plug & flush all module-related lanes
+    /**
+     * Do we really need shared_ptr for this upgrade procedure?
+     * */
     task->SetModuleComplete();
   }
   void MonitorUpgradeModule(u32 mode,
