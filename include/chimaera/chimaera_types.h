@@ -60,6 +60,11 @@ typedef int64_t i64;  /**< 64-bit signed integer */
 typedef float f32;    /**< 32-bit float */
 typedef double f64;   /**< 64-bit float */
 
+#define NANOSECONDS(X) (X)
+#define MICROSECONDS(X) (X * 1000)
+#define MILLISECONDS(X) (X * 1000000)
+#define SECONDS(X) (X * 1000000000)
+
 namespace chi {
 
 using hshm::RwLock;

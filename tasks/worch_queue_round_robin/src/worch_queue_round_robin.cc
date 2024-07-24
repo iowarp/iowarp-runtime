@@ -44,35 +44,57 @@ class Server : public Module {
   void MonitorDestroy(u32 mode, DestroyTask *task, RunContext &rctx) {
   }
 
+  /** Check if low latency */
+  bool IsLowLatency(Lane &lane) {
+    size_t avg_cpu_load = lane.cpu_load_ / lane.num_tasks_;
+    size_t avg_io_load = lane.io_load_ / lane.num_tasks_;
+    return avg_cpu_load < KILOBYTES(50) && avg_io_load < KILOBYTES(8);
+  }
+
   /** Schedule work orchestrator queues */
   void Schedule(ScheduleTask *task, RunContext &rctx) {
+    return;  // For now, do nothing
     // Iterate over the set of ChiContainers
-//    ScopedRwReadLock lock(CHI_TASK_REGISTRY->lock_, 0);
-//    for (auto pool_it = CHI_TASK_REGISTRY->pools_.begin();
-//         pool_it != CHI_TASK_REGISTRY->pools_.end(); ++pool_it) {
-//      for (auto cont_it = pool_it->second.containers_.begin();
-//           cont_it != pool_it->second.containers_.end(); ++cont_it) {
-//        Container *container = cont_it->second;
-//        for (auto lane_grp_it = container->lane_groups_.begin();
-//             lane_grp_it != container->lane_groups_.end(); ++lane_grp_it) {
-//          LaneGroup &lane_grp = lane_grp_it->second;
-//          for (auto lane_it = lane_grp.lanes_.begin();
-//               lane_it != lane_grp.lanes_.end(); ++lane_it) {
-//            Lane &lane = *lane_it;
-//            // Check the worker the container maps to
+    ScopedMutex lock(CHI_TASK_REGISTRY->lock_, 0);
+    for (auto pool_it = CHI_TASK_REGISTRY->pools_.begin();
+         pool_it != CHI_TASK_REGISTRY->pools_.end(); ++pool_it) {
+      for (auto cont_it = pool_it->second.containers_.begin();
+           cont_it != pool_it->second.containers_.end(); ++cont_it) {
+        Container *container = cont_it->second;
+        for (auto lane_grp_it = container->lane_groups_.begin();
+             lane_grp_it != container->lane_groups_.end(); ++lane_grp_it) {
+          LaneGroup &lane_grp = *lane_grp_it->second;
+          for (auto lane_it = lane_grp.lanes_.begin();
+               lane_it != lane_grp.lanes_.end(); ++lane_it) {
+            Lane &lane = *lane_it;
+            // Get the ingress lane to map the chi lane to
+            ingress::Lane *ig_lane = nullptr;
+            if (IsLowLatency(lane)) {
+              // Migrate to worker with the least load
+              ig_lane = CHI_WORK_ORCHESTRATOR->GetThresholdIngressLane(
+                  TaskPrio::kLowLatency);
+            } else {
+              ig_lane = CHI_WORK_ORCHESTRATOR->GetThresholdIngressLane(
+                  TaskPrio::kLowLatency);
+            }
+            // Migrate the lane
+            lane.SetPlugged();
+            while (!lane.active_.empty()) {
+              task->Yield();
+            }
+            lane.worker_id_ = ig_lane->worker_id_;
+            lane.ingress_id_ = ig_lane->id_;
 //            Worker *worker =
 //                CHI_WORK_ORCHESTRATOR->workers_[lane.worker_id_].get();
-//            // Check if this ChiLane is low latency.
-//            if (worker->IsLowLatency()) {
-//            }
-//            // If not, the worker should perform vertical migration.
-//          }
-//        }
-//        // Check the worker the container maps to
-//        // Does this match the worker it is on?
-//        // If not, the worker should perform vertical migration.
-//      }
-//    }
+//            worker->RelinquishingQueues();
+            lane.UnsetPlugged();
+          }
+        }
+        // Check the worker the container maps to
+        // Does this match the worker it is on?
+        // If not, the worker should perform vertical migration.
+      }
+    }
   }
   void MonitorSchedule(u32 mode, ScheduleTask *task, RunContext &rctx) {
   }

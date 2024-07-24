@@ -296,6 +296,9 @@ struct RunContext {
   size_t block_count_;
   ContainerId route_container_;
   QueueId route_lane_;
+  size_t cpu_load_;
+  size_t mem_load_;
+  size_t io_load_;
 };
 
 /** A generic task base class */

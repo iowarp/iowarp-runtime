@@ -440,6 +440,12 @@ void Worker::ExecTask(PrivateTaskQueue &queue,
   if (!task->IsStarted()) {
     exec->Monitor(MonitorMode::kBeginTrainTime, task, rctx);
     cur_lane_->SetActive(task->task_node_.root_);
+    // Update the load
+    exec->Monitor(MonitorMode::kEstTime, task, rctx);
+    cur_lane_->cpu_load_ += rctx.cpu_load_;
+    cur_lane_->mem_load_ += rctx.mem_load_;
+    cur_lane_->io_load_ += rctx.io_load_;
+    cur_lane_->num_tasks_ += 1;
   }
   // Submit the task to the local remote container
   if (props.Any(HSHM_WORKER_IS_REMOTE)) {
@@ -467,6 +473,11 @@ void Worker::ExecTask(PrivateTaskQueue &queue,
   if (!task->IsStarted()) {
     exec->Monitor(MonitorMode::kEndTrainTime, task, rctx);
     cur_lane_->UnsetActive(task->task_node_.root_);
+    // Update the load
+    cur_lane_->cpu_load_ -= rctx.cpu_load_;
+    cur_lane_->mem_load_ -= rctx.mem_load_;
+    cur_lane_->io_load_ -= rctx.io_load_;
+    cur_lane_->num_tasks_ -= 1;
   }
   task->DidRun(cur_time_);
   // Block the task

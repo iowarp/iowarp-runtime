@@ -30,7 +30,10 @@ class Lane {
   QueueId lane_id_;
   QueueId ingress_id_;
   i32 worker_id_;
-  size_t load_ = 0;
+  size_t num_tasks_ = 0;
+  size_t cpu_load_ = 0;
+  size_t mem_load_ = 0;
+  size_t io_load_ = 0;
   bitfield32_t flags_;
   std::unordered_map<TaskId, int> active_;
   CoMutex comux_;
