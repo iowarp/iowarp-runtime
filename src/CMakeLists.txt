@@ -28,6 +28,7 @@ add_library(chimaera_runtime
         module_registry.cc
         work_orchestrator.cc
         chimaera_runtime.cc
+        python_wrapper.cc
 )
 add_dependencies(chimaera_runtime ${Chimaera_CLIENT_DEPS})
 target_link_libraries(chimaera_runtime ${_Chimaera_RUNTIME_LIBRARIES})
