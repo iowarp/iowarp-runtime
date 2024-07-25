@@ -96,18 +96,6 @@ void Runtime::ServerInit(std::string server_config_path) {
       queue_sched_id,
       create_task.get(),
       containers);
-  Container *state = CHI_TASK_REGISTRY->GetStaticContainer(queue_sched_id);
-
-  // Initially schedule queues to workers
-  auto queue_task = CHI_CLIENT->NewTask<ScheduleTask>(
-      CHI_CLIENT->MakeTaskNodeId(),
-      DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0),
-      queue_sched_id,
-      250);
-  state->Run(queue_task->method_,
-             queue_task.ptr_,
-             queue_task->rctx_);
-  CHI_CLIENT->DelTask(queue_task);
 
   // Create the work orchestrator process scheduling library
   PoolId proc_sched_id = CHI_CLIENT->MakePoolId();
@@ -126,14 +114,6 @@ void Runtime::ServerInit(std::string server_config_path) {
       proc_sched_id,
       create_task.get(),
       containers);
-
-//  CHI_RPC->PrintDomainResolution(
-//      proc_sched_id,
-//      DomainQuery::GetGlobal(chi::SubDomainId::kContainerSet, 0));
-//  CHI_RPC->PrintDomainResolution(
-//      proc_sched_id,
-//      DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0));
-//  HELOG(kFatal, "End here...");
 
   // Set the work orchestrator queue scheduler
   CHI_ADMIN->SetWorkOrchQueuePolicyRN(

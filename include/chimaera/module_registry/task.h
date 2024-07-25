@@ -259,14 +259,11 @@ struct TaskFlags : public IsTask {
   TASK_FLAG_T CMPGRP = FLAGS & TF_CMPGRP;
 };
 
-/** The type of a compile-time task flag */
-#define TASK_PRIO_T constexpr inline static int
-
 /** Prioritization of tasks */
 class TaskPrio {
  public:
-  TASK_PRIO_T kLowLatency = 0;         /**< Low latency task lane */
-  TASK_PRIO_T kHighLatency = 1;        /**< High latency task lane */
+  CLS_CONST u32 kLowLatency = 0;         /**< Low latency task lane */
+  CLS_CONST u32 kHighLatency = 1;        /**< High latency task lane */
 };
 
 /** Used to indicate the amount of work remaining to do when flushing */

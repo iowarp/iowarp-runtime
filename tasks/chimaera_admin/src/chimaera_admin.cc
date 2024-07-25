@@ -80,6 +80,7 @@ class Server : public Module {
 
   /** Upgrade a module dynamically */
   void UpgradeModule(UpgradeModuleTask *task, RunContext &rctx) {
+    ScopedCoMutex upgrade_lock(CHI_TASK_REGISTRY->upgrade_lock_);
     // Get the set of ChiContainers
     std::string lib_name = task->lib_name_.str();
     std::vector<Container*> containers =

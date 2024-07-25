@@ -30,7 +30,8 @@ void Module::CreateLaneGroup(const LaneGroupId &id, u32 count, u32 flags) {
     worker.load_ += 1;
     lane_group.lanes_.emplace_back(QueueId{id, lane_counter_++},
                                    ig_lane->id_,
-                                   ig_lane->worker_id_);
+                                   ig_lane->worker_id_,
+                                   lane_prio);
   }
 #endif
 }

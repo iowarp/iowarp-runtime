@@ -23,6 +23,12 @@ namespace chi {
 
 typedef ABT_key TlsKey;
 
+struct WorkerLoad {
+  size_t cpu_load_ = 0;
+  size_t mem_load_ = 0;
+  size_t io_load_ = 0;
+};
+
 class WorkOrchestrator {
  public:
   ServerConfig *config_;  /**< The server configuration */
@@ -172,24 +178,40 @@ class WorkOrchestrator {
     return min_lane;
   }
 
+  /** Calculate per-worker load */
+  std::vector<WorkerLoad> CalculateLoad();
+
   /** Get the least-loaded ingress queue */
-  ingress::Lane* GetThresholdIngressLane(u32 lane_group_id)  {
+  ingress::Lane* GetThresholdIngressLane(u32 orig_worker_id,
+                                         std::vector<WorkerLoad> &loads,
+                                         u32 lane_group_id)  {
     ingress::MultiQueue *queue =
         CHI_QM_RUNTIME->GetQueue(CHI_QM_RUNTIME->admin_queue_id_);
-    ingress::LaneGroup &lane_group = queue->groups_[lane_group_id];
+    ingress::LaneGroup &ig_lane_group = queue->groups_[lane_group_id];
     ingress::Lane *min_lane = nullptr;
-    float min_load = std::numeric_limits<float>::max();
-    for (ingress::Lane &lane : lane_group.lanes_) {
-      Worker &worker = GetWorker(lane.worker_id_);
-      if (worker.load_ < MICROSECONDS(50)) {
-        return &lane;
+    // Find the lane with minimum load
+    size_t min_load = std::numeric_limits<size_t>::max();
+    for (ingress::Lane &ig_lane : ig_lane_group.lanes_) {
+      Worker &worker = GetWorker(ig_lane.worker_id_);
+      // Reduce the number of workers
+      if (0 < loads[worker.id_].cpu_load_ &&
+          loads[worker.id_].cpu_load_ < MICROSECONDS(50)) {
+        min_lane = &ig_lane;
+        return min_lane;
       }
-      if (worker.load_ < min_load) {
-        min_load = worker.load_;
-        min_lane = &lane;
+      // Evenly spread across workers
+      if (loads[worker.id_].cpu_load_ < min_load) {
+        min_load = loads[worker.id_].cpu_load_;
+        min_lane = &ig_lane;
       }
     }
-    return min_lane;
+    // Don't migrate if like 10% difference
+    if (loads[min_lane->worker_id_].cpu_load_ * 1.1 >=
+        loads[orig_worker_id].cpu_load_) {
+      return nullptr;
+    } else {
+      return min_lane;
+    }
   }
 };
 

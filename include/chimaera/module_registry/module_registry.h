@@ -132,6 +132,7 @@ class ModuleRegistry {
   /** A unique identifier counter */
   std::atomic<u64> *unique_;
   Mutex lock_;
+  CoMutex upgrade_lock_;
 
  public:
   /** Default constructor */

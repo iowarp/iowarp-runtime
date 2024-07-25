@@ -34,17 +34,31 @@ class Lane {
   size_t cpu_load_ = 0;
   size_t mem_load_ = 0;
   size_t io_load_ = 0;
-  bitfield32_t flags_;
   std::unordered_map<TaskId, int> active_;
   CoMutex comux_;
+  std::atomic<size_t> plug_count_;
+  u32 prio_;
 
  public:
-  CLS_CONST u32 kPlugged = BIT_OPT(u32, 1);
+  /** Emplace constructor */
+  explicit Lane(QueueId lane_id, QueueId ingress_id, i32 worker_id, u32 prio) :
+  lane_id_(lane_id), ingress_id_(ingress_id),
+  worker_id_(worker_id), prio_(prio) {
+    plug_count_ = 0;
+  }
 
- public:
-  Lane(QueueId lane_id, QueueId ingress_id, i32 worker_id) :
-      lane_id_(lane_id), ingress_id_(ingress_id), worker_id_(worker_id) {
-    flags_.Clear();
+  /** Copy constructor */
+  Lane(const Lane &lane) {
+    lane_id_ = lane.lane_id_;
+    ingress_id_ = lane.ingress_id_;
+    worker_id_ = lane.worker_id_;
+    num_tasks_ = lane.num_tasks_;
+    cpu_load_ = lane.cpu_load_;
+    mem_load_ = lane.mem_load_;
+    io_load_ = lane.io_load_;
+    active_ = lane.active_;
+    plug_count_ = lane.plug_count_.load();
+    prio_ = lane.prio_;
   }
 
   bool IsActive(TaskId id) {
@@ -73,15 +87,15 @@ class Lane {
   }
 
   bool IsPlugged() {
-    return flags_.All(kPlugged);
+    return plug_count_ > 0;
   }
 
   void SetPlugged() {
-    flags_.SetBits(kPlugged);
+    plug_count_ += 1;
   }
 
   void UnsetPlugged() {
-    flags_.UnsetBits(kPlugged);
+    plug_count_ -= 1;
   }
 };
 

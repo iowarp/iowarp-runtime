@@ -173,11 +173,14 @@ void Worker::Loop() {
       }
       iter_count_ += 1;
     } catch (hshm::Error &e) {
-      HELOG(kError, "(node {}) Worker {} caught an error: {}", CHI_CLIENT->node_id_, id_, e.what());
+      HELOG(kError, "(node {}) Worker {} caught an error: {}",
+            CHI_CLIENT->node_id_, id_, e.what());
     } catch (std::exception &e) {
-      HELOG(kError, "(node {}) Worker {} caught an exception: {}", CHI_CLIENT->node_id_, id_, e.what());
+      HELOG(kError, "(node {}) Worker {} caught an exception: {}",
+            CHI_CLIENT->node_id_, id_, e.what());
     } catch (...) {
-      HELOG(kError, "(node {}) Worker {} caught an unknown exception", CHI_CLIENT->node_id_, id_);
+      HELOG(kError, "(node {}) Worker {} caught an unknown exception",
+            CHI_CLIENT->node_id_, id_);
     }
     if (!IsContinuousPolling()) {
       Yield();
@@ -314,6 +317,13 @@ TaskRouteMode Worker::Reroute(const PoolId &scope,
     }
     chi::Lane *chi_lane = exec->GetLane(task->rctx_.route_lane_);
     if (chi_lane->ingress_id_ == ig_lane->id_) {
+      // NOTE(llogan): May become incorrect if active push fails
+      // Update the load
+      exec->Monitor(MonitorMode::kEstTime, task.ptr_, task->rctx_);
+      chi_lane->cpu_load_ += task->rctx_.cpu_load_;
+      chi_lane->mem_load_ += task->rctx_.mem_load_;
+      chi_lane->io_load_ += task->rctx_.io_load_;
+      chi_lane->num_tasks_ += 1;
       return TaskRouteMode::kThisWorker;
     } else {
       MultiQueue *queue = CHI_CLIENT->GetQueue(
@@ -335,21 +345,21 @@ void Worker::ProcessCompletions() {
 
 /** Poll the set of tasks in the private queue */
 HSHM_ALWAYS_INLINE
-size_t Worker::PollPrivateQueue(PrivateTaskQueue &queue, bool flushing) {
+size_t Worker::PollPrivateQueue(PrivateTaskQueue &priv_queue, bool flushing) {
   size_t work = 0;
-  size_t size = queue.size_;
+  size_t size = priv_queue.size_;
   for (size_t i = 0; i < size; ++i) {
     PrivateTaskQueueEntry entry;
-    queue.pop(entry);
+    priv_queue.pop(entry);
     if (entry.task_.ptr_ == nullptr) {
       break;
     }
     bool pushback = RunTask(
-        queue, entry,
+        priv_queue, entry,
         entry.task_,
         flushing);
     if (pushback) {
-      queue.push(entry);
+      priv_queue.push(entry);
     }
     ++work;
   }
@@ -358,7 +368,7 @@ size_t Worker::PollPrivateQueue(PrivateTaskQueue &queue, bool flushing) {
 }
 
 /** Run a task */
-bool Worker::RunTask(PrivateTaskQueue &queue,
+bool Worker::RunTask(PrivateTaskQueue &priv_queue,
                      PrivateTaskQueueEntry &entry,
                      LPointer<Task> task,
                      bool flushing) {
@@ -388,6 +398,16 @@ bool Worker::RunTask(PrivateTaskQueue &queue,
   cur_lane_ = exec->GetLane(task->rctx_.route_lane_);
   // Check if the task is apart of a plugged lane
   if (cur_lane_->IsPlugged()) {
+    if (cur_lane_->worker_id_ != id_) {
+      MultiQueue *queue = CHI_CLIENT->GetQueue(
+          CHI_QM_RUNTIME->admin_queue_id_);
+      ingress::LaneGroup &ig_lane_group =
+          queue->GetGroup(cur_lane_->ingress_id_.node_id_);
+      ingress::Lane &new_ig_lane = ig_lane_group.GetLane(
+          cur_lane_->ingress_id_.unique_);
+      new_ig_lane.emplace(task.shm_);
+      return false;
+    }
     if (!cur_lane_->IsActive(task->task_node_.root_)) {
       // TODO(llogan): insert into plug list.
       return true;
@@ -401,14 +421,14 @@ bool Worker::RunTask(PrivateTaskQueue &queue,
   // Allocate remote task and execute here
   // Execute the task based on its properties
   if (!task->IsModuleComplete()) {
-    ExecTask(queue, entry, task.ptr_, rctx, exec, props);
+    ExecTask(priv_queue, entry, task.ptr_, rctx, exec, props);
   }
   // Cleanup allocations
   bool pushback = true;
   if (task->IsModuleComplete()) {
     pushback = false;
     // active_.erase(queue.id_);
-    active_.erase(queue.id_, entry);
+    active_.erase(priv_queue.id_, entry);
     EndTask(exec, task);
   } else if (task->IsBlocked()) {
     pushback = false;
@@ -418,7 +438,7 @@ bool Worker::RunTask(PrivateTaskQueue &queue,
 
 /** Run an arbitrary task */
 HSHM_ALWAYS_INLINE
-void Worker::ExecTask(PrivateTaskQueue &queue,
+void Worker::ExecTask(PrivateTaskQueue &priv_queue,
                       PrivateTaskQueueEntry &entry,
                       Task *&task,
                       RunContext &rctx,
@@ -440,12 +460,6 @@ void Worker::ExecTask(PrivateTaskQueue &queue,
   if (!task->IsStarted()) {
     exec->Monitor(MonitorMode::kBeginTrainTime, task, rctx);
     cur_lane_->SetActive(task->task_node_.root_);
-    // Update the load
-    exec->Monitor(MonitorMode::kEstTime, task, rctx);
-    cur_lane_->cpu_load_ += rctx.cpu_load_;
-    cur_lane_->mem_load_ += rctx.mem_load_;
-    cur_lane_->io_load_ += rctx.io_load_;
-    cur_lane_->num_tasks_ += 1;
   }
   // Submit the task to the local remote container
   if (props.Any(HSHM_WORKER_IS_REMOTE)) {

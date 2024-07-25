@@ -46,6 +46,9 @@ class Server : public Module {
 
   /** Check if low latency */
   bool IsLowLatency(Lane &lane) {
+    if (lane.num_tasks_ == 0) {
+      return lane.prio_ == TaskPrio::kLowLatency;
+    }
     size_t avg_cpu_load = lane.cpu_load_ / lane.num_tasks_;
     size_t avg_io_load = lane.io_load_ / lane.num_tasks_;
     return avg_cpu_load < KILOBYTES(50) && avg_io_load < KILOBYTES(8);
@@ -53,9 +56,9 @@ class Server : public Module {
 
   /** Schedule work orchestrator queues */
   void Schedule(ScheduleTask *task, RunContext &rctx) {
-    return;  // For now, do nothing
     // Iterate over the set of ChiContainers
-    ScopedMutex lock(CHI_TASK_REGISTRY->lock_, 0);
+    ScopedCoMutex upgrade_lock(CHI_TASK_REGISTRY->upgrade_lock_);
+    std::vector<WorkerLoad> loads = CHI_WORK_ORCHESTRATOR->CalculateLoad();
     for (auto pool_it = CHI_TASK_REGISTRY->pools_.begin();
          pool_it != CHI_TASK_REGISTRY->pools_.end(); ++pool_it) {
       for (auto cont_it = pool_it->second.containers_.begin();
@@ -68,33 +71,33 @@ class Server : public Module {
                lane_it != lane_grp.lanes_.end(); ++lane_it) {
             Lane &lane = *lane_it;
             // Get the ingress lane to map the chi lane to
-            ingress::Lane *ig_lane = nullptr;
+            ingress::Lane *ig_lane;
             if (IsLowLatency(lane)) {
               // Migrate to worker with the least load
               ig_lane = CHI_WORK_ORCHESTRATOR->GetThresholdIngressLane(
-                  TaskPrio::kLowLatency);
+                  lane.worker_id_, loads, TaskPrio::kLowLatency);
             } else {
               ig_lane = CHI_WORK_ORCHESTRATOR->GetThresholdIngressLane(
-                  TaskPrio::kLowLatency);
+                  lane.worker_id_, loads, TaskPrio::kHighLatency);
             }
             // Migrate the lane
-            lane.SetPlugged();
-            while (!lane.active_.empty()) {
-              task->Yield();
-            }
-            lane.worker_id_ = ig_lane->worker_id_;
-            lane.ingress_id_ = ig_lane->id_;
+            if (ig_lane && ig_lane->worker_id_ != lane.worker_id_) {
+              lane.SetPlugged();
+              while (!lane.active_.empty()) {
+                task->Yield();
+              }
+              lane.worker_id_ = ig_lane->worker_id_;
+              lane.ingress_id_ = ig_lane->id_;
 //            Worker *worker =
 //                CHI_WORK_ORCHESTRATOR->workers_[lane.worker_id_].get();
 //            worker->RelinquishingQueues();
-            lane.UnsetPlugged();
+              lane.UnsetPlugged();
+            }
           }
         }
-        // Check the worker the container maps to
-        // Does this match the worker it is on?
-        // If not, the worker should perform vertical migration.
       }
     }
+    task->UnsetStarted();
   }
   void MonitorSchedule(u32 mode, ScheduleTask *task, RunContext &rctx) {
   }

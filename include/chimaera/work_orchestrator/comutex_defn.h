@@ -25,6 +25,7 @@ class CoMutex {
   hshm::Mutex mux_;
 
  public:
+  /** Default constructor */
   CoMutex() {
     root_.SetNull();
     rep_ = 0;
