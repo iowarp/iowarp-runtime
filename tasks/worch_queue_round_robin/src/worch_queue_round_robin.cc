@@ -49,8 +49,8 @@ class Server : public Module {
     if (lane.num_tasks_ == 0) {
       return lane.prio_ == TaskPrio::kLowLatency;
     }
-    size_t avg_cpu_load = lane.cpu_load_ / lane.num_tasks_;
-    size_t avg_io_load = lane.io_load_ / lane.num_tasks_;
+    size_t avg_cpu_load = lane.load_.cpu_load_ / lane.num_tasks_;
+    size_t avg_io_load = lane.load_.io_load_ / lane.num_tasks_;
     return avg_cpu_load < KILOBYTES(50) && avg_io_load < KILOBYTES(8);
   }
 
@@ -58,7 +58,7 @@ class Server : public Module {
   void Schedule(ScheduleTask *task, RunContext &rctx) {
     // Iterate over the set of ChiContainers
     ScopedCoMutex upgrade_lock(CHI_TASK_REGISTRY->upgrade_lock_);
-    std::vector<WorkerLoad> loads = CHI_WORK_ORCHESTRATOR->CalculateLoad();
+    std::vector<Load> loads = CHI_WORK_ORCHESTRATOR->CalculateLoad();
     for (auto pool_it = CHI_TASK_REGISTRY->pools_.begin();
          pool_it != CHI_TASK_REGISTRY->pools_.end(); ++pool_it) {
       for (auto cont_it = pool_it->second.containers_.begin();

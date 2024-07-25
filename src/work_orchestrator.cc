@@ -181,8 +181,8 @@ void WorkOrchestrator::DedicateCores() {
   // HILOG(kInfo, "Affining {} processes to {} cores", count, cpu_ids.size());
 }
 
-std::vector<WorkerLoad> WorkOrchestrator::CalculateLoad() {
-  std::vector<WorkerLoad> loads(workers_.size());
+std::vector<Load> WorkOrchestrator::CalculateLoad() {
+  std::vector<Load> loads(workers_.size());
   for (auto pool_it = CHI_TASK_REGISTRY->pools_.begin();
        pool_it != CHI_TASK_REGISTRY->pools_.end(); ++pool_it) {
     for (auto cont_it = pool_it->second.containers_.begin();
@@ -194,10 +194,8 @@ std::vector<WorkerLoad> WorkOrchestrator::CalculateLoad() {
         for (auto lane_it = lane_grp.lanes_.begin();
              lane_it != lane_grp.lanes_.end(); ++lane_it) {
           Lane &lane = *lane_it;
-          WorkerLoad &load = loads[lane.worker_id_];
-          load.cpu_load_ += lane.cpu_load_;
-          load.mem_load_ += lane.mem_load_;
-          load.io_load_ += lane.io_load_;
+          Load &load = loads[lane.worker_id_];
+          load += lane.load_;
         }
       }
     }

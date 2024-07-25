@@ -312,6 +312,8 @@ class Worker {
   Task *cur_task_ = nullptr;  /** Currently executing task */
   Lane *cur_lane_ = nullptr;  /** Currently executing lane */
   size_t iter_count_ = 0;   /** Number of iterations the worker has done */
+  size_t work_done_ = 0;  /** Amount of work in done (seconds) */
+  bool reinforce_epoch_ = false;
 
 
  public:
@@ -348,7 +350,7 @@ class Worker {
   void Loop();
 
   /** Run a single iteration over all queues */
-  size_t Run(bool flushing);
+  void Run(bool flushing);
 
   /** Ingest all process lanes */
   HSHM_ALWAYS_INLINE

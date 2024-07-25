@@ -22,7 +22,7 @@
 namespace chi {
 
 /** Shared-memory header for HRUN */
-struct HrunShm {
+struct ChiShm {
   NodeId node_id_;
   QueueManagerShm queue_manager_;
   std::atomic<u64> unique_;
@@ -32,7 +32,7 @@ struct HrunShm {
 /** The configuration used inherited by runtime + client */
 class ConfigurationManager {
  public:
-  HrunShm *header_;
+  ChiShm *header_;
   ClientConfig client_config_;
   ServerConfig server_config_;
   static inline const hipc::allocator_id_t main_alloc_id_ =

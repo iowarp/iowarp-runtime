@@ -155,22 +155,17 @@ void Worker::Loop() {
   }
   WorkOrchestrator *orch = CHI_WORK_ORCHESTRATOR;
   cur_time_.Now();
-  size_t work = 0;
   while (orch->IsAlive()) {
     try {
       bool flushing = flush_.flushing_ || active_.GetFlush().size_;
       if (flushing) {
         BeginFlush(orch);
       }
-      work += Run(flushing);
+      Run(flushing);
       if (flushing) {
         EndFlush(orch);
       }
-      ++work;
-      if (work >= 10000) {
-        work = 0;
-        cur_time_.Now();
-      }
+      cur_time_.Now();
       iter_count_ += 1;
     } catch (hshm::Error &e) {
       HELOG(kError, "(node {}) Worker {} caught an error: {}",
@@ -194,9 +189,7 @@ void Worker::Loop() {
 }
 
 /** Run a single iteration over all queues */
-size_t Worker::Run(bool flushing) {
-//  hshm::Timer t;
-//  t.Resume();
+void Worker::Run(bool flushing) {
   // Are there any queues pending scheduling
   if (poll_queues_.size() > 0) {
     _PollQueues();
@@ -206,28 +199,14 @@ size_t Worker::Run(bool flushing) {
     _RelinquishQueues();
   }
   // Process tasks in the pending queues
-  size_t work = 0;
   IngestProcLanes(flushing);
-  size_t latwork = 0;
   for (size_t i = 0; i < 8192; ++i) {
-    size_t diff = 0;
     IngestInterLanes(flushing);
-    diff += PollPrivateQueue(active_.GetConstruct(), flushing);
-    diff += PollPrivateQueue(active_.GetLowLat(), flushing);
-//    if (diff == 0) {
-//      break;
-//    }
-    latwork += diff;
-    work += diff;
+    PollPrivateQueue(active_.GetConstruct(), flushing);
+    PollPrivateQueue(active_.GetLowLat(), flushing);
   }
-  work += PollPrivateQueue(active_.GetHighLat(), flushing);
+  PollPrivateQueue(active_.GetHighLat(), flushing);
   PollPrivateQueue(active_.GetLongRunning(), flushing);
-//  t.Pause();
-//  if (latwork) {
-//    HILOG(kInfo, "Worker iteration took {} us (work {})",
-//          t.GetUsec(), latwork);
-//  }
-  return work;
 }
 
 /** Ingest all process lanes */
@@ -320,9 +299,7 @@ TaskRouteMode Worker::Reroute(const PoolId &scope,
       // NOTE(llogan): May become incorrect if active push fails
       // Update the load
       exec->Monitor(MonitorMode::kEstTime, task.ptr_, task->rctx_);
-      chi_lane->cpu_load_ += task->rctx_.cpu_load_;
-      chi_lane->mem_load_ += task->rctx_.mem_load_;
-      chi_lane->io_load_ += task->rctx_.io_load_;
+      chi_lane->load_ += task->rctx_.load_;
       chi_lane->num_tasks_ += 1;
       return TaskRouteMode::kThisWorker;
     } else {
@@ -467,30 +444,21 @@ void Worker::ExecTask(PrivateTaskQueue &priv_queue,
     active_.block(entry);
     cur_task_ = nullptr;
     cur_lane_ = nullptr;
-    LPointer<remote_queue::ClientPushSubmitTask> remote_task =
-        CHI_REMOTE_QUEUE->AsyncClientPushSubmitBase(
-            nullptr, task->task_node_ + 1,
-            DomainQuery::GetDirectId(SubDomainId::kGlobalContainers, 1),
-            task);
+    CHI_REMOTE_QUEUE->AsyncClientPushSubmitBase(
+        nullptr, task->task_node_ + 1,
+        DomainQuery::GetDirectId(SubDomainId::kGlobalContainers, 1),
+        task);
     return;
   }
 
   // Actually execute the task
   ExecCoroutine(task, rctx);
-//    if (task->IsCoroutine()) {
-//      ExecCoroutine(task, rctx);
-//    } else {
-//      exec->Run(task->method_, task, rctx);
-//      task->SetStarted();
-//    }
   // Monitoring callback
   if (!task->IsStarted()) {
     exec->Monitor(MonitorMode::kEndTrainTime, task, rctx);
     cur_lane_->UnsetActive(task->task_node_.root_);
     // Update the load
-    cur_lane_->cpu_load_ -= rctx.cpu_load_;
-    cur_lane_->mem_load_ -= rctx.mem_load_;
-    cur_lane_->io_load_ -= rctx.io_load_;
+    cur_lane_->load_ -= rctx.load_;
     cur_lane_->num_tasks_ -= 1;
   }
   task->DidRun(cur_time_);

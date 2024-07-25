@@ -31,9 +31,7 @@ class Lane {
   QueueId ingress_id_;
   i32 worker_id_;
   size_t num_tasks_ = 0;
-  size_t cpu_load_ = 0;
-  size_t mem_load_ = 0;
-  size_t io_load_ = 0;
+  Load load_;
   std::unordered_map<TaskId, int> active_;
   CoMutex comux_;
   std::atomic<size_t> plug_count_;
@@ -53,9 +51,7 @@ class Lane {
     ingress_id_ = lane.ingress_id_;
     worker_id_ = lane.worker_id_;
     num_tasks_ = lane.num_tasks_;
-    cpu_load_ = lane.cpu_load_;
-    mem_load_ = lane.mem_load_;
-    io_load_ = lane.io_load_;
+    load_ = lane.load_;
     active_ = lane.active_;
     plug_count_ = lane.plug_count_.load();
     prio_ = lane.prio_;

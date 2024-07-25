@@ -23,12 +23,6 @@ namespace chi {
 
 typedef ABT_key TlsKey;
 
-struct WorkerLoad {
-  size_t cpu_load_ = 0;
-  size_t mem_load_ = 0;
-  size_t io_load_ = 0;
-};
-
 class WorkOrchestrator {
  public:
   ServerConfig *config_;  /**< The server configuration */
@@ -179,11 +173,11 @@ class WorkOrchestrator {
   }
 
   /** Calculate per-worker load */
-  std::vector<WorkerLoad> CalculateLoad();
+  std::vector<Load> CalculateLoad();
 
   /** Get the least-loaded ingress queue */
   ingress::Lane* GetThresholdIngressLane(u32 orig_worker_id,
-                                         std::vector<WorkerLoad> &loads,
+                                         std::vector<Load> &loads,
                                          u32 lane_group_id)  {
     ingress::MultiQueue *queue =
         CHI_QM_RUNTIME->GetQueue(CHI_QM_RUNTIME->admin_queue_id_);

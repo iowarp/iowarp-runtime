@@ -91,7 +91,7 @@ class Client : public ConfigurationManager {
     main_alloc_ = mem_mngr->GetAllocator(main_alloc_id_);
     data_alloc_ = mem_mngr->GetAllocator(data_alloc_id_);
     rdata_alloc_ = mem_mngr->GetAllocator(rdata_alloc_id_);
-    header_ = main_alloc_->GetCustomHeader<HrunShm>();
+    header_ = main_alloc_->GetCustomHeader<ChiShm>();
     unique_ = &header_->unique_;
     node_id_ = header_->node_id_;
   }

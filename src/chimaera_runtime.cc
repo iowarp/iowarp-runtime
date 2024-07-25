@@ -150,8 +150,8 @@ void Runtime::InitSharedMemory() {
       mem_mngr->CreateAllocator<hipc::ScalablePageAllocator>(
           qm.shm_name_,
           main_alloc_id_,
-          sizeof(HrunShm));
-  header_ = main_alloc_->GetCustomHeader<HrunShm>();
+          sizeof(ChiShm));
+  header_ = main_alloc_->GetCustomHeader<ChiShm>();
   // Create separate data allocator
   mem_mngr->CreateBackend<hipc::PosixShmMmap>(
       qm.data_shm_size_,

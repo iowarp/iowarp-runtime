@@ -72,7 +72,7 @@ class Module;
 #define TASK_REMOTE_DEBUG_MARK BIT_OPT(u32, 31)
 
 /** Used to define task methods */
-#define TASK_METHOD_T static inline const u32
+#define TASK_METHOD_T CLS_CONST u32
 
 /** Used to indicate Yield to use */
 #define TASK_YIELD_STD 0
@@ -276,6 +276,43 @@ struct WorkPending {
 
 struct Task;
 
+/** Load definition */
+struct Load {
+  size_t cpu_load_ = 0;
+  size_t mem_load_ = 0;
+  size_t io_load_ = 0;
+
+  Load operator+(const Load &other) const {
+    Load ret;
+    ret.cpu_load_ = cpu_load_ + other.cpu_load_;
+    ret.mem_load_ = mem_load_ + other.mem_load_;
+    ret.io_load_ = io_load_ + other.io_load_;
+    return ret;
+  }
+
+  Load operator-(const Load &other) const {
+    Load ret;
+    ret.cpu_load_ = cpu_load_ - other.cpu_load_;
+    ret.mem_load_ = mem_load_ - other.mem_load_;
+    ret.io_load_ = io_load_ - other.io_load_;
+    return ret;
+  }
+
+  Load& operator+=(const Load &other) {
+    cpu_load_ += other.cpu_load_;
+    mem_load_ += other.mem_load_;
+    io_load_ += other.io_load_;
+    return *this;
+  }
+
+  Load& operator-=(const Load &other) {
+    cpu_load_ -= other.cpu_load_;
+    mem_load_ -= other.mem_load_;
+    io_load_ -= other.io_load_;
+    return *this;
+  }
+};
+
 /** Context passed to the Run method of a task */
 struct RunContext {
   bitfield32_t run_flags_;  /**< Properties of the task */
@@ -293,9 +330,7 @@ struct RunContext {
   size_t block_count_;
   ContainerId route_container_;
   QueueId route_lane_;
-  size_t cpu_load_;
-  size_t mem_load_;
-  size_t io_load_;
+  Load load_;
 };
 
 /** A generic task base class */

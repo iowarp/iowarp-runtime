@@ -45,6 +45,15 @@ class Server : public Module {
   }
   void MonitorAllocate(u32 mode, AllocateTask *task, RunContext &rctx) {
     switch (mode) {
+      case MonitorMode::kEstTime: {
+        break;
+      }
+      case MonitorMode::kBeginTrainTime: {
+        break;
+      }
+      case MonitorMode::kEndTrainTime: {
+        break;
+      }
       case MonitorMode::kReplicaAgg: {
         std::vector<LPointer<Task>> &replicas = *rctx.replicas_;
         auto replica = reinterpret_cast<AllocateTask *>(
