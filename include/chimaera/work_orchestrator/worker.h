@@ -433,9 +433,8 @@ void Worker::ExecTask(PrivateTaskQueue &priv_queue,
       flush_.count_ += 1;
     }
   }
-  // Monitoring callback
+  // Activate task
   if (!task->IsStarted()) {
-    exec->Monitor(MonitorMode::kBeginTrainTime, task, rctx);
     cur_lane_->SetActive(task->task_node_.root_);
   }
   // Submit the task to the local remote container
@@ -450,12 +449,17 @@ void Worker::ExecTask(PrivateTaskQueue &priv_queue,
         task);
     return;
   }
-
-  // Actually execute the task
-  ExecCoroutine(task, rctx);
-  // Monitoring callback
+  // Execute + monitor the task
+  if (ShouldSample()) {
+    rctx.timer_.Resume();
+    ExecCoroutine(task, rctx);
+    rctx.timer_.Pause();
+  } else {
+    ExecCoroutine(task, rctx);
+  }
+  // Deactivate task and monitor
   if (!task->IsStarted()) {
-    exec->Monitor(MonitorMode::kEndTrainTime, task, rctx);
+    exec->Monitor(MonitorMode::kReinforceTime, task, rctx);
     cur_lane_->UnsetActive(task->task_node_.root_);
     // Update the load
     cur_lane_->load_ -= rctx.load_;

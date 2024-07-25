@@ -314,6 +314,7 @@ class Worker {
   size_t iter_count_ = 0;   /** Number of iterations the worker has done */
   size_t work_done_ = 0;  /** Amount of work in done (seconds) */
   bool reinforce_epoch_ = false;
+  size_t cur_sample_ = 0;
 
 
  public:
@@ -330,6 +331,30 @@ class Worker {
   /**===============================================================
    * Run tasks
    * =============================================================== */
+
+  /** Check if worker should be sampling */
+  bool ShouldSample() {
+    size_t sample_rate = SECONDS(5);
+    size_t sample_window = SECONDS(1);
+    size_t begin_sample = work_done_ % sample_rate;
+    if (!reinforce_epoch_) {
+      if (begin_sample > cur_sample_) {
+        cur_sample_ = begin_sample;
+        reinforce_epoch_ = true;
+        return true;
+      } else {
+        return false;
+      }
+    } else {
+      if (work_done_ < begin_sample * sample_rate + sample_window) {
+        return true;
+      } else {
+        cur_sample_ += 1;
+        reinforce_epoch_ = false;
+        return false;
+      }
+    }
+  }
 
   /** Worker entrypoint */
   static void WorkerEntryPoint(void *arg);

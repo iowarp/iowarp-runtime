@@ -48,10 +48,7 @@ class Server : public Module {
       case MonitorMode::kEstTime: {
         break;
       }
-      case MonitorMode::kBeginTrainTime: {
-        break;
-      }
-      case MonitorMode::kEndTrainTime: {
+      case MonitorMode::kReinforceTime: {
         break;
       }
       case MonitorMode::kReplicaAgg: {
