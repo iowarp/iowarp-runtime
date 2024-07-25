@@ -308,7 +308,8 @@ class Worker {
       active_;  /** Tasks pending to complete */
   CacheTimer cur_time_;  /**< The current timepoint */
   WorkPending flush_;    /**< Info needed for flushing ops */
-  float load_ = 0;  /** Total load of this worker */
+  float load_ = 0;  /** Load (# of ingress queues) */
+  size_t load_nsec_ = 0;      /** Load (nanoseconds) */
   Task *cur_task_ = nullptr;  /** Currently executing task */
   Lane *cur_lane_ = nullptr;  /** Currently executing lane */
   size_t iter_count_ = 0;   /** Number of iterations the worker has done */

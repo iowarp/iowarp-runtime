@@ -88,7 +88,7 @@ struct TaskMethod {
   TASK_METHOD_T kRecover = 3;   /**< The recovery method */
   TASK_METHOD_T kMigrate = 4;   /**< The migrate method */
   TASK_METHOD_T kUpgrade = 5;   /**< The update method */
-  TASK_METHOD_T kLast = 6;      /**< Where the next method should take place */
+  TASK_METHOD_T kCustomBegin = 10;  /**< First index of custom methods */
 };
 
 /** Monitoring modes */

@@ -24,6 +24,7 @@ option(CHIMAERA_ENABLE_COVERAGE "Check how well tests cover code" @CHIMAERA_ENAB
 option(CHIMAERA_ENABLE_DOXYGEN "Check how well the code is documented" @CHIMAERA_ENABLE_DOXYGEN@)
 option(CHIMAERA_ENABLE_JEMALLOC "Use jemalloc as the allocator" @CHIMAERA_ENABLE_JEMALLOC@)
 option(CHIMAERA_ENABLE_MIMALLOC "Use mimalloc as the allocator" @CHIMAERA_ENABLE_MIMALLOC@)
+option(CHIMAERA_ENABLE_PYTHON "Use pybind11" @CHIMAERA_ENABLE_PYTHON@)
 
 #-----------------------------------------------------------------------------
 # Find Chimaera header
@@ -141,6 +142,13 @@ if (CHIMAERA_ENABLE_MIMALLOC)
     set(ALLOCATOR_LIBRARIES mimalloc)
 endif()
 
+# Pybind11
+if (CHIMAERA_ENABLE_PYTHON)
+    find_package(pybind11 REQUIRED)
+    set(OPTIONAL_LIBS pybind11::embed)
+    add_compile_definitions(CHIMAERA_ENABLE_PYTHON)
+endif()
+
 #-----------------------------------------------------------------------------
 # Mark Chimaera as found and set all needed packages
 #-----------------------------------------------------------------------------
@@ -163,7 +171,9 @@ set(Chimaera_CLIENT_LIBRARIES
 set(Chimaera_CLIENT_LIBRARY_DIRS ${Chimaera_LIBRARY_DIRS})
 set(_Chimaera_RUNTIME_LIBRARIES
         ${_Chimaera_CLIENT_LIBRARIES}
-        ${Boost_LIBRARIES})
+        ${Boost_LIBRARIES}
+        ${OPTIONAL_LIBS}
+)
 set(Chimaera_RUNTIME_LIBRARIES
         ${_Chimaera_RUNTIME_LIBRARIES}
         chimaera_runtime)

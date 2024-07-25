@@ -13,6 +13,7 @@
 #include "chimaera_admin/chimaera_admin.h"
 #include "chimaera/api/chimaera_runtime.h"
 #include "small_message/small_message.h"
+#include "chimaera/monitor/rolling_average.h"
 
 namespace chi::small_message {
 
@@ -21,6 +22,7 @@ class Server : public Module {
   int count_ = 0;
   Client client_;
   int upgrade_count_ = 0;
+  RollingAverage monitor_[Method::kCount];
 
  public:
   /** Construct small_message */
@@ -31,6 +33,16 @@ class Server : public Module {
     CreateLaneGroup(0, 4, QUEUE_LOW_LATENCY);
   }
   void MonitorCreate(u32 mode, CreateTask *task, RunContext &rctx) {
+    switch (mode) {
+      case MonitorMode::kEstTime: {
+        rctx.load_.cpu_load_ = monitor_[task->method_].Predict();
+        break;
+      }
+      case MonitorMode::kReinforceTime: {
+        monitor_[task->method_].Add(rctx.timer_.GetNsec());
+        break;
+      }
+    }
   }
 
   /** Route a task to a lane */
@@ -44,6 +56,16 @@ class Server : public Module {
     task->SetModuleComplete();
   }
   void MonitorDestroy(u32 mode, DestroyTask *task, RunContext &rctx) {
+    switch (mode) {
+      case MonitorMode::kEstTime: {
+        rctx.load_.cpu_load_ = monitor_[task->method_].Predict();
+        break;
+      }
+      case MonitorMode::kReinforceTime: {
+        monitor_[task->method_].Add(rctx.timer_.GetNsec());
+        break;
+      }
+    }
   }
 
   /** Upgrade small_message */
@@ -53,6 +75,16 @@ class Server : public Module {
     task->SetModuleComplete();
   }
   void MonitorUpgrade(u32 mode, UpgradeTask *task, RunContext &rctx) {
+    switch (mode) {
+      case MonitorMode::kEstTime: {
+        rctx.load_.cpu_load_ = monitor_[task->method_].Predict();
+        break;
+      }
+      case MonitorMode::kReinforceTime: {
+        monitor_[task->method_].Add(rctx.timer_.GetNsec());
+        break;
+      }
+    }
   }
 
   /** A metadata operation */
@@ -68,6 +100,14 @@ class Server : public Module {
   }
   void MonitorMd(u32 mode, MdTask *task, RunContext &rctx) {
     switch (mode) {
+      case MonitorMode::kEstTime: {
+        rctx.load_.cpu_load_ = monitor_[task->method_].Predict();
+        break;
+      }
+      case MonitorMode::kReinforceTime: {
+        monitor_[task->method_].Add(rctx.timer_.GetNsec());
+        break;
+      }
       case MonitorMode::kReplicaAgg: {
         std::vector<LPointer<Task>> &replicas = *rctx.replicas_;
         for (LPointer<Task> &replica : replicas) {

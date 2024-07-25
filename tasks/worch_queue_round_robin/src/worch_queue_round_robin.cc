@@ -70,6 +70,9 @@ class Server : public Module {
           for (auto lane_it = lane_grp.lanes_.begin();
                lane_it != lane_grp.lanes_.end(); ++lane_it) {
             Lane &lane = *lane_it;
+            if (&lane == CHI_WORK_ORCHESTRATOR->GetCurrentLane()) {
+              continue;
+            }
             // Get the ingress lane to map the chi lane to
             ingress::Lane *ig_lane;
             if (IsLowLatency(lane)) {

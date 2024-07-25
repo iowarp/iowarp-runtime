@@ -14,6 +14,7 @@
 #include "chimaera/api/chimaera_runtime.h"
 #include "chimaera/work_orchestrator/comutex.h"
 #include "chimaera/work_orchestrator/scheduler.h"
+#include "chimaera/monitor/rolling_average.h"
 
 namespace chi::Admin {
 
@@ -21,9 +22,28 @@ class Server : public Module {
  public:
   Task *queue_sched_;
   Task *proc_sched_;
+  RollingAverage monitor_[Method::kCount];
 
  public:
   Server() : queue_sched_(nullptr), proc_sched_(nullptr) {}
+
+  /** Basic monitoring function */
+  void MonitorBase(u32 mode, Task *task, RunContext &rctx) {
+    switch (mode) {
+      case MonitorMode::kEstTime: {
+        rctx.load_.cpu_load_ = monitor_[task->method_].Predict();
+        break;
+      }
+      case MonitorMode::kReinforceTime: {
+        monitor_[task->method_].Add(rctx.timer_.GetNsec());
+        break;
+      }
+      case MonitorMode::kReplicaAgg: {
+        std::vector<LPointer<Task>> &replicas = *rctx.replicas_;
+        break;
+      }
+    }
+  }
 
   /** Create the state */
   void Create(CreateTask *task, RunContext &rctx) {
@@ -31,6 +51,7 @@ class Server : public Module {
     task->SetModuleComplete();
   }
   void MonitorCreate(u32 mode, CreateTask *task, RunContext &rctx) {
+    MonitorBase(mode, task, rctx);
   }
 
   /** Destroy the state */
@@ -38,6 +59,7 @@ class Server : public Module {
     task->SetModuleComplete();
   }
   void MonitorDestroy(u32 mode, DestroyTask *task, RunContext &rctx) {
+    MonitorBase(mode, task, rctx);
   }
 
   /** Route a task to a lane */
@@ -54,6 +76,7 @@ class Server : public Module {
   void MonitorUpdateDomain(u32 mode,
                            UpdateDomainTask *task,
                            RunContext &rctx) {
+    MonitorBase(mode, task, rctx);
   }
 
   /** Register a module dynamically */
@@ -65,6 +88,7 @@ class Server : public Module {
   void MonitorRegisterModule(u32 mode,
                               RegisterModuleTask *task,
                               RunContext &rctx) {
+    MonitorBase(mode, task, rctx);
   }
 
   /** Destroy a module */
@@ -76,6 +100,7 @@ class Server : public Module {
   void MonitorDestroyModule(u32 mode,
                              DestroyModuleTask *task,
                              RunContext &rctx) {
+    MonitorBase(mode, task, rctx);
   }
 
   /** Upgrade a module dynamically */
@@ -138,6 +163,7 @@ class Server : public Module {
   void MonitorUpgradeModule(u32 mode,
                             UpgradeModuleTask *task,
                             RunContext &rctx) {
+    MonitorBase(mode, task, rctx);
   }
 
   /** Create a task state */
@@ -223,11 +249,20 @@ class Server : public Module {
   void MonitorCreateContainer(u32 mode, CreateContainerTask *task,
                               RunContext &rctx) {
     switch (mode) {
+      case MonitorMode::kEstTime: {
+        rctx.load_.cpu_load_ = monitor_[task->method_].Predict();
+        break;
+      }
+      case MonitorMode::kReinforceTime: {
+        monitor_[task->method_].Add(rctx.timer_.GetNsec());
+        break;
+      }
       case MonitorMode::kReplicaAgg: {
         std::vector<LPointer<Task>> &replicas = *rctx.replicas_;
         auto replica = reinterpret_cast<CreateContainerTask *>(
             replicas[0].ptr_);
         task->ctx_ = replica->ctx_;
+        break;
       }
     }
   }
@@ -239,9 +274,17 @@ class Server : public Module {
     task->SetModuleComplete();
   }
   void MonitorGetPoolId(u32 mode,
-                             GetPoolIdTask *task,
-                             RunContext &rctx) {
+                        GetPoolIdTask *task,
+                        RunContext &rctx) {
     switch (mode) {
+      case MonitorMode::kEstTime: {
+        rctx.load_.cpu_load_ = monitor_[task->method_].Predict();
+        break;
+      }
+      case MonitorMode::kReinforceTime: {
+        monitor_[task->method_].Add(rctx.timer_.GetNsec());
+        break;
+      }
       case MonitorMode::kReplicaAgg: {
         std::vector<LPointer<Task>> &replicas = *rctx.replicas_;
         auto replica = reinterpret_cast<GetPoolIdTask *>(
@@ -259,6 +302,7 @@ class Server : public Module {
   void MonitorDestroyContainer(u32 mode,
                                DestroyContainerTask *task,
                                RunContext &rctx) {
+    MonitorBase(mode, task, rctx);
   }
 
   /** Stop this runtime */
@@ -281,6 +325,7 @@ class Server : public Module {
     task->SetModuleComplete();
   }
   void MonitorStopRuntime(u32 mode, StopRuntimeTask *task, RunContext &rctx) {
+    MonitorBase(mode, task, rctx);
   }
 
   /** Set work orchestrator policy */
@@ -304,6 +349,7 @@ class Server : public Module {
   void MonitorSetWorkOrchQueuePolicy(u32 mode,
                                      SetWorkOrchQueuePolicyTask *task,
                                      RunContext &rctx) {
+    MonitorBase(mode, task, rctx);
   }
 
   /** Set work orchestration policy */
@@ -328,6 +374,7 @@ class Server : public Module {
   void MonitorSetWorkOrchProcPolicy(u32 mode,
                                     SetWorkOrchProcPolicyTask *task,
                                     RunContext &rctx) {
+    MonitorBase(mode, task, rctx);
   }
 
   /** Flush the runtime */
@@ -336,6 +383,14 @@ class Server : public Module {
   }
   void MonitorFlush(u32 mode, FlushTask *task, RunContext &rctx) {
     switch (mode) {
+      case MonitorMode::kEstTime: {
+        rctx.load_.cpu_load_ = monitor_[task->method_].Predict();
+        break;
+      }
+      case MonitorMode::kReinforceTime: {
+        monitor_[task->method_].Add(rctx.timer_.GetNsec());
+        break;
+      }
       case MonitorMode::kReplicaAgg: {
         std::vector<LPointer<Task>> &replicas = *rctx.replicas_;
         auto replica = reinterpret_cast<FlushTask *>(
@@ -351,7 +406,10 @@ class Server : public Module {
         CHI_RPC->GetDomainSize(task->dom_id_);
     task->SetModuleComplete();
   }
-  void MonitorGetDomainSize(u32 mode, GetDomainSizeTask *task, RunContext &rctx) {
+  void MonitorGetDomainSize(u32 mode,
+                            GetDomainSizeTask *task,
+                            RunContext &rctx) {
+    MonitorBase(mode, task, rctx);
   }
 
  public:

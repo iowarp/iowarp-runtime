@@ -19,7 +19,7 @@ namespace chi {
 
 /** The set of methods in the admin task */
 struct SchedulerMethod : public TaskMethod {
-  TASK_METHOD_T kSchedule = TaskMethod::kLast;
+  TASK_METHOD_T kSchedule = TaskMethod::kCustomBegin;
 };
 
 /** The task type used for scheduling */

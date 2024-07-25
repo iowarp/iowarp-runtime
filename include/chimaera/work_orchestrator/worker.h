@@ -156,6 +156,7 @@ void Worker::Loop() {
   cur_time_.Refresh();
   while (orch->IsAlive()) {
     try {
+      load_nsec_ = 0;
       bool flushing = flush_.flushing_ || active_.GetFlush().size_;
       if (flushing) {
         BeginFlush(orch);
@@ -166,6 +167,9 @@ void Worker::Loop() {
       }
       cur_time_.Refresh();
       iter_count_ += 1;
+      if (load_nsec_ == 0) {
+        HERMES_THREAD_MODEL->SleepForUs(500);
+      }
     } catch (hshm::Error &e) {
       HELOG(kError, "(node {}) Worker {} caught an error: {}",
             CHI_CLIENT->node_id_, id_, e.what());
@@ -463,6 +467,7 @@ void Worker::ExecTask(PrivateTaskQueue &priv_queue,
     cur_lane_->load_ -= rctx.load_;
     cur_lane_->num_tasks_ -= 1;
     cur_time_.Tick(rctx.load_.cpu_load_);
+    load_nsec_ += rctx.load_.cpu_load_;
   }
   task->DidRun(cur_time_);
   // Block the task

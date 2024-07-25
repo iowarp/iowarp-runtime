@@ -35,7 +35,8 @@ def refresh_methods(TASK_ROOT):
     for method_enum_name, method_off in methods:
         if method_off < 10:
             continue
-        lines += f'  TASK_METHOD_T {method_enum_name} = {method_off};',
+        lines += [f'  TASK_METHOD_T {method_enum_name} = {method_off};']
+    lines += [f'  TASK_METHOD_T kCount = {methods[-1][1] + 1};']
     lines += ['};', '', f'#endif  // {METHOD_MACRO}']
     with open(METHODS_H, 'w') as fp:
         fp.write('\n'.join(lines))

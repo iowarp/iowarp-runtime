@@ -7,6 +7,7 @@ struct Method : public TaskMethod {
   TASK_METHOD_T kFree = 11;
   TASK_METHOD_T kWrite = 12;
   TASK_METHOD_T kRead = 13;
+  TASK_METHOD_T kCount = 14;
 };
 
 #endif  // CHI_BDEV_METHODS_H_

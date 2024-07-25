@@ -14,6 +14,7 @@ option(CHIMAERA_TASK_DEBUG "Debug tasks" OFF)
 option(CHIMAERA_REMOTE_DEBUG "Debug remote tasks" OFF)
 option(CHIMAERA_ENABLE_JEMALLOC "Use jemalloc as the allocator" OFF)
 option(CHIMAERA_ENABLE_MIMALLOC "Use mimalloc as the allocator" OFF)
+option(CHIMAERA_ENABLE_PYTHON "Use pybind11" ON)
 
 #-----------------------------------------------------------------------------
 # Compiler Optimization
@@ -132,6 +133,13 @@ if (CHIMAERA_ENABLE_MIMALLOC)
     set(ALLOCATOR_LIBRARIES mimalloc)
 endif()
 
+# Pybind11
+if (CHIMAERA_ENABLE_PYTHON)
+    find_package(pybind11 REQUIRED)
+    set(OPTIONAL_LIBS pybind11::embed)
+    add_compile_definitions(CHIMAERA_ENABLE_PYTHON)
+endif()
+
 #------------------------------------------------------------------------------
 # Setup CMake Environment
 #------------------------------------------------------------------------------
@@ -189,7 +197,8 @@ set(Chimaera_CLIENT_DEPS
         chimaera_client)
 set(_Chimaera_RUNTIME_LIBRARIES
         ${_Chimaera_CLIENT_LIBRARIES}
-        ${Boost_LIBRARIES})
+        ${Boost_LIBRARIES}
+        ${OPTIONAL_LIBS})
 set(Chimaera_RUNTIME_LIBRARIES
         ${_Chimaera_RUNTIME_LIBRARIES}
         chimaera_runtime)
