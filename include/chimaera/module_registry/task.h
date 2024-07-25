@@ -343,7 +343,7 @@ struct Task : public hipc::ShmContainer {
   u32 method_;                 /**< The method to call in the state */
   bitfield32_t task_flags_;    /**< Properties of the task */
   double period_ns_;           /**< The period of the task */
-  hshm::Timepoint start_;      /**< The time the task started */
+  size_t start_;               /**< The time the task started */
   RunContext rctx_;
 // #ifdef CHIMAERA_TASK_DEBUG
   std::atomic<int> delcnt_ = 0;    /**< # of times deltask called */
@@ -607,24 +607,24 @@ struct Task : public hipc::ShmContainer {
   }
 
   /** Determine if time has elapsed */
-  bool ShouldRun(hshm::Timepoint &cur_time, bool flushing) {
+  bool ShouldRun(CacheTimer &cur_time, bool flushing) {
     if (!IsLongRunning()) {
       return true;
     }
     if (!IsStarted() || flushing) {
-      start_ = cur_time;
+      start_ = cur_time.GetNsecFromStart();
       return true;
     }
-    bool should_start = start_.GetNsecFromStart(cur_time) >= period_ns_;
+    bool should_start = cur_time.GetNsecFromStart(start_) >= period_ns_;
     if (should_start) {
-      start_ = cur_time;
+      start_ = cur_time.GetNsecFromStart();
     }
     return should_start;
   }
 
   /** Mark this task as having been run */
-  void DidRun(hshm::Timepoint &cur_time) {
-    start_ = cur_time;
+  void DidRun(CacheTimer &cur_time) {
+    start_ = cur_time.GetNsecFromStart();
   }
 
   /** Yield (coroutine) */

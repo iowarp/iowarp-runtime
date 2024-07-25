@@ -306,7 +306,7 @@ class Worker {
   int stack_size_ = KILOBYTES(64);
   PrivateTaskMultiQueue
       active_;  /** Tasks pending to complete */
-  hshm::Timepoint cur_time_;  /**< The current timepoint */
+  CacheTimer cur_time_;  /**< The current timepoint */
   WorkPending flush_;    /**< Info needed for flushing ops */
   float load_ = 0;  /** Total load of this worker */
   Task *cur_task_ = nullptr;  /** Currently executing task */
@@ -447,7 +447,6 @@ class Worker {
   /** Get the characteristics of a task */
   HSHM_ALWAYS_INLINE
   bitfield32_t GetTaskProperties(Task *&task,
-                                 hshm::Timepoint &cur_time,
                                  bool flushing);
 
   /** Join worker */

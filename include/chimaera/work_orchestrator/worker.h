@@ -66,7 +66,6 @@ Worker::Worker(u32 id, int cpu_id, ABT_xstream &xstream) {
   // MAX_DEPTH * [LOW_LAT, LONG_LAT]
   config::QueueManagerInfo &qm = CHI_QM_RUNTIME->config_->queue_manager_;
   active_.Init(id_, qm.proc_queue_depth_, qm.queue_depth_, qm.max_containers_pn_);
-  cur_time_.Now();
 
   // Spawn threads
   xstream_ = xstream;
@@ -154,7 +153,7 @@ void Worker::Loop() {
     MakeDedicated();
   }
   WorkOrchestrator *orch = CHI_WORK_ORCHESTRATOR;
-  cur_time_.Now();
+  cur_time_.Refresh();
   while (orch->IsAlive()) {
     try {
       bool flushing = flush_.flushing_ || active_.GetFlush().size_;
@@ -165,7 +164,7 @@ void Worker::Loop() {
       if (flushing) {
         EndFlush(orch);
       }
-      cur_time_.Now();
+      cur_time_.Refresh();
       iter_count_ += 1;
     } catch (hshm::Error &e) {
       HELOG(kError, "(node {}) Worker {} caught an error: {}",
@@ -351,8 +350,7 @@ bool Worker::RunTask(PrivateTaskQueue &priv_queue,
                      bool flushing) {
   // Get task properties
   bitfield32_t props =
-      GetTaskProperties(task.ptr_, cur_time_,
-                        flushing);
+      GetTaskProperties(task.ptr_, flushing);
   // Get the task container
   Container *exec;
   if (props.Any(HSHM_WORKER_IS_REMOTE)) {
@@ -464,6 +462,7 @@ void Worker::ExecTask(PrivateTaskQueue &priv_queue,
     // Update the load
     cur_lane_->load_ -= rctx.load_;
     cur_lane_->num_tasks_ -= 1;
+    cur_time_.Tick(rctx.load_.cpu_load_);
   }
   task->DidRun(cur_time_);
   // Block the task
@@ -559,12 +558,11 @@ void Worker::SignalUnblock(LPointer<Task> &unblock_task) {
 /** Get the characteristics of a task */
 HSHM_ALWAYS_INLINE
 bitfield32_t Worker::GetTaskProperties(Task *&task,
-                                       hshm::Timepoint &cur_time,
                                        bool flushing) {
   bitfield32_t props;
 
   bool group_avail = true;
-  bool should_run = task->ShouldRun(cur_time, flushing);
+  bool should_run = task->ShouldRun(cur_time_, flushing);
   if (task->IsRemote()) {
     props.SetBits(HSHM_WORKER_IS_REMOTE);
   }

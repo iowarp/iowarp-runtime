@@ -838,6 +838,56 @@ struct ResolvedDomainQuery {
   }
 };
 
+class CacheTimer {
+ public:
+  hshm::Timer timer_;
+  size_t cur_ns_ = 0;
+  size_t start_ns_ = 0;
+  size_t net_ns_ = 0;
+
+ public:
+  CacheTimer() {
+    timer_.Now();
+  }
+
+  void Refresh() {
+    cur_ns_ = timer_.GetNsecFromStart();
+  }
+
+  void Tick(size_t nanosec) {
+    cur_ns_ += nanosec;
+  }
+
+  size_t GetNsecFromStart() {
+    return cur_ns_;
+  }
+
+  size_t GetNsecFromStart(size_t start) {
+    if (start < cur_ns_) {
+      return cur_ns_ - start;
+    }
+    return 0;
+  }
+
+  size_t GetNsec() {
+    return net_ns_;
+  }
+
+  void Resume() {
+    start_ns_ = cur_ns_;
+  }
+
+  void Pause() {
+    net_ns_ += cur_ns_ - start_ns_;
+    start_ns_ = cur_ns_;
+  }
+
+  void Reset() {
+    start_ns_ = cur_ns_;
+    net_ns_ = 0;
+  }
+};
+
 }  // namespace chi
 
 namespace std {
