@@ -280,6 +280,25 @@ TEST_CASE("TestUpgrade") {
         ops * (depth + 1) / t.GetUsec());
 }
 
+#ifdef CHIMAERA_ENABLE_PYTHON
+
+#include "chimaera/monitor/python_wrapper.h"
+#include "chimaera/monitor/monitor.h"
+
+TEST_CASE("TestPython") {
+  chi::PythonWrapper python;
+  chi::LeastSquares ls;
+  ls.Shape(2, "linear_model");
+  for (int i = 0; i < 100; ++i) {
+    ls.Add({(float)i, (float)i + 1});
+  }
+  python.RunFile(
+      "/home/llogan/Documents/Projects/chimaera/src/least_squares.py");
+  python.Run<chi::LeastSquares>(
+      "least_squares_fit", ls);
+}
+#endif
+
 // TEST_CASE("TestHostfile") {
 //  for (NodeId cont_id = 1; node_id <
 //  HRUN_THALLIUM->rpc_->hosts_.size() + 1; ++node_id) {

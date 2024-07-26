@@ -77,6 +77,14 @@ install(
   ARCHIVE DESTINATION ${CHIMEARA_INSTALL_LIB_DIR}
   RUNTIME DESTINATION ${CHIMEARA_INSTALL_BIN_DIR}
 )
+install(
+        FILES
+        least_squares.py
+        DESTINATION
+        ${CHIMEARA_INSTALL_LIB_DIR}
+        COMPONENT
+        headers
+)
 
 #-----------------------------------------------------------------------------
 # Add Target(s) to CMake Install for import into other projects

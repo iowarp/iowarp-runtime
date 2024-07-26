@@ -136,7 +136,7 @@ endif()
 # Pybind11
 if (CHIMAERA_ENABLE_PYTHON)
     find_package(pybind11 REQUIRED)
-    set(OPTIONAL_LIBS pybind11::embed pybind11::module)
+    set(OPTIONAL_LIBS pybind11::embed)
     add_compile_definitions(CHIMAERA_ENABLE_PYTHON)
 endif()
 

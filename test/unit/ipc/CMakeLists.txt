@@ -16,7 +16,10 @@ add_executable(test_ipc_exec
 )
 add_dependencies(test_ipc_exec ${Chimaera_CLIENT_DEPS})
 target_link_libraries(test_ipc_exec
-        ${Chimaera_CLIENT_LIBRARIES} Catch2::Catch2 MPI::MPI_CXX OpenMP::OpenMP_CXX)
+        ${Chimaera_CLIENT_LIBRARIES}
+        Catch2::Catch2 MPI::MPI_CXX OpenMP::OpenMP_CXX
+        ${OPTIONAL_LIBS}
+)
 
 #------------------------------------------------------------------------------
 # Test Cases

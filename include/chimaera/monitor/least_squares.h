@@ -11,14 +11,32 @@ namespace chi {
 
 class LeastSquares {
  public:
-  std::vector<float> x_;
-  std::vector<float> y_;
+  std::vector<std::vector<float>> data_;
   std::vector<float> consts_;
+  std::string model_name_;
 
  public:
-  void Add(float x, float y) {
-    x_.push_back(x);
-    y_.push_back(y);
+  void Shape(int ncol, const std::string &model_name) {
+    data_.resize(ncol);
+    model_name_ = model_name;
+  }
+
+  void Add(const std::vector<float> &x) {
+    for (int i = 0; i < x.size(); i++) {
+      data_[i].push_back(x[i]);
+    }
+  }
+
+  template<typename Ar>
+  void serialize(Ar &ar) {
+    ar & data_;
+    ar & consts_;
+    ar & model_name_;
+  }
+
+  template<typename Ar>
+  void deserialize(Ar &ar) {
+    ar & consts_;
   }
 };
 

@@ -20,7 +20,7 @@
 #include "worker_defn.h"
 
 #ifdef CHIMAERA_ENABLE_PYTHON
-#include "chimaera/monitor/python_wrapper.h"
+// #include "chimaera/monitor/python_wrapper.h"
 #endif
 
 namespace chi {
@@ -40,7 +40,7 @@ class WorkOrchestrator {
   TlsKey worker_tls_key_;  /**< Thread-local storage key */
   std::atomic<bool> flushing_ = false;  /**< Flushing in progress */
 #ifdef CHIMAERA_ENABLE_PYTHON
-  PythonWrapper python_wrapper_;  /**< Python wrapper */
+  // PythonWrapper python_wrapper_;  /**< Python wrapper */
 #endif
 
  public:
