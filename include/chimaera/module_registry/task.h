@@ -95,12 +95,11 @@ struct TaskMethod {
 class MonitorMode {
  public:
   TASK_METHOD_T kEstLoad = 0;
-  TASK_METHOD_T kSampleLoad = 0;
-  TASK_METHOD_T kReinforceLoad = 1;
-  TASK_METHOD_T kFlushStat = 2;
-  TASK_METHOD_T kReplicaStart = 3;
-  TASK_METHOD_T kReplicaAgg = 4;
-  TASK_METHOD_T kOrder = 5;
+  TASK_METHOD_T kSampleLoad = 1;
+  TASK_METHOD_T kReinforceLoad = 2;
+  TASK_METHOD_T kFlushStat = 3;
+  TASK_METHOD_T kReplicaStart = 4;
+  TASK_METHOD_T kReplicaAgg = 5;
 };
 
 /**

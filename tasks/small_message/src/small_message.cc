@@ -43,6 +43,7 @@ class Server : public Module {
         rctx.load_.cpu_load_ = monitor_[task->method_].Predict();
         break;
       }
+      case MonitorMode::kSampleLoad:
       case MonitorMode::kReinforceLoad: {
         monitor_[task->method_].Add(rctx.timer_.GetNsec());
         break;
@@ -66,6 +67,7 @@ class Server : public Module {
         rctx.load_.cpu_load_ = monitor_[task->method_].Predict();
         break;
       }
+      case MonitorMode::kSampleLoad:
       case MonitorMode::kReinforceLoad: {
         monitor_[task->method_].Add(rctx.timer_.GetNsec());
         break;
@@ -85,6 +87,7 @@ class Server : public Module {
         rctx.load_.cpu_load_ = monitor_[task->method_].Predict();
         break;
       }
+      case MonitorMode::kSampleLoad:
       case MonitorMode::kReinforceLoad: {
         monitor_[task->method_].Add(rctx.timer_.GetNsec());
         break;
@@ -109,6 +112,7 @@ class Server : public Module {
         rctx.load_.cpu_load_ = monitor_[task->method_].Predict();
         break;
       }
+      case MonitorMode::kSampleLoad:
       case MonitorMode::kReinforceLoad: {
         monitor_[task->method_].Add(rctx.timer_.GetNsec());
         break;
@@ -139,10 +143,15 @@ class Server : public Module {
         rctx.load_.cpu_load_ = monitor_io_.consts_[0] * task->size_;
         break;
       }
+      case MonitorMode::kSampleLoad: {
+        monitor_io_.Add({(float)task->size_,
+                         (float)rctx.load_.cpu_load_,
+                         (float)rctx.timer_.GetNsec()});
+        break;
+      }
       case MonitorMode::kReinforceLoad: {
         CHI_PYTHON->RunFunction<LeastSquares>(
             "SmallMessage.monitor_io", monitor_io_);
-
         break;
       }
       case MonitorMode::kReplicaAgg: {
