@@ -19,10 +19,6 @@
 #include <thread>
 #include "worker_defn.h"
 
-#ifdef CHIMAERA_ENABLE_PYTHON
-// #include "chimaera/monitor/python_wrapper.h"
-#endif
-
 namespace chi {
 
 typedef ABT_key TlsKey;
@@ -39,9 +35,6 @@ class WorkOrchestrator {
   tl::managed<tl::pool> rpc_pool_;  /**< RPC pool */
   TlsKey worker_tls_key_;  /**< Thread-local storage key */
   std::atomic<bool> flushing_ = false;  /**< Flushing in progress */
-#ifdef CHIMAERA_ENABLE_PYTHON
-  // PythonWrapper python_wrapper_;  /**< Python wrapper */
-#endif
 
  public:
   /** Default constructor */
@@ -220,5 +213,4 @@ class WorkOrchestrator {
 
 #define CHI_WORK_ORCHESTRATOR \
   hshm::Singleton<chi::WorkOrchestrator>::GetInstance()
-
 #endif  // HRUN_INCLUDE_CHI_WORK_ORCHESTRATOR_WORK_ORCHESTRATOR_H_

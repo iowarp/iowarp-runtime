@@ -459,7 +459,7 @@ class ModuleRegistry {
 };
 
 /** Singleton macro for task registry */
-#define CHI_TASK_REGISTRY \
+#define CHI_MOD_REGISTRY \
   hshm::Singleton<chi::ModuleRegistry>::GetInstance()
 }  // namespace chi
 

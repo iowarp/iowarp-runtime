@@ -5,12 +5,15 @@
 #ifndef CHIMAERA_INCLUDE_CHIMAERA_MONITOR_PYTHON_WRAPPER_H_
 #define CHIMAERA_INCLUDE_CHIMAERA_MONITOR_PYTHON_WRAPPER_H_
 
-#ifdef CHIMAERA_ENABLE_PYTHON
 #include <pybind11/embed.h>
 #include <pybind11/stl.h>
 namespace py = pybind11;
 #include <string>
 #include "chimaera/chimaera_types.h"
+
+#ifdef CHIMAERA_RUNTIME
+#include "chimaera/module_registry/module_registry.h"
+#endif
 
 namespace chi {
 
@@ -86,26 +89,29 @@ class __attribute__((visibility("hidden"))) PyInputArchive {
 class __attribute__((visibility("hidden"))) PythonWrapper {
  public:
   py::scoped_interpreter guard{};
-
  public:
   PythonWrapper() {
-    RunString("import sys, os");
-    RunString(
-        "def hello():\n"
-        "  print('Hello from python!')\n"
-        "x = 42\n");
-  }
-
-  static void RunFile(const std::string &path) {
-    try {
-      // Execute the Python script file
-      py::eval_file(path.c_str());
-    } catch (const py::error_already_set& e) {
-      HELOG(kFatal, "Error executing Python script: {}", e.what());
+#ifdef CHIMAERA_RUNTIME
+    for (const std::string &lib_dir : CHI_MOD_REGISTRY->lib_dirs_) {
+      RegisterPath(lib_dir);
     }
+#endif
+    RunString("import sys, os");
   }
 
-  static void RunString(const std::string &script) {
+  ~PythonWrapper() {
+    Py_Finalize();
+  }
+
+  void RegisterPath(const std::string &path) {
+    RunString("sys.path.append('" + path + "')");
+  }
+
+  void ImportModule(const std::string &name) {
+    RunString("from " + name + " import *");
+  }
+
+  void RunString(const std::string &script) {
     try {
       // Execute the Python script string
       py::exec(script.c_str());
@@ -115,7 +121,7 @@ class __attribute__((visibility("hidden"))) PythonWrapper {
   }
 
   template<typename T>
-  static void Run(const std::string &fname, T &arg) {
+  void RunFunction(const std::string &fname, T &arg) {
     try {
       // Serialize the argument
       PyOutputArchive ar;
@@ -133,8 +139,8 @@ class __attribute__((visibility("hidden"))) PythonWrapper {
   }
 };
 
-#endif
-
+#define CHI_PYTHON \
+  hshm::EasySingleton<chi::PythonWrapper>::GetInstance()
 }  // namespace chi
 
 #endif //CHIMAERA_INCLUDE_CHIMAERA_MONITOR_PYTHON_WRAPPER_H_

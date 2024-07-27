@@ -287,7 +287,7 @@ TaskRouteMode Worker::Reroute(const PoolId &scope,
   } else {
     dom_query = DomainQuery::GetDirectId(dom_query.sub_id_,
                                          task->rctx_.route_container_);
-    Container *exec = CHI_TASK_REGISTRY->GetContainer(
+    Container *exec = CHI_MOD_REGISTRY->GetContainer(
         task->pool_, dom_query.sel_.id_);
     if (!exec) {
       // NOTE(llogan): exec may be null if there is an update happening
@@ -358,9 +358,9 @@ bool Worker::RunTask(PrivateTaskQueue &priv_queue,
   // Get the task container
   Container *exec;
   if (props.Any(HSHM_WORKER_IS_REMOTE)) {
-    exec = CHI_TASK_REGISTRY->GetStaticContainer(task->pool_);
+    exec = CHI_MOD_REGISTRY->GetStaticContainer(task->pool_);
   } else {
-    exec = CHI_TASK_REGISTRY->GetContainer(task->pool_,
+    exec = CHI_MOD_REGISTRY->GetContainer(task->pool_,
                                            entry.res_query_.sel_.id_);
   }
   if (!exec) {
@@ -522,7 +522,7 @@ void Worker::EndTask(Container *exec, LPointer<Task> &task) {
   }
   if (task->ShouldSignalRemoteComplete()) {
     Container *remote_exec =
-        CHI_TASK_REGISTRY->GetContainer(CHI_REMOTE_QUEUE->id_, 1);
+        CHI_MOD_REGISTRY->GetContainer(CHI_REMOTE_QUEUE->id_, 1);
     remote_exec->Run(chi::remote_queue::Method::kServerPushComplete,
                      task.ptr_, task->rctx_);
     return;

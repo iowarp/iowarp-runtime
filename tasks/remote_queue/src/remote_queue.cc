@@ -101,13 +101,13 @@ class Server : public Module {
     replicas.reserve(dom_queries.size());
 
     // Get the container
-    Container *exec = CHI_TASK_REGISTRY->GetStaticContainer(
+    Container *exec = CHI_MOD_REGISTRY->GetStaticContainer(
         orig_task->pool_);
     Container *copy_exec = exec;
     if (orig_task->pool_ == CHI_ADMIN->id_ &&
         orig_task->method_ == Admin::Method::kCreateContainer) {
       CreateContainerTask *orig_task2 = (CreateContainerTask*)orig_task;
-      copy_exec = CHI_TASK_REGISTRY->GetStaticContainer(
+      copy_exec = CHI_MOD_REGISTRY->GetStaticContainer(
           orig_task2->lib_name_.str());
     }
 
@@ -191,7 +191,7 @@ class Server : public Module {
           entries.emplace(entry.res_domain_.node_, BinaryOutputArchive<true>());
         }
         Task *rep_task = entry.task_;
-        Container *exec = CHI_TASK_REGISTRY->GetStaticContainer(
+        Container *exec = CHI_MOD_REGISTRY->GetStaticContainer(
             rep_task->pool_);
         if (exec == nullptr) {
           HELOG(kFatal, "(node {}) Could not find the task state {}",
@@ -262,7 +262,7 @@ class Server : public Module {
         }
         Task *done_task = entry.task_;
         Container *exec =
-            CHI_TASK_REGISTRY->GetStaticContainer(done_task->pool_);
+            CHI_MOD_REGISTRY->GetStaticContainer(done_task->pool_);
         BinaryOutputArchive<false> &ar = entries[entry.res_domain_.node_];
         exec->SaveEnd(done_task->method_, ar, done_task);
         CHI_CLIENT->DelTask(exec, done_task);
@@ -319,7 +319,7 @@ class Server : public Module {
     // Deserialize task
     PoolId pool_id = xfer.tasks_[task_off].pool_;
     u32 method = xfer.tasks_[task_off].method_;
-    Container *exec = CHI_TASK_REGISTRY->GetStaticContainer(pool_id);
+    Container *exec = CHI_MOD_REGISTRY->GetStaticContainer(pool_id);
     if (exec == nullptr) {
       HELOG(kFatal, "(node {}) Could not find the task state {}",
             CHI_CLIENT->node_id_, pool_id);
@@ -365,7 +365,7 @@ class Server : public Module {
       BinaryInputArchive<false> ar(xfer);
       for (size_t i = 0; i < xfer.tasks_.size(); ++i) {
         Task *rep_task = (Task*)xfer.tasks_[i].task_addr_;
-        Container *exec = CHI_TASK_REGISTRY->GetStaticContainer(
+        Container *exec = CHI_MOD_REGISTRY->GetStaticContainer(
             rep_task->pool_);
         if (exec == nullptr) {
           HELOG(kFatal, "(node {}) Could not find the task state {}",

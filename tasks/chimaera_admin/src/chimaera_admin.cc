@@ -82,7 +82,7 @@ class Server : public Module {
   /** Register a module dynamically */
   void RegisterModule(RegisterModuleTask *task, RunContext &rctx) {
     std::string lib_name = task->lib_name_.str();
-    CHI_TASK_REGISTRY->RegisterModule(lib_name);
+    CHI_MOD_REGISTRY->RegisterModule(lib_name);
     task->SetModuleComplete();
   }
   void MonitorRegisterModule(u32 mode,
@@ -94,7 +94,7 @@ class Server : public Module {
   /** Destroy a module */
   void DestroyModule(DestroyModuleTask *task, RunContext &rctx) {
     std::string lib_name = task->lib_name_.str();
-    CHI_TASK_REGISTRY->DestroyModule(lib_name);
+    CHI_MOD_REGISTRY->DestroyModule(lib_name);
     task->SetModuleComplete();
   }
   void MonitorDestroyModule(u32 mode,
@@ -105,15 +105,15 @@ class Server : public Module {
 
   /** Upgrade a module dynamically */
   void UpgradeModule(UpgradeModuleTask *task, RunContext &rctx) {
-    ScopedCoMutex upgrade_lock(CHI_TASK_REGISTRY->upgrade_lock_);
+    ScopedCoMutex upgrade_lock(CHI_MOD_REGISTRY->upgrade_lock_);
     // Get the set of ChiContainers
     std::string lib_name = task->lib_name_.str();
     std::vector<Container*> containers =
-        CHI_TASK_REGISTRY->GetContainers(lib_name);
+        CHI_MOD_REGISTRY->GetContainers(lib_name);
     std::vector<Container*> new_containers;
     // Load the updated code
     ModuleInfo new_info;
-    CHI_TASK_REGISTRY->LoadModule(lib_name, new_info);
+    CHI_MOD_REGISTRY->LoadModule(lib_name, new_info);
     // Copy the old state to the new
     for (Container *container : containers) {
       Container *new_container = new_info.alloc_state_();
@@ -148,16 +148,16 @@ class Server : public Module {
       }
     }
     // Plug the module & replace pointers
-    CHI_TASK_REGISTRY->PlugModule(lib_name);
-    CHI_TASK_REGISTRY->ReplaceModule(new_info);
+    CHI_MOD_REGISTRY->PlugModule(lib_name);
+    CHI_MOD_REGISTRY->ReplaceModule(new_info);
     for (Container *new_container : new_containers) {
-      CHI_TASK_REGISTRY->ReplaceContainer(new_container);
+      CHI_MOD_REGISTRY->ReplaceContainer(new_container);
     }
     // Unplug everything
     for (Container *container : containers) {
       container->UnplugAllLanes();
     }
-    CHI_TASK_REGISTRY->UnplugModule(lib_name);
+    CHI_MOD_REGISTRY->UnplugModule(lib_name);
     task->SetModuleComplete();
   }
   void MonitorUpgradeModule(u32 mode,
@@ -173,7 +173,7 @@ class Server : public Module {
     std::string pool_name = task->pool_name_.str();
     // Check local registry for task state
     bool state_existed = false;
-    PoolId found_pool = CHI_TASK_REGISTRY->PoolExists(
+    PoolId found_pool = CHI_MOD_REGISTRY->PoolExists(
         pool_name, task->ctx_.id_);
     if (!found_pool.IsNull()) {
       task->ctx_.id_ = found_pool;
@@ -183,7 +183,7 @@ class Server : public Module {
     }
     // Check global registry for task state
     if (task->ctx_.id_.IsNull()) {
-      task->ctx_.id_ = CHI_TASK_REGISTRY->GetOrCreatePoolId(pool_name);
+      task->ctx_.id_ = CHI_MOD_REGISTRY->GetOrCreatePoolId(pool_name);
     }
     // Create the task state
     HILOG(kInfo, "(node {}) Creating task state {} with id {} (task_node={})",
@@ -218,14 +218,14 @@ class Server : public Module {
 //    CHI_RPC->PrintDomain(DomainId{task->ctx_.id_, SubDomainId::kContainerSet});
 //    CHI_RPC->PrintSubdomainSet(containers);
     // Create the task state
-    CHI_TASK_REGISTRY->CreateContainer(
+    CHI_MOD_REGISTRY->CreateContainer(
         lib_name.c_str(),
         pool_name.c_str(),
         task->ctx_.id_,
         task, containers);
     if (task->root_) {
       // Broadcast the state creation to all nodes
-      Container *exec = CHI_TASK_REGISTRY->GetStaticContainer(task->ctx_.id_);
+      Container *exec = CHI_MOD_REGISTRY->GetStaticContainer(task->ctx_.id_);
       LPointer<Task> bcast;
       exec->NewCopyStart(Method::kCreate, task, bcast, true);
       auto *bcast_ptr = reinterpret_cast<CreateContainerTask *>(
@@ -270,7 +270,7 @@ class Server : public Module {
   /** Get task state id, fail if DNE */
   void GetPoolId(GetPoolIdTask *task, RunContext &rctx) {
     std::string pool_name = task->pool_name_.str();
-    task->id_ = CHI_TASK_REGISTRY->GetPoolId(pool_name);
+    task->id_ = CHI_MOD_REGISTRY->GetPoolId(pool_name);
     task->SetModuleComplete();
   }
   void MonitorGetPoolId(u32 mode,
@@ -296,7 +296,7 @@ class Server : public Module {
 
   /** Destroy a task state */
   void DestroyContainer(DestroyContainerTask *task, RunContext &rctx) {
-    CHI_TASK_REGISTRY->DestroyContainer(task->id_);
+    CHI_MOD_REGISTRY->DestroyContainer(task->id_);
     task->SetModuleComplete();
   }
   void MonitorDestroyContainer(u32 mode,

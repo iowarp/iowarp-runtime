@@ -282,19 +282,18 @@ TEST_CASE("TestUpgrade") {
 
 #ifdef CHIMAERA_ENABLE_PYTHON
 
-#include "chimaera/monitor/python_wrapper.h"
 #include "chimaera/monitor/monitor.h"
 
 TEST_CASE("TestPython") {
   chi::PythonWrapper python;
   chi::LeastSquares ls;
-  ls.Shape(2, "linear_model");
+  ls.Shape(2, "Example.linear_model");
   for (int i = 0; i < 100; ++i) {
     ls.Add({(float)i, (float)i + 1});
   }
-  python.RunFile(
-      "/home/llogan/Documents/Projects/chimaera/src/least_squares.py");
-  python.Run<chi::LeastSquares>(
+  python.RegisterPath("/home/llogan/Documents/Projects/chimaera/src");
+  python.ImportModule("chimaera_monitor");
+  python.RunFunction<chi::LeastSquares>(
       "least_squares_fit", ls);
 }
 #endif

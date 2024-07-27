@@ -32,6 +32,9 @@ class Constants {
   }
 };
 
+#define HIDE_SYMBOL __attribute__((visibility("hidden")))
+#define EXPORT_SYMBOL __attribute__((visibility("default")))
+
 }  // namespace chi
 
 #endif  // HRUN_INCLUDE_HRUN_HRUN_CONSTANTS_H_

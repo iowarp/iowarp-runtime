@@ -79,7 +79,7 @@ install(
 )
 install(
         FILES
-        least_squares.py
+        chimaera_monitor.py
         DESTINATION
         ${CHIMEARA_INSTALL_LIB_DIR}
         COMPONENT

@@ -146,7 +146,6 @@ endif()
 if (CHIMAERA_ENABLE_PYTHON)
     find_package(pybind11 REQUIRED)
     set(OPTIONAL_LIBS pybind11::embed)
-    add_compile_definitions(CHIMAERA_ENABLE_PYTHON)
 endif()
 
 #-----------------------------------------------------------------------------
@@ -179,4 +178,9 @@ set(Chimaera_RUNTIME_LIBRARIES
         chimaera_runtime)
 set(Chimaera_RUNTIME_DEFINITIONS
         CHIMAERA_RUNTIME)
+if (CHIMAERA_ENABLE_PYTHON)
+    set(Chimaera_RUNTIME_DEFINITIONS
+            ${Chimaera_RUNTIME_DEFINITIONS}
+            CHIMAERA_ENABLE_PYTHON)
+endif()
 set(Chimaera_RUNTIME_DEPS "")

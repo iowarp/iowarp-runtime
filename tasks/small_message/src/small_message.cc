@@ -13,7 +13,7 @@
 #include "chimaera_admin/chimaera_admin.h"
 #include "chimaera/api/chimaera_runtime.h"
 #include "small_message/small_message.h"
-#include "chimaera/monitor/rolling_average.h"
+#include "chimaera/monitor/monitor.h"
 
 namespace chi::small_message {
 
@@ -29,8 +29,9 @@ class Server : public Module {
   void Create(CreateTask *task, RunContext &rctx) {
     client_.Init(id_, CHI_ADMIN->queue_id_);
     task->SetModuleComplete();
-
     CreateLaneGroup(0, 4, QUEUE_LOW_LATENCY);
+    CHI_PYTHON->ImportModule("small_message_monitor");
+    CHI_PYTHON->RunString("print('hello')");
   }
   void MonitorCreate(u32 mode, CreateTask *task, RunContext &rctx) {
     switch (mode) {

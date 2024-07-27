@@ -183,8 +183,8 @@ void WorkOrchestrator::DedicateCores() {
 
 std::vector<Load> WorkOrchestrator::CalculateLoad() {
   std::vector<Load> loads(workers_.size());
-  for (auto pool_it = CHI_TASK_REGISTRY->pools_.begin();
-       pool_it != CHI_TASK_REGISTRY->pools_.end(); ++pool_it) {
+  for (auto pool_it = CHI_MOD_REGISTRY->pools_.begin();
+       pool_it != CHI_MOD_REGISTRY->pools_.end(); ++pool_it) {
     for (auto cont_it = pool_it->second.containers_.begin();
          cont_it != pool_it->second.containers_.end(); ++cont_it) {
       Container *container = cont_it->second;

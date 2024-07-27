@@ -57,10 +57,10 @@ class Server : public Module {
   /** Schedule work orchestrator queues */
   void Schedule(ScheduleTask *task, RunContext &rctx) {
     // Iterate over the set of ChiContainers
-    ScopedCoMutex upgrade_lock(CHI_TASK_REGISTRY->upgrade_lock_);
+    ScopedCoMutex upgrade_lock(CHI_MOD_REGISTRY->upgrade_lock_);
     std::vector<Load> loads = CHI_WORK_ORCHESTRATOR->CalculateLoad();
-    for (auto pool_it = CHI_TASK_REGISTRY->pools_.begin();
-         pool_it != CHI_TASK_REGISTRY->pools_.end(); ++pool_it) {
+    for (auto pool_it = CHI_MOD_REGISTRY->pools_.begin();
+         pool_it != CHI_MOD_REGISTRY->pools_.end(); ++pool_it) {
       for (auto cont_it = pool_it->second.containers_.begin();
            cont_it != pool_it->second.containers_.end(); ++cont_it) {
         Container *container = cont_it->second;

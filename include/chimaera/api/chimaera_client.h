@@ -59,7 +59,7 @@ void Client::ScheduleTaskRuntime(Task *parent_task,
       dom_query.flags_.All(DomainQuery::kLocal | DomainQuery::kId)) {
     // Determine the lane the task should map to within container
     ContainerId container_id = dom_query.sel_.id_;
-    Container *exec = CHI_TASK_REGISTRY->GetContainer(task->pool_,
+    Container *exec = CHI_MOD_REGISTRY->GetContainer(task->pool_,
                                                       container_id);
     if (!exec) {
       // NOTE(llogan): exec is null if there is an update happening.
