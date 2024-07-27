@@ -30,11 +30,11 @@ class Server : public Module {
   /** Basic monitoring function */
   void MonitorBase(u32 mode, Task *task, RunContext &rctx) {
     switch (mode) {
-      case MonitorMode::kEstTime: {
+      case MonitorMode::kEstLoad: {
         rctx.load_.cpu_load_ = monitor_[task->method_].Predict();
         break;
       }
-      case MonitorMode::kReinforceTime: {
+      case MonitorMode::kReinforceLoad: {
         monitor_[task->method_].Add(rctx.timer_.GetNsec());
         break;
       }
@@ -249,11 +249,11 @@ class Server : public Module {
   void MonitorCreateContainer(u32 mode, CreateContainerTask *task,
                               RunContext &rctx) {
     switch (mode) {
-      case MonitorMode::kEstTime: {
+      case MonitorMode::kEstLoad: {
         rctx.load_.cpu_load_ = monitor_[task->method_].Predict();
         break;
       }
-      case MonitorMode::kReinforceTime: {
+      case MonitorMode::kReinforceLoad: {
         monitor_[task->method_].Add(rctx.timer_.GetNsec());
         break;
       }
@@ -277,11 +277,11 @@ class Server : public Module {
                         GetPoolIdTask *task,
                         RunContext &rctx) {
     switch (mode) {
-      case MonitorMode::kEstTime: {
+      case MonitorMode::kEstLoad: {
         rctx.load_.cpu_load_ = monitor_[task->method_].Predict();
         break;
       }
-      case MonitorMode::kReinforceTime: {
+      case MonitorMode::kReinforceLoad: {
         monitor_[task->method_].Add(rctx.timer_.GetNsec());
         break;
       }
@@ -383,11 +383,11 @@ class Server : public Module {
   }
   void MonitorFlush(u32 mode, FlushTask *task, RunContext &rctx) {
     switch (mode) {
-      case MonitorMode::kEstTime: {
+      case MonitorMode::kEstLoad: {
         rctx.load_.cpu_load_ = monitor_[task->method_].Predict();
         break;
       }
-      case MonitorMode::kReinforceTime: {
+      case MonitorMode::kReinforceLoad: {
         monitor_[task->method_].Add(rctx.timer_.GetNsec());
         break;
       }
@@ -409,6 +409,27 @@ class Server : public Module {
   void MonitorGetDomainSize(u32 mode,
                             GetDomainSizeTask *task,
                             RunContext &rctx) {
+    MonitorBase(mode, task, rctx);
+  }
+
+  /** Get the domain size */
+  void ReinforceModels(ReinforceModelsTask *task, RunContext &rctx) {
+    // Iterate over every ChiContainer
+    ScopedCoMutex upgrade_lock(CHI_MOD_REGISTRY->upgrade_lock_);
+    std::vector<Load> loads = CHI_WORK_ORCHESTRATOR->CalculateLoad();
+    for (auto pool_it = CHI_MOD_REGISTRY->pools_.begin();
+         pool_it != CHI_MOD_REGISTRY->pools_.end(); ++pool_it) {
+      for (auto cont_it = pool_it->second.containers_.begin();
+           cont_it != pool_it->second.containers_.end(); ++cont_it) {
+        Container *container = cont_it->second;
+        container->Run(Method::kReinforceModels, task, rctx);
+        task->Yield();
+      }
+    }
+  }
+  void MonitorReinforceModels(u32 mode,
+                              ReinforceModelsTask *task,
+                              RunContext &rctx) {
     MonitorBase(mode, task, rctx);
   }
 

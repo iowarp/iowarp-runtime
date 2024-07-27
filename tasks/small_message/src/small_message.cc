@@ -23,6 +23,7 @@ class Server : public Module {
   Client client_;
   int upgrade_count_ = 0;
   RollingAverage monitor_[Method::kCount];
+  LeastSquares monitor_io_;
 
  public:
   /** Construct small_message */
@@ -30,16 +31,19 @@ class Server : public Module {
     client_.Init(id_, CHI_ADMIN->queue_id_);
     task->SetModuleComplete();
     CreateLaneGroup(0, 4, QUEUE_LOW_LATENCY);
+
+    // Create monitoring functions
+    CHI_PYTHON->ImportModule("chimaera_monitor");
     CHI_PYTHON->ImportModule("small_message_monitor");
-    CHI_PYTHON->RunString("print('hello')");
+    monitor_io_.Shape(2, "io_linear");
   }
   void MonitorCreate(u32 mode, CreateTask *task, RunContext &rctx) {
     switch (mode) {
-      case MonitorMode::kEstTime: {
+      case MonitorMode::kEstLoad: {
         rctx.load_.cpu_load_ = monitor_[task->method_].Predict();
         break;
       }
-      case MonitorMode::kReinforceTime: {
+      case MonitorMode::kReinforceLoad: {
         monitor_[task->method_].Add(rctx.timer_.GetNsec());
         break;
       }
@@ -58,11 +62,11 @@ class Server : public Module {
   }
   void MonitorDestroy(u32 mode, DestroyTask *task, RunContext &rctx) {
     switch (mode) {
-      case MonitorMode::kEstTime: {
+      case MonitorMode::kEstLoad: {
         rctx.load_.cpu_load_ = monitor_[task->method_].Predict();
         break;
       }
-      case MonitorMode::kReinforceTime: {
+      case MonitorMode::kReinforceLoad: {
         monitor_[task->method_].Add(rctx.timer_.GetNsec());
         break;
       }
@@ -77,11 +81,11 @@ class Server : public Module {
   }
   void MonitorUpgrade(u32 mode, UpgradeTask *task, RunContext &rctx) {
     switch (mode) {
-      case MonitorMode::kEstTime: {
+      case MonitorMode::kEstLoad: {
         rctx.load_.cpu_load_ = monitor_[task->method_].Predict();
         break;
       }
-      case MonitorMode::kReinforceTime: {
+      case MonitorMode::kReinforceLoad: {
         monitor_[task->method_].Add(rctx.timer_.GetNsec());
         break;
       }
@@ -101,11 +105,11 @@ class Server : public Module {
   }
   void MonitorMd(u32 mode, MdTask *task, RunContext &rctx) {
     switch (mode) {
-      case MonitorMode::kEstTime: {
+      case MonitorMode::kEstLoad: {
         rctx.load_.cpu_load_ = monitor_[task->method_].Predict();
         break;
       }
-      case MonitorMode::kReinforceTime: {
+      case MonitorMode::kReinforceLoad: {
         monitor_[task->method_].Add(rctx.timer_.GetNsec());
         break;
       }
@@ -131,6 +135,16 @@ class Server : public Module {
   }
   void MonitorIo(u32 mode, IoTask *task, RunContext &rctx) {
     switch (mode) {
+      case MonitorMode::kEstLoad: {
+        rctx.load_.cpu_load_ = monitor_io_.consts_[0] * task->size_;
+        break;
+      }
+      case MonitorMode::kReinforceLoad: {
+        CHI_PYTHON->RunFunction<LeastSquares>(
+            "SmallMessage.monitor_io", monitor_io_);
+
+        break;
+      }
       case MonitorMode::kReplicaAgg: {
         std::vector<LPointer<Task>> &replicas = *rctx.replicas_;
         for (LPointer<Task> &replica : replicas) {

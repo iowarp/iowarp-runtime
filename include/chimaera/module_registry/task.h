@@ -54,8 +54,8 @@ class Module;
 #define TASK_DATA_OWNER BIT_OPT(u32, 14)
 /** This task uses co-routine wait */
 #define TASK_COROUTINE BIT_OPT(u32, 15)
-/** This task can be scheduled on any lane (deprecated) */
-#define TASK_LANE_ANY BIT_OPT(u32, 18)
+/** Monitor performance of this task */
+#define TASK_SHOULD_SAMPLE BIT_OPT(u32, 18)
 /** This task should be scheduled on all lanes (deprecated) */
 #define TASK_LANE_ALL BIT_OPT(u32, 19)
 /** This task flushes the runtime */
@@ -94,8 +94,9 @@ struct TaskMethod {
 /** Monitoring modes */
 class MonitorMode {
  public:
-  TASK_METHOD_T kReinforceTime = 0;
-  TASK_METHOD_T kEstTime = 1;
+  TASK_METHOD_T kEstLoad = 0;
+  TASK_METHOD_T kSampleLoad = 0;
+  TASK_METHOD_T kReinforceLoad = 1;
   TASK_METHOD_T kFlushStat = 2;
   TASK_METHOD_T kReplicaStart = 3;
   TASK_METHOD_T kReplicaAgg = 4;
@@ -499,6 +500,21 @@ struct Task : public hipc::ShmContainer {
   /** Set this task as blocking */
   void UnsetCoroutine() {
     task_flags_.UnsetBits(TASK_COROUTINE);
+  }
+
+  /** Mark task as routed */
+  void SetShouldSample() {
+    rctx_.run_flags_.SetBits(TASK_SHOULD_SAMPLE);
+  }
+
+  /** Check if task is routed */
+  bool ShouldSample() {
+    return rctx_.run_flags_.Any(TASK_SHOULD_SAMPLE);
+  }
+
+  /** Unset task as routed */
+  void UnsetShouldSample() {
+    rctx_.run_flags_.UnsetBits(TASK_SHOULD_SAMPLE);
   }
 
   /** Set period in nanoseconds */

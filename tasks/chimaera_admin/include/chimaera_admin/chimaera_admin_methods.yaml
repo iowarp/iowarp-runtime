@@ -19,3 +19,4 @@ kSetWorkOrchProcPolicy: 18
 kFlush: 19
 kGetDomainSize: 20
 kUpdateDomain: 21
+kReinforceModels: 22

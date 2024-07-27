@@ -509,6 +509,46 @@ struct UpdateDomainTask : public Task, TaskFlags<TF_SRL_SYM> {
   }
 };
 
+/** A task to update the lane mapping */
+struct ReinforceModelsTask : public Task, TaskFlags<TF_SRL_SYM> {
+  /** SHM default constructor */
+  ReinforceModelsTask(hipc::Allocator *alloc)
+  : Task(alloc) {}
+
+  /** Emplace constructor */
+  HSHM_ALWAYS_INLINE explicit
+  ReinforceModelsTask(
+      hipc::Allocator *alloc,
+      const TaskNode &task_node,
+      const DomainQuery &dom_query) : Task(alloc) {
+    // Initialize task
+    task_node_ = task_node;
+    prio_ = TaskPrio::kLowLatency;
+    pool_ = CHI_QM_CLIENT->admin_pool_id_;
+    method_ = Method::kReinforceModels;
+    task_flags_.SetBits(TASK_LONG_RUNNING);
+    dom_query_ = dom_query;
+
+    // Custom
+    SetPeriodSec(5);
+  }
+
+  /** Duplicate message */
+  void CopyStart(const ReinforceModelsTask &other, bool deep) {
+  }
+
+  /** (De)serialize message call */
+  template<typename Ar>
+  void SerializeStart(Ar &ar) {
+  }
+
+  /** (De)serialize message return */
+  template<typename Ar>
+  void SerializeEnd(Ar &ar) {
+  }
+};
+
+
 }  // namespace chi::Admin
 
 #endif  // HRUN_TASKS_CHI_ADMIN_INCLUDE_CHI_ADMIN_CHI_ADMIN_TASKS_H_

@@ -45,10 +45,10 @@ class Server : public Module {
   }
   void MonitorAllocate(u32 mode, AllocateTask *task, RunContext &rctx) {
     switch (mode) {
-      case MonitorMode::kEstTime: {
+      case MonitorMode::kEstLoad: {
         break;
       }
-      case MonitorMode::kReinforceTime: {
+      case MonitorMode::kReinforceLoad: {
         break;
       }
       case MonitorMode::kReplicaAgg: {

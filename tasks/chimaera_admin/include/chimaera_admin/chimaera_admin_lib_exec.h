@@ -60,6 +60,10 @@ void Run(u32 method, Task *task, RunContext &rctx) override {
       UpdateDomain(reinterpret_cast<UpdateDomainTask *>(task), rctx);
       break;
     }
+    case Method::kReinforceModels: {
+      ReinforceModels(reinterpret_cast<ReinforceModelsTask *>(task), rctx);
+      break;
+    }
   }
 }
 /** Execute a task */
@@ -121,6 +125,10 @@ void Monitor(u32 mode, Task *task, RunContext &rctx) override {
       MonitorUpdateDomain(mode, reinterpret_cast<UpdateDomainTask *>(task), rctx);
       break;
     }
+    case Method::kReinforceModels: {
+      MonitorReinforceModels(mode, reinterpret_cast<ReinforceModelsTask *>(task), rctx);
+      break;
+    }
   }
 }
 /** Delete a task */
@@ -180,6 +188,10 @@ void Del(u32 method, Task *task) override {
     }
     case Method::kUpdateDomain: {
       CHI_CLIENT->DelTask<UpdateDomainTask>(reinterpret_cast<UpdateDomainTask *>(task));
+      break;
+    }
+    case Method::kReinforceModels: {
+      CHI_CLIENT->DelTask<ReinforceModelsTask>(reinterpret_cast<ReinforceModelsTask *>(task));
       break;
     }
   }
@@ -271,6 +283,12 @@ void CopyStart(u32 method, const Task *orig_task, Task *dup_task, bool deep) ove
         reinterpret_cast<UpdateDomainTask*>(dup_task), deep);
       break;
     }
+    case Method::kReinforceModels: {
+      chi::CALL_COPY_START(
+        reinterpret_cast<const ReinforceModelsTask*>(orig_task), 
+        reinterpret_cast<ReinforceModelsTask*>(dup_task), deep);
+      break;
+    }
   }
 }
 /** Duplicate a task */
@@ -332,6 +350,10 @@ void NewCopyStart(u32 method, const Task *orig_task, LPointer<Task> &dup_task, b
       chi::CALL_NEW_COPY_START(reinterpret_cast<const UpdateDomainTask*>(orig_task), dup_task, deep);
       break;
     }
+    case Method::kReinforceModels: {
+      chi::CALL_NEW_COPY_START(reinterpret_cast<const ReinforceModelsTask*>(orig_task), dup_task, deep);
+      break;
+    }
   }
 }
 /** Serialize a task when initially pushing into remote */
@@ -391,6 +413,10 @@ void SaveStart(u32 method, BinaryOutputArchive<true> &ar, Task *task) override {
     }
     case Method::kUpdateDomain: {
       ar << *reinterpret_cast<UpdateDomainTask*>(task);
+      break;
+    }
+    case Method::kReinforceModels: {
+      ar << *reinterpret_cast<ReinforceModelsTask*>(task);
       break;
     }
   }
@@ -469,6 +495,11 @@ TaskPointer LoadStart(u32 method, BinaryInputArchive<true> &ar) override {
       ar >> *reinterpret_cast<UpdateDomainTask*>(task_ptr.ptr_);
       break;
     }
+    case Method::kReinforceModels: {
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<ReinforceModelsTask>(task_ptr.shm_);
+      ar >> *reinterpret_cast<ReinforceModelsTask*>(task_ptr.ptr_);
+      break;
+    }
   }
   return task_ptr;
 }
@@ -531,6 +562,10 @@ void SaveEnd(u32 method, BinaryOutputArchive<false> &ar, Task *task) override {
       ar << *reinterpret_cast<UpdateDomainTask*>(task);
       break;
     }
+    case Method::kReinforceModels: {
+      ar << *reinterpret_cast<ReinforceModelsTask*>(task);
+      break;
+    }
   }
 }
 /** Deserialize a task when popping from remote queue */
@@ -590,6 +625,10 @@ void LoadEnd(u32 method, BinaryInputArchive<false> &ar, Task *task) override {
     }
     case Method::kUpdateDomain: {
       ar >> *reinterpret_cast<UpdateDomainTask*>(task);
+      break;
+    }
+    case Method::kReinforceModels: {
+      ar >> *reinterpret_cast<ReinforceModelsTask*>(task);
       break;
     }
   }

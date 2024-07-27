@@ -301,7 +301,7 @@ TaskRouteMode Worker::Reroute(const PoolId &scope,
     if (chi_lane->ingress_id_ == ig_lane->id_) {
       // NOTE(llogan): May become incorrect if active push fails
       // Update the load
-      exec->Monitor(MonitorMode::kEstTime, task.ptr_, task->rctx_);
+      exec->Monitor(MonitorMode::kEstLoad, task.ptr_, task->rctx_);
       chi_lane->load_ += task->rctx_.load_;
       chi_lane->num_tasks_ += 1;
       return TaskRouteMode::kThisWorker;
@@ -438,6 +438,10 @@ void Worker::ExecTask(PrivateTaskQueue &priv_queue,
   // Activate task
   if (!task->IsStarted()) {
     cur_lane_->SetActive(task->task_node_.root_);
+    if (ShouldSample()) {
+      task->SetShouldSample();
+      rctx.timer_.Reset();
+    }
   }
   // Submit the task to the local remote container
   if (props.Any(HSHM_WORKER_IS_REMOTE)) {
@@ -452,7 +456,7 @@ void Worker::ExecTask(PrivateTaskQueue &priv_queue,
     return;
   }
   // Execute + monitor the task
-  if (ShouldSample()) {
+  if (task->ShouldSample()) {
     rctx.timer_.Resume();
     ExecCoroutine(task, rctx);
     rctx.timer_.Pause();
@@ -461,7 +465,10 @@ void Worker::ExecTask(PrivateTaskQueue &priv_queue,
   }
   // Deactivate task and monitor
   if (!task->IsStarted()) {
-    exec->Monitor(MonitorMode::kReinforceTime, task, rctx);
+    if (task->ShouldSample()) {
+      exec->Monitor(MonitorMode::kSampleLoad, task, rctx);
+      task->UnsetShouldSample();
+    }
     cur_lane_->UnsetActive(task->task_node_.root_);
     // Update the load
     cur_lane_->load_ -= rctx.load_;

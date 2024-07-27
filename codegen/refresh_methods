@@ -23,7 +23,7 @@ def refresh_methods(TASK_ROOT):
     if methods is None:
         methods = {}
     methods = sorted(methods.items(), key=lambda x: x[1])
-    monitor_modes = ['kEstTime', 'kTrainTime', 'kFlushStat']
+    monitor_modes = ['kEstLoad', 'kTrainTime', 'kFlushStat']
 
     # Produce the TASK_NAME_methods.h file
     lines = []
