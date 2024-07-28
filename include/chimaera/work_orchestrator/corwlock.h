@@ -14,7 +14,7 @@ void CoRwLock::ReadLock() {
   hshm::ScopedMutex scoped(mux_, 0);
   Task *task = CHI_WORK_ORCHESTRATOR->GetCurrentTask();
   TaskId task_root = task->task_node_.root_;
-  if (rep_ == 0 || (is_read_ && read_count_ <= 32)) {
+  if (rep_ == 0 || is_read_) {
     is_read_ = true;
     ++rep_;
     ++read_count_;

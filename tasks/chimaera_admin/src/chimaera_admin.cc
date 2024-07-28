@@ -440,7 +440,7 @@ class Server : public Module {
            cont_it != pool_it->second.containers_.end(); ++cont_it) {
         Container *container = cont_it->second;
         for (u32 method_i = 0; method_i < 100; ++method_i) {
-          container->Monitor(Method::kReinforceModels, method_i,
+          container->Monitor(MonitorMode::kReinforceLoad, method_i,
                              nullptr, rctx);
         }
       }
