@@ -13,6 +13,7 @@
 #include "chimaera_admin/chimaera_admin.h"
 #include "chimaera/api/chimaera_runtime.h"
 #include "chimaera/work_orchestrator/comutex.h"
+#include "chimaera/work_orchestrator/corwlock.h"
 #include "chimaera/work_orchestrator/scheduler.h"
 #include "chimaera/monitor/rolling_average.h"
 
@@ -23,6 +24,7 @@ class Server : public Module {
   Task *queue_sched_;
   Task *proc_sched_;
   RollingAverage monitor_[Method::kCount];
+  LPointer<ReinforceModelsTask> reinforce_task_;
 
  public:
   Server() : queue_sched_(nullptr), proc_sched_(nullptr) {}
@@ -34,9 +36,11 @@ class Server : public Module {
         rctx.load_.cpu_load_ = monitor_[task->method_].Predict();
         break;
       }
-      case MonitorMode::kSampleLoad:
-      case MonitorMode::kReinforceLoad: {
+      case MonitorMode::kSampleLoad: {
         monitor_[task->method_].Add(rctx.timer_.GetNsec());
+        break;
+      }
+      case MonitorMode::kReinforceLoad: {
         break;
       }
       case MonitorMode::kReplicaAgg: {
@@ -49,6 +53,9 @@ class Server : public Module {
   /** Create the state */
   void Create(CreateTask *task, RunContext &rctx) {
     CreateLaneGroup(0, 1, QUEUE_LOW_LATENCY);
+    CreateLaneGroup(1, 1, QUEUE_HIGH_LATENCY);
+    reinforce_task_ = CHI_ADMIN->AsyncReinforceModels(
+        DomainQuery::GetDirectHash(SubDomainId::kLocalContainers, 0));
     task->SetModuleComplete();
   }
   void MonitorCreate(u32 mode, CreateTask *task, RunContext &rctx) {
@@ -65,7 +72,7 @@ class Server : public Module {
 
   /** Route a task to a lane */
   Lane* Route(const Task *task) override {
-    return GetLaneByHash(0, 0);
+    return GetLaneByHash(task->prio_, 0);
   }
 
   /** Update number of lanes */
@@ -106,7 +113,7 @@ class Server : public Module {
 
   /** Upgrade a module dynamically */
   void UpgradeModule(UpgradeModuleTask *task, RunContext &rctx) {
-    ScopedCoMutex upgrade_lock(CHI_MOD_REGISTRY->upgrade_lock_);
+    ScopedCoRwWriteLock upgrade_lock(CHI_MOD_REGISTRY->upgrade_lock_);
     // Get the set of ChiContainers
     std::string lib_name = task->lib_name_.str();
     std::vector<Container*> containers =
@@ -254,9 +261,11 @@ class Server : public Module {
         rctx.load_.cpu_load_ = monitor_[task->method_].Predict();
         break;
       }
-      case MonitorMode::kSampleLoad:
-      case MonitorMode::kReinforceLoad: {
+      case MonitorMode::kSampleLoad: {
         monitor_[task->method_].Add(rctx.timer_.GetNsec());
+        break;
+      }
+      case MonitorMode::kReinforceLoad: {
         break;
       }
       case MonitorMode::kReplicaAgg: {
@@ -283,9 +292,11 @@ class Server : public Module {
         rctx.load_.cpu_load_ = monitor_[task->method_].Predict();
         break;
       }
-      case MonitorMode::kSampleLoad:
-      case MonitorMode::kReinforceLoad: {
+      case MonitorMode::kSampleLoad: {
         monitor_[task->method_].Add(rctx.timer_.GetNsec());
+        break;
+      }
+      case MonitorMode::kReinforceLoad: {
         break;
       }
       case MonitorMode::kReplicaAgg: {
@@ -390,9 +401,11 @@ class Server : public Module {
         rctx.load_.cpu_load_ = monitor_[task->method_].Predict();
         break;
       }
-      case MonitorMode::kSampleLoad:
-      case MonitorMode::kReinforceLoad: {
+      case MonitorMode::kSampleLoad: {
         monitor_[task->method_].Add(rctx.timer_.GetNsec());
+        break;
+      }
+      case MonitorMode::kReinforceLoad: {
         break;
       }
       case MonitorMode::kReplicaAgg: {
@@ -419,15 +432,17 @@ class Server : public Module {
   /** Get the domain size */
   void ReinforceModels(ReinforceModelsTask *task, RunContext &rctx) {
     // Iterate over every ChiContainer
-    ScopedCoMutex upgrade_lock(CHI_MOD_REGISTRY->upgrade_lock_);
+    ScopedCoRwReadLock upgrade_lock(CHI_MOD_REGISTRY->upgrade_lock_);
     std::vector<Load> loads = CHI_WORK_ORCHESTRATOR->CalculateLoad();
     for (auto pool_it = CHI_MOD_REGISTRY->pools_.begin();
          pool_it != CHI_MOD_REGISTRY->pools_.end(); ++pool_it) {
       for (auto cont_it = pool_it->second.containers_.begin();
            cont_it != pool_it->second.containers_.end(); ++cont_it) {
         Container *container = cont_it->second;
-        container->Run(Method::kReinforceModels, task, rctx);
-        task->Yield();
+        for (u32 method_i = 0; method_i < 100; ++method_i) {
+          container->Monitor(Method::kReinforceModels, method_i,
+                             nullptr, rctx);
+        }
       }
     }
   }

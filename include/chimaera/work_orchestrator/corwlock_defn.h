@@ -1,0 +1,80 @@
+//
+// Created by llogan on 4/8/24.
+//
+
+#ifndef CHIMAERA_INCLUDE_CHIMAERA_WORK_ORCHESTRATOR_CORWLOCK_DEFN_H_
+#define CHIMAERA_INCLUDE_CHIMAERA_WORK_ORCHESTRATOR_CORWLOCK_DEFN_H_
+
+#include "chimaera/module_registry/task.h"
+
+namespace chi {
+
+struct CoRwLockEntry {
+  Task *task_;
+};
+
+/** A mutex for yielding coroutines */
+class CoRwLock {
+ public:
+  typedef std::vector<CoRwLockEntry> COMUTEX_QUEUE_T;
+
+ public:
+  TaskId root_;
+  size_t rep_;
+  size_t read_count_;
+  std::unordered_map<TaskId, COMUTEX_QUEUE_T> blocked_map_;
+  bool is_read_;
+  hshm::Mutex mux_;
+
+ public:
+  /** Default constructor */
+  CoRwLock() {
+    root_.SetNull();
+    rep_ = 0;
+    read_count_ = 0;
+    mux_.Init();
+    is_read_ = false;
+  }
+
+  void ReadLock();
+
+  void ReadUnlock();
+
+  void WriteLock();
+
+  void WriteUnlock();
+};
+
+class ScopedCoRwReadLock {
+ public:
+  CoRwLock &mutex_;
+
+ public:
+  ScopedCoRwReadLock(CoRwLock &mutex)
+      : mutex_(mutex) {
+    mutex_.ReadLock();
+  }
+
+  ~ScopedCoRwReadLock() {
+    mutex_.ReadUnlock();
+  }
+};
+
+class ScopedCoRwWriteLock {
+ public:
+  CoRwLock &mutex_;
+
+ public:
+  ScopedCoRwWriteLock(CoRwLock &mutex)
+      : mutex_(mutex) {
+    mutex_.WriteLock();
+  }
+
+  ~ScopedCoRwWriteLock() {
+    mutex_.WriteUnlock();
+  }
+};
+
+}  // namespace chi
+
+#endif  // CHIMAERA_INCLUDE_CHIMAERA_WORK_ORCHESTRATOR_CORWLOCK_DEFN_H_

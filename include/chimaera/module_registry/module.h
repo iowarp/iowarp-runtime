@@ -19,6 +19,7 @@
 #include "task.h"
 #include "chimaera/network/serialize_defn.h"
 #include "chimaera/work_orchestrator/comutex_defn.h"
+#include "chimaera/work_orchestrator/corwlock_defn.h"
 
 namespace chi {
 
@@ -178,7 +179,9 @@ class Module {
   virtual void Run(u32 method, Task *task, RunContext &rctx) = 0;
 
   /** Monitor a method of the task */
-  virtual void Monitor(u32 mode, Task *task, RunContext &rctx) = 0;
+  virtual void Monitor(u32 mode,
+                       u32 method,
+                       Task *task, RunContext &rctx) = 0;
 
   /** Delete a task */
   virtual void Del(u32 method, Task *task) = 0;

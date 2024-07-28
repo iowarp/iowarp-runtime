@@ -10,6 +10,18 @@
 
 namespace chi {
 
+bool CoMutex::TryLock() {
+  hshm::ScopedMutex scoped(mux_, 0);
+  Task *task = CHI_WORK_ORCHESTRATOR->GetCurrentTask();
+  TaskId task_root = task->task_node_.root_;
+  if (root_.IsNull() || root_ == task_root) {
+    root_ = task_root;
+    ++rep_;
+    return true;
+  }
+  return false;
+}
+
 void CoMutex::Lock() {
   hshm::ScopedMutex scoped(mux_, 0);
   Task *task = CHI_WORK_ORCHESTRATOR->GetCurrentTask();

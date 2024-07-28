@@ -57,7 +57,7 @@ class Server : public Module {
   /** Schedule work orchestrator queues */
   void Schedule(ScheduleTask *task, RunContext &rctx) {
     // Iterate over the set of ChiContainers
-    ScopedCoMutex upgrade_lock(CHI_MOD_REGISTRY->upgrade_lock_);
+    ScopedCoRwReadLock upgrade_lock(CHI_MOD_REGISTRY->upgrade_lock_);
     std::vector<Load> loads = CHI_WORK_ORCHESTRATOR->CalculateLoad();
     for (auto pool_it = CHI_MOD_REGISTRY->pools_.begin();
          pool_it != CHI_MOD_REGISTRY->pools_.end(); ++pool_it) {

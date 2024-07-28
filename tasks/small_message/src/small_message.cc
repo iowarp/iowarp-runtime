@@ -43,9 +43,11 @@ class Server : public Module {
         rctx.load_.cpu_load_ = monitor_[task->method_].Predict();
         break;
       }
-      case MonitorMode::kSampleLoad:
-      case MonitorMode::kReinforceLoad: {
+      case MonitorMode::kSampleLoad: {
         monitor_[task->method_].Add(rctx.timer_.GetNsec());
+        break;
+      }
+      case MonitorMode::kReinforceLoad: {
         break;
       }
     }
@@ -67,9 +69,11 @@ class Server : public Module {
         rctx.load_.cpu_load_ = monitor_[task->method_].Predict();
         break;
       }
-      case MonitorMode::kSampleLoad:
-      case MonitorMode::kReinforceLoad: {
+      case MonitorMode::kSampleLoad: {
         monitor_[task->method_].Add(rctx.timer_.GetNsec());
+        break;
+      }
+      case MonitorMode::kReinforceLoad: {
         break;
       }
     }
@@ -87,9 +91,11 @@ class Server : public Module {
         rctx.load_.cpu_load_ = monitor_[task->method_].Predict();
         break;
       }
-      case MonitorMode::kSampleLoad:
-      case MonitorMode::kReinforceLoad: {
+      case MonitorMode::kSampleLoad: {
         monitor_[task->method_].Add(rctx.timer_.GetNsec());
+        break;
+      }
+      case MonitorMode::kReinforceLoad: {
         break;
       }
     }
@@ -112,9 +118,11 @@ class Server : public Module {
         rctx.load_.cpu_load_ = monitor_[task->method_].Predict();
         break;
       }
-      case MonitorMode::kSampleLoad:
-      case MonitorMode::kReinforceLoad: {
+      case MonitorMode::kSampleLoad: {
         monitor_[task->method_].Add(rctx.timer_.GetNsec());
+        break;
+      }
+      case MonitorMode::kReinforceLoad: {
         break;
       }
       case MonitorMode::kReplicaAgg: {

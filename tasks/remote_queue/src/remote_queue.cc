@@ -117,7 +117,8 @@ class Server : public Module {
       LPointer<Task> rep_task;
       copy_exec->NewCopyStart(orig_task->method_, orig_task, rep_task, deep);
       if (res_query.dom_.flags_.Any(DomainQuery::kLocal)) {
-        exec->Monitor(MonitorMode::kReplicaStart, orig_task, rctx);
+        exec->Monitor(MonitorMode::kReplicaStart, orig_task->method_,
+                      orig_task, rctx);
       }
       rep_task->rctx_.pending_to_ = submit_task;
       size_t node_hash = std::hash<NodeId>{}(res_query.node_);
@@ -132,7 +133,8 @@ class Server : public Module {
     submit_task->Wait(replicas, TASK_MODULE_COMPLETE);
     // Combine
     rctx.replicas_ = &replicas;
-    exec->Monitor(MonitorMode::kReplicaAgg, orig_task, rctx);
+    exec->Monitor(MonitorMode::kReplicaAgg, orig_task->method_,
+                  orig_task, rctx);
     // Free
     for (LPointer<Task> &replica : replicas) {
 //      HILOG(kInfo, "[TASK_CHECK] Completing rep_task {} on node {}",

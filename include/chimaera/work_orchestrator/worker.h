@@ -301,7 +301,8 @@ TaskRouteMode Worker::Reroute(const PoolId &scope,
     if (chi_lane->ingress_id_ == ig_lane->id_) {
       // NOTE(llogan): May become incorrect if active push fails
       // Update the load
-      exec->Monitor(MonitorMode::kEstLoad, task.ptr_, task->rctx_);
+      exec->Monitor(MonitorMode::kEstLoad, task->method_,
+                    task.ptr_, task->rctx_);
       chi_lane->load_ += task->rctx_.load_;
       chi_lane->num_tasks_ += 1;
       return TaskRouteMode::kThisWorker;
@@ -430,7 +431,8 @@ void Worker::ExecTask(PrivateTaskQueue &priv_queue,
   // Flush tasks
   if (props.Any(HSHM_WORKER_IS_FLUSHING)) {
     if (task->IsLongRunning()) {
-      exec->Monitor(MonitorMode::kFlushStat, task, rctx);
+      exec->Monitor(MonitorMode::kFlushStat, task->method_,
+                    task, rctx);
     } else if (!task->IsFlush()) {
       flush_.count_ += 1;
     }
@@ -466,7 +468,8 @@ void Worker::ExecTask(PrivateTaskQueue &priv_queue,
   // Deactivate task and monitor
   if (!task->IsStarted()) {
     if (task->ShouldSample()) {
-      exec->Monitor(MonitorMode::kSampleLoad, task, rctx);
+      exec->Monitor(MonitorMode::kSampleLoad, task->method_,
+                    task, rctx);
       task->UnsetShouldSample();
     }
     cur_lane_->UnsetActive(task->task_node_.root_);

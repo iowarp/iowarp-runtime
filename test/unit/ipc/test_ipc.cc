@@ -208,7 +208,7 @@ TEST_CASE("TestIO") {
   HILOG(kInfo, "Starting IO test: {}", nprocs);
 
   t.Resume();
-  size_t ops = 16;
+  size_t ops = 80000;
   for (size_t i = 0; i < ops; ++i) {
     size_t write_ret = 0, read_ret = 0;
     HILOG(kInfo, "Sending message {}", i);
@@ -223,7 +223,7 @@ TEST_CASE("TestIO") {
   }
   t.Pause();
 
-  HILOG(kInfo, "Latency: {} MOps", ops / t.GetUsec());
+  HILOG(kInfo, "Latency: {} KOps", ops / t.GetMsec());
 }
 
 TEST_CASE("TestUpgrade") {

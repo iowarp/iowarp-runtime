@@ -18,6 +18,7 @@ class LeastSquares : public Model {
   void Shape(int ncol, const std::string &model_name) {
     TableShape(ncol, 1000);
     model_name_ = model_name;
+    consts_.resize(ncol);
   }
 
   template<typename Ar>

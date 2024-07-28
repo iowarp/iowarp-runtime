@@ -32,6 +32,8 @@ class CoMutex {
     mux_.Init();
   }
 
+  bool TryLock();
+
   void Lock();
 
   void Unlock();
@@ -49,6 +51,24 @@ class ScopedCoMutex {
 
   ~ScopedCoMutex() {
     mutex_.Unlock();
+  }
+};
+
+class ScopedTryCoMutex {
+ public:
+  CoMutex &mutex_;
+  bool is_locked_;
+
+ public:
+  ScopedTryCoMutex(CoMutex &mutex)
+      : mutex_(mutex) {
+    is_locked_ = mutex_.TryLock();
+  }
+
+  ~ScopedTryCoMutex() {
+    if (is_locked_) {
+      mutex_.Unlock();
+    }
   }
 };
 

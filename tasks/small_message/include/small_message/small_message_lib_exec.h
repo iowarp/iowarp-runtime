@@ -27,8 +27,8 @@ void Run(u32 method, Task *task, RunContext &rctx) override {
   }
 }
 /** Execute a task */
-void Monitor(u32 mode, Task *task, RunContext &rctx) override {
-  switch (task->method_) {
+void Monitor(u32 mode, u32 method, Task *task, RunContext &rctx) override {
+  switch (method) {
     case Method::kCreate: {
       MonitorCreate(mode, reinterpret_cast<CreateTask *>(task), rctx);
       break;

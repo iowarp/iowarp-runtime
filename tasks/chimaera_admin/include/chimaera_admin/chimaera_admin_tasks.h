@@ -523,14 +523,14 @@ struct ReinforceModelsTask : public Task, TaskFlags<TF_SRL_SYM> {
       const DomainQuery &dom_query) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
-    prio_ = TaskPrio::kLowLatency;
+    prio_ = TaskPrio::kHighLatency;
     pool_ = CHI_QM_CLIENT->admin_pool_id_;
     method_ = Method::kReinforceModels;
     task_flags_.SetBits(TASK_LONG_RUNNING);
     dom_query_ = dom_query;
 
     // Custom
-    SetPeriodSec(5);
+    SetPeriodSec(1);
   }
 
   /** Duplicate message */
