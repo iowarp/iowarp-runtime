@@ -16,10 +16,13 @@ class LeastSquares : public Model, public PyDataWrapper {
   std::string model_name_;
 
  public:
-  void Shape(int ncol, const std::string &model_name) {
-    TableShape(ncol, 1000);
+  void Shape(int n_var,
+             int n_param,
+             int n_out,
+             const std::string &model_name) {
+    TableShape(n_var + n_out, 1000);
     model_name_ = model_name;
-    consts_.resize(ncol);
+    consts_.resize(n_param);
   }
 
   template<typename Ar>

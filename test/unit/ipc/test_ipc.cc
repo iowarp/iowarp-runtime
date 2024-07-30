@@ -287,15 +287,19 @@ TEST_CASE("TestUpgrade") {
 TEST_CASE("TestPython") {
   chi::PythonWrapper python;
   chi::LeastSquares ls;
-  ls.Shape(2, "SmallMessage.monitor_io");
+  ls.Shape(1, 1, 1, "SmallMessage.monitor_io");
   for (int i = 0; i < 100; ++i) {
     ls.Add({(float)i, (float)i + 1});
   }
   python.RegisterPath("/home/llogan/Documents/Projects/chimaera/src");
-  python.RegisterPath("/home/llogan/Documents/Projects/chimaera/src");
+  python.RegisterPath("/home/llogan/Documents/Projects/chimaera/tasks/small_message/src");
   python.ImportModule("chimaera_monitor");
-  python.RunFunction<chi::LeastSquares>(
-      "least_squares_fit", ls);
+  python.ImportModule("small_message_monitor");
+  if (ls.DoTrain()) {
+    python.RunMethod<chi::LeastSquares>(
+        "ChimaeraMonitor", "least_squares_fit", ls);
+  }
+  HILOG(kInfo, "Slope: {}", ls.consts_[0]);
 }
 #endif
 

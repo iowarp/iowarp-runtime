@@ -95,9 +95,11 @@ class PyDataWrapper {
 class __attribute__((visibility("hidden"))) PythonWrapper {
  public:
   py::scoped_interpreter guard{};
-  Mutex mutex_;
+  py::dict global;
+
  public:
   PythonWrapper() {
+    global = py::globals();
 #ifdef CHIMAERA_RUNTIME
     for (const std::string &lib_dir : CHI_MOD_REGISTRY->lib_dirs_) {
       RegisterPath(lib_dir);
@@ -116,11 +118,10 @@ class __attribute__((visibility("hidden"))) PythonWrapper {
   }
 
   void RunString(const std::string &script) {
-    ScopedMutex lock(mutex_, 0);
     py::gil_scoped_acquire acquire;
     try {
       // Execute the Python script string
-      py::exec(script.c_str());
+      py::exec(script.c_str(), global);
     } catch (const py::error_already_set& e) {
       HELOG(kFatal, "Error executing Python script: {}", e.what());
     }
@@ -128,8 +129,7 @@ class __attribute__((visibility("hidden"))) PythonWrapper {
 
   template<typename T>
   void RunFunction(const std::string &fname, T &arg) {
-    // ScopedMutex lock(mutex_, 0);
-    // py::gil_scoped_acquire acquire;
+    py::gil_scoped_acquire acquire;
     try {
       // Serialize the argument
       PyOutputArchive ar;
@@ -139,9 +139,9 @@ class __attribute__((visibility("hidden"))) PythonWrapper {
         arg.serialize(ar);
       }
       // Run the python function
-      py::object pyfunc = py::globals()[fname.c_str()];
+      py::object pyfunc = global[fname.c_str()];
       py::object pyarg = ar.Get();
-      py::object pyresult = pyfunc(pyarg);
+      py::object pyresult = pyfunc(pyarg, global);
       // Deserialize the return
       PyInputArchive iar(pyresult);
       if constexpr (std::is_base_of<PyDataWrapper, T>::value) {
@@ -169,10 +169,10 @@ class __attribute__((visibility("hidden"))) PythonWrapper {
         arg.serialize(ar);
       }
       // Run the python function
-      py::object pyclass = py::globals()[class_name.c_str()];
+      py::object pyclass = global[class_name.c_str()];
       py::object pymethod = pyclass.attr(method_name.c_str());
       py::object pyarg = ar.Get();
-      py::object pyresult = pymethod(pyarg);
+      py::object pyresult = pymethod(pyarg, global);
       // Deserialize the return
       PyInputArchive iar(pyresult);
       if constexpr (std::is_base_of<PyDataWrapper, T>::value) {

@@ -20,16 +20,16 @@ class Model {
 
  public:
   void TableShape(size_t ncol, size_t max_samples) {
+    ncol_ = ncol;
     max_samples_ = max_samples;
     table_.resize(ncol);
     for (size_t i = 0; i < ncol; i++) {
       table_[i].resize(max_samples);
-      table_[i].resize(0);
     }
   }
 
   void Add(const std::vector<float> &x) {
-    size_t tail = tail_.fetch_add(x.size());
+    size_t tail = tail_.fetch_add(1);
     size_t head = head_.load();
     size_t pos = tail - head;
     if (pos >= max_samples_) {
@@ -40,14 +40,14 @@ class Model {
     }
   }
 
-  bool BeginTrain() {
+  bool DoTrain() {
     size_t head = head_.load();
     size_t tail = tail_.load();
     size_t pos = tail - head;
     if (tail < 10) {
       return false;
     }
-    if (tail < head * 11 / 10) {
+    if (pos < 15) {
       return false;
     }
     if (pos * 2 >= max_samples_) {
@@ -55,9 +55,6 @@ class Model {
     }
     ResizeRows(pos);
     return true;
-  }
-
-  void EndTrain() {
   }
 
   void ResizeRows(size_t nrow) {
