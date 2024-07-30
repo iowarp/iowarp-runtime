@@ -287,10 +287,11 @@ TEST_CASE("TestUpgrade") {
 TEST_CASE("TestPython") {
   chi::PythonWrapper python;
   chi::LeastSquares ls;
-  ls.Shape(2, "Example.linear_model");
+  ls.Shape(2, "SmallMessage.monitor_io");
   for (int i = 0; i < 100; ++i) {
     ls.Add({(float)i, (float)i + 1});
   }
+  python.RegisterPath("/home/llogan/Documents/Projects/chimaera/src");
   python.RegisterPath("/home/llogan/Documents/Projects/chimaera/src");
   python.ImportModule("chimaera_monitor");
   python.RunFunction<chi::LeastSquares>(

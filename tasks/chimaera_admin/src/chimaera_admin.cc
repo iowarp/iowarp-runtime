@@ -15,7 +15,7 @@
 #include "chimaera/work_orchestrator/comutex.h"
 #include "chimaera/work_orchestrator/corwlock.h"
 #include "chimaera/work_orchestrator/scheduler.h"
-#include "chimaera/monitor/rolling_average.h"
+#include "chimaera/monitor/monitor.h"
 
 namespace chi::Admin {
 
@@ -24,7 +24,6 @@ class Server : public Module {
   Task *queue_sched_;
   Task *proc_sched_;
   RollingAverage monitor_[Method::kCount];
-  LPointer<ReinforceModelsTask> reinforce_task_;
 
  public:
   Server() : queue_sched_(nullptr), proc_sched_(nullptr) {}
@@ -54,8 +53,6 @@ class Server : public Module {
   void Create(CreateTask *task, RunContext &rctx) {
     CreateLaneGroup(0, 1, QUEUE_LOW_LATENCY);
     CreateLaneGroup(1, 1, QUEUE_HIGH_LATENCY);
-    reinforce_task_ = CHI_ADMIN->AsyncReinforceModels(
-        DomainQuery::GetDirectHash(SubDomainId::kLocalContainers, 0));
     task->SetModuleComplete();
   }
   void MonitorCreate(u32 mode, CreateTask *task, RunContext &rctx) {
@@ -426,29 +423,6 @@ class Server : public Module {
   void MonitorGetDomainSize(u32 mode,
                             GetDomainSizeTask *task,
                             RunContext &rctx) {
-    MonitorBase(mode, task, rctx);
-  }
-
-  /** Get the domain size */
-  void ReinforceModels(ReinforceModelsTask *task, RunContext &rctx) {
-    // Iterate over every ChiContainer
-    ScopedCoRwReadLock upgrade_lock(CHI_MOD_REGISTRY->upgrade_lock_);
-    std::vector<Load> loads = CHI_WORK_ORCHESTRATOR->CalculateLoad();
-    for (auto pool_it = CHI_MOD_REGISTRY->pools_.begin();
-         pool_it != CHI_MOD_REGISTRY->pools_.end(); ++pool_it) {
-      for (auto cont_it = pool_it->second.containers_.begin();
-           cont_it != pool_it->second.containers_.end(); ++cont_it) {
-        Container *container = cont_it->second;
-        for (u32 method_i = 0; method_i < 100; ++method_i) {
-          container->Monitor(MonitorMode::kReinforceLoad, method_i,
-                             nullptr, rctx);
-        }
-      }
-    }
-  }
-  void MonitorReinforceModels(u32 mode,
-                              ReinforceModelsTask *task,
-                              RunContext &rctx) {
     MonitorBase(mode, task, rctx);
   }
 

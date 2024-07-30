@@ -42,6 +42,9 @@ void WorkOrchestrator::ServerInit(ServerConfig *config, QueueManager &qm) {
     dworkers_.emplace_back(&worker);
     ++cpu_id;
   }
+  // Spawn reinforcement thread
+  reinforce_worker_ = std::make_unique<ReinforceWorker>(
+      cpu_id + 1);
   // Spawn overlapped workers (oworkers)
   for (size_t i = 0; i < num_workers - worker_id; ++worker_id) {
     ABT_xstream xstream;
@@ -94,7 +97,7 @@ void WorkOrchestrator::ServerInit(ServerConfig *config, QueueManager &qm) {
   // Assign ingress queues to workers
   size_t count_lowlat_ = 0;
   size_t count_highlat_ = 0;
-  for (MultiQueue &queue : *CHI_QM_RUNTIME->queue_map_) {
+  for (ingress::MultiQueue &queue : *CHI_QM_RUNTIME->queue_map_) {
     if (queue.id_.IsNull() || !queue.flags_.Any(QUEUE_READY)) {
       continue;
     }
@@ -116,8 +119,6 @@ void WorkOrchestrator::ServerInit(ServerConfig *config, QueueManager &qm) {
           Worker &worker = *CHI_WORK_ORCHESTRATOR->oworkers_[worker_off];
           worker.PollQueues({WorkEntry(lane_group.prio_, lane_id, &queue)});
           worker_id = worker.id_;
-//            HILOG(kInfo, "(node {}) Scheduling the queue {} (prio {}, lane {}, worker {})",
-//                  CHI_CLIENT->node_id_, queue.id_, lane_group.prio_, lane_id, worker.id_);
         }
         ingress::Lane &lane = lane_group.GetLane(lane_id);
         lane.worker_id_ = worker_id;
@@ -202,5 +203,26 @@ std::vector<Load> WorkOrchestrator::CalculateLoad() {
   }
   return loads;
 }
+
+#ifdef CHIMAERA_ENABLE_PYTHON
+void WorkOrchestrator::RegisterPath(const std::string &path) {
+  CHI_PYTHON->RegisterPath(path);
+}
+void WorkOrchestrator::ImportModule(const std::string &name) {
+    CHI_PYTHON->ImportModule(name);
+}
+void WorkOrchestrator::RunString(const std::string &script) {
+    CHI_PYTHON->RunString(script);
+}
+void WorkOrchestrator::RunFunction(const std::string &func_name,
+                                   PyDataWrapper &data) {
+    CHI_PYTHON->RunFunction(func_name, data);
+}
+void WorkOrchestrator::RunMethod(const std::string &class_name,
+                                 const std::string &method_name,
+                                 PyDataWrapper &data) {
+  CHI_PYTHON->RunMethod(class_name, method_name, data);
+}
+#endif
 
 }  // namespace chi

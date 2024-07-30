@@ -86,9 +86,16 @@ class __attribute__((visibility("hidden"))) PyInputArchive {
   }
 };
 
+class PyDataWrapper {
+ public:
+  virtual void ToPython(PyOutputArchive &ar) = 0;
+  virtual void FromPython(PyInputArchive &iar) = 0;
+};
+
 class __attribute__((visibility("hidden"))) PythonWrapper {
  public:
   py::scoped_interpreter guard{};
+  Mutex mutex_;
  public:
   PythonWrapper() {
 #ifdef CHIMAERA_RUNTIME
@@ -97,10 +104,7 @@ class __attribute__((visibility("hidden"))) PythonWrapper {
     }
 #endif
     RunString("import sys, os");
-  }
-
-  ~PythonWrapper() {
-    Py_Finalize();
+    ImportModule("chimaera_monitor");
   }
 
   void RegisterPath(const std::string &path) {
@@ -112,6 +116,8 @@ class __attribute__((visibility("hidden"))) PythonWrapper {
   }
 
   void RunString(const std::string &script) {
+    ScopedMutex lock(mutex_, 0);
+    py::gil_scoped_acquire acquire;
     try {
       // Execute the Python script string
       py::exec(script.c_str());
@@ -122,19 +128,60 @@ class __attribute__((visibility("hidden"))) PythonWrapper {
 
   template<typename T>
   void RunFunction(const std::string &fname, T &arg) {
+    // ScopedMutex lock(mutex_, 0);
+    // py::gil_scoped_acquire acquire;
     try {
       // Serialize the argument
       PyOutputArchive ar;
-      arg.serialize(ar);
+      if constexpr (std::is_base_of<PyDataWrapper, T>::value) {
+        arg.ToPython(ar);
+      } else {
+        arg.serialize(ar);
+      }
       // Run the python function
       py::object pyfunc = py::globals()[fname.c_str()];
       py::object pyarg = ar.Get();
       py::object pyresult = pyfunc(pyarg);
       // Deserialize the return
       PyInputArchive iar(pyresult);
-      arg.deserialize(iar);
+      if constexpr (std::is_base_of<PyDataWrapper, T>::value) {
+        arg.FromPython(iar);
+      } else {
+        arg.deserialize(iar);
+      }
     } catch (const std::exception &e) {
-      HELOG(kFatal, "Error getting Python function: {}", e.what());
+      HELOG(kError, "Error running Python function: {}", e.what());
+    }
+  }
+
+  template<typename T>
+  void RunMethod(const std::string &class_name,
+                 const std::string &method_name,
+                 T &arg) {
+    // ScopedMutex lock(mutex_, 0);
+    // py::gil_scoped_acquire acquire;
+    try {
+      // Serialize the argument
+      PyOutputArchive ar;
+      if constexpr (std::is_base_of<PyDataWrapper, T>::value) {
+        arg.ToPython(ar);
+      } else {
+        arg.serialize(ar);
+      }
+      // Run the python function
+      py::object pyclass = py::globals()[class_name.c_str()];
+      py::object pymethod = pyclass.attr(method_name.c_str());
+      py::object pyarg = ar.Get();
+      py::object pyresult = pymethod(pyarg);
+      // Deserialize the return
+      PyInputArchive iar(pyresult);
+      if constexpr (std::is_base_of<PyDataWrapper, T>::value) {
+        arg.FromPython(iar);
+      } else {
+        arg.deserialize(iar);
+      }
+    } catch (const std::exception &e) {
+      HELOG(kError, "Error running Python method: {}", e.what());
     }
   }
 };

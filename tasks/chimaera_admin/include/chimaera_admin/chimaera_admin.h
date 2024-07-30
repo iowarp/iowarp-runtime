@@ -234,15 +234,6 @@ class Client : public ModuleClient {
     return dom_size;
   }
   CHIMAERA_TASK_NODE_ROOT(GetDomainSize)
-
-  /** Get size of a domain */
-  void AsyncReinforceModelsConstruct(ReinforceModelsTask *task,
-                                   const TaskNode &task_node,
-                                   const DomainQuery &dom_query) {
-    CHI_CLIENT->ConstructTask<ReinforceModelsTask>(
-        task, task_node, dom_query);
-  }
-  CHIMAERA_TASK_NODE_ROOT(ReinforceModels)
 };
 
 }  // namespace chi::Admin

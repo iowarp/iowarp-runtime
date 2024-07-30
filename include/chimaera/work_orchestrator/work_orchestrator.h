@@ -17,7 +17,12 @@
 #include "chimaera/queue_manager/queue_manager_runtime.h"
 #include "chimaera/network/rpc_thallium.h"
 #include <thread>
-#include "worker_defn.h"
+#include "worker.h"
+#include "reinforce_worker.h"
+
+#ifdef CHIMAERA_ENABLE_PYTHON
+#include "chimaera/monitor/python_wrapper.h"
+#endif
 
 namespace chi {
 
@@ -29,6 +34,8 @@ class WorkOrchestrator {
   std::vector<std::unique_ptr<Worker>> workers_;  /**< Workers execute tasks */
   std::vector<Worker*> dworkers_;   /**< Core-dedicated workers */
   std::vector<Worker*> oworkers_;   /**< Undedicated workers */
+  std::unique_ptr<ReinforceWorker>
+      reinforce_worker_;  /**< Reinforcement worker */
   std::atomic<bool> kill_requested_;  /**< Kill flushing threads eventually */
   std::vector<tl::managed<tl::xstream>>
     rpc_xstreams_;  /**< RPC streams */
@@ -207,6 +214,16 @@ class WorkOrchestrator {
       return min_lane;
     }
   }
+
+#ifdef CHIMAERA_ENABLE_PYTHON
+  void RegisterPath(const std::string &path);
+  void ImportModule(const std::string &name);
+  void RunString(const std::string &script);
+  void RunFunction(const std::string &func_name, PyDataWrapper &data);
+  void RunMethod(const std::string &class_name,
+                 const std::string &method_name,
+                 PyDataWrapper &data);
+#endif
 };
 
 }  // namespace chi

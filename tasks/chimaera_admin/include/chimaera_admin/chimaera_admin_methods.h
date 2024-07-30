@@ -15,8 +15,7 @@ struct Method : public TaskMethod {
   TASK_METHOD_T kFlush = 19;
   TASK_METHOD_T kGetDomainSize = 20;
   TASK_METHOD_T kUpdateDomain = 21;
-  TASK_METHOD_T kReinforceModels = 22;
-  TASK_METHOD_T kCount = 23;
+  TASK_METHOD_T kCount = 22;
 };
 
 #endif  // CHI_CHIMAERA_ADMIN_METHODS_H_

@@ -10,16 +10,27 @@
 
 namespace chi {
 
+bool CoRwLock::TryReadLock() {
+  hshm::ScopedMutex scoped(mux_, 0);
+  if (rep_ == 0 || is_read_) {
+    is_read_ = true;
+    ++rep_;
+    ++read_count_;
+    return true;
+  }
+  return false;
+}
+
 void CoRwLock::ReadLock() {
   hshm::ScopedMutex scoped(mux_, 0);
-  Task *task = CHI_WORK_ORCHESTRATOR->GetCurrentTask();
-  TaskId task_root = task->task_node_.root_;
   if (rep_ == 0 || is_read_) {
     is_read_ = true;
     ++rep_;
     ++read_count_;
     return;
   }
+  Task *task = CHI_WORK_ORCHESTRATOR->GetCurrentTask();
+  TaskId task_root = task->task_node_.root_;
   task->SetBlocked(1);
   if (blocked_map_.find(task_root) == blocked_map_.end()) {
     blocked_map_[task_root] = COMUTEX_QUEUE_T();

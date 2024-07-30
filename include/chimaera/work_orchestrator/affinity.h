@@ -19,6 +19,7 @@
 #include <sys/sysinfo.h>
 #include <sched.h>
 #include <string>
+#include <algorithm>
 
 class ProcessAffiner {
  public:

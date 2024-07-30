@@ -33,9 +33,7 @@ class Server : public Module {
     CreateLaneGroup(0, 4, QUEUE_LOW_LATENCY);
 
     // Create monitoring functions
-    CHI_PYTHON->ImportModule("chimaera_monitor");
-    CHI_PYTHON->ImportModule("small_message_monitor");
-    monitor_io_.Shape(2, "io_linear");
+    monitor_io_.Shape(2, "SmallMessage.monitor_io");
   }
   void MonitorCreate(u32 mode, CreateTask *task, RunContext &rctx) {
     switch (mode) {
@@ -158,8 +156,9 @@ class Server : public Module {
         break;
       }
       case MonitorMode::kReinforceLoad: {
-        CHI_PYTHON->RunFunction<LeastSquares>(
-            "SmallMessage.monitor_io", monitor_io_);
+        CHI_WORK_ORCHESTRATOR->ImportModule("small_message_monitor");
+        CHI_WORK_ORCHESTRATOR->RunMethod(
+            "ChimaeraMonitor", "least_squares_fit", monitor_io_);
         break;
       }
       case MonitorMode::kReplicaAgg: {

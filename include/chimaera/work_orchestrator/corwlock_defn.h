@@ -36,6 +36,8 @@ class CoRwLock {
     is_read_ = false;
   }
 
+  bool TryReadLock();
+
   void ReadLock();
 
   void ReadUnlock();
@@ -57,6 +59,24 @@ class ScopedCoRwReadLock {
 
   ~ScopedCoRwReadLock() {
     mutex_.ReadUnlock();
+  }
+};
+
+class ScopedCoRwTryReadLock {
+ public:
+  CoRwLock &mutex_;
+  bool locked_;
+
+ public:
+  ScopedCoRwTryReadLock(CoRwLock &mutex)
+  : mutex_(mutex) {
+      locked_ = mutex_.TryReadLock();
+  }
+
+  ~ScopedCoRwTryReadLock() {
+    if (locked_) {
+      mutex_.ReadUnlock();
+    }
   }
 };
 
