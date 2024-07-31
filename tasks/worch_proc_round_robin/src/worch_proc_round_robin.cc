@@ -23,7 +23,7 @@ class Server : public Module {
     CreateLaneGroup(0, 1, QUEUE_HIGH_LATENCY);
     task->SetModuleComplete();
   }
-  void MonitorCreate(u32 mode, CreateTask *task, RunContext &rctx) {
+  void MonitorCreate(MonitorModeId mode, CreateTask *task, RunContext &rctx) {
   }
 
   /** Route a task to a lane */
@@ -35,14 +35,14 @@ class Server : public Module {
   void Destroy(DestroyTask *task, RunContext &rctx) {
     task->SetModuleComplete();
   }
-  void MonitorDestroy(u32 mode, DestroyTask *task, RunContext &rctx) {
+  void MonitorDestroy(MonitorModeId mode, DestroyTask *task, RunContext &rctx) {
   }
 
   /** Schedule running processes */
   void Schedule(ScheduleTask *task, RunContext &rctx) {
     CHI_WORK_ORCHESTRATOR->DedicateCores();
   }
-  void MonitorSchedule(u32 mode, ScheduleTask *task, RunContext &rctx) {
+  void MonitorSchedule(MonitorModeId mode, ScheduleTask *task, RunContext &rctx) {
   }
 
 #include "worch_proc_round_robin/worch_proc_round_robin_lib_exec.h"

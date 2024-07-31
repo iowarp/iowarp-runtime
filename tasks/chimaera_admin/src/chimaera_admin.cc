@@ -29,17 +29,19 @@ class Server : public Module {
   Server() : queue_sched_(nullptr), proc_sched_(nullptr) {}
 
   /** Basic monitoring function */
-  void MonitorBase(u32 mode, Task *task, RunContext &rctx) {
+  void MonitorBase(MonitorModeId mode, MethodId method,
+                   Task *task, RunContext &rctx) {
     switch (mode) {
       case MonitorMode::kEstLoad: {
-        rctx.load_.cpu_load_ = monitor_[task->method_].Predict();
+        rctx.load_.cpu_load_ = monitor_[method].Predict();
         break;
       }
       case MonitorMode::kSampleLoad: {
-        monitor_[task->method_].Add(rctx.timer_.GetNsec());
+        monitor_[method].Add(rctx.timer_.GetNsec(), rctx.load_);
         break;
       }
       case MonitorMode::kReinforceLoad: {
+        monitor_[method].DoTrain();
         break;
       }
       case MonitorMode::kReplicaAgg: {
@@ -53,18 +55,21 @@ class Server : public Module {
   void Create(CreateTask *task, RunContext &rctx) {
     CreateLaneGroup(0, 1, QUEUE_LOW_LATENCY);
     CreateLaneGroup(1, 1, QUEUE_HIGH_LATENCY);
+    for (int i = 0; i < Method::kCount; ++i) {
+      monitor_[i].Shape(hshm::Formatter::format("{}-method-{}", name_, i));
+    }
     task->SetModuleComplete();
   }
-  void MonitorCreate(u32 mode, CreateTask *task, RunContext &rctx) {
-    MonitorBase(mode, task, rctx);
+  void MonitorCreate(MonitorModeId mode, CreateTask *task, RunContext &rctx) {
+    MonitorBase(mode, Method::kCreate, task, rctx);
   }
 
   /** Destroy the state */
   void Destroy(DestroyTask *task, RunContext &rctx) {
     task->SetModuleComplete();
   }
-  void MonitorDestroy(u32 mode, DestroyTask *task, RunContext &rctx) {
-    MonitorBase(mode, task, rctx);
+  void MonitorDestroy(MonitorModeId mode, DestroyTask *task, RunContext &rctx) {
+    MonitorBase(mode, Method::kDestroy, task, rctx);
   }
 
   /** Route a task to a lane */
@@ -78,10 +83,10 @@ class Server : public Module {
     CHI_RPC->UpdateDomains(ops);
     task->SetModuleComplete();
   }
-  void MonitorUpdateDomain(u32 mode,
+  void MonitorUpdateDomain(MonitorModeId mode,
                            UpdateDomainTask *task,
                            RunContext &rctx) {
-    MonitorBase(mode, task, rctx);
+    MonitorBase(mode, Method::kUpdateDomain, task, rctx);
   }
 
   /** Register a module dynamically */
@@ -90,10 +95,10 @@ class Server : public Module {
     CHI_MOD_REGISTRY->RegisterModule(lib_name);
     task->SetModuleComplete();
   }
-  void MonitorRegisterModule(u32 mode,
+  void MonitorRegisterModule(MonitorModeId mode,
                               RegisterModuleTask *task,
                               RunContext &rctx) {
-    MonitorBase(mode, task, rctx);
+    MonitorBase(mode, Method::kRegisterModule, task, rctx);
   }
 
   /** Destroy a module */
@@ -102,10 +107,10 @@ class Server : public Module {
     CHI_MOD_REGISTRY->DestroyModule(lib_name);
     task->SetModuleComplete();
   }
-  void MonitorDestroyModule(u32 mode,
+  void MonitorDestroyModule(MonitorModeId mode,
                              DestroyModuleTask *task,
                              RunContext &rctx) {
-    MonitorBase(mode, task, rctx);
+    MonitorBase(mode, Method::kDestroyModule, task, rctx);
   }
 
   /** Upgrade a module dynamically */
@@ -165,10 +170,10 @@ class Server : public Module {
     CHI_MOD_REGISTRY->UnplugModule(lib_name);
     task->SetModuleComplete();
   }
-  void MonitorUpgradeModule(u32 mode,
+  void MonitorUpgradeModule(MonitorModeId mode,
                             UpgradeModuleTask *task,
                             RunContext &rctx) {
-    MonitorBase(mode, task, rctx);
+    MonitorBase(mode, Method::kUpgradeModule, task, rctx);
   }
 
   /** Create a task state */
@@ -251,18 +256,19 @@ class Server : public Module {
           CHI_RPC->node_id_, task->task_node_);
     task->SetModuleComplete();
   }
-  void MonitorCreateContainer(u32 mode, CreateContainerTask *task,
+  void MonitorCreateContainer(MonitorModeId mode, CreateContainerTask *task,
                               RunContext &rctx) {
     switch (mode) {
       case MonitorMode::kEstLoad: {
-        rctx.load_.cpu_load_ = monitor_[task->method_].Predict();
+        rctx.load_.cpu_load_ = monitor_[Method::kCreateContainer].Predict();
         break;
       }
       case MonitorMode::kSampleLoad: {
-        monitor_[task->method_].Add(rctx.timer_.GetNsec());
+        monitor_[Method::kCreateContainer].Add(rctx.timer_.GetNsec(), rctx.load_);
         break;
       }
       case MonitorMode::kReinforceLoad: {
+        monitor_[Method::kCreateContainer].DoTrain();
         break;
       }
       case MonitorMode::kReplicaAgg: {
@@ -281,19 +287,20 @@ class Server : public Module {
     task->id_ = CHI_MOD_REGISTRY->GetPoolId(pool_name);
     task->SetModuleComplete();
   }
-  void MonitorGetPoolId(u32 mode,
+  void MonitorGetPoolId(MonitorModeId mode,
                         GetPoolIdTask *task,
                         RunContext &rctx) {
     switch (mode) {
       case MonitorMode::kEstLoad: {
-        rctx.load_.cpu_load_ = monitor_[task->method_].Predict();
+        rctx.load_.cpu_load_ = monitor_[Method::kGetPoolId].Predict();
         break;
       }
       case MonitorMode::kSampleLoad: {
-        monitor_[task->method_].Add(rctx.timer_.GetNsec());
+        monitor_[Method::kGetPoolId].Add(rctx.timer_.GetNsec(), rctx.load_);
         break;
       }
       case MonitorMode::kReinforceLoad: {
+        monitor_[Method::kGetPoolId].DoTrain();
         break;
       }
       case MonitorMode::kReplicaAgg: {
@@ -310,10 +317,10 @@ class Server : public Module {
     CHI_MOD_REGISTRY->DestroyContainer(task->id_);
     task->SetModuleComplete();
   }
-  void MonitorDestroyContainer(u32 mode,
+  void MonitorDestroyContainer(MonitorModeId mode,
                                DestroyContainerTask *task,
                                RunContext &rctx) {
-    MonitorBase(mode, task, rctx);
+    MonitorBase(mode, Method::kDestroyContainer, task, rctx);
   }
 
   /** Stop this runtime */
@@ -335,8 +342,8 @@ class Server : public Module {
     CHI_WORK_ORCHESTRATOR->FinalizeRuntime();
     task->SetModuleComplete();
   }
-  void MonitorStopRuntime(u32 mode, StopRuntimeTask *task, RunContext &rctx) {
-    MonitorBase(mode, task, rctx);
+  void MonitorStopRuntime(MonitorModeId mode, StopRuntimeTask *task, RunContext &rctx) {
+    MonitorBase(mode, Method::kStopRuntime, task, rctx);
   }
 
   /** Set work orchestrator policy */
@@ -357,10 +364,10 @@ class Server : public Module {
     queue->Emplace(TaskPrio::kLowLatency, 0, queue_sched.shm_);
     task->SetModuleComplete();
   }
-  void MonitorSetWorkOrchQueuePolicy(u32 mode,
+  void MonitorSetWorkOrchQueuePolicy(MonitorModeId mode,
                                      SetWorkOrchQueuePolicyTask *task,
                                      RunContext &rctx) {
-    MonitorBase(mode, task, rctx);
+    MonitorBase(mode, Method::kSetWorkOrchQueuePolicy, task, rctx);
   }
 
   /** Set work orchestration policy */
@@ -382,27 +389,28 @@ class Server : public Module {
     queue->Emplace(0, 0, proc_sched.shm_);
     task->SetModuleComplete();
   }
-  void MonitorSetWorkOrchProcPolicy(u32 mode,
+  void MonitorSetWorkOrchProcPolicy(MonitorModeId mode,
                                     SetWorkOrchProcPolicyTask *task,
                                     RunContext &rctx) {
-    MonitorBase(mode, task, rctx);
+    MonitorBase(mode, Method::kSetWorkOrchProcPolicy, task, rctx);
   }
 
   /** Flush the runtime */
   void Flush(FlushTask *task, RunContext &rctx) {
     task->SetModuleComplete();
   }
-  void MonitorFlush(u32 mode, FlushTask *task, RunContext &rctx) {
+  void MonitorFlush(MonitorModeId mode, FlushTask *task, RunContext &rctx) {
     switch (mode) {
       case MonitorMode::kEstLoad: {
-        rctx.load_.cpu_load_ = monitor_[task->method_].Predict();
+        rctx.load_.cpu_load_ = monitor_[Method::kFlush].Predict();
         break;
       }
       case MonitorMode::kSampleLoad: {
-        monitor_[task->method_].Add(rctx.timer_.GetNsec());
+        monitor_[Method::kFlush].Add(rctx.timer_.GetNsec(), rctx.load_);
         break;
       }
       case MonitorMode::kReinforceLoad: {
+        monitor_[Method::kFlush].DoTrain();
         break;
       }
       case MonitorMode::kReplicaAgg: {
@@ -420,10 +428,10 @@ class Server : public Module {
         CHI_RPC->GetDomainSize(task->dom_id_);
     task->SetModuleComplete();
   }
-  void MonitorGetDomainSize(u32 mode,
+  void MonitorGetDomainSize(MonitorModeId mode,
                             GetDomainSizeTask *task,
                             RunContext &rctx) {
-    MonitorBase(mode, task, rctx);
+    MonitorBase(mode, Method::kGetDomainSize, task, rctx);
   }
 
  public:

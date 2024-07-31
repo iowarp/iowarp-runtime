@@ -338,9 +338,9 @@ struct Task : public hipc::ShmContainer {
  public:
   PoolId pool_;     /**< The unique name of a task state */
   TaskNode task_node_;         /**< The unique ID of this task in the graph */
-  DomainQuery dom_query_;         /**< The nodes that the task should run on */
-  u32 prio_;                   /**< An indication of the priority of the request */
-  u32 method_;                 /**< The method to call in the state */
+  DomainQuery dom_query_;      /**< The nodes that the task should run on */
+  MethodId method_;            /**< The method to call in the state */
+  u32 prio_;                   /**< Priority of the request */
   bitfield32_t task_flags_;    /**< Properties of the task */
   double period_ns_;           /**< The period of the task */
   size_t start_;               /**< The time the task started */

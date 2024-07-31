@@ -287,9 +287,9 @@ TEST_CASE("TestUpgrade") {
 TEST_CASE("TestPython") {
   chi::PythonWrapper python;
   chi::LeastSquares ls;
-  ls.Shape(1, 1, 1, "SmallMessage.monitor_io");
+  ls.Shape("test_python", 1, 1, 1, "SmallMessage.monitor_io");
   for (int i = 0; i < 100; ++i) {
-    ls.Add({(float)i, (float)i + 1});
+    ls.Add({(float)i, (float)i + 1}, chi::Load());
   }
   python.RegisterPath("/home/llogan/Documents/Projects/chimaera/src");
   python.RegisterPath("/home/llogan/Documents/Projects/chimaera/tasks/small_message/src");

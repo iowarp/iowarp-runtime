@@ -24,7 +24,7 @@ class Server : public Module {
   void Create(CreateTask *task, RunContext &rctx) {
     task->SetModuleComplete();
   }
-  void MonitorCreate(u32 mode, CreateTask *task, RunContext &rctx) {
+  void MonitorCreate(MonitorModeId mode, CreateTask *task, RunContext &rctx) {
   }
 
   /** Route a task to a bdev lane */
@@ -36,14 +36,14 @@ class Server : public Module {
   void Destroy(DestroyTask *task, RunContext &rctx) {
     task->SetModuleComplete();
   }
-  void MonitorDestroy(u32 mode, DestroyTask *task, RunContext &rctx) {
+  void MonitorDestroy(MonitorModeId mode, DestroyTask *task, RunContext &rctx) {
   }
 
   /** Allocate a section of the block device */
   void Allocate(AllocateTask *task, RunContext &rctx) {
     task->SetModuleComplete();
   }
-  void MonitorAllocate(u32 mode, AllocateTask *task, RunContext &rctx) {
+  void MonitorAllocate(MonitorModeId mode, AllocateTask *task, RunContext &rctx) {
     switch (mode) {
       case MonitorMode::kEstLoad: {
         break;
@@ -63,7 +63,7 @@ class Server : public Module {
   void Free(FreeTask *task, RunContext &rctx) {
     task->SetModuleComplete();
   }
-  void MonitorFree(u32 mode, FreeTask *task, RunContext &rctx) {
+  void MonitorFree(MonitorModeId mode, FreeTask *task, RunContext &rctx) {
     switch (mode) {
       case MonitorMode::kReplicaAgg: {
         std::vector<LPointer<Task>> &replicas = *rctx.replicas_;
@@ -77,7 +77,7 @@ class Server : public Module {
   void Write(WriteTask *task, RunContext &rctx) {
     task->SetModuleComplete();
   }
-  void MonitorWrite(u32 mode, WriteTask *task, RunContext &rctx) {
+  void MonitorWrite(MonitorModeId mode, WriteTask *task, RunContext &rctx) {
     switch (mode) {
       case MonitorMode::kReplicaAgg: {
         std::vector<LPointer<Task>> &replicas = *rctx.replicas_;
@@ -91,7 +91,7 @@ class Server : public Module {
   void Read(ReadTask *task, RunContext &rctx) {
     task->SetModuleComplete();
   }
-  void MonitorRead(u32 mode, ReadTask *task, RunContext &rctx) {
+  void MonitorRead(MonitorModeId mode, ReadTask *task, RunContext &rctx) {
     switch (mode) {
       case MonitorMode::kReplicaAgg: {
         std::vector<LPointer<Task>> &replicas = *rctx.replicas_;

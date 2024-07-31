@@ -77,7 +77,7 @@ class Server : public Module {
         CHI_REMOTE_QUEUE->AsyncServerComplete(dom_query));
     task->SetModuleComplete();
   }
-  void MonitorCreate(u32 mode, CreateTask *task, RunContext &rctx) {
+  void MonitorCreate(MonitorModeId mode, CreateTask *task, RunContext &rctx) {
   }
 
   /** Route a task to a lane */
@@ -89,7 +89,7 @@ class Server : public Module {
   void Destroy(DestroyTask *task, RunContext &rctx) {
     task->SetModuleComplete();
   }
-  void MonitorDestroy(u32 mode, DestroyTask *task, RunContext &rctx) {
+  void MonitorDestroy(MonitorModeId mode, DestroyTask *task, RunContext &rctx) {
   }
 
   /** Replicate the task across a node set */
@@ -177,7 +177,7 @@ class Server : public Module {
     // Set this task as complete
     task->SetModuleComplete();
   }
-  void MonitorClientPushSubmit(u32 mode,
+  void MonitorClientPushSubmit(MonitorModeId mode,
                                ClientPushSubmitTask *task,
                                RunContext &rctx) {
   }
@@ -223,7 +223,7 @@ class Server : public Module {
       HELOG(kError, "(node {}) Worker {} caught an unknown exception", CHI_CLIENT->node_id_, id_);
     }
   }
-  void MonitorClientSubmit(u32 mode,
+  void MonitorClientSubmit(MonitorModeId mode,
                            ClientSubmitTask *task,
                            RunContext &rctx) {
     switch (mode) {
@@ -245,7 +245,7 @@ class Server : public Module {
         ret_node, task
     });
   }
-  void MonitorServerPushComplete(u32 mode,
+  void MonitorServerPushComplete(MonitorModeId mode,
                                  ServerPushCompleteTask *task,
                                  RunContext &rctx) {
   }
@@ -286,7 +286,7 @@ class Server : public Module {
       HELOG(kError, "(node {}) Worker {} caught an unknown exception", CHI_CLIENT->node_id_, id_);
     }
   }
-  void MonitorServerComplete(u32 mode,
+  void MonitorServerComplete(MonitorModeId mode,
                              ServerCompleteTask *task,
                              RunContext &rctx) {
   }

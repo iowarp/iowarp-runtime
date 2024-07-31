@@ -179,7 +179,7 @@ class Module {
   virtual void Run(u32 method, Task *task, RunContext &rctx) = 0;
 
   /** Monitor a method of the task */
-  virtual void Monitor(u32 mode,
+  virtual void Monitor(MonitorModeId mode,
                        u32 method,
                        Task *task, RunContext &rctx) = 0;
 

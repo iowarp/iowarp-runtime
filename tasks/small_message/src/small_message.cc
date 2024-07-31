@@ -33,19 +33,26 @@ class Server : public Module {
     CreateLaneGroup(0, 4, QUEUE_LOW_LATENCY);
 
     // Create monitoring functions
-    monitor_io_.Shape(1, 1, 1, "SmallMessage.monitor_io");
+    for (int i = 0; i < Method::kCount; ++i) {
+      if (i == Method::kIo) continue;
+      monitor_[i].Shape(hshm::Formatter::format("{}-method-{}", name_, i));
+    }
+    monitor_io_.Shape(
+        hshm::Formatter::format("{}-method-{}", name_, Method::kIo),
+        1, 1, 1, "SmallMessage.monitor_io");
   }
-  void MonitorCreate(u32 mode, CreateTask *task, RunContext &rctx) {
+  void MonitorCreate(MonitorModeId mode, CreateTask *task, RunContext &rctx) {
     switch (mode) {
       case MonitorMode::kEstLoad: {
-        rctx.load_.cpu_load_ = monitor_[task->method_].Predict();
+        rctx.load_.cpu_load_ = monitor_[Method::kCreate].Predict();
         break;
       }
       case MonitorMode::kSampleLoad: {
-        monitor_[task->method_].Add(rctx.timer_.GetNsec());
+        monitor_[Method::kCreate].Add(rctx.timer_.GetNsec(), rctx.load_);
         break;
       }
       case MonitorMode::kReinforceLoad: {
+        monitor_[Method::kCreate].DoTrain();
         break;
       }
     }
@@ -61,17 +68,18 @@ class Server : public Module {
   void Destroy(DestroyTask *task, RunContext &rctx) {
     task->SetModuleComplete();
   }
-  void MonitorDestroy(u32 mode, DestroyTask *task, RunContext &rctx) {
+  void MonitorDestroy(MonitorModeId mode, DestroyTask *task, RunContext &rctx) {
     switch (mode) {
       case MonitorMode::kEstLoad: {
-        rctx.load_.cpu_load_ = monitor_[task->method_].Predict();
+        rctx.load_.cpu_load_ = monitor_[Method::kDestroy].Predict();
         break;
       }
       case MonitorMode::kSampleLoad: {
-        monitor_[task->method_].Add(rctx.timer_.GetNsec());
+        monitor_[Method::kDestroy].Add(rctx.timer_.GetNsec(), rctx.load_);
         break;
       }
       case MonitorMode::kReinforceLoad: {
+        monitor_[Method::kDestroy].DoTrain();
         break;
       }
     }
@@ -83,17 +91,18 @@ class Server : public Module {
     upgrade_count_ = old->upgrade_count_ + 1;
     task->SetModuleComplete();
   }
-  void MonitorUpgrade(u32 mode, UpgradeTask *task, RunContext &rctx) {
+  void MonitorUpgrade(MonitorModeId mode, UpgradeTask *task, RunContext &rctx) {
     switch (mode) {
       case MonitorMode::kEstLoad: {
-        rctx.load_.cpu_load_ = monitor_[task->method_].Predict();
+        rctx.load_.cpu_load_ = monitor_[Method::kUpgrade].Predict();
         break;
       }
       case MonitorMode::kSampleLoad: {
-        monitor_[task->method_].Add(rctx.timer_.GetNsec());
+        monitor_[Method::kUpgrade].Add(rctx.timer_.GetNsec(), rctx.load_);
         break;
       }
       case MonitorMode::kReinforceLoad: {
+        monitor_[Method::kUpgrade].DoTrain();
         break;
       }
     }
@@ -110,17 +119,18 @@ class Server : public Module {
 //          CHI_WORK_ORCHESTRATOR->GetCurrentWorker()->id_);
     task->SetModuleComplete();
   }
-  void MonitorMd(u32 mode, MdTask *task, RunContext &rctx) {
+  void MonitorMd(MonitorModeId mode, MdTask *task, RunContext &rctx) {
     switch (mode) {
       case MonitorMode::kEstLoad: {
-        rctx.load_.cpu_load_ = monitor_[task->method_].Predict();
+        rctx.load_.cpu_load_ = monitor_[Method::kMd].Predict();
         break;
       }
       case MonitorMode::kSampleLoad: {
-        monitor_[task->method_].Add(rctx.timer_.GetNsec());
+        monitor_[Method::kMd].Add(rctx.timer_.GetNsec(), rctx.load_);
         break;
       }
       case MonitorMode::kReinforceLoad: {
+        monitor_[Method::kMd].DoTrain();
         break;
       }
       case MonitorMode::kReplicaAgg: {
@@ -143,7 +153,7 @@ class Server : public Module {
     memset(data, 15, task->size_);
     task->SetModuleComplete();
   }
-  void MonitorIo(u32 mode, IoTask *task, RunContext &rctx) {
+  void MonitorIo(MonitorModeId mode, IoTask *task, RunContext &rctx) {
     switch (mode) {
       case MonitorMode::kEstLoad: {
         rctx.load_.cpu_load_ = monitor_io_.consts_[0] * task->size_;
@@ -152,7 +162,8 @@ class Server : public Module {
       case MonitorMode::kSampleLoad: {
         monitor_io_.Add({(float)task->size_,
                          // (float)rctx.load_.cpu_load_,
-                         (float)rctx.timer_.GetNsec()});
+                         (float)rctx.timer_.GetNsec()},
+                        rctx.load_);
         break;
       }
       case MonitorMode::kReinforceLoad: {

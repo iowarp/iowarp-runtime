@@ -26,7 +26,7 @@ class Server : public Module {
     CreateLaneGroup(0, 1, QUEUE_LOW_LATENCY);
     task->SetModuleComplete();
   }
-  void MonitorCreate(u32 mode, CreateTask *task, RunContext &rctx) {
+  void MonitorCreate(MonitorModeId mode, CreateTask *task, RunContext &rctx) {
   }
 
   /** Route a task to a lane */
@@ -41,14 +41,14 @@ class Server : public Module {
   void Destroy(DestroyTask *task, RunContext &rctx) {
     task->SetModuleComplete();
   }
-  void MonitorDestroy(u32 mode, DestroyTask *task, RunContext &rctx) {
+  void MonitorDestroy(MonitorModeId mode, DestroyTask *task, RunContext &rctx) {
   }
 
   /** A custom method */
   void Custom(CustomTask *task, RunContext &rctx) {
     task->SetModuleComplete();
   }
-  void MonitorCustom(u32 mode, CustomTask *task, RunContext &rctx) {
+  void MonitorCustom(MonitorModeId mode, CustomTask *task, RunContext &rctx) {
     switch (mode) {
       case MonitorMode::kReplicaAgg: {
         std::vector<LPointer<Task>> &replicas = *rctx.replicas_;
