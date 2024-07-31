@@ -6,6 +6,7 @@ pkgs:
     sleep: 10
     do_dbg: true
     dbg_port: 4000
+    monitor_out: '${HOME}/chimonitor'
   - pkg_type: chimaera_unit_tests
     pkg_name: chimaera_unit_tests
     TEST_CASE: TestIO

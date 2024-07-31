@@ -31,7 +31,8 @@ class Model {
       table_[i].resize(max_samples);
     }
     predicted_.resize(max_samples);
-    std::string path = Constants::GetEnvSafe("CHIMAERA_MONITOR");
+    std::string path = Constants::GetEnvSafe("CHIMAERA_MONITOR_OUT");
+    path = hshm::ConfigParse::ExpandPath(path);
     path = hshm::Formatter::format("{}/{}.csv", path, name);
     log_ = std::ofstream(path);
   }
@@ -52,25 +53,28 @@ class Model {
   bool DoTrain() {
     size_t head = head_.load();
     size_t tail = tail_.load();
-    size_t pos = tail - head;
+    size_t nsamples = tail - head;
+    if (nsamples > max_samples_) {
+      nsamples = max_samples_;
+    }
     if (tail < 10) {
       return false;
     }
-    if (pos < 15) {
+    if (nsamples < 15) {
       return false;
     }
-    if (pos * 2 >= max_samples_) {
+    if (nsamples * 2 >= max_samples_) {
       head_ = tail;
     }
     if (log_.is_open()) {
-      for (int row = 0; row < pos; ++row) {
+      for (int row = 0; row < nsamples; ++row) {
         for (int col = 0; col < table_.size(); ++col) {
           log_ << table_[col][row] << ",";
         }
-        log_ << predicted_[pos].cpu_load_ << std::endl;
+        log_ << predicted_[row].cpu_load_ << std::endl;
       }
     }
-    ResizeRows(pos);
+    ResizeRows(nsamples);
     return true;
   }
 

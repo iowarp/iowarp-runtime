@@ -23,7 +23,7 @@ class LeastSquares : public Model, public PyDataWrapper {
              const std::string &model_name) {
     TableShape(name, n_var + n_out, 1000);
     model_name_ = model_name;
-    consts_.resize(n_param);
+    consts_.resize(n_param, 1);
   }
 
   template<typename Ar>

@@ -158,7 +158,7 @@ void Worker::Loop() {
       cur_time_.Refresh();
       iter_count_ += 1;
       if (load_nsec_ == 0) {
-        HERMES_THREAD_MODEL->SleepForUs(500);
+        HERMES_THREAD_MODEL->SleepForUs(200);
       }
     } catch (hshm::Error &e) {
       HELOG(kError, "(node {}) Worker {} caught an error: {}",
@@ -169,9 +169,6 @@ void Worker::Loop() {
     } catch (...) {
       HELOG(kError, "(node {}) Worker {} caught an unknown exception",
             CHI_CLIENT->node_id_, id_);
-    }
-    if (!IsContinuousPolling()) {
-      Yield();
     }
   }
   HILOG(kInfo, "(node {}) Worker {} wrapping up",
@@ -455,6 +452,7 @@ void Worker::ExecTask(PrivateTaskQueue &priv_queue,
   } else {
     ExecCoroutine(task, rctx);
   }
+  load_nsec_ += rctx.load_.cpu_load_ + 1;
   // Deactivate task and monitor
   if (!task->IsStarted()) {
     if (task->ShouldSample()) {
@@ -467,7 +465,6 @@ void Worker::ExecTask(PrivateTaskQueue &priv_queue,
     cur_lane_->load_ -= rctx.load_;
     cur_lane_->num_tasks_ -= 1;
     cur_time_.Tick(rctx.load_.cpu_load_);
-    load_nsec_ += rctx.load_.cpu_load_;
   }
   task->DidRun(cur_time_);
   // Block the task
@@ -687,18 +684,6 @@ void Worker::MakeDedicated() {
   int policy = SCHED_FIFO;
   struct sched_param param = { .sched_priority = 1 };
   sched_setscheduler(0, policy, &param);
-}
-
-/** Worker yields for a period of time */
-void Worker::Yield() {
-  if (flags_.Any(WORKER_CONTINUOUS_POLLING)) {
-    return;
-  }
-  if (sleep_us_ > 0) {
-    HERMES_THREAD_MODEL->SleepForUs(sleep_us_);
-  } else {
-    HERMES_THREAD_MODEL->Yield();
-  }
 }
 
 /** Allocate a stack for a task */

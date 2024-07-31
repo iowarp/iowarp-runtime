@@ -30,7 +30,7 @@ class RollingAverage : public Model {
 
   size_t Predict() {
     if (count_ == 0) {
-      return 1;
+      return MICROSECONDS(1);
     }
     return sum_ / count_;
   }

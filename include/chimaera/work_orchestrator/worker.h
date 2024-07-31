@@ -500,9 +500,6 @@ class Worker {
   /** Make maximum priority process */
   void MakeDedicated();
 
-  /** Worker yields for a period of time */
-  void Yield();
-
   /** Allocate a stack for a task */
   void* AllocateStack();
 

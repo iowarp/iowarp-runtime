@@ -163,6 +163,14 @@ class ChimaeraRun(Service):
                 'default': 5,
                 'class': 'work orchestrator',
                 'rank': 1,
+            },
+            {
+                'name': 'monitor_out',
+                'msg': 'Output of monitoring samples',
+                'type': str,
+                'default': '',
+                'class': 'work orchestrator',
+                'rank': 1,
             }
         ]
 
@@ -211,6 +219,9 @@ class ChimaeraRun(Service):
             'devices': {},
             'rpc': {}
         }
+        if len(self.config['monitor_out']):
+            self.env['CHIMAERA_MONITOR_OUT'] = os.path.expandvars(self.config['monitor_out'])
+            os.makedirs(self.env['CHIMAERA_MONITOR_OUT'], exist_ok=True)
 
         # Get network Info
         if len(self.hostfile) > 1:
