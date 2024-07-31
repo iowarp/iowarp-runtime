@@ -64,23 +64,16 @@ Worker::Worker(u32 id, int cpu_id, ABT_xstream &xstream) {
   config::QueueManagerInfo &qm = CHI_QM_RUNTIME->config_->queue_manager_;
   active_.Init(id_, qm.proc_queue_depth_, qm.queue_depth_, qm.max_containers_pn_);
 
+  // Monitoring phase
+  monitor_gap_ = CHI_WORK_ORCHESTRATOR->monitor_gap_;
+  monitor_window_ = CHI_WORK_ORCHESTRATOR->monitor_window_;
+
   // Spawn threads
   xstream_ = xstream;
   // thread_ = std::make_unique<std::thread>(&Worker::Loop, this);
   // pthread_id_ = thread_->native_handle();
   tl_thread_ = CHI_WORK_ORCHESTRATOR->SpawnAsyncThread(
       xstream_, &Worker::WorkerEntryPoint, this);
-}
-
-/** Constructor without threading */
-Worker::Worker(u32 id) {
-  poll_queues_.Resize(1024);
-  relinquish_queues_.Resize(1024);
-  id_ = id;
-  sleep_us_ = 0;
-  EnableContinuousPolling();
-  pid_ = 0;
-  // pthread_id_ = GetLinuxTid();
 }
 
 /**===============================================================

@@ -25,6 +25,10 @@ void WorkOrchestrator::ServerInit(ServerConfig *config, QueueManager &qm) {
   // Create thread-local storage key
   CreateThreadLocalBlock();
 
+  // Monitoring information
+  monitor_gap_ = config_->wo_.monitor_gap_;
+  monitor_window_ = config_->wo_.monitor_window_;
+
   // Spawn workers on the stream
   size_t num_workers = config_->wo_.max_dworkers_ + config->wo_.max_oworkers_;
   workers_.reserve(num_workers);

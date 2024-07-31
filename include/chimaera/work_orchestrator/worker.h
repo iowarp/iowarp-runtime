@@ -315,7 +315,9 @@ class Worker {
   Lane *cur_lane_ = nullptr;  /** Currently executing lane */
   size_t iter_count_ = 0;   /** Number of iterations the worker has done */
   size_t work_done_ = 0;  /** Amount of work in done (seconds) */
-  bool do_sampling_ = false;
+  bool do_sampling_ = false;  /**< Whether or not to sample */
+  size_t monitor_gap_;    /**< Distance between sampling phases */
+  size_t monitor_window_;  /** Length of sampling phase */
 
 
  public:
@@ -326,28 +328,23 @@ class Worker {
   /** Constructor */
   Worker(u32 id, int cpu_id, ABT_xstream &xstream);
 
-  /** Constructor without threading */
-  Worker(u32 id);
-
   /**===============================================================
    * Run tasks
    * =============================================================== */
 
   /** Check if worker should be sampling */
   bool ShouldSample() {
-    size_t monitor_gap = SECONDS(5);
-    size_t monitor_window = SECONDS(1);
     sample_time_.Wrap(cur_time_);
     if (!do_sampling_) {
       size_t window_time = sample_time_.GetNsecFromStart();
-      if (window_time > monitor_gap) {
+      if (window_time > monitor_gap_) {
         sample_time_.Pause();
         sample_time_.Resume();
         do_sampling_ = true;
       }
     } else {
       size_t sample_time = sample_time_.GetNsecFromStart();
-      if (sample_time > monitor_window) {
+      if (sample_time > monitor_window_) {
         sample_time_.Pause();
         sample_time_.Resume();
         do_sampling_ = false;

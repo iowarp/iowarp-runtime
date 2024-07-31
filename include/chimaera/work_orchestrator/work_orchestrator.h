@@ -42,6 +42,8 @@ class WorkOrchestrator {
   tl::managed<tl::pool> rpc_pool_;  /**< RPC pool */
   TlsKey worker_tls_key_;  /**< Thread-local storage key */
   std::atomic<bool> flushing_ = false;  /**< Flushing in progress */
+  size_t monitor_window_ = 0;  /**< Sampling window */
+  size_t monitor_gap_ = 0;  /**< Monitoring gap */
 
  public:
   /** Default constructor */
