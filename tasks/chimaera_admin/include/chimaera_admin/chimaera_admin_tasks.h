@@ -1,5 +1,5 @@
-#ifndef HRUN_TASKS_CHI_ADMIN_INCLUDE_CHI_ADMIN_CHI_ADMIN_TASKS_H_
-#define HRUN_TASKS_CHI_ADMIN_INCLUDE_CHI_ADMIN_CHI_ADMIN_TASKS_H_
+#ifndef CHI_TASKS_CHI_ADMIN_INCLUDE_CHI_ADMIN_CHI_ADMIN_TASKS_H_
+#define CHI_TASKS_CHI_ADMIN_INCLUDE_CHI_ADMIN_CHI_ADMIN_TASKS_H_
 
 #include "chimaera/work_orchestrator/scheduler.h"
 #include "chimaera/api/chimaera_client.h"
@@ -511,4 +511,4 @@ struct UpdateDomainTask : public Task, TaskFlags<TF_SRL_SYM> {
 
 }  // namespace chi::Admin
 
-#endif  // HRUN_TASKS_CHI_ADMIN_INCLUDE_CHI_ADMIN_CHI_ADMIN_TASKS_H_
+#endif  // CHI_TASKS_CHI_ADMIN_INCLUDE_CHI_ADMIN_CHI_ADMIN_TASKS_H_

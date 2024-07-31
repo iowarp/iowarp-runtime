@@ -28,7 +28,7 @@ void ClientConfig::ParseYAML(YAML::Node &yaml_conf) {
 
 /** Load the default configuration */
 void ClientConfig::LoadDefault() {
-  LoadText(kHrunClientDefaultConfigStr, false);
+  LoadText(kChiDefaultClientConfigStr, false);
 }
 
 }  // namespace chi::config

@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# Build Hrun Admin Task Library
+# Build CHI Admin Task Library
 #------------------------------------------------------------------------------
 add_library(chimaera_admin SHARED
         ${CMAKE_CURRENT_SOURCE_DIR}/chimaera_admin.cc)
@@ -7,7 +7,7 @@ add_dependencies(chimaera_admin ${Chimaera_RUNTIME_DEPS})
 target_link_libraries(chimaera_admin ${Chimaera_RUNTIME_LIBRARIES})
 target_compile_definitions(chimaera_admin PRIVATE ${Chimaera_RUNTIME_DEFINITIONS})
 #------------------------------------------------------------------------------
-# Install Hrun Admin Task Library
+# Install CHI Admin Task Library
 #------------------------------------------------------------------------------
 install(
         TARGETS

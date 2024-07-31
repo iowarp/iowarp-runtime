@@ -10,8 +10,8 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef HRUN_INCLUDE_CHI_WORK_ORCHESTRATOR_SCHEDULER_H_
-#define HRUN_INCLUDE_CHI_WORK_ORCHESTRATOR_SCHEDULER_H_
+#ifndef CHI_INCLUDE_CHI_WORK_ORCHESTRATOR_SCHEDULER_H_
+#define CHI_INCLUDE_CHI_WORK_ORCHESTRATOR_SCHEDULER_H_
 
 #include "chimaera/module_registry/task.h"
 
@@ -53,4 +53,4 @@ struct ScheduleTask : public Task, TaskFlags<TF_LOCAL> {
 
 }  // namespace chi
 
-#endif  // HRUN_INCLUDE_CHI_WORK_ORCHESTRATOR_SCHEDULER_H_
+#endif  // CHI_INCLUDE_CHI_WORK_ORCHESTRATOR_SCHEDULER_H_

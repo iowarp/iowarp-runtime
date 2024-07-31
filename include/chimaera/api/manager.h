@@ -10,8 +10,8 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef HRUN_INCLUDE_HRUN_MANAGER_MANAGER_H_
-#define HRUN_INCLUDE_HRUN_MANAGER_MANAGER_H_
+#ifndef CHI_INCLUDE_CHI_MANAGER_MANAGER_H_
+#define CHI_INCLUDE_CHI_MANAGER_MANAGER_H_
 
 #include "chimaera/chimaera_types.h"
 #include "chimaera/chimaera_constants.h"
@@ -21,7 +21,7 @@
 
 namespace chi {
 
-/** Shared-memory header for HRUN */
+/** Shared-memory header for CHI */
 struct ChiShm {
   NodeId node_id_;
   QueueManagerShm queue_manager_;
@@ -60,13 +60,13 @@ class ConfigurationManager {
   /** Destructor */
   ~ConfigurationManager() {}
 
-  /** Whether or not Hrun is currently being initialized */
+  /** Whether or not CHI is currently being initialized */
   bool IsBeingInitialized() { return is_being_initialized_; }
 
-  /** Whether or not Hrun is initialized */
+  /** Whether or not CHI is initialized */
   bool IsInitialized() { return is_initialized_; }
 
-  /** Whether or not Hrun is finalized */
+  /** Whether or not CHI is finalized */
   bool IsTerminated() { return is_terminated_; }
 
   /** Load the server-side configuration */
@@ -94,4 +94,4 @@ class ConfigurationManager {
 
 }  // namespace chi
 
-#endif  // HRUN_INCLUDE_HRUN_MANAGER_MANAGER_H_
+#endif  // CHI_INCLUDE_CHI_MANAGER_MANAGER_H_

@@ -10,8 +10,8 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef HRUN_INCLUDE_HRUN_TASK_TASK_REGISTRY_H_
-#define HRUN_INCLUDE_HRUN_TASK_TASK_REGISTRY_H_
+#ifndef CHI_INCLUDE_CHI_TASK_TASK_REGISTRY_H_
+#define CHI_INCLUDE_CHI_TASK_TASK_REGISTRY_H_
 
 #include <string>
 #include <cstdlib>
@@ -152,14 +152,14 @@ class ModuleRegistry {
       ld_lib_path = ld_lib_path_env;
     }
 
-    // Load the HRUN_TASK_PATH variable
+    // Load the CHI_TASK_PATH variable
     std::string hermes_lib_path;
-    auto hermes_lib_path_env = getenv("HRUN_TASK_PATH");
+    auto hermes_lib_path_env = getenv("CHI_TASK_PATH");
     if (hermes_lib_path_env) {
       hermes_lib_path = hermes_lib_path_env;
     }
 
-    // Combine LD_LIBRARY_PATH and HRUN_TASK_PATH
+    // Combine LD_LIBRARY_PATH and CHI_TASK_PATH
     std::string paths = hermes_lib_path + ":" + ld_lib_path;
     std::stringstream ss(paths);
     std::string lib_dir;
@@ -463,4 +463,4 @@ class ModuleRegistry {
   hshm::Singleton<chi::ModuleRegistry>::GetInstance()
 }  // namespace chi
 
-#endif  // HRUN_INCLUDE_HRUN_TASK_TASK_REGISTRY_H_
+#endif  // CHI_INCLUDE_CHI_TASK_TASK_REGISTRY_H_

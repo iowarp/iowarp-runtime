@@ -2,8 +2,8 @@
 // Created by lukemartinlogan on 6/29/23.
 //
 
-#ifndef HRUN_worch_queue_round_robin_H_
-#define HRUN_worch_queue_round_robin_H_
+#ifndef CHI_worch_queue_round_robin_H_
+#define CHI_worch_queue_round_robin_H_
 
 #include "worch_queue_round_robin_tasks.h"
 
@@ -50,4 +50,4 @@ class Client : public ModuleClient {
 
 }  // namespace chi
 
-#endif  // HRUN_worch_queue_round_robin_H_
+#endif  // CHI_worch_queue_round_robin_H_

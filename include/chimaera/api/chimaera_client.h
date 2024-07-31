@@ -10,8 +10,8 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef HRUN_INCLUDE_CHI_CLIENT_CHI_CLIENT_H_
-#define HRUN_INCLUDE_CHI_CLIENT_CHI_CLIENT_H_
+#ifndef CHI_INCLUDE_CHI_CLIENT_CHI_CLIENT_H_
+#define CHI_INCLUDE_CHI_CLIENT_CHI_CLIENT_H_
 
 #include "chimaera_client_defn.h"
 
@@ -100,4 +100,4 @@ void Client::ScheduleTaskRuntime(Task *parent_task,
 
 }  // namespace chi
 
-#endif  // HRUN_INCLUDE_CHI_CLIENT_CHI_CLIENT_H_
+#endif  // CHI_INCLUDE_CHI_CLIENT_CHI_CLIENT_H_

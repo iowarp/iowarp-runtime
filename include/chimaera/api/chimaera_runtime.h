@@ -10,8 +10,8 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef HRUN_INCLUDE_CHI_CLIENT_HRUN_SERVER_H_
-#define HRUN_INCLUDE_CHI_CLIENT_HRUN_SERVER_H_
+#ifndef CHI_INCLUDE_CHI_CLIENT_CHI_SERVER_H_
+#define CHI_INCLUDE_CHI_CLIENT_CHI_SERVER_H_
 
 #include "chimaera/module_registry/module_registry.h"
 #include "chimaera/work_orchestrator/work_orchestrator.h"
@@ -28,11 +28,6 @@
 #define CHI_RUNTIME_T chi::Runtime*
 #define CHI_REMOTE_QUEUE (&CHI_RUNTIME->remote_queue_)
 #define CHI_THALLIUM (&CHI_RUNTIME->thallium_)
-
-#define HRUN_RUNTIME CHI_RUNTIME
-#define HRUN_RUNTIME_T CHI_RUNTIME_T
-#define HRUN_REMOTE_QUEUE CHI_REMOTE_QUEUE
-#define HRUN_THALLIUM CHI_THALLIUM
 
 namespace chi {
 
@@ -75,4 +70,4 @@ class Runtime : public ConfigurationManager {
 
 }  // namespace chi
 
-#endif  // HRUN_INCLUDE_CHI_CLIENT_HRUN_SERVER_H_
+#endif  // CHI_INCLUDE_CHI_CLIENT_CHI_SERVER_H_

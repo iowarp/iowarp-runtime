@@ -32,6 +32,12 @@ void ServerConfig::ParseWorkOrchestrator(YAML::Node yaml_conf) {
   if (yaml_conf["owork_per_core"]) {
     wo_.owork_per_core_ = yaml_conf["owork_per_core"].as<size_t>();
   }
+  if (yaml_conf["monitor_gap"]) {
+    wo_.monitor_gap_ = yaml_conf["monitor_gap"].as<size_t>();
+  }
+  if (yaml_conf["monitor_window"]) {
+    wo_.monitor_window_ = yaml_conf["monitor_window"].as<size_t>();
+  }
 }
 
 /** parse work orchestrator info from YAML config */
@@ -123,7 +129,7 @@ void ServerConfig::ParseYAML(YAML::Node &yaml_conf) {
 
 /** Load the default configuration */
 void ServerConfig::LoadDefault() {
-  LoadText(kHrunServerDefaultConfigStr, false);
+  LoadText(kChiServerDefaultConfigStr, false);
 }
 
 }  // namespace chi::config

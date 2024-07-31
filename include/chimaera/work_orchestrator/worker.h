@@ -307,6 +307,7 @@ class Worker {
   PrivateTaskMultiQueue
       active_;  /** Tasks pending to complete */
   CacheTimer cur_time_;  /**< The current timepoint */
+  CacheTimer sample_time_;
   WorkPending flush_;    /**< Info needed for flushing ops */
   float load_ = 0;  /** Load (# of ingress queues) */
   size_t load_nsec_ = 0;      /** Load (nanoseconds) */
@@ -314,8 +315,7 @@ class Worker {
   Lane *cur_lane_ = nullptr;  /** Currently executing lane */
   size_t iter_count_ = 0;   /** Number of iterations the worker has done */
   size_t work_done_ = 0;  /** Amount of work in done (seconds) */
-  bool reinforce_epoch_ = false;
-  size_t cur_sample_ = 0;
+  bool do_sampling_ = false;
 
 
  public:
@@ -335,26 +335,25 @@ class Worker {
 
   /** Check if worker should be sampling */
   bool ShouldSample() {
-    size_t sample_rate = SECONDS(5);
-    size_t sample_window = SECONDS(1);
-    size_t begin_sample = work_done_ % sample_rate;
-    if (!reinforce_epoch_) {
-      if (begin_sample > cur_sample_) {
-        cur_sample_ = begin_sample;
-        reinforce_epoch_ = true;
-        return true;
-      } else {
-        return false;
+    size_t monitor_gap = SECONDS(5);
+    size_t monitor_window = SECONDS(1);
+    sample_time_.Wrap(cur_time_);
+    if (!do_sampling_) {
+      size_t window_time = sample_time_.GetNsecFromStart();
+      if (window_time > monitor_gap) {
+        sample_time_.Pause();
+        sample_time_.Resume();
+        do_sampling_ = true;
       }
     } else {
-      if (work_done_ < begin_sample * sample_rate + sample_window) {
-        return true;
-      } else {
-        cur_sample_ += 1;
-        reinforce_epoch_ = false;
-        return false;
+      size_t sample_time = sample_time_.GetNsecFromStart();
+      if (sample_time > monitor_window) {
+        sample_time_.Pause();
+        sample_time_.Resume();
+        do_sampling_ = false;
       }
     }
+    return do_sampling_;
   }
 
   /** Worker entrypoint */

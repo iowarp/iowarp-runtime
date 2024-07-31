@@ -10,8 +10,8 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef HRUN_INCLUDE_HRUN_NETWORK_SERIALIZE_DEFN_H_
-#define HRUN_INCLUDE_HRUN_NETWORK_SERIALIZE_DEFN_H_
+#ifndef CHI_INCLUDE_CHI_NETWORK_SERIALIZE_DEFN_H_
+#define CHI_INCLUDE_CHI_NETWORK_SERIALIZE_DEFN_H_
 
 #include "chimaera/chimaera_types.h"
 #include "chimaera/module_registry/task.h"
@@ -370,4 +370,4 @@ class BinaryInputArchive {
 
 }  // namespace chi
 
-#endif  // HRUN_INCLUDE_HRUN_NETWORK_SERIALIZE_DEFN_H_
+#endif  // CHI_INCLUDE_CHI_NETWORK_SERIALIZE_DEFN_H_

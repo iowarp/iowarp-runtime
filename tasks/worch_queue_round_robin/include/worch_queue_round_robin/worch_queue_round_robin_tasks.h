@@ -2,8 +2,8 @@
 // Created by lukemartinlogan on 8/14/23.
 //
 
-#ifndef HRUN_WORCH_QUEUE_ROUND_ROBIN_TASKS_H_
-#define HRUN_WORCH_QUEUE_ROUND_ROBIN_TASKS_H_
+#ifndef CHI_WORCH_QUEUE_ROUND_ROBIN_TASKS_H_
+#define CHI_WORCH_QUEUE_ROUND_ROBIN_TASKS_H_
 
 #include "chimaera/api/chimaera_client.h"
 #include "chimaera/module_registry/module.h"
@@ -67,4 +67,4 @@ typedef chi::Admin::DestroyContainerTask DestroyTask;
 
 }  // namespace chi::worch_queue_round_robin
 
-#endif  // HRUN_WORCH_QUEUE_ROUND_ROBIN_TASKS_H_
+#endif  // CHI_WORCH_QUEUE_ROUND_ROBIN_TASKS_H_

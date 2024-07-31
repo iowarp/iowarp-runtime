@@ -2,8 +2,8 @@
 // Created by llogan on 7/1/23.
 //
 
-#ifndef HRUN_INCLUDE_HRUN_QUEUE_MANAGER_HSHM_QUEUE_H_
-#define HRUN_INCLUDE_HRUN_QUEUE_MANAGER_HSHM_QUEUE_H_
+#ifndef CHI_INCLUDE_CHI_QUEUE_MANAGER_HSHM_QUEUE_H_
+#define CHI_INCLUDE_CHI_QUEUE_MANAGER_HSHM_QUEUE_H_
 
 #include "chimaera/queue_manager/queue.h"
 #include "mpsc_queue.h"
@@ -366,4 +366,4 @@ struct MultiQueue : public hipc::ShmContainer {
 }  // namespace chi::ingress
 
 
-#endif  // HRUN_INCLUDE_HRUN_QUEUE_MANAGER_HSHM_QUEUE_H_
+#endif  // CHI_INCLUDE_CHI_QUEUE_MANAGER_HSHM_QUEUE_H_

@@ -129,7 +129,7 @@ class ChimaeraRun(Service):
                 'msg': 'The number of core-dedicated workers',
                 'type': int,
                 'default': 2,
-                'class': 'queuing',
+                'class': 'work orchestrator',
                 'rank': 1,
             },
             {
@@ -137,7 +137,7 @@ class ChimaeraRun(Service):
                 'msg': 'The number of overlapping workers',
                 'type': int,
                 'default': 4,
-                'class': 'queuing',
+                'class': 'work orchestrator',
                 'rank': 1,
             },
             {
@@ -145,9 +145,25 @@ class ChimaeraRun(Service):
                 'msg': 'Overlapping workers per core',
                 'type': int,
                 'default': 32,
-                'class': 'queuing',
+                'class': 'work orchestrator',
                 'rank': 1,
             },
+            {
+                'name': 'monitor_window',
+                'msg': 'Amount of time to sample task models (seconds)',
+                'type': int,
+                'default': 1,
+                'class': 'work orchestrator',
+                'rank': 1,
+            },
+            {
+                'name': 'monitor_gap',
+                'msg': 'Distance between monitoring phases (seconds)',
+                'type': int,
+                'default': 5,
+                'class': 'work orchestrator',
+                'rank': 1,
+            }
         ]
 
     def get_hostfile(self):
@@ -178,6 +194,8 @@ class ChimaeraRun(Service):
                 'max_dworkers': self.config['dworkers'],
                 'max_oworkers': self.config['oworkers'],
                 'oworkers_per_core': self.config['oworkers_per_core'],
+                'monitor_window': self.config['monitor_window'],
+                'monitor_gap': self.config['monitor_gap']
             },
             'queue_manager': {
                 'queue_depth': self.config['qdepth'],

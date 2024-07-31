@@ -6,8 +6,8 @@ USAGE:
     python3 make_config.py
 
 OUTPUT:
-    ${HRUN}/src/config_client_default.h (if client)
-    ${HRUN}/src/config_server_default.h (if server)
+    ${CHI}/src/config_client_default.h (if client)
+    ${CHI}/src/config_server_default.h (if server)
 """
 
 from codegen.chimaera_config.generator import create_config
@@ -15,14 +15,14 @@ from codegen.util.paths import CHIMEARA_ROOT
 
 create_config(
     path=f"{CHIMEARA_ROOT}/config/chimaera_client_default.yaml",
-    var_name="kHrunClientDefaultConfigStr",
+    var_name="kChiDefaultClientConfigStr",
     config_path=f"{CHIMEARA_ROOT}/include/chimaera/config/config_client_default.h",
     macro_name="CHI_CLIENT"
 )
 
 create_config(
     path=f"{CHIMEARA_ROOT}/config/chimaera_server_default.yaml",
-    var_name="kHrunServerDefaultConfigStr",
+    var_name="kChiServerDefaultConfigStr",
     config_path=f"{CHIMEARA_ROOT}/include/chimaera/config/config_server_default.h",
-    macro_name="HRUN_SERVER"
+    macro_name="CHI_SERVER"
 )

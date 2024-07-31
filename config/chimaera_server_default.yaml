@@ -6,6 +6,10 @@ work_orchestrator:
   max_oworkers: 4
   # The max number of total dedicated cores
   owork_per_core: 32
+  # Monitoring window (seconds)
+  monitor_window: 1
+  # Monitoring gap (seconds)
+  monitor_gap: 5
 
 ### Queue Manager settings
 queue_manager:

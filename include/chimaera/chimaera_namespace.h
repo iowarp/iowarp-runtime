@@ -10,8 +10,8 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef HRUN_INCLUDE_HRUN_HRUN_NAMESPACE_H_
-#define HRUN_INCLUDE_HRUN_HRUN_NAMESPACE_H_
+#ifndef CHI_INCLUDE_CHI_CHI_NAMESPACE_H_
+#define CHI_INCLUDE_CHI_CHI_NAMESPACE_H_
 
 #include "chimaera/api/chimaera_client.h"
 #include "chimaera/module_registry/module.h"
@@ -47,4 +47,4 @@ using hshm::ScopedRwReadLock;
 using hshm::ScopedRwWriteLock;
 using hipc::LPointer;
 
-#endif  // HRUN_INCLUDE_HRUN_HRUN_NAMESPACE_H_
+#endif  // CHI_INCLUDE_CHI_CHI_NAMESPACE_H_

@@ -2,8 +2,8 @@
 // Created by lukemartinlogan on 6/29/23.
 //
 
-#ifndef HRUN_small_message_H_
-#define HRUN_small_message_H_
+#ifndef CHI_small_message_H_
+#define CHI_small_message_H_
 
 #include "small_message_tasks.h"
 
@@ -91,4 +91,4 @@ class Client : public ModuleClient {
 
 }  // namespace chi
 
-#endif  // HRUN_small_message_H_
+#endif  // CHI_small_message_H_

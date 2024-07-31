@@ -10,8 +10,8 @@
 * have access to the file, you may request a copy from help@hdfgroup.org.   *
 * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef HRUN_INCLUDE_HRUN_DATA_STRUCTURES_IPC_mpsc_queue_H_
-#define HRUN_INCLUDE_HRUN_DATA_STRUCTURES_IPC_mpsc_queue_H_
+#ifndef CHI_INCLUDE_CHI_DATA_STRUCTURES_IPC_mpsc_queue_H_
+#define CHI_INCLUDE_CHI_DATA_STRUCTURES_IPC_mpsc_queue_H_
 
 #include "hermes_shm/data_structures/ipc/internal/shm_internal.h"
 #include "hermes_shm/thread/lock.h"
@@ -307,4 +307,4 @@ class mpsc_queue : public ShmContainer {
 #undef TYPED_CLASS
 #undef TYPED_HEADER
 
-#endif  // HRUN_INCLUDE_HRUN_DATA_STRUCTURES_IPC_mpsc_queue_H_
+#endif  // CHI_INCLUDE_CHI_DATA_STRUCTURES_IPC_mpsc_queue_H_

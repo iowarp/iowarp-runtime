@@ -1,5 +1,5 @@
-#ifndef HRUN_TASKS_CHI_ADMIN_CHI_ADMIN_H_
-#define HRUN_TASKS_CHI_ADMIN_CHI_ADMIN_H_
+#ifndef CHI_TASKS_CHI_ADMIN_CHI_ADMIN_H_
+#define CHI_TASKS_CHI_ADMIN_CHI_ADMIN_H_
 
 #include "chimaera_admin_tasks.h"
 
@@ -241,4 +241,4 @@ class Client : public ModuleClient {
 #define CHI_ADMIN \
   hshm::EasySingleton<chi::Admin::Client>::GetInstance()
 
-#endif  // HRUN_TASKS_CHI_ADMIN_CHI_ADMIN_H_
+#endif  // CHI_TASKS_CHI_ADMIN_CHI_ADMIN_H_

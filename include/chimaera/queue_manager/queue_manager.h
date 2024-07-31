@@ -10,8 +10,8 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef HRUN_INCLUDE_HRUN_QUEUE_MANAGER_QUEUE_MANAGER_H_
-#define HRUN_INCLUDE_HRUN_QUEUE_MANAGER_QUEUE_MANAGER_H_
+#ifndef CHI_INCLUDE_CHI_QUEUE_MANAGER_QUEUE_MANAGER_H_
+#define CHI_INCLUDE_CHI_QUEUE_MANAGER_QUEUE_MANAGER_H_
 
 #include "chimaera/config/config_server.h"
 #include "chimaera/chimaera_types.h"
@@ -54,4 +54,4 @@ class QueueManager {
 
 }  // namespace chi
 
-#endif  // HRUN_INCLUDE_HRUN_QUEUE_MANAGER_QUEUE_MANAGER_H_
+#endif  // CHI_INCLUDE_CHI_QUEUE_MANAGER_QUEUE_MANAGER_H_

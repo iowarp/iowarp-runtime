@@ -10,8 +10,8 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef HRUN_INCLUDE_HRUN_NETWORK_LOCAL_SERIALIZE_H_
-#define HRUN_INCLUDE_HRUN_NETWORK_LOCAL_SERIALIZE_H_
+#ifndef CHI_INCLUDE_CHI_NETWORK_LOCAL_SERIALIZE_H_
+#define CHI_INCLUDE_CHI_NETWORK_LOCAL_SERIALIZE_H_
 
 #include "hermes_shm/data_structures/data_structure.h"
 
@@ -106,4 +106,4 @@ class LocalDeserialize {
 
 }  // namespace chi
 
-#endif  // HRUN_INCLUDE_HRUN_NETWORK_LOCAL_SERIALIZE_H_
+#endif  // CHI_INCLUDE_CHI_NETWORK_LOCAL_SERIALIZE_H_

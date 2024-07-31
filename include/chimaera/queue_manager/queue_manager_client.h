@@ -10,8 +10,8 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef HRUN_INCLUDE_HRUN_QUEUE_MANAGER_QUEUE_MANAGER_CLIENT_H_
-#define HRUN_INCLUDE_HRUN_QUEUE_MANAGER_QUEUE_MANAGER_CLIENT_H_
+#ifndef CHI_INCLUDE_CHI_QUEUE_MANAGER_QUEUE_MANAGER_CLIENT_H_
+#define CHI_INCLUDE_CHI_QUEUE_MANAGER_QUEUE_MANAGER_CLIENT_H_
 
 #include "queue_manager.h"
 
@@ -19,7 +19,6 @@ namespace chi {
 
 #define CHI_QM_CLIENT \
   (&CHI_CLIENT->queue_manager_)
-#define HRUN_QM_CLIENT CHI_QM_CLIENT
 
 /** Enable client programs to access queues */
 class QueueManagerClient : public QueueManager {
@@ -43,4 +42,4 @@ class QueueManagerClient : public QueueManager {
 
 }  // namespace chi
 
-#endif  // HRUN_INCLUDE_HRUN_QUEUE_MANAGER_QUEUE_MANAGER_CLIENT_H_
+#endif  // CHI_INCLUDE_CHI_QUEUE_MANAGER_QUEUE_MANAGER_CLIENT_H_

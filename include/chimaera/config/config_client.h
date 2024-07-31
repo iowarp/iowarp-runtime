@@ -10,8 +10,8 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef HRUN_SRC_CONFIG_CLIENT_H_
-#define HRUN_SRC_CONFIG_CLIENT_H_
+#ifndef CHI_SRC_CONFIG_CLIENT_H_
+#define CHI_SRC_CONFIG_CLIENT_H_
 
 #include <filesystem>
 #include "config.h"
@@ -39,4 +39,4 @@ namespace chi {
 using ClientConfig = config::ClientConfig;
 }  // namespace chi
 
-#endif  // HRUN_SRC_CONFIG_CLIENT_H_
+#endif  // CHI_SRC_CONFIG_CLIENT_H_

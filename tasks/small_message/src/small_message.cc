@@ -151,7 +151,7 @@ class Server : public Module {
       }
       case MonitorMode::kSampleLoad: {
         monitor_io_.Add({(float)task->size_,
-                         (float)rctx.load_.cpu_load_,
+                         // (float)rctx.load_.cpu_load_,
                          (float)rctx.timer_.GetNsec()});
         break;
       }

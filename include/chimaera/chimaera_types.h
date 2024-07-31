@@ -10,8 +10,8 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef HRUN_INCLUDE_HRUN_HRUN_TYPES_H_
-#define HRUN_INCLUDE_HRUN_HRUN_TYPES_H_
+#ifndef CHI_INCLUDE_CHI_CHI_TYPES_H_
+#define CHI_INCLUDE_CHI_CHI_TYPES_H_
 
 #include <cereal/archives/binary.hpp>
 #include <cereal/types/vector.hpp>
@@ -850,6 +850,10 @@ class CacheTimer {
     timer_.Now();
   }
 
+  void Wrap(CacheTimer &other) {
+    cur_ns_ = other.cur_ns_;
+  }
+
   void Refresh() {
     cur_ns_ = timer_.GetNsecFromStart();
   }
@@ -859,7 +863,7 @@ class CacheTimer {
   }
 
   size_t GetNsecFromStart() {
-    return cur_ns_;
+    return cur_ns_ - start_ns_;
   }
 
   size_t GetNsecFromStart(size_t start) {
@@ -930,4 +934,4 @@ struct hash<chi::DomainQuery> {
 
 }  // namespace std
 
-#endif  // HRUN_INCLUDE_HRUN_HRUN_TYPES_H_
+#endif  // CHI_INCLUDE_CHI_CHI_TYPES_H_

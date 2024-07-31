@@ -10,8 +10,8 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef HRUN_INCLUDE_HRUN_TASK_TASK_H_
-#define HRUN_INCLUDE_HRUN_TASK_TASK_H_
+#ifndef CHI_INCLUDE_CHI_TASK_TASK_H_
+#define CHI_INCLUDE_CHI_TASK_TASK_H_
 
 #include <dlfcn.h>
 #include "chimaera/chimaera_types.h"
@@ -273,4 +273,4 @@ typedef const char* (*get_module_name_t)(void);
 
 }   // namespace chi
 
-#endif  // HRUN_INCLUDE_HRUN_TASK_TASK_H_
+#endif  // CHI_INCLUDE_CHI_TASK_TASK_H_

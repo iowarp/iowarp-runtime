@@ -10,8 +10,8 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef HRUN_INCLUDE_HRUN_NETWORK_SERIALIZE_H_
-#define HRUN_INCLUDE_HRUN_NETWORK_SERIALIZE_H_
+#ifndef CHI_INCLUDE_CHI_NETWORK_SERIALIZE_H_
+#define CHI_INCLUDE_CHI_NETWORK_SERIALIZE_H_
 
 #include "serialize_defn.h"
 #include "chimaera/api/chimaera_client.h"
@@ -31,4 +31,4 @@ void SegmentedTransfer::AllocateSegmentsServer() {
 
 }  // namespace chi
 
-#endif  // HRUN_INCLUDE_HRUN_NETWORK_SERIALIZE_H_
+#endif  // CHI_INCLUDE_CHI_NETWORK_SERIALIZE_H_

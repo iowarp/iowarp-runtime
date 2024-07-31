@@ -10,8 +10,8 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef HRUN_SRC_CONFIG_H_
-#define HRUN_SRC_CONFIG_H_
+#ifndef CHI_SRC_CONFIG_H_
+#define CHI_SRC_CONFIG_H_
 
 #include <string.h>
 #include <yaml-cpp/yaml.h>
@@ -76,4 +76,4 @@ class BaseConfig {
 
 }  // namespace chi::config
 
-#endif  // HRUN_SRC_CONFIG_H_
+#endif  // CHI_SRC_CONFIG_H_

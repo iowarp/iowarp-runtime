@@ -10,8 +10,8 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef HRUN_INCLUDE_HRUN_HRUN_CONSTANTS_H_
-#define HRUN_INCLUDE_HRUN_HRUN_CONSTANTS_H_
+#ifndef CHI_INCLUDE_CHI_CHI_CONSTANTS_H_
+#define CHI_INCLUDE_CHI_CHI_CONSTANTS_H_
 
 namespace chi {
 
@@ -37,4 +37,4 @@ class Constants {
 
 }  // namespace chi
 
-#endif  // HRUN_INCLUDE_HRUN_HRUN_CONSTANTS_H_
+#endif  // CHI_INCLUDE_CHI_CHI_CONSTANTS_H_

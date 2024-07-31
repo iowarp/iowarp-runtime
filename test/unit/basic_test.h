@@ -10,8 +10,8 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef HRUN_TEST_UNIT_BASIC_TEST_H_
-#define HRUN_TEST_UNIT_BASIC_TEST_H_
+#ifndef CHI_TEST_UNIT_BASIC_TEST_H_
+#define CHI_TEST_UNIT_BASIC_TEST_H_
 
 #define CATCH_CONFIG_RUNNER
 #include <catch2/catch_all.hpp>
@@ -48,4 +48,4 @@ static inline bool CompareBuffers(char *p1, size_t s1, char *p2, size_t s2,
 
 #define PAGE_DIVIDE(TEXT)
 
-#endif  // HRUN_TEST_UNIT_BASIC_TEST_H_
+#endif  // CHI_TEST_UNIT_BASIC_TEST_H_

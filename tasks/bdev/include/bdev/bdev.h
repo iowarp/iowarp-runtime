@@ -10,8 +10,8 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef HRUN_bdev_H_
-#define HRUN_bdev_H_
+#ifndef CHI_bdev_H_
+#define CHI_bdev_H_
 
 #include "bdev_tasks.h"
 
@@ -150,4 +150,4 @@ class Client : public ModuleClient {
 
 }  // namespace chi
 
-#endif  // HRUN_bdev_H_
+#endif  // CHI_bdev_H_

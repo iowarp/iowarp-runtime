@@ -10,9 +10,9 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef HRUN_INCLUDE_HRUN_QUEUE_MANAGER_QUEUE_FACTORY_H_
-#define HRUN_INCLUDE_HRUN_QUEUE_MANAGER_QUEUE_FACTORY_H_
+#ifndef CHI_INCLUDE_CHI_QUEUE_MANAGER_QUEUE_FACTORY_H_
+#define CHI_INCLUDE_CHI_QUEUE_MANAGER_QUEUE_FACTORY_H_
 
 #include "queues/hshm_queue.h"
 
-#endif  // HRUN_INCLUDE_HRUN_QUEUE_MANAGER_QUEUE_FACTORY_H_
+#endif  // CHI_INCLUDE_CHI_QUEUE_MANAGER_QUEUE_FACTORY_H_

@@ -10,8 +10,8 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef HRUN_SRC_CONFIG_SERVER_H_
-#define HRUN_SRC_CONFIG_SERVER_H_
+#ifndef CHI_SRC_CONFIG_SERVER_H_
+#define CHI_SRC_CONFIG_SERVER_H_
 
 #include "config.h"
 #include "chimaera/chimaera_types.h"
@@ -28,6 +28,10 @@ struct WorkOrchestratorInfo {
   size_t max_oworkers_;
   /** Overlapped workers per core */
   size_t owork_per_core_;
+  /** Monitoring gap */
+  size_t monitor_gap_;
+  /** Monitoring window */
+  size_t monitor_window_;
 };
 
 /**
@@ -107,4 +111,4 @@ namespace chi {
 using ServerConfig = config::ServerConfig;
 }  // namespace chi
 
-#endif  // HRUN_SRC_CONFIG_SERVER_H_
+#endif  // CHI_SRC_CONFIG_SERVER_H_

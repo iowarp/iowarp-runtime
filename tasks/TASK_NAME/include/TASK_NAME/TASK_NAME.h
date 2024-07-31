@@ -10,8 +10,8 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef HRUN_TASK_NAME_H_
-#define HRUN_TASK_NAME_H_
+#ifndef CHI_TASK_NAME_H_
+#define CHI_TASK_NAME_H_
 
 #include "TASK_NAME_tasks.h"
 
@@ -73,4 +73,4 @@ class Client : public ModuleClient {
 
 }  // namespace chi
 
-#endif  // HRUN_TASK_NAME_H_
+#endif  // CHI_TASK_NAME_H_

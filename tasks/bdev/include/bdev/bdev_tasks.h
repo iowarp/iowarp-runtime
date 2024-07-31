@@ -2,8 +2,8 @@
 // Created by lukemartinlogan on 8/11/23.
 //
 
-#ifndef HRUN_TASKS_TASK_TEMPL_INCLUDE_bdev_bdev_TASKS_H_
-#define HRUN_TASKS_TASK_TEMPL_INCLUDE_bdev_bdev_TASKS_H_
+#ifndef CHI_TASKS_TASK_TEMPL_INCLUDE_bdev_bdev_TASKS_H_
+#define CHI_TASKS_TASK_TEMPL_INCLUDE_bdev_bdev_TASKS_H_
 
 #include "chimaera/api/chimaera_client.h"
 #include "chimaera/module_registry/module.h"
@@ -293,4 +293,4 @@ struct ReadTask : public Task, TaskFlags<TF_SRL_SYM> {
 
 }  // namespace chi::bdev
 
-#endif  // HRUN_TASKS_TASK_TEMPL_INCLUDE_bdev_bdev_TASKS_H_
+#endif  // CHI_TASKS_TASK_TEMPL_INCLUDE_bdev_bdev_TASKS_H_

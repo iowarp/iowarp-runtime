@@ -1,6 +1,6 @@
-#ifndef HRUN_SRC_CONFIG_HRUN_SERVER_DEFAULT_H_
-#define HRUN_SRC_CONFIG_HRUN_SERVER_DEFAULT_H_
-const inline char* kHrunServerDefaultConfigStr = 
+#ifndef CHI_SRC_CONFIG_CHI_SERVER_DEFAULT_H_
+#define CHI_SRC_CONFIG_CHI_SERVER_DEFAULT_H_
+const inline char* kChiServerDefaultConfigStr = 
 "### Runtime orchestration settings\n"
 "work_orchestrator:\n"
 "  # The max number of dedicated worker threads\n"
@@ -9,6 +9,10 @@ const inline char* kHrunServerDefaultConfigStr =
 "  max_oworkers: 4\n"
 "  # The max number of total dedicated cores\n"
 "  owork_per_core: 32\n"
+"  # Monitoring window (seconds)\n"
+"  monitor_window: 1\n"
+"  # Monitoring gap (seconds)\n"
+"  monitor_gap: 5\n"
 "\n"
 "### Queue Manager settings\n"
 "queue_manager:\n"
@@ -60,4 +64,4 @@ const inline char* kHrunServerDefaultConfigStr =
 "### Task Registry\n"
 "module_registry: [\n"
 "]\n";
-#endif  // HRUN_SRC_CONFIG_HRUN_SERVER_DEFAULT_H_
+#endif  // CHI_SRC_CONFIG_CHI_SERVER_DEFAULT_H_

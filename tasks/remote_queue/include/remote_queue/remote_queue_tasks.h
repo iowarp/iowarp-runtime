@@ -2,8 +2,8 @@
 // Created by lukemartinlogan on 8/14/23.
 //
 
-#ifndef HRUN_TASKS_REMOTE_QUEUE_INCLUDE_REMOTE_QUEUE_REMOTE_QUEUE_TASKS_H_
-#define HRUN_TASKS_REMOTE_QUEUE_INCLUDE_REMOTE_QUEUE_REMOTE_QUEUE_TASKS_H_
+#ifndef CHI_TASKS_REMOTE_QUEUE_INCLUDE_REMOTE_QUEUE_REMOTE_QUEUE_TASKS_H_
+#define CHI_TASKS_REMOTE_QUEUE_INCLUDE_REMOTE_QUEUE_REMOTE_QUEUE_TASKS_H_
 
 #include "chimaera/api/chimaera_client.h"
 #include "chimaera/module_registry/module.h"
@@ -165,4 +165,4 @@ struct ServerCompleteTask : public Task, TaskFlags<TF_LOCAL> {
 
 } // namespace chi::remote_queue
 
-#endif //HRUN_TASKS_REMOTE_QUEUE_INCLUDE_REMOTE_QUEUE_REMOTE_QUEUE_TASKS_H_
+#endif //CHI_TASKS_REMOTE_QUEUE_INCLUDE_REMOTE_QUEUE_REMOTE_QUEUE_TASKS_H_

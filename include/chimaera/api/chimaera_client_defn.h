@@ -10,8 +10,8 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef HRUN_INCLUDE_CHI_CLIENT_CHI_CLIENT_DEFN_H_
-#define HRUN_INCLUDE_CHI_CLIENT_CHI_CLIENT_DEFN_H_
+#ifndef CHI_INCLUDE_CHI_CLIENT_CHI_CLIENT_DEFN_H_
+#define CHI_INCLUDE_CHI_CLIENT_CHI_CLIENT_DEFN_H_
 
 #include <string>
 #include "manager.h"
@@ -25,8 +25,6 @@
 // Singleton macros
 #define CHI_CLIENT hshm::Singleton<chi::Client>::GetInstance()
 #define CHI_CLIENT_T chi::Client*
-#define HRUN_CLIENT CHI_CLIENT
-#define HRUN_CLIENT_T CHI_CLIENT_T
 
 namespace chi {
 
@@ -404,4 +402,4 @@ static inline bool CHIMAERA_CLIENT_INIT() {
 
 #define HASH_TO_NODE_ID(hash) (1 + ((hash) % CHI_CLIENT->GetNumNodes()))
 
-#endif  // HRUN_INCLUDE_CHI_CLIENT_CHI_CLIENT_DEFN_H_
+#endif  // CHI_INCLUDE_CHI_CLIENT_CHI_CLIENT_DEFN_H_

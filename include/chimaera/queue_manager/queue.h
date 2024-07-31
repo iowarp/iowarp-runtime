@@ -10,8 +10,8 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef HRUN_INCLUDE_HRUN_QUEUE_MANAGER_QUEUE_H_
-#define HRUN_INCLUDE_HRUN_QUEUE_MANAGER_QUEUE_H_
+#ifndef CHI_INCLUDE_CHI_QUEUE_MANAGER_QUEUE_H_
+#define CHI_INCLUDE_CHI_QUEUE_MANAGER_QUEUE_H_
 
 #include "chimaera/chimaera_types.h"
 #include "chimaera/module_registry/task.h"
@@ -134,4 +134,4 @@ class MultiQueueT;
 
 }  // chi::ingress
 
-#endif  // HRUN_INCLUDE_HRUN_QUEUE_MANAGER_QUEUE_H_
+#endif  // CHI_INCLUDE_CHI_QUEUE_MANAGER_QUEUE_H_

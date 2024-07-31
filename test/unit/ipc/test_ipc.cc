@@ -305,8 +305,8 @@ TEST_CASE("TestPython") {
 
 // TEST_CASE("TestHostfile") {
 //  for (NodeId cont_id = 1; node_id <
-//  HRUN_THALLIUM->rpc_->hosts_.size() + 1; ++node_id) {
+//  CHI_THALLIUM->rpc_->hosts_.size() + 1; ++node_id) {
 //    HILOG(kInfo, "Node {}: {}", node_id,
-//    HRUN_THALLIUM->GetServerName(node_id));
+//    CHI_THALLIUM->GetServerName(node_id));
 //  }
 // }
