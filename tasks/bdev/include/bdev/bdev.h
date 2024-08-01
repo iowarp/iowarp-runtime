@@ -70,13 +70,14 @@ class Client : public ModuleClient {
         task, task_node, dom_query, id_, size);
   }
   HSHM_ALWAYS_INLINE
-  void Allocate(const DomainQuery &dom_query,
-                    const hipc::Pointer &data,
-                    size_t size,
-                    size_t off) {
-    LPointer<AllocateTask> task = AsyncRead(dom_query, data, size, off);
+  Block Allocate(const DomainQuery &dom_query,
+                 size_t size) {
+    LPointer<AllocateTask> task =
+        AsyncAllocate(dom_query, size);
     task.ptr_->Wait();
+    Block block = task->block_;
     CHI_CLIENT->DelTask(task);
+    return block;
   }
   CHI_TASK_METHODS(Allocate);
 
@@ -85,17 +86,15 @@ class Client : public ModuleClient {
   void AsyncFreeConstruct(FreeTask *task,
                           const TaskNode &task_node,
                           const DomainQuery &dom_query,
-                          size_t size,
-                          size_t off) {
+                          const Block &block) {
     CHI_CLIENT->ConstructTask<FreeTask>(
         task, task_node, dom_query, id_,
-        size, off);
+        block);
   }
   HSHM_ALWAYS_INLINE
   void Free(const DomainQuery &dom_query,
-                size_t size,
-                size_t off) {
-    LPointer<FreeTask> task = AsyncFree(dom_query, size, off);
+            const Block &block) {
+    LPointer<FreeTask> task = AsyncFree(dom_query, block);
     task.ptr_->Wait();
     CHI_CLIENT->DelTask(task);
   }
@@ -146,6 +145,24 @@ class Client : public ModuleClient {
     CHI_CLIENT->DelTask(task);
   }
   CHI_TASK_METHODS(Read);
+
+  /** Periodically poll block device stats */
+  HSHM_ALWAYS_INLINE
+  void AsyncPollStatsConstruct(PollStatsTask *task,
+                          const TaskNode &task_node,
+                          const DomainQuery &dom_query,
+                          size_t period_ms) {
+    CHI_CLIENT->ConstructTask<PollStatsTask>(
+        task, task_node, dom_query, id_,
+        period_ms);
+  }
+  HSHM_ALWAYS_INLINE
+  void PollStats(const DomainQuery &dom_query) {
+    LPointer<PollStatsTask> task = AsyncPollStats(dom_query, 0);
+    task.ptr_->Wait();
+    CHI_CLIENT->DelTask(task);
+  }
+  CHI_TASK_METHODS(PollStats);
 };
 
 }  // namespace chi

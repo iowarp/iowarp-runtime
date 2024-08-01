@@ -11,3 +11,4 @@ kAllocate: 10
 kFree: 11
 kWrite: 12
 kRead: 13
+kPollStats: 14

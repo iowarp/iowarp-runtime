@@ -9,6 +9,7 @@
 #include "chimaera/module_registry/module.h"
 #include "chimaera_admin/chimaera_admin.h"
 #include "chimaera/queue_manager/queue_manager_client.h"
+#include "chimaera/io/block_allocator.h"
 
 namespace chi::bdev {
 
@@ -31,13 +32,13 @@ struct CreateTask : public CreateContainerTask {
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
   CreateTask(hipc::Allocator *alloc,
-                const TaskNode &task_node,
-                const DomainQuery &dom_query,
-                const DomainQuery &affinity,
-                const std::string &pool_name,
-                const CreateContext &ctx,
-                const std::string &path,
-                size_t max_size)
+             const TaskNode &task_node,
+             const DomainQuery &dom_query,
+             const DomainQuery &affinity,
+             const std::string &pool_name,
+             const CreateContext &ctx,
+             const std::string &path,
+             size_t max_size)
       : CreateContainerTask(alloc, task_node, dom_query, affinity,
                             pool_name, "bdev", ctx), path_(alloc, path) {
     // Custom params
@@ -79,7 +80,7 @@ typedef chi::Admin::DestroyContainerTask DestroyTask;
  * */
 struct AllocateTask : public Task, TaskFlags<TF_SRL_SYM> {
   IN size_t size_;
-  OUT size_t off_;
+  OUT Block block_;
 
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
@@ -107,7 +108,7 @@ struct AllocateTask : public Task, TaskFlags<TF_SRL_SYM> {
   /** Duplicate message */
   void CopyStart(const AllocateTask &other, bool deep) {
     size_ = other.size_;
-    off_ = other.off_;
+    block_ = other.block_;
   }
 
   /** (De)serialize message call */
@@ -119,7 +120,7 @@ struct AllocateTask : public Task, TaskFlags<TF_SRL_SYM> {
   /** (De)serialize message return */
   template<typename Ar>
   void SerializeEnd(Ar &ar) {
-    ar(off_);
+    ar(block_);
   }
 };
 
@@ -127,8 +128,7 @@ struct AllocateTask : public Task, TaskFlags<TF_SRL_SYM> {
  * A custom task in bdev
  * */
 struct FreeTask : public Task, TaskFlags<TF_SRL_SYM> {
-  IN size_t size_;
-  IN size_t off_;
+  IN Block block_;
 
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
@@ -140,8 +140,7 @@ struct FreeTask : public Task, TaskFlags<TF_SRL_SYM> {
            const TaskNode &task_node,
            const DomainQuery &dom_query,
            const PoolId &pool_id,
-           size_t size,
-           size_t off) : Task(alloc) {
+           const Block &block) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrio::kLowLatency;
@@ -151,20 +150,18 @@ struct FreeTask : public Task, TaskFlags<TF_SRL_SYM> {
     dom_query_ = dom_query;
 
     // Custom params
-    size_ = size;
-    off_ = off;
+    block_ = block;
   }
 
   /** Duplicate message */
   void CopyStart(const FreeTask &other, bool deep) {
-    size_ = other.size_;
-    off_ = other.off_;
+    block_ = other.block_;
   }
 
   /** (De)serialize message call */
   template<typename Ar>
   void SerializeStart(Ar &ar) {
-    ar(size_, off_);
+    ar(block_);
   }
 
   /** (De)serialize message return */
@@ -288,6 +285,50 @@ struct ReadTask : public Task, TaskFlags<TF_SRL_SYM> {
   template<typename Ar>
   void SerializeEnd(Ar &ar) {
     // ar(success_);
+  }
+};
+
+/**
+ * A custom task in bdev
+ * */
+struct PollStatsTask : public Task, TaskFlags<TF_SRL_SYM> {
+  OUT BdevStats stats_;
+
+  /** SHM default constructor */
+  HSHM_ALWAYS_INLINE explicit
+  PollStatsTask(hipc::Allocator *alloc) : Task(alloc) {}
+
+  /** Emplace constructor */
+  HSHM_ALWAYS_INLINE explicit
+  PollStatsTask(hipc::Allocator *alloc,
+           const TaskNode &task_node,
+           const DomainQuery &dom_query,
+           const PoolId &pool_id,
+           u32 period_ms) : Task(alloc) {
+    // Initialize task
+    task_node_ = task_node;
+    prio_ = TaskPrio::kHighLatency;
+    pool_ = pool_id;
+    method_ = Method::kPollStats;
+    task_flags_.SetBits(TASK_LONG_RUNNING);
+    dom_query_ = dom_query;
+
+    SetPeriodMs(period_ms);
+  }
+
+  /** Duplicate message */
+  void CopyStart(const PollStatsTask &other, bool deep) {
+  }
+
+  /** (De)serialize message call */
+  template<typename Ar>
+  void SerializeStart(Ar &ar) {
+  }
+
+  /** (De)serialize message return */
+  template<typename Ar>
+  void SerializeEnd(Ar &ar) {
+    ar(stats_);
   }
 };
 
