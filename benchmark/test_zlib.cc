@@ -9,7 +9,7 @@
 std::vector<int> MakeDist(size_t xfer_count) {
   // Create a normal distribution
   hshm::NormalDistribution normal;
-  normal.Shape(0, 128);
+  normal.Shape(0, 600);
   std::vector<int> data(xfer_count);
   normal.GetInt();
   for (size_t i = 0; i < xfer_count; ++i) {
@@ -59,7 +59,8 @@ int main(int argc, char *argv[]) {
     fflush(file);
     t.Pause();
     // fseek(file, 0, SEEK_SET);
-    HILOG(kInfo, "Wrote {} bytes in {} usec", write_sz, t.GetUsec());
+    HILOG(kInfo, "Wrote {} bytes in {} usec (compress={})",
+          write_sz, t.GetUsec(), do_compress);
   }
   MPI_Finalize();
 }

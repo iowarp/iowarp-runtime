@@ -1,0 +1,76 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Distributed under BSD 3-Clause license.                                   *
+ * Copyright by The HDF Group.                                               *
+ * Copyright by the Illinois Institute of Technology.                        *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of Hermes. The full Hermes copyright notice, including  *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the COPYING file, which can be found at the top directory. If you do not  *
+ * have access to the file, you may request a copy from help@hdfgroup.org.   *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+#ifndef CHI_chifs_H_
+#define CHI_chifs_H_
+
+#include "chifs_tasks.h"
+
+namespace chi::chifs {
+
+/** Create chifs requests */
+class Client : public ModuleClient {
+
+ public:
+  /** Default constructor */
+  Client() = default;
+
+  /** Destructor */
+  ~Client() = default;
+
+  /** Create a task state */
+  void AsyncCreateConstruct(CreateTask *task,
+                            const TaskNode &task_node,
+                            const DomainQuery &dom_query,
+                            const DomainQuery &affinity,
+                            const std::string &pool_name,
+                            const CreateContext &ctx) {
+    CHI_CLIENT->ConstructTask<CreateTask>(
+        task, task_node, dom_query, affinity, pool_name, ctx);
+  }
+  void Create(const DomainQuery &dom_query,
+                  const DomainQuery &affinity,
+                  const std::string &pool_name,
+                  const CreateContext &ctx = CreateContext()) {
+    LPointer<CreateTask> task = AsyncCreate(
+        dom_query, affinity, pool_name, ctx);
+    task->Wait();
+    Init(task->ctx_.id_);
+    CHI_CLIENT->DelTask(task);
+  }
+  CHI_TASK_METHODS(Create);
+
+  /** Destroy task state + queue */
+  HSHM_ALWAYS_INLINE
+  void Destroy(const DomainQuery &dom_query) {
+    CHI_ADMIN->DestroyContainer(dom_query, id_);
+  }
+
+  /** Call a custom method */
+  HSHM_ALWAYS_INLINE
+  void AsyncCustomConstruct(CustomTask *task,
+                            const TaskNode &task_node,
+                            const DomainQuery &dom_query) {
+    CHI_CLIENT->ConstructTask<CustomTask>(
+        task, task_node, dom_query, id_);
+  }
+  HSHM_ALWAYS_INLINE
+  void Custom(const DomainQuery &dom_query) {
+    LPointer<CustomTask> task = AsyncCustom(dom_query);
+    task.ptr_->Wait();
+  }
+  CHI_TASK_METHODS(Custom);
+};
+
+}  // namespace chi
+
+#endif  // CHI_chifs_H_
