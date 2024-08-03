@@ -13,44 +13,47 @@
 #ifndef CHI_INCLUDE_CHI_CHI_NAMESPACE_H_
 #define CHI_INCLUDE_CHI_CHI_NAMESPACE_H_
 
-#include "chimaera/chimaera_types.h"
+/**
+ * This header is used to add chimaera types to the namespace
+ * of the user's ChiMod -- with the exception of the Chimaera
+ * Admin, which is already in the chimaera namespace.
+ * */
+
 #include "chimaera/api/chimaera_client.h"
 #include "chimaera/module_registry/module.h"
+#include "chimaera_admin/chimaera_admin.h"
+#include "chimaera/queue_manager/queue_manager_client.h"
 
-namespace chi {
-class CreateContext;
-}
-
-using chi::CreateContext;
-using chi::TaskMethod;
-using chi::BinaryOutputArchive;
-using chi::BinaryInputArchive;
-using chi::Task;
-using chi::TaskPointer;
-using chi::ingress::MultiQueue;
-using chi::ingress::PriorityInfo;
-using chi::TaskNode;
-using chi::DomainQuery;
-using chi::PoolId;
-using chi::QueueId;
-using chi::TaskFlags;
-using chi::DataTransfer;
-using chi::SegmentedTransfer;
-using chi::Module;
-using chi::ModuleClient;
-using chi::config::QueueManagerInfo;
-using chi::TaskPrio;
-using chi::RunContext;
-
-using hshm::RwLock;
-using hshm::Mutex;
-using hshm::bitfield;
-using hshm::bitfield8_t;
-using hshm::bitfield16_t;
-using hshm::bitfield32_t;
-typedef hshm::bitfield<uint64_t> bitfield64_t;
-using hshm::ScopedRwReadLock;
-using hshm::ScopedRwWriteLock;
-using hipc::LPointer;
+#define CHI_NAMESPACE_INIT \
+  using chi::CreateContext; \
+  using chi::TaskMethod; \
+  using chi::BinaryOutputArchive; \
+  using chi::BinaryInputArchive; \
+  using chi::Task; \
+  using chi::TaskPointer; \
+  using chi::ingress::MultiQueue; \
+  using chi::ingress::PriorityInfo; \
+  using chi::TaskNode; \
+  using chi::DomainQuery; \
+  using chi::PoolId; \
+  using chi::QueueId; \
+  using chi::TaskFlags; \
+  using chi::DataTransfer; \
+  using chi::SegmentedTransfer; \
+  using chi::Module; \
+  using chi::ModuleClient; \
+  using chi::config::QueueManagerInfo; \
+  using chi::TaskPrio; \
+  using chi::RunContext; \
+  using hshm::RwLock; \
+  using hshm::Mutex; \
+  using hshm::bitfield; \
+  using hshm::bitfield8_t;
+  using hshm::bitfield16_t; \
+  using hshm::bitfield32_t; \
+  typedef hshm::bitfield<uint64_t> bitfield64_t; \
+  using hshm::ScopedRwReadLock; \
+  using hshm::ScopedRwWriteLock; \
+  using hipc::LPointer;
 
 #endif  // CHI_INCLUDE_CHI_CHI_NAMESPACE_H_

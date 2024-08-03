@@ -4,7 +4,7 @@
 #include "chimaera/work_orchestrator/scheduler.h"
 #include "chimaera/api/chimaera_client.h"
 #include "chimaera/queue_manager/queue_manager_client.h"
-#include "chimaera/chimaera_namespace.h"
+#include "chimaera/module_registry/module.h"
 
 namespace chi::Admin {
 

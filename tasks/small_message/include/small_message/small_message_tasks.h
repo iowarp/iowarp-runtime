@@ -5,15 +5,12 @@
 #ifndef CHI_TASKS_SMALL_MESSAGE_INCLUDE_SMALL_MESSAGE_SMALL_MESSAGE_TASKS_H_
 #define CHI_TASKS_SMALL_MESSAGE_INCLUDE_SMALL_MESSAGE_SMALL_MESSAGE_TASKS_H_
 
-#include "chimaera/api/chimaera_client.h"
-#include "chimaera/module_registry/module.h"
-#include "chimaera_admin/chimaera_admin.h"
-#include "chimaera/queue_manager/queue_manager_client.h"
+#include "chimaera/chimaera_namespace.h"
 
 namespace chi::small_message {
 
+CHI_NAMESPACE_INIT
 #include "small_message_methods.h"
-#include "chimaera/chimaera_namespace.h"
 
 /**
  * A task to create small_message

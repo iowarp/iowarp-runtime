@@ -294,7 +294,7 @@ TaskRouteMode Worker::Reroute(const PoolId &scope,
       chi_lane->num_tasks_ += 1;
       return TaskRouteMode::kThisWorker;
     } else {
-      MultiQueue *queue = CHI_CLIENT->GetQueue(
+      ingress::MultiQueue *queue = CHI_CLIENT->GetQueue(
           CHI_QM_RUNTIME->admin_queue_id_);
       ingress::LaneGroup &ig_lane_group =
           queue->GetGroup(chi_lane->ingress_id_.node_id_);
@@ -366,7 +366,7 @@ bool Worker::RunTask(PrivateTaskQueue &priv_queue,
   // Check if the task is apart of a plugged lane
   if (cur_lane_->IsPlugged()) {
     if (cur_lane_->worker_id_ != id_) {
-      MultiQueue *queue = CHI_CLIENT->GetQueue(
+      ingress::MultiQueue *queue = CHI_CLIENT->GetQueue(
           CHI_QM_RUNTIME->admin_queue_id_);
       ingress::LaneGroup &ig_lane_group =
           queue->GetGroup(cur_lane_->ingress_id_.node_id_);

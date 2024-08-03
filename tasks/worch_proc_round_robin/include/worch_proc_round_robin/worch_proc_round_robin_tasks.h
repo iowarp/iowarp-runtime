@@ -5,15 +5,12 @@
 #ifndef CHI_WORCH_PROC_ROUND_ROBIN_TASKS_H__
 #define CHI_WORCH_PROC_ROUND_ROBIN_TASKS_H__
 
-#include "chimaera/api/chimaera_client.h"
-#include "chimaera/module_registry/module.h"
+#include "chimaera/chimaera_namespace.h"
 #include "chimaera/work_orchestrator/scheduler.h"
-#include "chimaera_admin/chimaera_admin.h"
-#include "chimaera/queue_manager/queue_manager_client.h"
 
 namespace chi::worch_proc_round_robin {
 
-#include "chimaera/chimaera_namespace.h"
+CHI_NAMESPACE_INIT
 
 /** The set of methods in the worch task */
 typedef SchedulerMethod Method;

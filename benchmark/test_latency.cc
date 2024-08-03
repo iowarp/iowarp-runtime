@@ -12,6 +12,8 @@
 #include "chimaera/work_orchestrator/affinity.h"
 #include "omp.h"
 
+CHI_NAMESPACE_INIT
+
 void Summarize(size_t nprocs,
                double time_usec,
                size_t ops_per_node, size_t depth) {

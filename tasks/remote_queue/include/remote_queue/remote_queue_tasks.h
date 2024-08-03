@@ -5,11 +5,7 @@
 #ifndef CHI_TASKS_REMOTE_QUEUE_INCLUDE_REMOTE_QUEUE_REMOTE_QUEUE_TASKS_H_
 #define CHI_TASKS_REMOTE_QUEUE_INCLUDE_REMOTE_QUEUE_REMOTE_QUEUE_TASKS_H_
 
-#include "chimaera/api/chimaera_client.h"
-#include "chimaera/module_registry/module.h"
-#include "chimaera_admin/chimaera_admin.h"
-#include "chimaera/queue_manager/queue_manager_client.h"
-
+#include "chimaera/chimaera_namespace.h"
 #include <thallium.hpp>
 #include <thallium/serialization/stl/pair.hpp>
 #include <thallium/serialization/stl/string.hpp>
@@ -20,8 +16,8 @@ namespace tl = thallium;
 
 namespace chi::remote_queue {
 
-#include "chimaera/chimaera_namespace.h"
 #include "remote_queue_methods.h"
+CHI_NAMESPACE_INIT
 
 /**
  * A task to create remote_queue

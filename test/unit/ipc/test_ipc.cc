@@ -20,6 +20,8 @@
 #include "chimaera/work_orchestrator/affinity.h"
 #include "omp.h"
 
+CHI_NAMESPACE_INIT
+
 TEST_CASE("TestIpc") {
   CHIMAERA_CLIENT_INIT();
 
