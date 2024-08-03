@@ -34,7 +34,7 @@ class Client : public ModuleClient {
     task->Wait();
     CHI_CLIENT->DelTask(task);
   }
-  CHIMAERA_TASK_NODE_ROOT(RegisterModule)
+  CHI_TASK_METHODS(RegisterModule)
 
   /** Unregister a module */
   HSHM_ALWAYS_INLINE
@@ -54,7 +54,7 @@ class Client : public ModuleClient {
     task->Wait();
     CHI_CLIENT->DelTask(task);
   }
-  CHIMAERA_TASK_NODE_ROOT(DestroyModule)
+  CHI_TASK_METHODS(DestroyModule)
 
   /** Register a task library */
   HSHM_ALWAYS_INLINE
@@ -73,7 +73,7 @@ class Client : public ModuleClient {
     task->Wait();
     CHI_CLIENT->DelTask(task);
   }
-  CHIMAERA_TASK_NODE_ROOT(UpgradeModule)
+  CHI_TASK_METHODS(UpgradeModule)
 
   /** Spawn a task state */
   template<typename CreateContainerT>
@@ -99,7 +99,7 @@ class Client : public ModuleClient {
     CHI_CLIENT->DelTask(task);
     return new_id;
   }
-  CHIMAERA_TASK_NODE_ROOT(GetPoolId)
+  CHI_TASK_METHODS(GetPoolId)
 
   /** Terminate a task state */
   HSHM_ALWAYS_INLINE
@@ -118,7 +118,7 @@ class Client : public ModuleClient {
     task->Wait();
     CHI_CLIENT->DelTask(task);
   }
-  CHIMAERA_TASK_NODE_ROOT(DestroyContainer)
+  CHI_TASK_METHODS(DestroyContainer)
 
   /** Terminate the runtime */
   void AsyncStopRuntimeConstruct(StopRuntimeTask *task,
@@ -139,7 +139,7 @@ class Client : public ModuleClient {
     HILOG(kInfo, "All done!");
     exit(1);
   }
-  CHIMAERA_TASK_NODE_ROOT(StopRuntime);
+  CHI_TASK_METHODS(StopRuntime);
 
   /** Set work orchestrator queue policy */
   void AsyncSetWorkOrchQueuePolicyConstruct(SetWorkOrchQueuePolicyTask *task,
@@ -167,7 +167,7 @@ class Client : public ModuleClient {
     CHI_CLIENT->DelTask(task);
   }
 #endif
-  CHIMAERA_TASK_NODE_ROOT(SetWorkOrchQueuePolicy);
+  CHI_TASK_METHODS(SetWorkOrchQueuePolicy);
 
   /** Set work orchestrator process policy */
   void AsyncSetWorkOrchProcPolicyConstruct(SetWorkOrchProcPolicyTask *task,
@@ -195,7 +195,7 @@ class Client : public ModuleClient {
     CHI_CLIENT->DelTask(task);
   }
 #endif
-  CHIMAERA_TASK_NODE_ROOT(SetWorkOrchProcPolicy);
+  CHI_TASK_METHODS(SetWorkOrchProcPolicy);
 
   /** Flush the runtime */
   void AsyncFlushConstruct(FlushTask *task,
@@ -214,7 +214,7 @@ class Client : public ModuleClient {
       CHI_CLIENT->DelTask(task);
     } while (work_done > 0);
   }
-  CHIMAERA_TASK_NODE_ROOT(Flush);
+  CHI_TASK_METHODS(Flush);
 
   /** Get size of a domain */
   void AsyncGetDomainSizeConstruct(GetDomainSizeTask *task,
@@ -233,7 +233,7 @@ class Client : public ModuleClient {
     CHI_CLIENT->DelTask(task);
     return dom_size;
   }
-  CHIMAERA_TASK_NODE_ROOT(GetDomainSize)
+  CHI_TASK_METHODS(GetDomainSize)
 };
 
 }  // namespace chi::Admin

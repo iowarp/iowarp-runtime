@@ -302,7 +302,7 @@ class Client : public ConfigurationManager {
 
 /** The default asynchronous method behavior */
 #ifdef CHIMAERA_RUNTIME
-#define CHIMAERA_TASK_NODE_ROOT(CUSTOM)\
+#define CHI_TASK_METHODS(CUSTOM)\
 template<typename ...Args>\
 hipc::LPointer<CUSTOM##Task> Async##CUSTOM##Alloc(const TaskNode &task_node,\
                                                   Args&& ...args) {\
@@ -334,7 +334,7 @@ hipc::LPointer<CUSTOM##Task> Async##CUSTOM##Base(Task *parent_task,\
   return task;\
 }
 #else
-#define CHIMAERA_TASK_NODE_ROOT(CUSTOM)\
+#define CHI_TASK_METHODS(CUSTOM)\
 template<typename ...Args>\
 hipc::LPointer<CUSTOM##Task> Async##CUSTOM##Alloc(const TaskNode &task_node,\
                                                   Args&& ...args) {\
@@ -356,8 +356,6 @@ Async##CUSTOM(Args&& ...args) {\
   return task;\
 }
 #endif
-
-#define CHI_TASK_METHODS(CUSTOM) CHIMAERA_TASK_NODE_ROOT(CUSTOM)
 
 /** Call duplicate if applicable */
 template<typename TaskT>
