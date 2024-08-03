@@ -71,7 +71,7 @@ class Module;
 #define TASK_REMOTE_DEBUG_MARK BIT_OPT(u32, 31)
 
 /** Used to define task methods */
-#define TASK_METHOD_T CLS_CONST u32
+#define TASK_METHOD_T CLS_CONST chi::MethodId
 
 /** Used to indicate Yield to use */
 #define TASK_YIELD_STD 0

@@ -313,7 +313,7 @@ hipc::LPointer<CUSTOM##Task> Async##CUSTOM##Alloc(const TaskNode &task_node,\
 }\
 template<typename ...Args>\
 hipc::LPointer<CUSTOM##Task> Async##CUSTOM(Args&& ...args) {\
-  Task *parent_task = CHI_WORK_ORCHESTRATOR->GetCurrentTask();\
+  chi::Task *parent_task = CHI_WORK_ORCHESTRATOR->GetCurrentTask();\
   if (parent_task) {\
     return Async##CUSTOM##Base(parent_task,\
                                parent_task->task_node_ + 1,\
@@ -346,11 +346,11 @@ hipc::LPointer<CUSTOM##Task> Async##CUSTOM##Alloc(const TaskNode &task_node,\
 template<typename ...Args>\
 hipc::LPointer<CUSTOM##Task>\
 Async##CUSTOM(Args&& ...args) {\
-  TaskNode task_node = CHI_CLIENT->MakeTaskNodeId();\
+  chi::TaskNode task_node = CHI_CLIENT->MakeTaskNodeId();\
   hipc::LPointer<CUSTOM##Task> task = Async##CUSTOM##Alloc(\
       task_node, std::forward<Args>(args)...);\
-  ingress::MultiQueue *queue = CHI_CLIENT->GetQueue(queue_id_);\
-  queue->Emplace(TaskPrio::kLowLatency,\
+  chi::ingress::MultiQueue *queue = CHI_CLIENT->GetQueue(queue_id_);\
+  queue->Emplace(chi::TaskPrio::kLowLatency,\
                  std::hash<chi::DomainQuery>{}(task->dom_query_),\
                  task.shm_);\
   return task;\

@@ -45,6 +45,10 @@
   using chi::config::QueueManagerInfo; \
   using chi::TaskPrio; \
   using chi::RunContext; \
+  using chi::MethodId; \
+  using chi::MonitorModeId; \
+  using chi::MonitorMode; \
+  using chi::Lane; \
   using hshm::RwLock; \
   using hshm::Mutex; \
   using hshm::bitfield; \
