@@ -3,7 +3,9 @@
 #------------------------------------------------------------------------------
 add_library(TASK_NAME SHARED
         TASK_NAME.cc)
-add_dependencies(TASK_NAME ${Chimaera_RUNTIME_DEPS})
+if (${Chimaera_RUNTIME_DEPS})
+    add_dependencies(TASK_NAME ${Chimaera_RUNTIME_DEPS})
+endif()
 target_link_libraries(TASK_NAME ${Chimaera_RUNTIME_LIBRARIES})
 target_compile_definitions(TASK_NAME PRIVATE ${Chimaera_RUNTIME_DEFINITIONS})
 #------------------------------------------------------------------------------
