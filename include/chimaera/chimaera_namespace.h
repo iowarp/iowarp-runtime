@@ -13,6 +13,7 @@
 #ifndef CHI_INCLUDE_CHI_CHI_NAMESPACE_H_
 #define CHI_INCLUDE_CHI_CHI_NAMESPACE_H_
 
+#include "chimaera/chimaera_types.h"
 #include "chimaera/api/chimaera_client.h"
 #include "chimaera/module_registry/module.h"
 
