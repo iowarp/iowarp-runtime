@@ -298,7 +298,7 @@ class Server : public Module {
                      tl::bulk &bulk,
                      SegmentedTransfer &xfer) {
     try {
-      xfer.AllocateSegmentsServer();
+      xfer.AllocateBulksServer();
       CHI_THALLIUM->IoCallServerWrite(req, bulk, xfer);
       BinaryInputArchive<true> ar(xfer);
       for (size_t i = 0; i < xfer.tasks_.size(); ++i) {

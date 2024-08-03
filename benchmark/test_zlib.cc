@@ -5,6 +5,7 @@
 #include "mpi.h"
 #include "hermes_shm/util/compress/snappy.h"
 #include "hermes_shm/util/random.h"
+#include "chimaera/work_orchestrator/affinity.h"
 
 std::vector<int> MakeDist(size_t xfer_count) {
   // Create a normal distribution
@@ -38,6 +39,23 @@ int main(int argc, char *argv[]) {
   }
   std::vector<int> data = MakeDist(xfer_count);
 
+  // Make this rank affine to CPU rank
+  ProcessAffiner::SetCpuAffinity(getpid(), rank);
+  // Get core freqeuency of CPU rank
+  int prior_cpu_freq = HERMES_SYSTEM_INFO->GetCpuFreqKhz(rank);
+  // Set core frequency of CPU rank
+  int min_cpu_freq = HERMES_SYSTEM_INFO->GetCpuMinFreqKhz(rank);
+  int max_cpu_freq = HERMES_SYSTEM_INFO->GetCpuMaxFreqKhz(rank);
+  HERMES_SYSTEM_INFO->SetCpuFreqKhz(rank, min_cpu_freq);
+  // Get core frequency of CPU rank
+  int cur_cpu_freq = HERMES_SYSTEM_INFO->GetCpuFreqKhz(rank);
+  while (cur_cpu_freq < min_cpu_freq) {
+    cur_cpu_freq = HERMES_SYSTEM_INFO->GetCpuFreqKhz(rank);
+  }
+  HILOG(kInfo, "Rank {} CPU freq: {} -> {}, min={}, max={}",
+        rank, prior_cpu_freq, cur_cpu_freq, min_cpu_freq, max_cpu_freq);
+
+
   // Write compressed data repeatedly
   for (size_t i = 0; i < iter; ++i) {
     // Write the data
@@ -59,8 +77,13 @@ int main(int argc, char *argv[]) {
     fflush(file);
     t.Pause();
     // fseek(file, 0, SEEK_SET);
-    HILOG(kInfo, "Wrote {} bytes in {} usec (compress={})",
-          write_sz, t.GetUsec(), do_compress);
+//    HILOG(kInfo, "Wrote {} bytes in {} usec (compress={})",
+//          write_sz, t.GetUsec(), do_compress);
   }
+
+  // Set core frequency of CPU rank
+  HERMES_SYSTEM_INFO->SetCpuMinFreqKhz(rank, min_cpu_freq);
+  HERMES_SYSTEM_INFO->SetCpuMaxFreqKhz(rank, max_cpu_freq);
+
   MPI_Finalize();
 }

@@ -7,4 +7,9 @@ kMigrate: -1      # 4
 kUpgrade: -1       # 5
 
 # Custom Methods
-kCustom: 10
+kOpenFile: 10
+kReadFile: 11
+kWriteFile: 12
+kAppendFile: 13
+kDestroyFile: 14
+kStatFile: 15

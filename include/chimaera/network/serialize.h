@@ -20,7 +20,7 @@ namespace chi {
 
 /** Segment transfer */
 #ifdef CHIMAERA_RUNTIME
-void SegmentedTransfer::AllocateSegmentsServer() {
+void SegmentedTransfer::AllocateBulksServer() {
   for (DataTransfer &xfer : bulk_) {
     LPointer<char> data = CHI_CLIENT->AllocateBufferRemote(
         xfer.data_size_);

@@ -127,7 +127,7 @@ class SegmentedTransfer {
   std::vector<DataTransfer> bulk_;   /**< Data payloads */
   std::string md_;                   /**< Metadata */
 
-  void AllocateSegmentsServer();
+  void AllocateBulksServer();
 
   size_t size() const {
     size_t size = 0;
