@@ -16,6 +16,11 @@
 #include "chimaera/api/chimaera_client.h"
 #include "chimaera/module_registry/module.h"
 
+namespace chi {
+class CreateContext;
+}
+
+using chi::CreateContext;
 using chi::TaskMethod;
 using chi::BinaryOutputArchive;
 using chi::BinaryInputArchive;
