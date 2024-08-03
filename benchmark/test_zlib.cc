@@ -47,14 +47,6 @@ int main(int argc, char *argv[]) {
   int min_cpu_freq = HERMES_SYSTEM_INFO->GetCpuMinFreqKhz(rank);
   int max_cpu_freq = HERMES_SYSTEM_INFO->GetCpuMaxFreqKhz(rank);
   HERMES_SYSTEM_INFO->SetCpuFreqKhz(rank, min_cpu_freq);
-  // Get core frequency of CPU rank
-  int cur_cpu_freq = HERMES_SYSTEM_INFO->GetCpuFreqKhz(rank);
-  while (cur_cpu_freq < min_cpu_freq) {
-    cur_cpu_freq = HERMES_SYSTEM_INFO->GetCpuFreqKhz(rank);
-  }
-  HILOG(kInfo, "Rank {} CPU freq: {} -> {}, min={}, max={}",
-        rank, prior_cpu_freq, cur_cpu_freq, min_cpu_freq, max_cpu_freq);
-
 
   // Write compressed data repeatedly
   for (size_t i = 0; i < iter; ++i) {
@@ -68,7 +60,7 @@ int main(int argc, char *argv[]) {
       std::vector<int> compressed(xfer_count);
       compress.Compress(compressed.data(), compressed_size,
                         data.data(), xfer);
-      fwrite(compressed.data(), sizeof(char), compressed_size, file);
+      // fwrite(compressed.data(), sizeof(char), compressed_size, file);
       write_sz = compressed_size;
     } else {
       fwrite(data.data(), sizeof(char), xfer, file);
@@ -80,6 +72,11 @@ int main(int argc, char *argv[]) {
 //    HILOG(kInfo, "Wrote {} bytes in {} usec (compress={})",
 //          write_sz, t.GetUsec(), do_compress);
   }
+
+  // Get core frequency of CPU rank
+  int cur_cpu_freq = HERMES_SYSTEM_INFO->GetCpuFreqKhz(rank);
+  HILOG(kInfo, "Rank {} CPU freq: {} -> {}, min={}, max={}",
+        rank, prior_cpu_freq, cur_cpu_freq, min_cpu_freq, max_cpu_freq);
 
   // Set core frequency of CPU rank
   HERMES_SYSTEM_INFO->SetCpuMinFreqKhz(rank, min_cpu_freq);

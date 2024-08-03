@@ -141,7 +141,9 @@ class ModuleRegistry {
   }
 
   /** Initialize the Task Registry */
-  void ServerInit(ServerConfig *config, NodeId node_id, std::atomic<u64> &unique) {
+  void ServerInit(ServerConfig *config,
+                  NodeId node_id,
+                  std::atomic<u64> &unique) {
     node_id_ = node_id;
     unique_ = &unique;
 

@@ -16,7 +16,6 @@
 #include "chimaera/chimaera_types.h"
 #include "chimaera/network/local_serialize.h"
 #include <csetjmp>
-#include <thallium.hpp>
 
 namespace chi {
 
@@ -653,9 +652,7 @@ struct Task : public hipc::ShmContainer {
   }
 
   /** Yield (argobots) */
-  static void YieldArgo() {
-    ABT_thread_yield();
-  }
+  static void YieldArgo();
 
   /** Yield in general */
   template<int THREAD_MODEL = 0>
