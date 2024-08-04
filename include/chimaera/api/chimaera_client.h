@@ -35,7 +35,7 @@ LPointer<char> Client::AllocateBufferSafe(Allocator *alloc, size_t size) {
       Task::StaticYieldFactory<TASK_YIELD_ABT>();
     }
 #ifdef CHIMAERA_RUNTIME
-    Task *task = CHI_WORK_ORCHESTRATOR->GetCurrentTask();
+    Task *task = CHI_CUR_TASK;
     task->Yield();
 #else
     Task::StaticYieldFactory<TASK_YIELD_STD>();

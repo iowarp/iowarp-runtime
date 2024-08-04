@@ -313,7 +313,7 @@ hipc::LPointer<CUSTOM##Task> Async##CUSTOM##Alloc(const TaskNode &task_node,\
 }\
 template<typename ...Args>\
 hipc::LPointer<CUSTOM##Task> Async##CUSTOM(Args&& ...args) {\
-  chi::Task *parent_task = CHI_WORK_ORCHESTRATOR->GetCurrentTask();\
+  chi::Task *parent_task = CHI_CUR_TASK;\
   if (parent_task) {\
     return Async##CUSTOM##Base(parent_task,\
                                parent_task->task_node_ + 1,\

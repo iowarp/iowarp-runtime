@@ -178,7 +178,7 @@ class Server : public Module {
 
   /** Create a task state */
   void CreateContainer(CreateContainerTask *task, RunContext &rctx) {
-    ScopedCoMutex lock(CHI_WORK_ORCHESTRATOR->GetCurrentLane()->comux_);
+    ScopedCoMutex lock(CHI_CUR_LANE->comux_);
     std::string lib_name = task->lib_name_.str();
     std::string pool_name = task->pool_name_.str();
     // Check local registry for task state

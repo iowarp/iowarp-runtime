@@ -232,4 +232,7 @@ class WorkOrchestrator {
 
 #define CHI_WORK_ORCHESTRATOR \
   hshm::Singleton<chi::WorkOrchestrator>::GetInstance()
+#define CHI_CUR_TASK CHI_WORK_ORCHESTRATOR->GetCurrentTask()
+#define CHI_CUR_LANE CHI_WORK_ORCHESTRATOR->GetCurrentLane()
+
 #endif  // CHI_INCLUDE_CHI_WORK_ORCHESTRATOR_WORK_ORCHESTRATOR_H_

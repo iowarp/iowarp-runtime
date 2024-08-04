@@ -17,7 +17,7 @@ void Task::YieldArgo() {
 
 void Task::Wait(u32 flags) {
 #ifdef CHIMAERA_RUNTIME
-  Task *parent_task = CHI_WORK_ORCHESTRATOR->GetCurrentTask();
+  Task *parent_task = CHI_CUR_TASK;
   if (this != parent_task) {
     parent_task->Wait(this, flags);
   } else {

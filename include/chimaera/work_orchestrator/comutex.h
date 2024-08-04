@@ -12,7 +12,7 @@ namespace chi {
 
 bool CoMutex::TryLock() {
   hshm::ScopedMutex scoped(mux_, 0);
-  Task *task = CHI_WORK_ORCHESTRATOR->GetCurrentTask();
+  Task *task = CHI_CUR_TASK;
   TaskId task_root = task->task_node_.root_;
   if (root_.IsNull() || root_ == task_root) {
     root_ = task_root;
@@ -24,7 +24,7 @@ bool CoMutex::TryLock() {
 
 void CoMutex::Lock() {
   hshm::ScopedMutex scoped(mux_, 0);
-  Task *task = CHI_WORK_ORCHESTRATOR->GetCurrentTask();
+  Task *task = CHI_CUR_TASK;
   TaskId task_root = task->task_node_.root_;
   if (root_.IsNull() || root_ == task_root) {
     root_ = task_root;
