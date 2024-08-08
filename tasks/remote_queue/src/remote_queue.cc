@@ -196,7 +196,7 @@ class Server : public Module {
         Container *exec = CHI_MOD_REGISTRY->GetStaticContainer(
             rep_task->pool_);
         if (exec == nullptr) {
-          HELOG(kFatal, "(node {}) Could not find the task state {}",
+          HELOG(kFatal, "(node {}) Could not find the pool {}",
                 CHI_CLIENT->node_id_, rep_task->pool_);
           return;
         }
@@ -323,7 +323,7 @@ class Server : public Module {
     u32 method = xfer.tasks_[task_off].method_;
     Container *exec = CHI_MOD_REGISTRY->GetStaticContainer(pool_id);
     if (exec == nullptr) {
-      HELOG(kFatal, "(node {}) Could not find the task state {}",
+      HELOG(kFatal, "(node {}) Could not find the pool {}",
             CHI_CLIENT->node_id_, pool_id);
       return;
     }
@@ -370,7 +370,7 @@ class Server : public Module {
         Container *exec = CHI_MOD_REGISTRY->GetStaticContainer(
             rep_task->pool_);
         if (exec == nullptr) {
-          HELOG(kFatal, "(node {}) Could not find the task state {}",
+          HELOG(kFatal, "(node {}) Could not find the pool {}",
                 CHI_CLIENT->node_id_, rep_task->pool_);
           return;
         }

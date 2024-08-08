@@ -117,7 +117,7 @@ struct UpgradeModuleTask : public Task, TaskFlags<TF_SRL_SYM> {
   }
 };
 
-/** A task to register a Task state + Create a queue */
+/** A task to register a pool + Create a queue */
 struct CreateContainerTask : public Task, TaskFlags<TF_SRL_SYM> {
   IN hipc::string lib_name_;
   IN hipc::string pool_name_;
@@ -199,7 +199,7 @@ struct CreateContainerTask : public Task, TaskFlags<TF_SRL_SYM> {
   }
 };
 
-/** A task to register a Task state + Create a queue */
+/** A task to register a pool + Create a queue */
 struct CreateTask : public CreateContainerTask {
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
@@ -254,7 +254,7 @@ struct GetPoolIdTask : public Task, TaskFlags<TF_SRL_SYM> {
   }
 };
 
-/** A task to destroy a Task state */
+/** A task to destroy a pool */
 struct DestroyContainerTask : public Task, TaskFlags<TF_SRL_SYM> {
   IN PoolId id_;
 
@@ -299,7 +299,7 @@ struct DestroyContainerTask : public Task, TaskFlags<TF_SRL_SYM> {
   }
 };
 
-/** A task to register a Task state + Create a queue */
+/** A task to register a pool + Create a queue */
 typedef chi::Admin::DestroyContainerTask DestroyTask;
 
 /** A task to stop a runtime */

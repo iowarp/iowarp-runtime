@@ -41,7 +41,7 @@ class Client : public ModuleClient {
   }
   CHI_TASK_METHODS(Create);
 
-  /** Destroy task state */
+  /** Destroy pool */
   HSHM_ALWAYS_INLINE
   void Destroy(const DomainQuery &dom_query) {
     CHI_ADMIN->DestroyContainer(dom_query, id_);

@@ -75,14 +75,14 @@ class Client : public ModuleClient {
   }
   CHI_TASK_METHODS(UpgradeModule)
 
-  /** Spawn a task state */
+  /** Spawn a pool */
   template<typename CreateContainerT>
   HSHM_ALWAYS_INLINE
   PoolId CreateContainerComplete(LPointer<CreateContainerT> task) {
     return CreateContainerComplete(task.ptr_);
   }
 
-  /** Get the ID of a task state */
+  /** Get the ID of a pool */
   void AsyncGetPoolIdConstruct(GetPoolIdTask *task,
                                     const TaskNode &task_node,
                                     const DomainQuery &dom_query,
@@ -101,7 +101,7 @@ class Client : public ModuleClient {
   }
   CHI_TASK_METHODS(GetPoolId)
 
-  /** Terminate a task state */
+  /** Terminate a pool */
   HSHM_ALWAYS_INLINE
   void AsyncDestroyContainerConstruct(DestroyContainerTask *task,
                                       const TaskNode &task_node,

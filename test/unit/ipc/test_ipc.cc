@@ -187,7 +187,7 @@ TEST_CASE("TestIpcMultithread32") {
   TestIpcMultithread(32);
 }
 
-TEST_CASE("TestIO") {
+void TestIO(u32 flags) {
   CHIMAERA_CLIENT_INIT();
   int rank, nprocs;
   MPI_Barrier(MPI_COMM_WORLD);
@@ -200,9 +200,6 @@ TEST_CASE("TestIO") {
       chi::DomainQuery::GetGlobalBcast(),
       "ipc_test");
   hshm::Timer t;
-  size_t domain_size = CHI_ADMIN->GetDomainSize(
-      chi::DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0),
-      chi::DomainId(client.id_, chi::SubDomainId::kGlobalContainers));
 
   int pid = getpid();
   ProcessAffiner::SetCpuAffinity(pid, 8);
@@ -218,14 +215,30 @@ TEST_CASE("TestIO") {
     client.Io(
         chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, cont_id),
         KILOBYTES(4),
-        MD_IO_WRITE | MD_IO_READ,
+        flags,
         write_ret, read_ret);
-    REQUIRE(write_ret == KILOBYTES(4) * 10);
-    REQUIRE(read_ret == KILOBYTES(4) * 15);
+    if (flags & MD_IO_WRITE) {
+      REQUIRE(write_ret == KILOBYTES(4) * 10);
+    }
+    if (flags & MD_IO_READ) {
+      REQUIRE(read_ret == KILOBYTES(4) * 15);
+    }
   }
   t.Pause();
 
   HILOG(kInfo, "Latency: {} KOps", ops / t.GetMsec());
+}
+
+TEST_CASE("TestIoWrite") {
+  TestIO(MD_IO_WRITE);
+}
+
+TEST_CASE("TestIoRead") {
+  TestIO(MD_IO_READ);
+}
+
+TEST_CASE("TestIo") {
+  TestIO(MD_IO_WRITE | MD_IO_READ);
 }
 
 TEST_CASE("TestUpgrade") {

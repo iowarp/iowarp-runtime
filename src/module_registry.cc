@@ -14,7 +14,7 @@ bool ModuleRegistry::CreateContainer(const char *lib_name,
   ScopedMutex lock(lock_, 0);
   // Ensure pool_id is not NULL
   if (pool_id.IsNull()) {
-    HELOG(kError, "The task state ID cannot be null");
+    HELOG(kError, "The pool ID cannot be null");
     task->SetModuleComplete();
     return false;
   }
@@ -44,7 +44,7 @@ bool ModuleRegistry::CreateContainer(const char *lib_name,
     // Allocate the state
     Container *exec = info.new_state_(&pool_id, pool_name);
     if (!exec) {
-      HELOG(kError, "Could not create the task state: {}", pool_name);
+      HELOG(kError, "Could not create the pool: {}", pool_name);
       task->SetModuleComplete();
       return false;
     }

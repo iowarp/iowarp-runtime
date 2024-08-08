@@ -106,13 +106,13 @@ struct LaneGroup {
  * */
 class Module {
  public:
-  PoolId id_;    /**< The unique name of a task state */
-  QueueId queue_id_;  /**< The queue id of a task state */
-  std::string name_;  /**< The unique semantic name of a task state */
+  PoolId id_;    /**< The unique name of a pool */
+  QueueId queue_id_;  /**< The queue id of a pool */
+  std::string name_;  /**< The unique semantic name of a pool */
   ContainerId container_id_;       /**< The logical id of a container */
   LaneId lane_counter_ = 0;
   std::unordered_map<LaneGroupId, std::shared_ptr<LaneGroup>>
-      lane_groups_;  /**< The lanes of a task state */
+      lane_groups_;  /**< The lanes of a pool */
   bitfield32_t mod_flags_;
 
   /** Default constructor */
@@ -225,7 +225,7 @@ class ModuleClient {
   void Init(const PoolId &id,
             const QueueId &queue_id) {
     if (id.IsNull()) {
-      HELOG(kWarning, "Failed to create task state");
+      HELOG(kWarning, "Failed to create pool");
     }
     id_ = id;
     // queue_id_ = QueueId(id_);
@@ -235,7 +235,7 @@ class ModuleClient {
   /** Init from existing ID */
   void Init(const PoolId &id) {
     if (id.IsNull()) {
-      HELOG(kWarning, "Failed to create task state");
+      HELOG(kWarning, "Failed to create pool");
     }
     id_ = id;
     // queue_id_ = QueueId(id_);

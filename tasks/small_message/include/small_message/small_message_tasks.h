@@ -170,6 +170,8 @@ struct IoTask : public Task, TaskFlags<TF_SRL_SYM> {
     ar(io_flags_);
     if (io_flags_.Any(MD_IO_WRITE)) {
       ar.bulk(DT_SENDER_WRITE, data_, size_);
+    } else {
+      ar.bulk(DT_SENDER_READ, data_, size_);
     }
   }
 

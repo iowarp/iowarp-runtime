@@ -23,7 +23,7 @@ class Client : public ModuleClient {
   /** Destructor */
   ~Client() = default;
 
-  /** Async create a task state */
+  /** Async create a pool */
   void AsyncCreateConstruct(CreateTask *task,
                             const TaskNode &task_node,
                             const DomainQuery &dom_query,
@@ -45,7 +45,7 @@ class Client : public ModuleClient {
   }
   CHI_TASK_METHODS(Create);
 
-  /** Destroy task state + queue */
+  /** Destroy pool + queue */
   HSHM_ALWAYS_INLINE
   void Destroy(const DomainQuery &dom_query) {
     CHI_ADMIN->DestroyContainer(dom_query, id_);

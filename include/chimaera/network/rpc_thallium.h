@@ -139,47 +139,50 @@ class ThalliumRpc {
   /** Make a generic bulk */
   tl::bulk MakeBulk(
       tl::engine &engine,
-      const std::vector<DataTransfer> &xfer,
-      tl::bulk_mode flag,
+      const std::vector<DataTransfer> &xfers,
+      u32 chi_flag,
+      tl::bulk_mode tl_flag,
       size_t &size_bytes) {
     size_bytes = 0;
-    std::vector<std::pair<void *, size_t>> segments(xfer.size());
-    for (size_t i = 0; i < xfer.size(); ++i) {
-      segments[i].first = xfer[i].data_;
-      segments[i].second = xfer[i].data_size_;
-      size_bytes += xfer[i].data_size_;
+    std::vector<std::pair<void *, size_t>> segments;
+    segments.reserve(xfers.size());
+    for (const DataTransfer &xfer : xfers) {
+      if (xfer.flags_.Any(chi_flag)) {
+        segments.emplace_back(xfer.data_, xfer.data_size_);
+        size_bytes += xfer.data_size_;
+      }
     }
     tl::bulk bulk;
     if (size_bytes) {
-      bulk = engine.expose(segments, flag);
+      bulk = engine.expose(segments, tl_flag);
     }
     return bulk;
   }
 
   /** Make bulk object for data transfer client-side */
   tl::bulk MakeBulkClient(const std::vector<DataTransfer> &xfer,
-                          u32 xfer_flag,
+                          u32 chi_flag,
                           size_t &size_bytes) {
-    tl::bulk_mode flag;
-    if (xfer_flag & DT_RECEIVER_READ) {
-      flag = tl::bulk_mode::read_only;
+    tl::bulk_mode tl_flag;
+    if (chi_flag & DT_SENDER_WRITE) {
+      tl_flag = tl::bulk_mode::write_only;
     } else {
-      flag = tl::bulk_mode::write_only;
+      tl_flag = tl::bulk_mode::read_only;
     }
-    return MakeBulk(*client_engine_, xfer, flag, size_bytes);
+    return MakeBulk(*client_engine_, xfer, chi_flag, tl_flag, size_bytes);
   }
 
   /** Make bulk object for data transfer at server-side */
   tl::bulk MakeBulkServer(const  std::vector<DataTransfer> &xfer,
-                          u32 xfer_flag,
+                          u32 chi_flag,
                           size_t &size_bytes) {
-    tl::bulk_mode flag;
-    if (xfer_flag & DT_RECEIVER_READ) {
-      flag = tl::bulk_mode::read_only;
+    tl::bulk_mode tl_flag;
+    if (chi_flag & DT_RECEIVER_READ) {
+      tl_flag = tl::bulk_mode::read_only;
     } else {
-      flag = tl::bulk_mode::write_only;
+      tl_flag = tl::bulk_mode::write_only;
     }
-    return MakeBulk(*server_engine_, xfer, flag, size_bytes);
+    return MakeBulk(*server_engine_, xfer, chi_flag, tl_flag, size_bytes);
   }
 
   /** I/O transfers */

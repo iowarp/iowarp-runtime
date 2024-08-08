@@ -16,7 +16,9 @@ class ChimaeraUnitTests(Application):
         """
         self.test_ipc_execs = ['TestIpc',
                                'TestAsyncIpc',
-                               'TestIO',
+                               'TestIoRead',
+                               'TestIoWrite',
+                               'TestIo',
                                'TestIpcMultithread4',
                                'TestIpcMultithread8',
                                'TestSerialize',

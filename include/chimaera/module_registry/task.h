@@ -335,7 +335,7 @@ struct RunContext {
 struct Task : public hipc::ShmContainer {
  SHM_CONTAINER_TEMPLATE((Task), (Task))
  public:
-  PoolId pool_;     /**< The unique name of a task state */
+  PoolId pool_;     /**< The unique name of a pool */
   TaskNode task_node_;         /**< The unique ID of this task in the graph */
   DomainQuery dom_query_;      /**< The nodes that the task should run on */
   MethodId method_;            /**< The method to call in the state */

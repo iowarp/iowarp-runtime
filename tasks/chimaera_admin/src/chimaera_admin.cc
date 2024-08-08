@@ -176,12 +176,12 @@ class Server : public Module {
     MonitorBase(mode, Method::kUpgradeModule, task, rctx);
   }
 
-  /** Create a task state */
+  /** Create a pool */
   void CreateContainer(CreateContainerTask *task, RunContext &rctx) {
     ScopedCoMutex lock(CHI_CUR_LANE->comux_);
     std::string lib_name = task->lib_name_.str();
     std::string pool_name = task->pool_name_.str();
-    // Check local registry for task state
+    // Check local registry for pool
     bool state_existed = false;
     PoolId found_pool = CHI_MOD_REGISTRY->PoolExists(
         pool_name, task->ctx_.id_);
@@ -191,15 +191,15 @@ class Server : public Module {
       task->SetModuleComplete();
       return;
     }
-    // Check global registry for task state
+    // Check global registry for pool
     if (task->ctx_.id_.IsNull()) {
       task->ctx_.id_ = CHI_MOD_REGISTRY->GetOrCreatePoolId(pool_name);
     }
-    // Create the task state
-    HILOG(kInfo, "(node {}) Creating task state {} with id {} (task_node={})",
+    // Create the pool
+    HILOG(kInfo, "(node {}) Creating pool {} with id {} (task_node={})",
           CHI_CLIENT->node_id_, pool_name, task->ctx_.id_, task->task_node_);
     if (task->ctx_.id_.IsNull()) {
-      HELOG(kError, "(node {}) The task state {} with id {} is NULL.",
+      HELOG(kError, "(node {}) The pool {} with id {} is NULL.",
             CHI_CLIENT->node_id_, pool_name, task->ctx_.id_);
       task->SetModuleComplete();
       return;
@@ -227,7 +227,7 @@ class Server : public Module {
     // Print the created domain
 //    CHI_RPC->PrintDomain(DomainId{task->ctx_.id_, SubDomainId::kContainerSet});
 //    CHI_RPC->PrintSubdomainSet(containers);
-    // Create the task state
+    // Create the pool
     CHI_MOD_REGISTRY->CreateContainer(
         lib_name.c_str(),
         pool_name.c_str(),
@@ -281,7 +281,7 @@ class Server : public Module {
     }
   }
 
-  /** Get task state id, fail if DNE */
+  /** Get pool id, fail if DNE */
   void GetPoolId(GetPoolIdTask *task, RunContext &rctx) {
     std::string pool_name = task->pool_name_.str();
     task->id_ = CHI_MOD_REGISTRY->GetPoolId(pool_name);
@@ -312,7 +312,7 @@ class Server : public Module {
     }
   }
 
-  /** Destroy a task state */
+  /** Destroy a pool */
   void DestroyContainer(DestroyContainerTask *task, RunContext &rctx) {
     CHI_MOD_REGISTRY->DestroyContainer(task->id_);
     task->SetModuleComplete();

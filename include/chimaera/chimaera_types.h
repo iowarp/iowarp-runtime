@@ -215,7 +215,7 @@ struct UniqueId {
   }
 };
 
-/** Uniquely identify a task state */
+/** Uniquely identify a pool */
 using PoolId = UniqueId<1>;
 /** Uniquely identify a queue */
 using QueueId = UniqueId<2>;
