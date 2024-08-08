@@ -169,9 +169,9 @@ struct IoTask : public Task, TaskFlags<TF_SRL_SYM> {
   void SerializeStart(Ar &ar) {
     ar(io_flags_);
     if (io_flags_.Any(MD_IO_WRITE)) {
-      ar.bulk(DT_SENDER_WRITE, data_, size_);
+      ar.bulk(DT_WRITE, data_, size_);
     } else {
-      ar.bulk(DT_SENDER_READ, data_, size_);
+      ar.bulk(DT_EXPOSE, data_, size_);
     }
   }
 
@@ -180,7 +180,7 @@ struct IoTask : public Task, TaskFlags<TF_SRL_SYM> {
   void SerializeEnd(Ar &ar) {
     ar(io_flags_, ret_);
     if (io_flags_.Any(MD_IO_READ)) {
-      ar.bulk(DT_SENDER_READ, data_, size_);
+      ar.bulk(DT_WRITE, data_, size_);
     }
   }
 };

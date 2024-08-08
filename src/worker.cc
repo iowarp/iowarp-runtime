@@ -343,13 +343,25 @@ bool Worker::RunTask(PrivateTaskQueue &priv_queue,
   // Get task properties
   bitfield32_t props =
       GetTaskProperties(task.ptr_, flushing);
+  // Pack runtime context
+  RunContext &rctx = task->rctx_;
+  rctx.worker_id_ = id_;
+  rctx.flush_ = &flush_;
   // Get the task container
   Container *exec;
-  if (props.Any(HSHM_WORKER_IS_REMOTE)) {
-    exec = CHI_MOD_REGISTRY->GetStaticContainer(task->pool_);
-  } else {
+  if (!props.Any(HSHM_WORKER_IS_REMOTE)) {
     exec = CHI_MOD_REGISTRY->GetContainer(task->pool_,
-                                           entry.res_query_.sel_.id_);
+                                          entry.res_query_.sel_.id_);
+  } else if (!task->IsModuleComplete()) {
+    task->SetBlocked(1);
+    active_.block(entry);
+    cur_task_ = nullptr;
+    cur_lane_ = nullptr;
+    CHI_REMOTE_QUEUE->AsyncClientPushSubmitBase(
+        nullptr, task->task_node_ + 1,
+        DomainQuery::GetDirectId(SubDomainId::kGlobalContainers, 1),
+        task.ptr_);
+    return false;
   }
   if (!exec) {
     if (task->pool_ == PoolId::GetNull()) {
@@ -380,13 +392,8 @@ bool Worker::RunTask(PrivateTaskQueue &priv_queue,
       return true;
     }
   }
-  // Pack runtime context
-  RunContext &rctx = task->rctx_;
-  rctx.worker_id_ = id_;
-  rctx.flush_ = &flush_;
-  rctx.exec_ = exec;
-  // Allocate remote task and execute here
   // Execute the task based on its properties
+  rctx.exec_ = exec;
   if (!task->IsModuleComplete()) {
     ExecTask(priv_queue, entry, task.ptr_, rctx, exec, props);
   }
@@ -431,18 +438,6 @@ void Worker::ExecTask(PrivateTaskQueue &priv_queue,
       task->SetShouldSample();
       rctx.timer_.Reset();
     }
-  }
-  // Submit the task to the local remote container
-  if (props.Any(HSHM_WORKER_IS_REMOTE)) {
-    task->SetBlocked(1);
-    active_.block(entry);
-    cur_task_ = nullptr;
-    cur_lane_ = nullptr;
-    CHI_REMOTE_QUEUE->AsyncClientPushSubmitBase(
-        nullptr, task->task_node_ + 1,
-        DomainQuery::GetDirectId(SubDomainId::kGlobalContainers, 1),
-        task);
-    return;
   }
   // Execute + monitor the task
   if (task->ShouldSample()) {

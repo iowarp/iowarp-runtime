@@ -24,15 +24,8 @@ namespace chi {
  * Sender writes to data_
  * Receiver reads from data_
  * */
-#define DT_RECEIVER_READ BIT_OPT(u32, 0)
-#define DT_SENDER_WRITE BIT_OPT(u32, 0)
-
-/**
- * Receiver will write to data_
- * Sender reads from data_
- * */
-#define DT_RECEIVER_WRITE BIT_OPT(u32, 1)
-#define DT_SENDER_READ BIT_OPT(u32, 1)
+#define DT_EXPOSE BIT_OPT(u32, 0)
+#define DT_WRITE (BIT_OPT(u32, 1) | DT_EXPOSE)
 
 /** Free data_ when the data transfer is complete */
 #define DT_FREE_DATA BIT_OPT(u32, 2)

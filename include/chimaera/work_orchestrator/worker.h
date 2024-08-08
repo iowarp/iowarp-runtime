@@ -27,6 +27,7 @@
 
 #include "chimaera/util/key_queue.h"
 #include "chimaera/util/key_set.h"
+#include "chimaera/util/list_queue.h"
 
 static inline pid_t GetLinuxTid() {
   return syscall(SYS_gettid);

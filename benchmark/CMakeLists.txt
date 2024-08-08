@@ -24,7 +24,8 @@ target_link_libraries(bench_chimaera_latency ${TEST_LIBS})
 target_compile_definitions(bench_chimaera_latency PUBLIC ${TEST_OPTS})
 
 add_executable(bench_chimaera_bw
-        test_bw.cc)
+        test_bw.cc
+        ../include/chimaera/util/list_queue.h)
 add_dependencies(bench_chimaera_bw ${Chimaera_CLIENT_DEPS})
 target_link_libraries(bench_chimaera_bw ${TEST_LIBS})
 target_compile_definitions(bench_chimaera_bw PUBLIC ${TEST_OPTS})

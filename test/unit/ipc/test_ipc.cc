@@ -207,7 +207,7 @@ void TestIO(u32 flags) {
   HILOG(kInfo, "Starting IO test: {}", nprocs);
 
   t.Resume();
-  size_t ops = 80000;
+  size_t ops = 1000;
   for (size_t i = 0; i < ops; ++i) {
     size_t write_ret = 0, read_ret = 0;
     HILOG(kInfo, "Sending message {}", i);

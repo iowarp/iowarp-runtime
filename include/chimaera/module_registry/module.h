@@ -28,6 +28,8 @@ typedef LPointer<Task> TaskPointer;
 /** The information of a lane */
 class Lane {
  public:
+  Lane *next_;
+  Lane *prior_;
   QueueId lane_id_;
   QueueId ingress_id_;
   i32 worker_id_;
@@ -96,6 +98,7 @@ class Lane {
   }
 };
 
+/** A group of lanes */
 struct LaneGroup {
   std::vector<Lane> lanes_;
 };

@@ -215,7 +215,7 @@ struct WriteTask : public Task, TaskFlags<TF_SRL_SYM> {
   /** (De)serialize message call */
   template<typename Ar>
   void SerializeStart(Ar &ar) {
-    ar.bulk(DT_SENDER_WRITE, data_, size_);
+    ar.bulk(DT_WRITE, data_, size_);
     ar(off_);
   }
 

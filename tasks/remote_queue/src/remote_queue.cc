@@ -213,7 +213,7 @@ class Server : public Module {
         CHI_THALLIUM->SyncIoCall<int>((i32)it->first,
                                        "RpcTaskSubmit",
                                        xfer,
-                                       DT_SENDER_WRITE);
+                                      DT_WRITE);
       }
     } catch (hshm::Error &e) {
       HELOG(kError, "(node {}) Worker {} caught an error: {}", CHI_CLIENT->node_id_, id_, e.what());
@@ -276,7 +276,7 @@ class Server : public Module {
         CHI_THALLIUM->SyncIoCall<int>((i32)it->first,
                                        "RpcTaskComplete",
                                        xfer,
-                                       DT_SENDER_WRITE);
+                                      DT_WRITE);
       }
     } catch (hshm::Error &e) {
       HELOG(kError, "(node {}) Worker {} caught an error: {}", CHI_CLIENT->node_id_, id_, e.what());

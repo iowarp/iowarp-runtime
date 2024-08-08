@@ -164,10 +164,10 @@ class ThalliumRpc {
                           u32 chi_flag,
                           size_t &size_bytes) {
     tl::bulk_mode tl_flag;
-    if (chi_flag & DT_SENDER_WRITE) {
-      tl_flag = tl::bulk_mode::write_only;
-    } else {
+    if (chi_flag & DT_WRITE) {
       tl_flag = tl::bulk_mode::read_only;
+    } else {
+      tl_flag = tl::bulk_mode::write_only;
     }
     return MakeBulk(*client_engine_, xfer, chi_flag, tl_flag, size_bytes);
   }
@@ -177,10 +177,10 @@ class ThalliumRpc {
                           u32 chi_flag,
                           size_t &size_bytes) {
     tl::bulk_mode tl_flag;
-    if (chi_flag & DT_RECEIVER_READ) {
-      tl_flag = tl::bulk_mode::read_only;
-    } else {
+    if (chi_flag & DT_WRITE) {
       tl_flag = tl::bulk_mode::write_only;
+    } else {
+      tl_flag = tl::bulk_mode::read_only;
     }
     return MakeBulk(*server_engine_, xfer, chi_flag, tl_flag, size_bytes);
   }
@@ -236,35 +236,14 @@ class ThalliumRpc {
         node_id, func_name, xfer, io_flag, std::forward<Args>(args)...);
   }
 
-  /** Io transfer at the server */
-  size_t IoCallServerRead(const tl::request &req,
-                          tl::bulk &bulk,
-                          SegmentedTransfer &xfer) {
-    tl::endpoint endpoint = req.get_endpoint();
-    size_t planned_bytes, real_bytes = 0;
-    tl::bulk local_rbulk =
-        MakeBulkServer(xfer.bulk_, DT_RECEIVER_READ,
-                       planned_bytes);
-    if (planned_bytes == 0) {
-      return 0;
-    }
-    try {
-      real_bytes += bulk.on(endpoint) << local_rbulk;
-    } catch (std::exception &e) {
-      HELOG(kFatal, "(node {}) Failed to perform bulk I/O thallium: {}",
-            rpc_->node_id_, e.what());
-    }
-    return real_bytes;
-  }
-
-  /** Io transfer at the server */
+  /** Handle DT_SENDER_WRITE at the server */
   size_t IoCallServerWrite(const tl::request &req,
                            tl::bulk &bulk,
                            const SegmentedTransfer &xfer) {
     tl::endpoint endpoint = req.get_endpoint();
     size_t planned_bytes, real_bytes = 0;
     tl::bulk local_wbulk =
-        MakeBulkServer(xfer.bulk_, DT_RECEIVER_WRITE,
+        MakeBulkServer(xfer.bulk_, DT_WRITE,
                        planned_bytes);
     if (planned_bytes == 0) {
       return 0;
