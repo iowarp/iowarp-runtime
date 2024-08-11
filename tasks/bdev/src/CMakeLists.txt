@@ -2,7 +2,8 @@
 # Build Small Message Task Library
 #------------------------------------------------------------------------------
 add_library(bdev SHARED
-        bdev.cc)
+        bdev.cc
+)
 add_dependencies(bdev ${Chimaera_RUNTIME_DEPS})
 target_link_libraries(bdev ${Chimaera_RUNTIME_LIBRARIES})
 target_compile_definitions(bdev PRIVATE ${Chimaera_RUNTIME_DEFINITIONS})

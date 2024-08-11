@@ -20,6 +20,8 @@ install(
         ARCHIVE DESTINATION ${CHIMEARA_INSTALL_LIB_DIR}
         RUNTIME DESTINATION ${CHIMEARA_INSTALL_BIN_DIR}
 )
+install(FILES TASK_NAME_monitor.py
+        DESTINATION ${CHIMEARA_INSTALL_LIB_DIR})
 
 #-----------------------------------------------------------------------------
 # Add Target(s) to CMake Install for import into other projects

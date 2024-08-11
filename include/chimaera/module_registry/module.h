@@ -138,6 +138,19 @@ class Module {
     return &lane_group.lanes_[hash % lane_group.lanes_.size()];
   }
 
+  /** Get lane with the least load */
+  template<typename F>
+  Lane* GetLeastLoadedLane(const LaneGroupId &group, F&& func) {
+    LaneGroup &lane_group = *lane_groups_[group];
+    Lane *least_loaded = &lane_group.lanes_[0];
+    for (Lane &lane : lane_group.lanes_) {
+      if (func(lane.load_, least_loaded->load_)) {
+        least_loaded = &lane;
+      }
+    }
+    return least_loaded;
+  }
+
   /** Get lane */
   Lane* GetLane(const QueueId &lane_id) {
     return GetLaneByHash(lane_id.node_id_, lane_id.unique_);

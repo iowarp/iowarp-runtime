@@ -13,6 +13,7 @@
 #include "chimaera_admin/chimaera_admin.h"
 #include "chimaera/api/chimaera_runtime.h"
 #include "bdev/bdev.h"
+#include "chimaera/monitor/monitor.h"
 
 namespace chi::bdev {
 
@@ -22,6 +23,12 @@ class Server : public Module {
   BlockUrl url_;
   int fd_;
   char *ram_;
+  RollingAverage monitor_[Method::kCount];
+  LeastSquares monitor_read_bw_;
+  LeastSquares monitor_read_lat_;
+  LeastSquares monitor_write_bw_;
+  LeastSquares monitor_write_lat_;
+  size_t lat_cutoff_;
 
  public:
   Server() = default;
@@ -33,19 +40,94 @@ class Server : public Module {
     url_.Parse(url);
     alloc_.Init(1, dev_size);
     CreateLaneGroup(0, 1, QUEUE_LOW_LATENCY);
+    CreateLaneGroup(1, 8, QUEUE_LOW_LATENCY);
+
+    // Create monitoring functions
+    for (int i = 0; i < Method::kCount; ++i) {
+      if (i == Method::kRead || i == Method::kWrite) continue;
+      monitor_[i].Shape(hshm::Formatter::format("{}-method-{}", name_, i));
+    }
+    monitor_read_bw_.Shape(
+        hshm::Formatter::format("{}-method-{}-bw", name_, Method::kWrite),
+        1, 2, 1, "Bdev.monitor_io");
+    monitor_read_lat_.Shape(
+        hshm::Formatter::format("{}-method-{}-lat", name_, Method::kRead),
+        1, 2, 1, "Bdev.monitor_io");
+    monitor_write_bw_.Shape(
+        hshm::Formatter::format("{}-method-{}-bw", name_, Method::kWrite),
+        1, 2, 1, "Bdev.monitor_io");
+    monitor_write_lat_.Shape(
+        hshm::Formatter::format("{}-method-{}-lat", name_, Method::kRead),
+        1, 2, 1, "Bdev.monitor_io");
+
+    // Allocate data
     switch (url_.scheme_) {
       case BlockUrl::kFs: {
         // Open file for read & write, no override
         fd_ = open(url_.path_.c_str(), O_RDWR | O_CREAT, 0666);
         hshm::Timer time;
-        time.Resume();
+        lat_cutoff_ = KILOBYTES(16);
+        std::vector<char> data(MEGABYTES(1));
+
         // Write 4KB to the beginning with pwrite
+        time.Resume();
+        pwrite(fd_, data.data(), KILOBYTES(4), 0);
+        fdatasync(fd_);
         time.Pause();
+        monitor_write_lat_.Add({(float)KILOBYTES(4), (float)time.GetNsec()},
+                               rctx.load_);
+        time.Reset();
+
+        // Write 1MB to the beginning with pwrite
+        time.Resume();
+        pwrite(fd_, data.data(), MEGABYTES(1), 0);
+        fdatasync(fd_);
+        time.Pause();
+        monitor_write_bw_.Add({(float)MEGABYTES(1), (float)time.GetNsec()},
+                               rctx.load_);
+        time.Reset();
+
+        // Read 4KB from the beginning with pread
+        time.Resume();
+        fdatasync(fd_);
+        pread(fd_, data.data(), KILOBYTES(4), 0);
+        time.Pause();
+        monitor_read_lat_.Add({(float)KILOBYTES(4), (float)time.GetNsec()},
+                              rctx.load_);
+        time.Reset();
+
+        // Read 1MB from the beginning with pread
+        time.Resume();
+        fdatasync(fd_);
+        pread(fd_, data.data(), MEGABYTES(1), 0);
+        time.Pause();
+        monitor_read_bw_.Add({(float)MEGABYTES(1), (float)time.GetNsec()},
+                              rctx.load_);
+        time.Reset();
         break;
       }
       case BlockUrl::kRam: {
         // Malloc memory for ram disk
         ram_ = (char *)malloc(dev_size);
+        hshm::Timer time;
+        lat_cutoff_ = 0;
+        std::vector<char> data(MEGABYTES(1));
+
+        // Write 1MB to the beginning with pwrite
+        time.Resume();
+        memcpy(ram_, data.data(), MEGABYTES(1));
+        time.Pause();
+        monitor_write_bw_.Add({(float)MEGABYTES(1), (float)time.GetNsec()},
+                              rctx.load_);
+        time.Reset();
+
+        // Read 1MB from the beginning with pread
+        time.Resume();
+        memcpy(data.data(), ram_, MEGABYTES(1));
+        time.Pause();
+        monitor_read_bw_.Add({(float)MEGABYTES(1), (float)time.GetNsec()},
+                             rctx.load_);
+        time.Reset();
         break;
       }
       case BlockUrl::kSpdk: {
@@ -53,14 +135,26 @@ class Server : public Module {
         break;
       }
     }
+
     task->SetModuleComplete();
   }
   void MonitorCreate(MonitorModeId mode, CreateTask *task, RunContext &rctx) {
+    AverageMonitor(Method::kCreate, mode, rctx);
   }
 
   /** Route a task to a bdev lane */
   Lane* Route(const Task *task) override {
-    return GetLaneByHash(task->prio_, 0);
+    switch (task->method_) {
+      case Method::kRead:
+      case Method::kWrite: {
+        return GetLeastLoadedLane(1, [](Load &lhs, Load &rhs){
+          return lhs.io_load_ < rhs.io_load_;
+        });
+      }
+      default: {
+        return GetLaneByHash(task->prio_, 0);
+      }
+    }
   }
 
   /** Destroy bdev */
@@ -68,6 +162,7 @@ class Server : public Module {
     task->SetModuleComplete();
   }
   void MonitorDestroy(MonitorModeId mode, DestroyTask *task, RunContext &rctx) {
+    AverageMonitor(Method::kDestroy, mode, rctx);
   }
 
   /** Allocate a section of the block device */
@@ -76,19 +171,7 @@ class Server : public Module {
     task->SetModuleComplete();
   }
   void MonitorAllocate(MonitorModeId mode, AllocateTask *task, RunContext &rctx) {
-    switch (mode) {
-      case MonitorMode::kEstLoad: {
-        break;
-      }
-      case MonitorMode::kReinforceLoad: {
-        break;
-      }
-      case MonitorMode::kReplicaAgg: {
-        std::vector<LPointer<Task>> &replicas = *rctx.replicas_;
-        auto replica = reinterpret_cast<AllocateTask *>(
-            replicas[0].ptr_);
-      }
-    }
+    AverageMonitor(Method::kAllocate, mode, rctx);
   }
 
   /** Free a section of the block device */
@@ -97,13 +180,7 @@ class Server : public Module {
     task->SetModuleComplete();
   }
   void MonitorFree(MonitorModeId mode, FreeTask *task, RunContext &rctx) {
-    switch (mode) {
-      case MonitorMode::kReplicaAgg: {
-        std::vector<LPointer<Task>> &replicas = *rctx.replicas_;
-        auto replica = reinterpret_cast<ReadTask *>(
-            replicas[0].ptr_);
-      }
-    }
+
   }
 
   /** Write to the block device */
@@ -126,10 +203,29 @@ class Server : public Module {
   }
   void MonitorWrite(MonitorModeId mode, WriteTask *task, RunContext &rctx) {
     switch (mode) {
-      case MonitorMode::kReplicaAgg: {
-        std::vector<LPointer<Task>> &replicas = *rctx.replicas_;
-        auto replica = reinterpret_cast<WriteTask *>(
-            replicas[0].ptr_);
+      case MonitorMode::kEstLoad: {
+        if (task->size_ < lat_cutoff_) {
+
+        } else {
+          rctx.load_.cpu_load_ =
+              monitor_write_bw_.consts_[0] * task->size_;
+        }
+        break;
+      }
+      case MonitorMode::kSampleLoad: {
+        monitor_write_bw_.Add({(float)task->size_,
+                                  // (float)rctx.load_.cpu_load_,
+                               (float)rctx.timer_.GetNsec()},
+                              rctx.load_);
+        break;
+      }
+      case MonitorMode::kReinforceLoad: {
+        if (monitor_write_bw_.DoTrain()) {
+          CHI_WORK_ORCHESTRATOR->ImportModule("bdev_monitor");
+          CHI_WORK_ORCHESTRATOR->RunMethod(
+              "ChimaeraMonitor", "least_squares_fit", monitor_write_bw_);
+        }
+        break;
       }
     }
   }
@@ -153,13 +249,6 @@ class Server : public Module {
     task->SetModuleComplete();
   }
   void MonitorRead(MonitorModeId mode, ReadTask *task, RunContext &rctx) {
-    switch (mode) {
-      case MonitorMode::kReplicaAgg: {
-        std::vector<LPointer<Task>> &replicas = *rctx.replicas_;
-        auto replica = reinterpret_cast<ReadTask *>(
-            replicas[0].ptr_);
-      }
-    }
   }
 
   /** Poll block device statistics */
@@ -168,11 +257,23 @@ class Server : public Module {
   }
   void MonitorPollStats(MonitorModeId mode,
                         PollStatsTask *task, RunContext &rctx) {
+    AverageMonitor(Method::kPollStats, mode, rctx);
+  }
+
+  /** Rolling average for most tasks */
+  void AverageMonitor(MethodId method, MonitorModeId mode, RunContext &rctx) {
     switch (mode) {
-      case MonitorMode::kReplicaAgg: {
-        std::vector<LPointer<Task>> &replicas = *rctx.replicas_;
-        auto replica = reinterpret_cast<PollStatsTask *>(
-            replicas[0].ptr_);
+      case MonitorMode::kEstLoad: {
+        rctx.load_.cpu_load_ = monitor_[Method::kFree].Predict();
+        break;
+      }
+      case MonitorMode::kSampleLoad: {
+        monitor_[Method::kFree].Add(rctx.timer_.GetNsec(), rctx.load_);
+        break;
+      }
+      case MonitorMode::kReinforceLoad: {
+        monitor_[Method::kFree].DoTrain();
+        break;
       }
     }
   }

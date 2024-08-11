@@ -13,6 +13,7 @@
 #include "chimaera_admin/chimaera_admin.h"
 #include "chimaera/api/chimaera_runtime.h"
 #include "TASK_NAME/TASK_NAME.h"
+#include "chimaera/monitor/monitor.h"
 
 namespace chi::TASK_NAME {
 
