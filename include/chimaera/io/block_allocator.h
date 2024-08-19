@@ -9,15 +9,23 @@ namespace chi {
 
 /** BDEV performance statistics */
 struct BdevStats {
-  size_t read_bw_;
-  size_t write_bw_;
-  size_t read_latency_;
-  size_t write_latency_;
+  float read_bw_;
+  float write_bw_;
+  float read_latency_;
+  float write_latency_;
   size_t free_;
 
   template<typename Ar>
   void serialize(Ar &ar) {
     ar(read_bw_, write_bw_, read_latency_, write_latency_, free_);
+  }
+
+  friend std::ostream &operator<<(std::ostream &os, const BdevStats &stats) {
+    os << hshm::Formatter::format(
+        "ReadLat: {}, ReadBW: {}, WriteLat: {}, WriteBw: {}, Free: {}",
+        stats.read_latency_, stats.read_bw_, stats.write_latency_,
+        stats.write_bw_, stats.free_);
+    return os;
   }
 };
 
@@ -38,15 +46,18 @@ struct BlockUrl {
     if (pos == std::string::npos) {
       path_ = url;
       scheme_ = kFs;
-    }
-    std::string scheme = url.substr(0, pos);
-    path_ = url.substr(pos + 3);
-    if (scheme == "ram") {
-      scheme_ = kRam;
-    } else if (scheme == "spdk") {
-      scheme_ = kSpdk;
     } else {
-      scheme_ = kFs;
+      std::string scheme = url.substr(0, pos);
+      path_ = url.substr(pos + 3);
+      if (scheme == "fs") {
+        scheme_ = kFs;
+      } else if (scheme == "ram") {
+        scheme_ = kRam;
+      } else if (scheme == "spdk") {
+        scheme_ = kSpdk;
+      } else {
+        scheme_ = kFs;
+      }
     }
   }
 };
@@ -108,9 +119,11 @@ struct BlockAllocator {
   void Init(size_t num_lanes, size_t max_heap_size) {
     max_heap_size_ = max_heap_size;
     free_list_.resize(num_lanes, 4);
+    free_size_ = max_heap_size;
   }
 
   Block Allocate(int lane, size_t size) {
+    free_size_ -= size;
     if (size <= KILOBYTES(4)) {
       return ListAllocate(KILOBYTES(4), lane, 0);
     } else if (size <= KILOBYTES(16)) {
@@ -129,23 +142,24 @@ struct BlockAllocator {
       free_list.pop_front();
       return Block;
     } else {
-      Block Block;
-      Block.off_ = heap_off_.fetch_add(Block_size);
-      Block.size_ = Block_size;
-      return Block;
+      Block block;
+      block.off_ = heap_off_.fetch_add(Block_size);
+      block.size_ = Block_size;
+      return block;
     }
   }
 
-  void Free(int lane, const Block &Block) {
-    if (Block.size_ <= KILOBYTES(4)) {
-      free_list_.list_[0].lanes_[lane].push_back(Block);
-    } else if (Block.size_ <= KILOBYTES(16)) {
-      free_list_.list_[1].lanes_[lane].push_back(Block);
-    } else if (Block.size_ <= KILOBYTES(64)) {
-      free_list_.list_[2].lanes_[lane].push_back(Block);
+  void Free(int lane, const Block &block) {
+    if (block.size_ <= KILOBYTES(4)) {
+      free_list_.list_[0].lanes_[lane].push_back(block);
+    } else if (block.size_ <= KILOBYTES(16)) {
+      free_list_.list_[1].lanes_[lane].push_back(block);
+    } else if (block.size_ <= KILOBYTES(64)) {
+      free_list_.list_[2].lanes_[lane].push_back(block);
     } else {
-      free_list_.list_[3].lanes_[lane].push_back(Block);
+      free_list_.list_[3].lanes_[lane].push_back(block);
     }
+    free_size_ += block.size_;
   }
 };
 

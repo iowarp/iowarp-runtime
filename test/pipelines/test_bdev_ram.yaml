@@ -8,6 +8,6 @@ pkgs:
     dbg_port: 4000
   - pkg_type: chimaera_unit_tests
     pkg_name: chimaera_unit_tests
-    TEST_CASE: TestIoWrite
+    TEST_CASE: TestBdevRam
     do_dbg: true
     dbg_port: 4001

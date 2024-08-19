@@ -186,8 +186,8 @@ struct WriteTask : public Task, TaskFlags<TF_SRL_SYM> {
             const DomainQuery &dom_query,
             const PoolId &pool_id,
             const hipc::Pointer &data,
-            size_t size,
-            size_t off) : Task(alloc) {
+            size_t off,
+            size_t size) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrio::kLowLatency;
@@ -246,13 +246,13 @@ struct ReadTask : public Task, TaskFlags<TF_SRL_SYM> {
             const DomainQuery &dom_query,
             const PoolId &pool_id,
             const hipc::Pointer &data,
-            size_t size,
-            size_t off) : Task(alloc) {
+            size_t off,
+            size_t size) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrio::kLowLatency;
     pool_ = pool_id;
-    method_ = Method::kWrite;
+    method_ = Method::kRead;
     task_flags_.SetBits(0);
     dom_query_ = dom_query;
 
@@ -304,10 +304,15 @@ struct PollStatsTask : public Task, TaskFlags<TF_SRL_SYM> {
            u32 period_ms) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
-    prio_ = TaskPrio::kHighLatency;
     pool_ = pool_id;
     method_ = Method::kPollStats;
-    task_flags_.SetBits(TASK_LONG_RUNNING);
+    if (period_ms) {
+      task_flags_.SetBits(TASK_LONG_RUNNING);
+      prio_ = TaskPrio::kHighLatency;
+    } else {
+      task_flags_.SetBits(0);
+      prio_ = TaskPrio::kLowLatency;
+    }
     dom_query_ = dom_query;
 
     SetPeriodMs(period_ms);

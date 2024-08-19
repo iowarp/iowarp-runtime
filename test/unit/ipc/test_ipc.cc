@@ -16,6 +16,7 @@
 #include "chimaera_admin/chimaera_admin.h"
 
 #include "small_message/small_message.h"
+#include "bdev/bdev.h"
 #include "hermes_shm/util/timer.h"
 #include "chimaera/work_orchestrator/affinity.h"
 #include "omp.h"
@@ -187,7 +188,7 @@ TEST_CASE("TestIpcMultithread32") {
   TestIpcMultithread(32);
 }
 
-void TestIO(u32 flags) {
+void TestBulk(u32 flags) {
   CHIMAERA_CLIENT_INIT();
   int rank, nprocs;
   MPI_Barrier(MPI_COMM_WORLD);
@@ -229,16 +230,16 @@ void TestIO(u32 flags) {
   HILOG(kInfo, "Latency: {} KOps", ops / t.GetMsec());
 }
 
-TEST_CASE("TestIoWrite") {
-  TestIO(MD_IO_WRITE);
+TEST_CASE("TestBulkWrite") {
+  TestBulk(MD_IO_WRITE);
 }
 
-TEST_CASE("TestIoRead") {
-  TestIO(MD_IO_READ);
+TEST_CASE("TestBulkRead") {
+  TestBulk(MD_IO_READ);
 }
 
-TEST_CASE("TestIo") {
-  TestIO(MD_IO_WRITE | MD_IO_READ);
+TEST_CASE("TestBulk") {
+  TestBulk(MD_IO_WRITE | MD_IO_READ);
 }
 
 TEST_CASE("TestUpgrade") {
@@ -293,6 +294,72 @@ TEST_CASE("TestUpgrade") {
   HILOG(kInfo, "Latency: {} MOps, {} MTasks",
         ops / t.GetUsec(),
         ops * (depth + 1) / t.GetUsec());
+}
+
+void TestBdevIo(const std::string &path) {
+  CHIMAERA_CLIENT_INIT();
+
+  int rank, nprocs;
+  MPI_Barrier(MPI_COMM_WORLD);
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+  chi::bdev::Client client;
+  CHI_ADMIN->RegisterModule(
+      chi::DomainQuery::GetGlobalBcast(), "bdev");
+  client.Create(
+      chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
+      chi::DomainQuery::GetGlobalBcast(),
+      "tempdir",
+      "fs::///tmp/chi_test_bdev.bin",
+      GIGABYTES(1));
+  MPI_Barrier(MPI_COMM_WORLD);
+  hshm::Timer t;
+
+  hipc::LPointer io_write = CHI_CLIENT->AllocateBuffer(MEGABYTES(1));
+  hipc::LPointer io_read = CHI_CLIENT->AllocateBuffer(MEGABYTES(1));
+
+  t.Resume();
+  size_t ops = 16;
+  for (size_t i = 0; i < ops; ++i) {
+    int ret;
+    // HILOG(kInfo, "Sending message {}", i);
+    int cont_id = i;
+    chi::Block block = client.Allocate(
+        chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, cont_id),
+        MEGABYTES(1));
+    // Write the data that was allocated
+    memset(io_write.ptr_, 10, MEGABYTES(1));
+    client.Write(
+        chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, cont_id),
+        io_write.shm_, block.off_, MEGABYTES(1));
+    // Read the data that was written
+    memset(io_read.ptr_, 0, MEGABYTES(1));
+    client.Read(
+        chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, cont_id),
+        io_read.shm_, block.off_, MEGABYTES(1));
+    // Verify the correctness of data
+    REQUIRE(memcmp(io_write.ptr_, io_read.ptr_, MEGABYTES(1)) == 0);
+    // Free the buffer
+    client.Free(
+        chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, cont_id),
+        block);
+    // Poll the stats
+    chi::BdevStats stats = client.PollStats(
+        chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, cont_id));
+    HILOG(kInfo, "Stats: {}", stats);
+  }
+  t.Pause();
+
+  CHI_CLIENT->FreeBuffer(io_write);
+  CHI_CLIENT->FreeBuffer(io_read);
+}
+
+TEST_CASE("TestBdevIo") {
+  TestBdevIo("fs::///tmp/chi_test_bdev.bin");
+}
+
+TEST_CASE("TestBdevRam") {
+  TestBdevIo("ram:://");
 }
 
 #ifdef CHIMAERA_ENABLE_PYTHON

@@ -63,24 +63,26 @@ class Server : public Module {
     // Allocate data
     switch (url_.scheme_) {
       case BlockUrl::kFs: {
+        ssize_t ret;
+
         // Open file for read & write, no override
         fd_ = open(url_.path_.c_str(), O_RDWR | O_CREAT, 0666);
         hshm::Timer time;
         lat_cutoff_ = KILOBYTES(16);
         std::vector<char> data(MEGABYTES(1));
 
-        // Write 4KB to the beginning with pwrite
+        // Write 16KB to the beginning with pwrite
         time.Resume();
-        pwrite(fd_, data.data(), KILOBYTES(4), 0);
+        ret = pwrite(fd_, data.data(), KILOBYTES(16), 0);
         fdatasync(fd_);
         time.Pause();
-        monitor_write_lat_.Add({(float)KILOBYTES(4), (float)time.GetNsec()},
+        monitor_write_lat_.Add({(float)KILOBYTES(16), (float)time.GetNsec()},
                                rctx.load_);
         time.Reset();
 
         // Write 1MB to the beginning with pwrite
         time.Resume();
-        pwrite(fd_, data.data(), MEGABYTES(1), 0);
+        ret = pwrite(fd_, data.data(), MEGABYTES(1), 0);
         fdatasync(fd_);
         time.Pause();
         monitor_write_bw_.Add({(float)MEGABYTES(1), (float)time.GetNsec()},
@@ -90,7 +92,7 @@ class Server : public Module {
         // Read 4KB from the beginning with pread
         time.Resume();
         fdatasync(fd_);
-        pread(fd_, data.data(), KILOBYTES(4), 0);
+        ret = pread(fd_, data.data(), KILOBYTES(4), 0);
         time.Pause();
         monitor_read_lat_.Add({(float)KILOBYTES(4), (float)time.GetNsec()},
                               rctx.load_);
@@ -99,7 +101,7 @@ class Server : public Module {
         // Read 1MB from the beginning with pread
         time.Resume();
         fdatasync(fd_);
-        pread(fd_, data.data(), MEGABYTES(1), 0);
+        ret = pread(fd_, data.data(), MEGABYTES(1), 0);
         time.Pause();
         monitor_read_bw_.Add({(float)MEGABYTES(1), (float)time.GetNsec()},
                               rctx.load_);
@@ -188,11 +190,17 @@ class Server : public Module {
     char *data = HERMES_MEMORY_MANAGER->Convert<char>(task->data_);
     switch (url_.scheme_) {
       case BlockUrl::kFs: {
-        pwrite(fd_, data, task->size_, task->off_);
+        ssize_t ret = pwrite(fd_, data, task->size_, task->off_);
+        if (ret == task->size_) {
+          task->success_ = true;
+        } else {
+          task->success_ = false;
+        }
         break;
       }
       case BlockUrl::kRam: {
         memcpy(ram_ + task->off_, data, task->size_);
+        task->success_ = true;
         break;
       }
       case BlockUrl::kSpdk: {
@@ -235,11 +243,17 @@ class Server : public Module {
     char *data = HERMES_MEMORY_MANAGER->Convert<char>(task->data_);
     switch (url_.scheme_) {
       case BlockUrl::kFs: {
-        pread(fd_, data, task->size_, task->off_);
+        ssize_t ret = pread(fd_, data, task->size_, task->off_);
+        if (ret == task->size_) {
+          task->success_ = true;
+        } else {
+          task->success_ = false;
+        }
         break;
       }
       case BlockUrl::kRam: {
         memcpy(data, ram_ + task->off_, task->size_);
+        task->success_ = true;
         break;
       }
       case BlockUrl::kSpdk: {
@@ -253,6 +267,11 @@ class Server : public Module {
 
   /** Poll block device statistics */
   void PollStats(PollStatsTask *task, RunContext &rctx) {
+    task->stats_.read_bw_ = monitor_read_bw_.consts_[0];
+    task->stats_.write_bw_ = monitor_write_bw_.consts_[0];
+    task->stats_.read_latency_ = monitor_read_lat_.consts_[0];
+    task->stats_.write_latency_ = monitor_write_lat_.consts_[0];
+    task->stats_.free_ = alloc_.free_size_;
     task->SetModuleComplete();
   }
   void MonitorPollStats(MonitorModeId mode,
