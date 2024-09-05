@@ -7,6 +7,14 @@
 
 namespace chi {
 
+/** The number of blocks in slab to allocate */
+struct SlabCount {
+  size_t count_;
+  size_t slab_size_;
+
+  SlabCount() : count_(0), slab_size_(0) {}
+};
+
 /** BDEV performance statistics */
 struct BdevStats {
   float read_bw_;
@@ -109,6 +117,7 @@ struct FreeListMap {
 
 struct BlockAllocator {
  public:
+  std::vector<size_t> slab_sizes_;
   std::atomic<size_t> heap_off_ = 0;
   std::atomic<size_t> free_size_ = 0;
   size_t max_heap_size_;
@@ -118,24 +127,92 @@ struct BlockAllocator {
  public:
   void Init(size_t num_lanes, size_t max_heap_size) {
     max_heap_size_ = max_heap_size;
-    free_list_.resize(num_lanes, 4);
     free_size_ = max_heap_size;
+    // TODO(llogan): Don't hardcode slab sizes
+    slab_sizes_.emplace_back(KILOBYTES(4));
+    slab_sizes_.emplace_back(KILOBYTES(16));
+    slab_sizes_.emplace_back(KILOBYTES(64));
+    slab_sizes_.emplace_back(MEGABYTES(1));
+    free_list_.resize(num_lanes, slab_sizes_.size());
   }
 
-  Block Allocate(int lane, size_t size) {
-    free_size_ -= size;
-    if (size <= KILOBYTES(4)) {
-      return ListAllocate(KILOBYTES(4), lane, 0);
-    } else if (size <= KILOBYTES(16)) {
-      return ListAllocate(KILOBYTES(16), lane, 1);
-    } else if (size <= KILOBYTES(64)) {
-      return ListAllocate(KILOBYTES(64), lane, 2);
-    } else {
-      return ListAllocate(MEGABYTES(1), lane, 3);
+  void Allocate(int lane, size_t size,
+                hipc::vector<Block> &buffers,
+                size_t &total_size) {
+    u32 buffer_count = 0;
+    std::vector<SlabCount> coins = CoinSelect(lane, size, buffer_count);
+    buffers.reserve(buffer_count);
+    total_size = 0;
+    int slab_idx = 0;
+    for (auto &coin : coins) {
+      AllocateSlabs(coin.slab_size_,
+                    slab_idx,
+                    coin.count_,
+                    buffers,
+                    total_size);
+      ++slab_idx;
     }
   }
 
-  Block ListAllocate(size_t Block_size, int lane, int free_list_id) {
+  void Free(int lane, const Block &block) {
+    int free_list_id = 0;
+    for (size_t slab_size : slab_sizes_) {
+      if (block.size_ <= slab_size) {
+        free_list_.list_[free_list_id].lanes_[lane].push_back(block);
+        free_size_ += block.size_;
+        return;
+      }
+      ++free_list_id;
+    }
+  }
+
+ private:
+  /** Determine how many of each slab size to allocate */
+  std::vector<SlabCount> CoinSelect(int lane, size_t size, u32 &buffer_count) {
+    std::vector<SlabCount> coins(slab_sizes_.size());
+    size_t rem_size = size;
+
+    while (rem_size) {
+      // Find the slab size nearest to the rem_size
+      size_t slab_id = 0, slab_size = 0;
+      for (auto &slab : free_list_.list_[slab_id].lanes_[lane]) {
+        if (slab_sizes_[slab_id] >= rem_size) {
+          break;
+        }
+        ++slab_id;
+      }
+      if (slab_id == slab_sizes_.size()) { slab_id -= 1; }
+      slab_size = slab_sizes_[slab_id];
+
+      // Divide rem_size into slabs
+      if (rem_size > slab_size) {
+        coins[slab_id].count_ += rem_size / slab_size;
+        coins[slab_id].slab_size_ = slab_size;
+        rem_size %= slab_size;
+      } else {
+        coins[slab_id].count_ += 1;
+        coins[slab_id].slab_size_ = slab_size;
+        rem_size = 0;
+      }
+      buffer_count += coins[slab_id].count_;
+    }
+
+    return coins;
+  }
+
+  /** Allocate slabs of a certain size */
+  void AllocateSlabs(size_t slab_size,
+                     int slab_idx, size_t count,
+                     hipc::vector<Block> &buffers,
+                     size_t &total_size) {
+    for (size_t i = 0; i < count; ++i) {
+      Block block = ListAllocate(slab_size, 0, slab_idx);
+      buffers.emplace_back(block);
+      total_size += slab_size;
+    }
+  }
+
+  Block ListAllocate(size_t slab_size, int lane, int free_list_id) {
     FREE_LIST &free_list = free_list_.list_[free_list_id].lanes_[lane];
     if (!free_list.empty()) {
       Block Block = free_list.front();
@@ -143,23 +220,15 @@ struct BlockAllocator {
       return Block;
     } else {
       Block block;
-      block.off_ = heap_off_.fetch_add(Block_size);
-      block.size_ = Block_size;
+      block.off_ = heap_off_.fetch_add(slab_size);
+      if (block.off_ > max_heap_size_) {
+        block.off_ = 0;
+        block.size_ = 0;
+        return block;
+      }
+      block.size_ = slab_size;
       return block;
     }
-  }
-
-  void Free(int lane, const Block &block) {
-    if (block.size_ <= KILOBYTES(4)) {
-      free_list_.list_[0].lanes_[lane].push_back(block);
-    } else if (block.size_ <= KILOBYTES(16)) {
-      free_list_.list_[1].lanes_[lane].push_back(block);
-    } else if (block.size_ <= KILOBYTES(64)) {
-      free_list_.list_[2].lanes_[lane].push_back(block);
-    } else {
-      free_list_.list_[3].lanes_[lane].push_back(block);
-    }
-    free_size_ += block.size_;
   }
 };
 

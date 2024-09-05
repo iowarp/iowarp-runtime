@@ -324,9 +324,10 @@ void TestBdevIo(const std::string &path) {
     int ret;
     // HILOG(kInfo, "Sending message {}", i);
     int cont_id = i;
-    chi::Block block = client.Allocate(
+    std::vector<chi::Block> blocks = client.Allocate(
         chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, cont_id),
         MEGABYTES(1));
+    chi::Block block = blocks[0];
     // Write the data that was allocated
     memset(io_write.ptr_, 10, MEGABYTES(1));
     client.Write(

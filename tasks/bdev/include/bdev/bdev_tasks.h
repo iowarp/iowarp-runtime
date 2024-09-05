@@ -77,11 +77,13 @@ typedef chi::Admin::DestroyContainerTask DestroyTask;
  * */
 struct AllocateTask : public Task, TaskFlags<TF_SRL_SYM> {
   IN size_t size_;
-  OUT Block block_;
+  OUT size_t total_size_;
+  OUT hipc::vector<Block> blocks_;
 
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
-  AllocateTask(hipc::Allocator *alloc) : Task(alloc) {}
+  AllocateTask(hipc::Allocator *alloc)
+  : Task(alloc), blocks_(alloc) {}
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
@@ -89,7 +91,7 @@ struct AllocateTask : public Task, TaskFlags<TF_SRL_SYM> {
                const TaskNode &task_node,
                const DomainQuery &dom_query,
                const PoolId &pool_id,
-               size_t size) : Task(alloc) {
+               size_t size) : Task(alloc), blocks_(alloc) {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrio::kLowLatency;
@@ -105,7 +107,7 @@ struct AllocateTask : public Task, TaskFlags<TF_SRL_SYM> {
   /** Duplicate message */
   void CopyStart(const AllocateTask &other, bool deep) {
     size_ = other.size_;
-    block_ = other.block_;
+    blocks_ = other.blocks_;
   }
 
   /** (De)serialize message call */
@@ -117,7 +119,7 @@ struct AllocateTask : public Task, TaskFlags<TF_SRL_SYM> {
   /** (De)serialize message return */
   template<typename Ar>
   void SerializeEnd(Ar &ar) {
-    ar(block_);
+    ar(blocks_, total_size_);
   }
 };
 
@@ -275,13 +277,15 @@ struct ReadTask : public Task, TaskFlags<TF_SRL_SYM> {
   /** (De)serialize message call */
   template<typename Ar>
   void SerializeStart(Ar &ar) {
-    // ar(data_, size_, off_);
+    ar.bulk(DT_EXPOSE, data_, size_);
+    ar(size_, off_);
   }
 
   /** (De)serialize message return */
   template<typename Ar>
   void SerializeEnd(Ar &ar) {
-    // ar(success_);
+    ar.bulk(DT_WRITE, data_, size_);
+    ar(success_);
   }
 };
 

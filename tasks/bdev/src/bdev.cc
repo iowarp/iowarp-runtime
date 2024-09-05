@@ -169,7 +169,7 @@ class Server : public Module {
 
   /** Allocate a section of the block device */
   void Allocate(AllocateTask *task, RunContext &rctx) {
-    task->block_ = alloc_.Allocate(0, task->size_);
+    alloc_.Allocate(0, task->size_, task->blocks_, task->total_size_);
     task->SetModuleComplete();
   }
   void MonitorAllocate(MonitorModeId mode, AllocateTask *task, RunContext &rctx) {
@@ -182,7 +182,6 @@ class Server : public Module {
     task->SetModuleComplete();
   }
   void MonitorFree(MonitorModeId mode, FreeTask *task, RunContext &rctx) {
-
   }
 
   /** Write to the block device */

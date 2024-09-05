@@ -70,14 +70,14 @@ class Client : public ModuleClient {
         task, task_node, dom_query, id_, size);
   }
   HSHM_ALWAYS_INLINE
-  Block Allocate(const DomainQuery &dom_query,
-                 size_t size) {
+  std::vector<Block> Allocate(const DomainQuery &dom_query,
+                              size_t size) {
     LPointer<AllocateTask> task =
         AsyncAllocate(dom_query, size);
     task.ptr_->Wait();
-    Block block = task->block_;
+    std::vector<Block> blocks = task->blocks_.vec();
     CHI_CLIENT->DelTask(task);
-    return block;
+    return blocks;
   }
   CHI_TASK_METHODS(Allocate);
 
@@ -149,9 +149,9 @@ class Client : public ModuleClient {
   /** Periodically poll block device stats */
   HSHM_ALWAYS_INLINE
   void AsyncPollStatsConstruct(PollStatsTask *task,
-                          const TaskNode &task_node,
-                          const DomainQuery &dom_query,
-                          size_t period_ms) {
+                               const TaskNode &task_node,
+                               const DomainQuery &dom_query,
+                               size_t period_ms) {
     CHI_CLIENT->ConstructTask<PollStatsTask>(
         task, task_node, dom_query, id_,
         period_ms);
