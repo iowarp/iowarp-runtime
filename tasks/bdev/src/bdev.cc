@@ -24,10 +24,10 @@ class Server : public Module {
   int fd_;
   char *ram_;
   RollingAverage monitor_[Method::kCount];
-  LeastSquares monitor_read_bw_;
-  LeastSquares monitor_read_lat_;
-  LeastSquares monitor_write_bw_;
-  LeastSquares monitor_write_lat_;
+  LeastSquares monitor_read_bw_;     // bytes / nsec -> GB / sec
+  LeastSquares monitor_read_lat_;    // nsec
+  LeastSquares monitor_write_bw_;    // bytes / nsec -> GB / sec
+  LeastSquares monitor_write_lat_;   // nsec
   size_t lat_cutoff_;
 
  public:
@@ -76,8 +76,9 @@ class Server : public Module {
         ret = pwrite(fd_, data.data(), KILOBYTES(16), 0);
         fdatasync(fd_);
         time.Pause();
-        monitor_write_lat_.Add({(float)KILOBYTES(16), (float)time.GetNsec()},
-                               rctx.load_);
+        monitor_write_lat_.consts_[0] = 0;
+        monitor_write_lat_.consts_[1] =
+            (float)time.GetNsec();
         time.Reset();
 
         // Write 1MB to the beginning with pwrite
@@ -85,17 +86,19 @@ class Server : public Module {
         ret = pwrite(fd_, data.data(), MEGABYTES(1), 0);
         fdatasync(fd_);
         time.Pause();
-        monitor_write_bw_.Add({(float)MEGABYTES(1), (float)time.GetNsec()},
-                               rctx.load_);
+        monitor_write_bw_.consts_[0] =
+            (float)MEGABYTES(1) / (float)time.GetNsec();
+        monitor_write_bw_.consts_[1] = 0;
         time.Reset();
 
         // Read 4KB from the beginning with pread
         time.Resume();
         fdatasync(fd_);
-        ret = pread(fd_, data.data(), KILOBYTES(4), 0);
+        ret = pread(fd_, data.data(), KILOBYTES(16), 0);
         time.Pause();
-        monitor_read_lat_.Add({(float)KILOBYTES(4), (float)time.GetNsec()},
-                              rctx.load_);
+        monitor_read_lat_.consts_[0] = 0;
+        monitor_read_lat_.consts_[1] =
+            (float)time.GetNsec();
         time.Reset();
 
         // Read 1MB from the beginning with pread
@@ -103,8 +106,9 @@ class Server : public Module {
         fdatasync(fd_);
         ret = pread(fd_, data.data(), MEGABYTES(1), 0);
         time.Pause();
-        monitor_read_bw_.Add({(float)MEGABYTES(1), (float)time.GetNsec()},
-                              rctx.load_);
+        monitor_read_bw_.consts_[0] =
+            (float)MEGABYTES(1) / (float)time.GetNsec();;
+        monitor_read_bw_.consts_[1] = 0;
         time.Reset();
         break;
       }
@@ -119,16 +123,18 @@ class Server : public Module {
         time.Resume();
         memcpy(ram_, data.data(), MEGABYTES(1));
         time.Pause();
-        monitor_write_bw_.Add({(float)MEGABYTES(1), (float)time.GetNsec()},
-                              rctx.load_);
+        monitor_write_bw_.consts_[0] =
+            (float)time.GetNsec() / (float)MEGABYTES(1);
+        monitor_write_bw_.consts_[1] = 0;
         time.Reset();
 
         // Read 1MB from the beginning with pread
         time.Resume();
         memcpy(data.data(), ram_, MEGABYTES(1));
         time.Pause();
-        monitor_read_bw_.Add({(float)MEGABYTES(1), (float)time.GetNsec()},
-                             rctx.load_);
+        monitor_read_bw_.consts_[0] =
+            (float)time.GetNsec() / (float)MEGABYTES(1);
+        monitor_read_bw_.consts_[1] = 0;
         time.Reset();
         break;
       }
@@ -268,8 +274,8 @@ class Server : public Module {
   void PollStats(PollStatsTask *task, RunContext &rctx) {
     task->stats_.read_bw_ = monitor_read_bw_.consts_[0];
     task->stats_.write_bw_ = monitor_write_bw_.consts_[0];
-    task->stats_.read_latency_ = monitor_read_lat_.consts_[0];
-    task->stats_.write_latency_ = monitor_write_lat_.consts_[0];
+    task->stats_.read_latency_ = monitor_read_lat_.consts_[1];
+    task->stats_.write_latency_ = monitor_write_lat_.consts_[1];
     task->stats_.free_ = alloc_.free_size_;
     task->SetModuleComplete();
   }
