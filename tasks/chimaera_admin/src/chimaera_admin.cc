@@ -228,11 +228,16 @@ class Server : public Module {
 //    CHI_RPC->PrintDomain(DomainId{task->ctx_.id_, SubDomainId::kContainerSet});
 //    CHI_RPC->PrintSubdomainSet(containers);
     // Create the pool
-    CHI_MOD_REGISTRY->CreateContainer(
+    bool did_create = CHI_MOD_REGISTRY->CreateContainer(
         lib_name.c_str(),
         pool_name.c_str(),
         task->ctx_.id_,
         task, containers);
+    if (!did_create) {
+      HELOG(kFatal, "Failed to create container: {}", pool_name);
+      task->SetModuleComplete();
+      return;
+    }
     if (task->root_) {
       // Broadcast the state creation to all nodes
       Container *exec = CHI_MOD_REGISTRY->GetStaticContainer(task->ctx_.id_);

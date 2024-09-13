@@ -4,7 +4,7 @@
  * Copyright by the Illinois Institute of Technology.                        *
  * All rights reserved.                                                      *
  *                                                                           *
- * This file is part of Hermes. The full Hermes copyright notice, including  *
+ * This file is part of chi. The full chi copyright notice, including  *
  * terms governing use, modification, and redistribution, is contained in    *
  * the COPYING file, which can be found at the top directory. If you do not  *
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
@@ -155,14 +155,14 @@ class ModuleRegistry {
     }
 
     // Load the CHI_TASK_PATH variable
-    std::string hermes_lib_path;
-    auto hermes_lib_path_env = getenv("CHI_TASK_PATH");
-    if (hermes_lib_path_env) {
-      hermes_lib_path = hermes_lib_path_env;
+    std::string chi_lib_path;
+    auto chi_lib_path_env = getenv("CHI_TASK_PATH");
+    if (chi_lib_path_env) {
+      chi_lib_path = chi_lib_path_env;
     }
 
     // Combine LD_LIBRARY_PATH and CHI_TASK_PATH
-    std::string paths = hermes_lib_path + ":" + ld_lib_path;
+    std::string paths = chi_lib_path + ":" + ld_lib_path;
     std::stringstream ss(paths);
     std::string lib_dir;
     while (std::getline(ss, lib_dir, ':')) {

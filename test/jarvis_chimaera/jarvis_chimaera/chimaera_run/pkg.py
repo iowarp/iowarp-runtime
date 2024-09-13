@@ -171,7 +171,22 @@ class ChimaeraRun(Service):
                 'default': '',
                 'class': 'work orchestrator',
                 'rank': 1,
-            }
+            },
+            {
+                'name': 'modules',
+                'msg': 'Output of monitoring samples',
+                'type': list,
+                'default': '',
+                'class': 'module registry',
+                'args': [
+                    {
+                        'name': 'mod',
+                        'msg': 'The module name to be included',
+                        'type': str
+                    },
+                ],
+                'rank': 1,
+            },
         ]
 
     def get_hostfile(self):
@@ -264,6 +279,9 @@ class ChimaeraRun(Service):
         }
         if self.hostfile.path is None:
             chimaera_server['rpc']['host_names'] = self.hostfile.hosts
+
+        # Add some initial modules to the registry
+        chimaera_server['module_registry'] = self.config['modules']
 
         # Save Chimaera configuration
         chimaera_server_yaml = f'{self.shared_dir}/chimaera_server.yaml'
