@@ -131,6 +131,9 @@ void Runtime::ServerInit(std::string server_config_path) {
       "remote_queue",
       CreateContext{CHI_CLIENT->MakePoolId(), 1, max_containers_pn});
   remote_created_ = true;
+
+  // Register the BDEV module
+  CHI_MOD_REGISTRY->RegisterModule("bdev");
 }
 
 /** Initialize shared-memory between daemon and client */

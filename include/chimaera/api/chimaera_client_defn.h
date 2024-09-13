@@ -330,7 +330,7 @@ hipc::LPointer<CUSTOM##Task> Async##CUSTOM##Base(Task *parent_task,\
                                            Args&& ...args) {\
   hipc::LPointer<CUSTOM##Task> task = Async##CUSTOM##Alloc(\
     task_node, std::forward<Args>(args)...);\
-  CHI_CLIENT->ScheduleTaskRuntime(parent_task, task, queue_id_);\
+  CHI_CLIENT->ScheduleTaskRuntime(parent_task, task, task->pool_);\
   return task;\
 }
 #else
@@ -349,7 +349,7 @@ Async##CUSTOM(Args&& ...args) {\
   chi::TaskNode task_node = CHI_CLIENT->MakeTaskNodeId();\
   hipc::LPointer<CUSTOM##Task> task = Async##CUSTOM##Alloc(\
       task_node, std::forward<Args>(args)...);\
-  chi::ingress::MultiQueue *queue = CHI_CLIENT->GetQueue(queue_id_);\
+  chi::ingress::MultiQueue *queue = CHI_CLIENT->GetQueue(CHI_QM_CLIENT->process_queue_id_);\
   queue->Emplace(chi::TaskPrio::kLowLatency,\
                  std::hash<chi::DomainQuery>{}(task->dom_query_),\
                  task.shm_);\

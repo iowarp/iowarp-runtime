@@ -60,4 +60,5 @@ rpc:
 
 ### Task Registry
 module_registry: [
+  'bdev'
 ]
