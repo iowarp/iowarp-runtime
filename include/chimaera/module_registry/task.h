@@ -745,7 +745,8 @@ struct Task : public hipc::ShmContainer {
   }
 
   /** This task waits for a set of tasks to complete */
-  void Wait(std::vector<LPointer<Task>> &subtasks, u32 flags = TASK_COMPLETE) {
+  template<typename TaskT>
+  void Wait(std::vector<LPointer<TaskT>> &subtasks, u32 flags = TASK_COMPLETE) {
 #ifdef CHIMAERA_RUNTIME
     SetBlocked(subtasks.size());
 #endif
