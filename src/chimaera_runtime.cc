@@ -42,8 +42,14 @@ void Runtime::ServerInit(std::string server_config_path) {
   header_->node_id_ = CHI_RPC->node_id_;
   header_->unique_ = 0;
   header_->num_nodes_ = server_config_.rpc_.host_names_.size();
+  // Create module registry
   CHI_MOD_REGISTRY->ServerInit(&server_config_,
                                 CHI_RPC->node_id_, header_->unique_);
+  CHI_MOD_REGISTRY->RegisterModule("chimaera_admin");
+  CHI_MOD_REGISTRY->RegisterModule("worch_queue_round_robin");
+  CHI_MOD_REGISTRY->RegisterModule("worch_proc_round_robin");
+  CHI_MOD_REGISTRY->RegisterModule("remote_queue");
+  CHI_MOD_REGISTRY->RegisterModule("bdev");
   // Queue manager + client must be initialized before Work Orchestrator
   CHI_QM_RUNTIME->ServerInit(main_alloc_,
                             CHI_RPC->node_id_,
@@ -63,7 +69,6 @@ void Runtime::ServerInit(std::string server_config_path) {
   // Create the admin library
   CHI_CLIENT->MakePoolId();
   admin_create_task = hipc::make_mptr<Admin::CreateTask>();
-  CHI_MOD_REGISTRY->RegisterModule("chimaera_admin");
   ops = CHI_RPC->CreateDefaultDomains(
       CHI_QM_CLIENT->admin_pool_id_,
       CHI_QM_CLIENT->admin_pool_id_,
@@ -82,7 +87,6 @@ void Runtime::ServerInit(std::string server_config_path) {
   // Create the work orchestrator queue scheduling library
   PoolId queue_sched_id = CHI_CLIENT->MakePoolId();
   create_task = hipc::make_mptr<Admin::CreateContainerTask>();
-  CHI_MOD_REGISTRY->RegisterModule("worch_queue_round_robin");
   ops = CHI_RPC->CreateDefaultDomains(
       queue_sched_id,
       CHI_QM_CLIENT->admin_pool_id_,
@@ -100,7 +104,6 @@ void Runtime::ServerInit(std::string server_config_path) {
   // Create the work orchestrator process scheduling library
   PoolId proc_sched_id = CHI_CLIENT->MakePoolId();
   create_task = hipc::make_mptr<Admin::CreateContainerTask>();
-  CHI_MOD_REGISTRY->RegisterModule("worch_proc_round_robin");
   ops = CHI_RPC->CreateDefaultDomains(
       proc_sched_id,
       CHI_QM_CLIENT->admin_pool_id_,
@@ -124,16 +127,12 @@ void Runtime::ServerInit(std::string server_config_path) {
       proc_sched_id);
 
   // Create the remote queue library
-  CHI_MOD_REGISTRY->RegisterModule("remote_queue");
   remote_queue_.Create(
       DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0),
       DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0),
       "remote_queue",
       CreateContext{CHI_CLIENT->MakePoolId(), 1, max_containers_pn});
   remote_created_ = true;
-
-  // Register the BDEV module
-  CHI_MOD_REGISTRY->RegisterModule("bdev");
 }
 
 /** Initialize shared-memory between daemon and client */

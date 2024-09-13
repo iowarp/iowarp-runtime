@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# Build Small Message Task Library
+# Build BDEV Task Library
 #------------------------------------------------------------------------------
 add_library(bdev SHARED
         bdev.cc
@@ -8,7 +8,7 @@ add_dependencies(bdev ${Chimaera_RUNTIME_DEPS})
 target_link_libraries(bdev ${Chimaera_RUNTIME_LIBRARIES})
 target_compile_definitions(bdev PRIVATE ${Chimaera_RUNTIME_DEFINITIONS})
 #------------------------------------------------------------------------------
-# Install Small Message Task Library
+# Install BDEV Task Library
 #------------------------------------------------------------------------------
 install(
         TARGETS
@@ -19,6 +19,8 @@ install(
         ARCHIVE DESTINATION ${CHIMEARA_INSTALL_LIB_DIR}
         RUNTIME DESTINATION ${CHIMEARA_INSTALL_BIN_DIR}
 )
+install(FILES bdev_monitor.py
+        DESTINATION ${CHIMEARA_INSTALL_LIB_DIR})
 
 #-----------------------------------------------------------------------------
 # Add Target(s) to CMake Install for import into other projects
