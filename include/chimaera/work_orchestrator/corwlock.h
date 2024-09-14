@@ -79,9 +79,7 @@ void CoRwLock::WriteLock() {
 }
 
 void CoRwLock::WriteUnlock() {
-  HILOG(kInfo, "Releasing (attempt) mutex {} rep: {}", root_, rep_ - 1);
   hshm::ScopedMutex scoped(mux_, 0);
-  HILOG(kInfo, "Releasing mutex {} rep: {}", root_, rep_ - 1);
   if (--rep_ == 0) {
     root_.SetNull();
   }
