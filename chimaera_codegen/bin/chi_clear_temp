@@ -1,0 +1,12 @@
+#!/usr/bin/env python3
+
+"""
+USAGE: ./chi_clear_temp [TASK_REPO_DIR]
+"""
+
+import sys
+from chimaera_codegen.codegen import ChimaeraCodegen
+
+TASK_REPO_DIR = sys.argv[1]
+gen = ChimaeraCodegen()
+gen.clear_autogen_temp(TASK_REPO_DIR)

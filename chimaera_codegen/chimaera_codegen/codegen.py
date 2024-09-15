@@ -4,7 +4,10 @@ Generate code for chimaera
 
 import os
 import sys
+import yaml
 from chimaera_codegen.util.paths import CHIMEARA_ROOT
+from chimaera_codegen.util.templates import task_template, client_method_template, runtime_method_template
+
 
 class ChimaeraCodegen:
     def make_macro(self, PATH):
@@ -84,7 +87,7 @@ class ChimaeraCodegen:
                 print('Skipping...')
                 sys.exit(0)
         os.makedirs(f'{TASK_ROOT}/src', exist_ok=True)
-        os.makedirs(f'{TASK_ROOT}/include/{TASK_NAME}', exist_ok=True)
+        os.makedirs(f'{TASK_ROOT}/include/{task_name}', exist_ok=True)
         self._copy_replace(TASK_ROOT, TASK_TEMPL_ROOT, 'CMakeLists.txt', TASK_NAME)
         self._copy_replace(TASK_ROOT, TASK_TEMPL_ROOT, 'src/CMakeLists.txt', TASK_NAME)
         self._copy_replace(TASK_ROOT, TASK_TEMPL_ROOT, 'src/TASK_NAME.cc', TASK_NAME)
@@ -113,7 +116,8 @@ class ChimaeraCodegen:
         for TASK_ROOT in TASK_ROOTS:
             try:
                 self.refresh_methods(TASK_ROOT)
-            except:
+            except Exception as e:
+                print(e)
                 pass
 
     def refresh_methods(self, TASK_ROOT):
@@ -123,25 +127,35 @@ class ChimaeraCodegen:
         if not os.path.exists(f'{TASK_ROOT}/include'):
             return
         MOD_NAME = os.path.basename(TASK_ROOT)
-        METHODS_H = f'{TASK_ROOT}/include/{MOD_NAME}/{MOD_NAME}_methods.h'
         METHODS_YAML = f'{TASK_ROOT}/include/{MOD_NAME}/{MOD_NAME}_methods.yaml'
-        LIB_EXEC_H = f'{TASK_ROOT}/include/{MOD_NAME}/{MOD_NAME}_lib_exec.h'
-        NEW_TASKS_H = f'{TASK_ROOT}/include/{MOD_NAME}/_{MOD_NAME}_new_tasks.h'
-        NEW_CLIENT_H = f'{TASK_ROOT}/include/{MOD_NAME}/_{MOD_NAME}_new_client.h'
-        NEW_RUNTIME_H = f'{TASK_ROOT}/src/{MOD_NAME}/_{MOD_NAME}.cc'
-        METHOD_MACRO = f'CHI_{MOD_NAME.upper()}_METHODS_H_'
-        LIB_EXEC_MACRO = f'CHI_{MOD_NAME.upper()}_LIB_EXEC_H_'
 
+        # Load methods
         with open(METHODS_YAML) as fp:
             methods = yaml.load(fp, Loader=yaml.FullLoader)
         if methods is None:
             methods = {}
         methods = sorted(methods.items(), key=lambda x: x[1])
 
-        # Produce the MOD_NAME_methods.h file
+        #Create paths
+        self.METHODS_H = f'{TASK_ROOT}/include/{MOD_NAME}/{MOD_NAME}_methods.h'
+        self.METHOD_MACRO = f'CHI_{MOD_NAME.upper()}_METHODS_H_'
+        self.LIB_EXEC_H = f'{TASK_ROOT}/include/{MOD_NAME}/{MOD_NAME}_lib_exec.h'
+        self.LIB_EXEC_MACRO = f'CHI_{MOD_NAME.upper()}_LIB_EXEC_H_'
+        self.NEW_TASKS_H = f'{TASK_ROOT}/include/{MOD_NAME}/{MOD_NAME}_tasks.temp_h'
+        self.NEW_CLIENT_H = f'{TASK_ROOT}/include/{MOD_NAME}/{MOD_NAME}.temp_h'
+        self.NEW_RUNTIME_CC = f'{TASK_ROOT}/src/{MOD_NAME}.temp_cc'
+
+        # Refresh the files
+        self.refresh_methods_h(methods)
+        self.refresh_lib_exec_h(methods)
+        self.refresh_tasks_h(methods)
+        self.refresh_client_h(methods)
+        self.refresh_runtime_cc(methods)
+
+    def refresh_methods_h(self, methods):
         lines = []
-        lines += [f'#ifndef {METHOD_MACRO}',
-                  f'#define {METHOD_MACRO}',
+        lines += [f'#ifndef {self.METHOD_MACRO}',
+                  f'#define {self.METHOD_MACRO}',
                   '',
                   '/** The set of methods in the admin task */',
                   'struct Method : public TaskMethod {']
@@ -150,14 +164,15 @@ class ChimaeraCodegen:
                 continue
             lines += [f'  TASK_METHOD_T {method_enum_name} = {method_off};']
         lines += [f'  TASK_METHOD_T kCount = {methods[-1][1] + 1};']
-        lines += ['};', '', f'#endif  // {METHOD_MACRO}']
-        with open(METHODS_H, 'w') as fp:
+        lines += ['};', '', f'#endif  // {self.METHOD_MACRO}']
+        with open(self.METHODS_H, 'w') as fp:
             fp.write('\n'.join(lines))
 
+    def refresh_lib_exec_h(self, methods):
         # Produce the MOD_NAME_lib_exec.h file
         lines = []
-        lines += [f'#ifndef {LIB_EXEC_MACRO}',
-                  f'#define {LIB_EXEC_MACRO}',
+        lines += [f'#ifndef {self.LIB_EXEC_MACRO}',
+                  f'#define {self.LIB_EXEC_MACRO}',
                   '']
         ## Create the Run method
         lines += ['/** Execute a task */',
@@ -309,107 +324,63 @@ class ChimaeraCodegen:
         lines += ['}']
 
         ## Finish the file
-        lines += ['', f'#endif  // {METHOD_MACRO}']
+        lines += ['', f'#endif  // {self.LIB_EXEC_MACRO}']
 
         ## Write MOD_NAME_lib_exec.h
-        with open(LIB_EXEC_H, 'w') as fp:
+        with open(self.LIB_EXEC_H, 'w') as fp:
             fp.write('\n'.join(lines))
 
-        ## Create the task struct prototypes
+    def refresh_tasks_h(self, methods):
         lines = []
         for method_enum_name, method_off in methods:
             if method_off < 0:
                 continue
             method_name = method_enum_name.replace('k', '', 1)
             task_name = method_name + "Task"
-            lines += [
-                self.task_template(task_name, method_enum_name),
-                '\n'
-            ]
-
-        # Write the new tasks header
-        with open(NEW_TASKS_H, 'w') as fp:
+            lines += [self.tmpl(task_template, task_name, method_name, method_enum_name)]
+        with open(self.NEW_TASKS_H, 'w') as fp:
             fp.write('\n'.join(lines))
 
-        # Create new client APIs header
+    def refresh_client_h(self, methods):
         lines = []
         for method_enum_name, method_off in methods:
             if method_off < 0:
                 continue
             method_name = method_enum_name.replace('k', '', 1)
             task_name = method_name + "Task"
-            lines += [self.client_method_template(task_name, method_name, method_enum_name), '\n']
-
-        # Write the new client header
-        with open(NEW_CLIENT_H, 'w') as fp:
+            lines += [self.tmpl(client_method_template, task_name, method_name, method_enum_name)]
+        with open(self.NEW_CLIENT_H, 'w') as fp:
             fp.write('\n'.join(lines))
 
-    def task_template(self, task_name, method_enum_name):
-        return """
-/** The {task_name} task */
-struct {task_name} : public Task, TaskFlags<TF_SRL_SYM> {
-  /** SHM default constructor */
-  HSHM_ALWAYS_INLINE explicit
-  {task_name}(hipc::Allocator *alloc) : Task(alloc) {}
+    def refresh_runtime_cc(self, methods):
+        lines = []
+        for method_enum_name, method_off in methods:
+            if method_off < 0:
+                continue
+            method_name = method_enum_name.replace('k', '', 1)
+            task_name = method_name + "Task"
+            lines += [self.tmpl(runtime_method_template, task_name, method_name, method_enum_name)]
+        with open(self.NEW_RUNTIME_CC, 'w') as fp:
+            fp.write('\n'.join(lines))
 
-  /** Emplace constructor */
-  HSHM_ALWAYS_INLINE explicit
-  {task_name}(hipc::Allocator *alloc,
-              const TaskNode &task_node,
-              const DomainQuery &dom_query,
-              const PoolId &state_id,
-              const TagId &tag_id,
-              const BlobId &blob_id,
-              const TagId &tag) : Task(alloc) {
-    // Initialize task
-    task_node_ = task_node;
-    prio_ = TaskPrio::kLowLatency;
-    pool_ = state_id;
-    method_ = Method::{method_enum_name};
-    task_flags_.SetBits(0);
-    dom_query_ = dom_query;
+    def clear_autogen_temp(self, TASK_REPO_DIR):
+        TASK_ROOTS = [os.path.join(TASK_REPO_DIR, item)
+                      for item in os.listdir(TASK_REPO_DIR)]
+        for TASK_ROOT in TASK_ROOTS:
+            self._clear_autogen_temp(TASK_ROOT)
 
-    // Custom
-  }
+    def _clear_autogen_temp(self, TASK_ROOT):
+        """
+        Removes autogenerated temporary files from the task.
+        """
+        if not os.path.exists(f'{TASK_ROOT}/include'):
+            return
+        MOD_NAME = os.path.basename(TASK_ROOT)
+        os.remove(f'{TASK_ROOT}/include/{MOD_NAME}/{MOD_NAME}_tasks.temp_h')
+        os.remove(f'{TASK_ROOT}/include/{MOD_NAME}/{MOD_NAME}.temp_h')
+        os.remove(f'{TASK_ROOT}/src/{MOD_NAME}.temp_cc')
 
-  /** Duplicate message */
-  void CopyStart(const {task_name} &other, bool deep) {
-  }
-
-  /** (De)serialize message call */
-  template<typename Ar>
-  void SerializeStart(Ar &ar) {
-  }
-
-  /** (De)serialize message return */
-  template<typename Ar>
-  void SerializeEnd(Ar &ar) {
-  }
-};
-""".format(task_name=task_name, method_enum_name=method_enum_name)
-
-    def client_method_template(self, task_name, method_name, method_enum_name):
-        return """
-/** Metadata task */
-void Async{method_name}Construct({task_name} *task,
-                    const TaskNode &task_node,
-                    const DomainQuery &dom_query) {
-  CHI_CLIENT->ConstructTask<{task_name}>(
-    task, task_node, dom_query);
-}
-void {method_name}(const DomainQuery &dom_query) {
-  LPointer<MdTask> task =
-    AsyncMd(dom_query);
-  task->Wait();
-  CHI_CLIENT->DelTask(task);
-  return;
-}
-CHI_TASK_METHODS({method_name});
-""".format(task_name=task_name,
-           method_name=method_name,
-           method_enum_name=method_enum_name)
-
-    def server_method_template(self, task_name, method_name, method_enum_name):
-        return """
-
-"""
+    def tmpl(self, tmpl_str, task_name, method_name, method_enum_name):
+        return tmpl_str.replace('##task_name##', task_name) \
+            .replace('##method_name##', method_name) \
+            .replace('##method_enum_name##', method_enum_name)

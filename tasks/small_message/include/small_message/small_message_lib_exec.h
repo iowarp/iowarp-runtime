@@ -244,4 +244,4 @@ void LoadEnd(u32 method, BinaryInputArchive<false> &ar, Task *task) override {
   }
 }
 
-#endif  // CHI_SMALL_MESSAGE_METHODS_H_
+#endif  // CHI_SMALL_MESSAGE_LIB_EXEC_H_
