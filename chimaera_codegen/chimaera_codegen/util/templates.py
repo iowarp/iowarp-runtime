@@ -41,8 +41,8 @@ struct ##task_name## : public Task, TaskFlags<TF_SRL_SYM> {
 client_method_template = """
 /** Metadata task */
 void ##method_name##(const DomainQuery &dom_query) {
-  LPointer<MdTask> task =
-    AsyncMd(dom_query);
+  LPointer<##task_name##> task =
+    Async##method_name##(dom_query);
   task->Wait();
   CHI_CLIENT->DelTask(task);
   return;
