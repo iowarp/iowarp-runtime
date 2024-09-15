@@ -9,4 +9,4 @@ from chimaera_codegen.codegen import ChimaeraCodegen
 
 TASK_REPO_DIR = sys.argv[1]
 gen = ChimaeraCodegen()
-gen.refresh_methods(TASK_REPO_DIR)
+gen.refresh_repo_methods(TASK_REPO_DIR)
