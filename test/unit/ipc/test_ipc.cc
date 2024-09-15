@@ -374,8 +374,8 @@ TEST_CASE("TestPython") {
   for (int i = 0; i < 100; ++i) {
     ls.Add({(float)i, (float)i + 1}, chi::Load());
   }
-  python.RegisterPath("/home/llogan/Documents/Projects/chimaera/src");
-  python.RegisterPath("/home/llogan/Documents/Projects/chimaera/tasks/small_message/src");
+  python.RegisterPath("/home/llogan/Documents/Projects/chimaera_codegen/src");
+  python.RegisterPath("/home/llogan/Documents/Projects/chimaera_codegen/tasks/small_message/src");
   python.ImportModule("chimaera_monitor");
   python.ImportModule("small_message_monitor");
   if (ls.DoTrain()) {

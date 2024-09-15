@@ -1,0 +1,13 @@
+#!/usr/bin/env python3
+
+"""
+USAGE: ./chi_make_task [TASK_ROOT]
+"""
+
+import sys
+from chimaera_codegen.codegen import ChimaeraCodegen
+
+TASK_ROOT = sys.argv[1]
+gen = ChimaeraCodegen()
+gen.make_task(TASK_ROOT)
+

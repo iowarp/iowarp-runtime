@@ -15,7 +15,7 @@
 
 #include "chimaera/chimaera_types.h"
 #include "chimaera/module_registry/task.h"
-//  #include "chimaera/api/chimaera_client.h"
+//  #include "chimaera_codegen/api/chimaera_client.h"
 #include <sstream>
 
 namespace chi {

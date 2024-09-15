@@ -1,5 +1,5 @@
 name: bench_latency_ipc
-env: chimaera
+env: chimaera_codegen
 pkgs:
   - pkg_type: chimaera_run
     pkg_name: chimaera_run

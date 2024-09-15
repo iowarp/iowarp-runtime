@@ -14,9 +14,9 @@
 #define CHI_INCLUDE_CHI_CHI_NAMESPACE_H_
 
 /**
- * This header is used to add chimaera types to the namespace
+ * This header is used to add chimaera_codegen types to the namespace
  * of the user's ChiMod -- with the exception of the Chimaera
- * Admin, which is already in the chimaera namespace.
+ * Admin, which is already in the chimaera_codegen namespace.
  * */
 
 #include "chimaera/api/chimaera_client.h"

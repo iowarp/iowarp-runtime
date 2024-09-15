@@ -1,6 +1,6 @@
 """
 This module provides classes and methods to launch the HermesRun service.
-chimaera is ....
+chimaera_codegen is ....
 """
 
 from jarvis_cd.basic.pkg import Service, Color
@@ -30,7 +30,7 @@ class ChimaeraRun(Service):
         return [
             {
                 'name': 'num_nodes',
-                'msg': 'Number of nodes to run chimaera on. 0 means all',
+                'msg': 'Number of nodes to run chimaera_codegen on. 0 means all',
                 'type': int,
                 'default': 0,
                 'class': 'communication',
@@ -332,7 +332,7 @@ class ChimaeraRun(Service):
 
     def kill(self):
         self.get_hostfile()
-        Kill('.*chimaera.*',
+        Kill('.*chimaera_codegen.*',
              PsshExecInfo(hostfile=self.hostfile,
                           env=self.env))
         self.log('Client Exited?')

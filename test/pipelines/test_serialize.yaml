@@ -1,5 +1,5 @@
 name: chimaera_unit_ipc
-env: chimaera
+env: chimaera_codegen
 pkgs:
   - pkg_type: chimaera_unit_tests
     pkg_name: chimaera_unit_tests
