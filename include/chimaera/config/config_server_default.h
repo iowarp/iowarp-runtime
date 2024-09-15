@@ -62,6 +62,5 @@ const inline char* kChiServerDefaultConfigStr =
 "  num_threads: 4\n"
 "\n"
 "### Task Registry\n"
-"module_registry: [\n"
-"]\n";
+"module_registry: []\n";
 #endif  // CHI_SRC_CONFIG_CHI_SERVER_DEFAULT_H_

@@ -4,7 +4,7 @@ setuptools.setup(
     name="jarvis_cd",
     packages=setuptools.find_packages(),
     scripts=['bin/chi_make_config', 'bin/chi_make_macro', 'bin/chi_make_task',
-             'bin/chi_refresh_tasks', 'bin/chi_refresh_tasks'],
+             'bin/chi_refresh_tasks', 'bin/chi_refresh_tasks', 'bin/chi_print_root'],
     version="0.0.1",
     author="Luke Logan",
     author_email="llogan@hawk.iit.edu",

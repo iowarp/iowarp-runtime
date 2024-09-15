@@ -33,13 +33,13 @@ class ChimaeraCodegen:
         self._create_config(
             path=f"{CHIMEARA_ROOT}/config/chimaera_client_default.yaml",
             var_name="kChiDefaultClientConfigStr",
-            config_path=f"{CHIMEARA_ROOT}/include/chimaera_codegen/config/config_client_default.h",
+            config_path=f"{CHIMEARA_ROOT}/include/chimaera/config/config_client_default.h",
             macro_name="CHI_CLIENT"
         )
         self._create_config(
             path=f"{CHIMEARA_ROOT}/config/chimaera_server_default.yaml",
             var_name="kChiServerDefaultConfigStr",
-            config_path=f"{CHIMEARA_ROOT}/include/chimaera_codegen/config/config_server_default.h",
+            config_path=f"{CHIMEARA_ROOT}/include/chimaera/config/config_server_default.h",
             macro_name="CHI_SERVER"
         )
 

@@ -59,6 +59,4 @@ rpc:
   num_threads: 4
 
 ### Task Registry
-module_registry: [
-  'bdev'
-]
+module_registry: []
