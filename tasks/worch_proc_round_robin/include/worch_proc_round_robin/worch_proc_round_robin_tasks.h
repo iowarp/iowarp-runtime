@@ -27,12 +27,13 @@ struct CreateTask : public CreateContainerTask {
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE
   CreateTask(hipc::Allocator *alloc,
-                const TaskNode &task_node,
-                const DomainQuery &dom_query,
-                const DomainQuery &affinity,
-                const std::string &pool_name,
-                const CreateContext &ctx)
-      : CreateContainerTask(alloc, task_node, dom_query, affinity,
+             const TaskNode &task_node,
+             const DomainQuery &dom_query,
+             const PoolId &pool_id,
+             const DomainQuery &affinity,
+             const std::string &pool_name,
+             const CreateContext &ctx)
+      : CreateContainerTask(alloc, task_node, dom_query, pool_id, affinity,
                             pool_name, "worch_proc_round_robin", ctx) {
   }
 

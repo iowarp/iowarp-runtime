@@ -26,10 +26,11 @@ struct CreateTask : public CreateContainerTask {
   CreateTask(hipc::Allocator *alloc,
              const TaskNode &task_node,
              const DomainQuery &dom_query,
+             const PoolId &pool_id,
              const DomainQuery &affinity,
              const std::string &pool_name,
              const CreateContext &ctx)
-      : CreateContainerTask(alloc, task_node, dom_query, affinity,
+      : CreateContainerTask(alloc, task_node, dom_query, pool_id, affinity,
                             pool_name, "small_message", ctx) {
   }
 
@@ -76,7 +77,7 @@ struct MdTask : public Task, TaskFlags<TF_SRL_SYM> {
   MdTask(hipc::Allocator *alloc,
          const TaskNode &task_node,
          const DomainQuery &dom_query,
-         PoolId &pool_id,
+         const PoolId &pool_id,
          u32 depth,
          u32 flags) : Task(alloc) {
     // Initialize task
@@ -130,7 +131,7 @@ struct IoTask : public Task, TaskFlags<TF_SRL_SYM> {
   IoTask(hipc::Allocator *alloc,
          const TaskNode &task_node,
          const DomainQuery &dom_query,
-         PoolId &pool_id,
+         const PoolId &pool_id,
          size_t io_size,
          u32 io_flags) : Task(alloc) {
     // Initialize task

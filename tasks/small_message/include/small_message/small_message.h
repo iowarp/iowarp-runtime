@@ -20,15 +20,6 @@ class Client : public ModuleClient {
   ~Client() = default;
 
   /** Create a small_message */
-  void AsyncCreateConstruct(CreateTask *task,
-                            const TaskNode &task_node,
-                            const DomainQuery &dom_query,
-                            const DomainQuery &affinity,
-                            const std::string &pool_name,
-                            const CreateContext &ctx) {
-    CHI_CLIENT->ConstructTask<CreateTask>(
-        task, task_node, dom_query, affinity, pool_name, ctx);
-  }
   void Create(const DomainQuery &dom_query,
                   const DomainQuery &affinity,
                   const std::string &pool_name,
@@ -48,13 +39,6 @@ class Client : public ModuleClient {
   }
 
   /** Metadata task */
-  void AsyncMdConstruct(MdTask *task,
-                        const TaskNode &task_node,
-                        const DomainQuery &dom_query,
-                        u32 depth, u32 flags) {
-    CHI_CLIENT->ConstructTask<MdTask>(
-        task, task_node, dom_query, id_, depth, flags);
-  }
   int Md(const DomainQuery &dom_query, u32 depth, u32 flags) {
     LPointer<MdTask> task =
         AsyncMd(dom_query, depth, flags);
@@ -66,13 +50,6 @@ class Client : public ModuleClient {
   CHI_TASK_METHODS(Md);
 
   /** Io task */
-  void AsyncIoConstruct(IoTask *task, const TaskNode &task_node,
-                        const DomainQuery &dom_query,
-                        size_t io_size,
-                        u32 io_flags) {
-    CHI_CLIENT->ConstructTask<IoTask>(
-        task, task_node, dom_query, id_, io_size, io_flags);
-  }
   void Io(const DomainQuery &dom_query, size_t io_size,
              u32 io_flags, size_t &write_ret, size_t &read_ret) {
     LPointer<IoTask> task =

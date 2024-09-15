@@ -33,10 +33,11 @@ struct CreateTask : public CreateContainerTask {
   CreateTask(hipc::Allocator *alloc,
              const TaskNode &task_node,
              const DomainQuery &dom_query,
+             const PoolId &pool_id,
              const DomainQuery &affinity,
              const std::string &pool_name,
              const CreateContext &ctx)
-      : CreateContainerTask(alloc, task_node, dom_query, affinity,
+      : CreateContainerTask(alloc, task_node, dom_query, pool_id, affinity,
                             pool_name, "remote_queue", ctx) {
     // Custom params
   }
@@ -75,7 +76,7 @@ struct ClientPushSubmitTask : public Task, TaskFlags<TF_LOCAL> {
   ClientPushSubmitTask(hipc::Allocator *alloc,
                        const TaskNode &task_node,
                        const DomainQuery &dom_query,
-                       PoolId &pool_id,
+                       const PoolId &pool_id,
                        Task *orig_task) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
@@ -83,8 +84,8 @@ struct ClientPushSubmitTask : public Task, TaskFlags<TF_LOCAL> {
     pool_ = pool_id;
     method_ = Method::kClientPushSubmit;
     task_flags_.SetBits(TASK_COROUTINE |
-                              TASK_FIRE_AND_FORGET |
-                              TASK_REMOTE_DEBUG_MARK);
+        TASK_FIRE_AND_FORGET |
+        TASK_REMOTE_DEBUG_MARK);
     if (orig_task->IsFlush()) {
       task_flags_.SetBits(TASK_FLUSH);
     }
@@ -104,7 +105,7 @@ struct ClientSubmitTask : public Task, TaskFlags<TF_LOCAL> {
   ClientSubmitTask(hipc::Allocator *alloc,
                    const TaskNode &task_node,
                    const DomainQuery &dom_query,
-                   PoolId &pool_id) : Task(alloc) {
+                   const PoolId &pool_id) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrio::kHighLatency;
@@ -125,7 +126,7 @@ struct ServerPushCompleteTask : public Task, TaskFlags<TF_LOCAL> {
   ServerPushCompleteTask(hipc::Allocator *alloc,
                          const TaskNode &task_node,
                          const DomainQuery &dom_query,
-                         PoolId &pool_id) : Task(alloc) {
+                         const PoolId &pool_id) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrio::kLowLatency;
@@ -146,7 +147,7 @@ struct ServerCompleteTask : public Task, TaskFlags<TF_LOCAL> {
   ServerCompleteTask(hipc::Allocator *alloc,
                      const TaskNode &task_node,
                      const DomainQuery &dom_query,
-                     PoolId &pool_id) : Task(alloc) {
+                     const PoolId &pool_id) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrio::kHighLatency;
@@ -157,7 +158,6 @@ struct ServerCompleteTask : public Task, TaskFlags<TF_LOCAL> {
     SetPeriodUs(15);
   }
 };
-
 
 } // namespace chi::remote_queue
 

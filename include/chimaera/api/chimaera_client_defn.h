@@ -304,6 +304,14 @@ class Client : public ConfigurationManager {
 #ifdef CHIMAERA_RUNTIME
 #define CHI_TASK_METHODS(CUSTOM)\
 template<typename ...Args>\
+void Async##CUSTOM##Construct(CUSTOM##Task *task,\
+                              const TaskNode &task_node,\
+                              const DomainQuery &dom_query,\
+                              Args&& ...args) {\
+  CHI_CLIENT->ConstructTask<CUSTOM##Task>(\
+      task, task_node, dom_query, id_, std::forward<Args>(args)...);\
+}\
+template<typename ...Args>\
 hipc::LPointer<CUSTOM##Task> Async##CUSTOM##Alloc(const TaskNode &task_node,\
                                                   Args&& ...args) {\
   hipc::LPointer<CUSTOM##Task> task =\
@@ -336,6 +344,14 @@ hipc::LPointer<CUSTOM##Task> Async##CUSTOM##Base(Task *parent_task,\
 #else
 #define CHI_TASK_METHODS(CUSTOM)\
 template<typename ...Args>\
+void Async##CUSTOM##Construct(CUSTOM##Task *task,\
+                              const TaskNode &task_node,\
+                              const DomainQuery &dom_query,\
+                              Args&& ...args) {\
+  CHI_CLIENT->ConstructTask<CUSTOM##Task>(\
+      task, task_node, dom_query, id_, std::forward<Args>(args)...);\
+}\
+template<typename ...Args>\
 hipc::LPointer<CUSTOM##Task> Async##CUSTOM##Alloc(const TaskNode &task_node,\
                                                   Args&& ...args) {\
   hipc::LPointer<CUSTOM##Task> task =\
@@ -346,7 +362,7 @@ hipc::LPointer<CUSTOM##Task> Async##CUSTOM##Alloc(const TaskNode &task_node,\
 template<typename ...Args>\
 hipc::LPointer<CUSTOM##Task>\
 Async##CUSTOM(Args&& ...args) {\
-  chi::TaskNode task_node = CHI_CLIENT->MakeTaskNodeId();\
+  TaskNode task_node = CHI_CLIENT->MakeTaskNodeId();\
   hipc::LPointer<CUSTOM##Task> task = Async##CUSTOM##Alloc(\
       task_node, std::forward<Args>(args)...);\
   chi::ingress::MultiQueue *queue = CHI_CLIENT->GetQueue(CHI_QM_CLIENT->process_queue_id_);\

@@ -20,17 +20,18 @@ struct CreateTask : public CreateContainerTask {
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
   CreateTask(hipc::Allocator *alloc)
-  : CreateContainerTask(alloc) {}
+      : CreateContainerTask(alloc) {}
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
   CreateTask(hipc::Allocator *alloc,
-                const TaskNode &task_node,
-                const DomainQuery &dom_query,
-                const DomainQuery &affinity,
-                const std::string &pool_name,
-                const CreateContext &ctx)
-      : CreateContainerTask(alloc, task_node, dom_query, affinity,
+             const TaskNode &task_node,
+             const DomainQuery &dom_query,
+             const PoolId &pool_id,
+             const DomainQuery &affinity,
+             const std::string &pool_name,
+             const CreateContext &ctx)
+      : CreateContainerTask(alloc, task_node, dom_query, pool_id, affinity,
                             pool_name, "TASK_NAME", ctx) {
     // Custom params
   }

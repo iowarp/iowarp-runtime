@@ -1,4 +1,12 @@
 template<typename ...Args>
+void Async##CUSTOM##Construct(CUSTOM##Task *task,
+                              const TaskNode &task_node,
+                              const DomainQuery &dom_query,
+                              Args&& ...args) {
+  CHI_CLIENT->ConstructTask<CUSTOM##Task>(
+      task, task_node, dom_query, id_, std::forward<Args>(args)...);
+}
+template<typename ...Args>
 hipc::LPointer<CUSTOM##Task> Async##CUSTOM##Alloc(const TaskNode &task_node,
                                                   Args&& ...args) {
   hipc::LPointer<CUSTOM##Task> task =
@@ -25,6 +33,6 @@ hipc::LPointer<CUSTOM##Task> Async##CUSTOM##Base(Task *parent_task,
                                            Args&& ...args) {
   hipc::LPointer<CUSTOM##Task> task = Async##CUSTOM##Alloc(
     task_node, std::forward<Args>(args)...);
-  CHI_CLIENT->ScheduleTaskRuntime(parent_task, task, queue_id_);
+  CHI_CLIENT->ScheduleTaskRuntime(parent_task, task, task->pool_);
   return task;
 }

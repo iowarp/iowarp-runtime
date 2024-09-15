@@ -24,15 +24,6 @@ class Client : public ModuleClient {
   ~Client() = default;
 
   /** Async create a pool */
-  void AsyncCreateConstruct(CreateTask *task,
-                            const TaskNode &task_node,
-                            const DomainQuery &dom_query,
-                            const DomainQuery &affinity,
-                            const std::string &pool_name,
-                            const CreateContext &ctx) {
-    CHI_CLIENT->ConstructTask<CreateTask>(
-        task, task_node, dom_query, affinity, pool_name, ctx);
-  }
   void Create(const DomainQuery &dom_query,
                   const DomainQuery &affinity,
                   const std::string &pool_name,
@@ -52,33 +43,12 @@ class Client : public ModuleClient {
   }
 
   /** Construct submit aggregator */
-  void AsyncClientPushSubmitConstruct(ClientPushSubmitTask *task,
-                                      const TaskNode &task_node,
-                                      const DomainQuery &dom_query,
-                                      Task *orig_task) {
-    CHI_CLIENT->ConstructTask<ClientPushSubmitTask>(
-        task, task_node,
-        dom_query, id_, orig_task);
-  }
   CHI_TASK_METHODS(ClientPushSubmit)
 
   /** Construct submit aggregator */
-  void AsyncClientSubmitConstruct(ClientSubmitTask *task,
-                                  const TaskNode &task_node,
-                                  const DomainQuery &dom_query) {
-    CHI_CLIENT->ConstructTask<ClientSubmitTask>(
-        task, task_node,
-        dom_query, id_);
-  }
   CHI_TASK_METHODS(ClientSubmit)
 
   /** Construct complete aggregator */
-  void AsyncServerCompleteConstruct(ServerCompleteTask *task,
-                                    const TaskNode &task_node,
-                                    const DomainQuery &dom_query) {
-    CHI_CLIENT->ConstructTask<ServerCompleteTask>(
-        task, task_node, dom_query, id_);
-  }
   CHI_TASK_METHODS(ServerComplete)
 };
 

@@ -20,15 +20,6 @@ class Client : public ModuleClient {
   ~Client() = default;
 
   /** Create a worch_queue_round_robin */
-  void AsyncCreateConstruct(CreateTask *task,
-                            const TaskNode &task_node,
-                            const DomainQuery &dom_query,
-                            const DomainQuery &affinity,
-                            const std::string &pool_name,
-                            const CreateContext &ctx) {
-    CHI_CLIENT->ConstructTask<CreateTask>(
-        task, task_node, dom_query, affinity, pool_name, ctx);
-  }
   void Create(const DomainQuery &dom_query,
                   const DomainQuery &affinity,
                   const std::string &pool_name,

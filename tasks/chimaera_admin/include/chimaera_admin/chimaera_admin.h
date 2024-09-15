@@ -19,16 +19,8 @@ class Client : public ModuleClient {
 
   /** Register a module */
   HSHM_ALWAYS_INLINE
-  void AsyncRegisterModuleConstruct(RegisterModuleTask *task,
-                                     const TaskNode &task_node,
-                                     const DomainQuery &dom_query,
-                                     const std::string &lib_name) {
-    CHI_CLIENT->ConstructTask<RegisterModuleTask>(
-        task, task_node, dom_query, lib_name);
-  }
-  HSHM_ALWAYS_INLINE
   void RegisterModule(const DomainQuery &dom_query,
-                           const std::string &lib_name) {
+                      const std::string &lib_name) {
     LPointer<RegisterModuleTask> task =
         AsyncRegisterModule(dom_query, lib_name);
     task->Wait();
@@ -38,17 +30,8 @@ class Client : public ModuleClient {
 
   /** Unregister a module */
   HSHM_ALWAYS_INLINE
-  void AsyncDestroyModuleConstruct(DestroyModuleTask *task,
-                                    const TaskNode &task_node,
-                                    const DomainQuery &dom_query,
-                                    const std::string &lib_name) {
-    CHI_CLIENT->ConstructTask<DestroyModuleTask>(
-        task, task_node, dom_query, lib_name);
-  }
-  HSHM_ALWAYS_INLINE
-  void DestroyModule(const TaskNode &task_node,
-                              const DomainQuery &dom_query,
-                              const std::string &lib_name) {
+  void DestroyModule(const DomainQuery &dom_query,
+                     const std::string &lib_name) {
     LPointer<DestroyModuleTask> task =
         AsyncDestroyModule(dom_query, lib_name);
     task->Wait();
@@ -58,16 +41,8 @@ class Client : public ModuleClient {
 
   /** Register a task library */
   HSHM_ALWAYS_INLINE
-  void AsyncUpgradeModuleConstruct(UpgradeModuleTask *task,
-                                    const TaskNode &task_node,
-                                    const DomainQuery &dom_query,
-                                    const std::string &lib_name) {
-    CHI_CLIENT->ConstructTask<UpgradeModuleTask>(
-        task, task_node, dom_query, lib_name);
-  }
-  HSHM_ALWAYS_INLINE
   void UpgradeModule(const DomainQuery &dom_query,
-                      const std::string &lib_name) {
+                     const std::string &lib_name) {
     LPointer<UpgradeModuleTask> task =
         AsyncUpgradeModule(dom_query, lib_name);
     task->Wait();
@@ -83,15 +58,8 @@ class Client : public ModuleClient {
   }
 
   /** Get the ID of a pool */
-  void AsyncGetPoolIdConstruct(GetPoolIdTask *task,
-                                    const TaskNode &task_node,
-                                    const DomainQuery &dom_query,
-                                    const std::string &pool_name) {
-    CHI_CLIENT->ConstructTask<GetPoolIdTask>(
-        task, task_node, dom_query, pool_name);
-  }
   PoolId GetPoolId(const DomainQuery &dom_query,
-                                 const std::string &pool_name) {
+                   const std::string &pool_name) {
     LPointer<GetPoolIdTask> task =
         AsyncGetPoolId(dom_query, pool_name);
     task->Wait();
@@ -103,31 +71,16 @@ class Client : public ModuleClient {
 
   /** Terminate a pool */
   HSHM_ALWAYS_INLINE
-  void AsyncDestroyContainerConstruct(DestroyContainerTask *task,
-                                      const TaskNode &task_node,
-                                      const DomainQuery &dom_query,
-                                      const PoolId &id) {
-    CHI_CLIENT->ConstructTask<DestroyContainerTask>(
-        task, task_node, dom_query, id);
-  }
-  HSHM_ALWAYS_INLINE
   void DestroyContainer(const DomainQuery &dom_query,
-                            const PoolId &id) {
+                        const PoolId &destroy_id) {
     LPointer<DestroyContainerTask> task =
-        AsyncDestroyContainer(dom_query, id);
+        AsyncDestroyContainer(dom_query, destroy_id);
     task->Wait();
     CHI_CLIENT->DelTask(task);
   }
   CHI_TASK_METHODS(DestroyContainer)
 
   /** Terminate the runtime */
-  void AsyncStopRuntimeConstruct(StopRuntimeTask *task,
-                                 const TaskNode &task_node,
-                                 const DomainQuery &dom_query,
-                                 bool root) {
-    CHI_CLIENT->ConstructTask<StopRuntimeTask>(
-        task, task_node, dom_query, root);
-  }
   void StopRuntime() {
     HILOG(kInfo, "Beginning to flush the runtime.\n"
                  "If you did async I/O, this may take some time.\n"
@@ -142,15 +95,8 @@ class Client : public ModuleClient {
   CHI_TASK_METHODS(StopRuntime);
 
   /** Set work orchestrator queue policy */
-  void AsyncSetWorkOrchQueuePolicyConstruct(SetWorkOrchQueuePolicyTask *task,
-                                            const TaskNode &task_node,
-                                            const DomainQuery &dom_query,
-                                            const PoolId &policy) {
-    CHI_CLIENT->ConstructTask<SetWorkOrchQueuePolicyTask>(
-        task, task_node, dom_query, policy);
-  }
   void SetWorkOrchQueuePolicy(const DomainQuery &dom_query,
-                                  const PoolId &policy) {
+                              const PoolId &policy) {
     LPointer<SetWorkOrchQueuePolicyTask> task =
         AsyncSetWorkOrchQueuePolicy(dom_query, policy);
     task->Wait();
@@ -170,15 +116,8 @@ class Client : public ModuleClient {
   CHI_TASK_METHODS(SetWorkOrchQueuePolicy);
 
   /** Set work orchestrator process policy */
-  void AsyncSetWorkOrchProcPolicyConstruct(SetWorkOrchProcPolicyTask *task,
-                                           const TaskNode &task_node,
-                                           const DomainQuery &dom_query,
-                                           const PoolId &policy) {
-    CHI_CLIENT->ConstructTask<SetWorkOrchProcPolicyTask>(
-        task, task_node, dom_query, policy);
-  }
   void SetWorkOrchProcPolicy(const DomainQuery &dom_query,
-                                 const PoolId &policy) {
+                             const PoolId &policy) {
     LPointer<SetWorkOrchProcPolicyTask> task =
         AsyncSetWorkOrchProcPolicy(dom_query, policy);
     task->Wait();
@@ -198,12 +137,6 @@ class Client : public ModuleClient {
   CHI_TASK_METHODS(SetWorkOrchProcPolicy);
 
   /** Flush the runtime */
-  void AsyncFlushConstruct(FlushTask *task,
-                           const TaskNode &task_node,
-                           const DomainQuery &dom_query) {
-    CHI_CLIENT->ConstructTask<FlushTask>(
-        task, task_node, dom_query);
-  }
   void Flush(const DomainQuery &dom_query) {
     size_t work_done = 0;
     do {
@@ -217,15 +150,8 @@ class Client : public ModuleClient {
   CHI_TASK_METHODS(Flush);
 
   /** Get size of a domain */
-  void AsyncGetDomainSizeConstruct(GetDomainSizeTask *task,
-                           const TaskNode &task_node,
-                           const DomainQuery &dom_query,
-                           const DomainId &dom_id) {
-    CHI_CLIENT->ConstructTask<GetDomainSizeTask>(
-        task, task_node, dom_query, dom_id);
-  }
   size_t GetDomainSize(const DomainQuery &dom_query,
-                           const DomainId &dom_id) {
+                       const DomainId &dom_id) {
     LPointer<GetDomainSizeTask> task =
         AsyncGetDomainSize(dom_query, dom_id);
     task->Wait();

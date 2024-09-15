@@ -28,15 +28,6 @@ class Client : public ModuleClient {
   ~Client() = default;
 
   /** Create a pool */
-  void AsyncCreateConstruct(CreateTask *task,
-                            const TaskNode &task_node,
-                            const DomainQuery &dom_query,
-                            const DomainQuery &affinity,
-                            const std::string &pool_name,
-                            const CreateContext &ctx) {
-    CHI_CLIENT->ConstructTask<CreateTask>(
-        task, task_node, dom_query, affinity, pool_name, ctx);
-  }
   void Create(const DomainQuery &dom_query,
                   const DomainQuery &affinity,
                   const std::string &pool_name,
@@ -56,13 +47,6 @@ class Client : public ModuleClient {
   }
 
   /** Call a custom method */
-  HSHM_ALWAYS_INLINE
-  void AsyncCustomConstruct(CustomTask *task,
-                            const TaskNode &task_node,
-                            const DomainQuery &dom_query) {
-    CHI_CLIENT->ConstructTask<CustomTask>(
-        task, task_node, dom_query, id_);
-  }
   HSHM_ALWAYS_INLINE
   void Custom(const DomainQuery &dom_query) {
     LPointer<CustomTask> task = AsyncCustom(dom_query);

@@ -24,19 +24,20 @@ struct CreateTask : public CreateContainerTask {
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
   CreateTask(hipc::Allocator *alloc)
-  : CreateContainerTask(alloc), path_(alloc) {}
+      : CreateContainerTask(alloc), path_(alloc) {}
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
   CreateTask(hipc::Allocator *alloc,
              const TaskNode &task_node,
              const DomainQuery &dom_query,
+             const PoolId &pool_id,
              const DomainQuery &affinity,
              const std::string &pool_name,
              const CreateContext &ctx,
              const std::string &path,
              size_t max_size)
-      : CreateContainerTask(alloc, task_node, dom_query, affinity,
+      : CreateContainerTask(alloc, task_node, dom_query, pool_id, affinity,
                             pool_name, "bdev", ctx), path_(alloc, path) {
     // Custom params
     size_ = max_size;
@@ -83,7 +84,7 @@ struct AllocateTask : public Task, TaskFlags<TF_SRL_SYM> {
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
   AllocateTask(hipc::Allocator *alloc)
-  : Task(alloc), blocks_(alloc) {}
+      : Task(alloc), blocks_(alloc) {}
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
@@ -244,12 +245,12 @@ struct ReadTask : public Task, TaskFlags<TF_SRL_SYM> {
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
   ReadTask(hipc::Allocator *alloc,
-            const TaskNode &task_node,
-            const DomainQuery &dom_query,
-            const PoolId &pool_id,
-            const hipc::Pointer &data,
-            size_t off,
-            size_t size) : Task(alloc) {
+           const TaskNode &task_node,
+           const DomainQuery &dom_query,
+           const PoolId &pool_id,
+           const hipc::Pointer &data,
+           size_t off,
+           size_t size) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrio::kLowLatency;
@@ -302,10 +303,10 @@ struct PollStatsTask : public Task, TaskFlags<TF_SRL_SYM> {
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
   PollStatsTask(hipc::Allocator *alloc,
-           const TaskNode &task_node,
-           const DomainQuery &dom_query,
-           const PoolId &pool_id,
-           u32 period_ms) : Task(alloc) {
+                const TaskNode &task_node,
+                const DomainQuery &dom_query,
+                const PoolId &pool_id,
+                u32 period_ms) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
     pool_ = pool_id;

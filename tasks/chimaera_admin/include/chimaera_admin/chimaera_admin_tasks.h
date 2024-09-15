@@ -18,15 +18,16 @@ struct RegisterModuleTaskTempl : public Task, TaskFlags<TF_SRL_SYM> {
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
   RegisterModuleTaskTempl(hipc::Allocator *alloc)
-  : Task(alloc), lib_name_(alloc) {}
+      : Task(alloc), lib_name_(alloc) {}
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
   RegisterModuleTaskTempl(hipc::Allocator *alloc,
-                           const TaskNode &task_node,
-                           const DomainQuery &dom_query,
-                           const std::string &lib_name)
-  : Task(alloc), lib_name_(alloc, lib_name) {
+                          const TaskNode &task_node,
+                          const DomainQuery &dom_query,
+                          const PoolId &pool_id,
+                          const std::string &lib_name)
+      : Task(alloc), lib_name_(alloc, lib_name) {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrio::kLowLatency;
@@ -79,9 +80,10 @@ struct UpgradeModuleTask : public Task, TaskFlags<TF_SRL_SYM> {
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
   UpgradeModuleTask(hipc::Allocator *alloc,
-                          const TaskNode &task_node,
-                          const DomainQuery &dom_query,
-                          const std::string &lib_name)
+                    const TaskNode &task_node,
+                    const DomainQuery &dom_query,
+                    const PoolId &pool_id,
+                    const std::string &lib_name)
       : Task(alloc), lib_name_(alloc, lib_name) {
     // Initialize task
     task_node_ = task_node;
@@ -128,7 +130,7 @@ struct CreateContainerTask : public Task, TaskFlags<TF_SRL_SYM> {
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
   CreateContainerTask(hipc::Allocator *alloc)
-  : Task(alloc), lib_name_(alloc), pool_name_(alloc) {
+      : Task(alloc), lib_name_(alloc), pool_name_(alloc) {
   }
 
   /** Emplace constructor */
@@ -136,13 +138,14 @@ struct CreateContainerTask : public Task, TaskFlags<TF_SRL_SYM> {
   CreateContainerTask(hipc::Allocator *alloc,
                       const TaskNode &task_node,
                       const DomainQuery &dom_query,
+                      const PoolId &pool_id,
                       const DomainQuery &affinity,
                       const std::string &pool_name,
                       const std::string &lib_name,
                       const CreateContext &ctx)
-  : Task(alloc),
-    pool_name_(alloc, pool_name),
-    lib_name_(alloc, lib_name) {
+      : Task(alloc),
+        pool_name_(alloc, pool_name),
+        lib_name_(alloc, lib_name) {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrio::kLowLatency;
@@ -216,15 +219,16 @@ struct GetPoolIdTask : public Task, TaskFlags<TF_SRL_SYM> {
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
   GetPoolIdTask(hipc::Allocator *alloc)
-  : Task(alloc), pool_name_(alloc) {}
+      : Task(alloc), pool_name_(alloc) {}
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
   GetPoolIdTask(hipc::Allocator *alloc,
-                     const TaskNode &task_node,
-                     const DomainQuery &dom_query,
-                     const std::string &pool_name)
-  : Task(alloc), pool_name_(alloc, pool_name) {
+                const TaskNode &task_node,
+                const DomainQuery &dom_query,
+                const PoolId &pool_id,
+                const std::string &pool_name)
+      : Task(alloc), pool_name_(alloc, pool_name) {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrio::kLowLatency;
@@ -267,7 +271,8 @@ struct DestroyContainerTask : public Task, TaskFlags<TF_SRL_SYM> {
   DestroyContainerTask(hipc::Allocator *alloc,
                        const TaskNode &task_node,
                        const DomainQuery &dom_query,
-                       const PoolId &id) : Task(alloc) {
+                       const PoolId &id,
+                       const PoolId &destroy_id) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrio::kLowLatency;
@@ -277,7 +282,7 @@ struct DestroyContainerTask : public Task, TaskFlags<TF_SRL_SYM> {
     dom_query_ = dom_query;
 
     // Initialize
-    id_ = id;
+    id_ = destroy_id;
   }
 
   /** Copy message input */
@@ -314,6 +319,7 @@ struct StopRuntimeTask : public Task, TaskFlags<TF_SRL_SYM> {
   StopRuntimeTask(hipc::Allocator *alloc,
                   const TaskNode &task_node,
                   const DomainQuery &dom_query,
+                  const PoolId &pool_id,
                   bool root) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
@@ -357,6 +363,7 @@ struct SetWorkOrchestratorPolicyTask : public Task, TaskFlags<TF_SRL_SYM> {
   SetWorkOrchestratorPolicyTask(hipc::Allocator *alloc,
                                 const TaskNode &task_node,
                                 const DomainQuery &dom_query,
+                                const PoolId &pool_id,
                                 const PoolId &policy_id) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
@@ -404,7 +411,8 @@ struct FlushTask : public Task, TaskFlags<TF_SRL_SYM> {
   HSHM_ALWAYS_INLINE explicit
   FlushTask(hipc::Allocator *alloc,
             const TaskNode &task_node,
-            const DomainQuery &dom_query) : Task(alloc) {
+            const DomainQuery &dom_query,
+            const PoolId &pool_id) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrio::kLowLatency;
@@ -448,6 +456,7 @@ struct GetDomainSizeTask : public Task, TaskFlags<TF_LOCAL> {
   GetDomainSizeTask(hipc::Allocator *alloc,
                     const TaskNode &task_node,
                     const DomainQuery &dom_query,
+                    const PoolId &pool_id,
                     const DomainId &dom_id) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
@@ -479,7 +488,7 @@ struct UpdateDomainTask : public Task, TaskFlags<TF_SRL_SYM> {
       const DomainQuery &dom_query,
       const PoolId &pool_id,
       const std::vector<UpdateDomainInfo> &ops)
-  : Task(alloc), ops_(alloc) {
+      : Task(alloc), ops_(alloc) {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrio::kLowLatency;
