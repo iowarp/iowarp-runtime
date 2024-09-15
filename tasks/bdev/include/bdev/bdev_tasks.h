@@ -30,14 +30,14 @@ struct CreateTask : public CreateContainerTask {
   HSHM_ALWAYS_INLINE explicit
   CreateTask(hipc::Allocator *alloc,
              const TaskNode &task_node,
-             const DomainQuery &dom_query,
              const PoolId &pool_id,
+             const DomainQuery &dom_query,
              const DomainQuery &affinity,
              const std::string &pool_name,
              const CreateContext &ctx,
              const std::string &path,
              size_t max_size)
-      : CreateContainerTask(alloc, task_node, dom_query, pool_id, affinity,
+      : CreateContainerTask(alloc, task_node, pool_id, dom_query, affinity,
                             pool_name, "bdev", ctx), path_(alloc, path) {
     // Custom params
     size_ = max_size;
@@ -90,8 +90,8 @@ struct AllocateTask : public Task, TaskFlags<TF_SRL_SYM> {
   HSHM_ALWAYS_INLINE explicit
   AllocateTask(hipc::Allocator *alloc,
                const TaskNode &task_node,
-               const DomainQuery &dom_query,
                const PoolId &pool_id,
+               const DomainQuery &dom_query,
                size_t size) : Task(alloc), blocks_(alloc) {
     // Initialize task
     task_node_ = task_node;
@@ -138,8 +138,8 @@ struct FreeTask : public Task, TaskFlags<TF_SRL_SYM> {
   HSHM_ALWAYS_INLINE explicit
   FreeTask(hipc::Allocator *alloc,
            const TaskNode &task_node,
-           const DomainQuery &dom_query,
            const PoolId &pool_id,
+           const DomainQuery &dom_query,
            const Block &block) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
@@ -186,8 +186,8 @@ struct WriteTask : public Task, TaskFlags<TF_SRL_SYM> {
   HSHM_ALWAYS_INLINE explicit
   WriteTask(hipc::Allocator *alloc,
             const TaskNode &task_node,
-            const DomainQuery &dom_query,
             const PoolId &pool_id,
+            const DomainQuery &dom_query,
             const hipc::Pointer &data,
             size_t off,
             size_t size) : Task(alloc) {
@@ -246,8 +246,8 @@ struct ReadTask : public Task, TaskFlags<TF_SRL_SYM> {
   HSHM_ALWAYS_INLINE explicit
   ReadTask(hipc::Allocator *alloc,
            const TaskNode &task_node,
-           const DomainQuery &dom_query,
            const PoolId &pool_id,
+           const DomainQuery &dom_query,
            const hipc::Pointer &data,
            size_t off,
            size_t size) : Task(alloc) {
@@ -304,8 +304,8 @@ struct PollStatsTask : public Task, TaskFlags<TF_SRL_SYM> {
   HSHM_ALWAYS_INLINE explicit
   PollStatsTask(hipc::Allocator *alloc,
                 const TaskNode &task_node,
-                const DomainQuery &dom_query,
                 const PoolId &pool_id,
+                const DomainQuery &dom_query,
                 u32 period_ms) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;

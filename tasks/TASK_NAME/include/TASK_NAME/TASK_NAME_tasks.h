@@ -26,12 +26,12 @@ struct CreateTask : public CreateContainerTask {
   HSHM_ALWAYS_INLINE explicit
   CreateTask(hipc::Allocator *alloc,
              const TaskNode &task_node,
-             const DomainQuery &dom_query,
              const PoolId &pool_id,
+             const DomainQuery &dom_query,
              const DomainQuery &affinity,
              const std::string &pool_name,
              const CreateContext &ctx)
-      : CreateContainerTask(alloc, task_node, dom_query, pool_id, affinity,
+      : CreateContainerTask(alloc, task_node, pool_id, dom_query, affinity,
                             pool_name, "TASK_NAME", ctx) {
     // Custom params
   }
@@ -75,8 +75,8 @@ struct CustomTask : public Task, TaskFlags<TF_SRL_SYM> {
   HSHM_ALWAYS_INLINE explicit
   CustomTask(hipc::Allocator *alloc,
              const TaskNode &task_node,
-             const DomainQuery &dom_query,
-             const PoolId &pool_id) : Task(alloc) {
+             const PoolId &pool_id,
+             const DomainQuery &dom_query) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrio::kLowLatency;

@@ -24,8 +24,8 @@ struct RegisterModuleTaskTempl : public Task, TaskFlags<TF_SRL_SYM> {
   HSHM_ALWAYS_INLINE explicit
   RegisterModuleTaskTempl(hipc::Allocator *alloc,
                           const TaskNode &task_node,
-                          const DomainQuery &dom_query,
                           const PoolId &pool_id,
+                          const DomainQuery &dom_query,
                           const std::string &lib_name)
       : Task(alloc), lib_name_(alloc, lib_name) {
     // Initialize task
@@ -81,8 +81,8 @@ struct UpgradeModuleTask : public Task, TaskFlags<TF_SRL_SYM> {
   HSHM_ALWAYS_INLINE explicit
   UpgradeModuleTask(hipc::Allocator *alloc,
                     const TaskNode &task_node,
-                    const DomainQuery &dom_query,
                     const PoolId &pool_id,
+                    const DomainQuery &dom_query,
                     const std::string &lib_name)
       : Task(alloc), lib_name_(alloc, lib_name) {
     // Initialize task
@@ -137,8 +137,8 @@ struct CreateContainerTask : public Task, TaskFlags<TF_SRL_SYM> {
   HSHM_ALWAYS_INLINE explicit
   CreateContainerTask(hipc::Allocator *alloc,
                       const TaskNode &task_node,
-                      const DomainQuery &dom_query,
                       const PoolId &pool_id,
+                      const DomainQuery &dom_query,
                       const DomainQuery &affinity,
                       const std::string &pool_name,
                       const std::string &lib_name,
@@ -225,8 +225,8 @@ struct GetPoolIdTask : public Task, TaskFlags<TF_SRL_SYM> {
   HSHM_ALWAYS_INLINE explicit
   GetPoolIdTask(hipc::Allocator *alloc,
                 const TaskNode &task_node,
-                const DomainQuery &dom_query,
                 const PoolId &pool_id,
+                const DomainQuery &dom_query,
                 const std::string &pool_name)
       : Task(alloc), pool_name_(alloc, pool_name) {
     // Initialize task
@@ -270,8 +270,8 @@ struct DestroyContainerTask : public Task, TaskFlags<TF_SRL_SYM> {
   HSHM_ALWAYS_INLINE explicit
   DestroyContainerTask(hipc::Allocator *alloc,
                        const TaskNode &task_node,
+                       const PoolId &pool_id,
                        const DomainQuery &dom_query,
-                       const PoolId &id,
                        const PoolId &destroy_id) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
@@ -318,8 +318,8 @@ struct StopRuntimeTask : public Task, TaskFlags<TF_SRL_SYM> {
   HSHM_ALWAYS_INLINE explicit
   StopRuntimeTask(hipc::Allocator *alloc,
                   const TaskNode &task_node,
-                  const DomainQuery &dom_query,
                   const PoolId &pool_id,
+                  const DomainQuery &dom_query,
                   bool root) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
@@ -362,8 +362,8 @@ struct SetWorkOrchestratorPolicyTask : public Task, TaskFlags<TF_SRL_SYM> {
   HSHM_ALWAYS_INLINE explicit
   SetWorkOrchestratorPolicyTask(hipc::Allocator *alloc,
                                 const TaskNode &task_node,
-                                const DomainQuery &dom_query,
                                 const PoolId &pool_id,
+                                const DomainQuery &dom_query,
                                 const PoolId &policy_id) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
@@ -411,8 +411,8 @@ struct FlushTask : public Task, TaskFlags<TF_SRL_SYM> {
   HSHM_ALWAYS_INLINE explicit
   FlushTask(hipc::Allocator *alloc,
             const TaskNode &task_node,
-            const DomainQuery &dom_query,
-            const PoolId &pool_id) : Task(alloc) {
+            const PoolId &pool_id,
+            const DomainQuery &dom_query) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrio::kLowLatency;
@@ -455,8 +455,8 @@ struct GetDomainSizeTask : public Task, TaskFlags<TF_LOCAL> {
   HSHM_ALWAYS_INLINE explicit
   GetDomainSizeTask(hipc::Allocator *alloc,
                     const TaskNode &task_node,
-                    const DomainQuery &dom_query,
                     const PoolId &pool_id,
+                    const DomainQuery &dom_query,
                     const DomainId &dom_id) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
@@ -485,8 +485,8 @@ struct UpdateDomainTask : public Task, TaskFlags<TF_SRL_SYM> {
   UpdateDomainTask(
       hipc::Allocator *alloc,
       const TaskNode &task_node,
-      const DomainQuery &dom_query,
       const PoolId &pool_id,
+      const DomainQuery &dom_query,
       const std::vector<UpdateDomainInfo> &ops)
       : Task(alloc), ops_(alloc) {
     // Initialize task

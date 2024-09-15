@@ -25,12 +25,12 @@ struct CreateTask : public CreateContainerTask {
   HSHM_ALWAYS_INLINE explicit
   CreateTask(hipc::Allocator *alloc,
              const TaskNode &task_node,
-             const DomainQuery &dom_query,
              const PoolId &pool_id,
+             const DomainQuery &dom_query,
              const DomainQuery &affinity,
              const std::string &pool_name,
              const CreateContext &ctx)
-      : CreateContainerTask(alloc, task_node, dom_query, pool_id, affinity,
+      : CreateContainerTask(alloc, task_node, pool_id, dom_query, affinity,
                             pool_name, "small_message", ctx) {
   }
 
@@ -76,8 +76,8 @@ struct MdTask : public Task, TaskFlags<TF_SRL_SYM> {
   HSHM_ALWAYS_INLINE explicit
   MdTask(hipc::Allocator *alloc,
          const TaskNode &task_node,
-         const DomainQuery &dom_query,
          const PoolId &pool_id,
+         const DomainQuery &dom_query,
          u32 depth,
          u32 flags) : Task(alloc) {
     // Initialize task
@@ -130,8 +130,8 @@ struct IoTask : public Task, TaskFlags<TF_SRL_SYM> {
   HSHM_ALWAYS_INLINE explicit
   IoTask(hipc::Allocator *alloc,
          const TaskNode &task_node,
-         const DomainQuery &dom_query,
          const PoolId &pool_id,
+         const DomainQuery &dom_query,
          size_t io_size,
          u32 io_flags) : Task(alloc) {
     // Initialize task

@@ -309,7 +309,7 @@ void Async##CUSTOM##Construct(CUSTOM##Task *task,\
                               const DomainQuery &dom_query,\
                               Args&& ...args) {\
   CHI_CLIENT->ConstructTask<CUSTOM##Task>(\
-      task, task_node, dom_query, id_, std::forward<Args>(args)...);\
+      task, task_node, id_, dom_query, std::forward<Args>(args)...);\
 }\
 template<typename ...Args>\
 hipc::LPointer<CUSTOM##Task> Async##CUSTOM##Alloc(const TaskNode &task_node,\
@@ -349,7 +349,7 @@ void Async##CUSTOM##Construct(CUSTOM##Task *task,\
                               const DomainQuery &dom_query,\
                               Args&& ...args) {\
   CHI_CLIENT->ConstructTask<CUSTOM##Task>(\
-      task, task_node, dom_query, id_, std::forward<Args>(args)...);\
+      task, task_node, id_, dom_query, std::forward<Args>(args)...);\
 }\
 template<typename ...Args>\
 hipc::LPointer<CUSTOM##Task> Async##CUSTOM##Alloc(const TaskNode &task_node,\
