@@ -8,12 +8,13 @@ struct ##task_name## : public Task, TaskFlags<TF_SRL_SYM> {
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
   ##task_name##(hipc::Allocator *alloc,
-              const TaskNode &task_node,
-              const DomainQuery &dom_query) : Task(alloc) {
+                const TaskNode &task_node,
+                const DomainQuery &dom_query,
+                const PoolId &pool_id) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrio::kLowLatency;
-    pool_ = state_id;
+    pool_ = pool_id;
     method_ = Method::##method_enum_name##;
     task_flags_.SetBits(0);
     dom_query_ = dom_query;
