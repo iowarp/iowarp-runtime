@@ -40,12 +40,6 @@ struct ##task_name## : public Task, TaskFlags<TF_SRL_SYM> {
 
 client_method_template = """
 /** Metadata task */
-void Async##method_name##Construct(##task_name## *task,
-                                   const TaskNode &task_node,
-                                   const DomainQuery &dom_query) {
-  CHI_CLIENT->ConstructTask<##task_name##>(
-    task, task_node, dom_query);
-}
 void ##method_name##(const DomainQuery &dom_query) {
   LPointer<MdTask> task =
     AsyncMd(dom_query);
