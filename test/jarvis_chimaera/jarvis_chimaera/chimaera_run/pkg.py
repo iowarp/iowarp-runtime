@@ -331,7 +331,7 @@ class ChimaeraRun(Service):
 
     def kill(self):
         self.get_hostfile()
-        Kill('.*chimaera_codegen.*',
+        Kill('.*chimaera.*',
              PsshExecInfo(hostfile=self.hostfile,
                           env=self.env))
         self.log('Client Exited?')
