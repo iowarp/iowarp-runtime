@@ -231,7 +231,6 @@ class ChimaeraRun(Service):
                 'data_shm_size': self.config['data_shm'],
                 'rdata_shm_size': self.config['rdata_shm'],
             },
-            'devices': {},
             'rpc': {}
         }
         if len(self.config['monitor_out']):
