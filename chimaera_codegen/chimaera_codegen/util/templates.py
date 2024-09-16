@@ -9,8 +9,8 @@ struct ##task_name## : public Task, TaskFlags<TF_SRL_SYM> {
   HSHM_ALWAYS_INLINE explicit
   ##task_name##(hipc::Allocator *alloc,
                 const TaskNode &task_node,
-                const DomainQuery &dom_query,
-                const PoolId &pool_id) : Task(alloc) {
+                const PoolId &pool_id,
+                const DomainQuery &dom_query) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrio::kLowLatency;
@@ -39,7 +39,7 @@ struct ##task_name## : public Task, TaskFlags<TF_SRL_SYM> {
 """
 
 client_method_template = """
-/** Metadata task */
+/** ##method_name## task */
 void ##method_name##(const DomainQuery &dom_query) {
   LPointer<##task_name##> task =
     Async##method_name##(dom_query);
