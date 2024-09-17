@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# Build Small Message Task Library
+# Build TASK_NAME Task Library
 #------------------------------------------------------------------------------
 add_library(TASK_NAME SHARED
         TASK_NAME.cc)
@@ -9,7 +9,7 @@ endif()
 target_link_libraries(TASK_NAME ${Chimaera_RUNTIME_LIBRARIES})
 target_compile_definitions(TASK_NAME PRIVATE ${Chimaera_RUNTIME_DEFINITIONS})
 #------------------------------------------------------------------------------
-# Install Small Message Task Library
+# Install TASK_NAME Task Library
 #------------------------------------------------------------------------------
 install(
         TARGETS
