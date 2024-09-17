@@ -202,7 +202,7 @@ set(Chimaera_RUNTIME_LIBRARIES
         ${_Chimaera_RUNTIME_LIBRARIES}
         chimaera_runtime)
 set(Chimaera_RUNTIME_DEPS
-        chimaera_client chimaera_runtime)
+        chimaera_runtime)
 set(Chimaera_RUNTIME_DEFINITIONS
         CHIMAERA_RUNTIME)
 if (CHIMAERA_ENABLE_PYTHON)

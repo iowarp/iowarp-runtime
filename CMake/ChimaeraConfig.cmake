@@ -153,10 +153,6 @@ endif()
 #-----------------------------------------------------------------------------
 set(Chimaera_FOUND ON)
 set(Chimaera_INCLUDE_DIRS ${Boost_INCLUDE_DIRS} ${Chimaera_INCLUDE_DIR})
-set(Chimaera_LIBRARY_DIRS
-        ${Boost_LIBRARY_DIRS}
-        ${HermesShm_LIBRARY_DIRS}
-        ${Chimaera_LIBRARY_DIR})
 set(_Chimaera_CLIENT_LIBRARIES
         ${HermesShm_LIBRARIES}
         yaml-cpp
@@ -167,7 +163,10 @@ set(_Chimaera_CLIENT_LIBRARIES
 set(Chimaera_CLIENT_LIBRARIES
         ${_Chimaera_CLIENT_LIBRARIES}
         chimaera_client)
-set(Chimaera_CLIENT_LIBRARY_DIRS ${Chimaera_LIBRARY_DIRS})
+set(Chimaera_CLIENT_LIBRARY_DIRS
+        ${Boost_LIBRARY_DIRS}
+        ${HermesShm_LIBRARY_DIRS}
+        ${Chimaera_LIBRARY_DIR})
 set(_Chimaera_RUNTIME_LIBRARIES
         ${_Chimaera_CLIENT_LIBRARIES}
         ${Boost_LIBRARIES}
