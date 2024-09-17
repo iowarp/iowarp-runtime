@@ -87,7 +87,7 @@ class ChimaeraCodegen:
                 print('Skipping...')
                 sys.exit(0)
         os.makedirs(f'{TASK_ROOT}/src', exist_ok=True)
-        os.makedirs(f'{TASK_ROOT}/include/{task_name}', exist_ok=True)
+        os.makedirs(f'{TASK_ROOT}/include/{TASK_NAME}', exist_ok=True)
         self._copy_replace(TASK_ROOT, TASK_TEMPL_ROOT, 'CMakeLists.txt', TASK_NAME)
         self._copy_replace(TASK_ROOT, TASK_TEMPL_ROOT, 'src/CMakeLists.txt', TASK_NAME)
         self._copy_replace(TASK_ROOT, TASK_TEMPL_ROOT, 'src/TASK_NAME.cc', TASK_NAME)
