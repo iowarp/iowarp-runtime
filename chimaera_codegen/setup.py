@@ -1,7 +1,7 @@
 import setuptools
 
 setuptools.setup(
-    name="jarvis_cd",
+    name="chimaera_codegen",
     packages=setuptools.find_packages(),
     scripts=['bin/chi_make_config', 'bin/chi_make_macro', 'bin/chi_make_task',
              'bin/chi_refresh_tasks', 'bin/chi_refresh_tasks', 'bin/chi_print_root',
