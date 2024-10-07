@@ -96,9 +96,8 @@ class MonitorMode {
   TASK_METHOD_T kEstLoad = 0;
   TASK_METHOD_T kSampleLoad = 1;
   TASK_METHOD_T kReinforceLoad = 2;
-  TASK_METHOD_T kFlushStat = 3;
-  TASK_METHOD_T kReplicaStart = 4;
-  TASK_METHOD_T kReplicaAgg = 5;
+  TASK_METHOD_T kReplicaStart = 3;
+  TASK_METHOD_T kReplicaAgg = 4;
 };
 
 /**
@@ -314,6 +313,7 @@ struct Load {
 /** Context passed to the Run method of a task */
 struct RunContext {
   bitfield32_t run_flags_;  /**< Properties of the task */
+  bitfield32_t worker_props_;  /**< Properties of the worker */
   u32 worker_id_;         /**< The worker id of the task */
   bctx::transfer_t jmp_;  /**< Stack info for coroutines */
   void *stack_ptr_;       /**< Stack pointer (coroutine) */

@@ -184,6 +184,12 @@ class Server : public Module {
 
   /** Push operation called on client */
   void ClientSubmit(ClientSubmitTask *task, RunContext &rctx) {
+    if (rctx.worker_props_.Any(CHI_WORKER_IS_FLUSHING)) {
+      hshm::mpsc_queue<TaskQueueEntry> &submit = submit_[0];
+      hshm::mpsc_queue<TaskQueueEntry> &complete = complete_[0];
+      rctx.flush_->count_ += submit.GetSize() + complete.GetSize();
+    }
+
     try {
       TaskQueueEntry entry;
       std::unordered_map<NodeId, BinaryOutputArchive<true>> entries;
@@ -226,13 +232,6 @@ class Server : public Module {
   void MonitorClientSubmit(MonitorModeId mode,
                            ClientSubmitTask *task,
                            RunContext &rctx) {
-    switch (mode) {
-      case MonitorMode::kFlushStat: {
-        hshm::mpsc_queue<TaskQueueEntry> &submit = submit_[0];
-        hshm::mpsc_queue<TaskQueueEntry> &complete = complete_[0];
-        rctx.flush_->count_ += submit.GetSize() + complete.GetSize();
-      }
-    }
   }
 
   /** Complete the task (on the remote node) */

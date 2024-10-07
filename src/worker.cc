@@ -345,11 +345,12 @@ bool Worker::RunTask(PrivateTaskQueue &priv_queue,
       GetTaskProperties(task.ptr_, flushing);
   // Pack runtime context
   RunContext &rctx = task->rctx_;
+  rctx.worker_props_ = props;
   rctx.worker_id_ = id_;
   rctx.flush_ = &flush_;
   // Get the task container
   Container *exec;
-  if (!props.Any(HSHM_WORKER_IS_REMOTE)) {
+  if (!props.Any(CHI_WORKER_IS_REMOTE)) {
     exec = CHI_MOD_REGISTRY->GetContainer(task->pool_,
                                           entry.res_query_.sel_.id_);
   } else if (!task->IsModuleComplete()) {
@@ -419,15 +420,12 @@ void Worker::ExecTask(PrivateTaskQueue &priv_queue,
                       Container *&exec,
                       bitfield32_t &props) {
   // Determine if a task should be executed
-  if (!props.All(HSHM_WORKER_SHOULD_RUN)) {
+  if (!props.All(CHI_WORKER_SHOULD_RUN)) {
     return;
   }
   // Flush tasks
-  if (props.Any(HSHM_WORKER_IS_FLUSHING)) {
-    if (task->IsLongRunning()) {
-      exec->Monitor(MonitorMode::kFlushStat, task->method_,
-                    task, rctx);
-    } else if (!task->IsFlush()) {
+  if (props.Any(CHI_WORKER_IS_FLUSHING)) {
+    if (!task->IsFlush() && !task->IsLongRunning()) {
       flush_.count_ += 1;
     }
   }
@@ -561,19 +559,19 @@ bitfield32_t Worker::GetTaskProperties(Task *&task,
   bool group_avail = true;
   bool should_run = task->ShouldRun(cur_time_, flushing);
   if (task->IsRemote()) {
-    props.SetBits(HSHM_WORKER_IS_REMOTE);
+    props.SetBits(CHI_WORKER_IS_REMOTE);
   }
   if (group_avail) {
-    props.SetBits(HSHM_WORKER_GROUP_AVAIL);
+    props.SetBits(CHI_WORKER_GROUP_AVAIL);
   }
   if (should_run) {
-    props.SetBits(HSHM_WORKER_SHOULD_RUN);
+    props.SetBits(CHI_WORKER_SHOULD_RUN);
   }
   if (flushing) {
-    props.SetBits(HSHM_WORKER_IS_FLUSHING);
+    props.SetBits(CHI_WORKER_IS_FLUSHING);
   }
   if (task->IsLongRunning()) {
-    props.SetBits(HSHM_WORKER_LONG_RUNNING);
+    props.SetBits(CHI_WORKER_LONG_RUNNING);
   }
   return props;
 }
