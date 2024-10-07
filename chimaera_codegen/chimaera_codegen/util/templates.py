@@ -45,7 +45,6 @@ void ##method_name##(const DomainQuery &dom_query) {
     Async##method_name##(dom_query);
   task->Wait();
   CHI_CLIENT->DelTask(task);
-  return;
 }
 CHI_TASK_METHODS(##method_name##);
 """
