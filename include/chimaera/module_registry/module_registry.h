@@ -217,7 +217,7 @@ class ModuleRegistry {
       info.new_state_ = (new_state_t)dlsym(
           info.lib_, "new_state");
       if (!info.new_state_) {
-        HELOG(kError, "The lib {} does not have alloc_state symbol",
+        HELOG(kError, "The lib {} does not have new_state symbol",
               lib_path);
         return false;
       }
@@ -249,7 +249,6 @@ class ModuleRegistry {
     }
     ModuleInfo info;
     if (!LoadModule(lib_name, info)) {
-      HELOG(kError, "Could not find the lib: {}", lib_name);
       return false;
     }
     libs_.emplace(lib_name, std::move(info));

@@ -86,7 +86,11 @@ void Worker::WorkerEntryPoint(void *arg) {
   worker->Loop();
 }
 
-/** Flush the worker's tasks */
+/**
+ * Begin flushing all worker tasks
+ * NOTE: The first worker holds all FlushTasks and will signal other workers
+ * in the first iteration.
+ * */
 void Worker::BeginFlush(WorkOrchestrator *orch) {
   if (flush_.flush_iter_ == 0 && active_.GetFlush().size()) {
     for (std::unique_ptr<Worker> &worker : orch->workers_) {
@@ -103,11 +107,13 @@ void Worker::EndFlush(WorkOrchestrator *orch) {
   while (AnyFlushing(orch)) {
     HERMES_THREAD_MODEL->Yield();
   }
-  // Detect if any work has been done
+  // On the root worker, detect if any work was done
   if (active_.GetFlush().size()) {
     if (AnyFlushWorkDone(orch)) {
-      flush_.flush_iter_ = 0;
+      // Ensure that workers are relabeled as flushing
+      flush_.flushing_ = true;
     } else {
+      // Reap all FlushTasks and end recurion
       PollPrivateQueue(active_.GetFlush(), false);
     }
   }
@@ -129,6 +135,7 @@ bool Worker::AnyFlushWorkDone(WorkOrchestrator *orch) {
   for (std::unique_ptr<Worker> &worker : orch->workers_) {
     if (worker->flush_.count_ != worker->flush_.work_done_) {
       worker->flush_.work_done_ = worker->flush_.count_;
+      ret = true;
     }
   }
   return ret;
@@ -556,22 +563,15 @@ bitfield32_t Worker::GetTaskProperties(Task *&task,
                                        bool flushing) {
   bitfield32_t props;
 
-  bool group_avail = true;
   bool should_run = task->ShouldRun(cur_time_, flushing);
   if (task->IsRemote()) {
     props.SetBits(CHI_WORKER_IS_REMOTE);
   }
-  if (group_avail) {
-    props.SetBits(CHI_WORKER_GROUP_AVAIL);
-  }
-  if (should_run) {
+  if (should_run || task->IsStarted()) {
     props.SetBits(CHI_WORKER_SHOULD_RUN);
   }
   if (flushing) {
     props.SetBits(CHI_WORKER_IS_FLUSHING);
-  }
-  if (task->IsLongRunning()) {
-    props.SetBits(CHI_WORKER_LONG_RUNNING);
   }
   return props;
 }

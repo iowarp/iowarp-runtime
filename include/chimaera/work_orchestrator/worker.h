@@ -34,10 +34,8 @@ static inline pid_t GetLinuxTid() {
 }
 
 #define CHI_WORKER_IS_REMOTE BIT_OPT(u32, 0)
-#define CHI_WORKER_GROUP_AVAIL BIT_OPT(u32, 1)
-#define CHI_WORKER_SHOULD_RUN BIT_OPT(u32, 2)
-#define CHI_WORKER_IS_FLUSHING BIT_OPT(u32, 3)
-#define CHI_WORKER_LONG_RUNNING BIT_OPT(u32, 4)
+#define CHI_WORKER_SHOULD_RUN BIT_OPT(u32, 1)
+#define CHI_WORKER_IS_FLUSHING BIT_OPT(u32, 2)
 
 namespace chi {
 
