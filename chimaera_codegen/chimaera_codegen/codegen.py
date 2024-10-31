@@ -25,8 +25,8 @@ class ChimaeraCodegen:
         """
         with open(path) as fp:
             lines = fp.read().splitlines()
-        macro_def = f'#define {macro_name}\\\n'
-        macro_body = '\\\n'.join(lines)
+        macro_def = f'#define {macro_name} \\\n'
+        macro_body = ' \\\n'.join(lines)
         print(f'{macro_def}{macro_body}')
 
     def make_configs(self):
