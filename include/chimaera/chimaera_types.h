@@ -33,9 +33,9 @@
 #include <hermes_shm/data_structures/ipc/ticket_queue.h>
 #include <hermes_shm/data_structures/containers/converters.h>
 #include <hermes_shm/data_structures/containers/charbuf.h>
-#include <hermes_shm/data_structures/containers/spsc_queue.h>
-#include <hermes_shm/data_structures/containers/mpsc_queue.h>
-#include <hermes_shm/data_structures/containers/split_ticket_queue.h>
+#include <hermes_shm/data_structures/ipc/spsc_queue.h>
+#include <hermes_shm/data_structures/ipc/mpsc_queue.h>
+#include <hermes_shm/data_structures/ipc/split_ticket_queue.h>
 #include <hermes_shm/data_structures/containers/converters.h>
 #include "hermes_shm/data_structures/serialization/shm_serialize.h"
 #include <hermes_shm/util/auto_trace.h>
@@ -85,8 +85,6 @@ typedef u32 LaneGroupId;  /**< The ID of a lane group */
 typedef u32 ContainerId;  /**< The ID of a container */
 typedef u32 MethodId;     /**< The ID of a container method */
 typedef u32 MonitorModeId;  /**< The ID of a container monitor mode */
-
-#define CLS_CONST static inline const
 
 /** Represents unique ID for states + queues */
 template<int TYPE>

@@ -23,12 +23,12 @@ struct CreateTask : public CreateContainerTask {
 
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
-  CreateTask(hipc::Allocator *alloc)
+  CreateTask(const hipc::CtxAllocator<hipc::Allocator> &alloc)
       : CreateContainerTask(alloc), path_(alloc) {}
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
-  CreateTask(hipc::Allocator *alloc,
+  CreateTask(const hipc::CtxAllocator<hipc::Allocator> &alloc,
              const TaskNode &task_node,
              const PoolId &pool_id,
              const DomainQuery &dom_query,
@@ -83,12 +83,12 @@ struct AllocateTask : public Task, TaskFlags<TF_SRL_SYM> {
 
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
-  AllocateTask(hipc::Allocator *alloc)
+  AllocateTask(const hipc::CtxAllocator<hipc::Allocator> &alloc)
       : Task(alloc), blocks_(alloc) {}
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
-  AllocateTask(hipc::Allocator *alloc,
+  AllocateTask(const hipc::CtxAllocator<hipc::Allocator> &alloc,
                const TaskNode &task_node,
                const PoolId &pool_id,
                const DomainQuery &dom_query,
@@ -132,11 +132,11 @@ struct FreeTask : public Task, TaskFlags<TF_SRL_SYM> {
 
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
-  FreeTask(hipc::Allocator *alloc) : Task(alloc) {}
+  FreeTask(const hipc::CtxAllocator<hipc::Allocator> &alloc) : Task(alloc) {}
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
-  FreeTask(hipc::Allocator *alloc,
+  FreeTask(const hipc::CtxAllocator<hipc::Allocator> &alloc,
            const TaskNode &task_node,
            const PoolId &pool_id,
            const DomainQuery &dom_query,
@@ -180,11 +180,11 @@ struct WriteTask : public Task, TaskFlags<TF_SRL_SYM> {
 
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
-  WriteTask(hipc::Allocator *alloc) : Task(alloc) {}
+  WriteTask(const hipc::CtxAllocator<hipc::Allocator> &alloc) : Task(alloc) {}
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
-  WriteTask(hipc::Allocator *alloc,
+  WriteTask(const hipc::CtxAllocator<hipc::Allocator> &alloc,
             const TaskNode &task_node,
             const PoolId &pool_id,
             const DomainQuery &dom_query,
@@ -240,11 +240,11 @@ struct ReadTask : public Task, TaskFlags<TF_SRL_SYM> {
 
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
-  ReadTask(hipc::Allocator *alloc) : Task(alloc) {}
+  ReadTask(const hipc::CtxAllocator<hipc::Allocator> &alloc) : Task(alloc) {}
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
-  ReadTask(hipc::Allocator *alloc,
+  ReadTask(const hipc::CtxAllocator<hipc::Allocator> &alloc,
            const TaskNode &task_node,
            const PoolId &pool_id,
            const DomainQuery &dom_query,
@@ -298,11 +298,11 @@ struct PollStatsTask : public Task, TaskFlags<TF_SRL_SYM> {
 
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
-  PollStatsTask(hipc::Allocator *alloc) : Task(alloc) {}
+  PollStatsTask(const hipc::CtxAllocator<hipc::Allocator> &alloc) : Task(alloc) {}
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
-  PollStatsTask(hipc::Allocator *alloc,
+  PollStatsTask(const hipc::CtxAllocator<hipc::Allocator> &alloc,
                 const TaskNode &task_node,
                 const PoolId &pool_id,
                 const DomainQuery &dom_query,

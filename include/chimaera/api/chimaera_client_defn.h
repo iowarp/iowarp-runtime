@@ -67,9 +67,6 @@ class Client : public ConfigurationManager {
     queue_manager_.ClientInit(main_alloc_,
                               header_->queue_manager_,
                               header_->node_id_);
-    if (!server) {
-      HERMES_THREAD_MODEL->SetThreadModel(hshm::ThreadType::kPthread);
-    }
   }
 
  public:
@@ -111,7 +108,8 @@ class Client : public ConfigurationManager {
   template<typename TaskT, typename ...Args>
   HSHM_ALWAYS_INLINE
   TaskT* NewEmptyTask(hipc::Pointer &p) {
-    TaskT *task = main_alloc_->NewObj<TaskT>(p, main_alloc_);
+    TaskT *task = main_alloc_->NewObj<TaskT>(
+        hshm::ThreadId::GetNull(), p, main_alloc_);
     if (task == nullptr) {
       // throw std::runtime_error("Could not allocate buffer");
       HELOG(kFatal, "Could not allocate buffer (1)");
@@ -123,7 +121,8 @@ class Client : public ConfigurationManager {
   template<typename TaskT, typename ...Args>
   HSHM_ALWAYS_INLINE
   LPointer<TaskT> NewEmptyTask() {
-    LPointer<TaskT> task = main_alloc_->NewObjLocal<TaskT>(main_alloc_);
+    LPointer<TaskT> task = main_alloc_->NewObjLocal<TaskT>(
+        hshm::ThreadId::GetNull(), main_alloc_);
     if (task.shm_.IsNull()) {
       // throw std::runtime_error("Could not allocate buffer");
       HELOG(kFatal, "Could not allocate buffer (2)");
@@ -143,7 +142,8 @@ class Client : public ConfigurationManager {
   template<typename TaskT, typename ...Args>
   HSHM_ALWAYS_INLINE
       hipc::LPointer<TaskT> AllocateTask() {
-    hipc::LPointer<TaskT> task = main_alloc_->AllocateLocalPtr<TaskT>(sizeof(TaskT));
+    hipc::LPointer<TaskT> task = main_alloc_->AllocateLocalPtr<TaskT>(
+        hshm::ThreadId::GetNull(), sizeof(TaskT));
     if (task.shm_.IsNull()) {
       HELOG(kFatal, "Could not allocate buffer (3)");
     }
@@ -155,7 +155,7 @@ class Client : public ConfigurationManager {
   HSHM_ALWAYS_INLINE
   LPointer<TaskT> NewTask(const TaskNode &task_node, Args&& ...args) {
     LPointer<TaskT> ptr = main_alloc_->NewObjLocal<TaskT>(
-        main_alloc_, task_node, std::forward<Args>(args)...);
+        hshm::ThreadId::GetNull(), main_alloc_, task_node, std::forward<Args>(args)...);
     if (ptr.shm_.IsNull()) {
       // throw std::runtime_error("Could not allocate buffer");
       HELOG(kFatal, "Could not allocate buffer (4)");
@@ -187,7 +187,8 @@ class Client : public ConfigurationManager {
 #ifdef CHIMAERA_TASK_DEBUG
     MonitorTaskFrees(task);
 #else
-    main_alloc_->DelObj<TaskT>(task);
+    main_alloc_->DelObj<TaskT>(
+        hshm::ThreadId::GetNull(), task);
 #endif
   }
 
@@ -198,7 +199,8 @@ class Client : public ConfigurationManager {
 #ifdef CHIMAERA_TASK_DEBUG
     MonitorTaskFrees(task);
 #else
-    main_alloc_->DelObjLocal<TaskT>(task);
+    main_alloc_->DelObjLocal<TaskT>(
+        hshm::ThreadId::GetNull(), task);
 #endif
   }
 
@@ -249,21 +251,21 @@ class Client : public ConfigurationManager {
   /** Allocate a buffer */
   template<bool FROM_REMOTE=false>
   HSHM_ALWAYS_INLINE
-  LPointer<char> AllocateBufferSafe(Allocator *alloc, size_t size);
+  LPointer<char> AllocateBufferSafe(const hipc::CtxAllocator<hipc::Allocator> &alloc, size_t size);
 
  public:
   /** Free a buffer */
   HSHM_ALWAYS_INLINE
   void FreeBuffer(hipc::Pointer &p) {
     auto alloc = HERMES_MEMORY_MANAGER->GetAllocator(p.allocator_id_);
-    alloc->Free(p);
+    alloc->Free(hshm::ThreadId::GetNull(), p);
   }
 
   /** Free a buffer */
   HSHM_ALWAYS_INLINE
   void FreeBuffer(LPointer<char> &p) {
     auto alloc = HERMES_MEMORY_MANAGER->GetAllocator(p.shm_.allocator_id_);
-    alloc->FreeLocalPtr(p);
+    alloc->FreeLocalPtr(hshm::ThreadId::GetNull(), p);
   }
 
   /** Convert pointer to char* */

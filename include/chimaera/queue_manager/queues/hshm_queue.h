@@ -6,27 +6,151 @@
 #define CHI_INCLUDE_CHI_QUEUE_MANAGER_HSHM_QUEUE_H_
 
 #include "chimaera/queue_manager/queue.h"
-#include "mpsc_queue.h"
 
 namespace chi::ingress {
 
 /** The data stored in a lane */
-struct LaneData {
-  hipc::Pointer p_;  /**< Pointer to SHM request */
+class LaneData {
+ public:
+  hipc::Pointer p_;
 
+ public:
   LaneData() = default;
 
-  LaneData(hipc::Pointer &p) {
-    p_ = p;
+  LaneData(const hipc::Pointer &p) : p_(p) {}
+};
+
+/** Queue token*/
+using hshm::qtok_t;
+
+/** Represents a lane tasks can be stored */
+class Lane : public hipc::ShmContainer {
+ public:
+  hipc::mpsc_queue<LaneData> queue_;
+  QueueId id_;
+  i32 worker_id_ = -1;
+
+ public:
+  /**====================================
+   * Default Constructor
+   * ===================================*/
+
+  /** SHM constructor. Default. */
+  explicit Lane(const hipc::CtxAllocator<hipc::Allocator> &alloc,
+                size_t depth = 1024,
+                QueueId id = QueueId::GetNull())
+      : queue_(alloc, depth) {
+    id_ = id;
+    SetNull();
+  }
+
+  /**====================================
+   * Copy Constructors
+   * ===================================*/
+
+  /** Copy constructor */
+  explicit Lane(const Lane &other)
+  : queue_(other.queue_.GetCtxAllocator(), other.queue_) {
+  }
+
+  /** SHM copy constructor */
+  explicit Lane(const hipc::CtxAllocator<hipc::Allocator> &alloc,
+                const Lane &other)
+      : queue_(alloc, other.queue_) {
+  }
+
+  /** SHM copy assignment operator */
+  Lane& operator=(const Lane &other) {
+    if (this != &other) {
+      queue_ = other.queue_;
+    }
+    return *this;
+  }
+
+  /**====================================
+   * Move Constructors
+   * ===================================*/
+
+  /** Move constructor. */
+  Lane(Lane &&other) noexcept
+  : queue_(other.queue_.GetCtxAllocator(), std::move(other.queue_)) {}
+
+  /** SHM move constructor. */
+  Lane(const hipc::CtxAllocator<hipc::Allocator> &alloc,
+       Lane &&other) noexcept
+  : queue_(alloc, std::move(other.queue_)) {}
+
+  /** SHM move assignment operator. */
+  Lane& operator=(Lane &&other) noexcept {
+    if (this != &other) {
+      queue_ = std::move(other.queue_);
+    }
+    return *this;
+  }
+
+  /**====================================
+   * Destructor
+   * ===================================*/
+
+  /** SHM destructor.  */
+  void shm_destroy() {
+    queue_.shm_destroy();
+  }
+
+  /** Check if the list is empty */
+  bool IsNull() const {
+    return queue_.IsNull();
+  }
+
+  /** Sets this list as empty */
+  void SetNull() {
+    queue_.SetNull();
+  }
+
+  /**====================================
+   * MPSC Queue Methods
+   * ===================================*/
+
+  /** Construct an element at \a pos position in the list */
+  template<typename ...Args>
+  qtok_t emplace(Args&&... args) {
+    return queue_.emplace(std::forward<Args>(args)...);
+  }
+
+ public:
+  /** Consumer pops the head object */
+  qtok_t pop(LaneData &val) {
+    return queue_.pop(val);
+  }
+
+  /** Consumer pops the head object */
+  qtok_t pop() {
+    return queue_.pop();
+  }
+
+  /** Consumer peeks an object */
+  qtok_t peek(hipc::pair<bitfield32_t, LaneData> *&val, int off = 0) {
+    return queue_.peek(val, off);
+  }
+
+  /** Consumer peeks an object */
+  qtok_t peek(LaneData *&val, int off = 0) {
+    return queue_.peek(val, off);
+  }
+
+  /** Current size of queue */
+  size_t GetSize() {
+    return queue_.GetSize();
+  }
+
+  /** Max depth of queue */
+  size_t GetDepth() {
+    return queue_.GetDepth();
   }
 };
 
-/** Represents a lane tasks can be stored */
-typedef chi::mpsc_queue<LaneData> Lane;
-
 /** Prioritization of different lanes in the queue */
 struct LaneGroup : public PriorityInfo, public hipc::ShmContainer {
- SHM_CONTAINER_TEMPLATE((LaneGroup), (LaneGroup))
   u32 prio_;            /**< The priority of the lane group */
   u32 num_scheduled_;   /**< The number of lanes currently scheduled on workers */
   hipc::vector<Lane> lanes_;  /**< The lanes of the queue */
@@ -34,11 +158,11 @@ struct LaneGroup : public PriorityInfo, public hipc::ShmContainer {
 
   /** Default constructor */
   HSHM_ALWAYS_INLINE
-  LaneGroup(Allocator *alloc) : lanes_(alloc) {}
+  LaneGroup(const hipc::CtxAllocator<hipc::Allocator> &alloc) : lanes_(alloc) {}
 
   /** Set priority info */
   HSHM_ALWAYS_INLINE
-  LaneGroup(Allocator *alloc, const PriorityInfo &priority)
+  LaneGroup(const hipc::CtxAllocator<hipc::Allocator> &alloc, const PriorityInfo &priority)
   : lanes_(alloc) {
     prio_ = priority.prio_;
     max_lanes_ = priority.max_lanes_;
@@ -55,9 +179,8 @@ struct LaneGroup : public PriorityInfo, public hipc::ShmContainer {
 
   /** SHM Copy constructor. Should never actually be called. */
   HSHM_ALWAYS_INLINE
-  LaneGroup(Allocator *alloc, const LaneGroup &other)
+  LaneGroup(const hipc::CtxAllocator<hipc::Allocator> &alloc, const LaneGroup &other)
   : lanes_(alloc, other.lanes_) {
-    shm_init_container(alloc);
     prio_ = other.prio_;
     max_lanes_ = other.max_lanes_;
     num_lanes_ = other.num_lanes_;
@@ -86,10 +209,9 @@ struct LaneGroup : public PriorityInfo, public hipc::ShmContainer {
    * ===================================*/
 
   /** SHM move constructor. */
-  LaneGroup(hipc::Allocator *alloc,
+  LaneGroup(const hipc::CtxAllocator<hipc::Allocator> &alloc,
             LaneGroup &&other) noexcept
-  : lanes_(alloc, std::move(other.lanes_)) {
-    shm_init_container(alloc);
+      : lanes_(alloc, std::move(other.lanes_)) {
     prio_ = other.prio_;
     max_lanes_ = other.max_lanes_;
     num_lanes_ = other.num_lanes_;
@@ -122,7 +244,7 @@ struct LaneGroup : public PriorityInfo, public hipc::ShmContainer {
    * ===================================*/
 
   /** SHM destructor.  */
-  void shm_destroy_main() {
+  void shm_destroy() {
     lanes_.shm_destroy();
   }
 
@@ -162,7 +284,6 @@ struct LaneGroup : public PriorityInfo, public hipc::ShmContainer {
  * The shared-memory representation of a Queue
  * */
 struct MultiQueue : public hipc::ShmContainer {
-  SHM_CONTAINER_TEMPLATE((MultiQueue), (MultiQueue))
   QueueId id_;          /**< Globally unique ID of this queue */
   hipc::vector<LaneGroup> groups_;  /**< Divide the lanes into groups */
   bitfield32_t flags_;  /**< Flags for the queue */
@@ -173,16 +294,14 @@ struct MultiQueue : public hipc::ShmContainer {
    * ===================================*/
 
   /** SHM constructor. Default. */
-  explicit MultiQueue(hipc::Allocator *alloc) : groups_(alloc) {
-    shm_init_container(alloc);
+  explicit MultiQueue(const hipc::CtxAllocator<hipc::Allocator> &alloc) : groups_(alloc) {
     SetNull();
   }
 
   /** SHM constructor. */
-  explicit MultiQueue(hipc::Allocator *alloc, const QueueId &id,
-                       const std::vector<PriorityInfo> &prios)
-  : groups_(alloc, prios.size()) {
-    shm_init_container(alloc);
+  explicit MultiQueue(const hipc::CtxAllocator<hipc::Allocator> &alloc, const QueueId &id,
+                      const std::vector<PriorityInfo> &prios)
+      : groups_(alloc, prios.size()) {
     id_ = id;
     for (const PriorityInfo &prio_info : prios) {
       groups_.replace(groups_.begin() + prio_info.prio_, prio_info);
@@ -196,7 +315,7 @@ struct MultiQueue : public hipc::ShmContainer {
         lane_group.lanes_.emplace_back(
             lane_group.depth_, QueueId{prio_info.prio_, lane_id});
         Lane &lane = lane_group.lanes_.back();
-        lane.flags_ = prio_info.flags_;
+        lane.queue_.flags_ = prio_info.flags_;
       }
     }
   }
@@ -206,9 +325,8 @@ struct MultiQueue : public hipc::ShmContainer {
    * ===================================*/
 
   /** SHM copy constructor */
-  explicit MultiQueue(hipc::Allocator *alloc, const MultiQueue &other)
-  : groups_(alloc) {
-    shm_init_container(alloc);
+  explicit MultiQueue(const hipc::CtxAllocator<hipc::Allocator> &alloc, const MultiQueue &other)
+      : groups_(alloc) {
     SetNull();
     shm_strong_copy_construct_and_op(other);
   }
@@ -232,29 +350,17 @@ struct MultiQueue : public hipc::ShmContainer {
    * ===================================*/
 
   /** SHM move constructor. */
-  MultiQueue(hipc::Allocator *alloc,
-              MultiQueue &&other) noexcept : groups_(alloc) {
-    shm_init_container(alloc);
-    if (GetAllocator() == other.GetAllocator()) {
-      groups_ = std::move(other.groups_);
-      other.SetNull();
-    } else {
-      shm_strong_copy_construct_and_op(other);
-      other.shm_destroy();
-    }
+  MultiQueue(const hipc::CtxAllocator<hipc::Allocator> &alloc,
+             MultiQueue &&other) noexcept : groups_(alloc) {
+    groups_ = std::move(other.groups_);
+    other.SetNull();
   }
 
   /** SHM move assignment operator. */
   MultiQueue& operator=(MultiQueue &&other) noexcept {
     if (this != &other) {
-      shm_destroy();
-      if (GetAllocator() == other.GetAllocator()) {
-        groups_ = std::move(other.groups_);
-        other.SetNull();
-      } else {
-        shm_strong_copy_construct_and_op(other);
-        other.shm_destroy();
-      }
+      groups_ = std::move(other.groups_);
+      other.SetNull();
     }
     return *this;
   }
@@ -264,7 +370,7 @@ struct MultiQueue : public hipc::ShmContainer {
    * ===================================*/
 
   /** SHM destructor.  */
-  void shm_destroy_main() {
+  void shm_destroy() {
     groups_.shm_destroy();
   }
 

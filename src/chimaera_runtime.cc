@@ -56,7 +56,6 @@ void Runtime::ServerInit(std::string server_config_path) {
                             &server_config_,
                             header_->queue_manager_);
   CHI_CLIENT->Create(server_config_path, "", true);
-  HERMES_THREAD_MODEL->SetThreadModel(hshm::ThreadType::kArgobots);
   CHI_WORK_ORCHESTRATOR->ServerInit(&server_config_, *CHI_QM_RUNTIME);
   hipc::mptr<Admin::CreateTask> admin_create_task;
   hipc::mptr<Admin::CreateContainerTask> create_task;
@@ -146,29 +145,32 @@ void Runtime::InitSharedMemory() {
   }
   // Create general allocator
   mem_mngr->CreateBackend<hipc::PosixShmMmap>(
+      hipc::MemoryBackendId(0),
       qm.shm_size_,
       qm.shm_name_);
   main_alloc_ =
       mem_mngr->CreateAllocator<hipc::ScalablePageAllocator>(
-          qm.shm_name_,
+          hipc::MemoryBackendId(0),
           main_alloc_id_,
           sizeof(ChiShm));
   header_ = main_alloc_->GetCustomHeader<ChiShm>();
   // Create separate data allocator
   mem_mngr->CreateBackend<hipc::PosixShmMmap>(
+      hipc::MemoryBackendId(1),
       qm.data_shm_size_,
       qm.data_shm_name_);
   data_alloc_ =
       mem_mngr->CreateAllocator<hipc::ScalablePageAllocator>(
-          qm.data_shm_name_,
+          hipc::MemoryBackendId(1),
           data_alloc_id_, 0);
   // Create separate runtime data allocator
   mem_mngr->CreateBackend<hipc::PosixShmMmap>(
+      hipc::MemoryBackendId(2),
       qm.rdata_shm_size_,
       qm.rdata_shm_name_);
   rdata_alloc_ =
       mem_mngr->CreateAllocator<hipc::ScalablePageAllocator>(
-          qm.rdata_shm_name_,
+          hipc::MemoryBackendId(2),
           rdata_alloc_id_, 0);
 }
 

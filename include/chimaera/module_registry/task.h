@@ -332,8 +332,7 @@ struct RunContext {
 };
 
 /** A generic task base class */
-struct Task : public hipc::ShmContainer {
- SHM_CONTAINER_TEMPLATE((Task), (Task))
+ struct Task : public hipc::ShmContainer {
  public:
   PoolId pool_;     /**< The unique name of a pool */
   TaskNode task_node_;         /**< The unique ID of this task in the graph */
@@ -770,28 +769,24 @@ struct Task : public hipc::ShmContainer {
 
   /** Default SHM constructor */
   explicit
-  Task(hipc::Allocator *alloc) {
-    shm_init_container(alloc);
-  }
+  Task(const hipc::CtxAllocator<hipc::Allocator> &alloc) {}
 
   /** SHM constructor */
   explicit
-  Task(hipc::Allocator *alloc,
+  Task(const hipc::CtxAllocator<hipc::Allocator> &alloc,
        const TaskNode &task_node) {
-    shm_init_container(alloc);
     task_node_ = task_node;
   }
 
   /** Emplace constructor */
   explicit
-  Task(hipc::Allocator *alloc,
+  Task(const hipc::CtxAllocator<hipc::Allocator> &alloc,
        const TaskNode &task_node,
        const DomainQuery &dom_query,
        const PoolId &task_state,
        u32 lane_hash,
        u32 method,
        bitfield32_t task_flags) {
-    shm_init_container(alloc);
     task_node_ = task_node;
     prio_ = TaskPrio::kLowLatency;
     pool_ = task_state;
@@ -806,7 +801,7 @@ struct Task : public hipc::ShmContainer {
    * ===================================*/
 
   /** SHM copy constructor */
-  explicit Task(hipc::Allocator *alloc,
+  explicit Task(const hipc::CtxAllocator<hipc::Allocator> &alloc,
                                    const Task &other) {}
 
   /** SHM copy assignment operator */
@@ -819,7 +814,7 @@ struct Task : public hipc::ShmContainer {
    * ===================================*/
 
   /** SHM move constructor. */
-  Task(hipc::Allocator *alloc, Task &&other) noexcept {}
+  Task(const hipc::CtxAllocator<hipc::Allocator> &alloc, Task &&other) noexcept {}
 
   /** SHM move assignment operator. */
   Task& operator=(Task &&other) noexcept {

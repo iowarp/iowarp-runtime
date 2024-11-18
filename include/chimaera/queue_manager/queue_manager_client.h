@@ -23,7 +23,7 @@ namespace chi {
 /** Enable client programs to access queues */
 class QueueManagerClient : public QueueManager {
  public:
-  hipc::Allocator *alloc_;
+  hipc::CtxAllocator<hipc::Allocator> alloc_;
 
  public:
   /** Default constructor */
@@ -33,7 +33,7 @@ class QueueManagerClient : public QueueManager {
   ~QueueManagerClient() = default;
 
   /** Initialize client */
-  void ClientInit(hipc::Allocator *alloc, QueueManagerShm &shm, NodeId node_id) {
+  void ClientInit(const hipc::CtxAllocator<hipc::Allocator> &alloc, QueueManagerShm &shm, NodeId node_id) {
     alloc_ = alloc;
     queue_map_ = shm.queue_map_.get();
     Init(node_id);

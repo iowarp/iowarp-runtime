@@ -35,7 +35,7 @@ class QueueManagerRuntime : public QueueManager {
   ~QueueManagerRuntime() = default;
 
   /** Create queues in shared memory */
-  void ServerInit(hipc::Allocator *alloc, NodeId node_id, ServerConfig *config, QueueManagerShm &shm) {
+  void ServerInit(const hipc::CtxAllocator<hipc::Allocator> &alloc, NodeId node_id, ServerConfig *config, QueueManagerShm &shm) {
     config_ = config;
     Init(node_id);
     config::QueueManagerInfo &qm = config_->queue_manager_;

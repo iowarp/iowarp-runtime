@@ -22,11 +22,11 @@ using chi::Admin::CreateContainerTask;
 struct CreateTask : public CreateContainerTask {
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
-  CreateTask(hipc::Allocator *alloc) : CreateContainerTask(alloc) {}
+  CreateTask(const hipc::CtxAllocator<hipc::Allocator> &alloc) : CreateContainerTask(alloc) {}
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE
-  CreateTask(hipc::Allocator *alloc,
+  CreateTask(const hipc::CtxAllocator<hipc::Allocator> &alloc,
              const TaskNode &task_node,
              const PoolId &pool_id,
              const DomainQuery &dom_query,
