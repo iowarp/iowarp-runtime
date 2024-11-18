@@ -21,12 +21,34 @@
 #include <cereal/types/unordered_set.hpp>
 #include <cereal/types/atomic.hpp>
 
+#define HSHM_CUSTOM_SETTINGS
+#include <hermes_shm/constants/macros.h>
+#ifndef HSHM_DEFAULT_ALLOC
+#define HSHM_DEFAULT_ALLOC hipc::ScalablePageAllocator
+#endif
+namespace hshm::ipc {
+class ScalablePageAllocator;
+}
+
+#ifdef HSHM_IS_HOST
+#ifndef HSHM_DEFAULT_THREAD_MODEL
+#ifdef CHIMAERA_RUNTIME
+#define HSHM_DEFAULT_THREAD_MODEL hshm::thread::Argobots
+#else
+#define HSHM_DEFAULT_THREAD_MODEL hshm::thread::Pthread
+#endif
+#endif
+#else
+#define HSHM_DEFAULT_THREAD_MODEL hshm::thread::Cuda
+#endif
+
+#include <hermes_shm/util/config_parse.h>
+#include <hermes_shm/data_structures/data_structure.h>
 #include <hermes_shm/data_structures/ipc/unordered_map.h>
 #include <hermes_shm/data_structures/ipc/pod_array.h>
 #include <hermes_shm/data_structures/ipc/vector.h>
 #include <hermes_shm/data_structures/ipc/list.h>
 #include <hermes_shm/data_structures/ipc/slist.h>
-#include <hermes_shm/data_structures/data_structure.h>
 #include <hermes_shm/data_structures/ipc/string.h>
 #include <hermes_shm/data_structures/ipc/mpsc_queue.h>
 #include <hermes_shm/data_structures/ipc/mpsc_ptr_queue.h>

@@ -769,18 +769,18 @@ struct RunContext {
 
   /** Default SHM constructor */
   explicit
-  Task(const hipc::CtxAllocator<hipc::Allocator> &alloc) {}
+  Task(const hipc::CtxAllocator<HSHM_DEFAULT_ALLOC> &alloc) {}
 
   /** SHM constructor */
   explicit
-  Task(const hipc::CtxAllocator<hipc::Allocator> &alloc,
+  Task(const hipc::CtxAllocator<HSHM_DEFAULT_ALLOC> &alloc,
        const TaskNode &task_node) {
     task_node_ = task_node;
   }
 
   /** Emplace constructor */
   explicit
-  Task(const hipc::CtxAllocator<hipc::Allocator> &alloc,
+  Task(const hipc::CtxAllocator<HSHM_DEFAULT_ALLOC> &alloc,
        const TaskNode &task_node,
        const DomainQuery &dom_query,
        const PoolId &task_state,
@@ -801,7 +801,7 @@ struct RunContext {
    * ===================================*/
 
   /** SHM copy constructor */
-  explicit Task(const hipc::CtxAllocator<hipc::Allocator> &alloc,
+  explicit Task(const hipc::CtxAllocator<HSHM_DEFAULT_ALLOC> &alloc,
                                    const Task &other) {}
 
   /** SHM copy assignment operator */
@@ -814,7 +814,7 @@ struct RunContext {
    * ===================================*/
 
   /** SHM move constructor. */
-  Task(const hipc::CtxAllocator<hipc::Allocator> &alloc, Task &&other) noexcept {}
+  Task(const hipc::CtxAllocator<HSHM_DEFAULT_ALLOC> &alloc, Task &&other) noexcept {}
 
   /** SHM move assignment operator. */
   Task& operator=(Task &&other) noexcept {

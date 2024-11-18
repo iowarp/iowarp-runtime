@@ -83,9 +83,9 @@ class Client : public ConfigurationManager {
       mem_mngr->AttachBackend(hipc::MemoryBackendType::kPosixShmMmap,
                               qm.rdata_shm_name_);
     }
-    main_alloc_ = mem_mngr->GetAllocator(main_alloc_id_);
-    data_alloc_ = mem_mngr->GetAllocator(data_alloc_id_);
-    rdata_alloc_ = mem_mngr->GetAllocator(rdata_alloc_id_);
+    main_alloc_ = mem_mngr->GetAllocator<HSHM_DEFAULT_ALLOC>(main_alloc_id_);
+    data_alloc_ = mem_mngr->GetAllocator<HSHM_DEFAULT_ALLOC>(data_alloc_id_);
+    rdata_alloc_ = mem_mngr->GetAllocator<HSHM_DEFAULT_ALLOC>(rdata_alloc_id_);
     header_ = main_alloc_->GetCustomHeader<ChiShm>();
     unique_ = &header_->unique_;
     node_id_ = header_->node_id_;
@@ -251,20 +251,22 @@ class Client : public ConfigurationManager {
   /** Allocate a buffer */
   template<bool FROM_REMOTE=false>
   HSHM_ALWAYS_INLINE
-  LPointer<char> AllocateBufferSafe(const hipc::CtxAllocator<hipc::Allocator> &alloc, size_t size);
+  LPointer<char> AllocateBufferSafe(const hipc::CtxAllocator<HSHM_DEFAULT_ALLOC> &alloc, size_t size);
 
  public:
   /** Free a buffer */
   HSHM_ALWAYS_INLINE
   void FreeBuffer(hipc::Pointer &p) {
-    auto alloc = HERMES_MEMORY_MANAGER->GetAllocator(p.allocator_id_);
+    auto alloc = HERMES_MEMORY_MANAGER->GetAllocator<HSHM_DEFAULT_ALLOC>(
+        p.allocator_id_);
     alloc->Free(hshm::ThreadId::GetNull(), p);
   }
 
   /** Free a buffer */
   HSHM_ALWAYS_INLINE
   void FreeBuffer(LPointer<char> &p) {
-    auto alloc = HERMES_MEMORY_MANAGER->GetAllocator(p.shm_.allocator_id_);
+    auto alloc = HERMES_MEMORY_MANAGER->GetAllocator<HSHM_DEFAULT_ALLOC>(
+        p.shm_.allocator_id_);
     alloc->FreeLocalPtr(hshm::ThreadId::GetNull(), p);
   }
 
@@ -272,7 +274,8 @@ class Client : public ConfigurationManager {
   template<typename T = char>
   HSHM_ALWAYS_INLINE
   T* GetDataPointer(const hipc::Pointer &p) {
-    auto alloc = HERMES_MEMORY_MANAGER->GetAllocator(p.allocator_id_);
+    auto alloc = HERMES_MEMORY_MANAGER->GetAllocator<HSHM_DEFAULT_ALLOC>(
+        p.allocator_id_);
     return alloc->Convert<T, hipc::Pointer>(p);
   }
 

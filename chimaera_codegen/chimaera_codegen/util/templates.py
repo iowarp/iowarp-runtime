@@ -3,11 +3,11 @@ task_template = """
 struct ##task_name## : public Task, TaskFlags<TF_SRL_SYM> {
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
-  ##task_name##(const hipc::CtxAllocator<hipc::Allocator> &alloc) : Task(alloc) {}
+  ##task_name##(const hipc::CtxAllocator<HSHM_DEFAULT_ALLOC> &alloc) : Task(alloc) {}
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
-  ##task_name##(const hipc::CtxAllocator<hipc::Allocator> &alloc,
+  ##task_name##(const hipc::CtxAllocator<HSHM_DEFAULT_ALLOC> &alloc,
                 const TaskNode &task_node,
                 const PoolId &pool_id,
                 const DomainQuery &dom_query) : Task(alloc) {

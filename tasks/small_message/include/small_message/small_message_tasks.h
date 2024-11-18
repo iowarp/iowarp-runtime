@@ -19,11 +19,11 @@ using chi::Admin::CreateContainerTask;
 struct CreateTask : public CreateContainerTask {
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
-  CreateTask(const hipc::CtxAllocator<hipc::Allocator> &alloc) : CreateContainerTask(alloc) {}
+  CreateTask(const hipc::CtxAllocator<HSHM_DEFAULT_ALLOC> &alloc) : CreateContainerTask(alloc) {}
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
-  CreateTask(const hipc::CtxAllocator<hipc::Allocator> &alloc,
+  CreateTask(const hipc::CtxAllocator<HSHM_DEFAULT_ALLOC> &alloc,
              const TaskNode &task_node,
              const PoolId &pool_id,
              const DomainQuery &dom_query,
@@ -70,11 +70,11 @@ struct MdTask : public Task, TaskFlags<TF_SRL_SYM> {
 
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
-  MdTask(const hipc::CtxAllocator<hipc::Allocator> &alloc) : Task(alloc) {}
+  MdTask(const hipc::CtxAllocator<HSHM_DEFAULT_ALLOC> &alloc) : Task(alloc) {}
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
-  MdTask(const hipc::CtxAllocator<hipc::Allocator> &alloc,
+  MdTask(const hipc::CtxAllocator<HSHM_DEFAULT_ALLOC> &alloc,
          const TaskNode &task_node,
          const PoolId &pool_id,
          const DomainQuery &dom_query,
@@ -124,11 +124,11 @@ struct IoTask : public Task, TaskFlags<TF_SRL_SYM> {
 
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
-  IoTask(const hipc::CtxAllocator<hipc::Allocator> &alloc) : Task(alloc) {}
+  IoTask(const hipc::CtxAllocator<HSHM_DEFAULT_ALLOC> &alloc) : Task(alloc) {}
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
-  IoTask(const hipc::CtxAllocator<hipc::Allocator> &alloc,
+  IoTask(const hipc::CtxAllocator<HSHM_DEFAULT_ALLOC> &alloc,
          const TaskNode &task_node,
          const PoolId &pool_id,
          const DomainQuery &dom_query,

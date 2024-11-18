@@ -1,7 +1,7 @@
 //
 // Created by llogan on 6/25/24.
 //
-#include <hermes_shm/util/config_parse.h>
+#include "chimaera/chimaera_types.h"
 #include "mpi.h"
 #include "hermes_shm/util/compress/snappy.h"
 #include "hermes_shm/util/random.h"
