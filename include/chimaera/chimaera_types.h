@@ -111,7 +111,10 @@ typedef u32 MonitorModeId;  /**< The ID of a container monitor mode */
 /** Represents unique ID for states + queues */
 template<int TYPE>
 struct UniqueId {
-  NodeId node_id_;  /**< The node the content is on */
+  union {
+    NodeId node_id_;  /**< The node the content is on */
+    u32 prio_;      /**< The priority of the lane */
+  };
   u32 hash_;     /**< The hash of the content the ID represents */
   u64 unique_;   /**< A unique id for the blob */
 

@@ -37,6 +37,7 @@ void WorkOrchestrator::ServerInit(ServerConfig *config, QueueManager &qm) {
   u32 num_dworkers = config_->wo_.max_dworkers_;
   int cpu_id = 0;
   for (; worker_id < num_dworkers; ++worker_id) {
+    HILOG(kInfo, "Creating worker {}", worker_id);
     ABT_xstream xstream = MakeXstream();
     workers_.emplace_back(std::make_unique<Worker>(
         worker_id, cpu_id, xstream));
@@ -50,10 +51,10 @@ void WorkOrchestrator::ServerInit(ServerConfig *config, QueueManager &qm) {
   reinforce_worker_ = std::make_unique<ReinforceWorker>(
       cpu_id + 1);
   // Spawn overlapped workers (oworkers)
-  for (size_t i = 0; i < num_workers - worker_id; ++worker_id) {
-    ABT_xstream xstream;
-    if (i % config->wo_.owork_per_core_ == 0) {
-      xstream = MakeXstream();
+  for (; worker_id < num_workers; ++worker_id) {
+    HILOG(kInfo, "Creating worker {}", worker_id);
+    ABT_xstream xstream = MakeXstream();
+    if ((worker_id - num_dworkers) % config->wo_.owork_per_core_ == 0) {
       ++cpu_id;
     }
     workers_.emplace_back(

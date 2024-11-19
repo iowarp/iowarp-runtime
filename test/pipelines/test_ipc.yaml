@@ -4,6 +4,7 @@ pkgs:
   - pkg_type: chimaera_run
     pkg_name: chimaera_run
     sleep: 5
+    queue_depth: 1000
     do_dbg: true
     dbg_port: 4000
   - pkg_type: chimaera_unit_tests

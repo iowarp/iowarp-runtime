@@ -143,6 +143,7 @@ bool Worker::AnyFlushWorkDone(WorkOrchestrator *orch) {
 
 /** Worker loop iteration */
 void Worker::Loop() {
+  HILOG(kDebug, "Entered worker {}", id_);
   CHI_WORK_ORCHESTRATOR->SetThreadLocalBlock(this);
   pid_ = GetLinuxTid();
   SetCpuAffinity(affinity_);
@@ -304,7 +305,7 @@ TaskRouteMode Worker::Reroute(const PoolId &scope,
       ingress::MultiQueue *queue = CHI_CLIENT->GetQueue(
           CHI_QM_RUNTIME->admin_queue_id_);
       ingress::LaneGroup &ig_lane_group =
-          queue->GetGroup(chi_lane->ingress_id_.node_id_);
+          queue->GetGroup(chi_lane->ingress_id_.prio_);
       ingress::Lane &new_ig_lane = ig_lane_group.GetLane(
           chi_lane->ingress_id_.unique_);
       new_ig_lane.emplace(task.shm_);

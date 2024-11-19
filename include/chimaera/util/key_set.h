@@ -12,7 +12,7 @@ namespace chi {
 template<typename T>
 class KeySet {
  public:
-  hshm::spsc_queue<size_t> keys_;
+  hshm::fixed_spsc_queue<size_t> keys_;
   std::vector<T> set_;
   size_t size_;
 
