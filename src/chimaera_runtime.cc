@@ -172,6 +172,11 @@ void Runtime::InitSharedMemory() {
       mem_mngr->CreateAllocator<hipc::ScalablePageAllocator>(
           hipc::MemoryBackendId(2),
           rdata_alloc_id_, 0);
+
+  auto *test = HERMES_MEMORY_MANAGER->GetAllocator(main_alloc_id_);
+  if (!test) {
+    HILOG(kError, "Failed to create main allocator");
+  }
 }
 
 /** Finalize Hermes explicitly */

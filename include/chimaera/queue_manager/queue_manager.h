@@ -21,8 +21,8 @@ namespace chi {
 
 /** Shared-memory representation of the QueueManager */
 struct QueueManagerShm {
-  hipc::ShmArchive<hipc::vector<ingress::MultiQueue>> queue_map_;
-  hipc::ShmArchive<hipc::split_ticket_queue<size_t>> tickets_;
+  hipc::delay_ar<hipc::vector<ingress::MultiQueue>> queue_map_;
+  hipc::delay_ar<hipc::split_ticket_queue<size_t>> tickets_;
 };
 
 /** A base class inherited by Client & Server QueueManagers */
