@@ -20,7 +20,7 @@ namespace chi {
 /** Allocate a buffer */
 template<bool FROM_REMOTE>
 HSHM_ALWAYS_INLINE
-LPointer<char> Client::AllocateBufferSafe(const hipc::CtxAllocator<HSHM_DEFAULT_ALLOC> &alloc, size_t size) {
+LPointer<char> Client::AllocateBufferSafe(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, size_t size) {
   LPointer<char> p;
   while (true) {
     try {

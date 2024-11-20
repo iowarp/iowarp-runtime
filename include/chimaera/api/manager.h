@@ -41,9 +41,9 @@ class ConfigurationManager {
       hipc::allocator_id_t(1, 1);
   static inline const hipc::allocator_id_t rdata_alloc_id_ =
       hipc::allocator_id_t(2, 1);
-  HSHM_DEFAULT_ALLOC *main_alloc_;
-  HSHM_DEFAULT_ALLOC *data_alloc_;
-  HSHM_DEFAULT_ALLOC *rdata_alloc_;
+  CHI_ALLOC_T *main_alloc_;
+  CHI_ALLOC_T *data_alloc_;
+  CHI_ALLOC_T *rdata_alloc_;
   bool is_being_initialized_;
   bool is_initialized_;
   bool is_terminated_;

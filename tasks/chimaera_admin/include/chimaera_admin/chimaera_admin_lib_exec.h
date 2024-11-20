@@ -124,62 +124,62 @@ void Monitor(MonitorModeId mode, MethodId method, Task *task, RunContext &rctx) 
   }
 }
 /** Delete a task */
-void Del(u32 method, Task *task) override {
+void Del(const hipc::MemContext &mctx, u32 method, Task *task) override {
   switch (method) {
     case Method::kCreate: {
-      CHI_CLIENT->DelTask<CreateTask>(reinterpret_cast<CreateTask *>(task));
+      CHI_CLIENT->DelTask<CreateTask>(mctx, reinterpret_cast<CreateTask *>(task));
       break;
     }
     case Method::kDestroy: {
-      CHI_CLIENT->DelTask<DestroyTask>(reinterpret_cast<DestroyTask *>(task));
+      CHI_CLIENT->DelTask<DestroyTask>(mctx, reinterpret_cast<DestroyTask *>(task));
       break;
     }
     case Method::kCreateContainer: {
-      CHI_CLIENT->DelTask<CreateContainerTask>(reinterpret_cast<CreateContainerTask *>(task));
+      CHI_CLIENT->DelTask<CreateContainerTask>(mctx, reinterpret_cast<CreateContainerTask *>(task));
       break;
     }
     case Method::kDestroyContainer: {
-      CHI_CLIENT->DelTask<DestroyContainerTask>(reinterpret_cast<DestroyContainerTask *>(task));
+      CHI_CLIENT->DelTask<DestroyContainerTask>(mctx, reinterpret_cast<DestroyContainerTask *>(task));
       break;
     }
     case Method::kRegisterModule: {
-      CHI_CLIENT->DelTask<RegisterModuleTask>(reinterpret_cast<RegisterModuleTask *>(task));
+      CHI_CLIENT->DelTask<RegisterModuleTask>(mctx, reinterpret_cast<RegisterModuleTask *>(task));
       break;
     }
     case Method::kDestroyModule: {
-      CHI_CLIENT->DelTask<DestroyModuleTask>(reinterpret_cast<DestroyModuleTask *>(task));
+      CHI_CLIENT->DelTask<DestroyModuleTask>(mctx, reinterpret_cast<DestroyModuleTask *>(task));
       break;
     }
     case Method::kUpgradeModule: {
-      CHI_CLIENT->DelTask<UpgradeModuleTask>(reinterpret_cast<UpgradeModuleTask *>(task));
+      CHI_CLIENT->DelTask<UpgradeModuleTask>(mctx, reinterpret_cast<UpgradeModuleTask *>(task));
       break;
     }
     case Method::kGetPoolId: {
-      CHI_CLIENT->DelTask<GetPoolIdTask>(reinterpret_cast<GetPoolIdTask *>(task));
+      CHI_CLIENT->DelTask<GetPoolIdTask>(mctx, reinterpret_cast<GetPoolIdTask *>(task));
       break;
     }
     case Method::kStopRuntime: {
-      CHI_CLIENT->DelTask<StopRuntimeTask>(reinterpret_cast<StopRuntimeTask *>(task));
+      CHI_CLIENT->DelTask<StopRuntimeTask>(mctx, reinterpret_cast<StopRuntimeTask *>(task));
       break;
     }
     case Method::kSetWorkOrchQueuePolicy: {
-      CHI_CLIENT->DelTask<SetWorkOrchQueuePolicyTask>(reinterpret_cast<SetWorkOrchQueuePolicyTask *>(task));
+      CHI_CLIENT->DelTask<SetWorkOrchQueuePolicyTask>(mctx, reinterpret_cast<SetWorkOrchQueuePolicyTask *>(task));
       break;
     }
     case Method::kSetWorkOrchProcPolicy: {
-      CHI_CLIENT->DelTask<SetWorkOrchProcPolicyTask>(reinterpret_cast<SetWorkOrchProcPolicyTask *>(task));
+      CHI_CLIENT->DelTask<SetWorkOrchProcPolicyTask>(mctx, reinterpret_cast<SetWorkOrchProcPolicyTask *>(task));
       break;
     }
     case Method::kFlush: {
-      CHI_CLIENT->DelTask<FlushTask>(reinterpret_cast<FlushTask *>(task));
+      CHI_CLIENT->DelTask<FlushTask>(mctx, reinterpret_cast<FlushTask *>(task));
       break;
     }
     case Method::kGetDomainSize: {
-      CHI_CLIENT->DelTask<GetDomainSizeTask>(reinterpret_cast<GetDomainSizeTask *>(task));
+      CHI_CLIENT->DelTask<GetDomainSizeTask>(mctx, reinterpret_cast<GetDomainSizeTask *>(task));
       break;
     }
     case Method::kUpdateDomain: {
-      CHI_CLIENT->DelTask<UpdateDomainTask>(reinterpret_cast<UpdateDomainTask *>(task));
+      CHI_CLIENT->DelTask<UpdateDomainTask>(mctx, reinterpret_cast<UpdateDomainTask *>(task));
       break;
     }
   }
@@ -335,7 +335,9 @@ void NewCopyStart(u32 method, const Task *orig_task, LPointer<Task> &dup_task, b
   }
 }
 /** Serialize a task when initially pushing into remote */
-void SaveStart(u32 method, BinaryOutputArchive<true> &ar, Task *task) override {
+void SaveStart(
+    u32 method, BinaryOutputArchive<true> &ar,
+    Task *task) override {
   switch (method) {
     case Method::kCreate: {
       ar << *reinterpret_cast<CreateTask*>(task);
@@ -396,76 +398,76 @@ void SaveStart(u32 method, BinaryOutputArchive<true> &ar, Task *task) override {
   }
 }
 /** Deserialize a task when popping from remote queue */
-TaskPointer LoadStart(u32 method, BinaryInputArchive<true> &ar) override {
+TaskPointer LoadStart(    u32 method, BinaryInputArchive<true> &ar) override {
   TaskPointer task_ptr;
   switch (method) {
     case Method::kCreate: {
-      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<CreateTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<CreateTask>({}, task_ptr.shm_);
       ar >> *reinterpret_cast<CreateTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kDestroy: {
-      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<DestroyTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<DestroyTask>({}, task_ptr.shm_);
       ar >> *reinterpret_cast<DestroyTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kCreateContainer: {
-      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<CreateContainerTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<CreateContainerTask>({}, task_ptr.shm_);
       ar >> *reinterpret_cast<CreateContainerTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kDestroyContainer: {
-      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<DestroyContainerTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<DestroyContainerTask>({}, task_ptr.shm_);
       ar >> *reinterpret_cast<DestroyContainerTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kRegisterModule: {
-      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<RegisterModuleTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<RegisterModuleTask>({}, task_ptr.shm_);
       ar >> *reinterpret_cast<RegisterModuleTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kDestroyModule: {
-      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<DestroyModuleTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<DestroyModuleTask>({}, task_ptr.shm_);
       ar >> *reinterpret_cast<DestroyModuleTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kUpgradeModule: {
-      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<UpgradeModuleTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<UpgradeModuleTask>({}, task_ptr.shm_);
       ar >> *reinterpret_cast<UpgradeModuleTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kGetPoolId: {
-      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<GetPoolIdTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<GetPoolIdTask>({}, task_ptr.shm_);
       ar >> *reinterpret_cast<GetPoolIdTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kStopRuntime: {
-      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<StopRuntimeTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<StopRuntimeTask>({}, task_ptr.shm_);
       ar >> *reinterpret_cast<StopRuntimeTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kSetWorkOrchQueuePolicy: {
-      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<SetWorkOrchQueuePolicyTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<SetWorkOrchQueuePolicyTask>({}, task_ptr.shm_);
       ar >> *reinterpret_cast<SetWorkOrchQueuePolicyTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kSetWorkOrchProcPolicy: {
-      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<SetWorkOrchProcPolicyTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<SetWorkOrchProcPolicyTask>({}, task_ptr.shm_);
       ar >> *reinterpret_cast<SetWorkOrchProcPolicyTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kFlush: {
-      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<FlushTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<FlushTask>({}, task_ptr.shm_);
       ar >> *reinterpret_cast<FlushTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kGetDomainSize: {
-      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<GetDomainSizeTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<GetDomainSizeTask>({}, task_ptr.shm_);
       ar >> *reinterpret_cast<GetDomainSizeTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kUpdateDomain: {
-      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<UpdateDomainTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<UpdateDomainTask>({}, task_ptr.shm_);
       ar >> *reinterpret_cast<UpdateDomainTask*>(task_ptr.ptr_);
       break;
     }

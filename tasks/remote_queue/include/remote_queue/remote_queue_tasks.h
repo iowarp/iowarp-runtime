@@ -26,11 +26,11 @@ using chi::Admin::CreateContainerTask;
 struct CreateTask : public CreateContainerTask {
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
-  CreateTask(const hipc::CtxAllocator<HSHM_DEFAULT_ALLOC> &alloc) : CreateContainerTask(alloc) {}
+  CreateTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) : CreateContainerTask(alloc) {}
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
-  CreateTask(const hipc::CtxAllocator<HSHM_DEFAULT_ALLOC> &alloc,
+  CreateTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
              const TaskNode &task_node,
              const PoolId &pool_id,
              const DomainQuery &dom_query,
@@ -69,11 +69,11 @@ struct ClientPushSubmitTask : public Task, TaskFlags<TF_LOCAL> {
 
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
-  ClientPushSubmitTask(const hipc::CtxAllocator<HSHM_DEFAULT_ALLOC> &alloc) : Task(alloc) {}
+  ClientPushSubmitTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) : Task(alloc) {}
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
-  ClientPushSubmitTask(const hipc::CtxAllocator<HSHM_DEFAULT_ALLOC> &alloc,
+  ClientPushSubmitTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
                        const TaskNode &task_node,
                        const PoolId &pool_id,
                        const DomainQuery &dom_query,
@@ -98,11 +98,11 @@ struct ClientPushSubmitTask : public Task, TaskFlags<TF_LOCAL> {
 struct ClientSubmitTask : public Task, TaskFlags<TF_LOCAL> {
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
-  ClientSubmitTask(const hipc::CtxAllocator<HSHM_DEFAULT_ALLOC> &alloc) : Task(alloc) {}
+  ClientSubmitTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) : Task(alloc) {}
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
-  ClientSubmitTask(const hipc::CtxAllocator<HSHM_DEFAULT_ALLOC> &alloc,
+  ClientSubmitTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
                    const TaskNode &task_node,
                    const PoolId &pool_id,
                    const DomainQuery &dom_query) : Task(alloc) {
@@ -119,11 +119,11 @@ struct ClientSubmitTask : public Task, TaskFlags<TF_LOCAL> {
 struct ServerPushCompleteTask : public Task, TaskFlags<TF_LOCAL> {
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
-  ServerPushCompleteTask(const hipc::CtxAllocator<HSHM_DEFAULT_ALLOC> &alloc) : Task(alloc) {}
+  ServerPushCompleteTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) : Task(alloc) {}
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
-  ServerPushCompleteTask(const hipc::CtxAllocator<HSHM_DEFAULT_ALLOC> &alloc,
+  ServerPushCompleteTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
                          const TaskNode &task_node,
                          const PoolId &pool_id,
                          const DomainQuery &dom_query) : Task(alloc) {
@@ -140,11 +140,11 @@ struct ServerPushCompleteTask : public Task, TaskFlags<TF_LOCAL> {
 struct ServerCompleteTask : public Task, TaskFlags<TF_LOCAL> {
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
-  ServerCompleteTask(const hipc::CtxAllocator<HSHM_DEFAULT_ALLOC> &alloc) : Task(alloc) {}
+  ServerCompleteTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) : Task(alloc) {}
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
-  ServerCompleteTask(const hipc::CtxAllocator<HSHM_DEFAULT_ALLOC> &alloc,
+  ServerCompleteTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
                      const TaskNode &task_node,
                      const PoolId &pool_id,
                      const DomainQuery &dom_query) : Task(alloc) {

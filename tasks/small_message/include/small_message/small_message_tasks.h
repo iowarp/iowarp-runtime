@@ -19,11 +19,11 @@ using chi::Admin::CreateContainerTask;
 struct CreateTask : public CreateContainerTask {
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
-  CreateTask(const hipc::CtxAllocator<HSHM_DEFAULT_ALLOC> &alloc) : CreateContainerTask(alloc) {}
+  CreateTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) : CreateContainerTask(alloc) {}
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
-  CreateTask(const hipc::CtxAllocator<HSHM_DEFAULT_ALLOC> &alloc,
+  CreateTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
              const TaskNode &task_node,
              const PoolId &pool_id,
              const DomainQuery &dom_query,
@@ -70,11 +70,11 @@ struct MdTask : public Task, TaskFlags<TF_SRL_SYM> {
 
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
-  MdTask(const hipc::CtxAllocator<HSHM_DEFAULT_ALLOC> &alloc) : Task(alloc) {}
+  MdTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) : Task(alloc) {}
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
-  MdTask(const hipc::CtxAllocator<HSHM_DEFAULT_ALLOC> &alloc,
+  MdTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
          const TaskNode &task_node,
          const PoolId &pool_id,
          const DomainQuery &dom_query,
@@ -124,11 +124,11 @@ struct IoTask : public Task, TaskFlags<TF_SRL_SYM> {
 
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
-  IoTask(const hipc::CtxAllocator<HSHM_DEFAULT_ALLOC> &alloc) : Task(alloc) {}
+  IoTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) : Task(alloc) {}
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
-  IoTask(const hipc::CtxAllocator<HSHM_DEFAULT_ALLOC> &alloc,
+  IoTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
          const TaskNode &task_node,
          const PoolId &pool_id,
          const DomainQuery &dom_query,
@@ -143,7 +143,7 @@ struct IoTask : public Task, TaskFlags<TF_SRL_SYM> {
     dom_query_ = dom_query;
 
     // Custom params
-    LPointer<char> data = CHI_CLIENT->AllocateBuffer(io_size);
+    LPointer<char> data = CHI_CLIENT->AllocateBuffer({}, io_size);
     data_ = data.shm_;
     size_ = io_size;
     ret_ = 0;

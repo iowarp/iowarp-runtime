@@ -36,18 +36,18 @@ void Monitor(MonitorModeId mode, MethodId method, Task *task, RunContext &rctx) 
   }
 }
 /** Delete a task */
-void Del(u32 method, Task *task) override {
+void Del(const hipc::MemContext &mctx, u32 method, Task *task) override {
   switch (method) {
     case Method::kCreate: {
-      CHI_CLIENT->DelTask<CreateTask>(reinterpret_cast<CreateTask *>(task));
+      CHI_CLIENT->DelTask<CreateTask>(mctx, reinterpret_cast<CreateTask *>(task));
       break;
     }
     case Method::kDestroy: {
-      CHI_CLIENT->DelTask<DestroyTask>(reinterpret_cast<DestroyTask *>(task));
+      CHI_CLIENT->DelTask<DestroyTask>(mctx, reinterpret_cast<DestroyTask *>(task));
       break;
     }
     case Method::kCustom: {
-      CHI_CLIENT->DelTask<CustomTask>(reinterpret_cast<CustomTask *>(task));
+      CHI_CLIENT->DelTask<CustomTask>(mctx, reinterpret_cast<CustomTask *>(task));
       break;
     }
   }
@@ -93,7 +93,9 @@ void NewCopyStart(u32 method, const Task *orig_task, LPointer<Task> &dup_task, b
   }
 }
 /** Serialize a task when initially pushing into remote */
-void SaveStart(u32 method, BinaryOutputArchive<true> &ar, Task *task) override {
+void SaveStart(
+    u32 method, BinaryOutputArchive<true> &ar,
+    Task *task) override {
   switch (method) {
     case Method::kCreate: {
       ar << *reinterpret_cast<CreateTask*>(task);
@@ -110,21 +112,21 @@ void SaveStart(u32 method, BinaryOutputArchive<true> &ar, Task *task) override {
   }
 }
 /** Deserialize a task when popping from remote queue */
-TaskPointer LoadStart(u32 method, BinaryInputArchive<true> &ar) override {
+TaskPointer LoadStart(    u32 method, BinaryInputArchive<true> &ar) override {
   TaskPointer task_ptr;
   switch (method) {
     case Method::kCreate: {
-      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<CreateTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<CreateTask>({}, task_ptr.shm_);
       ar >> *reinterpret_cast<CreateTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kDestroy: {
-      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<DestroyTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<DestroyTask>({}, task_ptr.shm_);
       ar >> *reinterpret_cast<DestroyTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kCustom: {
-      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<CustomTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<CustomTask>({}, task_ptr.shm_);
       ar >> *reinterpret_cast<CustomTask*>(task_ptr.ptr_);
       break;
     }

@@ -29,10 +29,10 @@ class Client : public ModuleClient {
                   const std::string &pool_name,
                   const CreateContext &ctx = CreateContext()) {
     LPointer<CreateTask> task = AsyncCreate(
-        dom_query, affinity, pool_name, ctx);
+        {}, dom_query, affinity, pool_name, ctx);
     task->SpinWait();
     Init(task->ctx_.id_);
-    CHI_CLIENT->DelTask(task);
+    CHI_CLIENT->DelTask({}, task);
   }
   CHI_TASK_METHODS(Create);
 

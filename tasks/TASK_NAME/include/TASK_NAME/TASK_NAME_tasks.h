@@ -19,12 +19,12 @@ using chi::Admin::CreateContainerTask;
 struct CreateTask : public CreateContainerTask {
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
-  CreateTask(const hipc::CtxAllocator<HSHM_DEFAULT_ALLOC> &alloc)
+  CreateTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
       : CreateContainerTask(alloc) {}
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
-  CreateTask(const hipc::CtxAllocator<HSHM_DEFAULT_ALLOC> &alloc,
+  CreateTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
              const TaskNode &task_node,
              const PoolId &pool_id,
              const DomainQuery &dom_query,
@@ -69,11 +69,11 @@ typedef chi::Admin::DestroyContainerTask DestroyTask;
 struct CustomTask : public Task, TaskFlags<TF_SRL_SYM> {
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
-  CustomTask(const hipc::CtxAllocator<HSHM_DEFAULT_ALLOC> &alloc) : Task(alloc) {}
+  CustomTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) : Task(alloc) {}
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
-  CustomTask(const hipc::CtxAllocator<HSHM_DEFAULT_ALLOC> &alloc,
+  CustomTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
              const TaskNode &task_node,
              const PoolId &pool_id,
              const DomainQuery &dom_query) : Task(alloc) {

@@ -208,7 +208,7 @@ class ChimaeraCodegen:
 
         ## Create the Del method
         lines += ['/** Delete a task */',
-                  'void Del(u32 method, Task *task) override {',
+                  'void Del(const hipc::MemContext &mctx, u32 method, Task *task) override {',
                   '  switch (method) {']
         for method_enum_name, method_off in methods:
             if method_off < 0:
@@ -216,7 +216,7 @@ class ChimaeraCodegen:
             method_name = method_enum_name.replace('k', '', 1)
             task_name = method_name + "Task"
             lines += [f'    case Method::{method_enum_name}: {{',
-                      f'      CHI_CLIENT->DelTask<{task_name}>(reinterpret_cast<{task_name} *>(task));',
+                      f'      CHI_CLIENT->DelTask<{task_name}>(mctx, reinterpret_cast<{task_name} *>(task));',
                       f'      break;',
                       f'    }}']
         lines += ['  }']
@@ -258,7 +258,10 @@ class ChimaeraCodegen:
 
         ## Create the SaveStart Method
         lines += ['/** Serialize a task when initially pushing into remote */',
-                  'void SaveStart(u32 method, BinaryOutputArchive<true> &ar, Task *task) override {',
+                  'void SaveStart(',
+                  # '    const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, ',
+                  '    u32 method, BinaryOutputArchive<true> &ar,',
+                  '    Task *task) override {',
                   '  switch (method) {']
         for method_enum_name, method_off in methods:
             if method_off < 0:
@@ -274,7 +277,9 @@ class ChimaeraCodegen:
 
         ## Create the LoadStart Method
         lines += ['/** Deserialize a task when popping from remote queue */',
-                  'TaskPointer LoadStart(u32 method, BinaryInputArchive<true> &ar) override {',
+                  'TaskPointer LoadStart('
+                  # '    const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, ',
+                  '    u32 method, BinaryInputArchive<true> &ar) override {',
                   '  TaskPointer task_ptr;',
                   '  switch (method) {']
         for method_enum_name, method_off in methods:
@@ -283,7 +288,7 @@ class ChimaeraCodegen:
             method_name = method_enum_name.replace('k', '', 1)
             task_name = method_name + "Task"
             lines += [f'    case Method::{method_enum_name}: {{',
-                      f'      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<{task_name}>(task_ptr.shm_);',
+                      f'      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<{task_name}>({{}}, task_ptr.shm_);',
                       f'      ar >> *reinterpret_cast<{task_name}*>(task_ptr.ptr_);',
                       f'      break;',
                       f'    }}']

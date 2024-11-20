@@ -3,11 +3,11 @@ task_template = """
 struct ##task_name## : public Task, TaskFlags<TF_SRL_SYM> {
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
-  ##task_name##(const hipc::CtxAllocator<HSHM_DEFAULT_ALLOC> &alloc) : Task(alloc) {}
+  ##task_name##(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) : Task(alloc) {}
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
-  ##task_name##(const hipc::CtxAllocator<HSHM_DEFAULT_ALLOC> &alloc,
+  ##task_name##(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
                 const TaskNode &task_node,
                 const PoolId &pool_id,
                 const DomainQuery &dom_query) : Task(alloc) {
@@ -40,11 +40,12 @@ struct ##task_name## : public Task, TaskFlags<TF_SRL_SYM> {
 
 client_method_template = """
 /** ##method_name## task */
-void ##method_name##(const DomainQuery &dom_query) {
+void ##method_name##(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
+                     const DomainQuery &dom_query) {
   LPointer<##task_name##> task =
     Async##method_name##(dom_query);
   task->Wait();
-  CHI_CLIENT->DelTask(task);
+  CHI_CLIENT->DelTask({}, task);
 }
 CHI_TASK_METHODS(##method_name##);
 """

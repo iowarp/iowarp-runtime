@@ -69,6 +69,7 @@ void AsyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
   for (size_t i = 0; i < ops; ++i) {
     int container_id = i;
     client.AsyncMd(
+        {},
         chi::DomainQuery::GetDirectHash(
             chi::SubDomainId::kGlobalContainers,
             container_id),

@@ -92,6 +92,7 @@ TEST_CASE("TestAsyncIpc") {
     // HILOG(kInfo, "Sending message {}", i);
     int cont_id = i;
     client.AsyncMd(
+        {},
         chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, cont_id),
         depth, TASK_FIRE_AND_FORGET);
   }
@@ -130,7 +131,7 @@ TEST_CASE("TestFlush") {
     HILOG(kInfo, "Sending message {}", i);
     int cont_id = 1 + ((i + 1) % nprocs);
     LPointer<chi::small_message::MdTask> task = client.AsyncMd(
-        chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, cont_id),
+        {}, chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, cont_id),
         0, 0);
   }
   CHI_ADMIN->Flush(DomainQuery::GetGlobalBcast());
@@ -273,17 +274,17 @@ TEST_CASE("TestUpgrade") {
     // HILOG(kInfo, "Sending message {}", i);
     int cont_id = i;
     client.AsyncMd(
-        chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, cont_id),
+        {}, chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, cont_id),
         depth, TASK_FIRE_AND_FORGET);
   }
   CHI_ADMIN->AsyncUpgradeModule(
-      chi::DomainQuery::GetGlobalBcast(), "small_message");
+      {}, chi::DomainQuery::GetGlobalBcast(), "small_message");
   for (size_t i = 0; i < ops / 2; ++i) {
     int ret;
     // HILOG(kInfo, "Sending message {}", i);
     int cont_id = i;
     client.AsyncMd(
-        chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, cont_id),
+        {}, chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, cont_id),
         depth, TASK_FIRE_AND_FORGET);
   }
 
@@ -315,8 +316,8 @@ void TestBdevIo(const std::string &path) {
   MPI_Barrier(MPI_COMM_WORLD);
   hshm::Timer t;
 
-  hipc::LPointer io_write = CHI_CLIENT->AllocateBuffer(MEGABYTES(1));
-  hipc::LPointer io_read = CHI_CLIENT->AllocateBuffer(MEGABYTES(1));
+  hipc::LPointer io_write = CHI_CLIENT->AllocateBuffer({}, MEGABYTES(1));
+  hipc::LPointer io_read = CHI_CLIENT->AllocateBuffer({}, MEGABYTES(1));
 
   t.Resume();
   size_t ops = 16;

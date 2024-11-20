@@ -35,10 +35,10 @@ class Client : public ModuleClient {
               size_t max_size,
               const CreateContext &ctx = CreateContext()) {
     LPointer<CreateTask> task = AsyncCreate(
-        dom_query, affinity, pool_name, ctx, path, max_size);
+        {}, dom_query, affinity, pool_name, ctx, path, max_size);
     task->Wait();
     Init(task->ctx_.id_);
-    CHI_CLIENT->DelTask(task);
+    CHI_CLIENT->DelTask({}, task);
   }
   CHI_TASK_METHODS(Create);
 
@@ -53,10 +53,10 @@ class Client : public ModuleClient {
   std::vector<Block> Allocate(const DomainQuery &dom_query,
                               size_t size) {
     LPointer<AllocateTask> task =
-        AsyncAllocate(dom_query, size);
+        AsyncAllocate({}, dom_query, size);
     task.ptr_->Wait();
     std::vector<Block> blocks = task->blocks_.vec();
-    CHI_CLIENT->DelTask(task);
+    CHI_CLIENT->DelTask({}, task);
     return blocks;
   }
   CHI_TASK_METHODS(Allocate);
@@ -65,9 +65,9 @@ class Client : public ModuleClient {
   HSHM_ALWAYS_INLINE
   void Free(const DomainQuery &dom_query,
             const Block &block) {
-    LPointer<FreeTask> task = AsyncFree(dom_query, block);
+    LPointer<FreeTask> task = AsyncFree({}, dom_query, block);
     task.ptr_->Wait();
-    CHI_CLIENT->DelTask(task);
+    CHI_CLIENT->DelTask({}, task);
   }
   CHI_TASK_METHODS(Free);
 
@@ -77,9 +77,10 @@ class Client : public ModuleClient {
              const hipc::Pointer &data,
              size_t off,
              size_t size) {
-    LPointer<WriteTask> task = AsyncWrite(dom_query, data, off, size);
+    LPointer<WriteTask> task =
+        AsyncWrite({}, dom_query, data, off, size);
     task.ptr_->Wait();
-    CHI_CLIENT->DelTask(task);
+    CHI_CLIENT->DelTask({}, task);
   }
   CHI_TASK_METHODS(Write);
 
@@ -89,19 +90,21 @@ class Client : public ModuleClient {
             const hipc::Pointer &data,
             size_t size,
             size_t off) {
-    LPointer<ReadTask> task = AsyncRead(dom_query, data, size, off);
+    LPointer<ReadTask> task =
+        AsyncRead({}, dom_query, data, size, off);
     task.ptr_->Wait();
-    CHI_CLIENT->DelTask(task);
+    CHI_CLIENT->DelTask({}, task);
   }
   CHI_TASK_METHODS(Read);
 
   /** Periodically poll block device stats */
   HSHM_ALWAYS_INLINE
   BdevStats PollStats(const DomainQuery &dom_query) {
-    LPointer<PollStatsTask> task = AsyncPollStats(dom_query, 0);
+    LPointer<PollStatsTask> task =
+        AsyncPollStats({}, dom_query, 0);
     task.ptr_->Wait();
     BdevStats stats = task->stats_;
-    CHI_CLIENT->DelTask(task);
+    CHI_CLIENT->DelTask({}, task);
     return stats;
   }
   CHI_TASK_METHODS(PollStats);

@@ -200,7 +200,8 @@ class Module {
                        Task *task, RunContext &rctx) = 0;
 
   /** Delete a task */
-  virtual void Del(u32 method, Task *task) = 0;
+  virtual void Del(const hipc::MemContext &ctx,
+                   u32 method, Task *task) = 0;
 
   /** Duplicate a task into an existing task */
   virtual void CopyStart(u32 method,

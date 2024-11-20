@@ -28,11 +28,11 @@ struct ScheduleTask : public Task, TaskFlags<TF_LOCAL> {
 
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
-  ScheduleTask(const hipc::CtxAllocator<HSHM_DEFAULT_ALLOC> &alloc) : Task(alloc) {}
+  ScheduleTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) : Task(alloc) {}
 
   /** Emplace constructor */
   HSHM_ALWAYS_INLINE explicit
-  ScheduleTask(const hipc::CtxAllocator<HSHM_DEFAULT_ALLOC> &alloc,
+  ScheduleTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
                const TaskNode &task_node,
                const DomainQuery &dom_query,
                PoolId &pool_id,

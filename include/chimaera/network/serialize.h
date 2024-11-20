@@ -23,7 +23,7 @@ namespace chi {
 void SegmentedTransfer::AllocateBulksServer() {
   for (DataTransfer &xfer : bulk_) {
     LPointer<char> data = CHI_CLIENT->AllocateBufferRemote(
-        xfer.data_size_);
+        {}, xfer.data_size_);
     xfer.data_ = data.ptr_;
   }
 }

@@ -26,7 +26,7 @@ using hshm::qtok_t;
 /** Represents a lane tasks can be stored */
 class Lane : public hipc::ShmContainer {
  public:
-  hipc::mpsc_queue<LaneData, HSHM_DEFAULT_ALLOC> queue_;
+  hipc::mpsc_queue<LaneData, CHI_ALLOC_T> queue_;
   QueueId id_;
   i32 worker_id_ = -1;
 
@@ -36,7 +36,7 @@ class Lane : public hipc::ShmContainer {
    * ===================================*/
 
   /** SHM constructor. Default. */
-  explicit Lane(const hipc::CtxAllocator<HSHM_DEFAULT_ALLOC> &alloc,
+  explicit Lane(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
                 size_t depth = 1024,
                 QueueId id = QueueId::GetNull())
       : queue_(alloc, depth) {
@@ -54,7 +54,7 @@ class Lane : public hipc::ShmContainer {
   }
 
   /** SHM copy constructor */
-  explicit Lane(const hipc::CtxAllocator<HSHM_DEFAULT_ALLOC> &alloc,
+  explicit Lane(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
                 const Lane &other)
       : queue_(alloc, other.queue_) {
   }
@@ -76,7 +76,7 @@ class Lane : public hipc::ShmContainer {
   : queue_(other.queue_.GetCtxAllocator(), std::move(other.queue_)) {}
 
   /** SHM move constructor. */
-  Lane(const hipc::CtxAllocator<HSHM_DEFAULT_ALLOC> &alloc,
+  Lane(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
        Lane &&other) noexcept
   : queue_(alloc, std::move(other.queue_)) {}
 
@@ -158,11 +158,11 @@ struct LaneGroup : public PriorityInfo, public hipc::ShmContainer {
 
   /** Default constructor */
   HSHM_ALWAYS_INLINE
-  LaneGroup(const hipc::CtxAllocator<HSHM_DEFAULT_ALLOC> &alloc) : lanes_(alloc) {}
+  LaneGroup(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) : lanes_(alloc) {}
 
   /** Set priority info */
   HSHM_ALWAYS_INLINE
-  LaneGroup(const hipc::CtxAllocator<HSHM_DEFAULT_ALLOC> &alloc, const PriorityInfo &priority)
+  LaneGroup(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, const PriorityInfo &priority)
   : lanes_(alloc) {
     prio_ = priority.prio_;
     max_lanes_ = priority.max_lanes_;
@@ -179,7 +179,7 @@ struct LaneGroup : public PriorityInfo, public hipc::ShmContainer {
 
   /** SHM Copy constructor. Should never actually be called. */
   HSHM_ALWAYS_INLINE
-  LaneGroup(const hipc::CtxAllocator<HSHM_DEFAULT_ALLOC> &alloc, const LaneGroup &other)
+  LaneGroup(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, const LaneGroup &other)
   : lanes_(alloc, other.lanes_) {
     prio_ = other.prio_;
     max_lanes_ = other.max_lanes_;
@@ -209,7 +209,7 @@ struct LaneGroup : public PriorityInfo, public hipc::ShmContainer {
    * ===================================*/
 
   /** SHM move constructor. */
-  LaneGroup(const hipc::CtxAllocator<HSHM_DEFAULT_ALLOC> &alloc,
+  LaneGroup(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
             LaneGroup &&other) noexcept
       : lanes_(alloc, std::move(other.lanes_)) {
     prio_ = other.prio_;
@@ -294,12 +294,12 @@ struct MultiQueue : public hipc::ShmContainer {
    * ===================================*/
 
   /** SHM constructor. Default. */
-  explicit MultiQueue(const hipc::CtxAllocator<HSHM_DEFAULT_ALLOC> &alloc) : groups_(alloc) {
+  explicit MultiQueue(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) : groups_(alloc) {
     SetNull();
   }
 
   /** SHM constructor. */
-  explicit MultiQueue(const hipc::CtxAllocator<HSHM_DEFAULT_ALLOC> &alloc, const QueueId &id,
+  explicit MultiQueue(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, const QueueId &id,
                       const std::vector<PriorityInfo> &prios)
       : groups_(alloc, prios.size()) {
     id_ = id;
@@ -325,7 +325,7 @@ struct MultiQueue : public hipc::ShmContainer {
    * ===================================*/
 
   /** SHM copy constructor */
-  explicit MultiQueue(const hipc::CtxAllocator<HSHM_DEFAULT_ALLOC> &alloc, const MultiQueue &other)
+  explicit MultiQueue(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, const MultiQueue &other)
       : groups_(alloc) {
     SetNull();
     shm_strong_copy_construct_and_op(other);
@@ -350,7 +350,7 @@ struct MultiQueue : public hipc::ShmContainer {
    * ===================================*/
 
   /** SHM move constructor. */
-  MultiQueue(const hipc::CtxAllocator<HSHM_DEFAULT_ALLOC> &alloc,
+  MultiQueue(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
              MultiQueue &&other) noexcept : groups_(alloc) {
     groups_ = std::move(other.groups_);
     other.SetNull();
