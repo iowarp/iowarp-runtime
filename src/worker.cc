@@ -367,7 +367,7 @@ bool Worker::RunTask(PrivateTaskQueue &priv_queue,
     cur_task_ = nullptr;
     cur_lane_ = nullptr;
     CHI_REMOTE_QUEUE->AsyncClientPushSubmitBase(
-        {}, nullptr, task->task_node_ + 1,
+        CHI_DEFAULT_MEM_CTX, nullptr, task->task_node_ + 1,
         DomainQuery::GetDirectId(SubDomainId::kGlobalContainers, 1),
         task.ptr_);
     return false;
@@ -526,7 +526,7 @@ void Worker::EndTask(Container *exec, LPointer<Task> &task) {
     return;
   }
   if (exec && task->IsFireAndForget()) {
-    CHI_CLIENT->DelTask({}, exec, task.ptr_);
+    CHI_CLIENT->DelTask(CHI_DEFAULT_MEM_CTX, exec, task.ptr_);
   }
 }
 

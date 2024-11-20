@@ -255,7 +255,8 @@ class Server : public Module {
       bcast->YieldInit(task);
       queue->Emplace(bcast->prio_, bcast->GetContainerId(), bcast.shm_);
       task->Wait(bcast);
-      exec->Del({}, Method::kCreate, bcast.ptr_);
+      exec->Del(CHI_DEFAULT_MEM_CTX,
+                Method::kCreate, bcast.ptr_);
     }
     HILOG(kInfo, "(node {}) Created containers for task {}",
           CHI_RPC->node_id_, task->task_node_);
@@ -334,7 +335,8 @@ class Server : public Module {
       HILOG(kInfo, "(node {}) Broadcasting runtime stop (task_node={})",
             CHI_RPC->node_id_, task->task_node_);
       CHI_ADMIN->AsyncStopRuntime(
-          {}, DomainQuery::GetGlobalBcast(), false);
+          CHI_DEFAULT_MEM_CTX,
+          DomainQuery::GetGlobalBcast(), false);
     } else if (CHI_RPC->node_id_ == task->task_node_.root_.node_id_) {
       task->SetModuleComplete();
       HILOG(kInfo, "(node {}) Ignoring runtime stop (task_node={})",
@@ -360,7 +362,7 @@ class Server : public Module {
       return;
     }
     auto queue_sched = CHI_CLIENT->NewTask<ScheduleTask>(
-        {}, task->task_node_,
+        CHI_DEFAULT_MEM_CTX, task->task_node_,
         chi::DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0),
         task->policy_id_,
         250);
@@ -385,7 +387,7 @@ class Server : public Module {
       return;
     }
     auto proc_sched = CHI_CLIENT->NewTask<ScheduleTask>(
-        {}, task->task_node_,
+        CHI_DEFAULT_MEM_CTX, task->task_node_,
         chi::DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0),
         task->policy_id_,
         1000);

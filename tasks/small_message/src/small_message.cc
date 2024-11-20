@@ -111,7 +111,8 @@ class Server : public Module {
   /** A metadata operation */
   void Md(MdTask *task, RunContext &rctx) {
     if (task->depth_ > 0) {
-      client_.Md(task->dom_query_,
+      client_.Md(CHI_DEFAULT_MEM_CTX,
+                 task->dom_query_,
                  task->depth_ - 1, 0);
     }
     task->ret_ = 1;

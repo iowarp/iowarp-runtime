@@ -168,27 +168,32 @@ TaskPointer LoadStart(    u32 method, BinaryInputArchive<true> &ar) override {
   TaskPointer task_ptr;
   switch (method) {
     case Method::kCreate: {
-      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<CreateTask>({}, task_ptr.shm_);
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<CreateTask>(
+             CHI_DEFAULT_MEM_CTX, task_ptr.shm_);
       ar >> *reinterpret_cast<CreateTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kDestroy: {
-      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<DestroyTask>({}, task_ptr.shm_);
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<DestroyTask>(
+             CHI_DEFAULT_MEM_CTX, task_ptr.shm_);
       ar >> *reinterpret_cast<DestroyTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kUpgrade: {
-      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<UpgradeTask>({}, task_ptr.shm_);
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<UpgradeTask>(
+             CHI_DEFAULT_MEM_CTX, task_ptr.shm_);
       ar >> *reinterpret_cast<UpgradeTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kMd: {
-      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<MdTask>({}, task_ptr.shm_);
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<MdTask>(
+             CHI_DEFAULT_MEM_CTX, task_ptr.shm_);
       ar >> *reinterpret_cast<MdTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kIo: {
-      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<IoTask>({}, task_ptr.shm_);
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<IoTask>(
+             CHI_DEFAULT_MEM_CTX, task_ptr.shm_);
       ar >> *reinterpret_cast<IoTask*>(task_ptr.ptr_);
       break;
     }

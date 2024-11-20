@@ -288,7 +288,8 @@ class ChimaeraCodegen:
             method_name = method_enum_name.replace('k', '', 1)
             task_name = method_name + "Task"
             lines += [f'    case Method::{method_enum_name}: {{',
-                      f'      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<{task_name}>({{}}, task_ptr.shm_);',
+                      f'      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<{task_name}>(',
+                      f'             CHI_DEFAULT_MEM_CTX, task_ptr.shm_);',
                       f'      ar >> *reinterpret_cast<{task_name}*>(task_ptr.ptr_);',
                       f'      break;',
                       f'    }}']

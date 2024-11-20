@@ -27,6 +27,7 @@
 #define HSHM_DEFAULT_ALLOC hipc::ScalablePageAllocator
 #endif
 #define CHI_ALLOC_T HSHM_DEFAULT_ALLOC
+#define CHI_DEFAULT_MEM_CTX {}
 
 namespace hshm::ipc {
 class ScalablePageAllocator;

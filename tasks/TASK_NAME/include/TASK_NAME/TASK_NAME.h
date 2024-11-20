@@ -28,28 +28,31 @@ class Client : public ModuleClient {
   ~Client() = default;
 
   /** Create a pool */
-  void Create(const DomainQuery &dom_query,
-                  const DomainQuery &affinity,
-                  const std::string &pool_name,
-                  const CreateContext &ctx = CreateContext()) {
+  void Create(const hipc::MemContext &mctx,
+              const DomainQuery &dom_query,
+              const DomainQuery &affinity,
+              const std::string &pool_name,
+              const CreateContext &ctx = CreateContext()) {
     LPointer<CreateTask> task = AsyncCreate(
-        {}, dom_query, affinity, pool_name, ctx);
+        mctx, dom_query, affinity, pool_name, ctx);
     task->Wait();
     Init(task->ctx_.id_);
-    CHI_CLIENT->DelTask({}, task);
+    CHI_CLIENT->DelTask(mctx, task);
   }
   CHI_TASK_METHODS(Create);
 
   /** Destroy pool + queue */
   HSHM_ALWAYS_INLINE
-  void Destroy(const DomainQuery &dom_query) {
-    CHI_ADMIN->DestroyContainer(dom_query, id_);
+  void Destroy(const hipc::MemContext &mctx,
+               const DomainQuery &dom_query) {
+    CHI_ADMIN->DestroyContainer(mctx, dom_query, id_);
   }
 
   /** Call a custom method */
   HSHM_ALWAYS_INLINE
-  void Custom(const DomainQuery &dom_query) {
-    LPointer<CustomTask> task = AsyncCustom({}, dom_query);
+  void Custom(const hipc::MemContext &mctx,
+              const DomainQuery &dom_query) {
+    LPointer<CustomTask> task = AsyncCustom(mctx, dom_query);
     task.ptr_->Wait();
   }
   CHI_TASK_METHODS(Custom);

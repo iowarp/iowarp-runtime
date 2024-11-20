@@ -24,22 +24,24 @@ class Client : public ModuleClient {
   ~Client() = default;
 
   /** Async create a pool */
-  void Create(const DomainQuery &dom_query,
-                  const DomainQuery &affinity,
-                  const std::string &pool_name,
-                  const CreateContext &ctx = CreateContext()) {
+  void Create(const hipc::MemContext &mctx,
+              const DomainQuery &dom_query,
+              const DomainQuery &affinity,
+              const std::string &pool_name,
+              const CreateContext &ctx = CreateContext()) {
     LPointer<CreateTask> task = AsyncCreate(
-        {}, dom_query, affinity, pool_name, ctx);
+        mctx, dom_query, affinity, pool_name, ctx);
     task->SpinWait();
     Init(task->ctx_.id_);
-    CHI_CLIENT->DelTask({}, task);
+    CHI_CLIENT->DelTask(mctx, task);
   }
   CHI_TASK_METHODS(Create);
 
   /** Destroy pool + queue */
   HSHM_ALWAYS_INLINE
-  void Destroy(const DomainQuery &dom_query) {
-    CHI_ADMIN->DestroyContainer(dom_query, id_);
+  void Destroy(const hipc::MemContext &mctx,
+               const DomainQuery &dom_query) {
+    CHI_ADMIN->DestroyContainer(mctx, dom_query, id_);
   }
 
   /** Construct submit aggregator */

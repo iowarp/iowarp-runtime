@@ -45,7 +45,7 @@ void ##method_name##(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
   LPointer<##task_name##> task =
     Async##method_name##(dom_query);
   task->Wait();
-  CHI_CLIENT->DelTask({}, task);
+  CHI_CLIENT->DelTask(mctx, task);
 }
 CHI_TASK_METHODS(##method_name##);
 """
