@@ -111,6 +111,7 @@ class ChimaeraCodegen:
             fp.write(text)
 
     def refresh_repo_methods(self, TASK_REPO_DIR):
+        TASK_REPO_DIR = os.path.abspath(TASK_REPO_DIR)
         TASK_ROOTS = [os.path.join(TASK_REPO_DIR, item)
                       for item in os.listdir(TASK_REPO_DIR)]
         for TASK_ROOT in TASK_ROOTS:

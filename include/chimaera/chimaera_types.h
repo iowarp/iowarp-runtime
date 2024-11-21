@@ -47,22 +47,6 @@ class ScalablePageAllocator;
 
 #include <hermes_shm/util/config_parse.h>
 #include <hermes_shm/data_structures/data_structure.h>
-#include <hermes_shm/data_structures/ipc/unordered_map.h>
-#include <hermes_shm/data_structures/ipc/pod_array.h>
-#include <hermes_shm/data_structures/ipc/vector.h>
-#include <hermes_shm/data_structures/ipc/list.h>
-#include <hermes_shm/data_structures/ipc/slist.h>
-#include <hermes_shm/data_structures/ipc/string.h>
-#include <hermes_shm/data_structures/ipc/mpsc_queue.h>
-#include <hermes_shm/data_structures/ipc/mpsc_ptr_queue.h>
-#include <hermes_shm/data_structures/ipc/ticket_queue.h>
-#include <hermes_shm/data_structures/containers/converters.h>
-#include <hermes_shm/data_structures/containers/charbuf.h>
-#include <hermes_shm/data_structures/ipc/spsc_queue.h>
-#include <hermes_shm/data_structures/ipc/mpsc_queue.h>
-#include <hermes_shm/data_structures/ipc/split_ticket_queue.h>
-#include <hermes_shm/data_structures/containers/converters.h>
-#include "hermes_shm/data_structures/serialization/shm_serialize.h"
 #include <hermes_shm/util/auto_trace.h>
 #include <hermes_shm/thread/lock.h>
 #include <hermes_shm/thread/thread_model_manager.h>
@@ -89,6 +73,8 @@ typedef double f64;   /**< 64-bit float */
 #define MICROSECONDS(X) (NANOSECONDS(X) * 1000)
 #define MILLISECONDS(X) (NANOSECONDS(X) * 1000000)
 #define SECONDS(X) (NANOSECONDS(X) * 1000000000)
+
+HSHM_DATA_STRUCTURES_TEMPLATE(chi, CHI_ALLOC_T);
 
 namespace chi {
 
