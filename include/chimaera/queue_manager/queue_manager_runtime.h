@@ -24,7 +24,7 @@ class QueueManagerRuntime : public QueueManager {
   ServerConfig *config_;
   size_t max_queues_;
   size_t max_containers_pn_;
-  hipc::split_ticket_queue<u64> *tickets_;
+  chi::split_ticket_queue<u64> *tickets_;
   NodeId node_id_;
 
  public:
