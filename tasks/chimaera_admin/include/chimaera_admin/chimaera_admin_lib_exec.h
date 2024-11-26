@@ -403,85 +403,85 @@ TaskPointer LoadStart(    u32 method, BinaryInputArchive<true> &ar) override {
   switch (method) {
     case Method::kCreate: {
       task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<CreateTask>(
-             CHI_DEFAULT_MEM_CTX, task_ptr.shm_);
+             HSHM_DEFAULT_MEM_CTX, task_ptr.shm_);
       ar >> *reinterpret_cast<CreateTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kDestroy: {
       task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<DestroyTask>(
-             CHI_DEFAULT_MEM_CTX, task_ptr.shm_);
+             HSHM_DEFAULT_MEM_CTX, task_ptr.shm_);
       ar >> *reinterpret_cast<DestroyTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kCreateContainer: {
       task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<CreateContainerTask>(
-             CHI_DEFAULT_MEM_CTX, task_ptr.shm_);
+             HSHM_DEFAULT_MEM_CTX, task_ptr.shm_);
       ar >> *reinterpret_cast<CreateContainerTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kDestroyContainer: {
       task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<DestroyContainerTask>(
-             CHI_DEFAULT_MEM_CTX, task_ptr.shm_);
+             HSHM_DEFAULT_MEM_CTX, task_ptr.shm_);
       ar >> *reinterpret_cast<DestroyContainerTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kRegisterModule: {
       task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<RegisterModuleTask>(
-             CHI_DEFAULT_MEM_CTX, task_ptr.shm_);
+             HSHM_DEFAULT_MEM_CTX, task_ptr.shm_);
       ar >> *reinterpret_cast<RegisterModuleTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kDestroyModule: {
       task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<DestroyModuleTask>(
-             CHI_DEFAULT_MEM_CTX, task_ptr.shm_);
+             HSHM_DEFAULT_MEM_CTX, task_ptr.shm_);
       ar >> *reinterpret_cast<DestroyModuleTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kUpgradeModule: {
       task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<UpgradeModuleTask>(
-             CHI_DEFAULT_MEM_CTX, task_ptr.shm_);
+             HSHM_DEFAULT_MEM_CTX, task_ptr.shm_);
       ar >> *reinterpret_cast<UpgradeModuleTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kGetPoolId: {
       task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<GetPoolIdTask>(
-             CHI_DEFAULT_MEM_CTX, task_ptr.shm_);
+             HSHM_DEFAULT_MEM_CTX, task_ptr.shm_);
       ar >> *reinterpret_cast<GetPoolIdTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kStopRuntime: {
       task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<StopRuntimeTask>(
-             CHI_DEFAULT_MEM_CTX, task_ptr.shm_);
+             HSHM_DEFAULT_MEM_CTX, task_ptr.shm_);
       ar >> *reinterpret_cast<StopRuntimeTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kSetWorkOrchQueuePolicy: {
       task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<SetWorkOrchQueuePolicyTask>(
-             CHI_DEFAULT_MEM_CTX, task_ptr.shm_);
+             HSHM_DEFAULT_MEM_CTX, task_ptr.shm_);
       ar >> *reinterpret_cast<SetWorkOrchQueuePolicyTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kSetWorkOrchProcPolicy: {
       task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<SetWorkOrchProcPolicyTask>(
-             CHI_DEFAULT_MEM_CTX, task_ptr.shm_);
+             HSHM_DEFAULT_MEM_CTX, task_ptr.shm_);
       ar >> *reinterpret_cast<SetWorkOrchProcPolicyTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kFlush: {
       task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<FlushTask>(
-             CHI_DEFAULT_MEM_CTX, task_ptr.shm_);
+             HSHM_DEFAULT_MEM_CTX, task_ptr.shm_);
       ar >> *reinterpret_cast<FlushTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kGetDomainSize: {
       task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<GetDomainSizeTask>(
-             CHI_DEFAULT_MEM_CTX, task_ptr.shm_);
+             HSHM_DEFAULT_MEM_CTX, task_ptr.shm_);
       ar >> *reinterpret_cast<GetDomainSizeTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kUpdateDomain: {
       task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<UpdateDomainTask>(
-             CHI_DEFAULT_MEM_CTX, task_ptr.shm_);
+             HSHM_DEFAULT_MEM_CTX, task_ptr.shm_);
       ar >> *reinterpret_cast<UpdateDomainTask*>(task_ptr.ptr_);
       break;
     }

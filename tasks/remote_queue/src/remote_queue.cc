@@ -73,10 +73,10 @@ class Server : public Module {
     complete_.emplace_back(qm.queue_depth_);
     submitters_.emplace_back(
         CHI_REMOTE_QUEUE->AsyncClientSubmit(
-            CHI_DEFAULT_MEM_CTX, dom_query));
+            HSHM_DEFAULT_MEM_CTX, dom_query));
     completers_.emplace_back(
         CHI_REMOTE_QUEUE->AsyncServerComplete(
-            CHI_DEFAULT_MEM_CTX, dom_query));
+            HSHM_DEFAULT_MEM_CTX, dom_query));
     task->SetModuleComplete();
   }
   void MonitorCreate(MonitorModeId mode, CreateTask *task, RunContext &rctx) {
@@ -141,7 +141,7 @@ class Server : public Module {
     for (LPointer<Task> &replica : replicas) {
 //      HILOG(kInfo, "[TASK_CHECK] Completing rep_task {} on node {}",
 //            replica.ptr_, CHI_RPC->node_id_);
-      CHI_CLIENT->DelTask(CHI_DEFAULT_MEM_CTX,
+      CHI_CLIENT->DelTask(HSHM_DEFAULT_MEM_CTX,
                           copy_exec, replica.ptr_);
     }
   }
@@ -269,7 +269,7 @@ class Server : public Module {
             CHI_MOD_REGISTRY->GetStaticContainer(done_task->pool_);
         BinaryOutputArchive<false> &ar = entries[entry.res_domain_.node_];
         exec->SaveEnd(done_task->method_, ar, done_task);
-        CHI_CLIENT->DelTask(CHI_DEFAULT_MEM_CTX, exec, done_task);
+        CHI_CLIENT->DelTask(HSHM_DEFAULT_MEM_CTX, exec, done_task);
       }
 
       // Do transfers

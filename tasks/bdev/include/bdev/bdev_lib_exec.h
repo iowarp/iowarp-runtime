@@ -221,43 +221,43 @@ TaskPointer LoadStart(    u32 method, BinaryInputArchive<true> &ar) override {
   switch (method) {
     case Method::kCreate: {
       task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<CreateTask>(
-             CHI_DEFAULT_MEM_CTX, task_ptr.shm_);
+             HSHM_DEFAULT_MEM_CTX, task_ptr.shm_);
       ar >> *reinterpret_cast<CreateTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kDestroy: {
       task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<DestroyTask>(
-             CHI_DEFAULT_MEM_CTX, task_ptr.shm_);
+             HSHM_DEFAULT_MEM_CTX, task_ptr.shm_);
       ar >> *reinterpret_cast<DestroyTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kAllocate: {
       task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<AllocateTask>(
-             CHI_DEFAULT_MEM_CTX, task_ptr.shm_);
+             HSHM_DEFAULT_MEM_CTX, task_ptr.shm_);
       ar >> *reinterpret_cast<AllocateTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kFree: {
       task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<FreeTask>(
-             CHI_DEFAULT_MEM_CTX, task_ptr.shm_);
+             HSHM_DEFAULT_MEM_CTX, task_ptr.shm_);
       ar >> *reinterpret_cast<FreeTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kWrite: {
       task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<WriteTask>(
-             CHI_DEFAULT_MEM_CTX, task_ptr.shm_);
+             HSHM_DEFAULT_MEM_CTX, task_ptr.shm_);
       ar >> *reinterpret_cast<WriteTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kRead: {
       task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<ReadTask>(
-             CHI_DEFAULT_MEM_CTX, task_ptr.shm_);
+             HSHM_DEFAULT_MEM_CTX, task_ptr.shm_);
       ar >> *reinterpret_cast<ReadTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kPollStats: {
       task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<PollStatsTask>(
-             CHI_DEFAULT_MEM_CTX, task_ptr.shm_);
+             HSHM_DEFAULT_MEM_CTX, task_ptr.shm_);
       ar >> *reinterpret_cast<PollStatsTask*>(task_ptr.ptr_);
       break;
     }

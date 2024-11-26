@@ -117,19 +117,19 @@ TaskPointer LoadStart(    u32 method, BinaryInputArchive<true> &ar) override {
   switch (method) {
     case Method::kCreate: {
       task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<CreateTask>(
-             CHI_DEFAULT_MEM_CTX, task_ptr.shm_);
+             HSHM_DEFAULT_MEM_CTX, task_ptr.shm_);
       ar >> *reinterpret_cast<CreateTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kDestroy: {
       task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<DestroyTask>(
-             CHI_DEFAULT_MEM_CTX, task_ptr.shm_);
+             HSHM_DEFAULT_MEM_CTX, task_ptr.shm_);
       ar >> *reinterpret_cast<DestroyTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kCustom: {
       task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<CustomTask>(
-             CHI_DEFAULT_MEM_CTX, task_ptr.shm_);
+             HSHM_DEFAULT_MEM_CTX, task_ptr.shm_);
       ar >> *reinterpret_cast<CustomTask*>(task_ptr.ptr_);
       break;
     }

@@ -119,17 +119,17 @@ void Runtime::ServerInit(std::string server_config_path) {
 
   // Set the work orchestrator queue scheduler
   CHI_ADMIN->SetWorkOrchQueuePolicyRN(
-      CHI_DEFAULT_MEM_CTX,
+      HSHM_DEFAULT_MEM_CTX,
       DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0),
       queue_sched_id);
   CHI_ADMIN->SetWorkOrchProcPolicyRN(
-      CHI_DEFAULT_MEM_CTX,
+      HSHM_DEFAULT_MEM_CTX,
       DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0),
       proc_sched_id);
 
   // Create the remote queue library
   remote_queue_.Create(
-      CHI_DEFAULT_MEM_CTX,
+      HSHM_DEFAULT_MEM_CTX,
       DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0),
       DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0),
       "remote_queue",

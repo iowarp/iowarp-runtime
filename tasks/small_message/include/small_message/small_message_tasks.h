@@ -144,7 +144,7 @@ struct IoTask : public Task, TaskFlags<TF_SRL_SYM> {
 
     // Custom params
     LPointer<char> data = CHI_CLIENT->AllocateBuffer(
-        CHI_DEFAULT_MEM_CTX, io_size);
+        HSHM_DEFAULT_MEM_CTX, io_size);
     data_ = data.shm_;
     size_ = io_size;
     ret_ = 0;
