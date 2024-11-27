@@ -99,6 +99,13 @@ class ChimaeraRun(Service):
                 'default': None,
                 'class': 'communication',
                 'rank': 1,
+                'args': [
+                    {
+                        'name': 'cpu_id',
+                        'msg': 'An integer representing CPU ID',
+                        'type': int,
+                    }
+                ],
             },
             {
                 'name': 'qdepth',
@@ -131,6 +138,13 @@ class ChimaeraRun(Service):
                 'default': None,
                 'class': 'work orchestrator',
                 'rank': 1,
+                'args': [
+                    {
+                        'name': 'cpu_id',
+                        'msg': 'An integer representing CPU ID',
+                        'type': int,
+                    }
+                ],
             },
             {
                 'name': 'reinforce_cpu',
