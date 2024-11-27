@@ -1,11 +1,9 @@
 ### Runtime orchestration settings
 work_orchestrator:
-  # The max number of dedicated worker threads
-  max_dworkers: 4
-  # The max number of overlapping threads
-  max_oworkers: 4
-  # The max number of total dedicated cores
-  owork_per_core: 32
+  # The mapping of workers to CPUs
+  cpus: [0, 1, 2, 2, 2, 3, 3, 3]
+  # Where the reinforcement thread maps to CPU
+  reinforce_cpu: 3
   # Monitoring window (seconds)
   monitor_window: 1
   # Monitoring gap (seconds)
@@ -55,8 +53,8 @@ rpc:
   # Desired RPC port number.
   port: 8080
 
-  # The number of handler threads for each RPC server.
-  num_threads: 4
+  # The mapping of RPC threads to CPUs
+  cpus: [3, 4, 5, 6]
 
 ### Task Registry
 module_registry: []

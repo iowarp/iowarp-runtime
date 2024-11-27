@@ -95,6 +95,7 @@ class RpcContext {
   std::string domain_;    /**< Libfabric domain */
   NodeId node_id_;        /**< the ID of this node */
   int num_threads_;       /**< Number of RPC threads */
+  std::vector<u32> cpus_;  /** Mapping of RPC threads to CPUs */
   std::vector<HostInfo> hosts_;  /**< Hostname and ip addr per-node */
   size_t neighborhood_size_ = 32;
 
@@ -393,6 +394,7 @@ class RpcContext {
     protocol_ = config_->rpc_.protocol_;
     domain_ = config_->rpc_.domain_;
     num_threads_ = config_->rpc_.num_threads_;
+    cpus_ = config_->rpc_.cpus_;
     if (hosts_.size()) { return; }
     // Uses hosts produced by host_names
     std::vector<std::string> &hosts =

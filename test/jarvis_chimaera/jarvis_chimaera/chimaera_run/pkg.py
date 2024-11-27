@@ -93,10 +93,10 @@ class ChimaeraRun(Service):
                 'rank': 1,
             },
             {
-                'name': 'rpc_threads',
-                'msg': 'the number of rpc threads to create',
-                'type': int,
-                'default': 4,
+                'name': 'rpc_cpus',
+                'msg': 'the mapping of rpc threads to cpus',
+                'type': list,
+                'default': None,
                 'class': 'communication',
                 'rank': 1,
             },
@@ -125,26 +125,18 @@ class ChimaeraRun(Service):
                 'rank': 1,
             },
             {
-                'name': 'dworkers',
-                'msg': 'The number of core-dedicated workers',
-                'type': int,
-                'default': 2,
+                'name': 'worker_cpus',
+                'msg': 'the mapping of workers to cpu cores',
+                'type': list,
+                'default': None,
                 'class': 'work orchestrator',
                 'rank': 1,
             },
             {
-                'name': 'oworkers',
-                'msg': 'The number of overlapping workers',
+                'name': 'reinforce_cpu',
+                'msg': 'the mapping of the reinforce worker to cpu',
                 'type': int,
-                'default': 4,
-                'class': 'work orchestrator',
-                'rank': 1,
-            },
-            {
-                'name': 'oworkers_per_core',
-                'msg': 'Overlapping workers per core',
-                'type': int,
-                'default': 32,
+                'default': 3,
                 'class': 'work orchestrator',
                 'rank': 1,
             },
@@ -214,9 +206,8 @@ class ChimaeraRun(Service):
         # Begin making chimaera_run config
         chimaera_server = {
             'work_orchestrator': {
-                'max_dworkers': self.config['dworkers'],
-                'max_oworkers': self.config['oworkers'],
-                'oworkers_per_core': self.config['oworkers_per_core'],
+                'cpus': self.config['worker_cpus'],
+                'reinforce_cpu': self.config['reinforce_cpu'],
                 'monitor_window': self.config['monitor_window'],
                 'monitor_gap': self.config['monitor_gap']
             },
@@ -274,7 +265,7 @@ class ChimaeraRun(Service):
             'protocol': protocol,
             'domain': domain,
             'port': self.config['port'],
-            'num_threads': self.config['rpc_threads']
+            'cpus': self.config['rpc_cpus']
         }
         if self.hostfile.path is None:
             chimaera_server['rpc']['host_names'] = self.hostfile.hosts

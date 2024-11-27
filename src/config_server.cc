@@ -23,14 +23,11 @@ namespace chi::config {
 
 /** parse work orchestrator info from YAML config */
 void ServerConfig::ParseWorkOrchestrator(YAML::Node yaml_conf) {
-  if (yaml_conf["max_dworkers"]) {
-    wo_.max_dworkers_ = yaml_conf["max_dworkers"].as<size_t>();
+  if (yaml_conf["cpus"]) {
+    ParseVector<u32>(yaml_conf["cpus"], wo_.cpus_);
   }
-  if (yaml_conf["max_oworkers"]) {
-    wo_.max_oworkers_ = yaml_conf["max_oworkers"].as<size_t>();
-  }
-  if (yaml_conf["owork_per_core"]) {
-    wo_.owork_per_core_ = yaml_conf["owork_per_core"].as<size_t>();
+  if (yaml_conf["reinforce_cpu"]) {
+    wo_.reinforce_cpu_ = yaml_conf["reinforce_cpu"].as<u32>();
   }
   if (yaml_conf["monitor_gap"]) {
     wo_.monitor_gap_ = yaml_conf["monitor_gap"].as<size_t>();
@@ -106,8 +103,9 @@ void ServerConfig::ParseRpcInfo(YAML::Node yaml_conf) {
   if (yaml_conf["port"]) {
     rpc_.port_ = yaml_conf["port"].as<int>();
   }
-  if (yaml_conf["num_threads"]) {
-    rpc_.num_threads_ = yaml_conf["num_threads"].as<int>();
+  if (yaml_conf["cpus"]) {
+    ParseVector<u32>(yaml_conf["cpus"], rpc_.cpus_);
+    rpc_.num_threads_ = rpc_.cpus_.size();
   }
 }
 

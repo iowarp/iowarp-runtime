@@ -30,13 +30,11 @@ void WorkOrchestrator::ServerInit(ServerConfig *config, QueueManager &qm) {
   monitor_window_ = config_->wo_.monitor_window_;
 
   // Spawn workers on the stream
-  size_t num_workers = config_->wo_.max_dworkers_ + config->wo_.max_oworkers_;
+  size_t num_workers = config_->wo_.cpus_.size();
   workers_.reserve(num_workers);
   int worker_id = 0;
-  // Spawn dedicated workers (dworkers)
-  u32 num_dworkers = config_->wo_.max_dworkers_;
-  int cpu_id = 0;
-  for (; worker_id < num_dworkers; ++worker_id) {
+  // Spawn workers
+  for (u32 cpu_id : config_->wo_.cpus_) {
     HILOG(kInfo, "Creating worker {}", worker_id);
     ABT_xstream xstream = MakeXstream();
     workers_.emplace_back(std::make_unique<Worker>(
@@ -45,38 +43,19 @@ void WorkOrchestrator::ServerInit(ServerConfig *config, QueueManager &qm) {
     worker.EnableContinuousPolling();
     worker.SetLowLatency();
     dworkers_.emplace_back(&worker);
-    ++cpu_id;
+    ++worker_id;
   }
   // Spawn reinforcement thread
   reinforce_worker_ = std::make_unique<ReinforceWorker>(
-      cpu_id + 1);
-  // Spawn overlapped workers (oworkers)
-  for (; worker_id < num_workers; ++worker_id) {
-    HILOG(kInfo, "Creating worker {}", worker_id);
-    ABT_xstream xstream = MakeXstream();
-    if ((worker_id - num_dworkers) % config->wo_.owork_per_core_ == 0) {
-      ++cpu_id;
-    }
-    workers_.emplace_back(
-        std::make_unique<Worker>(worker_id, cpu_id, xstream));
-    Worker &worker = *workers_.back();
-    worker.DisableContinuousPolling();
-    worker.SetHighLatency();
-    oworkers_.emplace_back(&worker);
-  }
+      config_->wo_.reinforce_cpu_);
   kill_requested_ = false;
   // Create RPC worker threads
   rpc_pool_ = tl::pool::create(tl::pool::access::mpmc);
-  ++cpu_id;
-  for(int i = 0; i < CHI_RPC->num_threads_; i++) {
+  for(u32 cpu_id : config_->rpc_.cpus_) {
     tl::managed<tl::xstream> es
         = tl::xstream::create(tl::scheduler::predef::deflt, *rpc_pool_);
     es->set_cpubind(cpu_id);
     rpc_xstreams_.push_back(std::move(es));
-    ++cpu_id;
-    if (cpu_id > HERMES_SYSTEM_INFO->ncpu_) {
-      cpu_id = num_dworkers + 1;
-    }
   }
   HILOG(kInfo, "(node {}) Worker created RPC pool with {} threads",
         CHI_RPC->node_id_, CHI_RPC->num_threads_)

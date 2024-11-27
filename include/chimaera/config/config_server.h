@@ -22,12 +22,10 @@ namespace chi::config {
  * Work orchestrator information defined in server config
  * */
 struct WorkOrchestratorInfo {
-  /** Maximum number of dedicated workers */
-  size_t max_dworkers_;
-  /** Maximum number of overlapping workers */
-  size_t max_oworkers_;
-  /** Overlapped workers per core */
-  size_t owork_per_core_;
+  /** CPU bindings for workers */
+  std::vector<u32> cpus_;
+  /** CPU binding for reinforcement worker */
+  u32 reinforce_cpu_;
   /** Monitoring gap */
   size_t monitor_gap_;
   /** Monitoring window */
@@ -78,6 +76,8 @@ struct RpcInfo {
   int port_;
   /** Number of RPC threads */
   int num_threads_;
+  /** CPU bindings for workers */
+  std::vector<u32> cpus_;
 };
 
 /**

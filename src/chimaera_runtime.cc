@@ -60,8 +60,6 @@ void Runtime::ServerInit(std::string server_config_path) {
   hipc::mptr<Admin::CreateTask> admin_create_task;
   hipc::mptr<Admin::CreateContainerTask> create_task;
   u32 max_containers_pn = CHI_QM_RUNTIME->max_containers_pn_;
-  size_t max_workers = server_config_.wo_.max_dworkers_ +
-                       server_config_.wo_.max_oworkers_;
   std::vector<UpdateDomainInfo> ops;
   std::vector<SubDomainId> containers;
 

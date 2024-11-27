@@ -7,7 +7,6 @@ pkgs:
     do_dbg: false
     dbg_port: 4000
     qlanes: 4
-    dworkers: 4
     pqdepth: 48
   - pkg_type: chimaera_latency_bench
     pkg_name: chimaera_latency_bench
