@@ -33,7 +33,7 @@ void WorkOrchestrator::ServerInit(ServerConfig *config, QueueManager &qm) {
   size_t num_workers = config_->wo_.cpus_.size();
   workers_.reserve(num_workers);
   int worker_id = 0;
-  // Spawn workers
+  std::unordered_map<u32, std::vector<Worker*>> cpu_workers;
   for (u32 cpu_id : config_->wo_.cpus_) {
     HILOG(kInfo, "Creating worker {}", worker_id);
     ABT_xstream xstream = MakeXstream();
@@ -41,9 +41,24 @@ void WorkOrchestrator::ServerInit(ServerConfig *config, QueueManager &qm) {
         worker_id, cpu_id, xstream));
     Worker &worker = *workers_.back();
     worker.EnableContinuousPolling();
-    worker.SetLowLatency();
-    dworkers_.emplace_back(&worker);
+    cpu_workers[cpu_id].push_back(&worker);
     ++worker_id;
+  }
+  // Mark the workers as dedicated or overlapped
+  for (auto &cpu_work : cpu_workers) {
+    std::vector<Worker*> &workers = cpu_work.second;
+    if (workers.size() == 1) {
+      for (Worker *worker : workers) {
+        worker->SetLowLatency();
+        dworkers_.emplace_back(worker);
+      }
+    } else {
+      for (Worker *worker : workers) {
+        worker->SetHighLatency();
+        oworkers_.emplace_back(worker);
+      }
+    }
+
   }
   // Spawn reinforcement thread
   reinforce_worker_ = std::make_unique<ReinforceWorker>(

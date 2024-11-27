@@ -189,7 +189,7 @@ class PrivateTaskMultiQueue {
   size_t max_root_count_;
   PrivateTaskQueue queues_[NUM_QUEUES];
   PrivateTaskSet blocked_;
-  std::unique_ptr<hshm::mpsc_queue<LPointer<Task>>> complete_;
+  hshm::mpsc_queue<LPointer<Task>> complete_;
   size_t id_;
 
  public:
@@ -201,7 +201,7 @@ class PrivateTaskMultiQueue {
     queues_[LONG_RUNNING].Init(LONG_RUNNING, max_lanes * qdepth);
     queues_[FLUSH].Init(LONG_RUNNING, max_lanes * qdepth);
     blocked_.Init(max_lanes * qdepth);
-    complete_ = std::make_unique<hshm::mpsc_queue<LPointer<Task>>>(
+    complete_ = hshm::mpsc_queue<LPointer<Task>>(
         max_lanes * qdepth);
     root_count_ = 0;
     max_root_count_ = max_lanes * pqdepth;
@@ -228,7 +228,7 @@ class PrivateTaskMultiQueue {
   }
 
   hshm::mpsc_queue<LPointer<Task>>& GetCompletion() {
-    return *complete_;
+    return complete_;
   }
 
   bool push(const PrivateTaskQueueEntry &entry);
