@@ -1,0 +1,45 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "runtime-dbg",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "echo",
+            "miDebuggerServerAddress": "localhost:4000",
+            "miDebuggerPath": "/usr/bin/gdb",
+            "cwd": "${workspaceFolder}",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "externalConsole": false,
+            "logging": {
+                "engineLogging": true
+            }
+        },
+        {
+            "name": "app-dbg",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "echo",
+            "miDebuggerServerAddress": "localhost:4001",
+            "miDebuggerPath": "/usr/bin/gdb",
+            "cwd": "${workspaceFolder}",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "externalConsole": false,
+            "logging": {
+                "engineLogging": true
+            }
+        }
+    ]
+}
