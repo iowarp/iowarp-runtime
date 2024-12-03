@@ -1,7 +1,3 @@
-//
-// Created by llogan on 7/6/24.
-//
-
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  * Distributed under BSD 3-Clause license.                                   *
  * Copyright by The HDF Group.                                               *
