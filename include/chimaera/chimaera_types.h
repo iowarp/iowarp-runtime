@@ -46,7 +46,7 @@ class ScalablePageAllocator;
 #endif
 
 #include <hermes_shm/util/config_parse.h>
-#include <hermes_shm/data_structures/data_structure.h>
+#include <hermes_shm/data_structures/all.h>
 #include <hermes_shm/util/auto_trace.h>
 #include <hermes_shm/thread/lock.h>
 #include <hermes_shm/thread/thread_model_manager.h>
