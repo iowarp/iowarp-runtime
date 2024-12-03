@@ -16,9 +16,9 @@
                     "ignoreFailures": true
                 }
             ],
-            "externalConsole": false,
+            "externalConsole": true,
             "logging": {
-                "engineLogging": true
+                "engineLogging": false
             }
         },
         {
@@ -36,9 +36,9 @@
                     "ignoreFailures": true
                 }
             ],
-            "externalConsole": false,
+            "externalConsole": true,
             "logging": {
-                "engineLogging": true
+                "engineLogging": false
             }
         }
     ]
