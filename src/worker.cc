@@ -20,9 +20,6 @@
 #include "chimaera/work_orchestrator/affinity.h"
 #include "chimaera/network/rpc_thallium.h"
 
-#include "chimaera/util/key_queue.h"
-#include "chimaera/util/key_set.h"
-
 namespace chi {
 
 /**===============================================================

@@ -21,14 +21,14 @@ namespace chi {
 
 /** Shared-memory representation of the QueueManager */
 struct QueueManagerShm {
-  hipc::delay_ar<chi::vector<ingress::MultiQueue>> queue_map_;
+  hipc::delay_ar<chi::ipc::vector<ingress::MultiQueue>> queue_map_;
   hipc::delay_ar<chi::split_ticket_queue<size_t>> tickets_;
 };
 
 /** A base class inherited by Client & Server QueueManagers */
 class QueueManager {
  public:
-  chi::vector<ingress::MultiQueue> *queue_map_;   /**< Queues which directly interact with tasks states */
+  chi::ipc::vector<ingress::MultiQueue> *queue_map_;   /**< Queues which directly interact with tasks states */
   NodeId node_id_;             /**< The ID of the node this QueueManager is on */
   QueueId admin_queue_id_;     /**< The queue used to submit administrative requests */
   QueueId process_queue_id_;     /**< ID of process queue task */

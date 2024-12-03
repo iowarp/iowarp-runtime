@@ -13,7 +13,7 @@ namespace chi::Admin {
 /** A template to register or destroy a task library */
 template<int method>
 struct RegisterModuleTaskTempl : public Task, TaskFlags<TF_SRL_SYM> {
-  IN chi::string lib_name_;
+  IN chi::ipc::string lib_name_;
 
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit
@@ -69,7 +69,7 @@ using DestroyModuleTask = RegisterModuleTaskTempl<1>;
 
 /** A template to register or destroy a task library */
 struct UpgradeModuleTask : public Task, TaskFlags<TF_SRL_SYM> {
-  IN chi::string lib_name_;
+  IN chi::ipc::string lib_name_;
   TEMP Container *old_;
 
   /** SHM default constructor */
@@ -121,8 +121,8 @@ struct UpgradeModuleTask : public Task, TaskFlags<TF_SRL_SYM> {
 
 /** A task to register a pool + Create a queue */
 struct CreateContainerTask : public Task, TaskFlags<TF_SRL_SYM> {
-  IN chi::string lib_name_;
-  IN chi::string pool_name_;
+  IN chi::ipc::string lib_name_;
+  IN chi::ipc::string pool_name_;
   IN DomainQuery affinity_;
   IN bool root_ = true;
   INOUT CreateContext ctx_;
@@ -213,7 +213,7 @@ struct CreateTask : public CreateContainerTask {
 
 /** A task to retrieve the ID of a task */
 struct GetPoolIdTask : public Task, TaskFlags<TF_SRL_SYM> {
-  IN chi::string pool_name_;
+  IN chi::ipc::string pool_name_;
   OUT PoolId id_;
 
   /** SHM default constructor */
@@ -474,7 +474,7 @@ struct GetDomainSizeTask : public Task, TaskFlags<TF_LOCAL> {
 
 /** A task to update the lane mapping */
 struct UpdateDomainTask : public Task, TaskFlags<TF_SRL_SYM> {
-  IN chi::vector<UpdateDomainInfo> ops_;
+  IN chi::ipc::vector<UpdateDomainInfo> ops_;
 
   /** SHM default constructor */
   UpdateDomainTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)

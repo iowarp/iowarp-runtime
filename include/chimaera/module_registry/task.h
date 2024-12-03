@@ -14,10 +14,12 @@
 #define CHI_TASK_DEFN_H
 
 #include "chimaera/chimaera_types.h"
-#include "chimaera/network/local_serialize.h"
 #include <csetjmp>
 
 namespace chi {
+
+template <typename DataT = hshm::charwrap>
+using LocalSerialize = hipc::LocalSerialize<DataT>;
 
 class Module;
 

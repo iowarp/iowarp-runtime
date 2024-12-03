@@ -18,7 +18,7 @@ CHI_NAMESPACE_INIT
  * */
 using chi::Admin::CreateContainerTask;
 struct CreateTask : public CreateContainerTask {
-  IN chi::string path_;
+  IN chi::ipc::string path_;
   IN size_t size_;
 
   /** SHM default constructor */
@@ -79,7 +79,7 @@ typedef chi::Admin::DestroyContainerTask DestroyTask;
 struct AllocateTask : public Task, TaskFlags<TF_SRL_SYM> {
   IN size_t size_;
   OUT size_t total_size_;
-  OUT chi::vector<Block> blocks_;
+  OUT chi::ipc::vector<Block> blocks_;
 
   /** SHM default constructor */
   HSHM_ALWAYS_INLINE explicit

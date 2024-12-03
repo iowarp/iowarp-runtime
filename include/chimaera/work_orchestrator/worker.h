@@ -25,10 +25,6 @@
 #include "affinity.h"
 #include "chimaera/network/rpc_thallium.h"
 
-#include "chimaera/util/key_queue.h"
-#include "chimaera/util/key_set.h"
-#include "chimaera/util/list_queue.h"
-
 static inline pid_t GetLinuxTid() {
   return syscall(SYS_gettid);
 }
@@ -171,8 +167,8 @@ struct PrivateTaskQueueEntry {
   PrivateTaskQueueEntry& operator=(PrivateTaskQueueEntry &&other) noexcept  = default;
 };
 
-typedef KeySet<PrivateTaskQueueEntry> PrivateTaskSet;
-typedef KeyQueue<PrivateTaskQueueEntry> PrivateTaskQueue;
+typedef key_set<PrivateTaskQueueEntry> PrivateTaskSet;
+typedef key_queue<PrivateTaskQueueEntry> PrivateTaskQueue;
 
 class PrivateTaskMultiQueue {
  public:
@@ -243,9 +239,10 @@ class PrivateTaskMultiQueue {
   void block(PrivateTaskQueueEntry &entry) {
     LPointer<Task> blocked_task = entry.task_;
     entry.block_count_ = (ssize_t)blocked_task->rctx_.block_count_;
-    blocked_.emplace(entry, blocked_task->rctx_.pending_key_);
-//    HILOG(kInfo, "(node {}) Blocking task {} with count {}",
-//          CHI_RPC->node_id_, (void*)blocked_task.ptr_, entry.block_count_);
+    blocked_.emplace(blocked_task->rctx_.pending_key_, entry);
+    //    HILOG(kInfo, "(node {}) Blocking task {} with count {}",
+    //          CHI_RPC->node_id_, (void*)blocked_task.ptr_,
+    //          entry.block_count_);
   }
 
   void signal_unblock(PrivateTaskMultiQueue &worker_pending,
@@ -297,9 +294,9 @@ class Worker {
   hshm::spsc_queue<std::vector<WorkEntry>> relinquish_queues_;
   size_t sleep_us_;     /**< Time the worker should sleep after a run */
   bitfield32_t flags_;  /**< Worker metadata flags */
-  std::unordered_map<hshm::charbuf, TaskNode>
+  std::unordered_map<hshm::charwrap, TaskNode>
       group_map_;        /**< Determine if a task can be executed right now */
-  hshm::charbuf group_;  /**< The current group */
+  hshm::charwrap group_;  /**< The current group */
   hshm::spsc_queue<void*> stacks_;  /**< Cache of stacks for tasks */
   int num_stacks_ = 256;  /**< Number of stacks */
   int stack_size_ = KILOBYTES(64);
