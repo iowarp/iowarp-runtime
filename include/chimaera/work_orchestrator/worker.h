@@ -236,14 +236,20 @@ class PrivateTaskMultiQueue {
     LPointer<Task> blocked_task = entry.task_;
     entry.block_count_ = (ssize_t)blocked_task->rctx_.block_count_;
     blocked_.emplace(blocked_task->rctx_.pending_key_, entry);
-    //    HILOG(kInfo, "(node {}) Blocking task {} with count {}",
-    //          CHI_RPC->node_id_, (void*)blocked_task.ptr_,
-    //          entry.block_count_);
+    // HILOG(kInfo, "(node {}) Blocking task {} (id={}, pool={}, method={}) with count {}",
+    //       CHI_RPC->node_id_, (void*)blocked_task.ptr_,
+    //       blocked_task.ptr_->task_node_,
+    //       blocked_task.ptr_->pool_, blocked_task.ptr_->method_,
+    //       entry.block_count_);
   }
 
   void signal_unblock(PrivateTaskMultiQueue &worker_pending,
                       LPointer<Task> &blocked_task) {
     worker_pending.GetCompletion().emplace(blocked_task);
+    // HILOG(kInfo, "(node {}) Unblocking task {} (id={}, pool={}, method={})",
+    //       CHI_RPC->node_id_, (void *)blocked_task.ptr_,
+    //       blocked_task.ptr_->task_node_, blocked_task.ptr_->pool_,
+    //       blocked_task.ptr_->method_);
   }
 
   bool unblock() {
