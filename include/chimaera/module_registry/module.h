@@ -116,7 +116,7 @@ class Module {
   LaneId lane_counter_ = 0;
   std::unordered_map<LaneGroupId, std::shared_ptr<LaneGroup>>
       lane_groups_;  /**< The lanes of a pool */
-  bitfield32_t mod_flags_;
+  bool is_created_ = false;
 
   /** Default constructor */
   Module() : id_(PoolId::GetNull()) {}

@@ -10,4 +10,6 @@ pkgs:
     pkg_name: chimaera_unit_tests
     TEST_CASE: TestIpc
     do_dbg: true
+    nprocs: 4
+    ppn: 4
     dbg_port: 4001

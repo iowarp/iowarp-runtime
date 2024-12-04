@@ -24,7 +24,7 @@ namespace chi::config {
 /** parse work orchestrator info from YAML config */
 void ServerConfig::ParseWorkOrchestrator(YAML::Node yaml_conf) {
   if (yaml_conf["cpus"]) {
-    ParseVector<u32>(yaml_conf["cpus"], wo_.cpus_);
+    ClearParseVector<u32>(yaml_conf["cpus"], wo_.cpus_);
   }
   if (yaml_conf["reinforce_cpu"]) {
     wo_.reinforce_cpu_ = yaml_conf["reinforce_cpu"].as<u32>();
@@ -104,7 +104,7 @@ void ServerConfig::ParseRpcInfo(YAML::Node yaml_conf) {
     rpc_.port_ = yaml_conf["port"].as<int>();
   }
   if (yaml_conf["cpus"]) {
-    ParseVector<u32>(yaml_conf["cpus"], rpc_.cpus_);
+    ClearParseVector<u32>(yaml_conf["cpus"], rpc_.cpus_);
     rpc_.num_threads_ = rpc_.cpus_.size();
   }
 }

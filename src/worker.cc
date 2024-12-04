@@ -281,7 +281,7 @@ TaskRouteMode Worker::Reroute(const PoolId &scope,
                                          task->rctx_.route_container_);
     Container *exec = CHI_MOD_REGISTRY->GetContainer(
         task->pool_, dom_query.sel_.id_);
-    if (!exec) {
+    if (!exec || !exec->is_created_) {
       // NOTE(llogan): exec may be null if there is an update happening
       // For now, simply push back into the queue. This may technically
       // break strong consistency since tasks will be handled out-of order.

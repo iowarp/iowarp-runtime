@@ -57,9 +57,10 @@ bool ModuleRegistry::CreateContainer(const char *lib_name,
 
     // Construct the state
     task->ctx_.id_ = pool_id;
-    lock.Unlock();
+    lock.Unlock();  // May spawn subtask that needs the lock
     exec->Run(TaskMethod::kCreate, task, task->rctx_);
     lock.Lock(0);
+    exec->is_created_ = true;
     task->UnsetModuleComplete();
   }
   HILOG(kInfo, "(node {})  Created an instance of {} with pool name {} "

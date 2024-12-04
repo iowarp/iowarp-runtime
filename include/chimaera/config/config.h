@@ -70,6 +70,15 @@ class BaseConfig {
     }
   }
 
+  /** clear + parse \a list_node vector from configuration file in YAML */
+  template <typename T, typename VEC_TYPE = std::vector<T>>
+  static void ClearParseVector(YAML::Node list_node, VEC_TYPE &list) {
+    list.clear();
+    for (auto val_node : list_node) {
+      list.emplace_back(val_node.as<T>());
+    }
+  }
+
  private:
   virtual void ParseYAML(YAML::Node &yaml_conf) = 0;
 };
