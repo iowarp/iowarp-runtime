@@ -220,7 +220,6 @@ class ChimaeraRun(Service):
         # Begin making chimaera_run config
         chimaera_server = {
             'work_orchestrator': {
-                'cpus': self.config['worker_cpus'],
                 'reinforce_cpu': self.config['reinforce_cpu'],
                 'monitor_window': self.config['monitor_window'],
                 'monitor_gap': self.config['monitor_gap']
@@ -235,9 +234,10 @@ class ChimaeraRun(Service):
                 'shm_size': self.config['task_shm'],
                 'data_shm_size': self.config['data_shm'],
                 'rdata_shm_size': self.config['rdata_shm'],
-            },
-            'rpc': {}
+            }
         }
+        if self.config['worker_cpus'] is not None:
+            chimaera_server['work_orchestrator']['cpus'] = self.config['worker_cpus']
         if len(self.config['monitor_out']):
             self.env['CHIMAERA_MONITOR_OUT'] = os.path.expandvars(self.config['monitor_out'])
             os.makedirs(self.env['CHIMAERA_MONITOR_OUT'], exist_ok=True)
@@ -279,8 +279,9 @@ class ChimaeraRun(Service):
             'protocol': protocol,
             'domain': domain,
             'port': self.config['port'],
-            'cpus': self.config['rpc_cpus']
         }
+        if self.config['rpc_cpus'] is not None:
+            chimaera_server['rpc']['cpus'] = self.config['rpc_cpus']
         if self.hostfile.path is None:
             chimaera_server['rpc']['host_names'] = self.hostfile.hosts
 

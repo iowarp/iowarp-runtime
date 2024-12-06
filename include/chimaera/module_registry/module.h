@@ -153,7 +153,7 @@ class Module {
 
   /** Get lane */
   Lane* GetLane(const QueueId &lane_id) {
-    return GetLaneByHash(lane_id.node_id_, lane_id.unique_);
+    return GetLaneByHash(lane_id.prio_, lane_id.unique_);
   }
 
   /** Plug all lanes */
