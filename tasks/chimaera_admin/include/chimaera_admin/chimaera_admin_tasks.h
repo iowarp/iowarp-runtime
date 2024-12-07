@@ -120,32 +120,40 @@ struct UpgradeModuleTask : public Task, TaskFlags<TF_SRL_SYM> {
 };
 
 /** A task to register a pool + Create a queue */
-struct CreateContainerTask : public Task, TaskFlags<TF_SRL_SYM> {
+struct CreateTaskParams {
+  CLS_CONST char *lib_name_ = "no_create";
+
+  CreateTaskParams() = default;
+
+  CreateTaskParams(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) {}
+
+  template<typename Ar>
+  void serialize(Ar &ar) {}
+};
+template <typename TaskParamsT>
+struct CreateContainerBaseTask : public Task, TaskFlags<TF_SRL_SYM> {
   IN chi::ipc::string lib_name_;
   IN chi::ipc::string pool_name_;
   IN DomainQuery affinity_;
   IN bool root_ = true;
+  IN chi::ipc::string params_;
   INOUT CreateContext ctx_;
 
   /** SHM default constructor */
-  HSHM_ALWAYS_INLINE explicit
-  CreateContainerTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
-      : Task(alloc), lib_name_(alloc), pool_name_(alloc) {
-  }
+  HSHM_ALWAYS_INLINE explicit CreateContainerBaseTask(
+      const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
+      : Task(alloc), lib_name_(alloc), pool_name_(alloc), params_(alloc) {}
 
   /** Emplace constructor */
-  HSHM_ALWAYS_INLINE explicit
-  CreateContainerTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
-                      const TaskNode &task_node,
-                      const PoolId &pool_id,
-                      const DomainQuery &dom_query,
-                      const DomainQuery &affinity,
-                      const std::string &pool_name,
-                      const std::string &lib_name,
-                      const CreateContext &ctx)
+  template <typename... Args>
+  HSHM_ALWAYS_INLINE explicit CreateContainerBaseTask(
+      const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, const TaskNode &task_node,
+      const PoolId &pool_id, const DomainQuery &dom_query,
+      const DomainQuery &affinity, const std::string &pool_name,
+      const CreateContext &ctx, Args &&...args)
       : Task(alloc),
         pool_name_(alloc, pool_name),
-        lib_name_(alloc, lib_name) {
+        lib_name_(alloc, TaskParamsT::lib_name_) {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrio::kLowLatency;
@@ -157,50 +165,48 @@ struct CreateContainerTask : public Task, TaskFlags<TF_SRL_SYM> {
     // Initialize
     affinity_ = affinity;
     ctx_ = ctx;
+
+    std::stringstream ss;
+    cereal::BinaryOutputArchive ar(ss);
+    ar(TaskParamsT{alloc, std::forward<Args>(args)...});
+    params_ = ss.str();
   }
 
   /** Destructor */
-  ~CreateContainerTask() {}
+  ~CreateContainerBaseTask() {}
 
   /** Duplicate message */
-  void CopyStart(const CreateContainerTask &other, bool deep) {
-    // Should never be called...
-  }
-
-  /** (De)serialize message call */
-  template<typename Ar>
-  void SerializeStart(Ar &ar) {
-    BaseSerializeStart(ar);
-  }
-
-  /** (De)serialize message return */
-  template<typename Ar>
-  void SerializeEnd(Ar &ar) {
-    BaseSerializeEnd(ar);
-  }
-
-  /** Duplicate message */
-  template<typename CreateTaskT = CreateContainerTask>
-  void BaseCopyStart(const CreateTaskT &other, bool deep) {
+  void CopyStart(const CreateContainerBaseTask &other, bool deep) {
     lib_name_ = other.lib_name_;
     pool_name_ = other.pool_name_;
     ctx_ = other.ctx_;
     root_ = other.root_;
     affinity_ = other.affinity_;
+    params_ = other.params_;
   }
 
   /** (De)serialize message call */
   template<typename Ar>
-  void BaseSerializeStart(Ar &ar) {
-    ar(lib_name_, pool_name_, ctx_, root_, affinity_);
+  void SerializeStart(Ar &ar) {
+    ar(lib_name_, pool_name_, ctx_, root_, affinity_, params_);
   }
 
   /** (De)serialize message return */
   template<typename Ar>
-  void BaseSerializeEnd(Ar &ar) {
+  void SerializeEnd(Ar &ar) {
     ar(ctx_.id_);
   }
+  
+  /** Get the parameters */
+  TaskParamsT GetParams() {
+    std::stringstream ss(params_.str());
+    cereal::BinaryInputArchive ar(ss);
+    TaskParamsT params;
+    ar(params);
+    return params;
+  }
 };
+typedef CreateContainerBaseTask<CreateTaskParams> CreateContainerTask;
 
 /** A task to register a pool + Create a queue */
 struct CreateTask : public CreateContainerTask {

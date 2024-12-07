@@ -15,13 +15,6 @@
 #include "remote_queue/remote_queue.h"
 #include "chimaera/network/serialize.h"
 
-namespace thallium {
-
-/** Serialize I/O type enum */
-// SERIALIZE_ENUM(chi::IoType);
-
-}  // namespace thallium
-
 namespace chi::remote_queue {
 
 struct TaskQueueEntry {
@@ -105,19 +98,12 @@ class Server : public Module {
     // Get the container
     Container *exec = CHI_MOD_REGISTRY->GetStaticContainer(
         orig_task->pool_);
-    Container *copy_exec = exec;
-    if (orig_task->pool_ == CHI_ADMIN->id_ &&
-        orig_task->method_ == Admin::Method::kCreateContainer) {
-      CreateContainerTask *orig_task2 = (CreateContainerTask*)orig_task;
-      copy_exec = CHI_MOD_REGISTRY->GetStaticContainer(
-          orig_task2->lib_name_.str());
-    }
 
     // Replicate task
     bool deep = dom_queries.size() > 1;
     for (ResolvedDomainQuery &res_query : dom_queries) {
       LPointer<Task> rep_task;
-      copy_exec->NewCopyStart(orig_task->method_, orig_task, rep_task, deep);
+      exec->NewCopyStart(orig_task->method_, orig_task, rep_task, deep);
       if (res_query.dom_.flags_.Any(DomainQuery::kLocal)) {
         exec->Monitor(MonitorMode::kReplicaStart, orig_task->method_,
                       orig_task, rctx);
@@ -138,10 +124,7 @@ class Server : public Module {
                   orig_task, rctx);
     // Free
     for (LPointer<Task> &replica : replicas) {
-//      HILOG(kInfo, "[TASK_CHECK] Completing rep_task {} on node {}",
-//            replica.ptr_, CHI_RPC->node_id_);
-      CHI_CLIENT->DelTask(HSHM_DEFAULT_MEM_CTX,
-                          copy_exec, replica.ptr_);
+      CHI_CLIENT->DelTask(HSHM_DEFAULT_MEM_CTX, exec, replica.ptr_);
     }
   }
 
@@ -203,12 +186,6 @@ class Server : public Module {
         Task *rep_task = entry.task_;
         Container *exec = CHI_MOD_REGISTRY->GetStaticContainer(
             rep_task->pool_);
-        if (rep_task->pool_ == CHI_ADMIN->id_ &&
-            rep_task->method_ == Admin::Method::kCreateContainer) {
-          CreateContainerTask *rep_task2 = (CreateContainerTask *)rep_task;
-          exec =
-              CHI_MOD_REGISTRY->GetStaticContainer(rep_task2->lib_name_.str());
-        }
         if (exec == nullptr) {
           HELOG(kFatal, "(node {}) Could not find the pool {}",
                 CHI_CLIENT->node_id_, rep_task->pool_);
@@ -340,13 +317,6 @@ class Server : public Module {
     rep_task->rctx_.ret_node_ = xfer.ret_node_;
     if (rep_task->rctx_.ret_task_addr_ == (size_t)rep_task.ptr_) {
       HELOG(kFatal, "This shouldn't happen ever");
-    }
-
-    if (rep_task->pool_ == CHI_ADMIN->id_ &&
-        rep_task->method_ == Admin::Method::kCreateContainer) {
-      HILOG(kInfo, "Pool name - {}, lib name - {}",
-            ((CreateContainerTask *)rep_task.ptr_)->pool_name_.str(),
-            ((CreateContainerTask *)rep_task.ptr_)->lib_name_.str());
     }
 
     // Unset task flags

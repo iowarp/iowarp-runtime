@@ -241,9 +241,8 @@ class Server : public Module {
     }
     if (task->root_) {
       // Broadcast the state creation to all nodes
-      Container *exec = CHI_MOD_REGISTRY->GetStaticContainer(task->ctx_.id_);
       LPointer<Task> bcast;
-      exec->NewCopyStart(Method::kCreate, task, bcast, true);
+      NewCopyStart(Method::kCreate, task, bcast, true);
       auto *bcast_ptr = reinterpret_cast<CreateContainerTask *>(
           bcast.ptr_);
       bcast_ptr->task_node_ += 1;
@@ -258,8 +257,8 @@ class Server : public Module {
       bcast->YieldInit(task);
       queue->Emplace(bcast->prio_, bcast->GetContainerId(), bcast.shm_);
       task->Wait(bcast);
-      exec->Del(HSHM_DEFAULT_MEM_CTX,
-                Method::kCreate, bcast.ptr_);
+      Del(HSHM_DEFAULT_MEM_CTX,
+          Method::kCreateContainer, bcast.ptr_);
     }
     HILOG(kInfo, "(node {}) Created containers for task {}",
           CHI_RPC->node_id_, task->task_node_);

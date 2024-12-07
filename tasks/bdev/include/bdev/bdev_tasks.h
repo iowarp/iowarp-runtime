@@ -16,59 +16,27 @@ CHI_NAMESPACE_INIT
 /**
  * A task to create bdev
  * */
-using chi::Admin::CreateContainerTask;
-struct CreateTask : public CreateContainerTask {
-  IN chi::ipc::string path_;
+struct CreateTaskParams {
+  CLS_CONST char *lib_name_ = "bdev";
+  IN std::string path_;
   IN size_t size_;
 
-  /** SHM default constructor */
-  HSHM_ALWAYS_INLINE explicit
-  CreateTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
-      : CreateContainerTask(alloc), path_(alloc) {}
+  CreateTaskParams() = default;
 
-  /** Emplace constructor */
-  HSHM_ALWAYS_INLINE explicit
-  CreateTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
-             const TaskNode &task_node,
-             const PoolId &pool_id,
-             const DomainQuery &dom_query,
-             const DomainQuery &affinity,
-             const std::string &pool_name,
-             const CreateContext &ctx,
-             const std::string &path,
-             size_t max_size)
-      : CreateContainerTask(alloc, task_node, pool_id, dom_query, affinity,
-                            pool_name, "bdev", ctx), path_(alloc, path) {
-    // Custom params
-    size_ = max_size;
+  CreateTaskParams(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) {}
+
+  CreateTaskParams(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
+                   const std::string &path,
+                   size_t size) : path_(path) {
+    size_ = size;
   }
 
-  HSHM_ALWAYS_INLINE
-  ~CreateTask() {
-    // Custom params
-  }
-
-  /** Duplicate message */
-  template<typename CreateTaskT = CreateContainerTask>
-  void CopyStart(const CreateTaskT &other, bool deep) {
-    BaseCopyStart(other, deep);
-    path_ = other.path_;
-    size_ = other.size_;
-  }
-
-  /** (De)serialize message call */
   template<typename Ar>
-  void SerializeStart(Ar &ar) {
-    BaseSerializeStart(ar);
+  void serialize(Ar &ar) {
     ar(path_, size_);
   }
-
-  /** (De)serialize message return */
-  template<typename Ar>
-  void SerializeEnd(Ar &ar) {
-    BaseSerializeEnd(ar);
-  }
 };
+typedef chi::Admin::CreateContainerBaseTask<CreateTaskParams> CreateTask;
 
 /** A task to destroy bdev */
 typedef chi::Admin::DestroyContainerTask DestroyTask;

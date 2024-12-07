@@ -168,13 +168,13 @@ typedef key_queue<PrivateTaskQueueEntry> PrivateTaskQueue;
 
 class PrivateTaskMultiQueue {
  public:
-  inline static const int ROOT = 0;
-  inline static const int CONSTRUCT = 1;
-  inline static const int LOW_LAT = 2;
-  inline static const int HIGH_LAT = 3;
-  inline static const int LONG_RUNNING = 4;
-  inline static const int FLUSH = 5;
-  inline static const int NUM_QUEUES = 6;
+  CLS_CONST int ROOT = 0;
+  CLS_CONST int CONSTRUCT = 1;
+  CLS_CONST int LOW_LAT = 2;
+  CLS_CONST int HIGH_LAT = 3;
+  CLS_CONST int LONG_RUNNING = 4;
+  CLS_CONST int FLUSH = 5;
+  CLS_CONST int NUM_QUEUES = 6;
 
  public:
   size_t root_count_;

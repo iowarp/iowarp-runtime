@@ -84,6 +84,7 @@ struct TaskSegment {
   u32 method_;
   size_t task_addr_;
   DomainQuery dom_;
+  chi::string lib_name_;
 
   TaskSegment() = default;
 

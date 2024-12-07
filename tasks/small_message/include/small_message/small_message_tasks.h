@@ -15,43 +15,17 @@ CHI_NAMESPACE_INIT
 /**
  * A task to create small_message
  * */
-using chi::Admin::CreateContainerTask;
-struct CreateTask : public CreateContainerTask {
-  /** SHM default constructor */
-  HSHM_ALWAYS_INLINE explicit
-  CreateTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) : CreateContainerTask(alloc) {}
+struct CreateTaskParams {
+  CLS_CONST char *lib_name_ = "small_message";
 
-  /** Emplace constructor */
-  HSHM_ALWAYS_INLINE explicit
-  CreateTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
-             const TaskNode &task_node,
-             const PoolId &pool_id,
-             const DomainQuery &dom_query,
-             const DomainQuery &affinity,
-             const std::string &pool_name,
-             const CreateContext &ctx)
-      : CreateContainerTask(alloc, task_node, pool_id, dom_query, affinity,
-                            pool_name, "small_message", ctx) {
-  }
+  CreateTaskParams() = default;
 
-  /** Duplicate message */
-  template<typename CreateTaskT = CreateContainerTask>
-  void CopyStart(const CreateTaskT &other, bool deep) {
-    BaseCopyStart(other, deep);
-  }
+  CreateTaskParams(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) {}
 
-  /** (De)serialize message call */
-  template<typename Ar>
-  void SerializeStart(Ar &ar) {
-    BaseSerializeStart(ar);
-  }
-
-  /** (De)serialize message return */
-  template<typename Ar>
-  void SerializeEnd(Ar &ar) {
-    BaseSerializeEnd(ar);
-  }
+  template <typename Ar>
+  void serialize(Ar &ar) {}
 };
+typedef chi::Admin::CreateContainerBaseTask<CreateTaskParams> CreateTask;
 
 /** A task to destroy small_message */
 typedef chi::Admin::DestroyContainerTask DestroyTask;

@@ -9,7 +9,7 @@ namespace chi {
 bool ModuleRegistry::CreateContainer(const char *lib_name,
                                      const char *pool_name,
                                      const PoolId &pool_id,
-                                     Admin::CreateContainerTask *task,
+                                     Admin::CreateContainerBaseTask<Admin::CreateTaskParams> *task,
                                      const std::vector<SubDomainId> &containers) {
   ScopedMutex lock(lock_, 0);
   // Ensure pool_id is not NULL

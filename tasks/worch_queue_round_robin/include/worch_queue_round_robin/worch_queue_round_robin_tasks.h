@@ -18,47 +18,17 @@ typedef SchedulerMethod Method;
 /**
  * A task to create worch_queue_round_robin
  * */
-using chi::Admin::CreateContainerTask;
-struct CreateTask : public CreateContainerTask {
-  /** SHM default constructor */
-  HSHM_ALWAYS_INLINE explicit
-  CreateTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) : CreateContainerTask(alloc) {}
+struct CreateTaskParams {
+  CLS_CONST char *lib_name_ = "worch_queue_round_robin";
 
-  /** Emplace constructor */
-  HSHM_ALWAYS_INLINE
-  CreateTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
-             const TaskNode &task_node,
-             const PoolId &pool_id,
-             const DomainQuery &dom_query,
-             const DomainQuery &affinity,
-             const std::string &pool_name,
-             const CreateContext &ctx)
-      : CreateContainerTask(alloc, task_node, pool_id, dom_query, affinity,
-                            pool_name, "worch_queue_round_robin", ctx) {
-  }
+  CreateTaskParams() = default;
 
-  /** Destructor */
-  HSHM_ALWAYS_INLINE
-  ~CreateTask() {}
+  CreateTaskParams(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) {}
 
-  /** Duplicate message */
-  template<typename CreateTaskT = CreateContainerTask>
-  void CopyStart(const CreateTaskT &other, bool deep) {
-    BaseCopyStart(other, deep);
-  }
-
-  /** (De)serialize message call */
-  template<typename Ar>
-  void SerializeStart(Ar &ar) {
-    BaseSerializeStart(ar);
-  }
-
-  /** (De)serialize message return */
-  template<typename Ar>
-  void SerializeEnd(Ar &ar) {
-    BaseSerializeEnd(ar);
-  }
+  template <typename Ar>
+  void serialize(Ar &ar) {}
 };
+typedef chi::Admin::CreateContainerBaseTask<CreateTaskParams> CreateTask;
 
 /** A task to destroy worch_queue_round_robin */
 typedef chi::Admin::DestroyContainerTask DestroyTask;

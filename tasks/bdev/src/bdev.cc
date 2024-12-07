@@ -35,8 +35,9 @@ class Server : public Module {
 
   /** Construct bdev */
   void Create(CreateTask *task, RunContext &rctx) {
-    std::string url = task->path_.str();
-    size_t dev_size = task->size_;
+    CreateTaskParams params = task->GetParams();
+    std::string url = params.path_;
+    size_t dev_size = params.size_;
     url_.Parse(url);
     alloc_.Init(1, dev_size);
     CreateLaneGroup(0, 1, QUEUE_LOW_LATENCY);

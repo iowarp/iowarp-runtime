@@ -29,7 +29,9 @@ namespace chi {
 
 /** Forward declaration of CreateContainerTask */
 namespace Admin {
-class CreateContainerTask;
+class CreateTaskParams;
+template <typename TaskParamsT>
+class CreateContainerBaseTask;
 }  // namespace Admin
 
 /** All information needed to create a trait */
@@ -291,7 +293,7 @@ class ModuleRegistry {
   bool CreateContainer(const char *lib_name,
                        const char *pool_name,
                        const PoolId &pool_id,
-                       Admin::CreateContainerTask *task,
+                       Admin::CreateContainerBaseTask<Admin::CreateTaskParams> *task,
                        const std::vector<SubDomainId> &containers);
 
   /** Replace a container */
