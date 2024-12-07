@@ -131,6 +131,14 @@ class Server : public Module {
 //      HILOG(kInfo, "[TASK_CHECK] Replicated task {} ({} -> {})",
 //            rep_task.ptr_, CHI_RPC->node_id_, res_query.node_);
     }
+
+    if (orig_task->pool_ == CHI_ADMIN->id_ &&
+        orig_task->method_ == Admin::Method::kCreateContainer) {
+      HILOG(kInfo, "Pool name {}, lib name {}",
+            ((CreateContainerTask *)orig_task)->pool_name_.str(),
+            ((CreateContainerTask *)orig_task)->lib_name_.str());
+    }
+
     // Wait
     submit_task->Wait(replicas, TASK_MODULE_COMPLETE);
     // Combine
