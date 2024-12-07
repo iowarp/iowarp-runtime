@@ -185,8 +185,6 @@ struct CreateContainerTask : public Task, TaskFlags<TF_SRL_SYM> {
     ctx_ = other.ctx_;
     root_ = other.root_;
     affinity_ = other.affinity_;
-   HILOG(kInfo, "Copying CreateContainerTask: {} {} {}",
-         lib_name_.str(), pool_name_.str(), ctx_.id_)
   }
 
   /** (De)serialize message call */

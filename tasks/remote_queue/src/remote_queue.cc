@@ -128,15 +128,13 @@ class Server : public Module {
       submit[node_hash % submit.size()].emplace(
           (TaskQueueEntry) {res_query, rep_task.ptr_});
       replicas.emplace_back(rep_task);
-//      HILOG(kInfo, "[TASK_CHECK] Replicated task {} ({} -> {})",
-//            rep_task.ptr_, CHI_RPC->node_id_, res_query.node_);
     }
 
     if (orig_task->pool_ == CHI_ADMIN->id_ &&
         orig_task->method_ == Admin::Method::kCreateContainer) {
       HILOG(kInfo, "Pool name - {}, lib name - {}",
-            ((CreateContainerTask *)orig_task)->pool_name_.str(),
-            ((CreateContainerTask *)orig_task)->lib_name_.str());
+            ((CreateContainerTask *)replicas[0].ptr_)->pool_name_.str(),
+            ((CreateContainerTask *)replicas[0].ptr_)->lib_name_.str());
     }
 
     // Wait
