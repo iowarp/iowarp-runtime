@@ -170,11 +170,13 @@ struct CreateContainerTask : public Task, TaskFlags<TF_SRL_SYM> {
   /** (De)serialize message call */
   template<typename Ar>
   void SerializeStart(Ar &ar) {
+    BaseSerializeStart(ar);
   }
 
   /** (De)serialize message return */
   template<typename Ar>
   void SerializeEnd(Ar &ar) {
+    BaseSerializeEnd(ar);
   }
 
   /** Duplicate message */
