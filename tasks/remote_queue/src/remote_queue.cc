@@ -130,13 +130,6 @@ class Server : public Module {
       replicas.emplace_back(rep_task);
     }
 
-    if (orig_task->pool_ == CHI_ADMIN->id_ &&
-        orig_task->method_ == Admin::Method::kCreateContainer) {
-      HILOG(kInfo, "Pool name - {}, lib name - {}",
-            ((CreateContainerTask *)replicas[0].ptr_)->pool_name_.str(),
-            ((CreateContainerTask *)replicas[0].ptr_)->lib_name_.str());
-    }
-
     // Wait
     submit_task->Wait(replicas, TASK_MODULE_COMPLETE);
     // Combine
@@ -341,6 +334,13 @@ class Server : public Module {
     rep_task->rctx_.ret_node_ = xfer.ret_node_;
     if (rep_task->rctx_.ret_task_addr_ == (size_t)rep_task.ptr_) {
       HELOG(kFatal, "This shouldn't happen ever");
+    }
+
+    if (rep_task->pool_ == CHI_ADMIN->id_ &&
+        rep_task->method_ == Admin::Method::kCreateContainer) {
+      HILOG(kInfo, "Pool name - {}, lib name - {}",
+            ((CreateContainerTask *)rep_task.ptr_)->pool_name_.str(),
+            ((CreateContainerTask *)rep_task.ptr_)->lib_name_.str());
     }
 
     // Unset task flags
