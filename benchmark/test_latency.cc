@@ -28,6 +28,34 @@ void Summarize(size_t nprocs,
   }
 }
 
+void AllocFreeIpcTest(int rank, int nprocs, int depth, size_t ops) {
+  chi::small_message::Client client;
+  CHI_ADMIN->RegisterModule(HSHM_DEFAULT_MEM_CTX,
+                            chi::DomainQuery::GetGlobalBcast(),
+                            "small_message");
+  client.Create(
+      HSHM_DEFAULT_MEM_CTX,
+      chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
+      chi::DomainQuery::GetGlobalBcast(), "ipc_test");
+  MPI_Barrier(MPI_COMM_WORLD);
+  hshm::MpiTimer t(MPI_COMM_WORLD);
+
+  HILOG(kInfo, "OPS: {}", ops)
+  t.Resume();
+  for (size_t i = 0; i < ops; ++i) {
+    int container_id = i;
+    auto x = client.AsyncMdAlloc(
+        HSHM_DEFAULT_MEM_CTX, TaskNode{},
+        chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers,
+                                        container_id),
+        depth, 0);
+    CHI_CLIENT->DelTask(HSHM_DEFAULT_MEM_CTX, x);
+  }
+  t.Pause();
+  t.Collect();
+  Summarize(nprocs, t.GetUsec(), ops, depth);
+}
+
 void SyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
   chi::small_message::Client client;
   CHI_ADMIN->RegisterModule(

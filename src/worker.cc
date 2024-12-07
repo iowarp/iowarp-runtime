@@ -140,10 +140,12 @@ bool Worker::AnyFlushWorkDone(WorkOrchestrator *orch) {
 
 /** Worker loop iteration */
 void Worker::Loop() {
-  HILOG(kDebug, "Entered worker {}", id_);
+  unsigned int cpu, numa;
   CHI_WORK_ORCHESTRATOR->SetThreadLocalBlock(this);
   pid_ = GetLinuxTid();
   SetCpuAffinity(affinity_);
+  getcpu(&cpu, &numa);
+  HILOG(kInfo, "Entered worker {} on CPU {}", id_, cpu);
   if (IsContinuousPolling()) {
     MakeDedicated();
   }
@@ -321,6 +323,8 @@ HSHM_ALWAYS_INLINE
 size_t Worker::PollPrivateQueue(PrivateTaskQueue &priv_queue, bool flushing) {
   size_t work = 0;
   size_t size = priv_queue.size_;
+  hshm::Timer timer;
+  timer.Resume();
   for (size_t i = 0; i < size; ++i) {
     PrivateTaskQueueEntry entry;
     priv_queue.pop(entry);
@@ -336,6 +340,7 @@ size_t Worker::PollPrivateQueue(PrivateTaskQueue &priv_queue, bool flushing) {
     }
     ++work;
   }
+  timer.Pause();
   ProcessCompletions();
   return work;
 }

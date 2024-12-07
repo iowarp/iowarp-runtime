@@ -332,6 +332,7 @@ class Worker {
 
   /** Check if worker should be sampling */
   bool ShouldSample() {
+    return false;
     sample_time_.Wrap(cur_time_);
     if (!do_sampling_) {
       size_t window_time = sample_time_.GetNsecFromStart();
