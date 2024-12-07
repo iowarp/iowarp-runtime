@@ -250,6 +250,8 @@ class Server : public Module {
       bcast_ptr->dom_query_ = bcast_ptr->affinity_;
       bcast_ptr->method_ = Method::kCreateContainer;
       bcast_ptr->pool_ = CHI_ADMIN->id_;
+      HILOG(kInfo, "(node {}) Broadcasting container creation (task_node={}): pool {}",
+            CHI_RPC->node_id_, task->task_node_, bcast_ptr->pool_name_.str());
       ingress::MultiQueue *queue =
           CHI_QM_CLIENT->GetQueue(CHI_QM_CLIENT->admin_queue_id_);
       bcast->YieldInit(task);
