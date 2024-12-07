@@ -134,7 +134,7 @@ class Server : public Module {
 
     if (orig_task->pool_ == CHI_ADMIN->id_ &&
         orig_task->method_ == Admin::Method::kCreateContainer) {
-      HILOG(kInfo, "Pool name {}, lib name {}",
+      HILOG(kInfo, "Pool name - {}, lib name - {}",
             ((CreateContainerTask *)orig_task)->pool_name_.str(),
             ((CreateContainerTask *)orig_task)->lib_name_.str());
     }
