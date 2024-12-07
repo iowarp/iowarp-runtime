@@ -201,7 +201,19 @@ class Server : public Module {
           entries.emplace(entry.res_domain_.node_, BinaryOutputArchive<true>());
         }
         Task *rep_task = entry.task_;
-        Container *exec = GetSrlContainer((Task *)rep_task);
+        Container *exec = CHI_MOD_REGISTRY->GetStaticContainer(
+            rep_task->pool_);
+        if (rep_task->pool_ == CHI_ADMIN->id_ &&
+            rep_task->method_ == Admin::Method::kCreateContainer) {
+          CreateContainerTask *rep_task2 = (CreateContainerTask *)rep_task;
+          exec =
+              CHI_MOD_REGISTRY->GetStaticContainer(rep_task2->lib_name_.str());
+        }
+        if (exec == nullptr) {
+          HELOG(kFatal, "(node {}) Could not find the pool {}",
+                CHI_CLIENT->node_id_, rep_task->pool_);
+          return;
+        }
         rep_task->dom_query_ = entry.res_domain_.dom_;
         BinaryOutputArchive<true> &ar = entries[entry.res_domain_.node_];
         exec->SaveStart(rep_task->method_, ar, rep_task);
@@ -288,22 +300,6 @@ class Server : public Module {
 
 
  private:
-  /** Get container for serializing ops */
-  Container* GetSrlContainer(Task *task) {
-    Container *exec = CHI_MOD_REGISTRY->GetStaticContainer(task->pool_);
-    if (task->pool_ == CHI_ADMIN->id_ &&
-        task->method_ == Admin::Method::kCreateContainer) {
-      exec = CHI_MOD_REGISTRY->GetStaticContainer(
-        ((CreateContainerTask*)task)->lib_name_.str());
-    }
-    if (exec == nullptr) {
-      HELOG(kFatal, "(node {}) Could not find the pool {}",
-            CHI_CLIENT->node_id_, task->pool_);
-      return nullptr;
-    }
-    return exec;
-  }
-
   /** The RPC for processing a message with data */
   void RpcTaskSubmit(const tl::request &req,
                      tl::bulk &bulk,
@@ -332,8 +328,12 @@ class Server : public Module {
     // Deserialize task
     PoolId pool_id = xfer.tasks_[task_off].pool_;
     u32 method = xfer.tasks_[task_off].method_;
-    Container *exec = GetSrlContainer(
-      (Task*)xfer.tasks_[task_off].task_addr_);
+    Container *exec = CHI_MOD_REGISTRY->GetStaticContainer(pool_id);
+    if (exec == nullptr) {
+      HELOG(kFatal, "(node {}) Could not find the pool {}",
+            CHI_CLIENT->node_id_, pool_id);
+      return;
+    }
     TaskPointer rep_task = exec->LoadStart(method, ar);
     rep_task->dom_query_ = xfer.tasks_[task_off].dom_;
     rep_task->rctx_.ret_task_addr_ = xfer.tasks_[task_off].task_addr_;
