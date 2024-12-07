@@ -37,6 +37,7 @@ struct CreateTask : public CreateContainerTask {
   /** Duplicate message */
   template<typename CreateTaskT = CreateContainerTask>
   void CopyStart(const CreateTaskT &other, bool deep) {
+    HILOG(kInfo, "Beginning task copy");
     BaseCopyStart(other, deep);
   }
 
