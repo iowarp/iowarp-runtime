@@ -196,8 +196,9 @@ class Server : public Module {
       task->ctx_.id_ = CHI_MOD_REGISTRY->GetOrCreatePoolId(pool_name);
     }
     // Create the pool
-    HILOG(kInfo, "(node {}) Creating pool {} with id {} (task_node={})",
-          CHI_CLIENT->node_id_, pool_name, task->ctx_.id_, task->task_node_);
+    HILOG(kInfo, "(node {}) Creating pool {} ({}) with id {} (task_node={})",
+          CHI_CLIENT->node_id_, pool_name, pool_name.size(),
+           task->ctx_.id_, task->task_node_);
     if (task->ctx_.id_.IsNull()) {
       HELOG(kError, "(node {}) The pool {} with id {} is NULL.",
             CHI_CLIENT->node_id_, pool_name, task->ctx_.id_);
