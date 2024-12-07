@@ -378,29 +378,29 @@ bool Worker::RunTask(PrivateTaskQueue &priv_queue,
     }
     return true;
   }
-  // Make this task current
-  cur_task_ = task.ptr_;
-  cur_lane_ = exec->GetLane(task->rctx_.route_lane_);
-  // Check if the task is apart of a plugged lane
-  if (cur_lane_->IsPlugged()) {
-    if (cur_lane_->worker_id_ != id_) {
-      ingress::MultiQueue *queue = CHI_CLIENT->GetQueue(
-          CHI_QM_RUNTIME->admin_queue_id_);
-      ingress::LaneGroup &ig_lane_group =
-          queue->GetGroup(cur_lane_->ingress_id_.node_id_);
-      ingress::Lane &new_ig_lane = ig_lane_group.GetLane(
-          cur_lane_->ingress_id_.unique_);
-      new_ig_lane.emplace(task.shm_);
-      return false;
-    }
-    if (!cur_lane_->IsActive(task->task_node_.root_)) {
-      // TODO(llogan): insert into plug list.
-      return true;
-    }
-  }
-  // Execute the task based on its properties
-  rctx.exec_ = exec;
   if (!task->IsModuleComplete()) {
+    // Make this task current
+    cur_task_ = task.ptr_;
+    cur_lane_ = exec->GetLane(task->rctx_.route_lane_);
+    // Check if the task is apart of a plugged lane
+    if (cur_lane_->IsPlugged()) {
+      if (cur_lane_->worker_id_ != id_) {
+        ingress::MultiQueue *queue =
+            CHI_CLIENT->GetQueue(CHI_QM_RUNTIME->admin_queue_id_);
+        ingress::LaneGroup &ig_lane_group =
+            queue->GetGroup(cur_lane_->ingress_id_.node_id_);
+        ingress::Lane &new_ig_lane =
+            ig_lane_group.GetLane(cur_lane_->ingress_id_.unique_);
+        new_ig_lane.emplace(task.shm_);
+        return false;
+      }
+      if (!cur_lane_->IsActive(task->task_node_.root_)) {
+        // TODO(llogan): insert into plug list.
+        return true;
+      }
+    }
+    // Execute the task based on its properties
+    rctx.exec_ = exec;
     ExecTask(priv_queue, entry, task.ptr_, rctx, exec, props);
   }
   // Cleanup allocations

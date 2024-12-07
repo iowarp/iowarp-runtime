@@ -412,8 +412,8 @@ class ModuleRegistry {
       HELOG(kWarning, "Could not find the pool");
       return;
     }
-    PoolInfo &task_states = it->second;
-    std::string pool_name = task_states.containers_[0]->name_;
+    PoolInfo &pool = it->second;
+    std::string pool_name = pool.containers_[0]->name_;
     // TODO(llogan): Iterate over shared_state + states and destroy them
     pool_ids_.erase(pool_name);
     pools_.erase(it);
