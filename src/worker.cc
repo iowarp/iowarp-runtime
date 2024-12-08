@@ -340,12 +340,8 @@ bool Worker::RunTask(PrivateTaskQueue &priv_queue, PrivateTaskQueueEntry &entry,
   rctx.worker_props_ = props;
   rctx.worker_id_ = id_;
   rctx.flush_ = &flush_;
-  // Get the task container
-  Container *exec;
-  if (!props.Any(CHI_WORKER_IS_REMOTE)) {
-    exec =
-        CHI_MOD_REGISTRY->GetContainer(task->pool_, entry.res_query_.sel_.id_);
-  } else if (!task->IsModuleComplete()) {
+  // Submit a remote task
+  if (props.Any(CHI_WORKER_IS_REMOTE) && !task->IsModuleComplete()) {
     task->SetBlocked(1);
     active_.block(entry);
     cur_task_ = nullptr;
@@ -354,6 +350,14 @@ bool Worker::RunTask(PrivateTaskQueue &priv_queue, PrivateTaskQueueEntry &entry,
         HSHM_DEFAULT_MEM_CTX, nullptr, task->task_node_ + 1,
         DomainQuery::GetDirectId(SubDomainId::kGlobalContainers, 1), task.ptr_);
     return false;
+  }
+  // Get the task container
+  Container *exec;
+  if (props.Any(CHI_WORKER_IS_REMOTE)) {
+    exec = CHI_MOD_REGISTRY->GetStaticContainer(task->pool_);
+  } else {
+    exec =
+        CHI_MOD_REGISTRY->GetContainer(task->pool_, entry.res_query_.sel_.id_);
   }
   if (!exec) {
     if (task->pool_ == PoolId::GetNull()) {
@@ -364,6 +368,7 @@ bool Worker::RunTask(PrivateTaskQueue &priv_queue, PrivateTaskQueueEntry &entry,
     }
     return true;
   }
+  // Run the task
   if (!task->IsModuleComplete()) {
     // Make this task current
     cur_task_ = task.ptr_;

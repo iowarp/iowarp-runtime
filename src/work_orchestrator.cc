@@ -182,7 +182,9 @@ void WorkOrchestrator::DedicateCores() {
 }
 
 std::vector<Load> WorkOrchestrator::CalculateLoad() {
+  // NOTE(llogan): Figure out why this segfaults sometimes
   std::vector<Load> loads(workers_.size());
+  return loads;
   for (auto pool_it = CHI_MOD_REGISTRY->pools_.begin();
        pool_it != CHI_MOD_REGISTRY->pools_.end(); ++pool_it) {
     for (auto cont_it = pool_it->second.containers_.begin();
