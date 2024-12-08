@@ -195,20 +195,11 @@ void Worker::Run(bool flushing) {
   }
   // Process tasks in the pending queues
   IngestProcLanes(flushing);
+  PollPrivateQueue(active_.GetConstruct(), flushing);
   for (size_t i = 0; i < 8192; ++i) {
+    IngestProcLanes(flushing);
     IngestInterLanes(flushing);
-    PollPrivateQueue(active_.GetConstruct(), flushing);
-    size_t lowlat = active_.GetLowLat().size_;
-    hshm::Timer t;
-    if (lowlat) {
-      t.Resume();
-    }
     PollPrivateQueue(active_.GetLowLat(), flushing);
-    if (lowlat) {
-      t.Pause();
-      HILOG(kInfo, "Worker {}: Low latency took {} msec for {} tasks ({} KOps)", 
-      id_, t.GetMsec(), lowlat, lowlat / t.GetMsec());
-    }
   }
   PollPrivateQueue(active_.GetHighLat(), flushing);
   PollPrivateQueue(active_.GetLongRunning(), flushing);
