@@ -130,7 +130,7 @@ class Server : public Module {
 
   /** Push operation called on client */
   void ClientPushSubmit(ClientPushSubmitTask *task, RunContext &rctx) {
-    HILOG(kInfo, "");
+    // HILOG(kInfo, "");
     // Get domain IDs
     Task *orig_task = task->orig_task_;
     std::vector<ResolvedDomainQuery> dom_queries =
@@ -170,7 +170,7 @@ class Server : public Module {
 
   /** Push operation called on client */
   void ClientSubmit(ClientSubmitTask *task, RunContext &rctx) {
-    HILOG(kInfo, "");
+    // HILOG(kInfo, "");
     if (rctx.worker_props_.Any(CHI_WORKER_IS_FLUSHING)) {
       hshm::mpsc_queue<TaskQueueEntry> &submit = submit_[0];
       hshm::mpsc_queue<TaskQueueEntry> &complete = complete_[0];
@@ -225,7 +225,7 @@ class Server : public Module {
   /** Complete the task (on the remote node) */
   void ServerPushComplete(ServerPushCompleteTask *task,
                           RunContext &rctx) {
-    HILOG(kInfo, "");
+    // HILOG(kInfo, "");
     NodeId ret_node = task->rctx_.ret_node_;
     size_t node_hash = std::hash<NodeId>{}(ret_node);
     auto &complete = complete_;
@@ -241,7 +241,7 @@ class Server : public Module {
   /** Complete the task (on the remote node) */
   void ServerComplete(ServerCompleteTask *task,
                       RunContext &rctx) {
-    HILOG(kInfo, "");
+    // HILOG(kInfo, "");
     try {
       // Serialize task completions
       TaskQueueEntry entry;
