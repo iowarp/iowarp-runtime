@@ -65,11 +65,13 @@ void SyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
   CHI_ADMIN->RegisterModule(
       HSHM_DEFAULT_MEM_CTX,
       chi::DomainQuery::GetGlobalBcast(), "small_message");
+  HILOG(kInfo, "Finished registering module small_message", cpu_id);
   client.Create(
       HSHM_DEFAULT_MEM_CTX,
       chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
       chi::DomainQuery::GetGlobalBcast(),
       "ipc_test");
+  HILOG(kInfo, "Finished creating ipc_test", cpu_id);
   MPI_Barrier(MPI_COMM_WORLD);
   hshm::MpiTimer t(MPI_COMM_WORLD);
 
