@@ -213,6 +213,7 @@ class Server : public Module {
     } catch (...) {
       HELOG(kError, "(node {}) Worker {} caught an unknown exception", CHI_CLIENT->node_id_, id_);
     }
+    task->UnsetStarted();
   }
   void MonitorClientSubmit(MonitorModeId mode,
                            ClientSubmitTask *task,
@@ -269,6 +270,7 @@ class Server : public Module {
     } catch (...) {
       HELOG(kError, "(node {}) Worker {} caught an unknown exception", CHI_CLIENT->node_id_, id_);
     }
+    task->UnsetStarted();
   }
   void MonitorServerComplete(MonitorModeId mode,
                              ServerCompleteTask *task,
