@@ -57,6 +57,10 @@ void AllocFreeIpcTest(int rank, int nprocs, int depth, size_t ops) {
 }
 
 void SyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
+  unsigned int cpu_id, numa;
+  getcpu(&cpu_id, &numa);
+  HILOG(kInfo, "I'm on CPU {}", cpu_id);
+
   chi::small_message::Client client;
   CHI_ADMIN->RegisterModule(
       HSHM_DEFAULT_MEM_CTX,

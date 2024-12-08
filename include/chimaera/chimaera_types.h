@@ -20,18 +20,14 @@
 #include <cereal/types/unordered_map.hpp>
 #include <cereal/types/unordered_set.hpp>
 #include <cereal/types/atomic.hpp>
+#include "hermes_shm/memory/allocator/allocator_factory_.h"
 
 #define HSHM_CUSTOM_SETTINGS
 #include <hermes_shm/constants/macros.h>
-#ifndef HSHM_DEFAULT_ALLOC
-#define HSHM_DEFAULT_ALLOC hipc::ScalablePageAllocator
+#ifndef HSHM_DEFAULT_ALLOC_T
+#define HSHM_DEFAULT_ALLOC_T hipc::ScalablePageAllocator
 #endif
-#define CHI_ALLOC_T HSHM_DEFAULT_ALLOC
-#define HSHM_DEFAULT_MEM_CTX {}
-
-namespace hshm::ipc {
-class ScalablePageAllocator;
-}
+#define CHI_ALLOC_T HSHM_DEFAULT_ALLOC_T
 
 #ifdef HSHM_IS_HOST
 #ifndef HSHM_DEFAULT_THREAD_MODEL

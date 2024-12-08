@@ -57,15 +57,15 @@ void Runtime::ServerInit(std::string server_config_path) {
                             header_->queue_manager_);
   CHI_CLIENT->Create(server_config_path, "", true);
   CHI_WORK_ORCHESTRATOR->ServerInit(&server_config_, *CHI_QM_RUNTIME);
-  hipc::mptr<Admin::CreateTask> admin_create_task;
-  hipc::mptr<Admin::CreateContainerTask> create_task;
+  Admin::CreateTask *admin_create_task;
+  Admin::CreateContainerTask *create_task;
   u32 max_containers_pn = CHI_QM_RUNTIME->max_containers_pn_;
   std::vector<UpdateDomainInfo> ops;
   std::vector<SubDomainId> containers;
 
   // Create the admin library
   CHI_CLIENT->MakePoolId();
-  admin_create_task = hipc::make_mptr<Admin::CreateTask>();
+  admin_create_task = CHI_CLIENT->AllocateTask<Admin::CreateTask>(HSHM_DEFAULT_MEM_CTX).ptr_;
   ops = CHI_RPC->CreateDefaultDomains(
       CHI_QM_CLIENT->admin_pool_id_,
       CHI_QM_CLIENT->admin_pool_id_,
@@ -78,12 +78,14 @@ void Runtime::ServerInit(std::string server_config_path) {
       "chimaera_admin",
       "chimaera_admin",
       CHI_QM_CLIENT->admin_pool_id_,
-      admin_create_task.get(),
+      admin_create_task,
       containers);
 
   // Create the work orchestrator queue scheduling library
   PoolId queue_sched_id = CHI_CLIENT->MakePoolId();
-  create_task = hipc::make_mptr<Admin::CreateContainerTask>();
+  create_task =
+      CHI_CLIENT->AllocateTask<Admin::CreateContainerTask>(HSHM_DEFAULT_MEM_CTX)
+          .ptr_;
   ops = CHI_RPC->CreateDefaultDomains(
       queue_sched_id,
       CHI_QM_CLIENT->admin_pool_id_,
@@ -95,12 +97,14 @@ void Runtime::ServerInit(std::string server_config_path) {
       "worch_queue_round_robin",
       "worch_queue_round_robin",
       queue_sched_id,
-      create_task.get(),
+      create_task,
       containers);
 
   // Create the work orchestrator process scheduling library
   PoolId proc_sched_id = CHI_CLIENT->MakePoolId();
-  create_task = hipc::make_mptr<Admin::CreateContainerTask>();
+  create_task =
+      CHI_CLIENT->AllocateTask<Admin::CreateContainerTask>(HSHM_DEFAULT_MEM_CTX)
+          .ptr_;
   ops = CHI_RPC->CreateDefaultDomains(
       proc_sched_id,
       CHI_QM_CLIENT->admin_pool_id_,
@@ -112,7 +116,7 @@ void Runtime::ServerInit(std::string server_config_path) {
       "worch_proc_round_robin",
       "worch_proc_round_robin",
       proc_sched_id,
-      create_task.get(),
+      create_task,
       containers);
 
   // Set the work orchestrator queue scheduler
@@ -174,7 +178,7 @@ void Runtime::InitSharedMemory() {
           hipc::MemoryBackendId(2),
           rdata_alloc_id_, 0);
 
-  auto *test = HERMES_MEMORY_MANAGER->GetAllocator(main_alloc_id_);
+  auto *test = HERMES_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(main_alloc_id_);
   if (!test) {
     HILOG(kError, "Failed to create main allocator");
   }
