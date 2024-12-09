@@ -226,6 +226,7 @@ class ThalliumRpc {
     auto x = IoCall<RetT, false>(
         node_id, func_name, xfer, io_flag, std::forward<Args>(args)...);
     HILOG(kDebug, "Finished {} {} -> {}", func_name, rpc_->node_id_, node_id)
+    return x;
   }
 
   /** I/O transfers */
