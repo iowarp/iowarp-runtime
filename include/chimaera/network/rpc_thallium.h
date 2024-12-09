@@ -222,10 +222,12 @@ class ThalliumRpc {
   template<typename RetT, typename ...Args>
   RetT SyncIoCall(i32 node_id, const std::string &func_name,
                   SegmentedTransfer &xfer, u32 io_flag, Args&& ...args) {
-    HILOG(kDebug, "Calling {} {} -> {}", func_name, rpc_->node_id_, node_id)
+    HILOG(kDebug, "Calling ({} tasks) {} {} -> {}", 
+      xfer.tasks_.size(), func_name, rpc_->node_id_, node_id)
     auto x = IoCall<RetT, false>(
         node_id, func_name, xfer, io_flag, std::forward<Args>(args)...);
-    HILOG(kDebug, "Finished {} {} -> {}", func_name, rpc_->node_id_, node_id)
+    HILOG(kDebug, "Finished ({} tasks) {} {} -> {}", xfer.tasks_.size(),
+          func_name, rpc_->node_id_, node_id)
     return x;
   }
 
