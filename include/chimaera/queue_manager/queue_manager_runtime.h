@@ -42,12 +42,12 @@ class QueueManagerRuntime : public QueueManager {
     // Initialize ticket queue (ticket 0 is for admin queue)
     max_queues_ = qm.max_queues_;
     max_containers_pn_ = qm.max_containers_pn_;
-    HSHM_MAKE_AR(shm.tickets_, alloc, max_queues_)
+    shm.tickets_.shm_init(alloc, max_queues_);
     for (u64 i = 1; i <= max_queues_; ++i) {
       shm.tickets_->emplace(i);
     }
     // Initialize queue map
-    HSHM_MAKE_AR0(shm.queue_map_, alloc)
+    shm.queue_map_.shm_init(alloc);
     queue_map_ = shm.queue_map_.get();
     queue_map_->resize(max_queues_);
     // Create the admin queue

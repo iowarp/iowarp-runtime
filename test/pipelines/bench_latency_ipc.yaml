@@ -10,10 +10,10 @@ pkgs:
     pqdepth: 48
   - pkg_type: chimaera_latency_bench
     pkg_name: chimaera_latency_bench
-    nprocs: 1
+    nprocs: 2
     ppn: 16
     depth: 0
-    ops: 50000
-    async: false
+    ops: 500000
+    async: true
     do_dbg: false
     dbg_port: 4001

@@ -195,11 +195,14 @@ void Worker::Run(bool flushing) {
   }
   // Process tasks in the pending queues
   IngestProcLanes(flushing);
+  IngestInterLanes(flushing);
   PollPrivateQueue(active_.GetConstruct(), flushing);
   for (size_t i = 0; i < 8192; ++i) {
-    IngestProcLanes(flushing);
-    IngestInterLanes(flushing);
+    if (active_.GetLowLat().size() == 0) {
+      break;
+    }
     PollPrivateQueue(active_.GetLowLat(), flushing);
+    IngestInterLanes(flushing);
   }
   PollPrivateQueue(active_.GetHighLat(), flushing);
   PollPrivateQueue(active_.GetLongRunning(), flushing);
@@ -240,11 +243,6 @@ void Worker::IngestLane(WorkEntry &lane_info) {
       ig_lane->pop();
     } else {
       if (active_.push(PrivateTaskQueueEntry{task, dom_query})) {
-        //          HILOG(kInfo, "[TASK_CHECK] Running rep_task {} on node {}
-        //          (long running: {})"
-        //                       " pool={} method={}",
-        //                (void*)task->rctx_.ret_task_addr_, CHI_RPC->node_id_,
-        //                task->IsLongRunning(), task->pool_, task->method_);
         ig_lane->pop();
       } else {
         break;
