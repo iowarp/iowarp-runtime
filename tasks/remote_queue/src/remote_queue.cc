@@ -115,6 +115,7 @@ class Server : public Module {
           (TaskQueueEntry) {res_query, rep_task.ptr_});
       replicas.emplace_back(rep_task);
     }
+    HILOG(kInfo, "[TASK_CHECK] Replicated the submit_task {}", submit_task);
 
     // Wait
     submit_task->Wait(replicas, TASK_MODULE_COMPLETE);
@@ -122,6 +123,8 @@ class Server : public Module {
     rctx.replicas_ = &replicas;
     exec->Monitor(MonitorMode::kReplicaAgg, orig_task->method_,
                   orig_task, rctx);
+    HILOG(kInfo, "[TASK_CHECK] Rescheduling the submit_task {}", submit_task);
+
     // Free
     for (LPointer<Task> &replica : replicas) {
       CHI_CLIENT->DelTask(HSHM_DEFAULT_MEM_CTX, exec, replica.ptr_);
@@ -374,8 +377,7 @@ class Server : public Module {
         if (submit_task->pool_ != id_) {
           HELOG(kFatal, "This shouldn't happen ever");
         }
-        HILOG(kInfo, "[TASK_CHECK] Signal complete rep_task {} on node {}",
-              rep_task, CHI_RPC->node_id_);
+        HILOG(kInfo, "[TASK_CHECK] Unblocking the submit_task {}", submit_task);
         Worker::SignalUnblock(submit_task);
       }
     } catch (hshm::Error &e) {

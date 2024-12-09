@@ -245,8 +245,6 @@ class PrivateTaskMultiQueue {
 
   void signal_unblock(PrivateTaskMultiQueue &worker_pending,
                       LPointer<Task> &blocked_task) {
-    HILOG(kInfo, "Completion queue: size={} depth={}", complete_.size(),
-          complete_.GetDepth());
     worker_pending.GetCompletion().emplace(blocked_task);
     // HILOG(kInfo, "(node {}) Unblocking task {} (id={}, pool={}, method={})",
     //       CHI_RPC->node_id_, (void *)blocked_task.ptr_,
