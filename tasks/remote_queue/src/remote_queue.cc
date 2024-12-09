@@ -288,6 +288,7 @@ class Server : public Module {
                      tl::bulk &bulk,
                      SegmentedTransfer &xfer) {
     try {
+      HILOG(kInfo, "");
       xfer.AllocateBulksServer();
       CHI_THALLIUM->IoCallServerWrite(req, bulk, xfer);
       BinaryInputArchive<true> ar(xfer);
@@ -373,8 +374,8 @@ class Server : public Module {
         if (submit_task->pool_ != id_) {
           HELOG(kFatal, "This shouldn't happen ever");
         }
-//        HILOG(kInfo, "[TASK_CHECK] Signal complete rep_task {} on node {}",
-//              rep_task, CHI_RPC->node_id_);
+        HILOG(kInfo, "[TASK_CHECK] Signal complete rep_task {} on node {}",
+              rep_task, CHI_RPC->node_id_);
         Worker::SignalUnblock(submit_task);
       }
     } catch (hshm::Error &e) {
@@ -384,6 +385,7 @@ class Server : public Module {
     } catch (...) {
       HELOG(kError, "(node {}) Worker {} caught an unknown exception", CHI_CLIENT->node_id_, id_);
     }
+    HILOG(kInfo, "[TASK_CHECK] responding");
     req.respond(0);
   }
 
