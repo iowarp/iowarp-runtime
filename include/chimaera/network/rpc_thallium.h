@@ -284,18 +284,4 @@ class ThalliumRpc {
 
 }  // namespace hermes
 
-/** Lets thallium know how to serialize an enum */
-#define SERIALIZE_ENUM(T)\
-  template <typename A>\
-  void save(A &ar, T &mode) {\
-    int cast = static_cast<int>(mode);\
-    ar << cast;\
-  }\
-  template <typename A>\
-  void load(A &ar, T &mode) {\
-    int cast;\
-    ar >> cast;\
-    mode = static_cast<T>(cast);\
-  }
-
 #endif  // CHIMAERA_RPC_THALLIUM_H_
