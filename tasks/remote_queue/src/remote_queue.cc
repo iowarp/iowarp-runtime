@@ -341,14 +341,8 @@ class Server : public Module {
     rep_task->task_flags_.SetBits(TASK_REMOTE_RECV_MARK);
 
     // Execute task
-    HILOG(kInfo, "[TASK_CHECK] Began deserializing rep_task {} ({} -> {})",
-          (void *)rep_task->rctx_.ret_task_addr_, rep_task->rctx_.ret_node_,
-          CHI_RPC->node_id_);
     CHI_CLIENT->ScheduleTaskRuntime(nullptr, rep_task,
                                     QueueId(pool_id));
-    HILOG(kInfo, "[TASK_CHECK] Deserialized rep_task {} ({} -> {})",
-          (void*)rep_task->rctx_.ret_task_addr_,
-          rep_task->rctx_.ret_node_, CHI_RPC->node_id_);
   }
 
   /** Receive task completion */
