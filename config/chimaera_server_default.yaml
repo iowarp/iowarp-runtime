@@ -1,7 +1,7 @@
 ### Runtime orchestration settings
 work_orchestrator:
   # The mapping of workers to CPUs
-  cpus: [0, 1, 2, 2, 2, 3, 3, 3]
+  cpus: [0, 1, 2, 2, 3, 3]
   # Where the reinforcement thread maps to CPU
   reinforce_cpu: 3
   # Monitoring window (seconds)
@@ -54,7 +54,7 @@ rpc:
   port: 8080
 
   # The mapping of RPC threads to CPUs
-  cpus: [3, 4, 5, 6]
+  cpus: [4, 5]
 
 ### Task Registry
 module_registry: []
