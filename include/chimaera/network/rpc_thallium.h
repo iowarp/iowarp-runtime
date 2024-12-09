@@ -189,7 +189,6 @@ class ThalliumRpc {
   template<typename RetT, bool ASYNC, typename ...Args>
   RetT IoCall(i32 node_id, const std::string &func_name,
               const SegmentedTransfer &xfer, u32 io_flag, Args&& ...args) {
-    HILOG(kDebug, "Calling {} {} -> {}", func_name, rpc_->node_id_, node_id)
     try {
       std::string server_name = GetServerName(node_id);
       tl::bulk bulk;
@@ -223,8 +222,10 @@ class ThalliumRpc {
   template<typename RetT, typename ...Args>
   RetT SyncIoCall(i32 node_id, const std::string &func_name,
                   SegmentedTransfer &xfer, u32 io_flag, Args&& ...args) {
-    return IoCall<RetT, false>(
+    HILOG(kDebug, "Calling {} {} -> {}", func_name, rpc_->node_id_, node_id)
+    auto x = IoCall<RetT, false>(
         node_id, func_name, xfer, io_flag, std::forward<Args>(args)...);
+    HILOG(kDebug, "Finished {} {} -> {}", func_name, rpc_->node_id_, node_id)
   }
 
   /** I/O transfers */
