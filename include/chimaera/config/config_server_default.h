@@ -4,7 +4,7 @@ const inline char* kChiServerDefaultConfigStr =
 "### Runtime orchestration settings\n"
 "work_orchestrator:\n"
 "  # The mapping of workers to CPUs\n"
-"  cpus: [0, 1, 2, 2, 2, 3, 3, 3]\n"
+"  cpus: [0, 1, 2, 2, 3, 3]\n"
 "  # Where the reinforcement thread maps to CPU\n"
 "  reinforce_cpu: 3\n"
 "  # Monitoring window (seconds)\n"
@@ -57,7 +57,7 @@ const inline char* kChiServerDefaultConfigStr =
 "  port: 8080\n"
 "\n"
 "  # The mapping of RPC threads to CPUs\n"
-"  cpus: [3, 4, 5, 6]\n"
+"  cpus: [4, 5]\n"
 "\n"
 "### Task Registry\n"
 "module_registry: []\n";
