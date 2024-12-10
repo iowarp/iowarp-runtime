@@ -46,17 +46,21 @@ class Server : public Module {
 
   /** Check if low latency */
   bool IsLowLatency(Lane &lane) {
-    if (lane.num_tasks_ == 0) {
+    size_t num_tasks = lane.num_tasks_;
+    if (num_tasks == 0) {
       return lane.prio_ == TaskPrio::kLowLatency;
     }
-    size_t avg_cpu_load = lane.load_.cpu_load_ / lane.num_tasks_;
-    size_t avg_io_load = lane.load_.io_load_ / lane.num_tasks_;
+    size_t avg_cpu_load = lane.load_.cpu_load_ / num_tasks;
+    size_t avg_io_load = lane.load_.io_load_ / num_tasks;
     return avg_cpu_load < KILOBYTES(50) && avg_io_load < KILOBYTES(8);
   }
 
   /** Schedule work orchestrator queues */
   void Schedule(ScheduleTask *task, RunContext &rctx) {
     // Iterate over the set of ChiContainers
+    // TODO(llogan): Figure out why this may be segfaulting
+    task->UnsetStarted();
+    return;
     ScopedCoRwReadLock upgrade_lock(CHI_MOD_REGISTRY->upgrade_lock_);
     std::vector<Load> loads = CHI_WORK_ORCHESTRATOR->CalculateLoad();
     for (auto pool_it = CHI_MOD_REGISTRY->pools_.begin();
