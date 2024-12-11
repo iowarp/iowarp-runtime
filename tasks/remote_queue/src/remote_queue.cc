@@ -345,6 +345,9 @@ class Server : public Module {
     rep_task->task_flags_.SetBits(TASK_REMOTE_DEBUG_MARK);
 
     // Execute task
+    // NOTE(llogan): Thread-local storage will not be set in this case.
+    // This function is invoked by thallium threads, not our workers.
+    // We need to set the thread-local worker manually.
     CHI_WORK_ORCHESTRATOR->SetCurrentWorkerId(0);
     CHI_CLIENT->ScheduleTaskRuntime(nullptr, rep_task,
                                     QueueId(pool_id));
@@ -380,6 +383,10 @@ class Server : public Module {
         if (submit_task->pool_ != id_) {
           HELOG(kFatal, "This shouldn't happen ever");
         }
+        // NOTE(llogan): Thread-local storage will not be set in this case.
+        // This function is invoked by thallium threads, not our workers.
+        // We need to set the thread-local worker manually.
+        CHI_WORK_ORCHESTRATOR->SetCurrentWorkerId(0);
         CHI_WORK_ORCHESTRATOR->SignalUnblock(submit_task, submit_task->rctx_);
       }
     } catch (hshm::Error &e) {
