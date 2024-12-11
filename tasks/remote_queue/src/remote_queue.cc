@@ -113,6 +113,7 @@ class Server : public Module {
       rep_task->rctx_.pending_to_ = submit_task;
       size_t node_hash = std::hash<NodeId>{}(res_query.node_);
       auto &submit = submit_;
+      HILOG(kInfo, "[TASK_CHECK] Task replica addr {}", rep_task.ptr_);
       submit[node_hash % submit.size()].emplace(
           (TaskQueueEntry) {res_query, rep_task.ptr_});
       replicas.emplace_back(rep_task);
@@ -334,6 +335,8 @@ class Server : public Module {
     if (rep_task->rctx_.ret_task_addr_ == (size_t)rep_task.ptr_) {
       HELOG(kFatal, "This shouldn't happen ever");
     }
+    HILOG(kInfo, "[TASK_CHECK] Deserialized task replica addr {}",
+          rep_task->rctx_.ret_task_addr_);
 
     // Unset task flags
     // NOTE(llogan): Remote tasks are executed to completion and
@@ -372,6 +375,8 @@ class Server : public Module {
           return;
         }
         exec->LoadEnd(rep_task->method_, ar, rep_task);
+        HILOG(kInfo, "[TASK_CHECK] Completing replica {}",
+          rep_task);
       }
       // Process bulk message
       CHI_THALLIUM->IoCallServerWrite(req, bulk, xfer);
@@ -379,10 +384,10 @@ class Server : public Module {
       for (size_t i = 0; i < xfer.tasks_.size(); ++i) {
         Task *rep_task = (Task*)xfer.tasks_[i].task_addr_;
         Task *submit_task = rep_task->rctx_.pending_to_;
+        HILOG(kInfo, "[TASK_CHECK] Unblocking the submit_task {}", submit_task);
         if (submit_task->pool_ != id_) {
           HELOG(kFatal, "This shouldn't happen ever");
         }
-        HILOG(kInfo, "[TASK_CHECK] Unblocking the submit_task {}", submit_task);
         CHI_WORK_ORCHESTRATOR->SignalUnblock(submit_task, submit_task->rctx_);
       }
     } catch (hshm::Error &e) {
