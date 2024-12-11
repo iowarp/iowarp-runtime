@@ -96,8 +96,10 @@ class Server : public Module {
     replicas.reserve(dom_queries.size());
 
     // Get the container
-    Container *exec = CHI_MOD_REGISTRY->GetStaticContainer(
-        orig_task->pool_);
+    Container *exec = CHI_MOD_REGISTRY->GetStaticContainer(orig_task->pool_);
+
+    // Register the block
+    CHI_WORK_ORCHESTRATOR->Block(submit_task, rctx);
 
     // Replicate task
     for (ResolvedDomainQuery &res_query : dom_queries) {
@@ -116,8 +118,9 @@ class Server : public Module {
     }
     HILOG(kInfo, "[TASK_CHECK] Replicated the submit_task {}", submit_task);
 
-    // Wait
-    submit_task->Wait(replicas, TASK_MODULE_COMPLETE);
+    // Actually block
+    submit_task->Yield();
+
     // Combine
     rctx.replicas_ = &replicas;
     exec->Monitor(MonitorMode::kReplicaAgg, orig_task->method_,
