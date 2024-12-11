@@ -414,13 +414,11 @@ constexpr inline void CALL_COPY_START(const TaskT *orig_task,
 /** Call duplicate if applicable */
 template<typename TaskT>
 constexpr inline void CALL_NEW_COPY_START(const TaskT *orig_task,
-                                          FullPtr<Task> &udup_task,
+                                          FullPtr<Task> &dup_task,
                                           bool deep) {
   if constexpr (TaskT::REPLICA) {
-    FullPtr<TaskT> dup_task = CHI_CLIENT->NewEmptyTask<TaskT>({});
-    CALL_COPY_START(orig_task, dup_task.ptr_, deep);
-    udup_task.ptr_ = (Task *) dup_task.ptr_;
-    udup_task.shm_ = dup_task.shm_;
+    dup_task = CHI_CLIENT->NewEmptyTask<TaskT>({}).template Cast<Task>();
+    CALL_COPY_START(orig_task, (TaskT*)dup_task.ptr_, deep); 
   }
 }
 
