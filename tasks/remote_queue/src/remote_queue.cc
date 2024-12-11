@@ -99,7 +99,7 @@ class Server : public Module {
     Container *exec = CHI_MOD_REGISTRY->GetStaticContainer(orig_task->pool_);
 
     // Register the block
-    rctx.block_count_ = dom_queries.size();
+    submit_task->SetBlocked(dom_queries.size());
     CHI_WORK_ORCHESTRATOR->Block(submit_task, rctx);
 
     // Replicate task
