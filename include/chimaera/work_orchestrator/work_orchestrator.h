@@ -30,7 +30,7 @@ typedef ABT_key TlsKey;
 
 struct BlockedTask {
   Task *task_;
-  hipc::atomic<size_t> block_count_;
+  hipc::atomic<ssize_t> block_count_;
 
   BlockedTask() = default;
   

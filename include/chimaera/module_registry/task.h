@@ -328,7 +328,7 @@ struct RunContext {
   std::vector<FullPtr<Task>> *replicas_;
   size_t ret_task_addr_;
   NodeId ret_node_;
-  hipc::atomic<size_t> block_count_;
+  hipc::atomic<ssize_t> block_count_;
   ContainerId route_container_;
   QueueId route_lane_;
   Load load_;

@@ -226,10 +226,12 @@ void WorkOrchestrator::SignalUnblock(Task *task, RunContext &rctx) {
     HELOG(kFatal, "Blocked task was not found");
     return;
   }
-  size_t count = blocked->block_count_.fetch_sub(1) - 1;
+  ssize_t count = blocked->block_count_.fetch_sub(1) - 1;
   if (count == 0) {
     blocked_tasks_.erase(task->rctx_.pending_key_);
     CHI_CUR_WORKER->active_.push(FullPtr<Task>(task));
+  } else if (count < 0) {
+    HELOG(kFatal, "Block count should never be negative");
   }
 }
 
