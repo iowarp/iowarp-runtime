@@ -542,9 +542,13 @@ struct RunContext {
   }
 
   /** This task flushes the runtime */
-  bool IsFlush() {
-    return task_flags_.Any(TASK_FLUSH);
-  }
+  bool IsFlush() { return task_flags_.Any(TASK_FLUSH); }
+
+  /** Set this task as flushing */
+  void SetFlush() { task_flags_.SetBits(TASK_FLUSH); }
+
+  /** Unset this task as flushing */
+  void UnsetFlush() { task_flags_.UnsetBits(TASK_FLUSH); }
 
   /** Set signal complete */
   void SetSignalUnblock() {

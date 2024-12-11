@@ -54,15 +54,16 @@ class Lane {
 
 #ifdef CHIMAERA_RUNTIME
   /** Push a task  */
-  void push(const LPointer<Task> &task);
+  hshm::qtok_t push(const LPointer<Task> &task);
 
-  /** Pop a set of tasks in sequence */
-  size_t pop_prep(size_t count) {
-    return count_.fetch_sub(count);
-  }
+  /** Say we are about to pop a set of tasks */
+  size_t pop_prep(size_t count);
+
+  /** Say some of the pops failed */
+  size_t pop_unprep(size_t count);
   
   /** Pop a task */
-  void pop(LPointer<Task> &task);
+  hshm::qtok_t pop(LPointer<Task> &task);
 #endif
 
   size_t size() {

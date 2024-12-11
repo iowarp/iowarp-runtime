@@ -139,8 +139,7 @@ typedef hshm::fixed_mpsc_queue<chi::Lane *> PrivateLaneQueue;
 
 class PrivateLaneMultiQueue {
  public:
-   typedef hshm::fixed_mpsc_queue<chi::Lane *> LaneT;
-   LaneT active_[2];
+   PrivateLaneQueue active_[2];
 
  public:
   void request(chi::Lane *lane) {
@@ -152,8 +151,8 @@ class PrivateLaneMultiQueue {
     active_[1].resize(new_depth);
   }
 
-  LaneT &GetLowLatency() { return active_[TaskPrio::kLowLatency]; }
-  LaneT &GetHighLatency() { return active_[TaskPrio::kHighLatency]; }
+  PrivateLaneQueue &GetLowLatency() { return active_[TaskPrio::kLowLatency]; }
+  PrivateLaneQueue &GetHighLatency() { return active_[TaskPrio::kHighLatency]; }
 };
 
 class PrivateTaskMultiQueue {
@@ -310,7 +309,7 @@ class Worker {
 
   /** Poll the set of tasks in the private queue */
   HSHM_INLINE
-  size_t PollPrivateQueue(PrivateTaskQueue &queue, bool flushing);
+  void PollTempQueue(PrivateTaskQueue &queue, bool flushing);
 
   /** Poll the set of tasks in the private queue */
   HSHM_INLINE

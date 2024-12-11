@@ -64,17 +64,30 @@ bool PrivateTaskMultiQueue::push(const LPointer<Task> &task) {
  * Lanes
  * =============================================================== */
 /** Push a task  */
-void Lane::push(const LPointer<Task> &task) {
-  active_tasks_.push(task);
+hshm::qtok_t Lane::push(const LPointer<Task> &task) {
+  hshm::qtok_t ret = active_tasks_.push(task);
   size_t dup = count_.fetch_add(1);
   if (dup == 0) {
     Worker &worker = CHI_WORK_ORCHESTRATOR->GetWorker(worker_id_);
     worker.RequestLane(this);
   }
+  return ret;
+}
+
+/** Pop a set of tasks in sequence */
+size_t Lane::pop_prep(size_t count) {
+  return count_.fetch_sub(count) - count;
+}
+
+/** Pop a set of tasks in sequence */
+size_t Lane::pop_unprep(size_t count) {
+  return count_.fetch_add(count) + count;
 }
 
 /** Pop a task */
-void Lane::pop(LPointer<Task> &task) { active_tasks_.pop(task); }
+hshm::qtok_t Lane::pop(LPointer<Task> &task) {
+  return active_tasks_.pop(task);
+}
 
 /**===============================================================
  * Initialize Worker
@@ -148,7 +161,7 @@ void Worker::EndFlush(WorkOrchestrator *orch) {
       flush_.flushing_ = true;
     } else {
       // Reap all FlushTasks and end recurion
-      PollPrivateQueue(active_.GetFlush(), false);
+      PollTempQueue(active_.GetFlush(), false);
     }
   }
 }
@@ -226,8 +239,8 @@ void Worker::Run(bool flushing) {
     PollPrivateLaneMultiQueue(active_.active_lanes_.GetLowLatency(),
                          flushing);
   }
-  PollPrivateLaneMultiQueue(active_.active_lanes_.GetHighLatency(),
-                         flushing);
+  PollPrivateLaneMultiQueue(active_.active_lanes_.GetHighLatency(), flushing);
+  PollTempQueue(active_.GetFail(), flushing);
 }
 
 /** Ingest all process lanes */
@@ -243,36 +256,35 @@ HSHM_INLINE
 void Worker::IngestLane(IngressEntry &lane_info) {
   // Ingest tasks from the ingress queues
   ingress::Lane *&ig_lane = lane_info.lane_;
-  ingress::LaneData *entry;
+  ingress::LaneData entry;
   while (true) {
-    if (ig_lane->peek(entry).IsNull()) {
+    if (ig_lane->pop(entry).IsNull()) {
       break;
     }
     LPointer<Task> task;
-    task.shm_ = entry->p_;
-    task.ptr_ = CHI_CLIENT->GetMainPointer<Task>(entry->p_);
+    task.shm_ = entry.shm_;
+    task.ptr_ = CHI_CLIENT->GetMainPointer<Task>(entry.shm_);
     active_.push(task);
   }
 }
 
 /** Poll the set of tasks in the private queue */
 HSHM_INLINE
-size_t Worker::PollPrivateQueue(PrivateTaskQueue &priv_queue, bool flushing) {
-  size_t work = 0;
+void Worker::PollTempQueue(PrivateTaskQueue &priv_queue, bool flushing) {
   size_t size = priv_queue.size();
   for (size_t i = 0; i < size; ++i) {
     LPointer<Task> task;
-    priv_queue.pop(task);
+    if (priv_queue.pop(task).IsNull()) {
+      break;
+    }
     if (task.ptr_ == nullptr) {
       break;
     }
-    bool pushback = RunTask(task, flushing);
-    if (pushback) {
-      priv_queue.push(task);
+    if (task->IsFlush()) {
+      task->UnsetFlush();
     }
-    ++work;
+    active_.push(task);
   }
-  return work;
 }
 
 /** Poll the set of tasks in the private queue */
@@ -282,12 +294,17 @@ size_t Worker::PollPrivateLaneMultiQueue(PrivateLaneQueue &lanes, bool flushing)
   size_t num_lanes = lanes.size();
   for (size_t lane_off = 0; lane_off < num_lanes; ++lane_off) {
     chi::Lane *chi_lane;
-    lanes.pop(chi_lane);
+    if (lanes.pop(chi_lane).IsNull()) {
+      break;
+    }
     size_t lane_size = chi_lane->size();
     size_t after_size = chi_lane->pop_prep(lane_size);
     for (size_t i = 0; i < lane_size; ++i) {
       LPointer<Task> task;
-      chi_lane->pop(task);
+      if (chi_lane->pop(task).IsNull()) {
+        after_size = chi_lane->pop_unprep(lane_size);
+        break;
+      }
       if (task.ptr_ == nullptr) {
         break;
       }

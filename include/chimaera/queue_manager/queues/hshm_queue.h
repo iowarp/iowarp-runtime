@@ -13,12 +13,12 @@ namespace chi::ingress {
 /** The data stored in a lane */
 class LaneData {
  public:
-  hipc::Pointer p_;
+  hipc::Pointer shm_;
 
  public:
   LaneData() = default;
 
-  LaneData(const hipc::Pointer &p) : p_(p) {}
+  LaneData(const hipc::Pointer &p) : shm_(p) {}
 };
 
 /** Queue token*/

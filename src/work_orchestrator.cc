@@ -76,21 +76,6 @@ void WorkOrchestrator::ServerInit(ServerConfig *config, QueueManager &qm) {
   HILOG(kInfo, "(node {}) Worker created RPC pool with {} threads",
         CHI_RPC->node_id_, CHI_RPC->num_threads_)
 
-  // Wait for pids to become non-zero
-  while (true) {
-    bool all_pids_nonzero = true;
-    for (std::unique_ptr<Worker> &worker : workers_) {
-      if (worker->pid_ == 0) {
-        all_pids_nonzero = false;
-        break;
-      }
-    }
-    if (all_pids_nonzero) {
-      break;
-    }
-    std::this_thread::sleep_for(std::chrono::milliseconds(5));
-  }
-
   // Assign ingress queues to workers
   size_t count_lowlat_ = 0;
   size_t count_highlat_ = 0;
@@ -124,15 +109,30 @@ void WorkOrchestrator::ServerInit(ServerConfig *config, QueueManager &qm) {
       }
       lane_group.num_scheduled_ = num_lanes;
     }
-
-    // Enable the workers to begin polling
-    for (std::unique_ptr<Worker> &worker : workers_) {
-      worker->Spawn();
-    }
-
-    // Dedicate CPU cores to this runtime
-    DedicateCores();
   }
+
+  // Enable the workers to begin polling
+  for (std::unique_ptr<Worker> &worker : workers_) {
+    worker->Spawn();
+  }
+
+  // Wait for pids to become non-zero
+  while (true) {
+    bool all_pids_nonzero = true;
+    for (std::unique_ptr<Worker> &worker : workers_) {
+      if (worker->pid_ == 0) {
+        all_pids_nonzero = false;
+        break;
+      }
+    }
+    if (all_pids_nonzero) {
+      break;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(5));
+  }
+  
+  // Dedicate CPU cores to this runtime
+  DedicateCores();
 
   HILOG(kInfo, "(node {}) Started {} workers",
         CHI_RPC->node_id_, num_workers);
