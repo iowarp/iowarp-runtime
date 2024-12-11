@@ -54,6 +54,8 @@ bool PrivateTaskMultiQueue::push(const FullPtr<Task> &task) {
       res_query.flags_.All(DomainQuery::kLocal | DomainQuery::kId)) {
     // CASE 2: The task is a flushing task. Place in the flush queue.
     if (task->IsFlush()) {
+      HILOG(kInfo, "[TASK_CHECK] (node {}) Failing task {}",
+          CHI_CLIENT->node_id_, (void*)task.ptr_);
       return !GetFlush().push(task).IsNull();
     } 
     // CASE 3: The task is local to this machine, just find the lane.
@@ -74,9 +76,11 @@ bool PrivateTaskMultiQueue::push(const FullPtr<Task> &task) {
     HILOG(kInfo, "[TASK_CHECK] (node {}) Pushing task {}",
           CHI_CLIENT->node_id_, (void*)task.ptr_);
   } else {
+    HILOG(kInfo, "[TASK_CHECK] (node {}) Remoting task {}",
+          CHI_CLIENT->node_id_, (void*)task.ptr_);
     // CASE 4: The task is remote to this machine, put in the remote queue.
-    CHI_REMOTE_QUEUE->AsyncClientPushSubmitBase(
-        HSHM_DEFAULT_MEM_CTX, nullptr, task->task_node_ + 1,
+    CHI_REMOTE_QUEUE->AsyncClientPushSubmit(
+        HSHM_DEFAULT_MEM_CTX, nullptr,
         DomainQuery::GetDirectId(SubDomainId::kGlobalContainers, 1), task.ptr_);
   }
   return true;
