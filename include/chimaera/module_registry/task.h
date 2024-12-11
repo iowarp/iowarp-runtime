@@ -65,10 +65,8 @@ class Module;
 #define TASK_SIGNAL_COMPLETE BIT_OPT(u32, 21)
 /** This task is a remote task */
 #define TASK_REMOTE BIT_OPT(u32, 22)
-/** This task has been scheduled to a lane */
+/** This task has been scheduled to a lane (deprecated) */
 #define TASK_IS_ROUTED BIT_OPT(u32, 23)
-/** This task is apart of remote debugging */
-#define TASK_REMOTE_RECV_MARK BIT_OPT(u32, 30)
 /** This task is apart of remote debugging */
 #define TASK_REMOTE_DEBUG_MARK BIT_OPT(u32, 31)
 
@@ -470,21 +468,6 @@ struct RunContext {
   /** Check if task is blocked */
   bool IsBlocked() {
     return rctx_.run_flags_.Any(TASK_BLOCKED);
-  }
-
-  /** Mark task as routed */
-  void SetRouted() {
-    rctx_.run_flags_.SetBits(TASK_IS_ROUTED);
-  }
-
-  /** Check if task is routed */
-  bool IsRouted() {
-    return rctx_.run_flags_.Any(TASK_IS_ROUTED);
-  }
-
-  /** Unset task as routed */
-  void UnsetRouted() {
-    rctx_.run_flags_.UnsetBits(TASK_IS_ROUTED);
   }
 
   /** Set this task as started */
