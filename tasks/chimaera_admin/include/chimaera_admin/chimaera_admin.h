@@ -18,7 +18,7 @@ class Client : public ModuleClient {
   ~Client() = default;
 
   /** Register a module */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   void RegisterModule(const hipc::MemContext &mctx,
                       const DomainQuery &dom_query,
                       const std::string &lib_name) {
@@ -30,7 +30,7 @@ class Client : public ModuleClient {
   CHI_TASK_METHODS(RegisterModule)
 
   /** Unregister a module */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   void DestroyModule(const hipc::MemContext &mctx,
                      const DomainQuery &dom_query,
                      const std::string &lib_name) {
@@ -42,7 +42,7 @@ class Client : public ModuleClient {
   CHI_TASK_METHODS(DestroyModule)
 
   /** Register a task library */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   void UpgradeModule(const hipc::MemContext &mctx,
                      const DomainQuery &dom_query,
                      const std::string &lib_name) {
@@ -67,7 +67,7 @@ class Client : public ModuleClient {
   CHI_TASK_METHODS(GetPoolId)
 
   /** Terminate a pool */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   void DestroyContainer(const hipc::MemContext &mctx,
                         const DomainQuery &dom_query,
                         const PoolId &destroy_id) {

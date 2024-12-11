@@ -142,7 +142,7 @@ class Server : public Module {
                                      false);
     if (dom_queries.size() == 0) {
       task->SetModuleComplete();
-      Worker::SignalUnblock(orig_task);
+      CHI_WORK_ORCHESTRATOR->SignalUnblock(orig_task);
       return;
     }
     // Handle fire & forget
@@ -161,7 +161,7 @@ class Server : public Module {
     if (!orig_task->IsLongRunning()) {
       orig_task->SetModuleComplete();
     }
-    Worker::SignalUnblock(orig_task);
+    CHI_WORK_ORCHESTRATOR->SignalUnblock(orig_task);
 
     // Set this task as complete
     task->SetModuleComplete();
@@ -378,7 +378,7 @@ class Server : public Module {
           HELOG(kFatal, "This shouldn't happen ever");
         }
         HILOG(kInfo, "[TASK_CHECK] Unblocking the submit_task {}", submit_task);
-        Worker::SignalUnblock(submit_task);
+        CHI_WORK_ORCHESTRATOR->SignalUnblock(submit_task);
       }
     } catch (hshm::Error &e) {
       HELOG(kError, "(node {}) Worker {} caught an error: {}", CHI_CLIENT->node_id_, id_, e.what());

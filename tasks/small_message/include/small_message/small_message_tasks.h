@@ -43,11 +43,11 @@ struct MdTask : public Task, TaskFlags<TF_SRL_SYM> {
   OUT int ret_;
 
   /** SHM default constructor */
-  HSHM_ALWAYS_INLINE explicit
+  HSHM_INLINE explicit
   MdTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) : Task(alloc) {}
 
   /** Emplace constructor */
-  HSHM_ALWAYS_INLINE explicit
+  HSHM_INLINE explicit
   MdTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
          const TaskNode &task_node,
          const PoolId &pool_id,
@@ -97,11 +97,11 @@ struct IoTask : public Task, TaskFlags<TF_SRL_SYM> {
   OUT size_t ret_;
 
   /** SHM default constructor */
-  HSHM_ALWAYS_INLINE explicit
+  HSHM_INLINE explicit
   IoTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) : Task(alloc) {}
 
   /** Emplace constructor */
-  HSHM_ALWAYS_INLINE explicit
+  HSHM_INLINE explicit
   IoTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
          const TaskNode &task_node,
          const PoolId &pool_id,

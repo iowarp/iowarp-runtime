@@ -35,11 +35,11 @@ typedef chi::Admin::DestroyContainerTask DestroyTask;
  * */
 struct CustomTask : public Task, TaskFlags<TF_SRL_SYM> {
   /** SHM default constructor */
-  HSHM_ALWAYS_INLINE explicit
+  HSHM_INLINE explicit
   CustomTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) : Task(alloc) {}
 
   /** Emplace constructor */
-  HSHM_ALWAYS_INLINE explicit
+  HSHM_INLINE explicit
   CustomTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
              const TaskNode &task_node,
              const PoolId &pool_id,

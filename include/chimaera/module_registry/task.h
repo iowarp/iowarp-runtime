@@ -116,25 +116,25 @@ struct TaskNode {
   u32 node_depth_;      /**< The depth of the task in the task graph */
 
   /** Default constructor */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   TaskNode() = default;
 
   /** Emplace constructor for root task */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   TaskNode(TaskId root) {
     root_ = root;
     node_depth_ = 0;
   }
 
   /** Copy constructor */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   TaskNode(const TaskNode &other) {
     root_ = other.root_;
     node_depth_ = other.node_depth_;
   }
 
   /** Copy assignment operator */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   TaskNode& operator=(const TaskNode &other) {
     root_ = other.root_;
     node_depth_ = other.node_depth_;
@@ -142,14 +142,14 @@ struct TaskNode {
   }
 
   /** Move constructor */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   TaskNode(TaskNode &&other) noexcept {
     root_ = other.root_;
     node_depth_ = other.node_depth_;
   }
 
   /** Move assignment operator */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   TaskNode& operator=(TaskNode &&other) noexcept {
     root_ = other.root_;
     node_depth_ = other.node_depth_;
@@ -157,7 +157,7 @@ struct TaskNode {
   }
 
   /** Addition operator*/
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   TaskNode operator+(int i) const {
     TaskNode ret;
     ret.root_ = root_;
@@ -166,14 +166,14 @@ struct TaskNode {
   }
 
   /** Addition operator*/
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   TaskNode& operator+=(int i) {
     node_depth_ += i;
     return *this;
   }
 
   /** Null task node */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   static TaskNode GetNull() {
     TaskNode ret;
     ret.root_ = TaskId::GetNull();
@@ -182,13 +182,13 @@ struct TaskNode {
   }
 
   /** Check if null */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   bool IsNull() const {
     return root_.IsNull();
   }
 
   /** Check if the root task */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   bool Is() const {
     return node_depth_ == 0;
   }
@@ -327,7 +327,7 @@ struct RunContext {
   std::vector<LPointer<Task>> *replicas_;
   size_t ret_task_addr_;
   NodeId ret_node_;
-  size_t block_count_;
+  hipc::atomic<size_t> block_count_;
   ContainerId route_container_;
   QueueId route_lane_;
   Load load_;
@@ -657,7 +657,7 @@ struct RunContext {
 
   /** Yield in general */
   template<int THREAD_MODEL = 0>
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   static void StaticYieldFactory() {
     if constexpr (THREAD_MODEL == TASK_YIELD_STD) {
       YieldStd();
@@ -668,7 +668,7 @@ struct RunContext {
 
   /** Yield the task */
   template<int THREAD_MODEL = 0>
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   void YieldFactory() {
     if constexpr (THREAD_MODEL == TASK_YIELD_CO) {
       YieldCo();
@@ -679,7 +679,7 @@ struct RunContext {
     // actually yield anything. Would longjmp be worthwhile here?
   }
 
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   void Yield() {
 #ifdef CHIMAERA_RUNTIME
     YieldFactory<TASK_YIELD_CO>();
@@ -689,7 +689,7 @@ struct RunContext {
   }
 
   /** Yield a task to a different task */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   void YieldInit(Task *parent_task) {
 #ifdef CHIMAERA_RUNTIME
     if (parent_task &&
@@ -727,22 +727,14 @@ struct RunContext {
   }
 
   /** This task waits for subtask to complete */
-  template<typename TaskT=Task>
+  template<typename TaskT = Task>
   void Wait(LPointer<TaskT> &subtask, u32 flags = TASK_COMPLETE) {
     Wait(subtask.ptr_, flags);
   }
 
   /** This task waits for subtask to complete */
   void Wait(Task *subtask, u32 flags = TASK_COMPLETE) {
-#ifdef CHIMAERA_RUNTIME
-    SetBlocked(1);
-#endif
-    while (!subtask->task_flags_.All(flags)) {
-      Yield();
-    }
-#ifdef CHIMAERA_RUNTIME
-    UnsetBlocked();
-#endif
+    Wait(&subtask, 1, flags);
   }
 
   /** This task waits for a set of tasks to complete */
@@ -750,14 +742,29 @@ struct RunContext {
   void Wait(std::vector<LPointer<TaskT>> &subtasks, u32 flags = TASK_COMPLETE) {
 #ifdef CHIMAERA_RUNTIME
     SetBlocked(subtasks.size());
-#endif
-    for (auto &subtask : subtasks) {
+    Yield();
+    UnsetBlocked();
+#else
+    for (LPointer<TaskT> &subtask : subtasks) {
       while (!subtask->task_flags_.All(flags)) {
         Yield();
       }
     }
+#endif
+  }
+
+  /** This task waits for subtask to complete */
+  void Wait(Task **subtasks, size_t count, u32 flags = TASK_COMPLETE) {
 #ifdef CHIMAERA_RUNTIME
+    SetBlocked(count);
+    Yield();
     UnsetBlocked();
+#else
+    for (size_t i = 0; i < count; ++i) {
+      while (!subtasks[i]->task_flags_.All(flags)) {
+        Yield();
+      }
+    }
 #endif
   }
 

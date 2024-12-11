@@ -50,12 +50,12 @@ struct AllocateTask : public Task, TaskFlags<TF_SRL_SYM> {
   OUT chi::ipc::vector<Block> blocks_;
 
   /** SHM default constructor */
-  HSHM_ALWAYS_INLINE explicit
+  HSHM_INLINE explicit
   AllocateTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
       : Task(alloc), blocks_(alloc) {}
 
   /** Emplace constructor */
-  HSHM_ALWAYS_INLINE explicit
+  HSHM_INLINE explicit
   AllocateTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
                const TaskNode &task_node,
                const PoolId &pool_id,
@@ -99,11 +99,11 @@ struct FreeTask : public Task, TaskFlags<TF_SRL_SYM> {
   IN Block block_;
 
   /** SHM default constructor */
-  HSHM_ALWAYS_INLINE explicit
+  HSHM_INLINE explicit
   FreeTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) : Task(alloc) {}
 
   /** Emplace constructor */
-  HSHM_ALWAYS_INLINE explicit
+  HSHM_INLINE explicit
   FreeTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
            const TaskNode &task_node,
            const PoolId &pool_id,
@@ -147,11 +147,11 @@ struct WriteTask : public Task, TaskFlags<TF_SRL_SYM> {
   OUT bool success_;
 
   /** SHM default constructor */
-  HSHM_ALWAYS_INLINE explicit
+  HSHM_INLINE explicit
   WriteTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) : Task(alloc) {}
 
   /** Emplace constructor */
-  HSHM_ALWAYS_INLINE explicit
+  HSHM_INLINE explicit
   WriteTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
             const TaskNode &task_node,
             const PoolId &pool_id,
@@ -207,11 +207,11 @@ struct ReadTask : public Task, TaskFlags<TF_SRL_SYM> {
   OUT bool success_;
 
   /** SHM default constructor */
-  HSHM_ALWAYS_INLINE explicit
+  HSHM_INLINE explicit
   ReadTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) : Task(alloc) {}
 
   /** Emplace constructor */
-  HSHM_ALWAYS_INLINE explicit
+  HSHM_INLINE explicit
   ReadTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
            const TaskNode &task_node,
            const PoolId &pool_id,
@@ -265,11 +265,11 @@ struct PollStatsTask : public Task, TaskFlags<TF_SRL_SYM> {
   OUT BdevStats stats_;
 
   /** SHM default constructor */
-  HSHM_ALWAYS_INLINE explicit
+  HSHM_INLINE explicit
   PollStatsTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) : Task(alloc) {}
 
   /** Emplace constructor */
-  HSHM_ALWAYS_INLINE explicit
+  HSHM_INLINE explicit
   PollStatsTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
                 const TaskNode &task_node,
                 const PoolId &pool_id,

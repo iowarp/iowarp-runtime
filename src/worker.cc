@@ -26,21 +26,55 @@ namespace chi {
 /**===============================================================
  * Private Task Multi Queue
  * =============================================================== */
-bool PrivateTaskMultiQueue::push(const PrivateTaskQueueEntry &entry) {
-  Task *task = entry.task_.ptr_;
-  if (task->pool_ == CHI_ADMIN->id_ &&
-      task->method_ == chi::Admin::Method::kCreateContainer) {
-    return GetConstruct().push(entry);
-  } else if (task->IsFlush()) {
-    return GetFlush().push(entry);
-  } else if (task->IsLongRunning()) {
-    return GetLongRunning().push(entry);
-  } else if (task->prio_ == TaskPrio::kLowLatency) {
-    return GetLowLat().push(entry);
+bool PrivateTaskMultiQueue::push(const LPointer<Task> &task) {
+  if (task->IsFlush()) {
+    return !GetFlush().push(task).IsNull();
+  } 
+  // Determine the domain of the task
+  std::vector<ResolvedDomainQuery> resolved =
+      CHI_RPC->ResolveDomainQuery(task->pool_, task->dom_query_, false);
+  DomainQuery res_query = resolved[0].dom_;
+  if (resolved.size() == 1 && resolved[0].node_ == CHI_RPC->node_id_ &&
+      res_query.flags_.All(DomainQuery::kLocal | DomainQuery::kId)) {
+    // CASE 1: The task is local to this machine, just find the lane.
+    // Determine the lane the task should map to within container
+    ContainerId container_id = res_query.sel_.id_;
+    Container *exec =
+        CHI_MOD_REGISTRY->GetContainer(task->pool_, container_id);
+    if (!exec || !exec->is_created_) {
+      // If the container doesn't exist, it's probably going to get created.
+      // Put in the failed queue.
+      return !GetFail().push(task).IsNull();
+    }
+    // Find the lane
+    chi::Lane *chi_lane = exec->Route(task.ptr_);
+    task->rctx_.route_container_ = container_id;
+    task->rctx_.route_lane_ = chi_lane->lane_id_;
+    chi_lane->push(task);
   } else {
-    return GetHighLat().push(entry);
+    // CASE 2: The task is remote to this machine, put in the remote queue.
+    CHI_REMOTE_QUEUE->AsyncClientPushSubmitBase(
+        HSHM_DEFAULT_MEM_CTX, nullptr, task->task_node_ + 1,
+        DomainQuery::GetDirectId(SubDomainId::kGlobalContainers, 1), task.ptr_);
+  }
+  return true;
+}
+
+/**===============================================================
+ * Lanes
+ * =============================================================== */
+/** Push a task  */
+void Lane::push(const LPointer<Task> &task) {
+  active_tasks_.push(task);
+  size_t dup = count_.fetch_add(1);
+  if (dup == 0) {
+    Worker &worker = CHI_WORK_ORCHESTRATOR->GetWorker(worker_id_);
+    worker.RequestLane(this);
   }
 }
+
+/** Pop a task */
+void Lane::pop(LPointer<Task> &task) { active_tasks_.pop(task); }
 
 /**===============================================================
  * Initialize Worker
@@ -48,8 +82,6 @@ bool PrivateTaskMultiQueue::push(const PrivateTaskQueueEntry &entry) {
 
 /** Constructor */
 Worker::Worker(u32 id, int cpu_id, ABT_xstream &xstream) {
-  poll_queues_.Resize(1024);
-  relinquish_queues_.Resize(1024);
   id_ = id;
   sleep_us_ = 0;
   pid_ = 0;
@@ -58,6 +90,7 @@ Worker::Worker(u32 id, int cpu_id, ABT_xstream &xstream) {
   for (int i = 0; i < 16; ++i) {
     stacks_.emplace(malloc(stack_size_));
   }
+
   // MAX_DEPTH * [LOW_LAT, LONG_LAT]
   config::QueueManagerInfo &qm = CHI_QM_RUNTIME->config_->queue_manager_;
   active_.Init(id_, qm.proc_queue_depth_, qm.queue_depth_,
@@ -67,10 +100,12 @@ Worker::Worker(u32 id, int cpu_id, ABT_xstream &xstream) {
   monitor_gap_ = CHI_WORK_ORCHESTRATOR->monitor_gap_;
   monitor_window_ = CHI_WORK_ORCHESTRATOR->monitor_window_;
 
-  // Spawn threads
+  // Set xstream
   xstream_ = xstream;
-  // thread_ = std::make_unique<std::thread>(&Worker::Loop, this);
-  // pthread_id_ = thread_->native_handle();
+}
+
+/** Spawn worker thread */
+void Worker::Spawn() {
   tl_thread_ = CHI_WORK_ORCHESTRATOR->SpawnAsyncThread(
       xstream_, &Worker::WorkerEntryPoint, this);
 }
@@ -142,19 +177,19 @@ bool Worker::AnyFlushWorkDone(WorkOrchestrator *orch) {
 
 /** Worker loop iteration */
 void Worker::Loop() {
-  HILOG(kDebug, "Entered worker {}", id_);
   CHI_WORK_ORCHESTRATOR->SetThreadLocalBlock(this);
   pid_ = GetLinuxTid();
   SetCpuAffinity(affinity_);
   if (IsContinuousPolling()) {
     MakeDedicated();
   }
+  HILOG(kDebug, "Entered worker {}", id_);
   WorkOrchestrator *orch = CHI_WORK_ORCHESTRATOR;
   cur_time_.Refresh();
   while (orch->IsAlive()) {
     try {
       load_nsec_ = 0;
-      bool flushing = flush_.flushing_ || active_.GetFlush().size_;
+      bool flushing = flush_.flushing_ || active_.GetFlush().size();
       if (flushing) {
         BeginFlush(orch);
       }
@@ -185,48 +220,27 @@ void Worker::Loop() {
 
 /** Run a single iteration over all queues */
 void Worker::Run(bool flushing) {
-  // Are there any queues pending scheduling
-  if (poll_queues_.size() > 0) {
-    _PollQueues();
-  }
-  // Are there any queues pending descheduling
-  if (relinquish_queues_.size() > 0) {
-    _RelinquishQueues();
-  }
   // Process tasks in the pending queues
   IngestProcLanes(flushing);
-  IngestInterLanes(flushing);
-  PollPrivateQueue(active_.GetConstruct(), flushing);
   for (size_t i = 0; i < 8192; ++i) {
-    if (active_.GetLowLat().size() == 0) {
-      break;
-    }
-    PollPrivateQueue(active_.GetLowLat(), flushing);
-    IngestInterLanes(flushing);
+    PollPrivateLaneMultiQueue(active_.active_lanes_.GetLowLatency(),
+                         flushing);
   }
-  PollPrivateQueue(active_.GetHighLat(), flushing);
-  PollPrivateQueue(active_.GetLongRunning(), flushing);
+  PollPrivateLaneMultiQueue(active_.active_lanes_.GetHighLatency(),
+                         flushing);
 }
 
 /** Ingest all process lanes */
-HSHM_ALWAYS_INLINE
+HSHM_INLINE
 void Worker::IngestProcLanes(bool flushing) {
-  for (WorkEntry &work_entry : work_proc_queue_) {
-    IngestLane(work_entry);
-  }
-}
-
-/** Ingest all intermediate lanes */
-HSHM_ALWAYS_INLINE
-void Worker::IngestInterLanes(bool flushing) {
-  for (WorkEntry &work_entry : work_inter_queue_) {
+  for (IngressEntry &work_entry : work_proc_queue_) {
     IngestLane(work_entry);
   }
 }
 
 /** Ingest a lane */
-HSHM_ALWAYS_INLINE
-void Worker::IngestLane(WorkEntry &lane_info) {
+HSHM_INLINE
+void Worker::IngestLane(IngressEntry &lane_info) {
   // Ingest tasks from the ingress queues
   ingress::Lane *&ig_lane = lane_info.lane_;
   ingress::LaneData *entry;
@@ -237,100 +251,61 @@ void Worker::IngestLane(WorkEntry &lane_info) {
     LPointer<Task> task;
     task.shm_ = entry->p_;
     task.ptr_ = CHI_CLIENT->GetMainPointer<Task>(entry->p_);
-    DomainQuery dom_query = task->dom_query_;
-    TaskRouteMode route = Reroute(task->pool_, dom_query, task, ig_lane);
-    if (route == TaskRouteMode::kLocalWorker) {
-      ig_lane->pop();
-    } else {
-      if (active_.push(PrivateTaskQueueEntry{task, dom_query})) {
-        ig_lane->pop();
-      } else {
-        break;
-      }
-    }
+    active_.push(task);
   }
 }
-
-/**
- * Detect if a DomainQuery is across nodes
- * */
-TaskRouteMode Worker::Reroute(const PoolId &scope, DomainQuery &dom_query,
-                              LPointer<Task> task, ingress::Lane *ig_lane) {
-#ifdef CHIMAERA_REMOTE_DEBUG
-  if (task->pool_ != CHI_QM_CLIENT->admin_pool_id_ &&
-      !task->task_flags_.Any(TASK_REMOTE_DEBUG_MARK) &&
-      !task->IsLongRunning() && task->method_ != TaskMethod::kCreate &&
-      CHI_RUNTIME->remote_created_ && !task->IsRemote()) {
-    task->SetRemote();
-  }
-#endif
-  if (task->IsRemote()) {
-    return TaskRouteMode::kRemoteWorker;
-  } else if (!task->IsRouted()) {
-    CHI_CLIENT->ScheduleTaskRuntime(nullptr, task, ig_lane->id_);
-    return TaskRouteMode::kLocalWorker;
-  } else {
-    dom_query = DomainQuery::GetDirectId(dom_query.sub_id_,
-                                         task->rctx_.route_container_);
-    Container *exec =
-        CHI_MOD_REGISTRY->GetContainer(task->pool_, dom_query.sel_.id_);
-    if (!exec || !exec->is_created_) {
-      // NOTE(llogan): exec may be null if there is an update happening
-      // For now, simply push back into the queue. This may technically
-      // break strong consistency since tasks will be handled out-of order.
-      // TODO(llogan): Should add another queue to maintain consistency.
-      ig_lane->emplace(task.shm_);
-      return TaskRouteMode::kLocalWorker;
-    }
-    chi::Lane *chi_lane = exec->GetLane(task->rctx_.route_lane_);
-    if (chi_lane->ingress_id_ == ig_lane->id_) {
-      // NOTE(llogan): May become incorrect if active push fails
-      // Update the load
-      exec->Monitor(MonitorMode::kEstLoad, task->method_, task.ptr_,
-                    task->rctx_);
-      chi_lane->load_ += task->rctx_.load_;
-      chi_lane->num_tasks_ += 1;
-      return TaskRouteMode::kThisWorker;
-    } else {
-      ingress::MultiQueue *queue =
-          CHI_CLIENT->GetQueue(CHI_QM_RUNTIME->admin_queue_id_);
-      ingress::LaneGroup &ig_lane_group =
-          queue->GetGroup(chi_lane->ingress_id_.prio_);
-      ingress::Lane &new_ig_lane =
-          ig_lane_group.GetLane(chi_lane->ingress_id_.unique_);
-      new_ig_lane.emplace(task.shm_);
-      return TaskRouteMode::kLocalWorker;
-    }
-  }
-}
-
-/** Process completion events */
-void Worker::ProcessCompletions() { while (active_.unblock()); }
 
 /** Poll the set of tasks in the private queue */
-HSHM_ALWAYS_INLINE
+HSHM_INLINE
 size_t Worker::PollPrivateQueue(PrivateTaskQueue &priv_queue, bool flushing) {
   size_t work = 0;
-  size_t size = priv_queue.size_;
+  size_t size = priv_queue.size();
   for (size_t i = 0; i < size; ++i) {
-    PrivateTaskQueueEntry entry;
-    priv_queue.pop(entry);
-    if (entry.task_.ptr_ == nullptr) {
+    LPointer<Task> task;
+    priv_queue.pop(task);
+    if (task.ptr_ == nullptr) {
       break;
     }
-    bool pushback = RunTask(priv_queue, entry, entry.task_, flushing);
+    bool pushback = RunTask(task, flushing);
     if (pushback) {
-      priv_queue.push(entry);
+      priv_queue.push(task);
     }
     ++work;
   }
-  ProcessCompletions();
+  return work;
+}
+
+/** Poll the set of tasks in the private queue */
+HSHM_INLINE
+size_t Worker::PollPrivateLaneMultiQueue(PrivateLaneQueue &lanes, bool flushing) {
+  size_t work = 0;
+  size_t num_lanes = lanes.size();
+  for (size_t lane_off = 0; lane_off < num_lanes; ++lane_off) {
+    chi::Lane *chi_lane;
+    lanes.pop(chi_lane);
+    size_t lane_size = chi_lane->size();
+    size_t after_size = chi_lane->pop_prep(lane_size);
+    for (size_t i = 0; i < lane_size; ++i) {
+      LPointer<Task> task;
+      chi_lane->pop(task);
+      if (task.ptr_ == nullptr) {
+        break;
+      }
+      bool pushback = RunTask(task, flushing);
+      if (pushback) {
+        chi_lane->push(task);
+      }
+      ++work;
+    }
+    if (after_size > 0) {
+      lanes.push(chi_lane);
+    }
+  }
   return work;
 }
 
 /** Run a task */
-bool Worker::RunTask(PrivateTaskQueue &priv_queue, PrivateTaskQueueEntry &entry,
-                     LPointer<Task> task, bool flushing) {
+bool Worker::RunTask(LPointer<Task> &task, bool flushing) {
   // Get task properties
   bitfield32_t props = GetTaskProperties(task.ptr_, flushing);
   // Pack runtime context
@@ -338,24 +313,12 @@ bool Worker::RunTask(PrivateTaskQueue &priv_queue, PrivateTaskQueueEntry &entry,
   rctx.worker_props_ = props;
   rctx.worker_id_ = id_;
   rctx.flush_ = &flush_;
-  // Submit a remote task
-  if (props.Any(CHI_WORKER_IS_REMOTE) && !task->IsModuleComplete()) {
-    task->SetBlocked(1);
-    active_.block(entry);
-    cur_task_ = nullptr;
-    cur_lane_ = nullptr;
-    CHI_REMOTE_QUEUE->AsyncClientPushSubmitBase(
-        HSHM_DEFAULT_MEM_CTX, nullptr, task->task_node_ + 1,
-        DomainQuery::GetDirectId(SubDomainId::kGlobalContainers, 1), task.ptr_);
-    return false;
-  }
   // Get the task container
   Container *exec;
-  if (props.Any(CHI_WORKER_IS_REMOTE)) {
+  if (task->IsModuleComplete()) {
     exec = CHI_MOD_REGISTRY->GetStaticContainer(task->pool_);
   } else {
-    exec =
-        CHI_MOD_REGISTRY->GetContainer(task->pool_, entry.res_query_.sel_.id_);
+    exec = CHI_MOD_REGISTRY->GetContainer(task->pool_, rctx.route_container_);
   }
   if (!exec) {
     if (task->pool_ == PoolId::GetNull()) {
@@ -371,33 +334,14 @@ bool Worker::RunTask(PrivateTaskQueue &priv_queue, PrivateTaskQueueEntry &entry,
     // Make this task current
     cur_task_ = task.ptr_;
     cur_lane_ = exec->GetLane(task->rctx_.route_lane_);
-    // Check if the task is apart of a plugged lane
-    if (cur_lane_->IsPlugged()) {
-      if (cur_lane_->worker_id_ != id_) {
-        ingress::MultiQueue *queue =
-            CHI_CLIENT->GetQueue(CHI_QM_RUNTIME->admin_queue_id_);
-        ingress::LaneGroup &ig_lane_group =
-            queue->GetGroup(cur_lane_->ingress_id_.node_id_);
-        ingress::Lane &new_ig_lane =
-            ig_lane_group.GetLane(cur_lane_->ingress_id_.unique_);
-        new_ig_lane.emplace(task.shm_);
-        return false;
-      }
-      if (!cur_lane_->IsActive(task->task_node_.root_)) {
-        // TODO(llogan): insert into plug list.
-        return true;
-      }
-    }
     // Execute the task based on its properties
     rctx.exec_ = exec;
-    ExecTask(priv_queue, entry, task.ptr_, rctx, exec, props);
+    ExecTask(task, rctx, exec, props);
   }
   // Cleanup allocations
   bool pushback = true;
   if (task->IsModuleComplete()) {
     pushback = false;
-    // active_.erase(queue.id_);
-    active_.erase(priv_queue.id_, entry);
     EndTask(exec, task);
   } else if (task->IsBlocked()) {
     pushback = false;
@@ -406,10 +350,10 @@ bool Worker::RunTask(PrivateTaskQueue &priv_queue, PrivateTaskQueueEntry &entry,
 }
 
 /** Run an arbitrary task */
-HSHM_ALWAYS_INLINE
-void Worker::ExecTask(PrivateTaskQueue &priv_queue,
-                      PrivateTaskQueueEntry &entry, Task *&task,
-                      RunContext &rctx, Container *&exec, bitfield32_t &props) {
+HSHM_INLINE
+void Worker::ExecTask(LPointer<Task> &task,
+                      RunContext &rctx, Container *&exec,
+                      bitfield32_t &props) {
   // Determine if a task should be executed
   if (!props.All(CHI_WORKER_SHOULD_RUN)) {
     return;
@@ -431,16 +375,16 @@ void Worker::ExecTask(PrivateTaskQueue &priv_queue,
   // Execute + monitor the task
   if (task->ShouldSample()) {
     rctx.timer_.Resume();
-    ExecCoroutine(task, rctx);
+    ExecCoroutine(task.ptr_, rctx);
     rctx.timer_.Pause();
   } else {
-    ExecCoroutine(task, rctx);
+    ExecCoroutine(task.ptr_, rctx);
   }
   load_nsec_ += rctx.load_.cpu_load_ + 1;
   // Deactivate task and monitor
   if (!task->IsStarted()) {
     if (task->ShouldSample()) {
-      exec->Monitor(MonitorMode::kSampleLoad, task->method_, task, rctx);
+      exec->Monitor(MonitorMode::kSampleLoad, task->method_, task.ptr_, rctx);
       task->UnsetShouldSample();
     }
     cur_lane_->UnsetActive(task->task_node_.root_);
@@ -452,12 +396,12 @@ void Worker::ExecTask(PrivateTaskQueue &priv_queue,
   task->DidRun(cur_time_);
   // Block the task
   if (task->IsBlocked()) {
-    active_.block(entry);
+    CHI_WORK_ORCHESTRATOR->Block(task.ptr_);
   }
 }
 
 /** Run a task */
-HSHM_ALWAYS_INLINE
+HSHM_INLINE
 void Worker::ExecCoroutine(Task *&task, RunContext &rctx) {
   // If task isn't started, allocate stack pointer
   if (!task->IsStarted()) {
@@ -488,15 +432,11 @@ void Worker::CoroutineEntry(bctx::transfer_t t) {
 }
 
 /** Free a task when it is no longer needed */
-HSHM_ALWAYS_INLINE
+HSHM_INLINE
 void Worker::EndTask(Container *exec, LPointer<Task> &task) {
-  //    if (task->task_flags_.Any(TASK_REMOTE_RECV_MARK)) {
-  //      HILOG(kInfo, "[TASK_CHECK] Server completed rep_task {} on node {}",
-  //            (void*)task->rctx_.ret_task_addr_, CHI_RPC->node_id_);
-  //    }
   task->SetComplete();
   if (task->ShouldSignalUnblock()) {
-    SignalUnblock(task->rctx_.pending_to_);
+    CHI_WORK_ORCHESTRATOR->SignalUnblock(task->rctx_.pending_to_);
   }
   if (task->ShouldSignalRemoteComplete()) {
     Container *remote_exec =
@@ -519,25 +459,8 @@ void Worker::MigrateLane(Lane *lane, u32 new_worker) {
   // Blocked + ingressed ops need to be located and removed from queues
 }
 
-/** Unblock a task */
-void Worker::SignalUnblock(Task *unblock_task) {
-  LPointer<Task> ltask;
-  ltask.ptr_ = unblock_task;
-  ltask.shm_ = HERMES_MEMORY_MANAGER->Convert(ltask.ptr_);
-  SignalUnblock(ltask);
-}
-
-/** Externally signal a task as complete */
-HSHM_ALWAYS_INLINE
-void Worker::SignalUnblock(LPointer<Task> &unblock_task) {
-  Worker &worker =
-      CHI_WORK_ORCHESTRATOR->GetWorker(unblock_task->rctx_.worker_id_);
-  PrivateTaskMultiQueue &pending = worker.GetPendingQueue(unblock_task.ptr_);
-  pending.signal_unblock(pending, unblock_task);
-}
-
 /** Get the characteristics of a task */
-HSHM_ALWAYS_INLINE
+HSHM_INLINE
 bitfield32_t Worker::GetTaskProperties(Task *&task, bool flushing) {
   bitfield32_t props;
 
@@ -559,46 +482,6 @@ void Worker::Join() {
   // thread_->join();
   ABT_xstream_join(xstream_);
 }
-
-/** Get the pending queue for a worker */
-PrivateTaskMultiQueue &Worker::GetPendingQueue(Task *task) {
-  PrivateTaskMultiQueue &pending =
-      CHI_WORK_ORCHESTRATOR->workers_[task->rctx_.worker_id_]->active_;
-  return pending;
-}
-
-/** Tell worker to poll a set of queues */
-void Worker::PollQueues(const std::vector<WorkEntry> &queues) {
-  poll_queues_.emplace(queues);
-}
-
-/** Actually poll the queues from within the worker */
-void Worker::_PollQueues() {
-  std::vector<WorkEntry> work_queue;
-  while (!poll_queues_.pop(work_queue).IsNull()) {
-    for (const WorkEntry &entry : work_queue) {
-      if (entry.queue_->id_ == CHI_QM_RUNTIME->process_queue_id_) {
-        work_proc_queue_.emplace_back(entry);
-      } else {
-        work_inter_queue_.emplace_back(entry);
-      }
-    }
-  }
-}
-
-/**
- * Tell worker to start relinquishing some of its queues
- * This function must be called from a single thread (outside of worker)
- * */
-void Worker::RelinquishingQueues(const std::vector<WorkEntry> &queues) {
-  relinquish_queues_.emplace(queues);
-}
-
-/** Actually relinquish the queues from within the worker */
-void Worker::_RelinquishQueues() {}
-
-/** Check if worker is still stealing queues */
-bool Worker::IsRelinquishingQueues() { return relinquish_queues_.size() > 0; }
 
 /** Set the sleep cycle */
 void Worker::SetPollingFrequency(size_t sleep_us) {

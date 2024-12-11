@@ -41,11 +41,11 @@ struct ClientPushSubmitTask : public Task, TaskFlags<TF_LOCAL> {
   IN Task *orig_task_;
 
   /** SHM default constructor */
-  HSHM_ALWAYS_INLINE explicit
+  HSHM_INLINE explicit
   ClientPushSubmitTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) : Task(alloc) {}
 
   /** Emplace constructor */
-  HSHM_ALWAYS_INLINE explicit
+  HSHM_INLINE explicit
   ClientPushSubmitTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
                        const TaskNode &task_node,
                        const PoolId &pool_id,
@@ -70,11 +70,11 @@ struct ClientPushSubmitTask : public Task, TaskFlags<TF_LOCAL> {
 
 struct ClientSubmitTask : public Task, TaskFlags<TF_LOCAL> {
   /** SHM default constructor */
-  HSHM_ALWAYS_INLINE explicit
+  HSHM_INLINE explicit
   ClientSubmitTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) : Task(alloc) {}
 
   /** Emplace constructor */
-  HSHM_ALWAYS_INLINE explicit
+  HSHM_INLINE explicit
   ClientSubmitTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
                    const TaskNode &task_node,
                    const PoolId &pool_id,
@@ -91,11 +91,11 @@ struct ClientSubmitTask : public Task, TaskFlags<TF_LOCAL> {
 
 struct ServerPushCompleteTask : public Task, TaskFlags<TF_LOCAL> {
   /** SHM default constructor */
-  HSHM_ALWAYS_INLINE explicit
+  HSHM_INLINE explicit
   ServerPushCompleteTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) : Task(alloc) {}
 
   /** Emplace constructor */
-  HSHM_ALWAYS_INLINE explicit
+  HSHM_INLINE explicit
   ServerPushCompleteTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
                          const TaskNode &task_node,
                          const PoolId &pool_id,
@@ -112,11 +112,11 @@ struct ServerPushCompleteTask : public Task, TaskFlags<TF_LOCAL> {
 
 struct ServerCompleteTask : public Task, TaskFlags<TF_LOCAL> {
   /** SHM default constructor */
-  HSHM_ALWAYS_INLINE explicit
+  HSHM_INLINE explicit
   ServerCompleteTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) : Task(alloc) {}
 
   /** Emplace constructor */
-  HSHM_ALWAYS_INLINE explicit
+  HSHM_INLINE explicit
   ServerCompleteTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
                      const TaskNode &task_node,
                      const PoolId &pool_id,

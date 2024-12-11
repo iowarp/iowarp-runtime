@@ -28,6 +28,18 @@ namespace chi {
 
 typedef ABT_key TlsKey;
 
+struct BlockedTask {
+  Task *task_;
+  hipc::atomic<size_t> block_count_;
+
+  BlockedTask() = default;
+  
+  BlockedTask(Task *task)
+  : task_(task) {
+    block_count_ = task->rctx_.block_count_;
+  }
+};
+
 class WorkOrchestrator {
  public:
   ServerConfig *config_;  /**< The server configuration */
@@ -44,6 +56,7 @@ class WorkOrchestrator {
   std::atomic<bool> flushing_ = false;  /**< Flushing in progress */
   size_t monitor_window_ = 0;  /**< Sampling window */
   size_t monitor_gap_ = 0;  /**< Monitoring gap */
+  hipc::mpmc_key_set<BlockedTask> blocked_tasks_;  /**< Blocked tasks */
 
  public:
   /** Default constructor */
@@ -51,6 +64,12 @@ class WorkOrchestrator {
 
   /** Destructor */
   ~WorkOrchestrator() = default;
+
+  /** Block a task */
+  void Block(Task *task);
+
+  /** Unblock a task */
+  void SignalUnblock(Task *task);
 
   /** Create thread pool */
   void ServerInit(ServerConfig *config, QueueManager &qm);
@@ -74,14 +93,14 @@ class WorkOrchestrator {
   void DedicateCores();
 
   /** Begin finalizing the runtime */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   void FinalizeRuntime() {
     HILOG(kInfo, "(node {}) Finalizing workers", CHI_RPC->node_id_)
     kill_requested_.store(true);
   }
 
   /** Whether threads should still be executing */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   bool IsAlive() {
     return !kill_requested_.load();
   }
@@ -234,5 +253,6 @@ class WorkOrchestrator {
   hshm::Singleton<chi::WorkOrchestrator>::GetInstance()
 #define CHI_CUR_TASK CHI_WORK_ORCHESTRATOR->GetCurrentTask()
 #define CHI_CUR_LANE CHI_WORK_ORCHESTRATOR->GetCurrentLane()
+#define CHI_CUR_WORKER CHI_WORK_ORCHESTRATOR->GetCurrentWorker()
 
 #endif  // CHI_INCLUDE_CHI_WORK_ORCHESTRATOR_WORK_ORCHESTRATOR_H_

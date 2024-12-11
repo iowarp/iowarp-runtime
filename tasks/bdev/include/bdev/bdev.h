@@ -44,14 +44,14 @@ class Client : public ModuleClient {
   CHI_TASK_METHODS(Create);
 
   /** Destroy pool + queue */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   void Destroy(const hipc::MemContext &mctx,
                const DomainQuery &dom_query) {
     CHI_ADMIN->DestroyContainer(mctx, dom_query, id_);
   }
 
   /** Allocate a section of the block device */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   std::vector<Block> Allocate(const hipc::MemContext &mctx,
                               const DomainQuery &dom_query,
                               size_t size) {
@@ -65,7 +65,7 @@ class Client : public ModuleClient {
   CHI_TASK_METHODS(Allocate);
 
   /** Free a section of the block device */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   void Free(const hipc::MemContext &mctx,
             const DomainQuery &dom_query,
             const Block &block) {
@@ -76,7 +76,7 @@ class Client : public ModuleClient {
   CHI_TASK_METHODS(Free);
 
   /** Write to the block device */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   void Write(const hipc::MemContext &mctx,
              const DomainQuery &dom_query,
              const hipc::Pointer &data,
@@ -90,7 +90,7 @@ class Client : public ModuleClient {
   CHI_TASK_METHODS(Write);
 
   /** Read from the block device */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   void Read(const hipc::MemContext &mctx,
             const DomainQuery &dom_query,
             const hipc::Pointer &data,
@@ -104,7 +104,7 @@ class Client : public ModuleClient {
   CHI_TASK_METHODS(Read);
 
   /** Periodically poll block device stats */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   BdevStats PollStats(const hipc::MemContext &mctx,
                       const DomainQuery &dom_query) {
     LPointer<PollStatsTask> task =

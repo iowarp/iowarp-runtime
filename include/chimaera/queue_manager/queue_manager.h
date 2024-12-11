@@ -47,7 +47,7 @@ class QueueManager {
    *
    * TODO(llogan): Maybe make a local hashtable to map id -> ticket?
    * */
-  HSHM_ALWAYS_INLINE ingress::MultiQueue* GetQueue(const QueueId &id) {
+  HSHM_INLINE ingress::MultiQueue* GetQueue(const QueueId &id) {
     return &(*queue_map_)[id.unique_];
   }
 };

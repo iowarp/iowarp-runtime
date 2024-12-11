@@ -39,6 +39,9 @@ class Lane {
   CoMutex comux_;
   std::atomic<size_t> plug_count_;
   u32 prio_;
+  size_t lane_req_;
+  chi::dynamic_queue<TaskPointer> active_tasks_;
+  hipc::atomic<size_t> count_;
 
  public:
   /** Emplace constructor */
@@ -46,6 +49,24 @@ class Lane {
   lane_id_(lane_id), ingress_id_(ingress_id),
   worker_id_(worker_id), prio_(prio) {
     plug_count_ = 0;
+    count_ = 0;
+  }
+
+#ifdef CHIMAERA_RUNTIME
+  /** Push a task  */
+  void push(const LPointer<Task> &task);
+
+  /** Pop a set of tasks in sequence */
+  size_t pop_prep(size_t count) {
+    return count_.fetch_sub(count);
+  }
+  
+  /** Pop a task */
+  void pop(LPointer<Task> &task);
+#endif
+
+  size_t size() {
+    return count_.load();
   }
 
   /** Copy constructor */

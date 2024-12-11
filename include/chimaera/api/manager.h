@@ -87,7 +87,7 @@ class ConfigurationManager {
   }
 
   /** Get number of nodes */
-  HSHM_ALWAYS_INLINE int GetNumNodes() {
+  HSHM_INLINE int GetNumNodes() {
     return server_config_.rpc_.host_names_.size();
   }
 };

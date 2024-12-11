@@ -60,7 +60,7 @@ void CoMutex::Unlock() {
     Task *task = blocked[i].task_;
     // HILOG(kInfo, "Unlocking task {} (id={}, pool={}, method={})", (void *)task,
     //       task->task_node_, task->pool_, task->method_);
-    Worker::SignalUnblock(task);
+    CHI_WORK_ORCHESTRATOR->SignalUnblock(task);
     ++rep_;
   }
   blocked_map_.erase(it);

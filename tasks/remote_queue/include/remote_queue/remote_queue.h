@@ -38,7 +38,7 @@ class Client : public ModuleClient {
   CHI_TASK_METHODS(Create);
 
   /** Destroy pool + queue */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   void Destroy(const hipc::MemContext &mctx,
                const DomainQuery &dom_query) {
     CHI_ADMIN->DestroyContainer(mctx, dom_query, id_);

@@ -106,7 +106,7 @@ class Client : public ConfigurationManager {
 
   /** Create a default-constructed task */
   template<typename TaskT, typename ...Args>
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   TaskT* NewEmptyTask(const hipc::MemContext &mctx, hipc::Pointer &p) {
     TaskT *task = main_alloc_->NewObj<TaskT>(
         mctx, p, main_alloc_);
@@ -119,7 +119,7 @@ class Client : public ConfigurationManager {
 
   /** Create a default-constructed task */
   template<typename TaskT, typename ...Args>
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   LPointer<TaskT> NewEmptyTask(const hipc::MemContext &mctx) {
     LPointer<TaskT> task = main_alloc_->NewObjLocal<TaskT>(
         mctx, main_alloc_);
@@ -132,7 +132,7 @@ class Client : public ConfigurationManager {
 
   /** Construct task */
   template<typename TaskT, typename ...Args>
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   void ConstructTask(const hipc::MemContext &mctx, TaskT *task, Args&& ...args) {
     hipc::Allocator::ConstructObj<TaskT>(
         *task, hipc::CtxAllocator<CHI_ALLOC_T>{main_alloc_, mctx}, std::forward<Args>(args)...);
@@ -140,7 +140,7 @@ class Client : public ConfigurationManager {
 
   /** Allocate task */
   template<typename TaskT, typename ...Args>
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   hipc::LPointer<TaskT> AllocateTask(const hipc::MemContext &mctx) {
     hipc::LPointer<TaskT> task = main_alloc_->AllocateLocalPtr<TaskT>(
         mctx, sizeof(TaskT));
@@ -152,7 +152,7 @@ class Client : public ConfigurationManager {
 
   /** Create a task */
   template<typename TaskT, typename ...Args>
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   LPointer<TaskT> NewTask(const hipc::MemContext &mctx,
                           const TaskNode &task_node, Args&& ...args) {
     LPointer<TaskT> ptr = main_alloc_->NewObjLocal<TaskT>(
@@ -183,7 +183,7 @@ class Client : public ConfigurationManager {
 
   /** Destroy a task */
   template<typename TaskT>
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   void DelTask(const hipc::MemContext &mctx,
                TaskT *task) {
 #ifdef CHIMAERA_TASK_DEBUG
@@ -196,7 +196,7 @@ class Client : public ConfigurationManager {
 
   /** Destroy a task */
   template<typename TaskT>
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   void DelTask(const hipc::MemContext &mctx,
                LPointer<TaskT> &task) {
 #ifdef CHIMAERA_TASK_DEBUG
@@ -209,7 +209,7 @@ class Client : public ConfigurationManager {
 
   /** Destroy a task */
   template<typename ContainerT, typename TaskT>
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   void DelTask(const hipc::MemContext &mctx,
                ContainerT *exec, TaskT *task) {
 #ifdef CHIMAERA_TASK_DEBUG
@@ -221,7 +221,7 @@ class Client : public ConfigurationManager {
 
   /** Destroy a task */
   template<typename ContainerT, typename TaskT>
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   void DelTask(const hipc::MemContext &mctx,
                ContainerT *exec, LPointer<TaskT> &task) {
 #ifdef CHIMAERA_TASK_DEBUG
@@ -233,13 +233,13 @@ class Client : public ConfigurationManager {
 
   /** Convert pointer to char* */
   template<typename T = char>
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   T* GetMainPointer(const hipc::Pointer &p) {
     return main_alloc_->Convert<T, hipc::Pointer>(p);
   }
 
   /** Allocate a buffer */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   LPointer<char> AllocateBuffer(const hipc::MemContext &mctx,
                                 size_t size) {
     return AllocateBufferSafe<false>({mctx, data_alloc_}, size);
@@ -247,7 +247,7 @@ class Client : public ConfigurationManager {
 
   /** Allocate a buffer (used in remote queue only) */
 #ifdef CHIMAERA_RUNTIME
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   LPointer<char> AllocateBufferRemote(const hipc::MemContext &mctx,
                                       size_t size) {
     return AllocateBufferSafe<true>({mctx, rdata_alloc_}, size);
@@ -257,12 +257,12 @@ class Client : public ConfigurationManager {
  private:
   /** Allocate a buffer */
   template<bool FROM_REMOTE=false>
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   LPointer<char> AllocateBufferSafe(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, size_t size);
 
  public:
   /** Free a buffer */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   void FreeBuffer(hipc::Pointer &p) {
     auto alloc = HERMES_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(
         p.allocator_id_);
@@ -270,7 +270,7 @@ class Client : public ConfigurationManager {
   }
 
   /** Free a buffer */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   void FreeBuffer(LPointer<char> &p) {
     auto alloc = HERMES_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(
         p.shm_.allocator_id_);
@@ -279,7 +279,7 @@ class Client : public ConfigurationManager {
 
   /** Convert pointer to char* */
   template<typename T = char>
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   T* GetDataPointer(const hipc::Pointer &p) {
     auto alloc = HERMES_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(
         p.allocator_id_);
@@ -287,7 +287,7 @@ class Client : public ConfigurationManager {
   }
 
   /** Get the queue ID */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   QueueId GetQueueId(const PoolId &id) {
     if (id == CHI_QM_CLIENT->process_queue_id_) {
       return CHI_QM_CLIENT->process_queue_id_;
@@ -297,7 +297,7 @@ class Client : public ConfigurationManager {
   }
 
   /** Get a queue by its ID */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   ingress::MultiQueue* GetQueue(const QueueId &queue_id) {
     QueueId real_id = GetQueueId(queue_id);
     return queue_manager_.GetQueue(real_id);

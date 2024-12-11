@@ -356,7 +356,7 @@ class BinaryInputArchive {
   }
 
   /** End deserialize recursion */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   BinaryInputArchive& Deserialize() {
     return *this;
   }

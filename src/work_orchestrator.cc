@@ -18,6 +18,7 @@ namespace chi {
 
 void WorkOrchestrator::ServerInit(ServerConfig *config, QueueManager &qm) {
   config_ = config;
+  blocked_tasks_.Init(config->queue_manager_.queue_depth_);
 
   // Initialize argobots
   ABT_init(0, nullptr);
@@ -90,9 +91,6 @@ void WorkOrchestrator::ServerInit(ServerConfig *config, QueueManager &qm) {
     std::this_thread::sleep_for(std::chrono::milliseconds(5));
   }
 
-  // Dedicate CPU cores to this runtime
-  DedicateCores();
-
   // Assign ingress queues to workers
   size_t count_lowlat_ = 0;
   size_t count_highlat_ = 0;
@@ -108,7 +106,8 @@ void WorkOrchestrator::ServerInit(ServerConfig *config, QueueManager &qm) {
           u32 worker_off = count_lowlat_ % CHI_WORK_ORCHESTRATOR->dworkers_.size();
           count_lowlat_ += 1;
           Worker &worker = *CHI_WORK_ORCHESTRATOR->dworkers_[worker_off];
-          worker.PollQueues({WorkEntry(lane_group.prio_, lane_id, &queue)});
+          worker.work_proc_queue_.emplace_back(
+              IngressEntry(lane_group.prio_, lane_id, &queue));
           worker_id = worker.id_;
 //            HILOG(kInfo, "(node {}) Scheduling the queue {} (prio {}, lane {}, worker {})",
 //                  CHI_CLIENT->node_id_, queue.id_, lane_group.prio_, lane_id, worker.id_);
@@ -116,7 +115,8 @@ void WorkOrchestrator::ServerInit(ServerConfig *config, QueueManager &qm) {
           u32 worker_off = count_highlat_ % CHI_WORK_ORCHESTRATOR->oworkers_.size();
           count_highlat_ += 1;
           Worker &worker = *CHI_WORK_ORCHESTRATOR->oworkers_[worker_off];
-          worker.PollQueues({WorkEntry(lane_group.prio_, lane_id, &queue)});
+          worker.work_proc_queue_.emplace_back(
+              IngressEntry(lane_group.prio_, lane_id, &queue));
           worker_id = worker.id_;
         }
         ingress::Lane &lane = lane_group.GetLane(lane_id);
@@ -124,6 +124,14 @@ void WorkOrchestrator::ServerInit(ServerConfig *config, QueueManager &qm) {
       }
       lane_group.num_scheduled_ = num_lanes;
     }
+
+    // Enable the workers to begin polling
+    for (std::unique_ptr<Worker> &worker : workers_) {
+      worker->Spawn();
+    }
+
+    // Dedicate CPU cores to this runtime
+    DedicateCores();
   }
 
   HILOG(kInfo, "(node {}) Started {} workers",
@@ -203,6 +211,29 @@ std::vector<Load> WorkOrchestrator::CalculateLoad() {
     }
   }
   return loads;
+}
+
+/** Block a task */
+void WorkOrchestrator::Block(Task *task) {
+  blocked_tasks_.emplace(task->rctx_.pending_key_, BlockedTask{task});
+}
+
+/** Unblock a task */
+void WorkOrchestrator::SignalUnblock(Task *task) {
+  BlockedTask *blocked;
+  blocked_tasks_.peek(task->rctx_.pending_key_, blocked);
+  if (blocked == nullptr || blocked->task_ != task) {
+    HELOG(kFatal, "Blocked task was not found");
+    return;
+  }
+  size_t count = blocked->block_count_.fetch_sub(1);
+  if (count == 0) {
+    blocked_tasks_.erase(task->rctx_.pending_key_);
+  }
+  LPointer<Task> lp;
+  lp.ptr_ = task;
+  lp.shm_ = HERMES_MEMORY_MANAGER->Convert(task);
+  CHI_CUR_WORKER->active_.push(lp);
 }
 
 #ifdef CHIMAERA_ENABLE_PYTHON

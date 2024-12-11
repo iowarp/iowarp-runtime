@@ -158,11 +158,11 @@ struct LaneGroup : public PriorityInfo, public hipc::ShmContainer {
   u32 tether_;       /**< Lanes should be pinned to the same workers as the tether's prio group */
 
   /** Default constructor */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   LaneGroup(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) : lanes_(alloc) {}
 
   /** Set priority info */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   LaneGroup(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, const PriorityInfo &priority)
   : lanes_(alloc) {
     prio_ = priority.prio_;
@@ -179,7 +179,7 @@ struct LaneGroup : public PriorityInfo, public hipc::ShmContainer {
    * ===================================*/
 
   /** SHM Copy constructor. Should never actually be called. */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   LaneGroup(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, const LaneGroup &other)
   : lanes_(alloc, other.lanes_) {
     prio_ = other.prio_;
@@ -250,13 +250,13 @@ struct LaneGroup : public PriorityInfo, public hipc::ShmContainer {
   }
 
   /** Check if the list is empty */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   bool IsNull() const {
     return lanes_.IsNull();
   }
 
   /** Sets this list as empty */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   void SetNull() {}
 
   /**====================================
@@ -264,13 +264,13 @@ struct LaneGroup : public PriorityInfo, public hipc::ShmContainer {
    * ===================================*/
 
   /** Check if this group is long-running or ADMIN */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   bool IsLowPriority() {
     return flags_.Any(QUEUE_LONG_RUNNING) || prio_ == 0;
   }
 
   /** Check if this group is long-running or ADMIN */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   bool IsLowLatency() {
     return flags_.Any(QUEUE_LOW_LATENCY);
   }
@@ -376,13 +376,13 @@ struct MultiQueue : public hipc::ShmContainer {
   }
 
   /** Check if the list is empty */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   bool IsNull() const {
     return groups_.IsNull();
   }
 
   /** Sets this list as empty */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   void SetNull() {}
 
   /**====================================
@@ -390,23 +390,23 @@ struct MultiQueue : public hipc::ShmContainer {
    * ===================================*/
 
   /** Get the priority struct */
-  HSHM_ALWAYS_INLINE LaneGroup& GetGroup(u32 prio) {
+  HSHM_INLINE LaneGroup& GetGroup(u32 prio) {
     return groups_[prio];
   }
 
   /** Get a lane of the queue */
-  HSHM_ALWAYS_INLINE Lane& GetLane(u32 prio, LaneId lane_id) {
+  HSHM_INLINE Lane& GetLane(u32 prio, LaneId lane_id) {
     return GetLane(GetGroup(prio), lane_id);
   }
 
   /** Get a lane of the queue */
-  HSHM_ALWAYS_INLINE Lane& GetLane(LaneGroup &lane_group,
+  HSHM_INLINE Lane& GetLane(LaneGroup &lane_group,
                                    LaneId lane_id) {
     return lane_group.GetLane(lane_id);
   }
 
   /** Emplace a SHM pointer to a task */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   bool Emplace(u32 prio, u32 lane_hash,
                hipc::Pointer &p) {
     return Emplace(prio, lane_hash, LaneData(p));
@@ -432,22 +432,22 @@ struct MultiQueue : public hipc::ShmContainer {
   }
 
   /** Begin plugging the queue for resize */
-  HSHM_ALWAYS_INLINE bool PlugForResize() {
+  HSHM_INLINE bool PlugForResize() {
     return true;
   }
 
   /** Begin plugging the queue for update tasks */
-  HSHM_ALWAYS_INLINE bool PlugForUpdateTask() {
+  HSHM_INLINE bool PlugForUpdateTask() {
     return true;
   }
 
   /** Check if emplace operations are plugged */
-  HSHM_ALWAYS_INLINE bool IsEmplacePlugged() {
+  HSHM_INLINE bool IsEmplacePlugged() {
     return flags_.Any(QUEUE_RESIZE);
   }
 
   /** Check if pop operations are plugged */
-  HSHM_ALWAYS_INLINE bool IsPopPlugged() {
+  HSHM_INLINE bool IsPopPlugged() {
     return flags_.Any(QUEUE_UPDATE | QUEUE_RESIZE);
   }
 
@@ -460,12 +460,12 @@ struct MultiQueue : public hipc::ShmContainer {
   }
 
   /** Enable emplace & pop */
-  HSHM_ALWAYS_INLINE void UnplugForResize() {
+  HSHM_INLINE void UnplugForResize() {
     flags_.UnsetBits(QUEUE_RESIZE);
   }
 
   /** Enable pop */
-  HSHM_ALWAYS_INLINE void UnplugForUpdateTask() {
+  HSHM_INLINE void UnplugForUpdateTask() {
     flags_.UnsetBits(QUEUE_UPDATE);
   }
 };

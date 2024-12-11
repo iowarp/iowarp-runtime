@@ -112,21 +112,21 @@ struct UniqueId {
   }
 
   /** Default constructor */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   UniqueId() = default;
 
   /** Emplace constructor */
-  HSHM_ALWAYS_INLINE explicit
+  HSHM_INLINE explicit
   UniqueId(NodeId node_id, u64 unique)
   : node_id_(node_id), hash_(0), unique_(unique) {}
 
   /** Emplace constructor (+hash) */
-  HSHM_ALWAYS_INLINE explicit
+  HSHM_INLINE explicit
   UniqueId(NodeId node_id, u32 hash, u64 unique)
   : node_id_(node_id), hash_(hash), unique_(unique) {}
 
   /** Copy constructor */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   UniqueId(const UniqueId &other) {
     node_id_ = other.node_id_;
     hash_ = other.hash_;
@@ -135,7 +135,7 @@ struct UniqueId {
 
   /** Copy constructor */
   template<int OTHER_TYPE=TYPE>
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   UniqueId(const UniqueId<OTHER_TYPE> &other) {
     node_id_ = other.node_id_;
     hash_ = other.hash_;
@@ -143,7 +143,7 @@ struct UniqueId {
   }
 
   /** Copy assignment */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   UniqueId& operator=(const UniqueId &other) {
     if (this != &other) {
       node_id_ = other.node_id_;
@@ -154,7 +154,7 @@ struct UniqueId {
   }
 
   /** Move constructor */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   UniqueId(UniqueId &&other) noexcept {
     node_id_ = other.node_id_;
     hash_ = other.hash_;
@@ -162,7 +162,7 @@ struct UniqueId {
   }
 
   /** Move assignment */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   UniqueId& operator=(UniqueId &&other) noexcept {
     if (this != &other) {
       node_id_ = other.node_id_;
@@ -174,19 +174,19 @@ struct UniqueId {
 
   /** Check if null */
   [[nodiscard]]
-  HSHM_ALWAYS_INLINE bool IsNull() const {
+  HSHM_INLINE bool IsNull() const {
     return node_id_ == 0;
   }
 
   /** Get null id */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   static UniqueId GetNull() {
     static const UniqueId id(0, 0);
     return id;
   }
 
   /** Set to null id */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   void SetNull() {
     node_id_ = 0;
     hash_ = 0;
@@ -195,17 +195,17 @@ struct UniqueId {
 
   /** Get id of node from this id */
   [[nodiscard]]
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   u32 GetNodeId() const { return node_id_; }
 
   /** Compare two ids for equality */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   bool operator==(const UniqueId &other) const {
     return unique_ == other.unique_ && node_id_ == other.node_id_;
   }
 
   /** Compare two ids for inequality */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   bool operator!=(const UniqueId &other) const {
     return unique_ != other.unique_ || node_id_ != other.node_id_;
   }
@@ -591,11 +591,11 @@ struct DomainQuery {
   }
 
   /** Default constructor. */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   DomainQuery() {}
 
   /** Copy constructor */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   DomainQuery(const DomainQuery &other) {
     flags_ = other.flags_;
     sub_id_ = other.sub_id_;
@@ -603,7 +603,7 @@ struct DomainQuery {
   }
 
   /** Copy operator */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   DomainQuery& operator=(const DomainQuery &other) {
     if (this != &other) {
       flags_ = other.flags_;
@@ -614,7 +614,7 @@ struct DomainQuery {
   }
 
   /** Move constructor */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   DomainQuery(DomainQuery &&other) noexcept {
     flags_ = other.flags_;
     sub_id_ = other.sub_id_;
@@ -622,7 +622,7 @@ struct DomainQuery {
   }
 
   /** Move operator */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   DomainQuery& operator=(DomainQuery &&other) noexcept {
     if (this != &other) {
       flags_ = other.flags_;
@@ -633,7 +633,7 @@ struct DomainQuery {
   }
 
   /** Equality operator */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   bool operator==(const DomainQuery &other) const {
     return flags_.bits_ == other.flags_.bits_ &&
         sub_id_ == other.sub_id_ &&
@@ -788,28 +788,28 @@ struct ResolvedDomainQuery {
   DomainQuery dom_;
 
   /** Default constructor */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   ResolvedDomainQuery() {}
 
   /** Emplace constructor */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   ResolvedDomainQuery(NodeId node, const DomainQuery &dom)
   : node_(node), dom_(dom) {}
 
   /** Emplace constructor (2) */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   ResolvedDomainQuery(NodeId node)
   : node_(node) {}
 
   /** Copy constructor */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   ResolvedDomainQuery(const ResolvedDomainQuery &other) {
     node_ = other.node_;
     dom_ = other.dom_;
   }
 
   /** Copy assignment */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   ResolvedDomainQuery& operator=(const ResolvedDomainQuery &other) {
     if (this != &other) {
       node_ = other.node_;
@@ -819,14 +819,14 @@ struct ResolvedDomainQuery {
   }
 
   /** Move constructor */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   ResolvedDomainQuery(ResolvedDomainQuery &&other) noexcept {
     node_ = other.node_;
     dom_ = other.dom_;
   }
 
   /** Move assignment */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   ResolvedDomainQuery& operator=(ResolvedDomainQuery &&other) noexcept {
     if (this != &other) {
       node_ = other.node_;
@@ -909,7 +909,7 @@ namespace std {
 /** Hash function for UniqueId */
 template <int TYPE>
 struct hash<chi::UniqueId<TYPE>> {
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   std::size_t operator()(const chi::UniqueId<TYPE> &key) const {
     return key.Hash();
   }
@@ -918,7 +918,7 @@ struct hash<chi::UniqueId<TYPE>> {
 /** Hash function for SubDomainId */
 template<>
 struct hash<chi::SubDomainId> {
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   std::size_t operator()(const chi::SubDomainId &key) const {
     return key.Hash();
   }
@@ -927,7 +927,7 @@ struct hash<chi::SubDomainId> {
 /** Hash function for DomainId */
 template<>
 struct hash<chi::DomainId> {
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   std::size_t operator()(const chi::DomainId &key) const {
     return key.Hash();
   }
@@ -936,7 +936,7 @@ struct hash<chi::DomainId> {
 /** Hash function for DomainQuery */
 template<>
 struct hash<chi::DomainQuery> {
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   std::size_t operator()(const chi::DomainQuery &key) const {
     return key.Hash();
   }

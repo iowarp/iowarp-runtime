@@ -50,7 +50,7 @@ void CoRwLock::ReadUnlock() {
   COMUTEX_QUEUE_T &blocked = it->second;
   root_ = it->first;
   for (size_t i = 0; i < blocked.size(); ++i) {
-    Worker::SignalUnblock(blocked[i].task_);
+    CHI_WORK_ORCHESTRATOR->SignalUnblock(blocked[i].task_);
     ++rep_;
   }
   writer_map_.erase(it);
@@ -89,14 +89,14 @@ void CoRwLock::WriteUnlock() {
     COMUTEX_QUEUE_T &blocked = it->second;
     root_ = it->first;
     for (size_t i = 0; i < blocked.size(); ++i) {
-      Worker::SignalUnblock(blocked[i].task_);
+      CHI_WORK_ORCHESTRATOR->SignalUnblock(blocked[i].task_);
       ++rep_;
     }
     writer_map_.erase(it);
   } else if (!reader_set_.empty()) {
     is_read_ = true;
     for (size_t i = 0; i < reader_set_.size(); ++i) {
-      Worker::SignalUnblock(reader_set_[i].task_);
+      CHI_WORK_ORCHESTRATOR->SignalUnblock(reader_set_[i].task_);
       ++rep_;
     }
     reader_set_.clear();

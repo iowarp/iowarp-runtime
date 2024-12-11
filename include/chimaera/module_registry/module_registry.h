@@ -281,7 +281,7 @@ class ModuleRegistry {
   }
 
   /** Allocate a pool ID */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   PoolId CreatePoolId() {
     return PoolId(node_id_, unique_->fetch_add(1));
   }

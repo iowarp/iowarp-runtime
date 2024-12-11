@@ -36,7 +36,7 @@ namespace chi {
 #define WORKER_HIGH_LATENCY BIT_OPT(u32, 2)
 
 /** Uniquely identify a queue lane */
-struct WorkEntry {
+struct IngressEntry {
   u32 prio_;
   ContainerId container_id_;
   ingress::Lane *lane_;
@@ -44,20 +44,20 @@ struct WorkEntry {
   ingress::MultiQueue *queue_;
 
   /** Default constructor */
-  HSHM_ALWAYS_INLINE
-  WorkEntry() = default;
+  HSHM_INLINE
+  IngressEntry() = default;
 
   /** Emplace constructor */
-  HSHM_ALWAYS_INLINE
-  WorkEntry(u32 prio, LaneId lane_id, ingress::MultiQueue *queue)
+  HSHM_INLINE
+  IngressEntry(u32 prio, LaneId lane_id, ingress::MultiQueue *queue)
       : prio_(prio), container_id_(lane_id), queue_(queue) {
     group_ = &queue->GetGroup(prio);
     lane_ = &queue->GetLane(prio, lane_id);
   }
 
   /** Copy constructor */
-  HSHM_ALWAYS_INLINE
-  WorkEntry(const WorkEntry &other) {
+  HSHM_INLINE
+  IngressEntry(const IngressEntry &other) {
     prio_ = other.prio_;
     container_id_ = other.container_id_;
     lane_ = other.lane_;
@@ -66,8 +66,8 @@ struct WorkEntry {
   }
 
   /** Copy assignment */
-  HSHM_ALWAYS_INLINE
-  WorkEntry& operator=(const WorkEntry &other) {
+  HSHM_INLINE
+  IngressEntry& operator=(const IngressEntry &other) {
     if (this != &other) {
       prio_ = other.prio_;
       container_id_ = other.container_id_;
@@ -79,8 +79,8 @@ struct WorkEntry {
   }
 
   /** Move constructor */
-  HSHM_ALWAYS_INLINE
-  WorkEntry(WorkEntry &&other) noexcept {
+  HSHM_INLINE
+  IngressEntry(IngressEntry &&other) noexcept {
     prio_ = other.prio_;
     container_id_ = other.container_id_;
     lane_ = other.lane_;
@@ -89,8 +89,8 @@ struct WorkEntry {
   }
 
   /** Move assignment */
-  HSHM_ALWAYS_INLINE
-  WorkEntry& operator=(WorkEntry &&other) noexcept {
+  HSHM_INLINE
+  IngressEntry& operator=(IngressEntry &&other) noexcept {
     if (this != &other) {
       prio_ = other.prio_;
       container_id_ = other.container_id_;
@@ -103,13 +103,13 @@ struct WorkEntry {
 
   /** Check if null */
   [[nodiscard]]
-  HSHM_ALWAYS_INLINE bool IsNull() const {
+  HSHM_INLINE bool IsNull() const {
     return queue_->IsNull();
   }
 
   /** Equality operator */
-  HSHM_ALWAYS_INLINE
-  bool operator==(const WorkEntry &other) const {
+  HSHM_INLINE
+  bool operator==(const IngressEntry &other) const {
     return queue_ == other.queue_ && container_id_ == other.container_id_ &&
         prio_ == other.prio_;
   }
@@ -118,12 +118,12 @@ struct WorkEntry {
 }  // namespace chi
 
 namespace std {
-/** Hash function for WorkEntry */
+/** Hash function for IngressEntry */
 template<>
-struct hash<chi::WorkEntry> {
-  HSHM_ALWAYS_INLINE
+struct hash<chi::IngressEntry> {
+  HSHM_INLINE
   std::size_t
-  operator()(const chi::WorkEntry &key) const {
+  operator()(const chi::IngressEntry &key) const {
     return std::hash<chi::ingress::MultiQueue*>{}(key.queue_) +
         std::hash<u32>{}(key.container_id_) + std::hash<u64>{}(key.prio_);
   }
@@ -134,147 +134,71 @@ namespace chi {
 
 class WorkOrchestrator;
 
-struct PrivateTaskQueueEntry {
+typedef mpsc_queue<TaskPointer> PrivateTaskQueue;
+typedef hshm::fixed_mpsc_queue<chi::Lane *> PrivateLaneQueue;
+
+class PrivateLaneMultiQueue {
  public:
-  LPointer<Task> task_;
-  DomainQuery res_query_;
-  size_t next_, prior_;
-  ssize_t block_count_ = 1;          /**< Count used for unblocking */
+   typedef hshm::fixed_mpsc_queue<chi::Lane *> LaneT;
+   LaneT active_[2];
 
  public:
-  PrivateTaskQueueEntry() = default;
-  PrivateTaskQueueEntry(const LPointer<Task> &task,
-                        const DomainQuery &res_query)
-      : task_(task), res_query_(res_query) {}
-  template<typename TaskT>
-  PrivateTaskQueueEntry(const LPointer<TaskT> &task,
-                        const DomainQuery &res_query)
-      : res_query_(res_query) {
-    task_.ptr_ = (Task*)task.ptr_;
-    task_.shm_ = task.shm_;
+  void request(chi::Lane *lane) {
+    active_[lane->prio_].emplace(lane);
   }
 
-  PrivateTaskQueueEntry(const PrivateTaskQueueEntry &other) = default;
+  void resize(size_t new_depth) {
+    active_[0].resize(new_depth);
+    active_[1].resize(new_depth);
+  }
 
-  PrivateTaskQueueEntry& operator=(const PrivateTaskQueueEntry &other) = default;
-
-  PrivateTaskQueueEntry(PrivateTaskQueueEntry &&other) noexcept = default;
-
-  PrivateTaskQueueEntry& operator=(PrivateTaskQueueEntry &&other) noexcept  = default;
+  LaneT &GetLowLatency() { return active_[TaskPrio::kLowLatency]; }
+  LaneT &GetHighLatency() { return active_[TaskPrio::kHighLatency]; }
 };
-
-typedef key_set<PrivateTaskQueueEntry> PrivateTaskSet;
-typedef key_queue<PrivateTaskQueueEntry> PrivateTaskQueue;
 
 class PrivateTaskMultiQueue {
  public:
-  CLS_CONST int ROOT = 0;
-  CLS_CONST int CONSTRUCT = 1;
-  CLS_CONST int LOW_LAT = 2;
-  CLS_CONST int HIGH_LAT = 3;
-  CLS_CONST int LONG_RUNNING = 4;
-  CLS_CONST int FLUSH = 5;
-  CLS_CONST int NUM_QUEUES = 6;
+  CLS_CONST int FLUSH = 1;
+  CLS_CONST int FAIL = 2;
+  CLS_CONST int NUM_QUEUES = 3;
 
  public:
-  size_t root_count_;
-  size_t max_root_count_;
-  PrivateTaskQueue queues_[NUM_QUEUES];
-  PrivateTaskSet blocked_;
-  hshm::mpsc_queue<LPointer<Task>> complete_;
-  size_t id_;
+   PrivateTaskQueue queues_[NUM_QUEUES];
+   PrivateLaneMultiQueue active_lanes_;
+   size_t id_;
 
  public:
   void Init(size_t id, size_t pqdepth, size_t qdepth, size_t max_lanes) {
     id_ = id;
-    queues_[CONSTRUCT].Init(CONSTRUCT, max_lanes * qdepth);
-    queues_[LOW_LAT].Init(LOW_LAT, max_lanes * qdepth);
-    queues_[HIGH_LAT].Init(HIGH_LAT, max_lanes * qdepth);
-    queues_[LONG_RUNNING].Init(LONG_RUNNING, max_lanes * qdepth);
-    queues_[FLUSH].Init(LONG_RUNNING, max_lanes * qdepth);
-    blocked_.Init(max_lanes * qdepth);
-    complete_ = hshm::mpsc_queue<LPointer<Task>>(
-        max_lanes * qdepth);
-    root_count_ = 0;
-    max_root_count_ = max_lanes * pqdepth;
+    queues_[FLUSH].resize(max_lanes * qdepth);
+    queues_[FAIL].resize(max_lanes * qdepth);
+    // TODO(llogan): Don't hardcode lane queue depth
+    active_lanes_.resize(8192);
   }
 
-  PrivateTaskQueue& GetConstruct() {
-    return queues_[CONSTRUCT];
+  PrivateLaneQueue &GetLowLatency() {
+    return active_lanes_.GetLowLatency();
   }
 
-  PrivateTaskQueue& GetLowLat() {
-    return queues_[LOW_LAT];
+  PrivateLaneQueue &GetHighLatency() {
+    return active_lanes_.GetHighLatency();
   }
 
-  PrivateTaskQueue& GetHighLat() {
-    return queues_[HIGH_LAT];
-  }
+  void request(chi::Lane *lane) { active_lanes_.request(lane); }
 
-  PrivateTaskQueue& GetLongRunning() {
-    return queues_[LONG_RUNNING];
+  PrivateTaskQueue& GetFail() {
+    return queues_[FAIL];
   }
 
   PrivateTaskQueue& GetFlush() {
     return queues_[FLUSH];
   }
 
-  hshm::mpsc_queue<LPointer<Task>>& GetCompletion() {
-    return complete_;
-  }
+  bool push(const TaskPointer &entry);
 
-  bool push(const PrivateTaskQueueEntry &entry);
-
-  void erase(int queue_id) {
-    queues_[queue_id].erase();
-  }
-
-  void erase(int queue_id, PrivateTaskQueueEntry&) {
-  }
-
-  void block(PrivateTaskQueueEntry &entry) {
-    LPointer<Task> blocked_task = entry.task_;
-    entry.block_count_ = (ssize_t)blocked_task->rctx_.block_count_;
-    blocked_.emplace(blocked_task->rctx_.pending_key_, entry);
-    // HILOG(kInfo, "(node {}) Blocking task {} (id={}, pool={}, method={}) with count {}",
-    //       CHI_RPC->node_id_, (void*)blocked_task.ptr_,
-    //       blocked_task.ptr_->task_node_,
-    //       blocked_task.ptr_->pool_, blocked_task.ptr_->method_,
-    //       entry.block_count_);
-  }
-
-  void signal_unblock(PrivateTaskMultiQueue &worker_pending,
-                      LPointer<Task> &blocked_task) {
-    worker_pending.GetCompletion().emplace(blocked_task);
-    // HILOG(kInfo, "(node {}) Unblocking task {} (id={}, pool={}, method={})",
-    //       CHI_RPC->node_id_, (void *)blocked_task.ptr_,
-    //       blocked_task.ptr_->task_node_, blocked_task.ptr_->pool_,
-    //       blocked_task.ptr_->method_);
-  }
-
-  bool unblock() {
-    LPointer<Task> blocked_task;
-    hshm::mpsc_queue<LPointer<Task>> &complete = GetCompletion();
-    if (complete.pop(blocked_task).IsNull()) {
-      return false;
-    }
-    if (!blocked_task->IsBlocked()) {
-      HELOG(kFatal, "An unblocked task was unblocked again");
-    }
-    PrivateTaskQueueEntry *entry;
-    blocked_.peek(blocked_task->rctx_.pending_key_, entry);
-    if (blocked_task.ptr_ != entry->task_.ptr_) {
-      HELOG(kFatal, "A blocked task was lost");
-    }
-    entry->block_count_ -= 1;
-//    HILOG(kInfo, "(node {}) Unblocking task {} with count {}",
-//          CHI_RPC->node_id_, (void*)blocked_task.ptr_, entry->block_count_);
-    if (entry->block_count_ == 0) {
-      blocked_task->UnsetBlocked();
-      blocked_.erase(blocked_task->rctx_.pending_key_);
-      push(*entry);
-    }
-    return true;
+  template<typename TaskT>
+  bool push(const LPointer<TaskT> &task) {
+    return push(task.template Cast<Task>());
   }
 };
 
@@ -288,12 +212,7 @@ class Worker {
   int affinity_;        /**< The worker CPU affinity */
   u32 numa_node_;       // TODO(llogan): track NUMA affinity
   ABT_xstream xstream_;
-  std::vector<WorkEntry> work_proc_queue_;  /**< The set of queues to poll */
-  std::vector<WorkEntry> work_inter_queue_;  /**< The set of queues to poll */
-  /**< A set of queues to begin polling in a worker */
-  hshm::spsc_queue<std::vector<WorkEntry>> poll_queues_;
-  /**< A set of queues to stop polling in a worker */
-  hshm::spsc_queue<std::vector<WorkEntry>> relinquish_queues_;
+  std::vector<IngressEntry> work_proc_queue_; /**< The set of queues to poll */
   size_t sleep_us_;     /**< Time the worker should sleep after a run */
   bitfield32_t flags_;  /**< Worker metadata flags */
   std::unordered_map<hshm::charwrap, TaskNode>
@@ -326,6 +245,14 @@ class Worker {
   /** Constructor */
   Worker(u32 id, int cpu_id, ABT_xstream &xstream);
 
+  /** Spawn */
+  void Spawn();
+
+  /** Request a lane */
+  void RequestLane(chi::Lane *lane) {
+    active_.request(lane);
+  }
+  
   /**===============================================================
    * Run tasks
    * =============================================================== */
@@ -374,56 +301,41 @@ class Worker {
   void Run(bool flushing);
 
   /** Ingest all process lanes */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   void IngestProcLanes(bool flushing);
 
-  /** Ingest all intermediate lanes */
-  HSHM_ALWAYS_INLINE
-  void IngestInterLanes(bool flushing);
-
   /** Ingest a lane */
-  HSHM_ALWAYS_INLINE
-  void IngestLane(WorkEntry &lane_info);
-
-  /**
-   * Detect if a DomainQuery is across nodes
-   * */
-  TaskRouteMode Reroute(const PoolId &scope,
-                        DomainQuery &dom_query,
-                        LPointer<Task> task,
-                        ingress::Lane *lane);
-
-  /** Process completion events */
-  void ProcessCompletions();
+  HSHM_INLINE
+  void IngestLane(IngressEntry &lane_info);
 
   /** Poll the set of tasks in the private queue */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   size_t PollPrivateQueue(PrivateTaskQueue &queue, bool flushing);
 
+  /** Poll the set of tasks in the private queue */
+  HSHM_INLINE
+  size_t PollPrivateLaneMultiQueue(PrivateLaneQueue &queue, bool flushing);
+
   /** Run a task */
-  bool RunTask(PrivateTaskQueue &queue,
-               PrivateTaskQueueEntry &entry,
-               LPointer<Task> task,
+  bool RunTask(LPointer<Task> &task,
                bool flushing);
 
   /** Run an arbitrary task */
-  HSHM_ALWAYS_INLINE
-  void ExecTask(PrivateTaskQueue &queue,
-                PrivateTaskQueueEntry &entry,
-                Task *&task,
+  HSHM_INLINE
+  void ExecTask(LPointer<Task> &task,
                 RunContext &rctx,
                 Container *&exec,
                 bitfield32_t &props);
 
   /** Run a task */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   void ExecCoroutine(Task *&task, RunContext &rctx);
 
   /** Run a coroutine */
   static void CoroutineEntry(bctx::transfer_t t);
 
   /** Free a task when it is no longer needed */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   void EndTask(Container *exec, LPointer<Task> &task);
 
   /**===============================================================
@@ -433,41 +345,13 @@ class Worker {
   /** Migrate a lane from this worker to another */
   void MigrateLane(Lane *lane, u32 new_worker);
 
-  /** Unblock a task */
-  static void SignalUnblock(Task *unblock_task);
-
-  /** Externally signal a task as complete */
-  HSHM_ALWAYS_INLINE
-  static void SignalUnblock(LPointer<Task> &unblock_task);
-
   /** Get the characteristics of a task */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   bitfield32_t GetTaskProperties(Task *&task,
                                  bool flushing);
 
   /** Join worker */
   void Join();
-
-  /** Get the pending queue for a worker */
-  PrivateTaskMultiQueue& GetPendingQueue(Task *task);
-
-  /** Tell worker to poll a set of queues */
-  void PollQueues(const std::vector<WorkEntry> &queues);
-
-  /** Actually poll the queues from within the worker */
-  void _PollQueues();
-
-  /**
-   * Tell worker to start relinquishing some of its queues
-   * This function must be called from a single thread (outside of worker)
-   * */
-  void RelinquishingQueues(const std::vector<WorkEntry> &queues);
-
-  /** Actually relinquish the queues from within the worker */
-  void _RelinquishQueues();
-
-  /** Check if worker is still stealing queues */
-  bool IsRelinquishingQueues();
 
   /** Set the sleep cycle */
   void SetPollingFrequency(size_t sleep_us);

@@ -42,14 +42,14 @@ class Client : public ModuleClient {
   CHI_TASK_METHODS(Create);
 
   /** Destroy pool + queue */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   void Destroy(const hipc::MemContext &mctx,
                const DomainQuery &dom_query) {
     CHI_ADMIN->DestroyContainer(mctx, dom_query, id_);
   }
 
   /** Call a custom method */
-  HSHM_ALWAYS_INLINE
+  HSHM_INLINE
   void Custom(const hipc::MemContext &mctx,
               const DomainQuery &dom_query) {
     LPointer<CustomTask> task = AsyncCustom(mctx, dom_query);
