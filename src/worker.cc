@@ -45,11 +45,12 @@ bool PrivateTaskMultiQueue::push(const FullPtr<Task> &task) {
   RunContext &rctx = task->rctx_;
   if (task->IsModuleComplete()) {
     // CASE 1: The task is complete, just finish it out
-    task->SetComplete();
     Container *exec =
         CHI_MOD_REGISTRY->GetStaticContainer(task->pool_);
     if (exec && task->IsFireAndForget()) {
       CHI_CLIENT->DelTask(HSHM_DEFAULT_MEM_CTX, exec, task.ptr_);
+    } else {
+      task->SetComplete();
     }
   } else if (!task->IsRemote() && resolved.size() == 1 &&
       resolved[0].node_ == CHI_RPC->node_id_ &&
@@ -472,7 +473,6 @@ void Worker::CoroutineEntry(bctx::transfer_t t) {
 /** Free a task when it is no longer needed */
 HSHM_INLINE
 void Worker::EndTask(Container *exec, FullPtr<Task> &task, RunContext &rctx) {
-  task->SetComplete();
   if (task->ShouldSignalUnblock()) {
     Task *pending_to = rctx.pending_to_;
     CHI_WORK_ORCHESTRATOR->SignalUnblock(
@@ -488,6 +488,8 @@ void Worker::EndTask(Container *exec, FullPtr<Task> &task, RunContext &rctx) {
   }
   if (exec && task->IsFireAndForget()) {
     CHI_CLIENT->DelTask(HSHM_DEFAULT_MEM_CTX, exec, task.ptr_);
+  } else {
+    task->SetComplete();
   }
 }
 
