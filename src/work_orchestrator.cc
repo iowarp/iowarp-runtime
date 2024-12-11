@@ -229,8 +229,8 @@ void WorkOrchestrator::SignalUnblock(Task *task) {
   size_t count = blocked->block_count_.fetch_sub(1);
   if (count == 0) {
     blocked_tasks_.erase(task->rctx_.pending_key_);
+    CHI_CUR_WORKER->active_.push(FullPtr<Task>(task));
   }
-  CHI_CUR_WORKER->active_.push(FullPtr<Task>(task));
 }
 
 #ifdef CHIMAERA_ENABLE_PYTHON
