@@ -292,8 +292,6 @@ HSHM_INLINE
 size_t Worker::PollPrivateLaneMultiQueue(PrivateLaneQueue &lanes, bool flushing) {
   size_t work = 0;
   size_t num_lanes = lanes.size();
-  hshm::Timer timer;
-  timer.Resume();
   for (size_t lane_off = 0; lane_off < num_lanes; ++lane_off) {
     chi::Lane *chi_lane;
     if (lanes.pop(chi_lane).IsNull()) {
@@ -319,11 +317,6 @@ size_t Worker::PollPrivateLaneMultiQueue(PrivateLaneQueue &lanes, bool flushing)
     if (after_size > 0) {
       lanes.push(chi_lane);
     }
-  }
-  timer.Pause();
-  if (work) {
-    HILOG(kInfo, "(node {}) Worker {} has {} MOps, {} lanes",
-          CHI_CLIENT->node_id_, id_, work / timer.GetUsec(), num_lanes);
   }
   return work;
 }
