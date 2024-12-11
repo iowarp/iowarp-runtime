@@ -3,17 +3,17 @@ env: chimaera
 pkgs:
   - pkg_type: chimaera_run
     pkg_name: chimaera_run
-    sleep: 10
-    do_dbg: true
+    sleep: 4
+    do_dbg: false
     dbg_port: 4000
     qlanes: 4
     pqdepth: 48
   - pkg_type: chimaera_latency_bench
     pkg_name: chimaera_latency_bench
-    nprocs: 2
+    nprocs: 1
     ppn: 16
     depth: 0
-    ops: 500000
-    async: true
-    do_dbg: true
+    ops: 1000
+    async: false
+    do_dbg: false
     dbg_port: 4001
