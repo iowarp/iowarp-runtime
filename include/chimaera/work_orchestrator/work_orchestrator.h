@@ -78,7 +78,7 @@ class WorkOrchestrator {
   void Join();
 
   /** Get worker with this id */
-  Worker& GetWorker(u32 worker_id);
+  Worker& GetWorker(WorkerId worker_id);
 
   /** Get the number of workers */
   size_t GetNumWorkers();
@@ -147,8 +147,13 @@ class WorkOrchestrator {
     }
   }
 
-  /** Get thread-local storage */
-  void SetThreadLocalBlock(Worker *worker) {
+  /** Set thread-local storage to worker (from id) */
+  void SetCurrentWorkerId(WorkerId worker_id) {
+    SetCurrentWorker(&GetWorker(worker_id));
+  }
+  
+  /** Set thread-local storage to worker (from ptr) */
+  void SetCurrentWorker(Worker *worker) {
     int ret = ABT_key_set(worker_tls_key_, worker);
     if (ret != ABT_SUCCESS) {
       HELOG(kFatal, "Could not set thread-local storage");

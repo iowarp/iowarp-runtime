@@ -90,6 +90,7 @@ typedef u32 NodeId;  /**< The ID of a node */
 typedef u32 LaneId;  /**< The ID of a lane */
 typedef u32 LaneGroupId;  /**< The ID of a lane group */
 typedef u32 ContainerId;  /**< The ID of a container */
+typedef u32 WorkerId;  /**< The ID of a worker */
 typedef u32 MethodId;     /**< The ID of a container method */
 typedef u32 MonitorModeId;  /**< The ID of a container monitor mode */
 

@@ -10,6 +10,7 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
+#include "chimaera/work_orchestrator/work_orchestrator.h"
 #include "chimaera_admin/chimaera_admin.h"
 #include "chimaera/api/chimaera_runtime.h"
 #include "remote_queue/remote_queue.h"
@@ -344,6 +345,7 @@ class Server : public Module {
     rep_task->task_flags_.SetBits(TASK_REMOTE_DEBUG_MARK);
 
     // Execute task
+    CHI_WORK_ORCHESTRATOR->SetCurrentWorkerId(0);
     CHI_CLIENT->ScheduleTaskRuntime(nullptr, rep_task,
                                     QueueId(pool_id));
   }

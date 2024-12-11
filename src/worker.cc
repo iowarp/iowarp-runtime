@@ -79,8 +79,8 @@ bool PrivateTaskMultiQueue::push(const FullPtr<Task> &task) {
     HILOG(kInfo, "[TASK_CHECK] (node {}) Remoting task {}",
           CHI_CLIENT->node_id_, (void*)task.ptr_);
     // CASE 4: The task is remote to this machine, put in the remote queue.
-    CHI_REMOTE_QUEUE->AsyncClientPushSubmit(
-        HSHM_DEFAULT_MEM_CTX, nullptr,
+    CHI_REMOTE_QUEUE->AsyncClientPushSubmitBase(
+        HSHM_DEFAULT_MEM_CTX, nullptr, task->task_node_ + 1,
         DomainQuery::GetDirectId(SubDomainId::kGlobalContainers, 1), task.ptr_);
   }
   return true;
@@ -216,7 +216,7 @@ bool Worker::AnyFlushWorkDone(WorkOrchestrator *orch) {
 
 /** Worker loop iteration */
 void Worker::Loop() {
-  CHI_WORK_ORCHESTRATOR->SetThreadLocalBlock(this);
+  CHI_WORK_ORCHESTRATOR->SetCurrentWorker(this);
   pid_ = GetLinuxTid();
   SetCpuAffinity(affinity_);
   if (IsContinuousPolling()) {

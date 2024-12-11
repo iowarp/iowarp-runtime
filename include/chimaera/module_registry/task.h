@@ -314,7 +314,7 @@ struct Load {
 struct RunContext {
   bitfield32_t run_flags_;  /**< Properties of the task */
   bitfield32_t worker_props_;  /**< Properties of the worker */
-  u32 worker_id_;         /**< The worker id of the task */
+  WorkerId worker_id_;         /**< The worker id of the task */
   bctx::transfer_t jmp_;  /**< Stack info for coroutines */
   void *stack_ptr_;       /**< Stack pointer (coroutine) */
   Module *exec_;

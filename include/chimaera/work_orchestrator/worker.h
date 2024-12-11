@@ -202,7 +202,7 @@ class PrivateTaskMultiQueue {
 
 class Worker {
  public:
-  u32 id_;  /**< Unique identifier of this worker */
+  WorkerId id_;  /**< Unique identifier of this worker */
   // std::unique_ptr<std::thread> thread_;  /**< The worker thread handle */
   // int pthread_id_;      /**< The worker pthread handle */
   ABT_thread tl_thread_;  /**< The worker argobots thread handle */

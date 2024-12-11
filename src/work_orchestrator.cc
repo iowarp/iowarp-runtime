@@ -86,7 +86,7 @@ void WorkOrchestrator::ServerInit(ServerConfig *config, QueueManager &qm) {
     for (ingress::LaneGroup &lane_group : queue.groups_) {
       u32 num_lanes = lane_group.num_lanes_;
       for (LaneId lane_id = lane_group.num_scheduled_; lane_id < num_lanes; ++lane_id) {
-        u32 worker_id;
+        WorkerId worker_id;
         if (lane_group.IsLowLatency()) {
           u32 worker_off = count_lowlat_ % CHI_WORK_ORCHESTRATOR->dworkers_.size();
           count_lowlat_ += 1;
@@ -146,7 +146,7 @@ void WorkOrchestrator::Join() {
 }
 
 /** Get worker with this id */
-Worker& WorkOrchestrator::GetWorker(u32 worker_id) {
+Worker& WorkOrchestrator::GetWorker(WorkerId worker_id) {
   return *workers_[worker_id];
 }
 
