@@ -45,6 +45,7 @@ bool PrivateTaskMultiQueue::push(const FullPtr<Task> &task) {
   RunContext &rctx = task->rctx_;
   if (task->IsModuleComplete()) {
     // CASE 1: The task is complete, just finish it out
+    HILOG(kInfo, "[TASK_CHECK] Completing {}", task.ptr_);
     Container *exec =
         CHI_MOD_REGISTRY->GetStaticContainer(task->pool_);
     if (exec && task->IsFireAndForget()) {
