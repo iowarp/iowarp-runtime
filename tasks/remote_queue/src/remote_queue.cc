@@ -99,6 +99,7 @@ class Server : public Module {
     Container *exec = CHI_MOD_REGISTRY->GetStaticContainer(orig_task->pool_);
 
     // Register the block
+    rctx.block_count_ = dom_queries.size();
     CHI_WORK_ORCHESTRATOR->Block(submit_task, rctx);
 
     // Replicate task
@@ -377,7 +378,6 @@ class Server : public Module {
       // Unblock completed tasks
       for (size_t i = 0; i < xfer.tasks_.size(); ++i) {
         Task *rep_task = (Task*)xfer.tasks_[i].task_addr_;
-        rep_task->SetModuleComplete();
         Task *submit_task = rep_task->rctx_.pending_to_;
         if (submit_task->pool_ != id_) {
           HELOG(kFatal, "This shouldn't happen ever");
