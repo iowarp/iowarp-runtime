@@ -42,6 +42,7 @@ bool PrivateTaskMultiQueue::push(const FullPtr<Task> &task) {
   std::vector<ResolvedDomainQuery> resolved =
       CHI_RPC->ResolveDomainQuery(task->pool_, task->dom_query_, false);
   DomainQuery res_query = resolved[0].dom_;
+  RunContext &rctx = task->rctx_;
   if (!task->IsRemote() && resolved.size() == 1 &&
       resolved[0].node_ == CHI_RPC->node_id_ &&
       res_query.flags_.All(DomainQuery::kLocal | DomainQuery::kId)) {
@@ -61,8 +62,8 @@ bool PrivateTaskMultiQueue::push(const FullPtr<Task> &task) {
     }
     // Find the lane
     chi::Lane *chi_lane = exec->Route(task.ptr_);
-    task->rctx_.route_container_ = container_id;
-    task->rctx_.route_lane_ = chi_lane->lane_id_;
+    rctx.route_container_ = container_id;
+    rctx.route_lane_ = chi_lane->lane_id_;
     chi_lane->push(task);
   } else {
     // CASE 2: The task is remote to this machine, put in the remote queue.
@@ -363,7 +364,7 @@ bool Worker::RunTask(FullPtr<Task> &task, bool flushing) {
   if (!task->IsModuleComplete()) {
     // Make this task current
     cur_task_ = task.ptr_;
-    cur_lane_ = exec->GetLane(task->rctx_.route_lane_);
+    cur_lane_ = exec->GetLane(rctx.route_lane_);
     // Execute the task based on its properties
     rctx.exec_ = exec;
     ExecTask(task, rctx, exec, props);
@@ -372,7 +373,7 @@ bool Worker::RunTask(FullPtr<Task> &task, bool flushing) {
   bool pushback = true;
   if (task->IsModuleComplete()) {
     pushback = false;
-    EndTask(exec, task);
+    EndTask(exec, task, rctx);
   } else if (task->IsBlocked()) {
     pushback = false;
   }
@@ -433,6 +434,7 @@ HSHM_INLINE
 void Worker::ExecCoroutine(Task *&task, RunContext &rctx) {
   // If task isn't started, allocate stack pointer
   if (!task->IsStarted()) {
+    rctx.co_task_ = task;
     rctx.stack_ptr_ = AllocateStack();
     if (rctx.stack_ptr_ == nullptr) {
       HELOG(kFatal, "The stack pointer of size {} is NULL", stack_size_);
@@ -442,7 +444,7 @@ void Worker::ExecCoroutine(Task *&task, RunContext &rctx) {
     task->SetStarted();
   }
   // Jump to CoroutineEntry
-  rctx.jmp_ = bctx::jump_fcontext(rctx.jmp_.fctx, task);
+  rctx.jmp_ = bctx::jump_fcontext(rctx.jmp_.fctx, &rctx);
   if (!task->IsStarted()) {
     FreeStack(rctx.stack_ptr_);
   }
@@ -450,8 +452,8 @@ void Worker::ExecCoroutine(Task *&task, RunContext &rctx) {
 
 /** Run a coroutine */
 void Worker::CoroutineEntry(bctx::transfer_t t) {
-  Task *task = reinterpret_cast<Task *>(t.data);
-  RunContext &rctx = task->rctx_;
+  RunContext &rctx = *reinterpret_cast<RunContext *>(t.data);
+  Task *task = rctx.co_task_;
   Container *&exec = rctx.exec_;
   rctx.jmp_ = t;
   exec->Run(task->method_, task, rctx);
@@ -461,16 +463,17 @@ void Worker::CoroutineEntry(bctx::transfer_t t) {
 
 /** Free a task when it is no longer needed */
 HSHM_INLINE
-void Worker::EndTask(Container *exec, FullPtr<Task> &task) {
+void Worker::EndTask(Container *exec, FullPtr<Task> &task, RunContext &rctx) {
   task->SetComplete();
   if (task->ShouldSignalUnblock()) {
-    CHI_WORK_ORCHESTRATOR->SignalUnblock(task->rctx_.pending_to_);
+    CHI_WORK_ORCHESTRATOR->SignalUnblock(rctx.pending_to_);
   }
   if (task->ShouldSignalRemoteComplete()) {
     Container *remote_exec =
         CHI_MOD_REGISTRY->GetContainer(CHI_REMOTE_QUEUE->id_, 1);
-    remote_exec->Run(chi::remote_queue::Method::kServerPushComplete, task.ptr_,
-                     task->rctx_);
+    remote_exec->Run(chi::remote_queue::Method::kServerPushComplete,
+                     task.ptr_,
+                     rctx);
     return;
   }
   if (exec && task->IsFireAndForget()) {

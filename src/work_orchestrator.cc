@@ -230,10 +230,7 @@ void WorkOrchestrator::SignalUnblock(Task *task) {
   if (count == 0) {
     blocked_tasks_.erase(task->rctx_.pending_key_);
   }
-  FullPtr<Task> lp;
-  lp.ptr_ = task;
-  lp.shm_ = HERMES_MEMORY_MANAGER->Convert(task);
-  CHI_CUR_WORKER->active_.push(lp);
+  CHI_CUR_WORKER->active_.push(FullPtr<Task>(task));
 }
 
 #ifdef CHIMAERA_ENABLE_PYTHON

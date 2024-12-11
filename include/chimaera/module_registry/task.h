@@ -322,6 +322,7 @@ struct RunContext {
   Module *exec_;
   WorkPending *flush_;
   hshm::Timer timer_;
+  Task *co_task_;
   Task *pending_to_;
   size_t pending_key_;
   std::vector<FullPtr<Task>> *replicas_;

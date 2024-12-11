@@ -346,9 +346,9 @@ void TestBdevIo(const std::string &path) {
   MPI_Barrier(MPI_COMM_WORLD);
   hshm::Timer t;
 
-  hipc::FullPtr io_write = CHI_CLIENT->AllocateBuffer(
+  hipc::FullPtr<char> io_write = CHI_CLIENT->AllocateBuffer(
       HSHM_DEFAULT_MEM_CTX, MEGABYTES(1));
-  hipc::FullPtr io_read = CHI_CLIENT->AllocateBuffer(
+  hipc::FullPtr<char> io_read = CHI_CLIENT->AllocateBuffer(
       HSHM_DEFAULT_MEM_CTX, MEGABYTES(1));
 
   t.Resume();

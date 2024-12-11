@@ -334,7 +334,7 @@ class Worker {
 
   /** Free a task when it is no longer needed */
   HSHM_INLINE
-  void EndTask(Container *exec, FullPtr<Task> &task);
+  void EndTask(Container *exec, FullPtr<Task> &task, RunContext &rctx);
 
   /**===============================================================
    * Helpers

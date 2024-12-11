@@ -100,10 +100,9 @@ class Server : public Module {
         orig_task->pool_);
 
     // Replicate task
-    bool deep = dom_queries.size() > 1;
     for (ResolvedDomainQuery &res_query : dom_queries) {
       FullPtr<Task> rep_task;
-      exec->NewCopyStart(orig_task->method_, orig_task, rep_task, deep);
+      exec->NewCopyStart(orig_task->method_, orig_task, rep_task, true);
       if (res_query.dom_.flags_.Any(DomainQuery::kLocal)) {
         exec->Monitor(MonitorMode::kReplicaStart, orig_task->method_,
                       orig_task, rctx);
@@ -142,7 +141,8 @@ class Server : public Module {
                                      false);
     if (dom_queries.size() == 0) {
       task->SetModuleComplete();
-      CHI_WORK_ORCHESTRATOR->SignalUnblock(orig_task);
+      CHI_CLIENT->ScheduleTaskRuntime(nullptr, FullPtr<Task>(orig_task),
+                                QueueId(orig_task->pool_));
       return;
     }
     // Handle fire & forget
