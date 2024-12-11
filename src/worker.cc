@@ -27,15 +27,16 @@ namespace chi {
  * Private Task Multi Queue
  * =============================================================== */
 bool PrivateTaskMultiQueue::push(const LPointer<Task> &task) {
-  if (task->IsFlush()) {
-    return !GetFlush().push(task).IsNull();
-  } 
   // Determine the domain of the task
   std::vector<ResolvedDomainQuery> resolved =
       CHI_RPC->ResolveDomainQuery(task->pool_, task->dom_query_, false);
   DomainQuery res_query = resolved[0].dom_;
   if (resolved.size() == 1 && resolved[0].node_ == CHI_RPC->node_id_ &&
       res_query.flags_.All(DomainQuery::kLocal | DomainQuery::kId)) {
+    // CASE 0: The task is a flushing task. Place in the flush queue.
+    if (task->IsFlush()) {
+      return !GetFlush().push(task).IsNull();
+    } 
     // CASE 1: The task is local to this machine, just find the lane.
     // Determine the lane the task should map to within container
     ContainerId container_id = res_query.sel_.id_;
