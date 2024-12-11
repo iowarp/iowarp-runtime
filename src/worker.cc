@@ -43,14 +43,22 @@ bool PrivateTaskMultiQueue::push(const FullPtr<Task> &task) {
       CHI_RPC->ResolveDomainQuery(task->pool_, task->dom_query_, false);
   DomainQuery res_query = resolved[0].dom_;
   RunContext &rctx = task->rctx_;
-  if (!task->IsRemote() && resolved.size() == 1 &&
+  if (task->IsModuleComplete()) {
+    // CASE 1: The task is complete, just finish it out
+    task->SetComplete();
+    Container *exec =
+        CHI_MOD_REGISTRY->GetStaticContainer(task->pool_);
+    if (exec && task->IsFireAndForget()) {
+      CHI_CLIENT->DelTask(HSHM_DEFAULT_MEM_CTX, exec, task.ptr_);
+    }
+  } else if (!task->IsRemote() && resolved.size() == 1 &&
       resolved[0].node_ == CHI_RPC->node_id_ &&
       res_query.flags_.All(DomainQuery::kLocal | DomainQuery::kId)) {
-    // CASE 0: The task is a flushing task. Place in the flush queue.
+    // CASE 2: The task is a flushing task. Place in the flush queue.
     if (task->IsFlush()) {
       return !GetFlush().push(task).IsNull();
     } 
-    // CASE 1: The task is local to this machine, just find the lane.
+    // CASE 3: The task is local to this machine, just find the lane.
     // Determine the lane the task should map to within container
     ContainerId container_id = res_query.sel_.id_;
     Container *exec =
@@ -66,7 +74,7 @@ bool PrivateTaskMultiQueue::push(const FullPtr<Task> &task) {
     rctx.route_lane_ = chi_lane->lane_id_;
     chi_lane->push(task);
   } else {
-    // CASE 2: The task is remote to this machine, put in the remote queue.
+    // CASE 4: The task is remote to this machine, put in the remote queue.
     CHI_REMOTE_QUEUE->AsyncClientPushSubmitBase(
         HSHM_DEFAULT_MEM_CTX, nullptr, task->task_node_ + 1,
         DomainQuery::GetDirectId(SubDomainId::kGlobalContainers, 1), task.ptr_);

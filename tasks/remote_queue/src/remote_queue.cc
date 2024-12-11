@@ -141,6 +141,7 @@ class Server : public Module {
                                      false);
     if (dom_queries.size() == 0) {
       task->SetModuleComplete();
+      orig_task->SetModuleComplete();
       CHI_CLIENT->ScheduleTaskRuntime(nullptr, FullPtr<Task>(orig_task),
                                 QueueId(orig_task->pool_));
       return;
