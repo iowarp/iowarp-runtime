@@ -35,7 +35,7 @@ class Client : public ModuleClient {
               const std::string &path,
               size_t max_size,
               const CreateContext &ctx = CreateContext()) {
-    LPointer<CreateTask> task = AsyncCreate(
+    FullPtr<CreateTask> task = AsyncCreate(
         mctx, dom_query, affinity, pool_name, ctx, path, max_size);
     task->Wait();
     Init(task->ctx_.id_);
@@ -55,7 +55,7 @@ class Client : public ModuleClient {
   std::vector<Block> Allocate(const hipc::MemContext &mctx,
                               const DomainQuery &dom_query,
                               size_t size) {
-    LPointer<AllocateTask> task =
+    FullPtr<AllocateTask> task =
         AsyncAllocate(mctx, dom_query, size);
     task.ptr_->Wait();
     std::vector<Block> blocks = task->blocks_.vec();
@@ -69,7 +69,7 @@ class Client : public ModuleClient {
   void Free(const hipc::MemContext &mctx,
             const DomainQuery &dom_query,
             const Block &block) {
-    LPointer<FreeTask> task = AsyncFree(mctx, dom_query, block);
+    FullPtr<FreeTask> task = AsyncFree(mctx, dom_query, block);
     task.ptr_->Wait();
     CHI_CLIENT->DelTask(mctx, task);
   }
@@ -82,7 +82,7 @@ class Client : public ModuleClient {
              const hipc::Pointer &data,
              size_t off,
              size_t size) {
-    LPointer<WriteTask> task =
+    FullPtr<WriteTask> task =
         AsyncWrite(mctx, dom_query, data, off, size);
     task.ptr_->Wait();
     CHI_CLIENT->DelTask(mctx, task);
@@ -96,7 +96,7 @@ class Client : public ModuleClient {
             const hipc::Pointer &data,
             size_t size,
             size_t off) {
-    LPointer<ReadTask> task =
+    FullPtr<ReadTask> task =
         AsyncRead(mctx, dom_query, data, size, off);
     task.ptr_->Wait();
     CHI_CLIENT->DelTask(mctx, task);
@@ -107,7 +107,7 @@ class Client : public ModuleClient {
   HSHM_INLINE
   BdevStats PollStats(const hipc::MemContext &mctx,
                       const DomainQuery &dom_query) {
-    LPointer<PollStatsTask> task =
+    FullPtr<PollStatsTask> task =
         AsyncPollStats(mctx, dom_query, 0);
     task.ptr_->Wait();
     BdevStats stats = task->stats_;

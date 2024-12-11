@@ -45,7 +45,7 @@ class Server : public Module {
         break;
       }
       case MonitorMode::kReplicaAgg: {
-        std::vector<LPointer<Task>> &replicas = *rctx.replicas_;
+        std::vector<FullPtr<Task>> &replicas = *rctx.replicas_;
         break;
       }
     }
@@ -241,7 +241,7 @@ class Server : public Module {
     }
     if (task->root_) {
       // Broadcast the state creation to all nodes
-      LPointer<Task> bcast;
+      FullPtr<Task> bcast;
       NewCopyStart(Method::kCreate, task, bcast, true);
       auto *bcast_ptr = reinterpret_cast<CreateContainerTask *>(
           bcast.ptr_);
@@ -280,7 +280,7 @@ class Server : public Module {
         break;
       }
       case MonitorMode::kReplicaAgg: {
-        std::vector<LPointer<Task>> &replicas = *rctx.replicas_;
+        std::vector<FullPtr<Task>> &replicas = *rctx.replicas_;
         auto replica = reinterpret_cast<CreateContainerTask *>(
             replicas[0].ptr_);
         task->ctx_ = replica->ctx_;
@@ -312,7 +312,7 @@ class Server : public Module {
         break;
       }
       case MonitorMode::kReplicaAgg: {
-        std::vector<LPointer<Task>> &replicas = *rctx.replicas_;
+        std::vector<FullPtr<Task>> &replicas = *rctx.replicas_;
         auto replica = reinterpret_cast<GetPoolIdTask *>(
             replicas[0].ptr_);
         task->id_ = replica->id_;
@@ -423,7 +423,7 @@ class Server : public Module {
         break;
       }
       case MonitorMode::kReplicaAgg: {
-        std::vector<LPointer<Task>> &replicas = *rctx.replicas_;
+        std::vector<FullPtr<Task>> &replicas = *rctx.replicas_;
         auto replica = reinterpret_cast<FlushTask *>(
             replicas[0].ptr_);
         task->work_done_ += replica->work_done_;

@@ -25,7 +25,7 @@ class Client : public ModuleClient {
               const DomainQuery &affinity,
               const std::string &pool_name,
               const CreateContext &ctx = CreateContext()) {
-    LPointer<CreateTask> task = AsyncCreate(
+    FullPtr<CreateTask> task = AsyncCreate(
         mctx, dom_query, affinity, pool_name, ctx);
     task->Wait();
     Init(task->ctx_.id_);
@@ -43,7 +43,7 @@ class Client : public ModuleClient {
   /** Metadata task */
   int Md(const hipc::MemContext &mctx,
          const DomainQuery &dom_query, u32 depth, u32 flags) {
-    LPointer<MdTask> task =
+    FullPtr<MdTask> task =
         AsyncMd(mctx, dom_query, depth, flags);
     task->Wait();
     int ret = task->ret_;
@@ -56,7 +56,7 @@ class Client : public ModuleClient {
   void Io(const hipc::MemContext &mctx,
           const DomainQuery &dom_query, size_t io_size,
           u32 io_flags, size_t &write_ret, size_t &read_ret) {
-    LPointer<IoTask> task =
+    FullPtr<IoTask> task =
         AsyncIo(mctx, dom_query, io_size, io_flags);
     task->Wait();
     write_ret = task->ret_;

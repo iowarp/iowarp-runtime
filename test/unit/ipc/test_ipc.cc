@@ -141,7 +141,7 @@ TEST_CASE("TestFlush") {
     int ret;
     HILOG(kInfo, "Sending message {}", i);
     int cont_id = 1 + ((i + 1) % nprocs);
-    LPointer<chi::small_message::MdTask> task = client.AsyncMd(
+    FullPtr<chi::small_message::MdTask> task = client.AsyncMd(
         HSHM_DEFAULT_MEM_CTX, chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, cont_id),
         0, 0);
   }
@@ -346,9 +346,9 @@ void TestBdevIo(const std::string &path) {
   MPI_Barrier(MPI_COMM_WORLD);
   hshm::Timer t;
 
-  hipc::LPointer io_write = CHI_CLIENT->AllocateBuffer(
+  hipc::FullPtr io_write = CHI_CLIENT->AllocateBuffer(
       HSHM_DEFAULT_MEM_CTX, MEGABYTES(1));
-  hipc::LPointer io_read = CHI_CLIENT->AllocateBuffer(
+  hipc::FullPtr io_read = CHI_CLIENT->AllocateBuffer(
       HSHM_DEFAULT_MEM_CTX, MEGABYTES(1));
 
   t.Resume();

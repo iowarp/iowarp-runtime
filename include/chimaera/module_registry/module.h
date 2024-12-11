@@ -23,7 +23,7 @@
 
 namespace chi {
 
-typedef LPointer<Task> TaskPointer;
+typedef FullPtr<Task> TaskPointer;
 
 /** The information of a lane */
 class Lane {
@@ -35,7 +35,6 @@ class Lane {
   i32 worker_id_;
   size_t num_tasks_ = 0;
   Load load_;
-  std::unordered_map<TaskId, int> active_;
   CoMutex comux_;
   std::atomic<size_t> plug_count_;
   u32 prio_;
@@ -54,7 +53,7 @@ class Lane {
 
 #ifdef CHIMAERA_RUNTIME
   /** Push a task  */
-  hshm::qtok_t push(const LPointer<Task> &task);
+  hshm::qtok_t push(const FullPtr<Task> &task);
 
   /** Say we are about to pop a set of tasks */
   size_t pop_prep(size_t count);
@@ -63,7 +62,7 @@ class Lane {
   size_t pop_unprep(size_t count);
   
   /** Pop a task */
-  hshm::qtok_t pop(LPointer<Task> &task);
+  hshm::qtok_t pop(FullPtr<Task> &task);
 #endif
 
   size_t size() {
@@ -77,34 +76,8 @@ class Lane {
     worker_id_ = lane.worker_id_;
     num_tasks_ = lane.num_tasks_;
     load_ = lane.load_;
-    active_ = lane.active_;
     plug_count_ = lane.plug_count_.load();
     prio_ = lane.prio_;
-  }
-
-  bool IsActive(TaskId id) {
-    return active_.find(id) != active_.end();
-  }
-
-  void SetActive(TaskId id) {
-    if (!IsActive(id)) {
-      active_[id] = 1;
-    } else {
-      active_[id] += 1;
-    }
-  }
-
-  void UnsetActive(TaskId id) {
-    if (IsActive(id)) {
-      active_[id] -= 1;
-      if (active_[id] == 0) {
-        active_.erase(id);
-      }
-    }
-  }
-
-  size_t GetNumActive() {
-    return active_.size();
   }
 
   bool IsPlugged() {
@@ -201,7 +174,7 @@ class Module {
     size_t num_active = 0;
     for (auto &lane_group : lane_groups_) {
       for (Lane &lane : lane_group.second->lanes_) {
-        num_active += lane.GetNumActive();
+        num_active += lane.size();
       }
     }
     return num_active;
@@ -234,7 +207,7 @@ class Module {
   /** Duplicate a task into a new task */
   virtual void NewCopyStart(u32 method,
                             const Task *orig_task,
-                            LPointer<Task> &dup_task,
+                            FullPtr<Task> &dup_task,
                             bool deep) = 0;
 
   /** Serialize a task when initially pushing into remote */

@@ -33,7 +33,7 @@ class Client : public ModuleClient {
               const DomainQuery &affinity,
               const std::string &pool_name,
               const CreateContext &ctx = CreateContext()) {
-    LPointer<CreateTask> task = AsyncCreate(
+    FullPtr<CreateTask> task = AsyncCreate(
         mctx, dom_query, affinity, pool_name, ctx);
     task->Wait();
     Init(task->ctx_.id_);
@@ -52,7 +52,7 @@ class Client : public ModuleClient {
   HSHM_INLINE
   void Custom(const hipc::MemContext &mctx,
               const DomainQuery &dom_query) {
-    LPointer<CustomTask> task = AsyncCustom(mctx, dom_query);
+    FullPtr<CustomTask> task = AsyncCustom(mctx, dom_query);
     task.ptr_->Wait();
   }
   CHI_TASK_METHODS(Custom);

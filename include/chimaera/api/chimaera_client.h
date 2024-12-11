@@ -20,8 +20,8 @@ namespace chi {
 /** Allocate a buffer */
 template<bool FROM_REMOTE>
 HSHM_INLINE
-LPointer<char> Client::AllocateBufferSafe(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, size_t size) {
-  LPointer<char> p;
+FullPtr<char> Client::AllocateBufferSafe(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, size_t size) {
+  FullPtr<char> p;
   while (true) {
     try {
       p = alloc->AllocateLocalPtr<char>(alloc.ctx_, size);
@@ -48,7 +48,7 @@ LPointer<char> Client::AllocateBufferSafe(const hipc::CtxAllocator<CHI_ALLOC_T> 
 #ifdef CHIMAERA_RUNTIME
 template<typename TaskT>
 void Client::ScheduleTaskRuntime(Task *parent_task,
-                                 LPointer<TaskT> &task,
+                                 FullPtr<TaskT> task,
                                  const QueueId &ig_queue_id) {
   task->YieldInit(parent_task);
   CHI_CUR_WORKER->active_.push(task);

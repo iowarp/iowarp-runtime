@@ -324,7 +324,7 @@ struct RunContext {
   hshm::Timer timer_;
   Task *pending_to_;
   size_t pending_key_;
-  std::vector<LPointer<Task>> *replicas_;
+  std::vector<FullPtr<Task>> *replicas_;
   size_t ret_task_addr_;
   NodeId ret_node_;
   hipc::atomic<size_t> block_count_;
@@ -732,7 +732,7 @@ struct RunContext {
 
   /** This task waits for subtask to complete */
   template<typename TaskT = Task>
-  void Wait(LPointer<TaskT> &subtask, u32 flags = TASK_COMPLETE) {
+  void Wait(FullPtr<TaskT> &subtask, u32 flags = TASK_COMPLETE) {
     Wait(subtask.ptr_, flags);
   }
 
@@ -743,13 +743,13 @@ struct RunContext {
 
   /** This task waits for a set of tasks to complete */
   template<typename TaskT>
-  void Wait(std::vector<LPointer<TaskT>> &subtasks, u32 flags = TASK_COMPLETE) {
+  void Wait(std::vector<FullPtr<TaskT>> &subtasks, u32 flags = TASK_COMPLETE) {
 #ifdef CHIMAERA_RUNTIME
     SetBlocked(subtasks.size());
     Yield();
     UnsetBlocked();
 #else
-    for (LPointer<TaskT> &subtask : subtasks) {
+    for (FullPtr<TaskT> &subtask : subtasks) {
       while (!subtask->task_flags_.All(flags)) {
         Yield();
       }

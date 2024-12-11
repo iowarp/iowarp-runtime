@@ -135,8 +135,8 @@ class Server : public Module {
         break;
       }
       case MonitorMode::kReplicaAgg: {
-        std::vector<LPointer<Task>> &replicas = *rctx.replicas_;
-        for (LPointer<Task> &replica : replicas) {
+        std::vector<FullPtr<Task>> &replicas = *rctx.replicas_;
+        for (FullPtr<Task> &replica : replicas) {
           auto replica_task = reinterpret_cast<MdTask *>(replica.ptr_);
           task->ret_ = replica_task->ret_;
         }
@@ -176,8 +176,8 @@ class Server : public Module {
         break;
       }
       case MonitorMode::kReplicaAgg: {
-        std::vector<LPointer<Task>> &replicas = *rctx.replicas_;
-        for (LPointer<Task> &replica : replicas) {
+        std::vector<FullPtr<Task>> &replicas = *rctx.replicas_;
+        for (FullPtr<Task> &replica : replicas) {
           auto replica_task = reinterpret_cast<IoTask *>(replica.ptr_);
           task->ret_ = replica_task->ret_;
         }

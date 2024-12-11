@@ -243,7 +243,7 @@ class ChimaeraCodegen:
 
         ## Create the CopyStart method
         lines += ['/** Duplicate a task */',
-                  'void NewCopyStart(u32 method, const Task *orig_task, LPointer<Task> &dup_task, bool deep) override {',
+                  'void NewCopyStart(u32 method, const Task *orig_task, FullPtr<Task> &dup_task, bool deep) override {',
                   '  switch (method) {']
         for method_enum_name, method_off in methods:
             if method_off < 0:

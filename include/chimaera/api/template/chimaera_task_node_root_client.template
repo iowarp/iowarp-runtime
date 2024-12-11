@@ -9,20 +9,20 @@ void Async##CUSTOM##Construct(const hipc::MemContext &mctx,
 }
 
 template<typename ...Args>
-hipc::LPointer<CUSTOM##Task> Async##CUSTOM##Alloc(const hipc::MemContext &mctx, 
+hipc::FullPtr<CUSTOM##Task> Async##CUSTOM##Alloc(const hipc::MemContext &mctx, 
                                                   const TaskNode &task_node,
                                                   Args&& ...args) {
-  hipc::LPointer<CUSTOM##Task> task =
+  hipc::FullPtr<CUSTOM##Task> task =
     CHI_CLIENT->AllocateTask<CUSTOM##Task>(mctx);
   Async##CUSTOM##Construct(mctx, task.ptr_, task_node, std::forward<Args>(args)...);
   return task;
 }
 
 template<typename ...Args>
-hipc::LPointer<CUSTOM##Task>
+hipc::FullPtr<CUSTOM##Task>
 Async##CUSTOM(const hipc::MemContext &mctx, Args&& ...args) {
   TaskNode task_node = CHI_CLIENT->MakeTaskNodeId();
-  hipc::LPointer<CUSTOM##Task> task = Async##CUSTOM##Alloc(
+  hipc::FullPtr<CUSTOM##Task> task = Async##CUSTOM##Alloc(
       mctx, task_node, std::forward<Args>(args)...);
   chi::ingress::MultiQueue *queue = CHI_CLIENT->GetQueue(CHI_QM_CLIENT->process_queue_id_);
   queue->Emplace(chi::TaskPrio::kLowLatency,

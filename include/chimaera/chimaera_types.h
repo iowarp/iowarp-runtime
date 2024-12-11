@@ -84,7 +84,7 @@ typedef hshm::bitfield<uint64_t> bitfield64_t;
 using hshm::ScopedRwReadLock;
 using hshm::ScopedRwWriteLock;
 using hshm::ScopedMutex;
-using hipc::LPointer;
+using hipc::FullPtr;
 
 typedef u32 NodeId;  /**< The ID of a node */
 typedef u32 LaneId;  /**< The ID of a lane */

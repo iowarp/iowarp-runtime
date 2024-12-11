@@ -58,6 +58,6 @@
   typedef hshm::bitfield<uint64_t> bitfield64_t; \
   using hshm::ScopedRwReadLock; \
   using hshm::ScopedRwWriteLock; \
-  using hipc::LPointer;
+  using hipc::FullPtr;
 
 #endif  // CHI_INCLUDE_CHI_CHI_NAMESPACE_H_

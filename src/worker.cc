@@ -26,12 +26,24 @@ namespace chi {
 /**===============================================================
  * Private Task Multi Queue
  * =============================================================== */
-bool PrivateTaskMultiQueue::push(const LPointer<Task> &task) {
+bool PrivateTaskMultiQueue::push(const FullPtr<Task> &task) {
+  #ifdef CHIMAERA_REMOTE_DEBUG
+  if (task->pool_ != CHI_QM_CLIENT->admin_pool_id_ &&
+      !task->task_flags_.Any(TASK_REMOTE_DEBUG_MARK) &&
+      !task->IsLongRunning() && task->method_ != TaskMethod::kCreate &&
+      CHI_RUNTIME->remote_created_) {
+    task->SetRemote();
+  }
+  if (task->IsModuleComplete()) {
+    task->UnsetRemote();
+  }
+#endif
   // Determine the domain of the task
   std::vector<ResolvedDomainQuery> resolved =
       CHI_RPC->ResolveDomainQuery(task->pool_, task->dom_query_, false);
   DomainQuery res_query = resolved[0].dom_;
-  if (resolved.size() == 1 && resolved[0].node_ == CHI_RPC->node_id_ &&
+  if (!task->IsRemote() && resolved.size() == 1 &&
+      resolved[0].node_ == CHI_RPC->node_id_ &&
       res_query.flags_.All(DomainQuery::kLocal | DomainQuery::kId)) {
     // CASE 0: The task is a flushing task. Place in the flush queue.
     if (task->IsFlush()) {
@@ -65,7 +77,7 @@ bool PrivateTaskMultiQueue::push(const LPointer<Task> &task) {
  * Lanes
  * =============================================================== */
 /** Push a task  */
-hshm::qtok_t Lane::push(const LPointer<Task> &task) {
+hshm::qtok_t Lane::push(const FullPtr<Task> &task) {
   hshm::qtok_t ret = active_tasks_.push(task);
   size_t dup = count_.fetch_add(1);
   if (dup == 0) {
@@ -86,7 +98,7 @@ size_t Lane::pop_unprep(size_t count) {
 }
 
 /** Pop a task */
-hshm::qtok_t Lane::pop(LPointer<Task> &task) {
+hshm::qtok_t Lane::pop(FullPtr<Task> &task) {
   return active_tasks_.pop(task);
 }
 
@@ -262,7 +274,7 @@ void Worker::IngestLane(IngressEntry &lane_info) {
     if (ig_lane->pop(entry).IsNull()) {
       break;
     }
-    LPointer<Task> task;
+    FullPtr<Task> task;
     task.shm_ = entry.shm_;
     task.ptr_ = CHI_CLIENT->GetMainPointer<Task>(entry.shm_);
     active_.push(task);
@@ -274,7 +286,7 @@ HSHM_INLINE
 void Worker::PollTempQueue(PrivateTaskQueue &priv_queue, bool flushing) {
   size_t size = priv_queue.size();
   for (size_t i = 0; i < size; ++i) {
-    LPointer<Task> task;
+    FullPtr<Task> task;
     if (priv_queue.pop(task).IsNull()) {
       break;
     }
@@ -301,7 +313,7 @@ size_t Worker::PollPrivateLaneMultiQueue(PrivateLaneQueue &lanes, bool flushing)
     size_t max_lane_size = chi_lane->size();
     size_t lane_size = 0;
     for (; lane_size < max_lane_size; ++lane_size) {
-      LPointer<Task> task;
+      FullPtr<Task> task;
       if (chi_lane->pop(task).IsNull()) { 
         break;
       }
@@ -323,7 +335,7 @@ size_t Worker::PollPrivateLaneMultiQueue(PrivateLaneQueue &lanes, bool flushing)
 }
 
 /** Run a task */
-bool Worker::RunTask(LPointer<Task> &task, bool flushing) {
+bool Worker::RunTask(FullPtr<Task> &task, bool flushing) {
   // Get task properties
   bitfield32_t props = GetTaskProperties(task.ptr_, flushing);
   // Pack runtime context
@@ -369,7 +381,7 @@ bool Worker::RunTask(LPointer<Task> &task, bool flushing) {
 
 /** Run an arbitrary task */
 HSHM_INLINE
-void Worker::ExecTask(LPointer<Task> &task,
+void Worker::ExecTask(FullPtr<Task> &task,
                       RunContext &rctx, Container *&exec,
                       bitfield32_t &props) {
   // Determine if a task should be executed
@@ -384,7 +396,6 @@ void Worker::ExecTask(LPointer<Task> &task,
   }
   // Activate task
   if (!task->IsStarted()) {
-    cur_lane_->SetActive(task->task_node_.root_);
     if (ShouldSample()) {
       task->SetShouldSample();
       rctx.timer_.Reset();
@@ -405,7 +416,6 @@ void Worker::ExecTask(LPointer<Task> &task,
       exec->Monitor(MonitorMode::kSampleLoad, task->method_, task.ptr_, rctx);
       task->UnsetShouldSample();
     }
-    cur_lane_->UnsetActive(task->task_node_.root_);
     // Update the load
     cur_lane_->load_ -= rctx.load_;
     cur_lane_->num_tasks_ -= 1;
@@ -451,7 +461,7 @@ void Worker::CoroutineEntry(bctx::transfer_t t) {
 
 /** Free a task when it is no longer needed */
 HSHM_INLINE
-void Worker::EndTask(Container *exec, LPointer<Task> &task) {
+void Worker::EndTask(Container *exec, FullPtr<Task> &task) {
   task->SetComplete();
   if (task->ShouldSignalUnblock()) {
     CHI_WORK_ORCHESTRATOR->SignalUnblock(task->rctx_.pending_to_);
@@ -483,9 +493,6 @@ bitfield32_t Worker::GetTaskProperties(Task *&task, bool flushing) {
   bitfield32_t props;
 
   bool should_run = task->ShouldRun(cur_time_, flushing);
-  if (task->IsRemote()) {
-    props.SetBits(CHI_WORKER_IS_REMOTE);
-  }
   if (should_run || task->IsStarted()) {
     props.SetBits(CHI_WORKER_SHOULD_RUN);
   }

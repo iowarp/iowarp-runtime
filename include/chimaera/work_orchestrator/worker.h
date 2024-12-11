@@ -25,7 +25,6 @@ static inline pid_t GetLinuxTid() {
   return syscall(SYS_gettid);
 }
 
-#define CHI_WORKER_IS_REMOTE BIT_OPT(u32, 0)
 #define CHI_WORKER_SHOULD_RUN BIT_OPT(u32, 1)
 #define CHI_WORKER_IS_FLUSHING BIT_OPT(u32, 2)
 
@@ -196,7 +195,7 @@ class PrivateTaskMultiQueue {
   bool push(const TaskPointer &entry);
 
   template<typename TaskT>
-  bool push(const LPointer<TaskT> &task) {
+  bool push(const FullPtr<TaskT> &task) {
     return push(task.template Cast<Task>());
   }
 };
@@ -316,12 +315,12 @@ class Worker {
   size_t PollPrivateLaneMultiQueue(PrivateLaneQueue &queue, bool flushing);
 
   /** Run a task */
-  bool RunTask(LPointer<Task> &task,
+  bool RunTask(FullPtr<Task> &task,
                bool flushing);
 
   /** Run an arbitrary task */
   HSHM_INLINE
-  void ExecTask(LPointer<Task> &task,
+  void ExecTask(FullPtr<Task> &task,
                 RunContext &rctx,
                 Container *&exec,
                 bitfield32_t &props);
@@ -335,7 +334,7 @@ class Worker {
 
   /** Free a task when it is no longer needed */
   HSHM_INLINE
-  void EndTask(Container *exec, LPointer<Task> &task);
+  void EndTask(Container *exec, FullPtr<Task> &task);
 
   /**===============================================================
    * Helpers

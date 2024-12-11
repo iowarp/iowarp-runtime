@@ -120,8 +120,8 @@ class Client : public ConfigurationManager {
   /** Create a default-constructed task */
   template<typename TaskT, typename ...Args>
   HSHM_INLINE
-  LPointer<TaskT> NewEmptyTask(const hipc::MemContext &mctx) {
-    LPointer<TaskT> task = main_alloc_->NewObjLocal<TaskT>(
+  FullPtr<TaskT> NewEmptyTask(const hipc::MemContext &mctx) {
+    FullPtr<TaskT> task = main_alloc_->NewObjLocal<TaskT>(
         mctx, main_alloc_);
     if (task.shm_.IsNull()) {
       // throw std::runtime_error("Could not allocate buffer");
@@ -141,8 +141,8 @@ class Client : public ConfigurationManager {
   /** Allocate task */
   template<typename TaskT, typename ...Args>
   HSHM_INLINE
-  hipc::LPointer<TaskT> AllocateTask(const hipc::MemContext &mctx) {
-    hipc::LPointer<TaskT> task = main_alloc_->AllocateLocalPtr<TaskT>(
+  hipc::FullPtr<TaskT> AllocateTask(const hipc::MemContext &mctx) {
+    hipc::FullPtr<TaskT> task = main_alloc_->AllocateLocalPtr<TaskT>(
         mctx, sizeof(TaskT));
     if (task.shm_.IsNull()) {
       HELOG(kFatal, "Could not allocate buffer (3)");
@@ -153,9 +153,9 @@ class Client : public ConfigurationManager {
   /** Create a task */
   template<typename TaskT, typename ...Args>
   HSHM_INLINE
-  LPointer<TaskT> NewTask(const hipc::MemContext &mctx,
+  FullPtr<TaskT> NewTask(const hipc::MemContext &mctx,
                           const TaskNode &task_node, Args&& ...args) {
-    LPointer<TaskT> ptr = main_alloc_->NewObjLocal<TaskT>(
+    FullPtr<TaskT> ptr = main_alloc_->NewObjLocal<TaskT>(
         mctx, main_alloc_, task_node, std::forward<Args>(args)...);
     if (ptr.shm_.IsNull()) {
       // throw std::runtime_error("Could not allocate buffer");
@@ -165,7 +165,7 @@ class Client : public ConfigurationManager {
   }
 
   template<typename TaskT>
-  void MonitorTaskFrees(LPointer<TaskT> &task) {
+  void MonitorTaskFrees(FullPtr<TaskT> &task) {
 #ifdef CHIMAERA_TASK_DEBUG
     MonitorTaskFrees(task.ptr_);
 #endif
@@ -198,7 +198,7 @@ class Client : public ConfigurationManager {
   template<typename TaskT>
   HSHM_INLINE
   void DelTask(const hipc::MemContext &mctx,
-               LPointer<TaskT> &task) {
+               FullPtr<TaskT> &task) {
 #ifdef CHIMAERA_TASK_DEBUG
     MonitorTaskFrees(task);
 #else
@@ -223,7 +223,7 @@ class Client : public ConfigurationManager {
   template<typename ContainerT, typename TaskT>
   HSHM_INLINE
   void DelTask(const hipc::MemContext &mctx,
-               ContainerT *exec, LPointer<TaskT> &task) {
+               ContainerT *exec, FullPtr<TaskT> &task) {
 #ifdef CHIMAERA_TASK_DEBUG
     MonitorTaskFrees(task);
 #else
@@ -240,7 +240,7 @@ class Client : public ConfigurationManager {
 
   /** Allocate a buffer */
   HSHM_INLINE
-  LPointer<char> AllocateBuffer(const hipc::MemContext &mctx,
+  FullPtr<char> AllocateBuffer(const hipc::MemContext &mctx,
                                 size_t size) {
     return AllocateBufferSafe<false>({mctx, data_alloc_}, size);
   }
@@ -248,7 +248,7 @@ class Client : public ConfigurationManager {
   /** Allocate a buffer (used in remote queue only) */
 #ifdef CHIMAERA_RUNTIME
   HSHM_INLINE
-  LPointer<char> AllocateBufferRemote(const hipc::MemContext &mctx,
+  FullPtr<char> AllocateBufferRemote(const hipc::MemContext &mctx,
                                       size_t size) {
     return AllocateBufferSafe<true>({mctx, rdata_alloc_}, size);
   }
@@ -258,7 +258,7 @@ class Client : public ConfigurationManager {
   /** Allocate a buffer */
   template<bool FROM_REMOTE=false>
   HSHM_INLINE
-  LPointer<char> AllocateBufferSafe(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, size_t size);
+  FullPtr<char> AllocateBufferSafe(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, size_t size);
 
  public:
   /** Free a buffer */
@@ -271,7 +271,7 @@ class Client : public ConfigurationManager {
 
   /** Free a buffer */
   HSHM_INLINE
-  void FreeBuffer(LPointer<char> &p) {
+  void FreeBuffer(FullPtr<char> &p) {
     auto alloc = HERMES_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(
         p.shm_.allocator_id_);
     alloc->FreeLocalPtr(hshm::ThreadId::GetNull(), p);
@@ -307,7 +307,7 @@ class Client : public ConfigurationManager {
   /** Performs the lpointer conversion */
   template<typename TaskT>
   void ScheduleTaskRuntime(Task *parent_task,
-                           LPointer<TaskT> &task,
+                           FullPtr<TaskT> task,
                            const QueueId &ig_queue_id);
 #endif
 };
@@ -326,17 +326,17 @@ void Async##CUSTOM##Construct(const hipc::MemContext &mctx, \
 } \
  \
 template<typename ...Args> \
-hipc::LPointer<CUSTOM##Task> Async##CUSTOM##Alloc(const hipc::MemContext &mctx, \
+hipc::FullPtr<CUSTOM##Task> Async##CUSTOM##Alloc(const hipc::MemContext &mctx, \
                                                   const TaskNode &task_node, \
                                                   Args&& ...args) { \
-  hipc::LPointer<CUSTOM##Task> task = \
+  hipc::FullPtr<CUSTOM##Task> task = \
     CHI_CLIENT->AllocateTask<CUSTOM##Task>(mctx); \
   Async##CUSTOM##Construct(mctx, task.ptr_, task_node, std::forward<Args>(args)...); \
   return task; \
 } \
  \
 template<typename ...Args> \
-hipc::LPointer<CUSTOM##Task> Async##CUSTOM(const hipc::MemContext &mctx, \
+hipc::FullPtr<CUSTOM##Task> Async##CUSTOM(const hipc::MemContext &mctx, \
                                            Args&& ...args) { \
   chi::Task *parent_task = CHI_CUR_TASK; \
   if (parent_task) { \
@@ -351,12 +351,12 @@ hipc::LPointer<CUSTOM##Task> Async##CUSTOM(const hipc::MemContext &mctx, \
 } \
  \
 template<typename ...Args> \
-hipc::LPointer<CUSTOM##Task> Async##CUSTOM##Base( \
+hipc::FullPtr<CUSTOM##Task> Async##CUSTOM##Base( \
   const hipc::MemContext &mctx, \
   Task *parent_task, \
   const TaskNode &task_node, \
   Args&& ...args) { \
-  hipc::LPointer<CUSTOM##Task> task = Async##CUSTOM##Alloc( \
+  hipc::FullPtr<CUSTOM##Task> task = Async##CUSTOM##Alloc( \
     mctx, task_node, std::forward<Args>(args)...); \
   CHI_CLIENT->ScheduleTaskRuntime(parent_task, task, task->pool_); \
   return task; \
@@ -374,20 +374,20 @@ void Async##CUSTOM##Construct(const hipc::MemContext &mctx,  \
 } \
  \
 template<typename ...Args> \
-hipc::LPointer<CUSTOM##Task> Async##CUSTOM##Alloc(const hipc::MemContext &mctx,  \
+hipc::FullPtr<CUSTOM##Task> Async##CUSTOM##Alloc(const hipc::MemContext &mctx,  \
                                                   const TaskNode &task_node, \
                                                   Args&& ...args) { \
-  hipc::LPointer<CUSTOM##Task> task = \
+  hipc::FullPtr<CUSTOM##Task> task = \
     CHI_CLIENT->AllocateTask<CUSTOM##Task>(mctx); \
   Async##CUSTOM##Construct(mctx, task.ptr_, task_node, std::forward<Args>(args)...); \
   return task; \
 } \
  \
 template<typename ...Args> \
-hipc::LPointer<CUSTOM##Task> \
+hipc::FullPtr<CUSTOM##Task> \
 Async##CUSTOM(const hipc::MemContext &mctx, Args&& ...args) { \
   TaskNode task_node = CHI_CLIENT->MakeTaskNodeId(); \
-  hipc::LPointer<CUSTOM##Task> task = Async##CUSTOM##Alloc( \
+  hipc::FullPtr<CUSTOM##Task> task = Async##CUSTOM##Alloc( \
       mctx, task_node, std::forward<Args>(args)...); \
   chi::ingress::MultiQueue *queue = CHI_CLIENT->GetQueue(CHI_QM_CLIENT->process_queue_id_); \
   queue->Emplace(chi::TaskPrio::kLowLatency, \
@@ -414,10 +414,10 @@ constexpr inline void CALL_COPY_START(const TaskT *orig_task,
 /** Call duplicate if applicable */
 template<typename TaskT>
 constexpr inline void CALL_NEW_COPY_START(const TaskT *orig_task,
-                                          LPointer<Task> &udup_task,
+                                          FullPtr<Task> &udup_task,
                                           bool deep) {
   if constexpr (TaskT::REPLICA) {
-    LPointer<TaskT> dup_task = CHI_CLIENT->NewEmptyTask<TaskT>({});
+    FullPtr<TaskT> dup_task = CHI_CLIENT->NewEmptyTask<TaskT>({});
     CALL_COPY_START(orig_task, dup_task.ptr_, deep);
     udup_task.ptr_ = (Task *) dup_task.ptr_;
     udup_task.shm_ = dup_task.shm_;

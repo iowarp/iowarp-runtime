@@ -22,7 +22,7 @@ class Client : public ModuleClient {
   void RegisterModule(const hipc::MemContext &mctx,
                       const DomainQuery &dom_query,
                       const std::string &lib_name) {
-    LPointer<RegisterModuleTask> task =
+    FullPtr<RegisterModuleTask> task =
         AsyncRegisterModule(mctx, dom_query, lib_name);
     task->Wait();
     CHI_CLIENT->DelTask(mctx, task);
@@ -34,7 +34,7 @@ class Client : public ModuleClient {
   void DestroyModule(const hipc::MemContext &mctx,
                      const DomainQuery &dom_query,
                      const std::string &lib_name) {
-    LPointer<DestroyModuleTask> task =
+    FullPtr<DestroyModuleTask> task =
         AsyncDestroyModule(mctx, dom_query, lib_name);
     task->Wait();
     CHI_CLIENT->DelTask(mctx, task);
@@ -46,7 +46,7 @@ class Client : public ModuleClient {
   void UpgradeModule(const hipc::MemContext &mctx,
                      const DomainQuery &dom_query,
                      const std::string &lib_name) {
-    LPointer<UpgradeModuleTask> task =
+    FullPtr<UpgradeModuleTask> task =
         AsyncUpgradeModule(mctx, dom_query, lib_name);
     task->Wait();
     CHI_CLIENT->DelTask(mctx, task);
@@ -57,7 +57,7 @@ class Client : public ModuleClient {
   PoolId GetPoolId(const hipc::MemContext &mctx,
                    const DomainQuery &dom_query,
                    const std::string &pool_name) {
-    LPointer<GetPoolIdTask> task =
+    FullPtr<GetPoolIdTask> task =
         AsyncGetPoolId(mctx, dom_query, pool_name);
     task->Wait();
     PoolId new_id = task->id_;
@@ -71,7 +71,7 @@ class Client : public ModuleClient {
   void DestroyContainer(const hipc::MemContext &mctx,
                         const DomainQuery &dom_query,
                         const PoolId &destroy_id) {
-    LPointer<DestroyContainerTask> task =
+    FullPtr<DestroyContainerTask> task =
         AsyncDestroyContainer(mctx, dom_query, destroy_id);
     task->Wait();
     CHI_CLIENT->DelTask(mctx, task);
@@ -96,7 +96,7 @@ class Client : public ModuleClient {
   void SetWorkOrchQueuePolicy(const hipc::MemContext &mctx,
                               const DomainQuery &dom_query,
                               const PoolId &policy) {
-    LPointer<SetWorkOrchQueuePolicyTask> task =
+    FullPtr<SetWorkOrchQueuePolicyTask> task =
         AsyncSetWorkOrchQueuePolicy(mctx, dom_query, policy);
     task->Wait();
     CHI_CLIENT->DelTask(mctx, task);
@@ -105,7 +105,7 @@ class Client : public ModuleClient {
   void SetWorkOrchQueuePolicyRN(const hipc::MemContext &mctx,
                                 const DomainQuery &dom_query,
                                 const PoolId &policy) {
-    LPointer<SetWorkOrchQueuePolicyTask> task =
+    FullPtr<SetWorkOrchQueuePolicyTask> task =
         AsyncSetWorkOrchQueuePolicyBase(mctx, nullptr,
                                         CHI_CLIENT->MakeTaskNodeId(),
                                         dom_query, policy);
@@ -119,7 +119,7 @@ class Client : public ModuleClient {
   void SetWorkOrchProcPolicy(const hipc::MemContext &mctx,
                              const DomainQuery &dom_query,
                              const PoolId &policy) {
-    LPointer<SetWorkOrchProcPolicyTask> task =
+    FullPtr<SetWorkOrchProcPolicyTask> task =
         AsyncSetWorkOrchProcPolicy(mctx, dom_query, policy);
     task->Wait();
     CHI_CLIENT->DelTask(mctx, task);
@@ -128,7 +128,7 @@ class Client : public ModuleClient {
   void SetWorkOrchProcPolicyRN(const hipc::MemContext &mctx,
                                const DomainQuery &dom_query,
                                const PoolId &policy) {
-    LPointer<SetWorkOrchProcPolicyTask> task =
+    FullPtr<SetWorkOrchProcPolicyTask> task =
         AsyncSetWorkOrchProcPolicyBase(
             mctx, nullptr, CHI_CLIENT->MakeTaskNodeId(),
             dom_query, policy);
@@ -143,7 +143,7 @@ class Client : public ModuleClient {
              const DomainQuery &dom_query) {
     size_t work_done = 0;
     do {
-      LPointer<FlushTask> task =
+      FullPtr<FlushTask> task =
           AsyncFlush(mctx, dom_query);
       task->Wait();
       work_done = task->work_done_;
@@ -156,7 +156,7 @@ class Client : public ModuleClient {
   size_t GetDomainSize(const hipc::MemContext &mctx,
                        const DomainQuery &dom_query,
                        const DomainId &dom_id) {
-    LPointer<GetDomainSizeTask> task =
+    FullPtr<GetDomainSizeTask> task =
         AsyncGetDomainSize(mctx, dom_query, dom_id);
     task->Wait();
     size_t dom_size = task->dom_size_;

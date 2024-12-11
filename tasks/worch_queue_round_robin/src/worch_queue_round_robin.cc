@@ -90,7 +90,7 @@ class Server : public Module {
             // Migrate the lane
             if (ig_lane && ig_lane->worker_id_ != lane.worker_id_) {
               lane.SetPlugged();
-              while (!lane.active_.empty()) {
+              while (lane.size() > 0) {
                 task->Yield();
               }
               lane.worker_id_ = ig_lane->worker_id_;

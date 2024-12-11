@@ -52,7 +52,7 @@ class Server : public Module {
   void MonitorCustom(MonitorModeId mode, CustomTask *task, RunContext &rctx) {
     switch (mode) {
       case MonitorMode::kReplicaAgg: {
-        std::vector<LPointer<Task>> &replicas = *rctx.replicas_;
+        std::vector<FullPtr<Task>> &replicas = *rctx.replicas_;
         auto replica = reinterpret_cast<CustomTask *>(
             replicas[0].ptr_);
       }

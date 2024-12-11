@@ -42,7 +42,7 @@ client_method_template = """
 /** ##method_name## task */
 void ##method_name##(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
                      const DomainQuery &dom_query) {
-  LPointer<##task_name##> task =
+  FullPtr<##task_name##> task =
     Async##method_name##(dom_query);
   task->Wait();
   CHI_CLIENT->DelTask(mctx, task);
@@ -58,7 +58,7 @@ runtime_method_template = """
   void Monitor##method_name##(MonitorModeId mode, ##task_name## *task, RunContext &rctx) {
     switch (mode) {
       case MonitorMode::kReplicaAgg: {
-        std::vector<LPointer<Task>> &replicas = *rctx.replicas_;
+        std::vector<FullPtr<Task>> &replicas = *rctx.replicas_;
       }
     }
   }

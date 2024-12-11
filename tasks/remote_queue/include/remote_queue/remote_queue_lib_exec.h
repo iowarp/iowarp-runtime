@@ -130,7 +130,7 @@ void CopyStart(u32 method, const Task *orig_task, Task *dup_task, bool deep) ove
   }
 }
 /** Duplicate a task */
-void NewCopyStart(u32 method, const Task *orig_task, LPointer<Task> &dup_task, bool deep) override {
+void NewCopyStart(u32 method, const Task *orig_task, FullPtr<Task> &dup_task, bool deep) override {
   switch (method) {
     case Method::kCreate: {
       chi::CALL_NEW_COPY_START(reinterpret_cast<const CreateTask*>(orig_task), dup_task, deep);

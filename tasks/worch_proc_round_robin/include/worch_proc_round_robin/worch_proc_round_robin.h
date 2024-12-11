@@ -25,7 +25,7 @@ class Client : public ModuleClient {
               const DomainQuery &affinity,
               const std::string &pool_name,
               const CreateContext &ctx = CreateContext()) {
-    LPointer<CreateTask> task = AsyncCreate(
+    FullPtr<CreateTask> task = AsyncCreate(
         mctx, dom_query, affinity, pool_name, ctx);
     task->Wait();
     Init(task->ctx_.id_);

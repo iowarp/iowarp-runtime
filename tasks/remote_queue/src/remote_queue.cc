@@ -26,8 +26,8 @@ class Server : public Module {
  public:
   std::vector<hshm::mpsc_queue<TaskQueueEntry>> submit_;
   std::vector<hshm::mpsc_queue<TaskQueueEntry>> complete_;
-  std::vector<LPointer<ClientSubmitTask>> submitters_;
-  std::vector<LPointer<ServerCompleteTask>> completers_;
+  std::vector<FullPtr<ClientSubmitTask>> submitters_;
+  std::vector<FullPtr<ServerCompleteTask>> completers_;
   int NODES = 0;
 
  public:
@@ -92,7 +92,7 @@ class Server : public Module {
                  Task *orig_task,
                  std::vector<ResolvedDomainQuery> &dom_queries,
                  RunContext &rctx) {
-    std::vector<LPointer<Task>> replicas;
+    std::vector<FullPtr<Task>> replicas;
     replicas.reserve(dom_queries.size());
 
     // Get the container
@@ -102,7 +102,7 @@ class Server : public Module {
     // Replicate task
     bool deep = dom_queries.size() > 1;
     for (ResolvedDomainQuery &res_query : dom_queries) {
-      LPointer<Task> rep_task;
+      FullPtr<Task> rep_task;
       exec->NewCopyStart(orig_task->method_, orig_task, rep_task, deep);
       if (res_query.dom_.flags_.Any(DomainQuery::kLocal)) {
         exec->Monitor(MonitorMode::kReplicaStart, orig_task->method_,
@@ -126,7 +126,7 @@ class Server : public Module {
     HILOG(kInfo, "[TASK_CHECK] Rescheduling the submit_task {}", submit_task);
 
     // Free
-    for (LPointer<Task> &replica : replicas) {
+    for (FullPtr<Task> &replica : replicas) {
       CHI_CLIENT->DelTask(HSHM_DEFAULT_MEM_CTX, exec, replica.ptr_);
     }
   }
@@ -161,7 +161,8 @@ class Server : public Module {
     if (!orig_task->IsLongRunning()) {
       orig_task->SetModuleComplete();
     }
-    CHI_WORK_ORCHESTRATOR->SignalUnblock(orig_task);
+    CHI_CLIENT->ScheduleTaskRuntime(nullptr, FullPtr<Task>(orig_task),
+                                    QueueId(orig_task->pool_));
 
     // Set this task as complete
     task->SetModuleComplete();
