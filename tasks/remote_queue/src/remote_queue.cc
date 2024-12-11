@@ -333,10 +333,6 @@ class Server : public Module {
     // NOTE(llogan): Remote tasks are executed to completion and
     // return values sent back to the remote host. This is
     // for things like long-running monitoring tasks.
-//    rep_task->UnsetStarted();
-//    rep_task->UnsetSignalUnblock();
-//    rep_task->UnsetBlocked();
-//    rep_task->UnsetRemote();
     rep_task->SetDataOwner();
     rep_task->UnsetFireAndForget();
     rep_task->UnsetLongRunning();
