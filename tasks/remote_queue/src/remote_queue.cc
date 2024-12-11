@@ -127,7 +127,7 @@ class Server : public Module {
     rctx.replicas_ = &replicas;
     exec->Monitor(MonitorMode::kReplicaAgg, orig_task->method_,
                   orig_task, rctx);
-    HILOG(kInfo, "[TASK_CHECK] Rescheduling the submit_task {}", submit_task);
+    HILOG(kInfo, "[TASK_CHECK] Back in submit_task {}", submit_task);
 
     // Free
     for (FullPtr<Task> &replica : replicas) {
@@ -167,6 +167,7 @@ class Server : public Module {
     if (!orig_task->IsLongRunning()) {
       orig_task->SetModuleComplete();
     }
+     HILOG(kInfo, "[TASK_CHECK] Pushing back to runtime {}", orig_task);
     CHI_CLIENT->ScheduleTaskRuntime(nullptr, FullPtr<Task>(orig_task),
                                     QueueId(orig_task->pool_));
 
@@ -397,7 +398,6 @@ class Server : public Module {
     } catch (...) {
       HELOG(kError, "(node {}) Worker {} caught an unknown exception", CHI_CLIENT->node_id_, id_);
     }
-    HILOG(kInfo, "[TASK_CHECK] responding");
     req.respond(0);
   }
 
