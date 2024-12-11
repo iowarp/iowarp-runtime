@@ -172,6 +172,30 @@ struct CreateContainerBaseTask : public Task, TaskFlags<TF_SRL_SYM> {
     params_ = ss.str();
   }
 
+  /** Broadcast constructor */
+  template <typename... Args>
+  HSHM_INLINE explicit CreateContainerBaseTask(
+      const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, const TaskNode &task_node,
+      const PoolId &pool_id, const DomainQuery &dom_query,
+      const CreateContainerBaseTask &other)
+      : Task(alloc),
+        pool_name_(alloc, other.pool_name_),
+        lib_name_(alloc, other.lib_name_) {
+    // Initialize task
+    task_node_ = task_node;
+    prio_ = TaskPrio::kLowLatency;
+    pool_ = CHI_QM_CLIENT->admin_pool_id_;
+    method_ = Method::kCreateContainer;
+    task_flags_.SetBits(TASK_COROUTINE);
+    dom_query_ = dom_query;
+
+    // Initialize
+    root_ = false;
+    affinity_ = dom_query;
+    ctx_ = other.ctx_;
+    params_ = other.params_;
+  }
+
   /** Destructor */
   ~CreateContainerBaseTask() {}
 

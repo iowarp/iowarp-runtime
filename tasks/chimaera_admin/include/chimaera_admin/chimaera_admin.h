@@ -66,6 +66,18 @@ class Client : public ModuleClient {
   }
   CHI_TASK_METHODS(GetPoolId)
 
+  /** Create a pool */
+  HSHM_INLINE
+  void CreateContainer(const hipc::MemContext &mctx,
+                       const DomainQuery &dom_query,
+                       const CreateContainerTask &task) {
+    FullPtr<CreateContainerTask> task_ptr =
+        AsyncCreateContainer(mctx, dom_query, task);
+    task_ptr->Wait();
+    CHI_CLIENT->DelTask(mctx, task_ptr);
+  }
+  CHI_TASK_METHODS(CreateContainer)
+
   /** Terminate a pool */
   HSHM_INLINE
   void DestroyContainer(const hipc::MemContext &mctx,

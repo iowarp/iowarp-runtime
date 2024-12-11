@@ -241,24 +241,9 @@ class Server : public Module {
     }
     if (task->root_) {
       // Broadcast the state creation to all nodes
-      FullPtr<Task> bcast;
-      NewCopyStart(Method::kCreate, task, bcast, true);
-      auto *bcast_ptr = reinterpret_cast<CreateContainerTask *>(
-          bcast.ptr_);
-      bcast_ptr->task_node_ += 1;
-      bcast_ptr->root_ = false;
-      bcast_ptr->dom_query_ = bcast_ptr->affinity_;
-      bcast_ptr->method_ = Method::kCreateContainer;
-      bcast_ptr->pool_ = CHI_ADMIN->id_;
+      CHI_ADMIN->CreateContainer(HSHM_DEFAULT_MEM_CTX, task->dom_query_, *task);
       HILOG(kInfo, "(node {}) Broadcasting container creation (task_node={}): pool {}",
-            CHI_RPC->node_id_, task->task_node_, bcast_ptr->pool_name_.str());
-      ingress::MultiQueue *queue =
-          CHI_QM_CLIENT->GetQueue(CHI_QM_CLIENT->admin_queue_id_);
-      bcast->YieldInit(task);
-      queue->Emplace(bcast->prio_, bcast->GetContainerId(), bcast.shm_);
-      task->Wait(bcast);
-      Del(HSHM_DEFAULT_MEM_CTX,
-          Method::kCreateContainer, bcast.ptr_);
+            CHI_RPC->node_id_, task->task_node_, task->pool_name_.str());
     }
     HILOG(kInfo, "(node {}) Created containers for task {}",
           CHI_RPC->node_id_, task->task_node_);
