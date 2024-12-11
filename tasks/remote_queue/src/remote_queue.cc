@@ -17,15 +17,15 @@
 
 namespace chi::remote_queue {
 
-struct TaskQueueEntry {
+struct RemoteEntry {
   ResolvedDomainQuery res_domain_;
   Task *task_;
 };
 
 class Server : public Module {
  public:
-  std::vector<hshm::mpsc_queue<TaskQueueEntry>> submit_;
-  std::vector<hshm::mpsc_queue<TaskQueueEntry>> complete_;
+  std::vector<hshm::mpsc_queue<RemoteEntry>> submit_;
+  std::vector<hshm::mpsc_queue<RemoteEntry>> complete_;
   std::vector<FullPtr<ClientSubmitTask>> submitters_;
   std::vector<FullPtr<ServerCompleteTask>> completers_;
   int NODES = 0;
@@ -115,7 +115,7 @@ class Server : public Module {
       auto &submit = submit_;
       HILOG(kInfo, "[TASK_CHECK] Task replica addr {}", rep_task.ptr_);
       submit[node_hash % submit.size()].emplace(
-          (TaskQueueEntry) {res_query, rep_task.ptr_});
+          (RemoteEntry) {res_query, rep_task.ptr_});
       replicas.emplace_back(rep_task);
     }
     HILOG(kInfo, "[TASK_CHECK] Replicated the submit_task {}", submit_task);
@@ -151,18 +151,8 @@ class Server : public Module {
                                 QueueId(orig_task->pool_));
       return;
     }
-    // Handle fire & forget
-    bool is_ff = orig_task->IsFireAndForget();
-    orig_task->UnsetFireAndForget();
-
     // Replicate task
     Replicate(task, orig_task, dom_queries, rctx);
-
-    // Handle fire & forget
-    if (is_ff) {
-      orig_task->SetFireAndForget();
-    }
-
     // Unblock original task
     if (!orig_task->IsLongRunning()) {
       orig_task->SetModuleComplete();
@@ -183,13 +173,13 @@ class Server : public Module {
   void ClientSubmit(ClientSubmitTask *task, RunContext &rctx) {
     // HILOG(kInfo, "");
     if (rctx.worker_props_.Any(CHI_WORKER_IS_FLUSHING)) {
-      hshm::mpsc_queue<TaskQueueEntry> &submit = submit_[0];
-      hshm::mpsc_queue<TaskQueueEntry> &complete = complete_[0];
+      hshm::mpsc_queue<RemoteEntry> &submit = submit_[0];
+      hshm::mpsc_queue<RemoteEntry> &complete = complete_[0];
       rctx.flush_->count_ += submit.GetSize() + complete.GetSize();
     }
 
     try {
-      TaskQueueEntry entry;
+      RemoteEntry entry;
       std::unordered_map<NodeId, BinaryOutputArchive<true>> entries;
       auto &submit = submit_;
       while (!submit[0].pop(entry).IsNull()) {
@@ -240,7 +230,7 @@ class Server : public Module {
     NodeId ret_node = task->rctx_.ret_node_;
     size_t node_hash = std::hash<NodeId>{}(ret_node);
     auto &complete = complete_;
-    complete[node_hash % complete.size()].emplace((TaskQueueEntry){
+    complete[node_hash % complete.size()].emplace((RemoteEntry){
         ret_node, task
     });
   }
@@ -255,7 +245,7 @@ class Server : public Module {
     // HILOG(kInfo, "");
     try {
       // Serialize task completions
-      TaskQueueEntry entry;
+      RemoteEntry entry;
       std::unordered_map<NodeId, BinaryOutputArchive<false>> entries;
       auto &complete = complete_;
       while (!complete[0].pop(entry).IsNull()) {
