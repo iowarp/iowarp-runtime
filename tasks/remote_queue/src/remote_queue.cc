@@ -379,7 +379,7 @@ class Server : public Module {
           HELOG(kFatal, "This shouldn't happen ever");
         }
         HILOG(kInfo, "[TASK_CHECK] Unblocking the submit_task {}", submit_task);
-        CHI_WORK_ORCHESTRATOR->SignalUnblock(submit_task);
+        CHI_WORK_ORCHESTRATOR->SignalUnblock(submit_task, submit_task->rctx_);
       }
     } catch (hshm::Error &e) {
       HELOG(kError, "(node {}) Worker {} caught an error: {}", CHI_CLIENT->node_id_, id_, e.what());

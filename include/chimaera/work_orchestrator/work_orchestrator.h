@@ -66,10 +66,10 @@ class WorkOrchestrator {
   ~WorkOrchestrator() = default;
 
   /** Block a task */
-  void Block(Task *task);
+  void Block(Task *task, RunContext &rctx);
 
   /** Unblock a task */
-  void SignalUnblock(Task *task);
+  void SignalUnblock(Task *task, RunContext &rctx);
 
   /** Create thread pool */
   void ServerInit(ServerConfig *config, QueueManager &qm);

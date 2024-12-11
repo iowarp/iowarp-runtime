@@ -425,7 +425,7 @@ void Worker::ExecTask(FullPtr<Task> &task,
   task->DidRun(cur_time_);
   // Block the task
   if (task->IsBlocked()) {
-    CHI_WORK_ORCHESTRATOR->Block(task.ptr_);
+    CHI_WORK_ORCHESTRATOR->Block(task.ptr_, rctx);
   }
 }
 
@@ -466,7 +466,9 @@ HSHM_INLINE
 void Worker::EndTask(Container *exec, FullPtr<Task> &task, RunContext &rctx) {
   task->SetComplete();
   if (task->ShouldSignalUnblock()) {
-    CHI_WORK_ORCHESTRATOR->SignalUnblock(rctx.pending_to_);
+    Task *pending_to = rctx.pending_to_;
+    CHI_WORK_ORCHESTRATOR->SignalUnblock(
+        pending_to, pending_to->rctx_);
   }
   if (task->ShouldSignalRemoteComplete()) {
     Container *remote_exec =
