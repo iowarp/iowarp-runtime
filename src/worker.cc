@@ -71,6 +71,8 @@ bool PrivateTaskMultiQueue::push(const FullPtr<Task> &task) {
     rctx.route_container_ = container_id;
     rctx.route_lane_ = chi_lane->lane_id_;
     chi_lane->push(task);
+    HILOG(kInfo, "[TASK_CHECK] (node {}) Pushing task {}",
+          CHI_CLIENT->node_id_, (void*)task.ptr_);
   } else {
     // CASE 4: The task is remote to this machine, put in the remote queue.
     CHI_REMOTE_QUEUE->AsyncClientPushSubmitBase(

@@ -326,8 +326,12 @@ class Server : public Module {
     if (rep_task->rctx_.ret_task_addr_ == (size_t)rep_task.ptr_) {
       HELOG(kFatal, "This shouldn't happen ever");
     }
-    HILOG(kInfo, "[TASK_CHECK] Deserialized task replica addr {}",
-          (void*)rep_task->rctx_.ret_task_addr_);
+    HILOG(kInfo,
+          "[TASK_CHECK] (node {}) Deserialized task {} with replica addr {} "
+          "(pool={}, method={})",
+          CHI_CLIENT->node_id_, rep_task.ptr_,
+          (void *)rep_task->rctx_.ret_task_addr_,
+          pool_id, method);
 
     // Unset task flags
     // NOTE(llogan): Remote tasks are executed to completion and
