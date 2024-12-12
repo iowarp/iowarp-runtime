@@ -13,12 +13,13 @@
 #ifndef CHI_INCLUDE_CHI_WORK_ORCHESTRATOR_WORK_ORCHESTRATOR_H_
 #define CHI_INCLUDE_CHI_WORK_ORCHESTRATOR_WORK_ORCHESTRATOR_H_
 
-#include "chimaera/chimaera_types.h"
-#include "chimaera/queue_manager/queue_manager_runtime.h"
-#include "chimaera/network/rpc_thallium.h"
 #include <thread>
-#include "worker.h"
+
+#include "chimaera/chimaera_types.h"
+#include "chimaera/network/rpc_thallium.h"
+#include "chimaera/queue_manager/queue_manager_runtime.h"
 #include "reinforce_worker.h"
+#include "worker.h"
 
 #ifdef CHIMAERA_ENABLE_PYTHON
 #include "chimaera/monitor/python_wrapper.h"
@@ -33,30 +34,28 @@ struct BlockedTask {
   hipc::atomic<ssize_t> block_count_;
 
   BlockedTask() = default;
-  
-  BlockedTask(Task *task)
-  : task_(task) {
+
+  BlockedTask(Task *task) : task_(task) {
     block_count_ = task->rctx_.block_count_;
   }
 };
 
 class WorkOrchestrator {
  public:
-  ServerConfig *config_;  /**< The server configuration */
-  std::vector<std::unique_ptr<Worker>> workers_;  /**< Workers execute tasks */
-  std::vector<Worker*> dworkers_;   /**< Core-dedicated workers */
-  std::vector<Worker*> oworkers_;   /**< Undedicated workers */
+  ServerConfig *config_; /**< The server configuration */
+  std::vector<std::unique_ptr<Worker>> workers_; /**< Workers execute tasks */
+  std::vector<Worker *> dworkers_;               /**< Core-dedicated workers */
+  std::vector<Worker *> oworkers_;               /**< Undedicated workers */
   std::unique_ptr<ReinforceWorker>
-      reinforce_worker_;  /**< Reinforcement worker */
-  std::atomic<bool> kill_requested_;  /**< Kill flushing threads eventually */
-  std::vector<tl::managed<tl::xstream>>
-    rpc_xstreams_;  /**< RPC streams */
-  tl::managed<tl::pool> rpc_pool_;  /**< RPC pool */
-  TlsKey worker_tls_key_;  /**< Thread-local storage key */
-  std::atomic<bool> flushing_ = false;  /**< Flushing in progress */
-  size_t monitor_window_ = 0;  /**< Sampling window */
-  size_t monitor_gap_ = 0;  /**< Monitoring gap */
-  hipc::mpmc_key_set<BlockedTask> blocked_tasks_;  /**< Blocked tasks */
+      reinforce_worker_;             /**< Reinforcement worker */
+  std::atomic<bool> kill_requested_; /**< Kill flushing threads eventually */
+  std::vector<tl::managed<tl::xstream>> rpc_xstreams_; /**< RPC streams */
+  tl::managed<tl::pool> rpc_pool_;                     /**< RPC pool */
+  TlsKey worker_tls_key_;              /**< Thread-local storage key */
+  std::atomic<bool> flushing_ = false; /**< Flushing in progress */
+  size_t monitor_window_ = 0;          /**< Sampling window */
+  size_t monitor_gap_ = 0;             /**< Monitoring gap */
+  hipc::mpmc_key_set<BlockedTask> blocked_tasks_; /**< Blocked tasks */
 
  public:
   /** Default constructor */
@@ -78,7 +77,7 @@ class WorkOrchestrator {
   void Join();
 
   /** Get worker with this id */
-  Worker& GetWorker(WorkerId worker_id);
+  Worker &GetWorker(WorkerId worker_id);
 
   /** Get the number of workers */
   size_t GetNumWorkers();
@@ -95,15 +94,13 @@ class WorkOrchestrator {
   /** Begin finalizing the runtime */
   HSHM_INLINE
   void FinalizeRuntime() {
-    HILOG(kInfo, "(node {}) Finalizing workers", CHI_RPC->node_id_)
+    HILOG(kInfo, "(node {}) Finalizing workers", CHI_RPC->node_id_);
     kill_requested_.store(true);
   }
 
   /** Whether threads should still be executing */
   HSHM_INLINE
-  bool IsAlive() {
-    return !kill_requested_.load();
-  }
+  bool IsAlive() { return !kill_requested_.load(); }
 
   /** Set the CPU affinity of this worker */
   int SetCpuAffinity(ABT_xstream &xstream, int cpu_id) {
@@ -121,13 +118,11 @@ class WorkOrchestrator {
   }
 
   /** Spawn an argobots thread */
-  template<typename FUNC, typename TaskT>
+  template <typename FUNC, typename TaskT>
   ABT_thread SpawnAsyncThread(ABT_xstream xstream, FUNC &&func, TaskT *data) {
     ABT_thread tl_thread;
-    int ret = ABT_thread_create_on_xstream(xstream,
-                                           func, (void*) data,
-                                           ABT_THREAD_ATTR_NULL,
-                                           &tl_thread);
+    int ret = ABT_thread_create_on_xstream(xstream, func, (void *)data,
+                                           ABT_THREAD_ATTR_NULL, &tl_thread);
     if (ret != ABT_SUCCESS) {
       HELOG(kFatal, "Couldn't spawn worker");
     }
@@ -135,9 +130,7 @@ class WorkOrchestrator {
   }
 
   /** Wait for argobots thread */
-  void JoinAsyncThread(ABT_thread tl_thread) {
-    ABT_thread_join(tl_thread);
-  }
+  void JoinAsyncThread(ABT_thread tl_thread) { ABT_thread_join(tl_thread); }
 
   /** Create thread-local storage */
   void CreateThreadLocalBlock() {
@@ -151,7 +144,7 @@ class WorkOrchestrator {
   void SetCurrentWorkerId(WorkerId worker_id) {
     SetCurrentWorker(&GetWorker(worker_id));
   }
-  
+
   /** Set thread-local storage to worker (from ptr) */
   void SetCurrentWorker(Worker *worker) {
     int ret = ABT_key_set(worker_tls_key_, worker);
@@ -161,9 +154,9 @@ class WorkOrchestrator {
   }
 
   /** Get currently-executing worker */
-  Worker* GetCurrentWorker() {
+  Worker *GetCurrentWorker() {
     Worker *worker;
-    int ret = ABT_key_get(worker_tls_key_, (void**)&worker);
+    int ret = ABT_key_get(worker_tls_key_, (void **)&worker);
     if (ret != ABT_SUCCESS) {
       HELOG(kFatal, "Could not get thread-local storage");
     }
@@ -171,7 +164,7 @@ class WorkOrchestrator {
   }
 
   /** Get currently-executing task */
-  Task* GetCurrentTask() {
+  Task *GetCurrentTask() {
     Worker *worker = GetCurrentWorker();
     if (worker == nullptr) {
       return nullptr;
@@ -180,7 +173,7 @@ class WorkOrchestrator {
   }
 
   /** Get the currently-executing lane */
-  Lane* GetCurrentLane() {
+  Lane *GetCurrentLane() {
     Worker *worker = GetCurrentWorker();
     if (worker == nullptr) {
       return nullptr;
@@ -189,9 +182,9 @@ class WorkOrchestrator {
   }
 
   /** Get the least-loaded ingress queue */
-  ingress::Lane* GetLeastLoadedIngressLane(u32 lane_group_id)  {
+  ingress::Lane *GetLeastLoadedIngressLane(u32 lane_group_id) {
     ingress::MultiQueue *queue =
-      CHI_QM_RUNTIME->GetQueue(CHI_QM_RUNTIME->admin_queue_id_);
+        CHI_QM_RUNTIME->GetQueue(CHI_QM_RUNTIME->admin_queue_id_);
     ingress::LaneGroup &lane_group = queue->groups_[lane_group_id];
     ingress::Lane *min_lane = nullptr;
     float min_load = std::numeric_limits<float>::max();
@@ -209,9 +202,9 @@ class WorkOrchestrator {
   std::vector<Load> CalculateLoad();
 
   /** Get the least-loaded ingress queue */
-  ingress::Lane* GetThresholdIngressLane(u32 orig_worker_id,
+  ingress::Lane *GetThresholdIngressLane(u32 orig_worker_id,
                                          std::vector<Load> &loads,
-                                         u32 lane_group_id)  {
+                                         u32 lane_group_id) {
     ingress::MultiQueue *queue =
         CHI_QM_RUNTIME->GetQueue(CHI_QM_RUNTIME->admin_queue_id_);
     ingress::LaneGroup &ig_lane_group = queue->groups_[lane_group_id];
@@ -246,8 +239,7 @@ class WorkOrchestrator {
   void ImportModule(const std::string &name);
   void RunString(const std::string &script);
   void RunFunction(const std::string &func_name, PyDataWrapper &data);
-  void RunMethod(const std::string &class_name,
-                 const std::string &method_name,
+  void RunMethod(const std::string &class_name, const std::string &method_name,
                  PyDataWrapper &data);
 #endif
 };

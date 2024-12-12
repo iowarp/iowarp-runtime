@@ -10,22 +10,22 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include "basic_test.h"
 #include <mpi.h>
-#include "chimaera/api/chimaera_client.h"
-#include "chimaera_admin/chimaera_admin.h"
 
-#include "small_message/small_message.h"
-#include "hermes_shm/util/timer.h"
+#include "basic_test.h"
+#include "chimaera/api/chimaera_client.h"
 #include "chimaera/work_orchestrator/affinity.h"
+#include "chimaera_admin/chimaera_admin.h"
+#include "hermes_shm/util/timer.h"
 #include "omp.h"
+#include "small_message/small_message.h"
 
 TEST_CASE("TestTypeSizes") {
-  HILOG(kInfo, "Size of int: {}", sizeof(int))
-  HILOG(kInfo, "Size of long: {}", sizeof(long))
-  HILOG(kInfo, "Size of long long: {}", sizeof(long long))
-  HILOG(kInfo, "Size of float: {}", sizeof(float))
-  HILOG(kInfo, "Size of double: {}", sizeof(double))
+  HILOG(kInfo, "Size of int: {}", sizeof(int));
+  HILOG(kInfo, "Size of long: {}", sizeof(long));
+  HILOG(kInfo, "Size of long long: {}", sizeof(long long));
+  HILOG(kInfo, "Size of float: {}", sizeof(float));
+  HILOG(kInfo, "Size of double: {}", sizeof(double));
 
   HILOG(kInfo, "Size of PoolId: {}", sizeof(chi::PoolId));
   HILOG(kInfo, "Size of TaskId: {}", sizeof(chi::TaskId));

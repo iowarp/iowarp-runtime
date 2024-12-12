@@ -11,8 +11,9 @@
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include "chimaera/work_orchestrator/work_orchestrator.h"
-#include "chimaera/work_orchestrator/worker.h"
+
 #include "chimaera/module_registry/task.h"
+#include "chimaera/work_orchestrator/worker.h"
 
 namespace chi {
 
@@ -34,12 +35,11 @@ void WorkOrchestrator::ServerInit(ServerConfig *config, QueueManager &qm) {
   size_t num_workers = config_->wo_.cpus_.size();
   workers_.reserve(num_workers);
   int worker_id = 0;
-  std::unordered_map<u32, std::vector<Worker*>> cpu_workers;
+  std::unordered_map<u32, std::vector<Worker *>> cpu_workers;
   for (u32 cpu_id : config_->wo_.cpus_) {
     HILOG(kInfo, "Creating worker {}", worker_id);
     ABT_xstream xstream = MakeXstream();
-    workers_.emplace_back(std::make_unique<Worker>(
-        worker_id, cpu_id, xstream));
+    workers_.emplace_back(std::make_unique<Worker>(worker_id, cpu_id, xstream));
     Worker &worker = *workers_.back();
     worker.EnableContinuousPolling();
     cpu_workers[cpu_id].push_back(&worker);
@@ -47,7 +47,7 @@ void WorkOrchestrator::ServerInit(ServerConfig *config, QueueManager &qm) {
   }
   // Mark the workers as dedicated or overlapped
   for (auto &cpu_work : cpu_workers) {
-    std::vector<Worker*> &workers = cpu_work.second;
+    std::vector<Worker *> &workers = cpu_work.second;
     if (workers.size() == 1) {
       for (Worker *worker : workers) {
         worker->SetLowLatency();
@@ -59,22 +59,21 @@ void WorkOrchestrator::ServerInit(ServerConfig *config, QueueManager &qm) {
         oworkers_.emplace_back(worker);
       }
     }
-
   }
   // Spawn reinforcement thread
-  reinforce_worker_ = std::make_unique<ReinforceWorker>(
-      config_->wo_.reinforce_cpu_);
+  reinforce_worker_ =
+      std::make_unique<ReinforceWorker>(config_->wo_.reinforce_cpu_);
   kill_requested_ = false;
   // Create RPC worker threads
   rpc_pool_ = tl::pool::create(tl::pool::access::mpmc);
-  for(u32 cpu_id : config_->rpc_.cpus_) {
-    tl::managed<tl::xstream> es
-        = tl::xstream::create(tl::scheduler::predef::deflt, *rpc_pool_);
+  for (u32 cpu_id : config_->rpc_.cpus_) {
+    tl::managed<tl::xstream> es =
+        tl::xstream::create(tl::scheduler::predef::deflt, *rpc_pool_);
     es->set_cpubind(cpu_id);
     rpc_xstreams_.push_back(std::move(es));
   }
   HILOG(kInfo, "(node {}) Worker created RPC pool with {} threads",
-        CHI_RPC->node_id_, CHI_RPC->num_threads_)
+        CHI_RPC->node_id_, CHI_RPC->num_threads_);
 
   // Assign ingress queues to workers
   size_t count_lowlat_ = 0;
@@ -85,19 +84,24 @@ void WorkOrchestrator::ServerInit(ServerConfig *config, QueueManager &qm) {
     }
     for (ingress::LaneGroup &lane_group : queue.groups_) {
       u32 num_lanes = lane_group.num_lanes_;
-      for (LaneId lane_id = lane_group.num_scheduled_; lane_id < num_lanes; ++lane_id) {
+      for (LaneId lane_id = lane_group.num_scheduled_; lane_id < num_lanes;
+           ++lane_id) {
         WorkerId worker_id;
         if (lane_group.IsLowLatency()) {
-          u32 worker_off = count_lowlat_ % CHI_WORK_ORCHESTRATOR->dworkers_.size();
+          u32 worker_off =
+              count_lowlat_ % CHI_WORK_ORCHESTRATOR->dworkers_.size();
           count_lowlat_ += 1;
           Worker &worker = *CHI_WORK_ORCHESTRATOR->dworkers_[worker_off];
           worker.work_proc_queue_.emplace_back(
               IngressEntry(lane_group.prio_, lane_id, &queue));
           worker_id = worker.id_;
-//            HILOG(kInfo, "(node {}) Scheduling the queue {} (prio {}, lane {}, worker {})",
-//                  CHI_CLIENT->node_id_, queue.id_, lane_group.prio_, lane_id, worker.id_);
+          //            HILOG(kInfo, "(node {}) Scheduling the queue {} (prio
+          //            {}, lane {}, worker {})",
+          //                  CHI_CLIENT->node_id_, queue.id_, lane_group.prio_,
+          //                  lane_id, worker.id_);
         } else {
-          u32 worker_off = count_highlat_ % CHI_WORK_ORCHESTRATOR->oworkers_.size();
+          u32 worker_off =
+              count_highlat_ % CHI_WORK_ORCHESTRATOR->oworkers_.size();
           count_highlat_ += 1;
           Worker &worker = *CHI_WORK_ORCHESTRATOR->oworkers_[worker_off];
           worker.work_proc_queue_.emplace_back(
@@ -130,12 +134,11 @@ void WorkOrchestrator::ServerInit(ServerConfig *config, QueueManager &qm) {
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(5));
   }
-  
+
   // Dedicate CPU cores to this runtime
   DedicateCores();
 
-  HILOG(kInfo, "(node {}) Started {} workers",
-        CHI_RPC->node_id_, num_workers);
+  HILOG(kInfo, "(node {}) Started {} workers", CHI_RPC->node_id_, num_workers);
 }
 
 void WorkOrchestrator::Join() {
@@ -146,14 +149,12 @@ void WorkOrchestrator::Join() {
 }
 
 /** Get worker with this id */
-Worker& WorkOrchestrator::GetWorker(WorkerId worker_id) {
+Worker &WorkOrchestrator::GetWorker(WorkerId worker_id) {
   return *workers_[worker_id];
 }
 
 /** Get the number of workers */
-size_t WorkOrchestrator::GetNumWorkers() {
-  return workers_.size();
-}
+size_t WorkOrchestrator::GetNumWorkers() { return workers_.size(); }
 
 /** Get all PIDs of active workers */
 std::vector<int> WorkOrchestrator::GetWorkerPids() {
@@ -173,7 +174,8 @@ std::vector<int> WorkOrchestrator::GetWorkerCoresComplement() {
     cores.push_back(i);
   }
   for (std::unique_ptr<Worker> &worker : workers_) {
-    cores.erase(std::remove(cores.begin(), cores.end(), worker->affinity_), cores.end());
+    cores.erase(std::remove(cores.begin(), cores.end(), worker->affinity_),
+                cores.end());
   }
   return cores;
 }
@@ -240,14 +242,14 @@ void WorkOrchestrator::RegisterPath(const std::string &path) {
   CHI_PYTHON->RegisterPath(path);
 }
 void WorkOrchestrator::ImportModule(const std::string &name) {
-    CHI_PYTHON->ImportModule(name);
+  CHI_PYTHON->ImportModule(name);
 }
 void WorkOrchestrator::RunString(const std::string &script) {
-    CHI_PYTHON->RunString(script);
+  CHI_PYTHON->RunString(script);
 }
 void WorkOrchestrator::RunFunction(const std::string &func_name,
                                    PyDataWrapper &data) {
-    CHI_PYTHON->RunFunction(func_name, data);
+  CHI_PYTHON->RunFunction(func_name, data);
 }
 void WorkOrchestrator::RunMethod(const std::string &class_name,
                                  const std::string &method_name,

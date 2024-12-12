@@ -10,16 +10,16 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include "basic_test.h"
 #include <mpi.h>
-#include "chimaera/api/chimaera_client.h"
-#include "chimaera_admin/chimaera_admin.h"
 
-#include "small_message/small_message.h"
+#include "basic_test.h"
 #include "bdev/bdev.h"
-#include "hermes_shm/util/timer.h"
+#include "chimaera/api/chimaera_client.h"
 #include "chimaera/work_orchestrator/affinity.h"
+#include "chimaera_admin/chimaera_admin.h"
+#include "hermes_shm/util/timer.h"
 #include "omp.h"
+#include "small_message/small_message.h"
 
 CHI_NAMESPACE_INIT
 
@@ -31,15 +31,13 @@ TEST_CASE("TestIpc") {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
   chi::small_message::Client client;
-  CHI_ADMIN->RegisterModule(
-      HSHM_DEFAULT_MEM_CTX,
-      chi::DomainQuery::GetGlobalBcast(),
-      "small_message");
+  CHI_ADMIN->RegisterModule(HSHM_DEFAULT_MEM_CTX,
+                            chi::DomainQuery::GetGlobalBcast(),
+                            "small_message");
   client.Create(
       HSHM_DEFAULT_MEM_CTX,
       chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
-      chi::DomainQuery::GetGlobalBcast(),
-      "ipc_test");
+      chi::DomainQuery::GetGlobalBcast(), "ipc_test");
   hshm::Timer t;
   size_t domain_size = CHI_ADMIN->GetDomainSize(
       HSHM_DEFAULT_MEM_CTX,
@@ -47,21 +45,20 @@ TEST_CASE("TestIpc") {
       chi::DomainId(client.id_, chi::SubDomainId::kGlobalContainers));
 
   size_t ops = 256;
-  HILOG(kInfo, "OPS: {}", ops)
+  HILOG(kInfo, "OPS: {}", ops);
   t.Resume();
   int depth = 0;
   for (size_t i = 0; i < ops; ++i) {
     int cont_id = i;
-    int ret = client.Md(
-        HSHM_DEFAULT_MEM_CTX,
-        chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, cont_id),
-        depth, 0);
+    int ret = client.Md(HSHM_DEFAULT_MEM_CTX,
+                        chi::DomainQuery::GetDirectHash(
+                            chi::SubDomainId::kGlobalContainers, cont_id),
+                        depth, 0);
     REQUIRE(ret == 1);
   }
   t.Pause();
 
-  HILOG(kInfo, "Latency: {} MOps, {} MTasks",
-        ops / t.GetUsec(),
+  HILOG(kInfo, "Latency: {} MOps, {} MTasks", ops / t.GetUsec(),
         ops * (depth + 1) / t.GetUsec());
 }
 
@@ -73,14 +70,13 @@ TEST_CASE("TestAsyncIpc") {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
   chi::small_message::Client client;
-  CHI_ADMIN->RegisterModule(
-      HSHM_DEFAULT_MEM_CTX,
-      chi::DomainQuery::GetGlobalBcast(), "small_message");
+  CHI_ADMIN->RegisterModule(HSHM_DEFAULT_MEM_CTX,
+                            chi::DomainQuery::GetGlobalBcast(),
+                            "small_message");
   client.Create(
       HSHM_DEFAULT_MEM_CTX,
       chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
-      chi::DomainQuery::GetGlobalBcast(),
-      "ipc_test");
+      chi::DomainQuery::GetGlobalBcast(), "ipc_test");
   MPI_Barrier(MPI_COMM_WORLD);
   hshm::Timer t;
   size_t domain_size = CHI_ADMIN->GetDomainSize(
@@ -98,18 +94,17 @@ TEST_CASE("TestAsyncIpc") {
     int ret;
     // HILOG(kInfo, "Sending message {}", i);
     int cont_id = i;
-    client.AsyncMd(
-        HSHM_DEFAULT_MEM_CTX,
-        chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, cont_id),
-        depth, TASK_FIRE_AND_FORGET);
+    client.AsyncMd(HSHM_DEFAULT_MEM_CTX,
+                   chi::DomainQuery::GetDirectHash(
+                       chi::SubDomainId::kGlobalContainers, cont_id),
+                   depth, TASK_FIRE_AND_FORGET);
   }
   CHI_ADMIN->Flush(
       HSHM_DEFAULT_MEM_CTX,
       DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0));
   t.Pause();
 
-  HILOG(kInfo, "Latency: {} MOps, {} MTasks",
-        ops / t.GetUsec(),
+  HILOG(kInfo, "Latency: {} MOps, {} MTasks", ops / t.GetUsec(),
         ops * (depth + 1) / t.GetUsec());
 }
 
@@ -121,14 +116,13 @@ TEST_CASE("TestFlush") {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
   chi::small_message::Client client;
-  CHI_ADMIN->RegisterModule(
-      HSHM_DEFAULT_MEM_CTX,
-      chi::DomainQuery::GetGlobalBcast(), "small_message");
+  CHI_ADMIN->RegisterModule(HSHM_DEFAULT_MEM_CTX,
+                            chi::DomainQuery::GetGlobalBcast(),
+                            "small_message");
   client.Create(
       HSHM_DEFAULT_MEM_CTX,
       chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
-      chi::DomainQuery::GetGlobalBcast(),
-      "ipc_test");
+      chi::DomainQuery::GetGlobalBcast(), "ipc_test");
   MPI_Barrier(MPI_COMM_WORLD);
   hshm::Timer t;
 
@@ -141,13 +135,13 @@ TEST_CASE("TestFlush") {
     int ret;
     HILOG(kInfo, "Sending message {}", i);
     int cont_id = 1 + ((i + 1) % nprocs);
-    FullPtr<chi::small_message::MdTask> task = client.AsyncMd(
-        HSHM_DEFAULT_MEM_CTX, chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, cont_id),
-        0, 0);
+    FullPtr<chi::small_message::MdTask> task =
+        client.AsyncMd(HSHM_DEFAULT_MEM_CTX,
+                       chi::DomainQuery::GetDirectHash(
+                           chi::SubDomainId::kGlobalContainers, cont_id),
+                       0, 0);
   }
-  CHI_ADMIN->Flush(
-      HSHM_DEFAULT_MEM_CTX,
-      DomainQuery::GetGlobalBcast());
+  CHI_ADMIN->Flush(HSHM_DEFAULT_MEM_CTX, DomainQuery::GetGlobalBcast());
   t.Pause();
 
   HILOG(kInfo, "Latency: {} MOps", ops / t.GetUsec());
@@ -157,14 +151,13 @@ void TestIpcMultithread(int nprocs) {
   CHIMAERA_CLIENT_INIT();
 
   chi::small_message::Client client;
-  CHI_ADMIN->RegisterModule(
-      HSHM_DEFAULT_MEM_CTX,
-      chi::DomainQuery::GetGlobalBcast(), "small_message");
+  CHI_ADMIN->RegisterModule(HSHM_DEFAULT_MEM_CTX,
+                            chi::DomainQuery::GetGlobalBcast(),
+                            "small_message");
   client.Create(
       HSHM_DEFAULT_MEM_CTX,
       chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
-      chi::DomainQuery::GetGlobalBcast(),
-      "ipc_test");
+      chi::DomainQuery::GetGlobalBcast(), "ipc_test");
 
 #pragma omp parallel shared(client, nprocs) num_threads(nprocs)
   {
@@ -175,10 +168,10 @@ void TestIpcMultithread(int nprocs) {
     for (size_t i = 0; i < ops; ++i) {
       int ret;
       int cont_id = 1 + ((i + 1) % nprocs);
-      ret = client.Md(
-          HSHM_DEFAULT_MEM_CTX,
-          chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, cont_id),
-          0, 0);
+      ret = client.Md(HSHM_DEFAULT_MEM_CTX,
+                      chi::DomainQuery::GetDirectHash(
+                          chi::SubDomainId::kGlobalContainers, cont_id),
+                      0, 0);
       REQUIRE(ret == 1);
     }
 #pragma omp barrier
@@ -187,24 +180,15 @@ void TestIpcMultithread(int nprocs) {
       HILOG(kInfo, "Latency: {} MOps", ops * nprocs / t.GetUsec());
     }
   }
-
 }
 
-TEST_CASE("TestIpcMultithread4") {
-  TestIpcMultithread(4);
-}
+TEST_CASE("TestIpcMultithread4") { TestIpcMultithread(4); }
 
-TEST_CASE("TestIpcMultithread8") {
-  TestIpcMultithread(8);
-}
+TEST_CASE("TestIpcMultithread8") { TestIpcMultithread(8); }
 
-TEST_CASE("TestIpcMultithread16") {
-  TestIpcMultithread(16);
-}
+TEST_CASE("TestIpcMultithread16") { TestIpcMultithread(16); }
 
-TEST_CASE("TestIpcMultithread32") {
-  TestIpcMultithread(32);
-}
+TEST_CASE("TestIpcMultithread32") { TestIpcMultithread(32); }
 
 void TestBulk(u32 flags) {
   CHIMAERA_CLIENT_INIT();
@@ -213,14 +197,13 @@ void TestBulk(u32 flags) {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
   chi::small_message::Client client;
-  CHI_ADMIN->RegisterModule(
-      HSHM_DEFAULT_MEM_CTX,
-      chi::DomainQuery::GetGlobalBcast(), "small_message");
+  CHI_ADMIN->RegisterModule(HSHM_DEFAULT_MEM_CTX,
+                            chi::DomainQuery::GetGlobalBcast(),
+                            "small_message");
   client.Create(
       HSHM_DEFAULT_MEM_CTX,
       chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
-      chi::DomainQuery::GetGlobalBcast(),
-      "ipc_test");
+      chi::DomainQuery::GetGlobalBcast(), "ipc_test");
   hshm::Timer t;
 
   int pid = getpid();
@@ -234,12 +217,10 @@ void TestBulk(u32 flags) {
     size_t write_ret = 0, read_ret = 0;
     HILOG(kInfo, "Sending message {}", i);
     int cont_id = i;
-    client.Io(
-        HSHM_DEFAULT_MEM_CTX,
-        chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, cont_id),
-        KILOBYTES(4),
-        flags,
-        write_ret, read_ret);
+    client.Io(HSHM_DEFAULT_MEM_CTX,
+              chi::DomainQuery::GetDirectHash(
+                  chi::SubDomainId::kGlobalContainers, cont_id),
+              KILOBYTES(4), flags, write_ret, read_ret);
     if (flags & MD_IO_WRITE) {
       REQUIRE(write_ret == KILOBYTES(4) * 10);
     }
@@ -252,17 +233,11 @@ void TestBulk(u32 flags) {
   HILOG(kInfo, "Latency: {} KOps", ops / t.GetMsec());
 }
 
-TEST_CASE("TestBulkWrite") {
-  TestBulk(MD_IO_WRITE);
-}
+TEST_CASE("TestBulkWrite") { TestBulk(MD_IO_WRITE); }
 
-TEST_CASE("TestBulkRead") {
-  TestBulk(MD_IO_READ);
-}
+TEST_CASE("TestBulkRead") { TestBulk(MD_IO_READ); }
 
-TEST_CASE("TestBulk") {
-  TestBulk(MD_IO_WRITE | MD_IO_READ);
-}
+TEST_CASE("TestBulk") { TestBulk(MD_IO_WRITE | MD_IO_READ); }
 
 TEST_CASE("TestUpgrade") {
   CHIMAERA_CLIENT_INIT();
@@ -272,14 +247,13 @@ TEST_CASE("TestUpgrade") {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
   chi::small_message::Client client;
-  CHI_ADMIN->RegisterModule(
-      HSHM_DEFAULT_MEM_CTX,
-      chi::DomainQuery::GetGlobalBcast(), "small_message");
+  CHI_ADMIN->RegisterModule(HSHM_DEFAULT_MEM_CTX,
+                            chi::DomainQuery::GetGlobalBcast(),
+                            "small_message");
   client.Create(
       HSHM_DEFAULT_MEM_CTX,
       chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
-      chi::DomainQuery::GetGlobalBcast(),
-      "ipc_test");
+      chi::DomainQuery::GetGlobalBcast(), "ipc_test");
   MPI_Barrier(MPI_COMM_WORLD);
   hshm::Timer t;
   size_t domain_size = CHI_ADMIN->GetDomainSize(
@@ -297,22 +271,22 @@ TEST_CASE("TestUpgrade") {
     int ret;
     // HILOG(kInfo, "Sending message {}", i);
     int cont_id = i;
-    client.AsyncMd(
-        HSHM_DEFAULT_MEM_CTX,
-        chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, cont_id),
-        depth, TASK_FIRE_AND_FORGET);
+    client.AsyncMd(HSHM_DEFAULT_MEM_CTX,
+                   chi::DomainQuery::GetDirectHash(
+                       chi::SubDomainId::kGlobalContainers, cont_id),
+                   depth, TASK_FIRE_AND_FORGET);
   }
-  CHI_ADMIN->AsyncUpgradeModule(
-      HSHM_DEFAULT_MEM_CTX,
-      chi::DomainQuery::GetGlobalBcast(), "small_message");
+  CHI_ADMIN->AsyncUpgradeModule(HSHM_DEFAULT_MEM_CTX,
+                                chi::DomainQuery::GetGlobalBcast(),
+                                "small_message");
   for (size_t i = 0; i < ops / 2; ++i) {
     int ret;
     // HILOG(kInfo, "Sending message {}", i);
     int cont_id = i;
-    client.AsyncMd(
-        HSHM_DEFAULT_MEM_CTX,
-        chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, cont_id),
-        depth, TASK_FIRE_AND_FORGET);
+    client.AsyncMd(HSHM_DEFAULT_MEM_CTX,
+                   chi::DomainQuery::GetDirectHash(
+                       chi::SubDomainId::kGlobalContainers, cont_id),
+                   depth, TASK_FIRE_AND_FORGET);
   }
 
   CHI_ADMIN->Flush(
@@ -320,8 +294,7 @@ TEST_CASE("TestUpgrade") {
       DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0));
   t.Pause();
 
-  HILOG(kInfo, "Latency: {} MOps, {} MTasks",
-        ops / t.GetUsec(),
+  HILOG(kInfo, "Latency: {} MOps, {} MTasks", ops / t.GetUsec(),
         ops * (depth + 1) / t.GetUsec());
 }
 
@@ -333,23 +306,20 @@ void TestBdevIo(const std::string &path) {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
   chi::bdev::Client client;
-  CHI_ADMIN->RegisterModule(
-      HSHM_DEFAULT_MEM_CTX,
-      chi::DomainQuery::GetGlobalBcast(), "bdev");
+  CHI_ADMIN->RegisterModule(HSHM_DEFAULT_MEM_CTX,
+                            chi::DomainQuery::GetGlobalBcast(), "bdev");
   client.Create(
       HSHM_DEFAULT_MEM_CTX,
       chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
-      chi::DomainQuery::GetGlobalBcast(),
-      "tempdir",
-      "fs::///tmp/chi_test_bdev.bin",
-      GIGABYTES(1));
+      chi::DomainQuery::GetGlobalBcast(), "tempdir",
+      "fs::///tmp/chi_test_bdev.bin", GIGABYTES(1));
   MPI_Barrier(MPI_COMM_WORLD);
   hshm::Timer t;
 
-  hipc::FullPtr<char> io_write = CHI_CLIENT->AllocateBuffer(
-      HSHM_DEFAULT_MEM_CTX, MEGABYTES(1));
-  hipc::FullPtr<char> io_read = CHI_CLIENT->AllocateBuffer(
-      HSHM_DEFAULT_MEM_CTX, MEGABYTES(1));
+  hipc::FullPtr<char> io_write =
+      CHI_CLIENT->AllocateBuffer(HSHM_DEFAULT_MEM_CTX, MEGABYTES(1));
+  hipc::FullPtr<char> io_read =
+      CHI_CLIENT->AllocateBuffer(HSHM_DEFAULT_MEM_CTX, MEGABYTES(1));
 
   t.Resume();
   size_t ops = 16;
@@ -357,34 +327,36 @@ void TestBdevIo(const std::string &path) {
     int ret;
     // HILOG(kInfo, "Sending message {}", i);
     int cont_id = i;
-    std::vector<chi::Block> blocks = client.Allocate(
-        HSHM_DEFAULT_MEM_CTX,
-        chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, cont_id),
-        MEGABYTES(1));
+    std::vector<chi::Block> blocks =
+        client.Allocate(HSHM_DEFAULT_MEM_CTX,
+                        chi::DomainQuery::GetDirectHash(
+                            chi::SubDomainId::kGlobalContainers, cont_id),
+                        MEGABYTES(1));
     chi::Block block = blocks[0];
     // Write the data that was allocated
     memset(io_write.ptr_, 10, MEGABYTES(1));
-    client.Write(
-        HSHM_DEFAULT_MEM_CTX,
-        chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, cont_id),
-        io_write.shm_, block.off_, MEGABYTES(1));
+    client.Write(HSHM_DEFAULT_MEM_CTX,
+                 chi::DomainQuery::GetDirectHash(
+                     chi::SubDomainId::kGlobalContainers, cont_id),
+                 io_write.shm_, block.off_, MEGABYTES(1));
     // Read the data that was written
     memset(io_read.ptr_, 0, MEGABYTES(1));
-    client.Read(
-        HSHM_DEFAULT_MEM_CTX,
-        chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, cont_id),
-        io_read.shm_, block.off_, MEGABYTES(1));
+    client.Read(HSHM_DEFAULT_MEM_CTX,
+                chi::DomainQuery::GetDirectHash(
+                    chi::SubDomainId::kGlobalContainers, cont_id),
+                io_read.shm_, block.off_, MEGABYTES(1));
     // Verify the correctness of data
     REQUIRE(memcmp(io_write.ptr_, io_read.ptr_, MEGABYTES(1)) == 0);
     // Free the buffer
-    client.Free(
-        HSHM_DEFAULT_MEM_CTX,
-        chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, cont_id),
-        block);
+    client.Free(HSHM_DEFAULT_MEM_CTX,
+                chi::DomainQuery::GetDirectHash(
+                    chi::SubDomainId::kGlobalContainers, cont_id),
+                block);
     // Poll the stats
-    chi::BdevStats stats = client.PollStats(
-        HSHM_DEFAULT_MEM_CTX,
-        chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, cont_id));
+    chi::BdevStats stats =
+        client.PollStats(HSHM_DEFAULT_MEM_CTX,
+                         chi::DomainQuery::GetDirectHash(
+                             chi::SubDomainId::kGlobalContainers, cont_id));
     HILOG(kInfo, "Stats: {}", stats);
   }
   t.Pause();
@@ -393,13 +365,9 @@ void TestBdevIo(const std::string &path) {
   CHI_CLIENT->FreeBuffer(io_read);
 }
 
-TEST_CASE("TestBdevIo") {
-  TestBdevIo("fs::///tmp/chi_test_bdev.bin");
-}
+TEST_CASE("TestBdevIo") { TestBdevIo("fs::///tmp/chi_test_bdev.bin"); }
 
-TEST_CASE("TestBdevRam") {
-  TestBdevIo("ram:://");
-}
+TEST_CASE("TestBdevRam") { TestBdevIo("ram:://"); }
 
 #ifdef CHIMAERA_ENABLE_PYTHON
 
@@ -413,12 +381,14 @@ TEST_CASE("TestPython") {
     ls.Add({(float)i, (float)i + 1}, chi::Load());
   }
   python.RegisterPath("/home/llogan/Documents/Projects/chimaera_codegen/src");
-  python.RegisterPath("/home/llogan/Documents/Projects/chimaera_codegen/tasks/small_message/src");
+  python.RegisterPath(
+      "/home/llogan/Documents/Projects/chimaera_codegen/tasks/small_message/"
+      "src");
   python.ImportModule("chimaera_monitor");
   python.ImportModule("small_message_monitor");
   if (ls.DoTrain()) {
-    python.RunMethod<chi::LeastSquares>(
-        "ChimaeraMonitor", "least_squares_fit", ls);
+    python.RunMethod<chi::LeastSquares>("ChimaeraMonitor", "least_squares_fit",
+                                        ls);
   }
   HILOG(kInfo, "Slope: {}", ls.consts_[0]);
 }
