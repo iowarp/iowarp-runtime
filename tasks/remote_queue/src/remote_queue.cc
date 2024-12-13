@@ -30,7 +30,8 @@ class Server : public Module {
   std::vector<hshm::mpsc_queue<RemoteEntry>> complete_;
   std::vector<FullPtr<ClientSubmitTask>> submitters_;
   std::vector<FullPtr<ServerCompleteTask>> completers_;
-  int NODES = 0;
+  CLS_CONST int kNodeRpcLanes = 0;
+  CLS_CONST int kInitRpcLanes = 1;
 
  public:
   Server() = default;
@@ -53,7 +54,8 @@ class Server : public Module {
     CHI_REMOTE_QUEUE->Init(id_);
 
     // Create lanes
-    CreateLaneGroup(NODES, 4, QUEUE_LOW_LATENCY);
+    CreateLaneGroup(kNodeRpcLanes, 1, QUEUE_HIGH_LATENCY);
+    CreateLaneGroup(kInitRpcLanes, 4, QUEUE_LOW_LATENCY);
 
     // Creating submitter and completer queues
     DomainQuery dom_query =
@@ -71,7 +73,13 @@ class Server : public Module {
 
   /** Route a task to a lane */
   Lane *Route(const Task *task) override {
-    return GetLaneByHash(NODES, std::hash<DomainQuery>()(task->dom_query_));
+    if (task->IsLongRunning()) {
+      return GetLaneByHash(kNodeRpcLanes,
+                           std::hash<DomainQuery>()(task->dom_query_));
+    } else {
+      return GetLaneByHash(kInitRpcLanes,
+                           std::hash<DomainQuery>()(task->dom_query_));
+    }
   }
 
   /** Destroy remote queue */
@@ -106,12 +114,14 @@ class Server : public Module {
       rep_task->rctx_.pending_to_ = submit_task;
       size_t node_hash = std::hash<NodeId>{}(res_query.node_);
       auto &submit = submit_;
-      HILOG(kInfo, "[TASK_CHECK] Task replica addr {}", rep_task.ptr_);
+      HLOG(kDebug, kRemoteQueue, "[TASK_CHECK] Task replica addr {}",
+           rep_task.ptr_);
       submit[node_hash % submit.size()].emplace(
           (RemoteEntry){res_query, rep_task.ptr_});
       replicas.emplace_back(rep_task);
     }
-    HILOG(kInfo, "[TASK_CHECK] Replicated the submit_task {}", submit_task);
+    HLOG(kDebug, kRemoteQueue, "[TASK_CHECK] Replicated the submit_task {}",
+         submit_task);
 
     // Actually block
     submit_task->Yield();
@@ -120,7 +130,8 @@ class Server : public Module {
     rctx.replicas_ = &replicas;
     exec->Monitor(MonitorMode::kReplicaAgg, orig_task->method_, orig_task,
                   rctx);
-    HILOG(kInfo, "[TASK_CHECK] Back in submit_task {}", submit_task);
+    HLOG(kDebug, kRemoteQueue, "[TASK_CHECK] Back in submit_task {}",
+         submit_task);
 
     // Free
     for (FullPtr<Task> &replica : replicas) {
@@ -130,7 +141,7 @@ class Server : public Module {
 
   /** Push operation called on client */
   void ClientPushSubmit(ClientPushSubmitTask *task, RunContext &rctx) {
-    // HILOG(kInfo, "");
+    HLOG(kDebug, kRemoteQueue, "");
     // Get domain IDs
     Task *orig_task = task->orig_task_;
     std::vector<ResolvedDomainQuery> dom_queries = CHI_RPC->ResolveDomainQuery(
@@ -148,7 +159,8 @@ class Server : public Module {
     if (!orig_task->IsLongRunning()) {
       orig_task->SetModuleComplete();
     }
-    HILOG(kInfo, "[TASK_CHECK] Pushing back to runtime {}", orig_task);
+    HLOG(kDebug, kRemoteQueue, "[TASK_CHECK] Pushing back to runtime {}",
+         orig_task);
     CHI_CLIENT->ScheduleTaskRuntime(nullptr, FullPtr<Task>(orig_task),
                                     QueueId(orig_task->pool_));
 
@@ -160,7 +172,7 @@ class Server : public Module {
 
   /** Push operation called on client */
   void ClientSubmit(ClientSubmitTask *task, RunContext &rctx) {
-    // HILOG(kInfo, "");
+    HLOG(kDebug, kRemoteQueue, "");
     if (rctx.worker_props_.Any(CHI_WORKER_IS_FLUSHING)) {
       hshm::mpsc_queue<RemoteEntry> &submit = submit_[0];
       hshm::mpsc_queue<RemoteEntry> &complete = complete_[0];
@@ -185,9 +197,9 @@ class Server : public Module {
         rep_task->dom_query_ = entry.res_domain_.dom_;
         BinaryOutputArchive<true> &ar = entries[entry.res_domain_.node_];
         exec->SaveStart(rep_task->method_, ar, rep_task);
-        //        HILOG(kInfo, "[TASK_CHECK] Serializing rep_task {} ({} ->
-        //        {})",
-        //              rep_task, CHI_RPC->node_id_, entry.res_domain_.node_);
+        HLOG(kDebug, kRemoteQueue,
+             "[TASK_CHECK] Serializing rep_task {}({} -> {}) ", rep_task,
+             CHI_RPC->node_id_, entry.res_domain_.node_);
       }
 
       for (auto it = entries.begin(); it != entries.end(); ++it) {
@@ -213,7 +225,7 @@ class Server : public Module {
 
   /** Complete the task (on the remote node) */
   void ServerPushComplete(ServerPushCompleteTask *task, RunContext &rctx) {
-    // HILOG(kInfo, "");
+    // HLOG(kDebug, kRemoteQueue, "");
     NodeId ret_node = task->rctx_.ret_node_;
     size_t node_hash = std::hash<NodeId>{}(ret_node);
     auto &complete = complete_;
@@ -226,7 +238,7 @@ class Server : public Module {
 
   /** Complete the task (on the remote node) */
   void ServerComplete(ServerCompleteTask *task, RunContext &rctx) {
-    // HILOG(kInfo, "");
+    HLOG(kDebug, kRemoteQueue, "");
     try {
       // Serialize task completions
       RemoteEntry entry;
@@ -271,7 +283,7 @@ class Server : public Module {
   void RpcTaskSubmit(const tl::request &req, tl::bulk &bulk,
                      SegmentedTransfer &xfer) {
     try {
-      HILOG(kInfo, "");
+      HLOG(kDebug, kRemoteQueue, "");
       xfer.AllocateBulksServer();
       CHI_THALLIUM->IoCallServerWrite(req, bulk, xfer);
       BinaryInputArchive<true> ar(xfer);
@@ -310,11 +322,11 @@ class Server : public Module {
     if (rep_task->rctx_.ret_task_addr_ == (size_t)rep_task.ptr_) {
       HELOG(kFatal, "This shouldn't happen ever");
     }
-    HILOG(kInfo,
-          "[TASK_CHECK] (node {}) Deserialized task {} with replica addr {} "
-          "(pool={}, method={})",
-          CHI_CLIENT->node_id_, rep_task.ptr_,
-          (void *)rep_task->rctx_.ret_task_addr_, pool_id, method);
+    HLOG(kDebug, kRemoteQueue,
+         "[TASK_CHECK] (node {}) Deserialized task {} with replica addr {} "
+         "(pool={}, method={})",
+         CHI_CLIENT->node_id_, rep_task.ptr_,
+         (void *)rep_task->rctx_.ret_task_addr_, pool_id, method);
 
     // Unset task flags
     // NOTE(llogan): Remote tasks are executed to completion and
@@ -327,10 +339,6 @@ class Server : public Module {
     rep_task->task_flags_.SetBits(TASK_REMOTE_DEBUG_MARK);
 
     // Execute task
-    // NOTE(llogan): Thread-local storage will not be set in this case.
-    // This function is invoked by thallium threads, not our workers.
-    // We need to set the thread-local worker manually.
-    CHI_WORK_ORCHESTRATOR->SetCurrentWorkerId(0);
     CHI_CLIENT->ScheduleTaskRuntime(nullptr, rep_task, QueueId(pool_id));
   }
 
@@ -349,7 +357,8 @@ class Server : public Module {
           return;
         }
         exec->LoadEnd(rep_task->method_, ar, rep_task);
-        HILOG(kInfo, "[TASK_CHECK] Completing replica {}", rep_task);
+        HLOG(kDebug, kRemoteQueue, "[TASK_CHECK] Completing replica {}",
+             rep_task);
       }
       // Process bulk message
       CHI_THALLIUM->IoCallServerWrite(req, bulk, xfer);
@@ -357,14 +366,11 @@ class Server : public Module {
       for (size_t i = 0; i < xfer.tasks_.size(); ++i) {
         Task *rep_task = (Task *)xfer.tasks_[i].task_addr_;
         Task *submit_task = rep_task->rctx_.pending_to_;
-        HILOG(kInfo, "[TASK_CHECK] Unblocking the submit_task {}", submit_task);
+        HLOG(kDebug, kRemoteQueue, "[TASK_CHECK] Unblocking the submit_task {}",
+             submit_task);
         if (submit_task->pool_ != id_) {
           HELOG(kFatal, "This shouldn't happen ever");
         }
-        // NOTE(llogan): Thread-local storage will not be set in this case.
-        // This function is invoked by thallium threads, not our workers.
-        // We need to set the thread-local worker manually.
-        CHI_WORK_ORCHESTRATOR->SetCurrentWorkerId(0);
         CHI_WORK_ORCHESTRATOR->SignalUnblock(submit_task, submit_task->rctx_);
       }
     } catch (hshm::Error &e) {

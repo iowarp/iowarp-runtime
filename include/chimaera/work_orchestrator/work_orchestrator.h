@@ -44,6 +44,8 @@ class WorkOrchestrator {
  public:
   ServerConfig *config_; /**< The server configuration */
   std::vector<std::unique_ptr<Worker>> workers_; /**< Workers execute tasks */
+  CLS_CONST WorkerId kNullWorkerId = -1;         /**< Null worker id */
+  std::unique_ptr<Worker> null_worker_;          /**< Null worker */
   std::vector<Worker *> dworkers_;               /**< Core-dedicated workers */
   std::vector<Worker *> oworkers_;               /**< Undedicated workers */
   std::unique_ptr<ReinforceWorker>
@@ -157,8 +159,9 @@ class WorkOrchestrator {
   Worker *GetCurrentWorker() {
     Worker *worker;
     int ret = ABT_key_get(worker_tls_key_, (void **)&worker);
-    if (ret != ABT_SUCCESS) {
-      HELOG(kFatal, "Could not get thread-local storage");
+    if (ret != ABT_SUCCESS || worker == nullptr) {
+      worker = null_worker_.get();
+      SetCurrentWorker(worker);
     }
     return worker;
   }

@@ -45,6 +45,7 @@ void WorkOrchestrator::ServerInit(ServerConfig *config, QueueManager &qm) {
     cpu_workers[cpu_id].push_back(&worker);
     ++worker_id;
   }
+  null_worker_ = std::make_unique<Worker>(kNullWorkerId, 0, nullptr);
   // Mark the workers as dedicated or overlapped
   for (auto &cpu_work : cpu_workers) {
     std::vector<Worker *> &workers = cpu_work.second;

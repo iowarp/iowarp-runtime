@@ -13,8 +13,9 @@
 #ifndef CHI_TASK_DEFN_H
 #define CHI_TASK_DEFN_H
 
-#include "chimaera/chimaera_types.h"
 #include <csetjmp>
+
+#include "chimaera/chimaera_types.h"
 
 namespace chi {
 
@@ -81,13 +82,13 @@ class Module;
 
 /** The baseline set of tasks */
 struct TaskMethod {
-  TASK_METHOD_T kCreate = 0;    /**< The constructor of the task */
-  TASK_METHOD_T kDestroy = 1;  /**< The destructor of the task */
+  TASK_METHOD_T kCreate = 0;       /**< The constructor of the task */
+  TASK_METHOD_T kDestroy = 1;      /**< The destructor of the task */
   TASK_METHOD_T kNodeFailure = 2;  /**< The node failure method */
-  TASK_METHOD_T kRecover = 3;   /**< The recovery method */
-  TASK_METHOD_T kMigrate = 4;   /**< The migrate method */
-  TASK_METHOD_T kUpgrade = 5;   /**< The update method */
-  TASK_METHOD_T kCustomBegin = 10;  /**< First index of custom methods */
+  TASK_METHOD_T kRecover = 3;      /**< The recovery method */
+  TASK_METHOD_T kMigrate = 4;      /**< The migrate method */
+  TASK_METHOD_T kUpgrade = 5;      /**< The update method */
+  TASK_METHOD_T kCustomBegin = 10; /**< First index of custom methods */
 };
 
 /** Monitoring modes */
@@ -103,15 +104,16 @@ class MonitorMode {
 /**
  * Let's say we have an I/O request to a device
  * I/O requests + MD operations need to be controlled for correctness
- * Is there a case where root tasks from different Containers need to be ordered? No.
- * Tasks spawned from the same root task need to be keyed to the same worker stack
- * Tasks apart of the same task group need to be ordered
+ * Is there a case where root tasks from different Containers need to be
+ * ordered? No. Tasks spawned from the same root task need to be keyed to the
+ * same worker stack Tasks apart of the same task group need to be ordered
  * */
 
-/** An identifier used for representing the location of a task in a task graph */
+/** An identifier used for representing the location of a task in a task graph
+ */
 struct TaskNode {
-  TaskId root_;         /**< The id of the root task */
-  u32 node_depth_;      /**< The depth of the task in the task graph */
+  TaskId root_;    /**< The id of the root task */
+  u32 node_depth_; /**< The depth of the task in the task graph */
 
   /** Default constructor */
   HSHM_INLINE
@@ -133,7 +135,7 @@ struct TaskNode {
 
   /** Copy assignment operator */
   HSHM_INLINE
-  TaskNode& operator=(const TaskNode &other) {
+  TaskNode &operator=(const TaskNode &other) {
     root_ = other.root_;
     node_depth_ = other.node_depth_;
     return *this;
@@ -148,7 +150,7 @@ struct TaskNode {
 
   /** Move assignment operator */
   HSHM_INLINE
-  TaskNode& operator=(TaskNode &&other) noexcept {
+  TaskNode &operator=(TaskNode &&other) noexcept {
     root_ = other.root_;
     node_depth_ = other.node_depth_;
     return *this;
@@ -165,7 +167,7 @@ struct TaskNode {
 
   /** Addition operator*/
   HSHM_INLINE
-  TaskNode& operator+=(int i) {
+  TaskNode &operator+=(int i) {
     node_depth_ += i;
     return *this;
   }
@@ -181,23 +183,17 @@ struct TaskNode {
 
   /** Check if null */
   HSHM_INLINE
-  bool IsNull() const {
-    return root_.IsNull();
-  }
+  bool IsNull() const { return root_.IsNull(); }
 
   /** Check if the root task */
   HSHM_INLINE
-  bool Is() const {
-    return node_depth_ == 0;
-  }
+  bool IsRoot() const { return node_depth_ == 0; }
 
   /** Serialization*/
-  template<typename Ar>
+  template <typename Ar>
   void serialize(Ar &ar) {
     ar(root_, node_depth_);
   }
-
-
 
   /** Allow TaskNode to be printed as strings */
   friend std::ostream &operator<<(std::ostream &os, const TaskNode &obj) {
@@ -231,20 +227,16 @@ class IsTask {};
 /** The type of a compile-time task flag */
 #define TASK_FLAG_T constexpr inline static bool
 /** Determine this is a task */
-#define IS_TASK(T) \
-  std::is_base_of_v<chi::IsTask, T>
+#define IS_TASK(T) std::is_base_of_v<chi::IsTask, T>
 /** Determine this task supports serialization */
-#define IS_SRL(T) \
-  T::SUPPORTS_SRL
+#define IS_SRL(T) T::SUPPORTS_SRL
 /** Determine this task uses SerializeStart */
-#define USES_SRL_START(T) \
-  T::SRL_SYM_START
+#define USES_SRL_START(T) T::SRL_SYM_START
 /** Determine this task uses SerializeEnd */
-#define USES_SRL_END(T) \
-  T::SRL_SYM_END
+#define USES_SRL_END(T) T::SRL_SYM_END
 
 /** Compile-time flags indicating task methods and operation support */
-template<u32 FLAGS>
+template <u32 FLAGS>
 struct TaskFlags : public IsTask {
  public:
   TASK_FLAG_T IS_LOCAL = FLAGS & TF_LOCAL;
@@ -259,8 +251,8 @@ struct TaskFlags : public IsTask {
 /** Prioritization of tasks */
 class TaskPrio {
  public:
-  CLS_CONST u32 kLowLatency = 0;         /**< Low latency task lane */
-  CLS_CONST u32 kHighLatency = 1;        /**< High latency task lane */
+  CLS_CONST u32 kLowLatency = 0;  /**< Low latency task lane */
+  CLS_CONST u32 kHighLatency = 1; /**< High latency task lane */
 };
 
 /** Used to indicate the amount of work remaining to do when flushing */
@@ -295,14 +287,14 @@ struct Load {
     return ret;
   }
 
-  Load& operator+=(const Load &other) {
+  Load &operator+=(const Load &other) {
     cpu_load_ += other.cpu_load_;
     mem_load_ += other.mem_load_;
     io_load_ += other.io_load_;
     return *this;
   }
 
-  Load& operator-=(const Load &other) {
+  Load &operator-=(const Load &other) {
     cpu_load_ -= other.cpu_load_;
     mem_load_ -= other.mem_load_;
     io_load_ -= other.io_load_;
@@ -312,11 +304,11 @@ struct Load {
 
 /** Context passed to the Run method of a task */
 struct RunContext {
-  bitfield32_t run_flags_;  /**< Properties of the task */
-  bitfield32_t worker_props_;  /**< Properties of the worker */
-  WorkerId worker_id_;         /**< The worker id of the task */
-  bctx::transfer_t jmp_;  /**< Stack info for coroutines */
-  void *stack_ptr_;       /**< Stack pointer (coroutine) */
+  bitfield32_t run_flags_;    /**< Properties of the task */
+  bitfield32_t worker_props_; /**< Properties of the worker */
+  WorkerId worker_id_;        /**< The worker id of the task */
+  bctx::transfer_t jmp_;      /**< Stack info for coroutines */
+  void *stack_ptr_;           /**< Stack pointer (coroutine) */
   Module *exec_;
   WorkPending *flush_;
   hshm::Timer timer_;
@@ -333,29 +325,27 @@ struct RunContext {
 };
 
 /** A generic task base class */
- struct Task : public hipc::ShmContainer {
+struct Task : public hipc::ShmContainer {
  public:
-  PoolId pool_;     /**< The unique name of a pool */
-  TaskNode task_node_;         /**< The unique ID of this task in the graph */
-  DomainQuery dom_query_;      /**< The nodes that the task should run on */
-  MethodId method_;            /**< The method to call in the state */
-  u32 prio_;                   /**< Priority of the request */
-  bitfield32_t task_flags_;    /**< Properties of the task */
-  double period_ns_;           /**< The period of the task */
-  size_t start_;               /**< The time the task started */
+  PoolId pool_;             /**< The unique name of a pool */
+  TaskNode task_node_;      /**< The unique ID of this task in the graph */
+  DomainQuery dom_query_;   /**< The nodes that the task should run on */
+  MethodId method_;         /**< The method to call in the state */
+  u32 prio_;                /**< Priority of the request */
+  bitfield32_t task_flags_; /**< Properties of the task */
+  double period_ns_;        /**< The period of the task */
+  size_t start_;            /**< The time the task started */
   RunContext rctx_;
-// #ifdef CHIMAERA_TASK_DEBUG
-  std::atomic<int> delcnt_ = 0;    /**< # of times deltask called */
-// #endif
+  // #ifdef CHIMAERA_TASK_DEBUG
+  std::atomic<int> delcnt_ = 0; /**< # of times deltask called */
+                                // #endif
 
   /**====================================
    * Task Helpers
    * ===================================*/
 
   /** Get lane hash */
-  const u32 &GetContainerId() const {
-    return dom_query_.sel_.id_;
-  }
+  const u32 &GetContainerId() const { return dom_query_.sel_.id_; }
 
   /** Set task as externally complete */
   void SetModuleComplete() {
@@ -364,7 +354,7 @@ struct RunContext {
   }
 
   /** Check if a task marked complete externally */
-  bool IsModuleComplete() {
+  bool IsModuleComplete() const {
     return task_flags_.Any(TASK_MODULE_COMPLETE);
   }
 
@@ -380,9 +370,7 @@ struct RunContext {
   }
 
   /** Check if task is complete */
-  bool IsComplete() {
-    return task_flags_.Any(TASK_COMPLETE);
-  }
+  bool IsComplete() const { return task_flags_.Any(TASK_COMPLETE); }
 
   /** Unset task as complete */
   void UnsetComplete() {
@@ -390,69 +378,52 @@ struct RunContext {
   }
 
   /** Set task as fire & forget */
-  void SetFireAndForget() {
-    task_flags_.SetBits(TASK_FIRE_AND_FORGET);
-  }
+  void SetFireAndForget() { task_flags_.SetBits(TASK_FIRE_AND_FORGET); }
 
   /** Check if a task is fire & forget */
-  bool IsFireAndForget() {
-    return task_flags_.Any(TASK_FIRE_AND_FORGET);
-  }
+  bool IsFireAndForget() const { return task_flags_.Any(TASK_FIRE_AND_FORGET); }
 
   /** Unset fire & forget */
-  void UnsetFireAndForget() {
-    task_flags_.UnsetBits(TASK_FIRE_AND_FORGET);
-  }
+  void UnsetFireAndForget() { task_flags_.UnsetBits(TASK_FIRE_AND_FORGET); }
 
   /** Check if task is long running */
-  bool IsLongRunning() {
-    return task_flags_.All(TASK_LONG_RUNNING);
-  }
+  bool IsLongRunning() const { return task_flags_.All(TASK_LONG_RUNNING); }
 
   /** Set task as data owner */
-  void SetDataOwner() {
-    task_flags_.SetBits(TASK_DATA_OWNER);
-  }
+  void SetDataOwner() { task_flags_.SetBits(TASK_DATA_OWNER); }
 
   /** Check if task is data owner */
-  bool IsDataOwner() {
-    return task_flags_.Any(TASK_DATA_OWNER);
-  }
+  bool IsDataOwner() const { return task_flags_.Any(TASK_DATA_OWNER); }
 
   /** Unset task as data owner */
-  void UnsetDataOwner() {
-    task_flags_.UnsetBits(TASK_DATA_OWNER);
-  }
+  void UnsetDataOwner() { task_flags_.UnsetBits(TASK_DATA_OWNER); }
 
   /** Set this task as started */
-  void SetRemoteDebug() {
-    task_flags_.SetBits(TASK_REMOTE_DEBUG_MARK);
-  }
+  void SetRemoteDebug() { task_flags_.SetBits(TASK_REMOTE_DEBUG_MARK); }
 
   /** Set this task as started */
-  void UnsetRemoteDebug() {
-    task_flags_.UnsetBits(TASK_REMOTE_DEBUG_MARK);
-  }
+  void UnsetRemoteDebug() { task_flags_.UnsetBits(TASK_REMOTE_DEBUG_MARK); }
 
   /** Check if task has started */
-  bool IsRemoteDebug() {
-    return task_flags_.Any(TASK_REMOTE_DEBUG_MARK);
-  }
+  bool IsRemoteDebug() const { return task_flags_.Any(TASK_REMOTE_DEBUG_MARK); }
+
+  /** Set this task as routed */
+  void SetRouted() { rctx_.run_flags_.SetBits(TASK_IS_ROUTED); }
+
+  /** Check if task is routed */
+  bool IsRouted() const { return rctx_.run_flags_.Any(TASK_IS_ROUTED); }
+
+  /** Unset this task as routed */
+  void UnsetRouted() { rctx_.run_flags_.UnsetBits(TASK_IS_ROUTED); }
 
   /** Set this task as started */
-  void SetStarted() {
-    rctx_.run_flags_.SetBits(TASK_HAS_STARTED);
-  }
+  void SetStarted() { rctx_.run_flags_.SetBits(TASK_HAS_STARTED); }
 
   /** Set this task as started */
-  void UnsetStarted() {
-    rctx_.run_flags_.UnsetBits(TASK_HAS_STARTED);
-  }
+  void UnsetStarted() { rctx_.run_flags_.UnsetBits(TASK_HAS_STARTED); }
 
   /** Check if task has started */
-  bool IsStarted() {
-    return rctx_.run_flags_.Any(TASK_HAS_STARTED);
-  }
+  bool IsStarted() const { return rctx_.run_flags_.Any(TASK_HAS_STARTED); }
 
   /** Set blocked */
   void SetBlocked(size_t count) {
@@ -461,72 +432,46 @@ struct RunContext {
   }
 
   /** Unset blocked */
-  void UnsetBlocked() {
-    rctx_.run_flags_.UnsetBits(TASK_BLOCKED);
-  }
+  void UnsetBlocked() { rctx_.run_flags_.UnsetBits(TASK_BLOCKED); }
 
   /** Check if task is blocked */
-  bool IsBlocked() {
-    return rctx_.run_flags_.Any(TASK_BLOCKED);
-  }
+  bool IsBlocked() const { return rctx_.run_flags_.Any(TASK_BLOCKED); }
 
   /** Set this task as started */
-  void UnsetLongRunning() {
-    task_flags_.UnsetBits(TASK_LONG_RUNNING);
-  }
+  void UnsetLongRunning() { task_flags_.UnsetBits(TASK_LONG_RUNNING); }
 
   /** Set this task as blocking */
-  bool IsCoroutine() {
-    return task_flags_.Any(TASK_COROUTINE);
-  }
+  bool IsCoroutine() const { return task_flags_.Any(TASK_COROUTINE); }
 
   /** Set this task as blocking */
-  void UnsetCoroutine() {
-    task_flags_.UnsetBits(TASK_COROUTINE);
-  }
+  void UnsetCoroutine() { task_flags_.UnsetBits(TASK_COROUTINE); }
 
   /** Mark task as routed */
-  void SetShouldSample() {
-    rctx_.run_flags_.SetBits(TASK_SHOULD_SAMPLE);
-  }
+  void SetShouldSample() { rctx_.run_flags_.SetBits(TASK_SHOULD_SAMPLE); }
 
   /** Check if task is routed */
-  bool ShouldSample() {
-    return rctx_.run_flags_.Any(TASK_SHOULD_SAMPLE);
-  }
+  bool ShouldSample() const { return rctx_.run_flags_.Any(TASK_SHOULD_SAMPLE); }
 
   /** Unset task as routed */
-  void UnsetShouldSample() {
-    rctx_.run_flags_.UnsetBits(TASK_SHOULD_SAMPLE);
-  }
+  void UnsetShouldSample() { rctx_.run_flags_.UnsetBits(TASK_SHOULD_SAMPLE); }
 
   /** Set period in nanoseconds */
-  void SetPeriodNs(double ns) {
-    period_ns_ = ns;
-  }
+  void SetPeriodNs(double ns) { period_ns_ = ns; }
 
   /** Set period in microseconds */
-  void SetPeriodUs(double us) {
-    period_ns_ = us * 1000;
-  }
+  void SetPeriodUs(double us) { period_ns_ = us * 1000; }
 
   /** Set period in milliseconds */
-  void SetPeriodMs(double ms) {
-    period_ns_ = ms * 1000000;
-  }
+  void SetPeriodMs(double ms) { period_ns_ = ms * 1000000; }
 
   /** Set period in seconds */
-  void SetPeriodSec(double sec) {
-    period_ns_ = sec * 1000000000;
-  }
+  void SetPeriodSec(double sec) { period_ns_ = sec * 1000000000; }
 
   /** Set period in minutes */
-  void SetPeriodMin(double min) {
-    period_ns_ = min * 60000000000;
-  }
+  void SetPeriodMin(double min) { period_ns_ = min * 60000000000; }
 
   /** This task flushes the runtime */
-  bool IsFlush() { return task_flags_.Any(TASK_FLUSH); }
+  bool IsFlush() const { return task_flags_.Any(TASK_FLUSH); }
 
   /** Set this task as flushing */
   void SetFlush() { task_flags_.SetBits(TASK_FLUSH); }
@@ -535,12 +480,10 @@ struct RunContext {
   void UnsetFlush() { task_flags_.UnsetBits(TASK_FLUSH); }
 
   /** Set signal complete */
-  void SetSignalUnblock() {
-    rctx_.run_flags_.SetBits(TASK_SIGNAL_COMPLETE);
-  }
+  void SetSignalUnblock() { rctx_.run_flags_.SetBits(TASK_SIGNAL_COMPLETE); }
 
   /** Check if task should signal complete */
-  bool ShouldSignalUnblock() {
+  bool ShouldSignalUnblock() const {
     return rctx_.run_flags_.Any(TASK_SIGNAL_COMPLETE);
   }
 
@@ -565,49 +508,31 @@ struct RunContext {
   }
 
   /** Mark this task as remote */
-  void SetRead() {
-    task_flags_.SetBits(TASK_READ);
-  }
+  void SetRead() { task_flags_.SetBits(TASK_READ); }
 
   /** Check if task is remote */
-  bool IsRead() {
-    return task_flags_.Any(TASK_READ);
-  }
+  bool IsRead() const { return task_flags_.Any(TASK_READ); }
 
   /** Unset remote */
-  void UnsetRead() {
-    task_flags_.UnsetBits(TASK_READ);
-  }
+  void UnsetRead() { task_flags_.UnsetBits(TASK_READ); }
 
   /** Mark this task as remote */
-  void SetWrite() {
-    task_flags_.SetBits(TASK_WRITE);
-  }
+  void SetWrite() { task_flags_.SetBits(TASK_WRITE); }
 
   /** Check if task is remote */
-  bool IsWrite() {
-    return task_flags_.Any(TASK_WRITE);
-  }
+  bool IsWrite() const { return task_flags_.Any(TASK_WRITE); }
 
   /** Unset remote */
-  void UnsetWrite() {
-    task_flags_.UnsetBits(TASK_WRITE);
-  }
+  void UnsetWrite() { task_flags_.UnsetBits(TASK_WRITE); }
 
   /** Mark this task as remote */
-  void SetRemote() {
-    rctx_.run_flags_.SetBits(TASK_REMOTE);
-  }
+  void SetRemote() { rctx_.run_flags_.SetBits(TASK_REMOTE); }
 
   /** Check if task is remote */
-  bool IsRemote() {
-    return rctx_.run_flags_.Any(TASK_REMOTE);
-  }
+  bool IsRemote() const { return rctx_.run_flags_.Any(TASK_REMOTE); }
 
   /** Unset remote */
-  void UnsetRemote() {
-    rctx_.run_flags_.UnsetBits(TASK_REMOTE);
-  }
+  void UnsetRemote() { rctx_.run_flags_.UnsetBits(TASK_REMOTE); }
 
   /** Determine if time has elapsed */
   bool ShouldRun(CacheTimer &cur_time, bool flushing) {
@@ -626,27 +551,20 @@ struct RunContext {
   }
 
   /** Mark this task as having been run */
-  void DidRun(CacheTimer &cur_time) {
-    start_ = cur_time.GetNsecFromStart();
-  }
+  void DidRun(CacheTimer &cur_time) { start_ = cur_time.GetNsecFromStart(); }
 
   /** Yield (coroutine) */
-  void YieldCo() {
-    rctx_.jmp_ = bctx::jump_fcontext(rctx_.jmp_.fctx, nullptr);
-  }
+  void YieldCo() { rctx_.jmp_ = bctx::jump_fcontext(rctx_.jmp_.fctx, nullptr); }
 
   /** Yield (standard) */
-  static void YieldStd() {
-    HERMES_THREAD_MODEL->Yield();
-  }
+  static void YieldStd() { HERMES_THREAD_MODEL->Yield(); }
 
   /** Yield (argobots) */
   static void YieldArgo();
 
   /** Yield in general */
-  template<int THREAD_MODEL = 0>
-  HSHM_INLINE
-  static void StaticYieldFactory() {
+  template <int THREAD_MODEL = 0>
+  HSHM_INLINE static void StaticYieldFactory() {
     if constexpr (THREAD_MODEL == TASK_YIELD_STD) {
       YieldStd();
     } else if constexpr (THREAD_MODEL == TASK_YIELD_ABT) {
@@ -655,9 +573,8 @@ struct RunContext {
   }
 
   /** Yield the task */
-  template<int THREAD_MODEL = 0>
-  HSHM_INLINE
-  void YieldFactory() {
+  template <int THREAD_MODEL = 0>
+  HSHM_INLINE void YieldFactory() {
     if constexpr (THREAD_MODEL == TASK_YIELD_CO) {
       YieldCo();
     } else {
@@ -680,9 +597,7 @@ struct RunContext {
   HSHM_INLINE
   void YieldInit(Task *parent_task) {
 #ifdef CHIMAERA_RUNTIME
-    if (parent_task &&
-        !IsFireAndForget() &&
-        !IsLongRunning()) {
+    if (parent_task && !IsFireAndForget() && !IsLongRunning()) {
       rctx_.pending_to_ = parent_task;
       SetSignalUnblock();
     }
@@ -715,7 +630,7 @@ struct RunContext {
   }
 
   /** This task waits for subtask to complete */
-  template<typename TaskT = Task>
+  template <typename TaskT = Task>
   void Wait(FullPtr<TaskT> &subtask, u32 flags = TASK_COMPLETE) {
     Wait(subtask.ptr_, flags);
   }
@@ -726,7 +641,7 @@ struct RunContext {
   }
 
   /** This task waits for a set of tasks to complete */
-  template<typename TaskT>
+  template <typename TaskT>
   void Wait(std::vector<FullPtr<TaskT>> &subtasks, u32 flags = TASK_COMPLETE) {
 #ifdef CHIMAERA_RUNTIME
     SetBlocked(subtasks.size());
@@ -761,29 +676,22 @@ struct RunContext {
    * ===================================*/
 
   /** Default constructor */
-  explicit
-  Task(int) {}
+  explicit Task(int) {}
 
   /** Default SHM constructor */
-  explicit
-  Task(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) {}
+  explicit Task(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) {}
 
   /** SHM constructor */
-  explicit
-  Task(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
-       const TaskNode &task_node) {
+  explicit Task(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
+                const TaskNode &task_node) {
     task_node_ = task_node;
   }
 
   /** Emplace constructor */
-  explicit
-  Task(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
-       const TaskNode &task_node,
-       const DomainQuery &dom_query,
-       const PoolId &task_state,
-       u32 lane_hash,
-       u32 method,
-       bitfield32_t task_flags) {
+  explicit Task(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
+                const TaskNode &task_node, const DomainQuery &dom_query,
+                const PoolId &task_state, u32 lane_hash, u32 method,
+                bitfield32_t task_flags) {
     task_node_ = task_node;
     prio_ = TaskPrio::kLowLatency;
     pool_ = task_state;
@@ -799,12 +707,10 @@ struct RunContext {
 
   /** SHM copy constructor */
   explicit Task(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
-                                   const Task &other) {}
+                const Task &other) {}
 
   /** SHM copy assignment operator */
-  Task& operator=(const Task &other) {
-    return *this;
-  }
+  Task &operator=(const Task &other) { return *this; }
 
   /**====================================
    * Move Constructors
@@ -814,9 +720,7 @@ struct RunContext {
   Task(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, Task &&other) noexcept {}
 
   /** SHM move assignment operator. */
-  Task& operator=(Task &&other) noexcept {
-    return *this;
-  }
+  Task &operator=(Task &&other) noexcept { return *this; }
 
   /**====================================
    * Destructor
@@ -834,14 +738,14 @@ struct RunContext {
   /**====================================
    * Serialization
    * ===================================*/
-  template<typename Ar>
+  template <typename Ar>
   void task_serialize(Ar &ar) {
     // NOTE(llogan): don't serialize start_ because of clock drift
-    ar(pool_, task_node_, dom_query_, prio_, method_,
-       task_flags_, period_ns_);  // , atask_flags_);
+    ar(pool_, task_node_, dom_query_, prio_, method_, task_flags_,
+       period_ns_);  // , atask_flags_);
   }
 
-  template<typename TaskT>
+  template <typename TaskT>
   void task_dup(TaskT &other) {
     pool_ = other.pool_;
     task_node_ = other.task_node_;
@@ -849,11 +753,11 @@ struct RunContext {
     prio_ = other.prio_;
     method_ = other.method_;
     task_flags_ = other.task_flags_;
-//    UnsetStarted();
-//    UnsetSignalUnblock();
-//    UnsetSignalRemoteComplete();
-//    UnsetBlocked();
-//    UnsetRemote();
+    //    UnsetStarted();
+    //    UnsetSignalUnblock();
+    //    UnsetSignalRemoteComplete();
+    //    UnsetBlocked();
+    //    UnsetRemote();
     UnsetComplete();
     period_ns_ = other.period_ns_;
     start_ = other.start_;

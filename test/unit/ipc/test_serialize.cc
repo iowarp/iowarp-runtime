@@ -11,13 +11,13 @@
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include "basic_test.h"
-#include "chimaera/network/serialize.h"
 #include "chimaera/module_registry/task.h"
+#include "chimaera/network/serialize.h"
 
-using chi::DomainQuery;
-using chi::BinaryOutputArchive;
 using chi::BinaryInputArchive;
+using chi::BinaryOutputArchive;
 using chi::DataTransfer;
+using chi::DomainQuery;
 using chi::SegmentedTransfer;
 using chi::Task;
 using chi::TaskFlags;
@@ -28,23 +28,25 @@ struct TestObj : public Task, TaskFlags<TF_SRL_SYM> {
   int a_, b_, c_;
 
   TestObj(int a, int b, int c, const std::vector<char> &data)
-  : a_(a), b_(b), c_(c),
-    data_p_(const_cast<char *>(data.data())), data_size_(data.size()),
-    Task(0)  {}
+      : a_(a),
+        b_(b),
+        c_(c),
+        data_p_(const_cast<char *>(data.data())),
+        data_size_(data.size()),
+        Task(0) {}
 
   /** Duplicate message */
-  void CopyStart(const TestObj &other, bool deep) {
-  }
+  void CopyStart(const TestObj &other, bool deep) {}
 
   /** (De)serialize message call */
-  template<typename Ar>
+  template <typename Ar>
   void SerializeStart(Ar &ar) {
     ar.bulk(DT_WRITE, data_p_, data_size_);
     ar(a_, b_, c_);
   }
 
   /** (De)serialize message return */
-  template<typename Ar>
+  template <typename Ar>
   void SerializeEnd(Ar &ar) {
     ar(a_);
   }

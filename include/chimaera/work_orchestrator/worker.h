@@ -13,17 +13,16 @@
 #ifndef CHI_INCLUDE_CHI_WORK_ORCHESTRATOR_WORKER_H
 #define CHI_INCLUDE_CHI_WORK_ORCHESTRATOR_WORKER_H
 
-#include "chimaera/chimaera_types.h"
-#include "chimaera/queue_manager/queue_manager_runtime.h"
-#include "chimaera/module_registry/module_registry.h"
-#include <thread>
 #include <queue>
-#include "affinity.h"
-#include "chimaera/network/rpc_thallium.h"
+#include <thread>
 
-static inline pid_t GetLinuxTid() {
-  return syscall(SYS_gettid);
-}
+#include "affinity.h"
+#include "chimaera/chimaera_types.h"
+#include "chimaera/module_registry/module_registry.h"
+#include "chimaera/network/rpc_thallium.h"
+#include "chimaera/queue_manager/queue_manager_runtime.h"
+
+static inline pid_t GetLinuxTid() { return syscall(SYS_gettid); }
 
 #define CHI_WORKER_SHOULD_RUN BIT_OPT(u32, 1)
 #define CHI_WORKER_IS_FLUSHING BIT_OPT(u32, 2)
@@ -66,7 +65,7 @@ struct IngressEntry {
 
   /** Copy assignment */
   HSHM_INLINE
-  IngressEntry& operator=(const IngressEntry &other) {
+  IngressEntry &operator=(const IngressEntry &other) {
     if (this != &other) {
       prio_ = other.prio_;
       container_id_ = other.container_id_;
@@ -89,7 +88,7 @@ struct IngressEntry {
 
   /** Move assignment */
   HSHM_INLINE
-  IngressEntry& operator=(IngressEntry &&other) noexcept {
+  IngressEntry &operator=(IngressEntry &&other) noexcept {
     if (this != &other) {
       prio_ = other.prio_;
       container_id_ = other.container_id_;
@@ -110,7 +109,7 @@ struct IngressEntry {
   HSHM_INLINE
   bool operator==(const IngressEntry &other) const {
     return queue_ == other.queue_ && container_id_ == other.container_id_ &&
-        prio_ == other.prio_;
+           prio_ == other.prio_;
   }
 };
 
@@ -118,13 +117,12 @@ struct IngressEntry {
 
 namespace std {
 /** Hash function for IngressEntry */
-template<>
+template <>
 struct hash<chi::IngressEntry> {
   HSHM_INLINE
-  std::size_t
-  operator()(const chi::IngressEntry &key) const {
-    return std::hash<chi::ingress::MultiQueue*>{}(key.queue_) +
-        std::hash<u32>{}(key.container_id_) + std::hash<u64>{}(key.prio_);
+  std::size_t operator()(const chi::IngressEntry &key) const {
+    return std::hash<chi::ingress::MultiQueue *>{}(key.queue_) +
+           std::hash<u32>{}(key.container_id_) + std::hash<u64>{}(key.prio_);
   }
 };
 }  // namespace std
@@ -133,17 +131,15 @@ namespace chi {
 
 class WorkOrchestrator;
 
-typedef mpsc_queue<TaskPointer> PrivateTaskQueue;
-typedef hshm::fixed_mpsc_queue<chi::Lane *> PrivateLaneQueue;
+typedef chi::mpsc_queue<TaskPointer> PrivateTaskQueue;
+typedef chi::fixed_mpsc_queue<chi::Lane *> PrivateLaneQueue;
 
 class PrivateLaneMultiQueue {
  public:
-   PrivateLaneQueue active_[2];
+  PrivateLaneQueue active_[2];
 
  public:
-  void request(chi::Lane *lane) {
-    active_[lane->prio_].emplace(lane);
-  }
+  void request(chi::Lane *lane) { active_[lane->prio_].emplace(lane); }
 
   void resize(size_t new_depth) {
     active_[0].resize(new_depth);
@@ -158,43 +154,39 @@ class PrivateTaskMultiQueue {
  public:
   CLS_CONST int FLUSH = 1;
   CLS_CONST int FAIL = 2;
-  CLS_CONST int NUM_QUEUES = 3;
+  CLS_CONST int REMAP = 3;
+  CLS_CONST int NUM_QUEUES = 4;
 
  public:
-   PrivateTaskQueue queues_[NUM_QUEUES];
-   PrivateLaneMultiQueue active_lanes_;
-   size_t id_;
+  PrivateTaskQueue queues_[NUM_QUEUES];
+  PrivateLaneMultiQueue active_lanes_;
+  size_t id_;
 
  public:
   void Init(size_t id, size_t pqdepth, size_t qdepth, size_t max_lanes) {
     id_ = id;
     queues_[FLUSH].resize(max_lanes * qdepth);
     queues_[FAIL].resize(max_lanes * qdepth);
+    queues_[REMAP].resize(max_lanes * qdepth);
     // TODO(llogan): Don't hardcode lane queue depth
     active_lanes_.resize(8192);
   }
 
-  PrivateLaneQueue &GetLowLatency() {
-    return active_lanes_.GetLowLatency();
-  }
+  PrivateLaneQueue &GetLowLatency() { return active_lanes_.GetLowLatency(); }
 
-  PrivateLaneQueue &GetHighLatency() {
-    return active_lanes_.GetHighLatency();
-  }
+  PrivateLaneQueue &GetHighLatency() { return active_lanes_.GetHighLatency(); }
 
   void request(chi::Lane *lane) { active_lanes_.request(lane); }
 
-  PrivateTaskQueue& GetFail() {
-    return queues_[FAIL];
-  }
+  PrivateTaskQueue &GetRemap() { return queues_[REMAP]; }
 
-  PrivateTaskQueue& GetFlush() {
-    return queues_[FLUSH];
-  }
+  PrivateTaskQueue &GetFail() { return queues_[FAIL]; }
+
+  PrivateTaskQueue &GetFlush() { return queues_[FLUSH]; }
 
   bool push(const TaskPointer &entry);
 
-  template<typename TaskT>
+  template <typename TaskT>
   bool push(const FullPtr<TaskT> &task) {
     return push(task.template Cast<Task>());
   }
@@ -202,38 +194,36 @@ class PrivateTaskMultiQueue {
 
 class Worker {
  public:
-  WorkerId id_;  /**< Unique identifier of this worker */
+  WorkerId id_; /**< Unique identifier of this worker */
   // std::unique_ptr<std::thread> thread_;  /**< The worker thread handle */
   // int pthread_id_;      /**< The worker pthread handle */
-  ABT_thread tl_thread_;  /**< The worker argobots thread handle */
-  std::atomic<int> pid_;  /**< The worker process id */
-  int affinity_;        /**< The worker CPU affinity */
-  u32 numa_node_;       // TODO(llogan): track NUMA affinity
+  ABT_thread tl_thread_; /**< The worker argobots thread handle */
+  std::atomic<int> pid_; /**< The worker process id */
+  int affinity_;         /**< The worker CPU affinity */
+  u32 numa_node_;        // TODO(llogan): track NUMA affinity
   ABT_xstream xstream_;
   std::vector<IngressEntry> work_proc_queue_; /**< The set of queues to poll */
-  size_t sleep_us_;     /**< Time the worker should sleep after a run */
-  bitfield32_t flags_;  /**< Worker metadata flags */
+  size_t sleep_us_;    /**< Time the worker should sleep after a run */
+  bitfield32_t flags_; /**< Worker metadata flags */
   std::unordered_map<hshm::charwrap, TaskNode>
-      group_map_;        /**< Determine if a task can be executed right now */
-  hshm::charwrap group_;  /**< The current group */
-  hshm::spsc_queue<void*> stacks_;  /**< Cache of stacks for tasks */
-  int num_stacks_ = 256;  /**< Number of stacks */
+      group_map_;       /**< Determine if a task can be executed right now */
+  chi::charwrap group_; /**< The current group */
+  chi::spsc_queue<void *> stacks_; /**< Cache of stacks for tasks */
+  int num_stacks_ = 256;           /**< Number of stacks */
   int stack_size_ = KILOBYTES(64);
-  PrivateTaskMultiQueue
-      active_;  /** Tasks pending to complete */
-  CacheTimer cur_time_;  /**< The current timepoint */
+  PrivateTaskMultiQueue active_; /** Tasks pending to complete */
+  CacheTimer cur_time_;          /**< The current timepoint */
   CacheTimer sample_time_;
-  WorkPending flush_;    /**< Info needed for flushing ops */
-  float load_ = 0;  /** Load (# of ingress queues) */
-  size_t load_nsec_ = 0;      /** Load (nanoseconds) */
-  Task *cur_task_ = nullptr;  /** Currently executing task */
-  Lane *cur_lane_ = nullptr;  /** Currently executing lane */
-  size_t iter_count_ = 0;   /** Number of iterations the worker has done */
-  size_t work_done_ = 0;  /** Amount of work in done (seconds) */
-  bool do_sampling_ = false;  /**< Whether or not to sample */
-  size_t monitor_gap_;    /**< Distance between sampling phases */
-  size_t monitor_window_;  /** Length of sampling phase */
-
+  WorkPending flush_;        /**< Info needed for flushing ops */
+  float load_ = 0;           /** Load (# of ingress queues) */
+  size_t load_nsec_ = 0;     /** Load (nanoseconds) */
+  Task *cur_task_ = nullptr; /** Currently executing task */
+  Lane *cur_lane_ = nullptr; /** Currently executing lane */
+  size_t iter_count_ = 0;    /** Number of iterations the worker has done */
+  size_t work_done_ = 0;     /** Amount of work in done (seconds) */
+  bool do_sampling_ = false; /**< Whether or not to sample */
+  size_t monitor_gap_;       /**< Distance between sampling phases */
+  size_t monitor_window_;    /** Length of sampling phase */
 
  public:
   /**===============================================================
@@ -241,16 +231,17 @@ class Worker {
    * =============================================================== */
 
   /** Constructor */
-  Worker(u32 id, int cpu_id, ABT_xstream &xstream);
+  Worker(WorkerId id, int cpu_id, ABT_xstream xstream);
 
   /** Spawn */
   void Spawn();
 
   /** Request a lane */
-  void RequestLane(chi::Lane *lane) {
-    active_.request(lane);
-  }
-  
+  void RequestLane(chi::Lane *lane) { active_.request(lane); }
+
+  /** Get remap */
+  PrivateTaskQueue &GetRemap() { return active_.GetRemap(); }
+
   /**===============================================================
    * Run tasks
    * =============================================================== */
@@ -307,22 +298,19 @@ class Worker {
   void IngestLane(IngressEntry &lane_info);
 
   /** Poll the set of tasks in the private queue */
-  HSHM_INLINE
-  void PollTempQueue(PrivateTaskQueue &queue, bool flushing);
+  template <bool FROM_FLUSH>
+  HSHM_INLINE void PollTempQueue(PrivateTaskQueue &queue, bool flushing);
 
   /** Poll the set of tasks in the private queue */
   HSHM_INLINE
   size_t PollPrivateLaneMultiQueue(PrivateLaneQueue &queue, bool flushing);
 
   /** Run a task */
-  bool RunTask(FullPtr<Task> &task,
-               bool flushing);
+  bool RunTask(FullPtr<Task> &task, bool flushing);
 
   /** Run an arbitrary task */
   HSHM_INLINE
-  void ExecTask(FullPtr<Task> &task,
-                RunContext &rctx,
-                Container *&exec,
+  void ExecTask(FullPtr<Task> &task, RunContext &rctx, Container *&exec,
                 bitfield32_t &props);
 
   /** Run a task */
@@ -345,8 +333,7 @@ class Worker {
 
   /** Get the characteristics of a task */
   HSHM_INLINE
-  bitfield32_t GetTaskProperties(Task *&task,
-                                 bool flushing);
+  bitfield32_t GetTaskProperties(Task *&task, bool flushing);
 
   /** Join worker */
   void Join();
@@ -382,7 +369,7 @@ class Worker {
   void MakeDedicated();
 
   /** Allocate a stack for a task */
-  void* AllocateStack();
+  void *AllocateStack();
 
   /** Free a stack */
   void FreeStack(void *stack);
@@ -391,4 +378,3 @@ class Worker {
 }  // namespace chi
 
 #endif  // CHI_INCLUDE_CHI_WORK_ORCHESTRATOR_WORKER_H
-

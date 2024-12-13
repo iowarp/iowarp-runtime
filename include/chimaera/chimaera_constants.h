@@ -35,6 +35,14 @@ class Constants {
 #define HIDE_SYMBOL __attribute__((visibility("hidden")))
 #define EXPORT_SYMBOL __attribute__((visibility("default")))
 
+#ifndef kRemoteQueue
+#define kRemoteQueue -1
+#endif
+
+#ifndef kWorkerDebug
+#define kWorkerDebug -1
+#endif
+
 }  // namespace chi
 
 #endif  // CHI_INCLUDE_CHI_CHI_CONSTANTS_H_

@@ -18,9 +18,9 @@
 namespace chi {
 
 /** Allocate a buffer */
-template<bool FROM_REMOTE>
-HSHM_INLINE
-FullPtr<char> Client::AllocateBufferSafe(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, size_t size) {
+template <bool FROM_REMOTE>
+HSHM_INLINE FullPtr<char> Client::AllocateBufferSafe(
+    const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, size_t size) {
   FullPtr<char> p;
   while (true) {
     try {
@@ -31,7 +31,7 @@ FullPtr<char> Client::AllocateBufferSafe(const hipc::CtxAllocator<CHI_ALLOC_T> &
     if (!p.shm_.IsNull()) {
       break;
     }
-    if constexpr(FROM_REMOTE) {
+    if constexpr (FROM_REMOTE) {
       Task::StaticYieldFactory<TASK_YIELD_ABT>();
     }
 #ifdef CHIMAERA_RUNTIME
@@ -46,12 +46,15 @@ FullPtr<char> Client::AllocateBufferSafe(const hipc::CtxAllocator<CHI_ALLOC_T> &
 
 /** Schedule a task locally */
 #ifdef CHIMAERA_RUNTIME
-template<typename TaskT>
-void Client::ScheduleTaskRuntime(Task *parent_task,
-                                 FullPtr<TaskT> task,
+template <typename TaskT>
+void Client::ScheduleTaskRuntime(Task *parent_task, FullPtr<TaskT> task,
                                  const QueueId &ig_queue_id) {
   task->YieldInit(parent_task);
-  CHI_CUR_WORKER->active_.push(task);
+  Worker *cur_worker = CHI_CUR_WORKER;
+  if (!cur_worker) {
+    cur_worker = &CHI_WORK_ORCHESTRATOR->GetWorker(0);
+  }
+  cur_worker->active_.push(task);
 }
 #endif
 
