@@ -27,7 +27,7 @@ namespace chi {
 typedef FullPtr<Task> TaskPointer;
 
 /** The information of a lane */
-class Lane : public hipc::iqueue_entry {
+class Lane : public hipc::list_queue_entry {
  public:
   QueueId lane_id_;
   QueueId ingress_id_;

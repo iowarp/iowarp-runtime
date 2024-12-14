@@ -325,7 +325,7 @@ struct RunContext {
 };
 
 /** A generic task base class */
-struct Task : public hipc::ShmContainer {
+struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
  public:
   PoolId pool_;             /**< The unique name of a pool */
   TaskNode task_node_;      /**< The unique ID of this task in the graph */

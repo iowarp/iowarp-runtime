@@ -576,7 +576,7 @@ void *Worker::AllocateStack() {
 
 /** Free a stack */
 void Worker::FreeStack(void *stack) {
-  stacks_.push((hipc::iqueue_entry *)stack);
+  stacks_.push((hipc::list_queue_entry *)stack);
 }
 
 }  // namespace chi

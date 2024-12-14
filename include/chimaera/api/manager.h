@@ -13,8 +13,8 @@
 #ifndef CHI_INCLUDE_CHI_MANAGER_MANAGER_H_
 #define CHI_INCLUDE_CHI_MANAGER_MANAGER_H_
 
-#include "chimaera/chimaera_types.h"
 #include "chimaera/chimaera_constants.h"
+#include "chimaera/chimaera_types.h"
 #include "chimaera/config/config_client.h"
 #include "chimaera/config/config_server.h"
 #include "chimaera/queue_manager/queue_manager.h"
@@ -35,12 +35,9 @@ class ConfigurationManager {
   ChiShm *header_;
   ClientConfig client_config_;
   ServerConfig server_config_;
-  static inline const hipc::allocator_id_t main_alloc_id_ =
-      hipc::allocator_id_t(0, 1);
-  static inline const hipc::allocator_id_t data_alloc_id_ =
-      hipc::allocator_id_t(1, 1);
-  static inline const hipc::allocator_id_t rdata_alloc_id_ =
-      hipc::allocator_id_t(2, 1);
+  static inline const hipc::alloc_id_t main_alloc_id_ = hipc::alloc_id_t(0, 1);
+  static inline const hipc::alloc_id_t data_alloc_id_ = hipc::alloc_id_t(1, 1);
+  static inline const hipc::alloc_id_t rdata_alloc_id_ = hipc::alloc_id_t(2, 1);
   CHI_ALLOC_T *main_alloc_;
   CHI_ALLOC_T *data_alloc_;
   CHI_ALLOC_T *rdata_alloc_;
@@ -52,10 +49,11 @@ class ConfigurationManager {
   hshm::ThreadType thread_type_;
 
   /** Default constructor */
-  ConfigurationManager() : is_being_initialized_(false),
-                           is_initialized_(false),
-                           is_terminated_(false),
-                           is_transparent_(false) {}
+  ConfigurationManager()
+      : is_being_initialized_(false),
+        is_initialized_(false),
+        is_terminated_(false),
+        is_transparent_(false) {}
 
   /** Destructor */
   ~ConfigurationManager() {}

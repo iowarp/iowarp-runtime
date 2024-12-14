@@ -249,8 +249,7 @@ class Client : public ConfigurationManager {
   /** Free a buffer */
   HSHM_INLINE
   void FreeBuffer(hipc::Pointer &p) {
-    auto alloc =
-        HERMES_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(p.allocator_id_);
+    auto alloc = HERMES_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(p.alloc_id_);
     alloc->Free(hshm::ThreadId::GetNull(), p);
   }
 
@@ -258,15 +257,14 @@ class Client : public ConfigurationManager {
   HSHM_INLINE
   void FreeBuffer(FullPtr<char> &p) {
     auto alloc =
-        HERMES_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(p.shm_.allocator_id_);
+        HERMES_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(p.shm_.alloc_id_);
     alloc->FreeLocalPtr(hshm::ThreadId::GetNull(), p);
   }
 
   /** Convert pointer to char* */
   template <typename T = char>
   HSHM_INLINE T *GetDataPointer(const hipc::Pointer &p) {
-    auto alloc =
-        HERMES_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(p.allocator_id_);
+    auto alloc = HERMES_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(p.alloc_id_);
     return alloc->Convert<T, hipc::Pointer>(p);
   }
 
