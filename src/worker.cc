@@ -269,14 +269,10 @@ void Worker::Loop() {
 /** Run a single iteration over all queues */
 void Worker::Run(bool flushing) {
   // Process tasks in the pending queues
-  IngestProcLanes(flushing);
-  // PollTempQueue<false>(active_.GetRemap(), flushing);
   for (size_t i = 0; i < 8192; ++i) {
-    // PollTempQueue<false>(active_.GetRemap(), flushing);
     IngestProcLanes(flushing);
     PollPrivateLaneMultiQueue(active_.active_lanes_.GetLowLatency(), flushing);
   }
-  // PollTempQueue<false>(active_.GetRemap(), flushing);
   PollPrivateLaneMultiQueue(active_.active_lanes_.GetHighLatency(), flushing);
   PollTempQueue<false>(active_.GetFail(), flushing);
 }
