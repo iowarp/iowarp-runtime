@@ -208,8 +208,8 @@ class Worker {
   std::unordered_map<hshm::charwrap, TaskNode>
       group_map_;       /**< Determine if a task can be executed right now */
   chi::charwrap group_; /**< The current group */
-  chi::fixed_spsc_ptr_queue<void *> stacks_; /**< Cache of stacks for tasks */
-  int num_stacks_ = 256;                     /**< Number of stacks */
+  chi::iqueue<hipc::iqueue_entry> stacks_; /**< Cache of stacks for tasks */
+  int num_stacks_ = 256;                   /**< Number of stacks */
   int stack_size_ = KILOBYTES(64);
   PrivateTaskMultiQueue active_; /** Tasks pending to complete */
   CacheTimer cur_time_;          /**< The current timepoint */

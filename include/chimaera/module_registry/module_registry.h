@@ -127,7 +127,7 @@ class ModuleRegistry {
   /** Map of a semantic exec id to state */
   std::unordered_map<PoolId, PoolInfo> pools_;
   /** A unique identifier counter */
-  std::atomic<u64> unique_ = 0;
+  std::atomic<u64> *unique_;
   Mutex lock_;
   CoRwLock upgrade_lock_;
 
@@ -139,6 +139,7 @@ class ModuleRegistry {
   void ServerInit(ServerConfig *config, NodeId node_id,
                   std::atomic<u64> &unique) {
     node_id_ = node_id;
+    unique_ = &unique;
 
     // Load the LD_LIBRARY_PATH variable
     auto ld_lib_path_env = getenv("LD_LIBRARY_PATH");
@@ -366,7 +367,7 @@ class ModuleRegistry {
   /** Get a pool instance */
   Container *GetContainer(const PoolId &pool_id,
                           const ContainerId &container_id) {
-    ScopedMutex lock(lock_, 0);
+    // ScopedMutex lock(lock_, 0);
     auto pool_it = pools_.find(pool_id);
     if (pool_it == pools_.end()) {
       HELOG(kFatal, "Could not find pool {}", pool_id);

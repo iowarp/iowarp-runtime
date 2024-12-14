@@ -134,9 +134,8 @@ Worker::Worker(WorkerId id, int cpu_id, ABT_xstream xstream) {
   sleep_us_ = 0;
   pid_ = 0;
   affinity_ = cpu_id;
-  stacks_.Resize(num_stacks_);
   for (int i = 0; i < 16; ++i) {
-    stacks_.emplace(malloc(stack_size_));
+    AllocateStack();
   }
 
   // MAX_DEPTH * [LOW_LAT, LONG_LAT]
@@ -568,20 +567,16 @@ void Worker::MakeDedicated() {
 
 /** Allocate a stack for a task */
 void *Worker::AllocateStack() {
-  void *stack;
-  if (!stacks_.pop_back(stack).IsNull()) {
-    return stack;
+  void *stack = (void *)stacks_.pop();
+  if (!stack) {
+    stack = malloc(stack_size_);
   }
-  return malloc(stack_size_);
+  return stack;
 }
 
 /** Free a stack */
 void Worker::FreeStack(void *stack) {
-  if (!stacks_.push(stack).IsNull()) {
-    return;
-  }
-  stacks_.Resize(stacks_.size() * 2 + num_stacks_);
-  stacks_.push(stack);
+  stacks_.push((hipc::iqueue_entry *)stack);
 }
 
 }  // namespace chi
