@@ -367,7 +367,7 @@ class ModuleRegistry {
   /** Get a pool instance */
   Container *GetContainer(const PoolId &pool_id,
                           const ContainerId &container_id) {
-    ScopedMutex lock(lock_, 0);
+    // ScopedMutex lock(lock_, 0);
     auto pool_it = pools_.find(pool_id);
     if (pool_it == pools_.end()) {
       HELOG(kFatal, "Could not find pool {}", pool_id);

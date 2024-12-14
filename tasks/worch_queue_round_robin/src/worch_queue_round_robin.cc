@@ -10,9 +10,10 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include "chimaera_admin/chimaera_admin.h"
-#include "chimaera/api/chimaera_runtime.h"
 #include "worch_queue_round_robin/worch_queue_round_robin.h"
+
+#include "chimaera/api/chimaera_runtime.h"
+#include "chimaera_admin/chimaera_admin.h"
 
 namespace chi::worch_queue_round_robin {
 
@@ -29,13 +30,10 @@ class Server : public Module {
     CreateLaneGroup(0, 1, QUEUE_HIGH_LATENCY);
     task->SetModuleComplete();
   }
-  void MonitorCreate(MonitorModeId mode, CreateTask *task, RunContext &rctx) {
-  }
+  void MonitorCreate(MonitorModeId mode, CreateTask *task, RunContext &rctx) {}
 
   /** Route a task to a lane */
-  Lane* Route(const Task *task) override {
-    return GetLaneByHash(0, 0);
-  }
+  Lane *Route(const Task *task) override { return GetLaneByHash(0, 0); }
 
   /** Destroy work orchestrator queue scheduler */
   void Destroy(DestroyTask *task, RunContext &rctx) {
@@ -46,7 +44,7 @@ class Server : public Module {
 
   /** Check if low latency */
   bool IsLowLatency(Lane &lane) {
-    size_t num_tasks = lane.num_tasks_;
+    size_t num_tasks = lane.size();
     if (num_tasks == 0) {
       return lane.prio_ == TaskPrio::kLowLatency;
     }
@@ -95,9 +93,9 @@ class Server : public Module {
               }
               lane.worker_id_ = ig_lane->worker_id_;
               lane.ingress_id_ = ig_lane->id_;
-//            Worker *worker =
-//                CHI_WORK_ORCHESTRATOR->workers_[lane.worker_id_].get();
-//            worker->RelinquishingQueues();
+              //            Worker *worker =
+              //                CHI_WORK_ORCHESTRATOR->workers_[lane.worker_id_].get();
+              //            worker->RelinquishingQueues();
               lane.UnsetPlugged();
             }
           }
@@ -106,12 +104,12 @@ class Server : public Module {
     }
     task->UnsetStarted();
   }
-  void MonitorSchedule(MonitorModeId mode, ScheduleTask *task, RunContext &rctx) {
-  }
+  void MonitorSchedule(MonitorModeId mode, ScheduleTask *task,
+                       RunContext &rctx) {}
 
 #include "worch_queue_round_robin/worch_queue_round_robin_lib_exec.h"
 };
 
-}  // namespace chi
+}  // namespace chi::worch_queue_round_robin
 
 CHI_TASK_CC(chi::worch_queue_round_robin::Server, "worch_queue_round_robin");

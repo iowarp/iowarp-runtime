@@ -85,6 +85,7 @@ bool PrivateTaskMultiQueue::push(const FullPtr<Task> &task) {
     chi::Lane *chi_lane = exec->Route(task.ptr_);
     rctx.route_container_ = container_id;
     rctx.route_lane_ = chi_lane->lane_id_;
+    rctx.worker_id_ = id_;
     task->SetRouted();
     chi_lane->push(task);
     HLOG(kDebug, kWorkerDebug, "[TASK_CHECK] (node {}) Pushing task {}",
@@ -106,10 +107,6 @@ bool PrivateTaskMultiQueue::push(const FullPtr<Task> &task) {
 /** Push a task  */
 hshm::qtok_t Lane::push(const FullPtr<Task> &task) {
   Worker &worker = CHI_WORK_ORCHESTRATOR->GetWorker(worker_id_);
-  Worker *cur_worker = CHI_CUR_WORKER;
-  if (!cur_worker || worker.id_ != cur_worker->id_) {
-    return worker.GetRemap().push(task);
-  }
   hshm::qtok_t ret = active_tasks_.push(task);
   if (ret.IsNull()) {
     active_tasks_.resize(active_tasks_.GetDepth() * 2);
@@ -273,12 +270,13 @@ void Worker::Loop() {
 void Worker::Run(bool flushing) {
   // Process tasks in the pending queues
   IngestProcLanes(flushing);
-  PollTempQueue<false>(active_.GetRemap(), flushing);
+  // PollTempQueue<false>(active_.GetRemap(), flushing);
   for (size_t i = 0; i < 8192; ++i) {
-    PollTempQueue<false>(active_.GetRemap(), flushing);
+    // PollTempQueue<false>(active_.GetRemap(), flushing);
+    IngestProcLanes(flushing);
     PollPrivateLaneMultiQueue(active_.active_lanes_.GetLowLatency(), flushing);
   }
-  PollTempQueue<false>(active_.GetRemap(), flushing);
+  // PollTempQueue<false>(active_.GetRemap(), flushing);
   PollPrivateLaneMultiQueue(active_.active_lanes_.GetHighLatency(), flushing);
   PollTempQueue<false>(active_.GetFail(), flushing);
 }
@@ -302,8 +300,8 @@ void Worker::IngestLane(IngressEntry &lane_info) {
       break;
     }
     FullPtr<Task> task;
-    task.shm_ = entry.shm_;
-    task.ptr_ = CHI_CLIENT->GetMainPointer<Task>(entry.shm_);
+    task.shm_ = entry;
+    task.ptr_ = CHI_CLIENT->GetMainPointer<Task>(entry);
     active_.push(task);
   }
 }
@@ -316,9 +314,6 @@ HSHM_INLINE void Worker::PollTempQueue(PrivateTaskQueue &priv_queue,
   for (size_t i = 0; i < size; ++i) {
     FullPtr<Task> task;
     if (priv_queue.pop(task).IsNull()) {
-      break;
-    }
-    if (task.ptr_ == nullptr) {
       break;
     }
     if constexpr (FROM_FLUSH) {
@@ -336,30 +331,33 @@ size_t Worker::PollPrivateLaneMultiQueue(PrivateLaneQueue &lanes,
                                          bool flushing) {
   size_t work = 0;
   size_t num_lanes = lanes.size();
-  for (size_t lane_off = 0; lane_off < num_lanes; ++lane_off) {
-    chi::Lane *chi_lane;
-    if (lanes.pop(chi_lane).IsNull()) {
-      break;
-    }
-    size_t max_lane_size = chi_lane->size();
-    size_t lane_size = 0;
-    for (; lane_size < max_lane_size; ++lane_size) {
-      FullPtr<Task> task;
-      if (chi_lane->pop(task).IsNull()) {
+  if (num_lanes) {
+    for (size_t lane_off = 0; lane_off < num_lanes; ++lane_off) {
+      // Get the lane and make it current
+      chi::Lane *chi_lane;
+      if (lanes.pop(chi_lane).IsNull()) {
         break;
       }
-      if (task.ptr_ == nullptr) {
-        break;
+      cur_lane_ = chi_lane;
+      // Poll each task in the lane
+      size_t max_lane_size = chi_lane->size();
+      size_t lane_size = 0;
+      for (; lane_size < max_lane_size; ++lane_size) {
+        FullPtr<Task> task;
+        if (chi_lane->pop(task).IsNull()) {
+          break;
+        }
+        bool pushback = RunTask(task, flushing);
+        if (pushback) {
+          chi_lane->push(task);
+        }
+        ++work;
       }
-      bool pushback = RunTask(task, flushing);
-      if (pushback) {
-        chi_lane->push(task);
+      // If the lane still has tasks, push it back
+      size_t after_size = chi_lane->pop_prep(lane_size);
+      if (after_size > 0) {
+        lanes.push(chi_lane);
       }
-      ++work;
-    }
-    size_t after_size = chi_lane->pop_prep(lane_size);
-    if (after_size > 0) {
-      lanes.push(chi_lane);
     }
   }
   return work;
@@ -377,29 +375,14 @@ bool Worker::RunTask(FullPtr<Task> &task, bool flushing) {
   // Pack runtime context
   RunContext &rctx = task->rctx_;
   rctx.worker_props_ = props;
-  rctx.worker_id_ = id_;
   rctx.flush_ = &flush_;
   // Get the task container
-  Container *exec;
-  if (task->IsModuleComplete()) {
-    exec = CHI_MOD_REGISTRY->GetStaticContainer(task->pool_);
-  } else {
-    exec = CHI_MOD_REGISTRY->GetContainer(task->pool_, rctx.route_container_);
-  }
-  if (!exec) {
-    if (task->pool_ == PoolId::GetNull()) {
-      HELOG(kFatal, "(node {}) Task {} pool does not exist",
-            CHI_CLIENT->node_id_, task->task_node_);
-      task->SetModuleComplete();
-      return false;
-    }
-    return true;
-  }
+  Container *exec =
+      CHI_MOD_REGISTRY->GetContainer(task->pool_, rctx.route_container_);
   // Run the task
   if (!task->IsModuleComplete()) {
     // Make this task current
     cur_task_ = task.ptr_;
-    cur_lane_ = exec->GetLane(rctx.route_lane_);
     // Execute the task based on its properties
     rctx.exec_ = exec;
     ExecTask(task, rctx, exec, props);
@@ -425,7 +408,7 @@ void Worker::ExecTask(FullPtr<Task> &task, RunContext &rctx, Container *&exec,
   }
   // Flush tasks
   if (props.Any(CHI_WORKER_IS_FLUSHING)) {
-    if (!task->IsFlush() && !task->IsLongRunning()) {
+    if (!task->IsLongRunning()) {
       flush_.count_ += 1;
     }
   }
@@ -451,12 +434,7 @@ void Worker::ExecTask(FullPtr<Task> &task, RunContext &rctx, Container *&exec,
       exec->Monitor(MonitorMode::kSampleLoad, task->method_, task.ptr_, rctx);
       task->UnsetShouldSample();
     }
-    // Update the load
-    cur_lane_->load_ -= rctx.load_;
-    cur_lane_->num_tasks_ -= 1;
-    cur_time_.Tick(rctx.load_.cpu_load_);
   }
-  task->DidRun(cur_time_);
   // Block the task
   if (task->IsBlocked()) {
     CHI_WORK_ORCHESTRATOR->Block(task.ptr_, rctx);
@@ -595,7 +573,7 @@ void Worker::MakeDedicated() {
 /** Allocate a stack for a task */
 void *Worker::AllocateStack() {
   void *stack;
-  if (!stacks_.pop(stack).IsNull()) {
+  if (!stacks_.pop_back(stack).IsNull()) {
     return stack;
   }
   return malloc(stack_size_);
@@ -603,11 +581,11 @@ void *Worker::AllocateStack() {
 
 /** Free a stack */
 void Worker::FreeStack(void *stack) {
-  if (!stacks_.emplace(stack).IsNull()) {
+  if (!stacks_.push(stack).IsNull()) {
     return;
   }
   stacks_.Resize(stacks_.size() * 2 + num_stacks_);
-  stacks_.emplace(stack);
+  stacks_.push(stack);
 }
 
 }  // namespace chi

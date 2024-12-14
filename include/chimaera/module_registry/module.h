@@ -27,23 +27,23 @@ namespace chi {
 typedef FullPtr<Task> TaskPointer;
 
 /** The information of a lane */
-class Lane {
+class Lane : public hipc::iqueue_entry {
  public:
-  Lane *next_;
-  Lane *prior_;
   QueueId lane_id_;
   QueueId ingress_id_;
   i32 worker_id_;
-  size_t num_tasks_ = 0;
   Load load_;
   CoMutex comux_;
   std::atomic<size_t> plug_count_;
   u32 prio_;
   size_t lane_req_;
-  chi::fixed_spsc_queue<TaskPointer> active_tasks_;
+  chi::mpsc_ptr_queue<TaskPointer> active_tasks_;
   hipc::atomic<size_t> count_;
 
  public:
+  /** Default constructor */
+  Lane() = default;
+
   /** Emplace constructor */
   explicit Lane(QueueId lane_id, QueueId ingress_id, i32 worker_id, u32 prio)
       : lane_id_(lane_id),
@@ -66,14 +66,13 @@ class Lane {
   hshm::qtok_t pop(FullPtr<Task> &task);
 #endif
 
-  size_t size() { return count_.load(); }
+  size_t size() { return active_tasks_.size(); }
 
   /** Copy constructor */
   Lane(const Lane &lane) {
     lane_id_ = lane.lane_id_;
     ingress_id_ = lane.ingress_id_;
     worker_id_ = lane.worker_id_;
-    num_tasks_ = lane.num_tasks_;
     load_ = lane.load_;
     plug_count_ = lane.plug_count_.load();
     prio_ = lane.prio_;

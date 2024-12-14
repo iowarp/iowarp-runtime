@@ -131,19 +131,19 @@ namespace chi {
 
 class WorkOrchestrator;
 
-typedef chi::mpsc_queue<TaskPointer> PrivateTaskQueue;
-typedef chi::fixed_mpsc_queue<chi::Lane *> PrivateLaneQueue;
+typedef chi::mpsc_ptr_queue<TaskPointer> PrivateTaskQueue;
+typedef chi::spsc_fifo_list_queue<chi::Lane> PrivateLaneQueue;
 
 class PrivateLaneMultiQueue {
  public:
   PrivateLaneQueue active_[2];
 
  public:
-  void request(chi::Lane *lane) { active_[lane->prio_].emplace(lane); }
+  void request(chi::Lane *lane) { active_[lane->prio_].push(lane); }
 
   void resize(size_t new_depth) {
-    active_[0].resize(new_depth);
-    active_[1].resize(new_depth);
+    // active_[0].resize(new_depth);
+    // active_[1].resize(new_depth);
   }
 
   PrivateLaneQueue &GetLowLatency() { return active_[TaskPrio::kLowLatency]; }
@@ -208,8 +208,8 @@ class Worker {
   std::unordered_map<hshm::charwrap, TaskNode>
       group_map_;       /**< Determine if a task can be executed right now */
   chi::charwrap group_; /**< The current group */
-  chi::spsc_queue<void *> stacks_; /**< Cache of stacks for tasks */
-  int num_stacks_ = 256;           /**< Number of stacks */
+  chi::fixed_spsc_ptr_queue<void *> stacks_; /**< Cache of stacks for tasks */
+  int num_stacks_ = 256;                     /**< Number of stacks */
   int stack_size_ = KILOBYTES(64);
   PrivateTaskMultiQueue active_; /** Tasks pending to complete */
   CacheTimer cur_time_;          /**< The current timepoint */
