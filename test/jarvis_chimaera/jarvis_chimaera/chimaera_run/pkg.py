@@ -229,7 +229,6 @@ class ChimaeraRun(Service):
                 'proc_queue_depth': self.config['pqdepth'],
                 'max_lanes': self.config['qlanes'],
                 'max_queues': 1024,
-                'shm_allocator': 'kScalablePageAllocator',
                 'shm_name': self.config['shm_name'],
                 'shm_size': self.config['task_shm'],
                 'data_shm_size': self.config['data_shm'],

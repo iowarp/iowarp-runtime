@@ -37,7 +37,8 @@ class Lane : public hipc::list_queue_entry {
   std::atomic<size_t> plug_count_;
   u32 prio_;
   size_t lane_req_;
-  chi::mpsc_ptr_queue<TaskPointer> active_tasks_;
+  // TODO(llogan): This doesn't preserve task order
+  chi::mpsc_lifo_list_queue<Task> active_tasks_;
   hipc::atomic<size_t> count_;
 
  public:
@@ -52,7 +53,7 @@ class Lane : public hipc::list_queue_entry {
         prio_(prio) {
     plug_count_ = 0;
     count_ = 0;
-    active_tasks_.resize(64);
+    // active_tasks_.resize(64);
   }
 
 #ifdef CHIMAERA_RUNTIME

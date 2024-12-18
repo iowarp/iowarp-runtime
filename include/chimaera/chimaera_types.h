@@ -14,43 +14,52 @@
 #define CHI_INCLUDE_CHI_CHI_TYPES_H_
 
 #include <cereal/archives/binary.hpp>
-#include <cereal/types/vector.hpp>
-#include <cereal/types/string.hpp>
+#include <cereal/types/atomic.hpp>
 #include <cereal/types/list.hpp>
+#include <cereal/types/string.hpp>
 #include <cereal/types/unordered_map.hpp>
 #include <cereal/types/unordered_set.hpp>
-#include <cereal/types/atomic.hpp>
+#include <cereal/types/vector.hpp>
+
 #include "hermes_shm/memory/allocator/allocator_factory_.h"
 
 #define HSHM_CUSTOM_SETTINGS
 #include <hermes_shm/constants/macros.h>
-#ifndef HSHM_DEFAULT_ALLOC_T
-#define HSHM_DEFAULT_ALLOC_T hipc::ScalablePageAllocator
+
+// Undefine default allocator
+#ifdef HSHM_DEFAULT_ALLOC_T
+#undef HSHM_DEFAULT_ALLOC_T
 #endif
+
+// Undefine default thread model
+#ifdef HSHM_DEFAULT_THREAD_MODEL
+#undef HSHM_DEFAULT_THREAD_MODEL
+#endif
+
+#define HSHM_DEFAULT_ALLOC_T hipc::ThreadLocalAllocator
 #define CHI_ALLOC_T HSHM_DEFAULT_ALLOC_T
 
 #ifdef HSHM_IS_HOST
-#ifndef HSHM_DEFAULT_THREAD_MODEL
 #ifdef CHIMAERA_RUNTIME
 #define HSHM_DEFAULT_THREAD_MODEL hshm::thread::Argobots
 #else
 #define HSHM_DEFAULT_THREAD_MODEL hshm::thread::Pthread
 #endif
-#endif
 #else
 #define HSHM_DEFAULT_THREAD_MODEL hshm::thread::Cuda
 #endif
 
-#include <hermes_shm/util/config_parse.h>
 #include <hermes_shm/data_structures/all.h>
-#include <hermes_shm/util/auto_trace.h>
 #include <hermes_shm/thread/lock.h>
 #include <hermes_shm/thread/thread_model_manager.h>
 #include <hermes_shm/types/atomic.h>
-#include "hermes_shm/util/singleton.h"
-#include "hermes_shm/constants/macros.h"
+#include <hermes_shm/util/auto_trace.h>
+#include <hermes_shm/util/config_parse.h>
 
 #include <boost/context/fiber_fcontext.hpp>
+
+#include "hermes_shm/constants/macros.h"
+#include "hermes_shm/util/singleton.h"
 
 namespace bctx = boost::context::detail;
 
@@ -74,38 +83,38 @@ HSHM_DATA_STRUCTURES_TEMPLATE(chi, CHI_ALLOC_T);
 
 namespace chi {
 
-using hshm::RwLock;
-using hshm::Mutex;
 using hshm::bitfield;
-using hshm::bitfield8_t;
 using hshm::bitfield16_t;
 using hshm::bitfield32_t;
+using hshm::bitfield8_t;
+using hshm::Mutex;
+using hshm::RwLock;
 typedef hshm::bitfield<uint64_t> bitfield64_t;
+using hipc::FullPtr;
+using hshm::ScopedMutex;
 using hshm::ScopedRwReadLock;
 using hshm::ScopedRwWriteLock;
-using hshm::ScopedMutex;
-using hipc::FullPtr;
 
-typedef u32 NodeId;  /**< The ID of a node */
-typedef u32 LaneId;  /**< The ID of a lane */
-typedef u32 LaneGroupId;  /**< The ID of a lane group */
-typedef u32 ContainerId;  /**< The ID of a container */
-typedef u32 WorkerId;  /**< The ID of a worker */
-typedef u32 MethodId;     /**< The ID of a container method */
-typedef u32 MonitorModeId;  /**< The ID of a container monitor mode */
+typedef u32 NodeId;        /**< The ID of a node */
+typedef u32 LaneId;        /**< The ID of a lane */
+typedef u32 LaneGroupId;   /**< The ID of a lane group */
+typedef u32 ContainerId;   /**< The ID of a container */
+typedef u32 WorkerId;      /**< The ID of a worker */
+typedef u32 MethodId;      /**< The ID of a container method */
+typedef u32 MonitorModeId; /**< The ID of a container monitor mode */
 
 /** Represents unique ID for states + queues */
-template<int TYPE>
+template <int TYPE>
 struct UniqueId {
   union {
-    NodeId node_id_;  /**< The node the content is on */
-    u32 prio_;      /**< The priority of the lane */
+    NodeId node_id_; /**< The node the content is on */
+    u32 prio_;       /**< The priority of the lane */
   };
-  u32 hash_;     /**< The hash of the content the ID represents */
-  u64 unique_;   /**< A unique id for the blob */
+  u32 hash_;   /**< The hash of the content the ID represents */
+  u64 unique_; /**< A unique id for the blob */
 
   /** Serialization */
-  template<typename Ar>
+  template <typename Ar>
   void serialize(Ar &ar) {
     ar & node_id_;
     ar & hash_;
@@ -117,14 +126,12 @@ struct UniqueId {
   UniqueId() = default;
 
   /** Emplace constructor */
-  HSHM_INLINE explicit
-  UniqueId(NodeId node_id, u64 unique)
-  : node_id_(node_id), hash_(0), unique_(unique) {}
+  HSHM_INLINE explicit UniqueId(NodeId node_id, u64 unique)
+      : node_id_(node_id), hash_(0), unique_(unique) {}
 
   /** Emplace constructor (+hash) */
-  HSHM_INLINE explicit
-  UniqueId(NodeId node_id, u32 hash, u64 unique)
-  : node_id_(node_id), hash_(hash), unique_(unique) {}
+  HSHM_INLINE explicit UniqueId(NodeId node_id, u32 hash, u64 unique)
+      : node_id_(node_id), hash_(hash), unique_(unique) {}
 
   /** Copy constructor */
   HSHM_INLINE
@@ -135,9 +142,8 @@ struct UniqueId {
   }
 
   /** Copy constructor */
-  template<int OTHER_TYPE=TYPE>
-  HSHM_INLINE
-  UniqueId(const UniqueId<OTHER_TYPE> &other) {
+  template <int OTHER_TYPE = TYPE>
+  HSHM_INLINE UniqueId(const UniqueId<OTHER_TYPE> &other) {
     node_id_ = other.node_id_;
     hash_ = other.hash_;
     unique_ = other.unique_;
@@ -145,7 +151,7 @@ struct UniqueId {
 
   /** Copy assignment */
   HSHM_INLINE
-  UniqueId& operator=(const UniqueId &other) {
+  UniqueId &operator=(const UniqueId &other) {
     if (this != &other) {
       node_id_ = other.node_id_;
       hash_ = other.hash_;
@@ -164,7 +170,7 @@ struct UniqueId {
 
   /** Move assignment */
   HSHM_INLINE
-  UniqueId& operator=(UniqueId &&other) noexcept {
+  UniqueId &operator=(UniqueId &&other) noexcept {
     if (this != &other) {
       node_id_ = other.node_id_;
       hash_ = other.hash_;
@@ -196,8 +202,9 @@ struct UniqueId {
 
   /** Get id of node from this id */
   [[nodiscard]]
-  HSHM_INLINE
-  u32 GetNodeId() const { return node_id_; }
+  HSHM_INLINE u32 GetNodeId() const {
+    return node_id_;
+  }
 
   /** Compare two ids for equality */
   HSHM_INLINE
@@ -212,15 +219,14 @@ struct UniqueId {
   }
 
   /** Print operator */
-  friend std::ostream& operator<<(std::ostream &os, const UniqueId &id) {
-    return os << (std::to_string(id.node_id_) + "."
-        + std::to_string(id.unique_));
+  friend std::ostream &operator<<(std::ostream &os, const UniqueId &id) {
+    return os << (std::to_string(id.node_id_) + "." +
+                  std::to_string(id.unique_));
   }
 
   /** Hash function */
   size_t Hash() const {
-    return std::hash<u64>{}(unique_) +
-           std::hash<u32>{}(node_id_);
+    return std::hash<u64>{}(unique_) + std::hash<u32>{}(node_id_);
   }
 };
 
@@ -232,18 +238,10 @@ using QueueId = UniqueId<2>;
 using TaskId = UniqueId<3>;
 
 /** The types of I/O that can be performed (for IoCall RPC) */
-enum class IoType {
-  kRead,
-  kWrite,
-  kNone
-};
+enum class IoType { kRead, kWrite, kNone };
 
 /** Route mode */
-enum class TaskRouteMode {
-  kThisWorker,
-  kLocalWorker,
-  kRemoteWorker
-};
+enum class TaskRouteMode { kThisWorker, kLocalWorker, kRemoteWorker };
 
 /** Context used for creating objects */
 struct CreateContext {
@@ -253,7 +251,7 @@ struct CreateContext {
   u32 lanes_per_container_ = 0;
 
   /** Serialization */
-  template<typename Ar>
+  template <typename Ar>
   void serialize(Ar &ar) {
     ar(id_, global_containers_, local_containers_pn_, lanes_per_container_);
   }
@@ -267,8 +265,8 @@ typedef u32 SubDomainMinor;
 
 /** An unscoped subdomain of nodes or lanes */
 struct SubDomainId {
-  SubDomainGroup major_;  /**< NodeSet, ContainerSet, ... */
-  SubDomainMinor minor_;  /**< NodeId, ContainerId, ... */
+  SubDomainGroup major_; /**< NodeSet, ContainerSet, ... */
+  SubDomainMinor minor_; /**< NodeId, ContainerId, ... */
 
   /** Subdomain major groups */
   CLS_CONST SubDomainGroup kPhysicalNode = 0;
@@ -300,7 +298,7 @@ struct SubDomainId {
   }
 
   /** Copy assignment */
-  SubDomainId& operator=(const SubDomainId &other) {
+  SubDomainId &operator=(const SubDomainId &other) {
     if (this != &other) {
       major_ = other.major_;
       minor_ = other.minor_;
@@ -315,7 +313,7 @@ struct SubDomainId {
   }
 
   /** Move assignment */
-  SubDomainId& operator=(SubDomainId &&other) noexcept {
+  SubDomainId &operator=(SubDomainId &&other) noexcept {
     if (this != &other) {
       major_ = other.major_;
       minor_ = other.minor_;
@@ -324,19 +322,13 @@ struct SubDomainId {
   }
 
   /** ID represents a physical node ID */
-  bool IsPhysical() const {
-    return major_ == kPhysicalNode;
-  }
+  bool IsPhysical() const { return major_ == kPhysicalNode; }
 
   /** ID represents a major+minor ID */
-  bool IsMajor() const {
-    return minor_ == 0;
-  }
+  bool IsMajor() const { return minor_ == 0; }
 
   /** ID represents a major ID */
-  bool IsMinor() const {
-    return minor_ > 0;
-  }
+  bool IsMinor() const { return minor_ > 0; }
 
   /** Create a physical ID subdomain */
   static SubDomainId CreatePhysical(SubDomainMinor minor) {
@@ -344,7 +336,7 @@ struct SubDomainId {
   }
 
   /** Serialization */
-  template<typename Ar>
+  template <typename Ar>
   void serialize(Ar &ar) {
     ar(major_, minor_);
   }
@@ -360,7 +352,7 @@ struct SubDomainId {
   }
 
   /** Print operator */
-  friend std::ostream& operator<<(std::ostream &os,
+  friend std::ostream &operator<<(std::ostream &os,
                                   const SubDomainId &subdom_id) {
     return os << subdom_id.major_ << "." << subdom_id.minor_;
   }
@@ -375,22 +367,19 @@ struct DomainId {
   DomainId() = default;
 
   /** Emplace constructor */
-  DomainId(const PoolId &scope,
-           const SubDomainId &sub_id) {
+  DomainId(const PoolId &scope, const SubDomainId &sub_id) {
     scope_ = scope;
     sub_id_ = sub_id;
   }
 
   /** Emplace constructor (2) */
-  DomainId(const PoolId &scope,
-           const SubDomainGroup &group) {
+  DomainId(const PoolId &scope, const SubDomainGroup &group) {
     scope_ = scope;
     sub_id_ = {group};
   }
 
   /** Emplace constructor (3) */
-  DomainId(const PoolId &scope,
-           const SubDomainGroup &group,
+  DomainId(const PoolId &scope, const SubDomainGroup &group,
            const SubDomainMinor &minor) {
     scope_ = scope;
     sub_id_ = {group, minor};
@@ -403,7 +392,7 @@ struct DomainId {
   }
 
   /** Copy assignment */
-  DomainId& operator=(const DomainId &other) {
+  DomainId &operator=(const DomainId &other) {
     scope_ = other.scope_;
     sub_id_ = other.sub_id_;
     return *this;
@@ -416,14 +405,14 @@ struct DomainId {
   }
 
   /** Move assignment */
-  DomainId& operator=(DomainId &&other) noexcept {
+  DomainId &operator=(DomainId &&other) noexcept {
     scope_ = other.scope_;
     sub_id_ = other.sub_id_;
     return *this;
   }
 
   /** Serialization */
-  template<typename Ar>
+  template <typename Ar>
   void serialize(Ar &ar) {
     ar(scope_, sub_id_);
   }
@@ -434,13 +423,10 @@ struct DomainId {
   }
 
   /** Hash function */
-  size_t Hash() const {
-    return scope_.Hash() + sub_id_.Hash();
-  }
+  size_t Hash() const { return scope_.Hash() + sub_id_.Hash(); }
 
   /** Print operator */
-  friend std::ostream& operator<<(std::ostream &os,
-                                  const DomainId &subdom_id) {
+  friend std::ostream &operator<<(std::ostream &os, const DomainId &subdom_id) {
     return os << subdom_id.scope_ << "." << subdom_id.sub_id_;
   }
 };
@@ -456,7 +442,7 @@ union DomainSelection {
   u64 int_;
 
   /** Serialization */
-  template<typename Ar>
+  template <typename Ar>
   void serialize(Ar &ar) {
     ar(int_);
   }
@@ -468,10 +454,7 @@ union DomainSelection {
 };
 
 /** Operations that can be performed on a domain */
-enum class UpdateDomainOp {
-  kContract,
-  kExpand
-};
+enum class UpdateDomainOp { kContract, kExpand };
 
 /** Subdomain ID range */
 struct SubDomainIdRange {
@@ -496,7 +479,7 @@ struct SubDomainIdRange {
   }
 
   /** Copy assignment */
-  SubDomainIdRange& operator=(const SubDomainIdRange &other) {
+  SubDomainIdRange &operator=(const SubDomainIdRange &other) {
     if (this != &other) {
       group_ = other.group_;
       off_ = other.off_;
@@ -513,7 +496,7 @@ struct SubDomainIdRange {
   }
 
   /** Move assignment */
-  SubDomainIdRange& operator=(SubDomainIdRange &&other) noexcept {
+  SubDomainIdRange &operator=(SubDomainIdRange &&other) noexcept {
     if (this != &other) {
       group_ = other.group_;
       off_ = other.off_;
@@ -523,7 +506,7 @@ struct SubDomainIdRange {
   }
 
   /** Serialization */
-  template<typename Ar>
+  template <typename Ar>
   void serialize(Ar &ar) {
     ar(group_, off_, count_);
   }
@@ -535,7 +518,7 @@ struct UpdateDomainInfo {
   UpdateDomainOp op_;
   SubDomainIdRange range_;
 
-  template<typename Ar>
+  template <typename Ar>
   void serialize(Ar &ar) {
     ar(domain_id_, op_, range_);
   }
@@ -548,47 +531,36 @@ typedef u32 DomainFlag;
  * Represents the scheduling domain of a task.
  * */
 struct DomainQuery {
-  bitfield<DomainFlag> flags_;  /**< Flags */
-  SubDomainGroup sub_id_;       /**< The subdomain to query */
-  DomainSelection sel_;  /**< The subset of the subdomain to query */
+  bitfield<DomainFlag> flags_; /**< Flags */
+  SubDomainGroup sub_id_;      /**< The subdomain to query */
+  DomainSelection sel_;        /**< The subset of the subdomain to query */
 
   /** Range flags */
-  CLS_CONST DomainFlag kLocal =
-      BIT_OPT(DomainFlag, 1);
-  CLS_CONST DomainFlag kDirect =
-      BIT_OPT(DomainFlag, 2);
-  CLS_CONST DomainFlag kGlobal =
-      BIT_OPT(DomainFlag, 3);
+  CLS_CONST DomainFlag kLocal = BIT_OPT(DomainFlag, 1);
+  CLS_CONST DomainFlag kDirect = BIT_OPT(DomainFlag, 2);
+  CLS_CONST DomainFlag kGlobal = BIT_OPT(DomainFlag, 3);
 
   /** Selection flags */
-  CLS_CONST DomainFlag kId =
-      BIT_OPT(DomainFlag, 4);
-  CLS_CONST DomainFlag kHash =
-      BIT_OPT(DomainFlag, 5);
-  CLS_CONST DomainFlag kRange =
-      BIT_OPT(DomainFlag, 6);
+  CLS_CONST DomainFlag kId = BIT_OPT(DomainFlag, 4);
+  CLS_CONST DomainFlag kHash = BIT_OPT(DomainFlag, 5);
+  CLS_CONST DomainFlag kRange = BIT_OPT(DomainFlag, 6);
 
   /** Iteration algos */
-  CLS_CONST DomainFlag kBroadcast =
-      BIT_OPT(DomainFlag, 15);
-  CLS_CONST DomainFlag kRepUntilSuccess =
-      BIT_OPT(DomainFlag, 18);
-  CLS_CONST DomainFlag kChooseOne =
-      BIT_OPT(DomainFlag, 19);
-  CLS_CONST DomainFlag kForwardToLeader =
-      BIT_OPT(DomainFlag, 17);
+  CLS_CONST DomainFlag kBroadcast = BIT_OPT(DomainFlag, 15);
+  CLS_CONST DomainFlag kRepUntilSuccess = BIT_OPT(DomainFlag, 18);
+  CLS_CONST DomainFlag kChooseOne = BIT_OPT(DomainFlag, 19);
+  CLS_CONST DomainFlag kForwardToLeader = BIT_OPT(DomainFlag, 17);
 
   /** Serialize domain id */
-  template<typename Ar>
+  template <typename Ar>
   void serialize(Ar &ar) {
     ar(flags_, sub_id_, sel_);
   }
 
   /** Get iteration flags */
   DomainFlag GetIterFlags() const {
-    return flags_.bits_ & (kBroadcast |
-                           kRepUntilSuccess | kChooseOne |
-                           kForwardToLeader);
+    return flags_.bits_ &
+           (kBroadcast | kRepUntilSuccess | kChooseOne | kForwardToLeader);
   }
 
   /** Default constructor. */
@@ -605,7 +577,7 @@ struct DomainQuery {
 
   /** Copy operator */
   HSHM_INLINE
-  DomainQuery& operator=(const DomainQuery &other) {
+  DomainQuery &operator=(const DomainQuery &other) {
     if (this != &other) {
       flags_ = other.flags_;
       sub_id_ = other.sub_id_;
@@ -624,7 +596,7 @@ struct DomainQuery {
 
   /** Move operator */
   HSHM_INLINE
-  DomainQuery& operator=(DomainQuery &&other) noexcept {
+  DomainQuery &operator=(DomainQuery &&other) noexcept {
     if (this != &other) {
       flags_ = other.flags_;
       sub_id_ = other.sub_id_;
@@ -636,9 +608,8 @@ struct DomainQuery {
   /** Equality operator */
   HSHM_INLINE
   bool operator==(const DomainQuery &other) const {
-    return flags_.bits_ == other.flags_.bits_ &&
-        sub_id_ == other.sub_id_ &&
-        sel_ == other.sel_;
+    return flags_.bits_ == other.flags_.bits_ && sub_id_ == other.sub_id_ &&
+           sel_ == other.sel_;
   }
 
   /** Get the local node domain */
@@ -667,8 +638,7 @@ struct DomainQuery {
    * @param sub_id The subdomain to query
    * @param iter_flags The iteration flags to set (e.g., kBroadcast)
    * */
-  static DomainQuery GetRange(const SubDomainGroup &sub_id,
-                              u32 off, u32 count,
+  static DomainQuery GetRange(const SubDomainGroup &sub_id, u32 off, u32 count,
                               u32 iter_flags) {
     DomainQuery query;
     query.flags_.SetBits(kGlobal | kRange | iter_flags);
@@ -697,7 +667,7 @@ struct DomainQuery {
    * @param flags The iteration flags to set (e.g., kBroadcast)
    * */
   static DomainQuery GetDirectId(const SubDomainGroup &sub_id, u32 id,
-                                   u32 iter_flags = kChooseOne) {
+                                 u32 iter_flags = kChooseOne) {
     DomainQuery query;
     query.flags_.SetBits(kDirect | kId | iter_flags);
     query.sub_id_ = sub_id;
@@ -722,15 +692,13 @@ struct DomainQuery {
 
   /** Hash function */
   size_t Hash() const {
-      return
-        std::hash<DomainFlag>{}(flags_.bits_) +
-        std::hash<SubDomainGroup>{}(sub_id_) +
-        std::hash<u64>{}(sel_.int_);
+    return std::hash<DomainFlag>{}(flags_.bits_) +
+           std::hash<SubDomainGroup>{}(sub_id_) + std::hash<u64>{}(sel_.int_);
   }
 
   /** Print operator */
-  friend std::ostream& operator<<(std::ostream &os,
-      const DomainQuery &dom_query) {
+  friend std::ostream &operator<<(std::ostream &os,
+                                  const DomainQuery &dom_query) {
     // Get scope string
     std::string scope;
     if (dom_query.flags_.Any(kLocal)) {
@@ -795,12 +763,11 @@ struct ResolvedDomainQuery {
   /** Emplace constructor */
   HSHM_INLINE
   ResolvedDomainQuery(NodeId node, const DomainQuery &dom)
-  : node_(node), dom_(dom) {}
+      : node_(node), dom_(dom) {}
 
   /** Emplace constructor (2) */
   HSHM_INLINE
-  ResolvedDomainQuery(NodeId node)
-  : node_(node) {}
+  ResolvedDomainQuery(NodeId node) : node_(node) {}
 
   /** Copy constructor */
   HSHM_INLINE
@@ -811,7 +778,7 @@ struct ResolvedDomainQuery {
 
   /** Copy assignment */
   HSHM_INLINE
-  ResolvedDomainQuery& operator=(const ResolvedDomainQuery &other) {
+  ResolvedDomainQuery &operator=(const ResolvedDomainQuery &other) {
     if (this != &other) {
       node_ = other.node_;
       dom_ = other.dom_;
@@ -828,7 +795,7 @@ struct ResolvedDomainQuery {
 
   /** Move assignment */
   HSHM_INLINE
-  ResolvedDomainQuery& operator=(ResolvedDomainQuery &&other) noexcept {
+  ResolvedDomainQuery &operator=(ResolvedDomainQuery &&other) noexcept {
     if (this != &other) {
       node_ = other.node_;
       dom_ = other.dom_;
@@ -837,13 +804,13 @@ struct ResolvedDomainQuery {
   }
 
   /** Print operator */
-  friend std::ostream& operator<<(
-      std::ostream &os, const ResolvedDomainQuery &id) {
+  friend std::ostream &operator<<(std::ostream &os,
+                                  const ResolvedDomainQuery &id) {
     return os << std::to_string(id.node_) << " / " << id.dom_;
   }
 
   /** Serialize */
-  template<typename Ar>
+  template <typename Ar>
   void serialize(Ar &ar) {
     ar(node_, dom_);
   }
@@ -857,25 +824,15 @@ class CacheTimer {
   size_t net_ns_ = 0;
 
  public:
-  CacheTimer() {
-    timer_.Now();
-  }
+  CacheTimer() { timer_.Now(); }
 
-  void Wrap(CacheTimer &other) {
-    cur_ns_ = other.cur_ns_;
-  }
+  void Wrap(CacheTimer &other) { cur_ns_ = other.cur_ns_; }
 
-  void Refresh() {
-    cur_ns_ = timer_.GetNsecFromStart();
-  }
+  void Refresh() { cur_ns_ = timer_.GetNsecFromStart(); }
 
-  void Tick(size_t nanosec) {
-    cur_ns_ += nanosec;
-  }
+  void Tick(size_t nanosec) { cur_ns_ += nanosec; }
 
-  size_t GetNsecFromStart() {
-    return cur_ns_ - start_ns_;
-  }
+  size_t GetNsecFromStart() { return cur_ns_ - start_ns_; }
 
   size_t GetNsecFromStart(size_t start) {
     if (start < cur_ns_) {
@@ -884,13 +841,9 @@ class CacheTimer {
     return 0;
   }
 
-  size_t GetNsec() {
-    return net_ns_;
-  }
+  size_t GetNsec() { return net_ns_; }
 
-  void Resume() {
-    start_ns_ = cur_ns_;
-  }
+  void Resume() { start_ns_ = cur_ns_; }
 
   void Pause() {
     net_ns_ += cur_ns_ - start_ns_;
@@ -917,7 +870,7 @@ struct hash<chi::UniqueId<TYPE>> {
 };
 
 /** Hash function for SubDomainId */
-template<>
+template <>
 struct hash<chi::SubDomainId> {
   HSHM_INLINE
   std::size_t operator()(const chi::SubDomainId &key) const {
@@ -926,16 +879,14 @@ struct hash<chi::SubDomainId> {
 };
 
 /** Hash function for DomainId */
-template<>
+template <>
 struct hash<chi::DomainId> {
   HSHM_INLINE
-  std::size_t operator()(const chi::DomainId &key) const {
-    return key.Hash();
-  }
+  std::size_t operator()(const chi::DomainId &key) const { return key.Hash(); }
 };
 
 /** Hash function for DomainQuery */
-template<>
+template <>
 struct hash<chi::DomainQuery> {
   HSHM_INLINE
   std::size_t operator()(const chi::DomainQuery &key) const {

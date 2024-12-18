@@ -83,6 +83,7 @@ bool PrivateTaskMultiQueue::push(const FullPtr<Task> &task) {
     }
     // Find the lane
     chi::Lane *chi_lane = exec->Route(task.ptr_);
+    rctx.exec_ = exec;
     rctx.route_container_ = container_id;
     rctx.route_lane_ = chi_lane->lane_id_;
     rctx.worker_id_ = id_;
@@ -108,9 +109,6 @@ bool PrivateTaskMultiQueue::push(const FullPtr<Task> &task) {
 hshm::qtok_t Lane::push(const FullPtr<Task> &task) {
   Worker &worker = CHI_WORK_ORCHESTRATOR->GetWorker(worker_id_);
   hshm::qtok_t ret = active_tasks_.push(task);
-  if (ret.IsNull()) {
-    active_tasks_.resize(active_tasks_.GetDepth() * 2);
-  }
   size_t dup = count_.fetch_add(1);
   if (dup == 0) {
     worker.RequestLane(this);
@@ -271,6 +269,7 @@ void Worker::Run(bool flushing) {
   for (size_t i = 0; i < 8192; ++i) {
     IngestProcLanes(flushing);
     PollPrivateLaneMultiQueue(active_.active_lanes_.GetLowLatency(), flushing);
+    PollTempQueue<false>(active_.GetFail(), flushing);
   }
   PollPrivateLaneMultiQueue(active_.active_lanes_.GetHighLatency(), flushing);
   PollTempQueue<false>(active_.GetFail(), flushing);
@@ -371,22 +370,18 @@ bool Worker::RunTask(FullPtr<Task> &task, bool flushing) {
   RunContext &rctx = task->rctx_;
   rctx.worker_props_ = props;
   rctx.flush_ = &flush_;
-  // Get the task container
-  Container *exec =
-      CHI_MOD_REGISTRY->GetContainer(task->pool_, rctx.route_container_);
   // Run the task
   if (!task->IsModuleComplete()) {
     // Make this task current
     cur_task_ = task.ptr_;
     // Execute the task based on its properties
-    rctx.exec_ = exec;
-    ExecTask(task, rctx, exec, props);
+    ExecTask(task, rctx, rctx.exec_, props);
   }
   // Cleanup allocations
   bool pushback = true;
   if (task->IsModuleComplete()) {
     pushback = false;
-    EndTask(exec, task, rctx);
+    EndTask(rctx.exec_, task, rctx);
   } else if (task->IsBlocked()) {
     pushback = false;
   }
@@ -407,29 +402,8 @@ void Worker::ExecTask(FullPtr<Task> &task, RunContext &rctx, Container *&exec,
       flush_.count_ += 1;
     }
   }
-  // Activate task
-  if (!task->IsStarted()) {
-    if (ShouldSample()) {
-      task->SetShouldSample();
-      rctx.timer_.Reset();
-    }
-  }
   // Execute + monitor the task
-  if (task->ShouldSample()) {
-    rctx.timer_.Resume();
-    ExecCoroutine(task.ptr_, rctx);
-    rctx.timer_.Pause();
-  } else {
-    ExecCoroutine(task.ptr_, rctx);
-  }
-  load_nsec_ += rctx.load_.cpu_load_ + 1;
-  // Deactivate task and monitor
-  if (!task->IsStarted()) {
-    if (task->ShouldSample()) {
-      exec->Monitor(MonitorMode::kSampleLoad, task->method_, task.ptr_, rctx);
-      task->UnsetShouldSample();
-    }
-  }
+  ExecCoroutine(task.ptr_, rctx);
   // Block the task
   if (task->IsBlocked()) {
     CHI_WORK_ORCHESTRATOR->Block(task.ptr_, rctx);

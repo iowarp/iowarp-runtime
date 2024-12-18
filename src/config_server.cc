@@ -10,14 +10,17 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
+#include "chimaera/config/config_server.h"
+
 #include <string.h>
 #include <yaml-cpp/yaml.h>
+
 #include <ostream>
-#include "hermes_shm/util/logging.h"
-#include "hermes_shm/util/config_parse.h"
+
 #include "chimaera/config/config.h"
-#include "chimaera/config/config_server.h"
 #include "chimaera/config/config_server_default.h"
+#include "hermes_shm/util/config_parse.h"
+#include "hermes_shm/util/logging.h"
 
 namespace chi::config {
 
@@ -52,9 +55,6 @@ void ServerConfig::ParseQueueManager(YAML::Node yaml_conf) {
   if (yaml_conf["max_queues"]) {
     queue_manager_.max_queues_ = yaml_conf["max_queues"].as<size_t>();
   }
-  if (yaml_conf["shm_allocator"]) {
-    queue_manager_.shm_allocator_ = yaml_conf["shm_allocator"].as<std::string>();
-  }
   if (yaml_conf["shm_name"]) {
     queue_manager_.shm_name_ =
         hshm::ConfigParse::ExpandPath(yaml_conf["shm_name"].as<std::string>());
@@ -64,8 +64,8 @@ void ServerConfig::ParseQueueManager(YAML::Node yaml_conf) {
         hshm::ConfigParse::ExpandPath(queue_manager_.shm_name_ + "_rdata");
   }
   if (yaml_conf["shm_size"]) {
-    queue_manager_.shm_size_ = hshm::ConfigParse::ParseSize(
-        yaml_conf["shm_size"].as<std::string>());
+    queue_manager_.shm_size_ =
+        hshm::ConfigParse::ParseSize(yaml_conf["shm_size"].as<std::string>());
   }
   if (yaml_conf["data_shm_size"]) {
     queue_manager_.data_shm_size_ = hshm::ConfigParse::ParseSize(

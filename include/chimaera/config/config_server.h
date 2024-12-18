@@ -13,8 +13,8 @@
 #ifndef CHI_SRC_CONFIG_SERVER_H_
 #define CHI_SRC_CONFIG_SERVER_H_
 
-#include "config.h"
 #include "chimaera/chimaera_types.h"
+#include "config.h"
 
 namespace chi::config {
 
@@ -44,8 +44,6 @@ struct QueueManagerInfo {
   u32 max_containers_pn_;
   /** Maximum number of allocatable IPC queues */
   u32 max_queues_;
-  /** Shared memory allocator */
-  std::string shm_allocator_;
   /** Shared memory region name */
   std::string shm_name_;
   /** Shared memory region size */

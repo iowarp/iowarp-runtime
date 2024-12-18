@@ -135,18 +135,18 @@ void Runtime::InitSharedMemory() {
   // Create general allocator
   mem_mngr->CreateBackend<hipc::PosixShmMmap>(hipc::MemoryBackendId(0),
                                               qm.shm_size_, qm.shm_name_);
-  main_alloc_ = mem_mngr->CreateAllocator<hipc::ScalablePageAllocator>(
+  main_alloc_ = mem_mngr->CreateAllocator<CHI_ALLOC_T>(
       hipc::MemoryBackendId(0), main_alloc_id_, sizeof(ChiShm));
   header_ = main_alloc_->GetCustomHeader<ChiShm>();
   // Create separate data allocator
   mem_mngr->CreateBackend<hipc::PosixShmMmap>(
       hipc::MemoryBackendId(1), qm.data_shm_size_, qm.data_shm_name_);
-  data_alloc_ = mem_mngr->CreateAllocator<hipc::ScalablePageAllocator>(
-      hipc::MemoryBackendId(1), data_alloc_id_, 0);
+  data_alloc_ = mem_mngr->CreateAllocator<CHI_ALLOC_T>(hipc::MemoryBackendId(1),
+                                                       data_alloc_id_, 0);
   // Create separate runtime data allocator
   mem_mngr->CreateBackend<hipc::PosixShmMmap>(
       hipc::MemoryBackendId(2), qm.rdata_shm_size_, qm.rdata_shm_name_);
-  rdata_alloc_ = mem_mngr->CreateAllocator<hipc::ScalablePageAllocator>(
+  rdata_alloc_ = mem_mngr->CreateAllocator<CHI_ALLOC_T>(
       hipc::MemoryBackendId(2), rdata_alloc_id_, 0);
 
   auto *test = HERMES_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(main_alloc_id_);
