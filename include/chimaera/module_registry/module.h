@@ -58,6 +58,7 @@ class Lane : public hipc::list_queue_entry {
 
 #ifdef CHIMAERA_RUNTIME
   /** Push a task  */
+  template <bool NO_COUNT>
   hshm::qtok_t push(const FullPtr<Task> &task);
 
   /** Say we are about to pop a set of tasks */

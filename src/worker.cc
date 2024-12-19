@@ -54,7 +54,7 @@ bool PrivateTaskMultiQueue::push(const FullPtr<Task> &task) {
       return !GetFail().push(task).IsNull();
     }
     chi::Lane *chi_lane = exec->GetLane(rctx.route_lane_);
-    chi_lane->push(task);
+    chi_lane->push<false>(task);
     HLOG(kDebug, kWorkerDebug, "[TASK_CHECK] (node {}) Pushing task {}",
          CHI_CLIENT->node_id_, (void *)task.ptr_);
     return true;
@@ -88,7 +88,7 @@ bool PrivateTaskMultiQueue::push(const FullPtr<Task> &task) {
     rctx.route_lane_ = chi_lane->lane_id_;
     rctx.worker_id_ = chi_lane->worker_id_;
     task->SetRouted();
-    chi_lane->push(task);
+    chi_lane->push<false>(task);
     HLOG(kDebug, kWorkerDebug, "[TASK_CHECK] (node {}) Pushing task {}",
          CHI_CLIENT->node_id_, (void *)task.ptr_);
   } else {
@@ -106,12 +106,15 @@ bool PrivateTaskMultiQueue::push(const FullPtr<Task> &task) {
  * Lanes
  * =============================================================== */
 /** Push a task  */
+template <bool NO_COUNT>
 hshm::qtok_t Lane::push(const FullPtr<Task> &task) {
   Worker &worker = CHI_WORK_ORCHESTRATOR->GetWorker(worker_id_);
   hshm::qtok_t ret = active_tasks_.push(task);
-  size_t dup = count_.fetch_add(1);
-  if (dup == 0) {
-    worker.RequestLane(this);
+  if constexpr (!NO_COUNT) {
+    size_t dup = count_.fetch_add(1);
+    if (dup == 0) {
+      worker.RequestLane(this);
+    }
   }
   return ret;
 }
@@ -343,7 +346,7 @@ size_t Worker::PollPrivateLaneMultiQueue(PrivateLaneQueue &lanes,
         }
         bool pushback = RunTask(task, flushing);
         if (pushback) {
-          chi_lane->push(task);
+          chi_lane->push<true>(task);
         } else {
           ++lane_size;
         }
