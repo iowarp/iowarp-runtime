@@ -336,7 +336,7 @@ size_t Worker::PollPrivateLaneMultiQueue(PrivateLaneQueue &lanes,
       // Poll each task in the lane
       size_t max_lane_size = chi_lane->size();
       size_t lane_size = 0;
-      for (; lane_size < max_lane_size; ++lane_size) {
+      for (size_t i = 0; i < max_lane_size; ++i) {
         FullPtr<Task> task;
         if (chi_lane->pop(task).IsNull()) {
           break;
@@ -344,6 +344,8 @@ size_t Worker::PollPrivateLaneMultiQueue(PrivateLaneQueue &lanes,
         bool pushback = RunTask(task, flushing);
         if (pushback) {
           chi_lane->push(task);
+        } else {
+          ++lane_size;
         }
         ++work;
       }
