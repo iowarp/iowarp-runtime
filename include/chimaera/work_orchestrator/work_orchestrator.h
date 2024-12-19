@@ -169,7 +169,7 @@ class WorkOrchestrator {
   /** Get currently-executing task */
   Task *GetCurrentTask() {
     Worker *worker = GetCurrentWorker();
-    if (worker == nullptr) {
+    if (worker == null_worker_.get()) {
       return nullptr;
     }
     return worker->cur_task_;
@@ -178,7 +178,7 @@ class WorkOrchestrator {
   /** Get the currently-executing lane */
   Lane *GetCurrentLane() {
     Worker *worker = GetCurrentWorker();
-    if (worker == nullptr) {
+    if (worker == null_worker_.get()) {
       return nullptr;
     }
     return worker->cur_lane_;

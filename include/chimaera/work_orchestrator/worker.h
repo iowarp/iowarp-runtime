@@ -132,7 +132,8 @@ namespace chi {
 class WorkOrchestrator;
 
 typedef chi::mpsc_ptr_queue<TaskPointer> PrivateTaskQueue;
-typedef chi::mpsc_lifo_list_queue<chi::Lane> PrivateLaneQueue;
+// typedef chi::mpsc_lifo_list_queue<chi::Lane> PrivateLaneQueue;
+typedef chi::mpsc_queue<chi::Lane *> PrivateLaneQueue;
 
 class PrivateLaneMultiQueue {
  public:
@@ -142,8 +143,8 @@ class PrivateLaneMultiQueue {
   void request(chi::Lane *lane) { active_[lane->prio_].push(lane); }
 
   void resize(size_t new_depth) {
-    // active_[0].resize(new_depth);
-    // active_[1].resize(new_depth);
+    active_[0].resize(new_depth);
+    active_[1].resize(new_depth);
   }
 
   PrivateLaneQueue &GetLowLatency() { return active_[TaskPrio::kLowLatency]; }

@@ -20,6 +20,7 @@
 #include "chimaera/queue_manager/queue_manager_runtime.h"
 #include "chimaera/work_orchestrator/affinity.h"
 #include "chimaera/work_orchestrator/work_orchestrator.h"
+#include "hermes_shm/util/timer.h"
 
 namespace chi {
 
@@ -49,11 +50,11 @@ bool PrivateTaskMultiQueue::push(const FullPtr<Task> &task) {
   if (task->IsRouted()) {
     // CASE 2: The task is already routed, just push it
     Container *exec =
-        CHI_MOD_REGISTRY->GetContainer(task->pool_, rctx.route_container_);
+        CHI_MOD_REGISTRY->GetContainer(task->pool_, rctx.route_container_id_);
     if (!exec || !exec->is_created_) {
       return !GetFail().push(task).IsNull();
     }
-    chi::Lane *chi_lane = exec->GetLane(rctx.route_lane_);
+    chi::Lane *chi_lane = rctx.route_lane_;
     chi_lane->push<false>(task);
     HLOG(kDebug, kWorkerDebug, "[TASK_CHECK] (node {}) Pushing task {}",
          CHI_CLIENT->node_id_, (void *)task.ptr_);
@@ -84,8 +85,8 @@ bool PrivateTaskMultiQueue::push(const FullPtr<Task> &task) {
     // Find the lane
     chi::Lane *chi_lane = exec->Route(task.ptr_);
     rctx.exec_ = exec;
-    rctx.route_container_ = container_id;
-    rctx.route_lane_ = chi_lane->lane_id_;
+    rctx.route_container_id_ = container_id;
+    rctx.route_lane_ = chi_lane;
     rctx.worker_id_ = chi_lane->worker_id_;
     task->SetRouted();
     chi_lane->push<false>(task);
@@ -109,13 +110,19 @@ bool PrivateTaskMultiQueue::push(const FullPtr<Task> &task) {
 template <bool NO_COUNT>
 hshm::qtok_t Lane::push(const FullPtr<Task> &task) {
   Worker &worker = CHI_WORK_ORCHESTRATOR->GetWorker(worker_id_);
-  hshm::qtok_t ret = active_tasks_.push(task);
   if constexpr (!NO_COUNT) {
     size_t dup = count_.fetch_add(1);
     if (dup == 0) {
+      HLOG(kDebug, kWorkerDebug,
+           "Requesting lane {} with count {} with task {}", this, dup,
+           task.ptr_);
       worker.RequestLane(this);
+    } else {
+      HLOG(kDebug, kWorkerDebug, "Skipping lane {} with count {} with task {}",
+           this, dup, task.ptr_);
     }
   }
+  hshm::qtok_t ret = active_tasks_.push(task);
   return ret;
 }
 
@@ -123,7 +130,13 @@ hshm::qtok_t Lane::push(const FullPtr<Task> &task) {
 size_t Lane::pop_prep(size_t count) { return count_.fetch_sub(count) - count; }
 
 /** Pop a task */
-hshm::qtok_t Lane::pop(FullPtr<Task> &task) { return active_tasks_.pop(task); }
+hshm::qtok_t Lane::pop(FullPtr<Task> &task) {
+  hshm::qtok_t ret = active_tasks_.pop(task);
+  if (!ret.IsNull() && !task->IsLongRunning()) {
+    HLOG(kDebug, kWorkerDebug, "Popping task {} from {}", task.ptr_, this);
+  }
+  return ret;
+}
 
 /**===============================================================
  * Initialize Worker
@@ -231,7 +244,7 @@ void Worker::Loop() {
   if (IsContinuousPolling()) {
     MakeDedicated();
   }
-  HILOG(kDebug, "Entered worker {}", id_);
+  HLOG(kDebug, kWorkerDebug, "Entered worker {}", id_);
   WorkOrchestrator *orch = CHI_WORK_ORCHESTRATOR;
   cur_time_.Refresh();
   while (orch->IsAlive()) {
@@ -328,6 +341,18 @@ size_t Worker::PollPrivateLaneMultiQueue(PrivateLaneQueue &lanes,
                                          bool flushing) {
   size_t work = 0;
   size_t num_lanes = lanes.size();
+  // HSHM_PERIODIC(0)->Run(SECONDS(1), [&] {
+  //   size_t num_lanes = lanes.size();
+  //   for (size_t lane_off = 0; lane_off < num_lanes; ++lane_off) {
+  //     chi::Lane *chi_lane;
+  //     if (lanes.pop(chi_lane).IsNull()) {
+  //       break;
+  //     }
+  //     HLOG(kDebug, kWorkerDebug, "Polling lane {} with {} tasks", chi_lane,
+  //           chi_lane->size());
+  //     lanes.push(chi_lane);
+  //   }
+  // });
   if (num_lanes) {
     for (size_t lane_off = 0; lane_off < num_lanes; ++lane_off) {
       // Get the lane and make it current
@@ -336,26 +361,40 @@ size_t Worker::PollPrivateLaneMultiQueue(PrivateLaneQueue &lanes,
         break;
       }
       cur_lane_ = chi_lane;
+      if (cur_lane_ == nullptr) {
+        HELOG(kFatal, "Lane is null, should never happen");
+      }
       // Poll each task in the lane
       size_t max_lane_size = chi_lane->size();
-      size_t lane_size = 0;
-      for (size_t i = 0; i < max_lane_size; ++i) {
+      if (max_lane_size == 0) {
+        HLOG(kDebug, kWorkerDebug, "Lane has no tasks {}", chi_lane);
+      }
+      size_t done_tasks = 0;
+      for (; max_lane_size > 0; --max_lane_size) {
         FullPtr<Task> task;
         if (chi_lane->pop(task).IsNull()) {
+          HLOG(kDebug, kWorkerDebug, "Lane has no tasks {}", chi_lane);
           break;
         }
         bool pushback = RunTask(task, flushing);
         if (pushback) {
           chi_lane->push<true>(task);
         } else {
-          ++lane_size;
+          ++done_tasks;
         }
         ++work;
       }
       // If the lane still has tasks, push it back
-      size_t after_size = chi_lane->pop_prep(lane_size);
+      size_t after_size = chi_lane->pop_prep(done_tasks);
       if (after_size > 0) {
         lanes.push(chi_lane);
+        if (done_tasks > 0) {
+          HLOG(kDebug, kWorkerDebug, "Requeuing lane {} with count {}",
+               chi_lane, after_size);
+        }
+      } else {
+        HLOG(kDebug, kWorkerDebug, "Dequeuing lane {} with count {}", chi_lane,
+             chi_lane->size());
       }
     }
   }
@@ -366,7 +405,7 @@ size_t Worker::PollPrivateLaneMultiQueue(PrivateLaneQueue &lanes,
 bool Worker::RunTask(FullPtr<Task> &task, bool flushing) {
 #ifdef HSHM_DEBUG
   if (!task->IsLongRunning()) {
-    HELOG(kDebug, "");
+    HLOG(kDebug, kWorkerDebug, "");
   }
 #endif
   // Get task properties
@@ -441,6 +480,10 @@ void Worker::CoroutineEntry(bctx::transfer_t t) {
   RunContext &rctx = *reinterpret_cast<RunContext *>(t.data);
   Task *task = rctx.co_task_;
   Container *&exec = rctx.exec_;
+  chi::Lane *chi_lane = CHI_CUR_LANE;
+  if (chi_lane == nullptr) {
+    HELOG(kFatal, "Lane is null, should never happen");
+  }
   rctx.jmp_ = t;
   exec->Run(task->method_, task, rctx);
   task->UnsetStarted();

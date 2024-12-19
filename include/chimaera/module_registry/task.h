@@ -23,6 +23,7 @@ template <typename DataT = hshm::charwrap>
 using LocalSerialize = hipc::LocalSerialize<DataT>;
 
 class Module;
+class Lane;
 
 /** This task reads a state */
 #define TASK_READ BIT_OPT(u32, 0)
@@ -319,8 +320,8 @@ struct RunContext {
   size_t ret_task_addr_;
   NodeId ret_node_;
   hipc::atomic<ssize_t> block_count_;
-  ContainerId route_container_;
-  QueueId route_lane_;
+  ContainerId route_container_id_;
+  chi::Lane *route_lane_;
   Load load_;
 };
 

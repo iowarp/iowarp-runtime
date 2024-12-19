@@ -36,6 +36,7 @@
 #undef HSHM_DEFAULT_THREAD_MODEL
 #endif
 
+// #define HSHM_DEFAULT_ALLOC_T hipc::ScalablePageAllocator
 #define HSHM_DEFAULT_ALLOC_T hipc::ThreadLocalAllocator
 #define CHI_ALLOC_T HSHM_DEFAULT_ALLOC_T
 
@@ -73,11 +74,6 @@ typedef int32_t i32;  /**< 32-bit signed integer */
 typedef int64_t i64;  /**< 64-bit signed integer */
 typedef float f32;    /**< 32-bit float */
 typedef double f64;   /**< 64-bit float */
-
-#define NANOSECONDS(X) ((size_t)(X))
-#define MICROSECONDS(X) (NANOSECONDS(X) * 1000)
-#define MILLISECONDS(X) (NANOSECONDS(X) * 1000000)
-#define SECONDS(X) (NANOSECONDS(X) * 1000000000)
 
 HSHM_DATA_STRUCTURES_TEMPLATE(chi, CHI_ALLOC_T);
 

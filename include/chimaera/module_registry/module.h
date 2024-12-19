@@ -39,6 +39,7 @@ class Lane : public hipc::list_queue_entry {
   size_t lane_req_;
   // TODO(llogan): This doesn't preserve task order
   chi::mpsc_lifo_list_queue<Task> active_tasks_;
+  // chi::mpsc_queue<TaskPointer> active_tasks_;
   hipc::atomic<size_t> count_;
 
  public:
@@ -53,6 +54,17 @@ class Lane : public hipc::list_queue_entry {
         prio_(prio) {
     plug_count_ = 0;
     count_ = 0;
+    // active_tasks_.resize(8192);
+  }
+
+  /** Copy constructor */
+  Lane(const Lane &lane) {
+    lane_id_ = lane.lane_id_;
+    ingress_id_ = lane.ingress_id_;
+    worker_id_ = lane.worker_id_;
+    load_ = lane.load_;
+    plug_count_ = lane.plug_count_.load();
+    prio_ = lane.prio_;
     // active_tasks_.resize(64);
   }
 
@@ -68,17 +80,7 @@ class Lane : public hipc::list_queue_entry {
   hshm::qtok_t pop(FullPtr<Task> &task);
 #endif
 
-  size_t size() { return active_tasks_.size(); }
-
-  /** Copy constructor */
-  Lane(const Lane &lane) {
-    lane_id_ = lane.lane_id_;
-    ingress_id_ = lane.ingress_id_;
-    worker_id_ = lane.worker_id_;
-    load_ = lane.load_;
-    plug_count_ = lane.plug_count_.load();
-    prio_ = lane.prio_;
-  }
+  size_t size() { return count_.load(); }
 
   bool IsPlugged() { return plug_count_ > 0; }
 
