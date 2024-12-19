@@ -86,7 +86,7 @@ bool PrivateTaskMultiQueue::push(const FullPtr<Task> &task) {
     rctx.exec_ = exec;
     rctx.route_container_ = container_id;
     rctx.route_lane_ = chi_lane->lane_id_;
-    rctx.worker_id_ = id_;
+    rctx.worker_id_ = chi_lane->worker_id_;
     task->SetRouted();
     chi_lane->push(task);
     HLOG(kDebug, kWorkerDebug, "[TASK_CHECK] (node {}) Pushing task {}",
