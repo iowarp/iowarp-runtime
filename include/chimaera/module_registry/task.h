@@ -646,9 +646,11 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
   template <typename TaskT>
   void Wait(std::vector<FullPtr<TaskT>> &subtasks, u32 flags = TASK_COMPLETE) {
 #ifdef CHIMAERA_RUNTIME
-    SetBlocked(subtasks.size());
-    Yield();
-    UnsetBlocked();
+    if (!subtasks.empty()) {
+      SetBlocked(subtasks.size());
+      Yield();
+      UnsetBlocked();
+    }
 #else
     for (FullPtr<TaskT> &subtask : subtasks) {
       while (!subtask->task_flags_.All(flags)) {
@@ -661,9 +663,11 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
   /** This task waits for subtask to complete */
   void Wait(Task **subtasks, size_t count, u32 flags = TASK_COMPLETE) {
 #ifdef CHIMAERA_RUNTIME
-    SetBlocked(count);
-    Yield();
-    UnsetBlocked();
+    if (count) {
+      SetBlocked(count);
+      Yield();
+      UnsetBlocked();
+    }
 #else
     for (size_t i = 0; i < count; ++i) {
       while (!subtasks[i]->task_flags_.All(flags)) {

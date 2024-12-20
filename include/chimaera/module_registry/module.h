@@ -38,8 +38,8 @@ class Lane : public hipc::list_queue_entry {
   std::atomic<size_t> plug_count_;
   size_t lane_req_;
   // TODO(llogan): This doesn't preserve task order
-  chi::mpsc_lifo_list_queue<Task> active_tasks_;
-  // chi::mpsc_queue<TaskPointer> active_tasks_;
+  // chi::mpsc_lifo_list_queue<Task> active_tasks_;
+  chi::mpsc_queue<TaskPointer> active_tasks_;
   hipc::atomic<size_t> count_;
 
  public:
@@ -55,7 +55,8 @@ class Lane : public hipc::list_queue_entry {
         worker_id_(worker_id) {
     plug_count_ = 0;
     count_ = 0;
-    // active_tasks_.resize(8192);
+    // TODO(llogan): Don't hardcode size
+    active_tasks_.resize(8192);
   }
 
   /** Copy constructor */
@@ -65,7 +66,8 @@ class Lane : public hipc::list_queue_entry {
     load_ = lane.load_;
     plug_count_ = lane.plug_count_.load();
     prio_ = lane.prio_;
-    // active_tasks_.resize(64);
+    // TODO(llogan): Don't hardcode size
+    active_tasks_.resize(8192);
   }
 
 #ifdef CHIMAERA_RUNTIME
