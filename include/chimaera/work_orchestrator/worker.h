@@ -35,7 +35,7 @@ namespace chi {
 
 /** Uniquely identify a queue lane */
 struct IngressEntry {
-  u32 prio_;
+  TaskPrio prio_;
   ContainerId container_id_;
   ingress::Lane *lane_;
   ingress::LaneGroup *group_;
@@ -47,7 +47,7 @@ struct IngressEntry {
 
   /** Emplace constructor */
   HSHM_INLINE
-  IngressEntry(u32 prio, LaneId lane_id, ingress::MultiQueue *queue)
+  IngressEntry(TaskPrio prio, LaneId lane_id, ingress::MultiQueue *queue)
       : prio_(prio), container_id_(lane_id), queue_(queue) {
     group_ = &queue->GetGroup(prio);
     lane_ = &queue->GetLane(prio, lane_id);

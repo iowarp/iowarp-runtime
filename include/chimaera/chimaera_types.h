@@ -98,17 +98,18 @@ typedef u32 ContainerId;   /**< The ID of a container */
 typedef u32 WorkerId;      /**< The ID of a worker */
 typedef u32 MethodId;      /**< The ID of a container method */
 typedef u32 MonitorModeId; /**< The ID of a container monitor mode */
+typedef u32 TaskPrio;      /**< The priority of a task */
 
 /** Represents unique ID for states + queues */
 template <int TYPE>
 struct UniqueId {
   union {
-    NodeId node_id_; /**< The node the content is on */
-    u32 group_id_;   /**< The group the content is on */
-    u32 prio_;       /**< The priority of the lane */
+    NodeId node_id_;       /**< The node the content is on */
+    LaneGroupId group_id_; /**< The group the content is on */
+    TaskPrio prio_;        /**< The priority of the lane */
   };
   u32 hash_;   /**< The hash of the content the ID represents */
-  u64 unique_; /**< A unique id for the blob */
+  u64 unique_; /**< A unique id within the node */
 
   /** Serialization */
   template <typename Ar>
