@@ -132,7 +132,6 @@ namespace chi {
 class WorkOrchestrator;
 
 typedef chi::mpsc_ptr_queue<TaskPointer> PrivateTaskQueue;
-// typedef chi::mpsc_lifo_list_queue<chi::Lane> PrivateLaneQueue;
 typedef chi::mpsc_queue<chi::Lane *> PrivateLaneQueue;
 
 class PrivateLaneMultiQueue {
