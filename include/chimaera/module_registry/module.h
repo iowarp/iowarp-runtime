@@ -160,9 +160,9 @@ class Module {
   Lane *GetLeastLoadedLane(LaneGroupId group_id, TaskPrio prio, F &&func) {
     LaneGroup &lane_group = *lane_groups_[group_id];
     Lane *least_loaded = lane_group.get(prio, 0);
-    for (Lane &lane : lane_group.all_lanes_) {
-      if (func(lane.load_, least_loaded->load_)) {
-        least_loaded = &lane;
+    for (Lane *lane : lane_group.lanes_[prio]) {
+      if (func(lane->load_, least_loaded->load_)) {
+        least_loaded = lane;
       }
     }
     return least_loaded;

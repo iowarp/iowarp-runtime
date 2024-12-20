@@ -31,7 +31,7 @@ class Server : public Module {
   LeastSquares monitor_write_lat_;  // nsec
   size_t lat_cutoff_;
   CLS_CONST LaneGroupId kMdGroup = 0;
-  CLS_CONST LaneGroupId kDataGroup = 0;
+  CLS_CONST LaneGroupId kDataGroup = 1;
 
  public:
   Server() = default;
