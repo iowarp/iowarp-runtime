@@ -10,15 +10,17 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include "chimaera_admin/chimaera_admin.h"
-#include "chimaera/api/chimaera_runtime.h"
 #include "small_message/small_message.h"
+
+#include "chimaera/api/chimaera_runtime.h"
 #include "chimaera/monitor/monitor.h"
+#include "chimaera_admin/chimaera_admin.h"
 
 namespace chi::small_message {
 
 class Server : public Module {
  public:
+  CLS_CONST LaneGroupId kDefaultGroup = 0;
   int count_ = 0;
   Client client_;
   int upgrade_count_ = 0;
@@ -30,7 +32,7 @@ class Server : public Module {
   void Create(CreateTask *task, RunContext &rctx) {
     client_.Init(id_, CHI_ADMIN->queue_id_);
     task->SetModuleComplete();
-    CreateLaneGroup(0, 4, QUEUE_LOW_LATENCY);
+    CreateLaneGroup(kDefaultGroup, 4, QUEUE_LOW_LATENCY);
 
     // Create monitoring functions
     for (int i = 0; i < Method::kCount; ++i) {
@@ -38,8 +40,8 @@ class Server : public Module {
       monitor_[i].Shape(hshm::Formatter::format("{}-method-{}", name_, i));
     }
     monitor_io_.Shape(
-        hshm::Formatter::format("{}-method-{}", name_, Method::kIo),
-        1, 1, 1, "SmallMessage.monitor_io");
+        hshm::Formatter::format("{}-method-{}", name_, Method::kIo), 1, 1, 1,
+        "SmallMessage.monitor_io");
   }
   void MonitorCreate(MonitorModeId mode, CreateTask *task, RunContext &rctx) {
     switch (mode) {
@@ -59,9 +61,9 @@ class Server : public Module {
   }
 
   /** Route a task to a lane */
-  Lane* Route(const Task *task) override {
+  Lane *Route(const Task *task) override {
     count_ += 1;
-    return GetLaneByHash(0, count_);
+    return GetLaneByHash(kDefaultGroup, task->prio_, count_);
   }
 
   /** Destroy small_message */
@@ -111,13 +113,11 @@ class Server : public Module {
   /** A metadata operation */
   void Md(MdTask *task, RunContext &rctx) {
     if (task->depth_ > 0) {
-      client_.Md(HSHM_DEFAULT_MEM_CTX,
-                 task->dom_query_,
-                 task->depth_ - 1, 0);
+      client_.Md(HSHM_DEFAULT_MEM_CTX, task->dom_query_, task->depth_ - 1, 0);
     }
     task->ret_ = 1;
-//    HILOG(kInfo, "Executing small message on worker {}",
-//          CHI_WORK_ORCHESTRATOR->GetCurrentWorker()->id_);
+    //    HILOG(kInfo, "Executing small message on worker {}",
+    //          CHI_WORK_ORCHESTRATOR->GetCurrentWorker()->id_);
     task->SetModuleComplete();
   }
   void MonitorMd(MonitorModeId mode, MdTask *task, RunContext &rctx) {
@@ -170,8 +170,8 @@ class Server : public Module {
       case MonitorMode::kReinforceLoad: {
         if (monitor_io_.DoTrain()) {
           CHI_WORK_ORCHESTRATOR->ImportModule("small_message_monitor");
-          CHI_WORK_ORCHESTRATOR->RunMethod(
-              "ChimaeraMonitor", "least_squares_fit", monitor_io_);
+          CHI_WORK_ORCHESTRATOR->RunMethod("ChimaeraMonitor",
+                                           "least_squares_fit", monitor_io_);
         }
         break;
       }
@@ -189,6 +189,6 @@ class Server : public Module {
 #include "small_message/small_message_lib_exec.h"
 };
 
-}  // namespace chi
+}  // namespace chi::small_message
 
 CHI_TASK_CC(chi::small_message::Server, "small_message");

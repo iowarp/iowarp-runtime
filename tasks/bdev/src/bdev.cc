@@ -10,10 +10,11 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include "chimaera_admin/chimaera_admin.h"
-#include "chimaera/api/chimaera_runtime.h"
 #include "bdev/bdev.h"
+
+#include "chimaera/api/chimaera_runtime.h"
 #include "chimaera/monitor/monitor.h"
+#include "chimaera_admin/chimaera_admin.h"
 
 namespace chi::bdev {
 
@@ -24,11 +25,13 @@ class Server : public Module {
   int fd_;
   char *ram_;
   RollingAverage monitor_[Method::kCount];
-  LeastSquares monitor_read_bw_;     // bytes / nsec -> GB / sec
-  LeastSquares monitor_read_lat_;    // nsec
-  LeastSquares monitor_write_bw_;    // bytes / nsec -> GB / sec
-  LeastSquares monitor_write_lat_;   // nsec
+  LeastSquares monitor_read_bw_;    // bytes / nsec -> GB / sec
+  LeastSquares monitor_read_lat_;   // nsec
+  LeastSquares monitor_write_bw_;   // bytes / nsec -> GB / sec
+  LeastSquares monitor_write_lat_;  // nsec
   size_t lat_cutoff_;
+  CLS_CONST LaneGroupId kMdGroup = 0;
+  CLS_CONST LaneGroupId kDataGroup = 0;
 
  public:
   Server() = default;
@@ -40,8 +43,8 @@ class Server : public Module {
     size_t dev_size = params.size_;
     url_.Parse(url);
     alloc_.Init(1, dev_size);
-    CreateLaneGroup(0, 1, QUEUE_LOW_LATENCY);
-    CreateLaneGroup(1, 8, QUEUE_LOW_LATENCY);
+    CreateLaneGroup(kMdGroup, 1, QUEUE_LOW_LATENCY);
+    CreateLaneGroup(kDataGroup, 8, QUEUE_LOW_LATENCY);
 
     // Create monitoring functions
     for (int i = 0; i < Method::kCount; ++i) {
@@ -49,17 +52,17 @@ class Server : public Module {
       monitor_[i].Shape(hshm::Formatter::format("{}-method-{}", name_, i));
     }
     monitor_read_bw_.Shape(
-        hshm::Formatter::format("{}-method-{}-bw", name_, Method::kWrite),
-        1, 2, 1, "Bdev.monitor_io");
+        hshm::Formatter::format("{}-method-{}-bw", name_, Method::kWrite), 1, 2,
+        1, "Bdev.monitor_io");
     monitor_read_lat_.Shape(
-        hshm::Formatter::format("{}-method-{}-lat", name_, Method::kRead),
-        1, 2, 1, "Bdev.monitor_io");
+        hshm::Formatter::format("{}-method-{}-lat", name_, Method::kRead), 1, 2,
+        1, "Bdev.monitor_io");
     monitor_write_bw_.Shape(
-        hshm::Formatter::format("{}-method-{}-bw", name_, Method::kWrite),
-        1, 2, 1, "Bdev.monitor_io");
+        hshm::Formatter::format("{}-method-{}-bw", name_, Method::kWrite), 1, 2,
+        1, "Bdev.monitor_io");
     monitor_write_lat_.Shape(
-        hshm::Formatter::format("{}-method-{}-lat", name_, Method::kRead),
-        1, 2, 1, "Bdev.monitor_io");
+        hshm::Formatter::format("{}-method-{}-lat", name_, Method::kRead), 1, 2,
+        1, "Bdev.monitor_io");
 
     // Allocate data
     switch (url_.scheme_) {
@@ -78,8 +81,7 @@ class Server : public Module {
         fdatasync(fd_);
         time.Pause();
         monitor_write_lat_.consts_[0] = 0;
-        monitor_write_lat_.consts_[1] =
-            (float)time.GetNsec();
+        monitor_write_lat_.consts_[1] = (float)time.GetNsec();
         time.Reset();
 
         // Write 1MB to the beginning with pwrite
@@ -98,8 +100,7 @@ class Server : public Module {
         ret = pread(fd_, data.data(), KILOBYTES(16), 0);
         time.Pause();
         monitor_read_lat_.consts_[0] = 0;
-        monitor_read_lat_.consts_[1] =
-            (float)time.GetNsec();
+        monitor_read_lat_.consts_[1] = (float)time.GetNsec();
         time.Reset();
 
         // Read 1MB from the beginning with pread
@@ -108,7 +109,8 @@ class Server : public Module {
         ret = pread(fd_, data.data(), MEGABYTES(1), 0);
         time.Pause();
         monitor_read_bw_.consts_[0] =
-            (float)MEGABYTES(1) / (float)time.GetNsec();;
+            (float)MEGABYTES(1) / (float)time.GetNsec();
+        ;
         monitor_read_bw_.consts_[1] = 0;
         time.Reset();
         break;
@@ -152,16 +154,16 @@ class Server : public Module {
   }
 
   /** Route a task to a bdev lane */
-  Lane* Route(const Task *task) override {
+  Lane *Route(const Task *task) override {
     switch (task->method_) {
       case Method::kRead:
       case Method::kWrite: {
-        return GetLeastLoadedLane(1, [](Load &lhs, Load &rhs){
-          return lhs.io_load_ < rhs.io_load_;
-        });
+        return GetLeastLoadedLane(
+            kDataGroup, task->prio_,
+            [](Load &lhs, Load &rhs) { return lhs.io_load_ < rhs.io_load_; });
       }
       default: {
-        return GetLaneByHash(task->prio_, 0);
+        return GetLaneByHash(kMdGroup, task->prio_, 0);
       }
     }
   }
@@ -179,7 +181,8 @@ class Server : public Module {
     alloc_.Allocate(0, task->size_, task->blocks_, task->total_size_);
     task->SetModuleComplete();
   }
-  void MonitorAllocate(MonitorModeId mode, AllocateTask *task, RunContext &rctx) {
+  void MonitorAllocate(MonitorModeId mode, AllocateTask *task,
+                       RunContext &rctx) {
     AverageMonitor(Method::kAllocate, mode, rctx);
   }
 
@@ -188,8 +191,7 @@ class Server : public Module {
     alloc_.Free(0, task->block_);
     task->SetModuleComplete();
   }
-  void MonitorFree(MonitorModeId mode, FreeTask *task, RunContext &rctx) {
-  }
+  void MonitorFree(MonitorModeId mode, FreeTask *task, RunContext &rctx) {}
 
   /** Write to the block device */
   void Write(WriteTask *task, RunContext &rctx) {
@@ -219,16 +221,14 @@ class Server : public Module {
     switch (mode) {
       case MonitorMode::kEstLoad: {
         if (task->size_ < lat_cutoff_) {
-
         } else {
-          rctx.load_.cpu_load_ =
-              monitor_write_bw_.consts_[0] * task->size_;
+          rctx.load_.cpu_load_ = monitor_write_bw_.consts_[0] * task->size_;
         }
         break;
       }
       case MonitorMode::kSampleLoad: {
         monitor_write_bw_.Add({(float)task->size_,
-                                  // (float)rctx.load_.cpu_load_,
+                               // (float)rctx.load_.cpu_load_,
                                (float)rctx.timer_.GetNsec()},
                               rctx.load_);
         break;
@@ -268,8 +268,7 @@ class Server : public Module {
     }
     task->SetModuleComplete();
   }
-  void MonitorRead(MonitorModeId mode, ReadTask *task, RunContext &rctx) {
-  }
+  void MonitorRead(MonitorModeId mode, ReadTask *task, RunContext &rctx) {}
 
   /** Poll block device statistics */
   void PollStats(PollStatsTask *task, RunContext &rctx) {
@@ -280,8 +279,8 @@ class Server : public Module {
     task->stats_.free_ = alloc_.free_size_;
     task->SetModuleComplete();
   }
-  void MonitorPollStats(MonitorModeId mode,
-                        PollStatsTask *task, RunContext &rctx) {
+  void MonitorPollStats(MonitorModeId mode, PollStatsTask *task,
+                        RunContext &rctx) {
     AverageMonitor(Method::kPollStats, mode, rctx);
   }
 
@@ -302,6 +301,7 @@ class Server : public Module {
       }
     }
   }
+
  public:
 #include "bdev/bdev_lib_exec.h"
 };

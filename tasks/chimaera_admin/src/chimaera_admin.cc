@@ -22,6 +22,7 @@ namespace chi::Admin {
 
 class Server : public Module {
  public:
+  CLS_CONST LaneGroupId kDefaultGroup = 0;
   Task *queue_sched_;
   Task *proc_sched_;
   RollingAverage monitor_[Method::kCount];
@@ -54,8 +55,7 @@ class Server : public Module {
 
   /** Create the state */
   void Create(CreateTask *task, RunContext &rctx) {
-    CreateLaneGroup(0, 1, QUEUE_LOW_LATENCY);
-    CreateLaneGroup(1, 1, QUEUE_HIGH_LATENCY);
+    CreateLaneGroup(kDefaultGroup, 1, QUEUE_LOW_LATENCY);
     for (int i = 0; i < Method::kCount; ++i) {
       monitor_[i].Shape(hshm::Formatter::format("{}-method-{}", name_, i));
     }
@@ -75,7 +75,7 @@ class Server : public Module {
 
   /** Route a task to a lane */
   Lane *Route(const Task *task) override {
-    return GetLaneByHash(task->prio_, 0);
+    return GetLaneByHash(kDefaultGroup, task->prio_, 0);
   }
 
   /** Update number of lanes */
@@ -346,7 +346,7 @@ class Server : public Module {
         task->policy_id_, 250);
     queue_sched_ = queue_sched.ptr_;
     ingress::MultiQueue *queue = CHI_CLIENT->GetQueue(queue_id_);
-    queue->Emplace(TaskPrio::kLowLatency, 0, queue_sched.shm_);
+    queue->Emplace(TaskPrioOpt::kLowLatency, 0, queue_sched.shm_);
     task->SetModuleComplete();
   }
   void MonitorSetWorkOrchQueuePolicy(MonitorModeId mode,

@@ -13,7 +13,7 @@ struct ##task_name## : public Task, TaskFlags<TF_SRL_SYM> {
                 const DomainQuery &dom_query) : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
-    prio_ = TaskPrio::kLowLatency;
+    prio_ = TaskPrioOpt::kLowLatency;
     pool_ = pool_id;
     method_ = Method::##method_enum_name##;
     task_flags_.SetBits(0);

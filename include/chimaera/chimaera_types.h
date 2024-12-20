@@ -104,6 +104,7 @@ template <int TYPE>
 struct UniqueId {
   union {
     NodeId node_id_; /**< The node the content is on */
+    u32 group_id_;   /**< The group the content is on */
     u32 prio_;       /**< The priority of the lane */
   };
   u32 hash_;   /**< The hash of the content the ID represents */

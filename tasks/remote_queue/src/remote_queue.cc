@@ -74,10 +74,10 @@ class Server : public Module {
   /** Route a task to a lane */
   Lane *Route(const Task *task) override {
     if (task->IsLongRunning()) {
-      return GetLaneByHash(kNodeRpcLanes,
+      return GetLaneByHash(kNodeRpcLanes, task->prio_,
                            std::hash<DomainQuery>()(task->dom_query_));
     } else {
-      return GetLaneByHash(kInitRpcLanes,
+      return GetLaneByHash(kInitRpcLanes, task->prio_,
                            std::hash<DomainQuery>()(task->dom_query_));
     }
   }

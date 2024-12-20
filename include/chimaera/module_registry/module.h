@@ -29,13 +29,13 @@ typedef FullPtr<Task> TaskPointer;
 /** The information of a lane */
 class Lane : public hipc::list_queue_entry {
  public:
-  QueueId lane_id_;
-  QueueId ingress_id_;
-  i32 worker_id_;
+  LaneId lane_id_;
+  TaskPrio prio_;
+  LaneGroupId group_id_;
+  WorkerId worker_id_;
   Load load_;
   CoMutex comux_;
   std::atomic<size_t> plug_count_;
-  u32 prio_;
   size_t lane_req_;
   // TODO(llogan): This doesn't preserve task order
   chi::mpsc_lifo_list_queue<Task> active_tasks_;
@@ -47,11 +47,12 @@ class Lane : public hipc::list_queue_entry {
   Lane() = default;
 
   /** Emplace constructor */
-  explicit Lane(QueueId lane_id, QueueId ingress_id, i32 worker_id, u32 prio)
+  explicit Lane(LaneId lane_id, TaskPrio prio, LaneGroupId group_id,
+                WorkerId worker_id)
       : lane_id_(lane_id),
-        ingress_id_(ingress_id),
-        worker_id_(worker_id),
-        prio_(prio) {
+        prio_(prio),
+        group_id_(group_id),
+        worker_id_(worker_id) {
     plug_count_ = 0;
     count_ = 0;
     // active_tasks_.resize(8192);
@@ -60,7 +61,6 @@ class Lane : public hipc::list_queue_entry {
   /** Copy constructor */
   Lane(const Lane &lane) {
     lane_id_ = lane.lane_id_;
-    ingress_id_ = lane.ingress_id_;
     worker_id_ = lane.worker_id_;
     load_ = lane.load_;
     plug_count_ = lane.plug_count_.load();
@@ -91,7 +91,28 @@ class Lane : public hipc::list_queue_entry {
 
 /** A group of lanes */
 struct LaneGroup {
-  std::vector<Lane> lanes_;
+  u32 flags_;
+  std::vector<Lane> all_lanes_;
+  std::vector<Lane *> lanes_[TaskPrioOpt::kNumPrio];
+
+  LaneGroup(u32 flags) : flags_(flags) {}
+
+  Lane *get(TaskPrio prio, u32 idx) { return lanes_[prio][idx]; }
+
+  void reserve(u32 count) {
+    all_lanes_.reserve(2 * count);
+    for (u32 i = 0; i < TaskPrioOpt::kNumPrio; ++i) {
+      lanes_[i].reserve(count);
+    }
+  }
+
+  void emplace_back(LaneId lane_id, TaskPrio prio, LaneGroupId group_id,
+                    WorkerId worker_id) {
+    all_lanes_.emplace_back(lane_id, prio, group_id, worker_id);
+    lanes_[prio].emplace_back(&all_lanes_.back());
+  }
+
+  size_t size() { return lanes_[0].size(); }
 };
 
 /**
@@ -104,8 +125,7 @@ class Module {
   QueueId queue_id_;         /**< The queue id of a pool */
   std::string name_;         /**< The unique semantic name of a pool */
   ContainerId container_id_; /**< The logical id of a container */
-  LaneId lane_counter_ = 0;
-  std::unordered_map<LaneGroupId, std::shared_ptr<LaneGroup>>
+  std::vector<std::shared_ptr<LaneGroup>>
       lane_groups_; /**< The lanes of a pool */
   bool is_created_ = false;
 
@@ -121,20 +141,26 @@ class Module {
   }
 
   /** Create a lane group */
-  void CreateLaneGroup(const LaneGroupId &id, u32 count, u32 flags);
+  void CreateLaneGroup(LaneGroupId group_id, u32 count, u32 flags);
 
   /** Get lane */
-  Lane *GetLaneByHash(const LaneGroupId &group, u32 hash) {
-    LaneGroup &lane_group = *lane_groups_[group];
-    return &lane_group.lanes_[hash % lane_group.lanes_.size()];
+  Lane *GetLane(LaneGroupId group_id, TaskPrio prio, u32 idx) {
+    LaneGroup &lane_group = *lane_groups_[group_id];
+    return lane_group.get(prio, idx);
+  }
+
+  /** Get lane */
+  Lane *GetLaneByHash(LaneGroupId group_id, TaskPrio prio, u32 hash) {
+    LaneGroup &lane_group = *lane_groups_[group_id];
+    return GetLane(group_id, prio, hash % lane_group.size());
   }
 
   /** Get lane with the least load */
   template <typename F>
-  Lane *GetLeastLoadedLane(const LaneGroupId &group, F &&func) {
-    LaneGroup &lane_group = *lane_groups_[group];
-    Lane *least_loaded = &lane_group.lanes_[0];
-    for (Lane &lane : lane_group.lanes_) {
+  Lane *GetLeastLoadedLane(LaneGroupId group_id, TaskPrio prio, F &&func) {
+    LaneGroup &lane_group = *lane_groups_[group_id];
+    Lane *least_loaded = lane_group.get(prio, 0);
+    for (Lane &lane : lane_group.all_lanes_) {
       if (func(lane.load_, least_loaded->load_)) {
         least_loaded = &lane;
       }
@@ -142,15 +168,10 @@ class Module {
     return least_loaded;
   }
 
-  /** Get lane */
-  Lane *GetLane(const QueueId &lane_id) {
-    return GetLaneByHash(lane_id.prio_, lane_id.unique_);
-  }
-
   /** Plug all lanes */
   void PlugAllLanes() {
     for (auto &lane_group : lane_groups_) {
-      for (Lane &lane : lane_group.second->lanes_) {
+      for (Lane &lane : lane_group->all_lanes_) {
         lane.UnsetPlugged();
       }
     }
@@ -159,7 +180,7 @@ class Module {
   /** Unplug all lanes */
   void UnplugAllLanes() {
     for (auto &lane_group : lane_groups_) {
-      for (Lane &lane : lane_group.second->lanes_) {
+      for (Lane &lane : lane_group->all_lanes_) {
         lane.UnsetPlugged();
       }
     }
@@ -169,7 +190,7 @@ class Module {
   size_t GetNumActiveTasks() {
     size_t num_active = 0;
     for (auto &lane_group : lane_groups_) {
-      for (Lane &lane : lane_group.second->lanes_) {
+      for (Lane &lane : lane_group->all_lanes_) {
         num_active += lane.size();
       }
     }

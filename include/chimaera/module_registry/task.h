@@ -250,10 +250,12 @@ struct TaskFlags : public IsTask {
 };
 
 /** Prioritization of tasks */
-class TaskPrio {
+typedef u32 TaskPrio;
+class TaskPrioOpt {
  public:
-  CLS_CONST u32 kLowLatency = 0;  /**< Low latency task lane */
-  CLS_CONST u32 kHighLatency = 1; /**< High latency task lane */
+  CLS_CONST TaskPrio kLowLatency = 0;  /**< Low latency task lane */
+  CLS_CONST TaskPrio kHighLatency = 1; /**< High latency task lane */
+  CLS_CONST TaskPrio kNumPrio = 2;     /**< Number of priorities */
 };
 
 /** Used to indicate the amount of work remaining to do when flushing */
@@ -694,7 +696,7 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
                 const PoolId &task_state, u32 lane_hash, u32 method,
                 bitfield32_t task_flags) {
     task_node_ = task_node;
-    prio_ = TaskPrio::kLowLatency;
+    prio_ = TaskPrioOpt::kLowLatency;
     pool_ = task_state;
     method_ = method;
     dom_query_ = dom_query;

@@ -83,6 +83,7 @@ class Client : public ConfigurationManager {
     main_alloc_ = mem_mngr->GetAllocator<CHI_ALLOC_T>(main_alloc_id_);
     data_alloc_ = mem_mngr->GetAllocator<CHI_ALLOC_T>(data_alloc_id_);
     rdata_alloc_ = mem_mngr->GetAllocator<CHI_ALLOC_T>(rdata_alloc_id_);
+    mem_mngr->SetDefaultAllocator(main_alloc_);
     header_ = main_alloc_->GetCustomHeader<ChiShm>();
     unique_ = &header_->unique_;
     node_id_ = header_->node_id_;
@@ -369,7 +370,7 @@ class Client : public ConfigurationManager {
         Async##CUSTOM##Alloc(mctx, task_node, std::forward<Args>(args)...);    \
     chi::ingress::MultiQueue *queue =                                          \
         CHI_CLIENT->GetQueue(CHI_QM_CLIENT->process_queue_id_);                \
-    queue->Emplace(chi::TaskPrio::kLowLatency,                                 \
+    queue->Emplace(chi::TaskPrioOpt::kLowLatency,                              \
                    std::hash<chi::DomainQuery>{}(task->dom_query_),            \
                    task.shm_);                                                 \
     return task;                                                               \

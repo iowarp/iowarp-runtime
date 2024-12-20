@@ -5,12 +5,13 @@
 #ifndef CHI_TASKS_REMOTE_QUEUE_INCLUDE_REMOTE_QUEUE_REMOTE_QUEUE_TASKS_H_
 #define CHI_TASKS_REMOTE_QUEUE_INCLUDE_REMOTE_QUEUE_REMOTE_QUEUE_TASKS_H_
 
-#include "chimaera/chimaera_namespace.h"
 #include <thallium.hpp>
+#include <thallium/serialization/stl/list.hpp>
 #include <thallium/serialization/stl/pair.hpp>
 #include <thallium/serialization/stl/string.hpp>
 #include <thallium/serialization/stl/vector.hpp>
-#include <thallium/serialization/stl/list.hpp>
+
+#include "chimaera/chimaera_namespace.h"
 
 namespace tl = thallium;
 
@@ -41,24 +42,22 @@ struct ClientPushSubmitTask : public Task, TaskFlags<TF_LOCAL> {
   IN Task *orig_task_;
 
   /** SHM default constructor */
-  HSHM_INLINE explicit
-  ClientPushSubmitTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) : Task(alloc) {}
+  HSHM_INLINE explicit ClientPushSubmitTask(
+      const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
+      : Task(alloc) {}
 
   /** Emplace constructor */
-  HSHM_INLINE explicit
-  ClientPushSubmitTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
-                       const TaskNode &task_node,
-                       const PoolId &pool_id,
-                       const DomainQuery &dom_query,
-                       Task *orig_task) : Task(alloc) {
+  HSHM_INLINE explicit ClientPushSubmitTask(
+      const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, const TaskNode &task_node,
+      const PoolId &pool_id, const DomainQuery &dom_query, Task *orig_task)
+      : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
     prio_ = orig_task->prio_;
     pool_ = pool_id;
     method_ = Method::kClientPushSubmit;
-    task_flags_.SetBits(TASK_COROUTINE |
-        TASK_FIRE_AND_FORGET |
-        TASK_REMOTE_DEBUG_MARK);
+    task_flags_.SetBits(TASK_COROUTINE | TASK_FIRE_AND_FORGET |
+                        TASK_REMOTE_DEBUG_MARK);
     if (orig_task->IsFlush()) {
       task_flags_.SetBits(TASK_FLUSH);
     }
@@ -70,18 +69,18 @@ struct ClientPushSubmitTask : public Task, TaskFlags<TF_LOCAL> {
 
 struct ClientSubmitTask : public Task, TaskFlags<TF_LOCAL> {
   /** SHM default constructor */
-  HSHM_INLINE explicit
-  ClientSubmitTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) : Task(alloc) {}
+  HSHM_INLINE explicit ClientSubmitTask(
+      const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
+      : Task(alloc) {}
 
   /** Emplace constructor */
-  HSHM_INLINE explicit
-  ClientSubmitTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
-                   const TaskNode &task_node,
-                   const PoolId &pool_id,
-                   const DomainQuery &dom_query) : Task(alloc) {
+  HSHM_INLINE explicit ClientSubmitTask(
+      const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, const TaskNode &task_node,
+      const PoolId &pool_id, const DomainQuery &dom_query)
+      : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
-    prio_ = TaskPrio::kHighLatency;
+    prio_ = TaskPrioOpt::kHighLatency;
     pool_ = pool_id;
     method_ = Method::kClientSubmit;
     task_flags_.SetBits(TASK_LONG_RUNNING | TASK_REMOTE_DEBUG_MARK);
@@ -91,18 +90,18 @@ struct ClientSubmitTask : public Task, TaskFlags<TF_LOCAL> {
 
 struct ServerPushCompleteTask : public Task, TaskFlags<TF_LOCAL> {
   /** SHM default constructor */
-  HSHM_INLINE explicit
-  ServerPushCompleteTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) : Task(alloc) {}
+  HSHM_INLINE explicit ServerPushCompleteTask(
+      const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
+      : Task(alloc) {}
 
   /** Emplace constructor */
-  HSHM_INLINE explicit
-  ServerPushCompleteTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
-                         const TaskNode &task_node,
-                         const PoolId &pool_id,
-                         const DomainQuery &dom_query) : Task(alloc) {
+  HSHM_INLINE explicit ServerPushCompleteTask(
+      const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, const TaskNode &task_node,
+      const PoolId &pool_id, const DomainQuery &dom_query)
+      : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
-    prio_ = TaskPrio::kLowLatency;
+    prio_ = TaskPrioOpt::kLowLatency;
     pool_ = pool_id;
     method_ = Method::kServerPushComplete;
     task_flags_.SetBits(TASK_REMOTE_DEBUG_MARK);
@@ -112,18 +111,18 @@ struct ServerPushCompleteTask : public Task, TaskFlags<TF_LOCAL> {
 
 struct ServerCompleteTask : public Task, TaskFlags<TF_LOCAL> {
   /** SHM default constructor */
-  HSHM_INLINE explicit
-  ServerCompleteTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) : Task(alloc) {}
+  HSHM_INLINE explicit ServerCompleteTask(
+      const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
+      : Task(alloc) {}
 
   /** Emplace constructor */
-  HSHM_INLINE explicit
-  ServerCompleteTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
-                     const TaskNode &task_node,
-                     const PoolId &pool_id,
-                     const DomainQuery &dom_query) : Task(alloc) {
+  HSHM_INLINE explicit ServerCompleteTask(
+      const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, const TaskNode &task_node,
+      const PoolId &pool_id, const DomainQuery &dom_query)
+      : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
-    prio_ = TaskPrio::kHighLatency;
+    prio_ = TaskPrioOpt::kHighLatency;
     pool_ = pool_id;
     method_ = Method::kServerComplete;
     task_flags_.SetBits(TASK_LONG_RUNNING | TASK_REMOTE_DEBUG_MARK);
@@ -132,6 +131,6 @@ struct ServerCompleteTask : public Task, TaskFlags<TF_LOCAL> {
   }
 };
 
-} // namespace chi::remote_queue
+}  // namespace chi::remote_queue
 
-#endif //CHI_TASKS_REMOTE_QUEUE_INCLUDE_REMOTE_QUEUE_REMOTE_QUEUE_TASKS_H_
+#endif  // CHI_TASKS_REMOTE_QUEUE_INCLUDE_REMOTE_QUEUE_REMOTE_QUEUE_TASKS_H_

@@ -147,8 +147,12 @@ class PrivateLaneMultiQueue {
     active_[1].resize(new_depth);
   }
 
-  PrivateLaneQueue &GetLowLatency() { return active_[TaskPrio::kLowLatency]; }
-  PrivateLaneQueue &GetHighLatency() { return active_[TaskPrio::kHighLatency]; }
+  PrivateLaneQueue &GetLowLatency() {
+    return active_[TaskPrioOpt::kLowLatency];
+  }
+  PrivateLaneQueue &GetHighLatency() {
+    return active_[TaskPrioOpt::kHighLatency];
+  }
 };
 
 class PrivateTaskMultiQueue {

@@ -138,6 +138,7 @@ void Runtime::InitSharedMemory() {
   main_alloc_ = mem_mngr->CreateAllocator<CHI_ALLOC_T>(
       hipc::MemoryBackendId(0), main_alloc_id_, sizeof(ChiShm));
   header_ = main_alloc_->GetCustomHeader<ChiShm>();
+  mem_mngr->SetDefaultAllocator(main_alloc_);
   // Create separate data allocator
   mem_mngr->CreateBackend<hipc::PosixShmMmap>(
       hipc::MemoryBackendId(1), qm.data_shm_size_, qm.data_shm_name_);

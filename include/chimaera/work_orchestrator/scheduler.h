@@ -27,19 +27,18 @@ struct ScheduleTask : public Task, TaskFlags<TF_LOCAL> {
   OUT hipc::pod_array<int, 1> ret_;
 
   /** SHM default constructor */
-  HSHM_INLINE explicit
-  ScheduleTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) : Task(alloc) {}
+  HSHM_INLINE explicit ScheduleTask(
+      const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
+      : Task(alloc) {}
 
   /** Emplace constructor */
-  HSHM_INLINE explicit
-  ScheduleTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
-               const TaskNode &task_node,
-               const DomainQuery &dom_query,
-               PoolId &pool_id,
-               size_t period_ms) : Task(alloc) {
+  HSHM_INLINE explicit ScheduleTask(
+      const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, const TaskNode &task_node,
+      const DomainQuery &dom_query, PoolId &pool_id, size_t period_ms)
+      : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
-    prio_ = TaskPrio::kHighLatency;
+    prio_ = TaskPrioOpt::kHighLatency;
     pool_ = pool_id;
     method_ = SchedulerMethod::kSchedule;
     task_flags_.SetBits(TASK_LONG_RUNNING | TASK_REMOTE_DEBUG_MARK);

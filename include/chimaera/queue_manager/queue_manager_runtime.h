@@ -35,7 +35,8 @@ class QueueManagerRuntime : public QueueManager {
   ~QueueManagerRuntime() = default;
 
   /** Create queues in shared memory */
-  void ServerInit(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, NodeId node_id, ServerConfig *config, QueueManagerShm &shm) {
+  void ServerInit(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, NodeId node_id,
+                  ServerConfig *config, QueueManagerShm &shm) {
     config_ = config;
     Init(node_id);
     config::QueueManagerInfo &qm = config_->queue_manager_;
@@ -52,23 +53,30 @@ class QueueManagerRuntime : public QueueManager {
     queue_map_->resize(max_queues_);
     // Create the admin queue
     ingress::MultiQueue *queue;
-    queue = CreateQueue(admin_queue_id_, {
-        {TaskPrio::kLowLatency, qm.max_containers_pn_, qm.max_containers_pn_, qm.queue_depth_, QUEUE_LOW_LATENCY},
-        {TaskPrio::kHighLatency, qm.max_containers_pn_, qm.max_containers_pn_, qm.queue_depth_,0},
-    });
+    queue = CreateQueue(
+        admin_queue_id_,
+        {
+            {TaskPrioOpt::kLowLatency, qm.max_containers_pn_,
+             qm.max_containers_pn_, qm.queue_depth_, QUEUE_LOW_LATENCY},
+            {TaskPrioOpt::kHighLatency, qm.max_containers_pn_,
+             qm.max_containers_pn_, qm.queue_depth_, 0},
+        });
     queue->flags_.SetBits(QUEUE_READY);
     // Create the process (ingress) queue
-    queue = CreateQueue(process_queue_id_, {
-        {TaskPrio::kLowLatency, qm.max_containers_pn_, qm.max_containers_pn_, qm.proc_queue_depth_, QUEUE_LOW_LATENCY},
-        {TaskPrio::kHighLatency, qm.max_containers_pn_, qm.max_containers_pn_, qm.proc_queue_depth_, 0},
-    });
+    queue = CreateQueue(
+        process_queue_id_,
+        {
+            {TaskPrioOpt::kLowLatency, qm.max_containers_pn_,
+             qm.max_containers_pn_, qm.proc_queue_depth_, QUEUE_LOW_LATENCY},
+            {TaskPrioOpt::kHighLatency, qm.max_containers_pn_,
+             qm.max_containers_pn_, qm.proc_queue_depth_, 0},
+        });
     queue->flags_.SetBits(QUEUE_READY);
   }
 
   /** Create a new queue (with pre-allocated ID) in the map */
-  ingress::MultiQueue* CreateQueue(
-      const QueueId &id,
-      const std::vector<ingress::PriorityInfo> &queue_info) {
+  ingress::MultiQueue *CreateQueue(
+      const QueueId &id, const std::vector<ingress::PriorityInfo> &queue_info) {
     ingress::MultiQueue *queue = GetQueue(id);
     if (id.IsNull()) {
       HELOG(kError, "Cannot create null queue {}", id);
@@ -94,8 +102,7 @@ class QueueManagerRuntime : public QueueManager {
   }
 };
 
-#define CHI_QM_RUNTIME \
-  hshm::Singleton<chi::QueueManagerRuntime>::GetInstance()
+#define CHI_QM_RUNTIME hshm::Singleton<chi::QueueManagerRuntime>::GetInstance()
 
 }  // namespace chi
 

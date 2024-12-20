@@ -25,7 +25,7 @@ Async##CUSTOM(const hipc::MemContext &mctx, Args&& ...args) {
   hipc::FullPtr<CUSTOM##Task> task = Async##CUSTOM##Alloc(
       mctx, task_node, std::forward<Args>(args)...);
   chi::ingress::MultiQueue *queue = CHI_CLIENT->GetQueue(CHI_QM_CLIENT->process_queue_id_);
-  queue->Emplace(chi::TaskPrio::kLowLatency,
+  queue->Emplace(chi::TaskPrioOpt::kLowLatency,
                  std::hash<chi::DomainQuery>{}(task->dom_query_),
                  task.shm_);
   return task;

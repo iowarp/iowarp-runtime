@@ -10,32 +10,35 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include "chimaera_admin/chimaera_admin.h"
-#include "chimaera/api/chimaera_runtime.h"
 #include "TASK_NAME/TASK_NAME.h"
+
+#include "chimaera/api/chimaera_runtime.h"
 #include "chimaera/monitor/monitor.h"
+#include "chimaera_admin/chimaera_admin.h"
 
 namespace chi::TASK_NAME {
 
 class Server : public Module {
+ public:
+  CLS_CONST LaneGroupId kDefaultGroup = 0;
+
  public:
   Server() = default;
 
   /** Construct TASK_NAME */
   void Create(CreateTask *task, RunContext &rctx) {
     // Create a set of lanes for holding tasks
-    CreateLaneGroup(0, 1, QUEUE_LOW_LATENCY);
+    CreateLaneGroup(kDefaultGroup, 1, QUEUE_LOW_LATENCY);
     task->SetModuleComplete();
   }
-  void MonitorCreate(MonitorModeId mode, CreateTask *task, RunContext &rctx) {
-  }
+  void MonitorCreate(MonitorModeId mode, CreateTask *task, RunContext &rctx) {}
 
   /** Route a task to a lane */
-  Lane* Route(const Task *task) override {
+  Lane *Route(const Task *task) override {
     // Route tasks to lanes based on their properties
     // E.g., a strongly consistent filesystem could map tasks to a lane
     // by the hash of an absolute filename path.
-    return GetLaneByHash(0, 0);
+    return GetLaneByHash(kDefaultGroup, task->prio_, 0);
   }
 
   /** Destroy TASK_NAME */
@@ -46,18 +49,16 @@ class Server : public Module {
   }
 
   /** A custom method */
-  void Custom(CustomTask *task, RunContext &rctx) {
-    task->SetModuleComplete();
-  }
+  void Custom(CustomTask *task, RunContext &rctx) { task->SetModuleComplete(); }
   void MonitorCustom(MonitorModeId mode, CustomTask *task, RunContext &rctx) {
     switch (mode) {
       case MonitorMode::kReplicaAgg: {
         std::vector<FullPtr<Task>> &replicas = *rctx.replicas_;
-        auto replica = reinterpret_cast<CustomTask *>(
-            replicas[0].ptr_);
+        auto replica = reinterpret_cast<CustomTask *>(replicas[0].ptr_);
       }
     }
   }
+
  public:
 #include "TASK_NAME/TASK_NAME_lib_exec.h"
 };

@@ -43,20 +43,18 @@ struct MdTask : public Task, TaskFlags<TF_SRL_SYM> {
   OUT int ret_;
 
   /** SHM default constructor */
-  HSHM_INLINE explicit
-  MdTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) : Task(alloc) {}
+  HSHM_INLINE explicit MdTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
+      : Task(alloc) {}
 
   /** Emplace constructor */
-  HSHM_INLINE explicit
-  MdTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
-         const TaskNode &task_node,
-         const PoolId &pool_id,
-         const DomainQuery &dom_query,
-         u32 depth,
-         u32 flags) : Task(alloc) {
+  HSHM_INLINE explicit MdTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
+                              const TaskNode &task_node, const PoolId &pool_id,
+                              const DomainQuery &dom_query, u32 depth,
+                              u32 flags)
+      : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
-    prio_ = TaskPrio::kLowLatency;
+    prio_ = TaskPrioOpt::kLowLatency;
     pool_ = pool_id;
     method_ = Method::kMd;
     task_flags_.SetBits(TASK_COROUTINE | flags);
@@ -68,18 +66,16 @@ struct MdTask : public Task, TaskFlags<TF_SRL_SYM> {
   }
 
   /** Duplicate message */
-  void CopyStart(const MdTask &other, bool deep) {
-    depth_ = other.depth_;
-  }
+  void CopyStart(const MdTask &other, bool deep) { depth_ = other.depth_; }
 
   /** (De)serialize message call */
-  template<typename Ar>
+  template <typename Ar>
   void SerializeStart(Ar &ar) {
     ar(depth_);
   }
 
   /** (De)serialize message return */
-  template<typename Ar>
+  template <typename Ar>
   void SerializeEnd(Ar &ar) {
     ar(ret_);
   }
@@ -97,28 +93,26 @@ struct IoTask : public Task, TaskFlags<TF_SRL_SYM> {
   OUT size_t ret_;
 
   /** SHM default constructor */
-  HSHM_INLINE explicit
-  IoTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) : Task(alloc) {}
+  HSHM_INLINE explicit IoTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
+      : Task(alloc) {}
 
   /** Emplace constructor */
-  HSHM_INLINE explicit
-  IoTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
-         const TaskNode &task_node,
-         const PoolId &pool_id,
-         const DomainQuery &dom_query,
-         size_t io_size,
-         u32 io_flags) : Task(alloc) {
+  HSHM_INLINE explicit IoTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
+                              const TaskNode &task_node, const PoolId &pool_id,
+                              const DomainQuery &dom_query, size_t io_size,
+                              u32 io_flags)
+      : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
-    prio_ = TaskPrio::kLowLatency;
+    prio_ = TaskPrioOpt::kLowLatency;
     pool_ = pool_id;
     method_ = Method::kIo;
     task_flags_.SetBits(TASK_DATA_OWNER);
     dom_query_ = dom_query;
 
     // Custom params
-    FullPtr<char> data = CHI_CLIENT->AllocateBuffer(
-        HSHM_DEFAULT_MEM_CTX, io_size);
+    FullPtr<char> data =
+        CHI_CLIENT->AllocateBuffer(HSHM_DEFAULT_MEM_CTX, io_size);
     data_ = data.shm_;
     size_ = io_size;
     ret_ = 0;
@@ -141,7 +135,7 @@ struct IoTask : public Task, TaskFlags<TF_SRL_SYM> {
   }
 
   /** (De)serialize message call */
-  template<typename Ar>
+  template <typename Ar>
   void SerializeStart(Ar &ar) {
     ar(io_flags_);
     if (io_flags_.Any(MD_IO_WRITE)) {
@@ -152,7 +146,7 @@ struct IoTask : public Task, TaskFlags<TF_SRL_SYM> {
   }
 
   /** (De)serialize message return */
-  template<typename Ar>
+  template <typename Ar>
   void SerializeEnd(Ar &ar) {
     ar(io_flags_, ret_);
     if (io_flags_.Any(MD_IO_READ)) {
@@ -161,6 +155,6 @@ struct IoTask : public Task, TaskFlags<TF_SRL_SYM> {
   }
 };
 
-}  // namespace chi
+}  // namespace chi::small_message
 
 #endif  // CHI_TASKS_SMALL_MESSAGE_INCLUDE_SMALL_MESSAGE_SMALL_MESSAGE_TASKS_H_

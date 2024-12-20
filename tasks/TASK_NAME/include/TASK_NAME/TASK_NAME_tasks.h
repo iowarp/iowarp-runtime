@@ -35,18 +35,18 @@ typedef chi::Admin::DestroyContainerTask DestroyTask;
  * */
 struct CustomTask : public Task, TaskFlags<TF_SRL_SYM> {
   /** SHM default constructor */
-  HSHM_INLINE explicit
-  CustomTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) : Task(alloc) {}
+  HSHM_INLINE explicit CustomTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
+      : Task(alloc) {}
 
   /** Emplace constructor */
-  HSHM_INLINE explicit
-  CustomTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
-             const TaskNode &task_node,
-             const PoolId &pool_id,
-             const DomainQuery &dom_query) : Task(alloc) {
+  HSHM_INLINE explicit CustomTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
+                                  const TaskNode &task_node,
+                                  const PoolId &pool_id,
+                                  const DomainQuery &dom_query)
+      : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
-    prio_ = TaskPrio::kLowLatency;
+    prio_ = TaskPrioOpt::kLowLatency;
     pool_ = pool_id;
     method_ = Method::kCustom;
     task_flags_.SetBits(0);
@@ -56,18 +56,15 @@ struct CustomTask : public Task, TaskFlags<TF_SRL_SYM> {
   }
 
   /** Duplicate message */
-  void CopyStart(const CustomTask &other, bool deep) {
-  }
+  void CopyStart(const CustomTask &other, bool deep) {}
 
   /** (De)serialize message call */
-  template<typename Ar>
-  void SerializeStart(Ar &ar) {
-  }
+  template <typename Ar>
+  void SerializeStart(Ar &ar) {}
 
   /** (De)serialize message return */
-  template<typename Ar>
-  void SerializeEnd(Ar &ar) {
-  }
+  template <typename Ar>
+  void SerializeEnd(Ar &ar) {}
 };
 
 }  // namespace chi::TASK_NAME

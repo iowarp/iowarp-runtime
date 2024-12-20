@@ -193,26 +193,8 @@ void WorkOrchestrator::DedicateCores() {
 }
 
 std::vector<Load> WorkOrchestrator::CalculateLoad() {
-  // TODO(llogan): Figure out why this erroring
+  // TODO(llogan): Implement
   std::vector<Load> loads(workers_.size());
-  return loads;
-  for (auto pool_it = CHI_MOD_REGISTRY->pools_.begin();
-       pool_it != CHI_MOD_REGISTRY->pools_.end(); ++pool_it) {
-    for (auto cont_it = pool_it->second.containers_.begin();
-         cont_it != pool_it->second.containers_.end(); ++cont_it) {
-      Container *container = cont_it->second;
-      for (auto lane_grp_it = container->lane_groups_.begin();
-           lane_grp_it != container->lane_groups_.end(); ++lane_grp_it) {
-        LaneGroup &lane_grp = *lane_grp_it->second;
-        for (auto lane_it = lane_grp.lanes_.begin();
-             lane_it != lane_grp.lanes_.end(); ++lane_it) {
-          Lane &lane = *lane_it;
-          Load &load = loads[lane.worker_id_];
-          load += lane.load_;
-        }
-      }
-    }
-  }
   return loads;
 }
 
