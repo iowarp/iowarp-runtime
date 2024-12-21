@@ -21,7 +21,7 @@ option(CHIMAERA_NO_COMPILE "Don't compile the code" OFF)
 if (CHIMAERA_NO_COMPILE)
     install(
             FILES
-            ${CMAKE_SOURCE_DIR}/include/chimaera/api/chimaera_task_cc.template
+            ${CMAKE_SOURCE_DIR}/include/chimaera/api/template/chimaera_task_cc.template
             DESTINATION
             ${CMAKE_INSTALL_PREFIX}/include/chimaera/api
     )
