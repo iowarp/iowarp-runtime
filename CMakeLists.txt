@@ -16,6 +16,17 @@ option(CHIMAERA_REMOTE_DEBUG "Debug remote tasks" OFF)
 option(CHIMAERA_ENABLE_JEMALLOC "Use jemalloc as the allocator" OFF)
 option(CHIMAERA_ENABLE_MIMALLOC "Use mimalloc as the allocator" OFF)
 option(CHIMAERA_ENABLE_PYTHON "Use pybind11" ON)
+option(CHIMAERA_NO_COMPILE "Don't compile the code" OFF)
+
+if (CHIMAERA_NO_COMPILE)
+    install(
+            FILES
+            ${CMAKE_SOURCE_DIR}/include/chimaera/api/chimaera_task_cc.template
+            DESTINATION
+            ${CMAKE_INSTALL_PREFIX}/include/chimaera/api
+    )
+    return()
+endif()
 
 #-----------------------------------------------------------------------------
 # Compiler Optimization
