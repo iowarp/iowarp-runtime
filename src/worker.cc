@@ -415,7 +415,7 @@ bool Worker::RunTask(FullPtr<Task> &task, bool flushing) {
   rctx.worker_props_ = props;
   rctx.flush_ = &flush_;
   // Run the task
-  if (!task->IsModuleComplete()) {
+  if (!task->IsModuleComplete() && !task->IsBlocked()) {
     // Make this task current
     cur_task_ = task.ptr_;
     // Execute the task based on its properties
@@ -449,9 +449,9 @@ void Worker::ExecTask(FullPtr<Task> &task, RunContext &rctx, Container *&exec,
   // Execute + monitor the task
   ExecCoroutine(task.ptr_, rctx);
   // Block the task
-  if (task->IsBlocked()) {
-    CHI_WORK_ORCHESTRATOR->Block(task.ptr_, rctx);
-  }
+  // if (task->IsBlocked()) {
+  //   CHI_WORK_ORCHESTRATOR->Block(task.ptr_, rctx);
+  // }
 }
 
 /** Run a task */

@@ -57,7 +57,6 @@ class WorkOrchestrator {
   std::atomic<bool> flushing_ = false; /**< Flushing in progress */
   size_t monitor_window_ = 0;          /**< Sampling window */
   size_t monitor_gap_ = 0;             /**< Monitoring gap */
-  hipc::mpmc_key_set<BlockedTask> blocked_tasks_; /**< Blocked tasks */
 
  public:
   /** Default constructor */
@@ -67,7 +66,7 @@ class WorkOrchestrator {
   ~WorkOrchestrator() = default;
 
   /** Block a task */
-  void Block(Task *task, RunContext &rctx);
+  void Block(Task *task, RunContext &rctx, size_t count);
 
   /** Unblock a task */
   void SignalUnblock(Task *task, RunContext &rctx);

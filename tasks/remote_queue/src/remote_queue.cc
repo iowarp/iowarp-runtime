@@ -101,7 +101,7 @@ class Server : public Module {
 
     // Register the block
     submit_task->SetBlocked(dom_queries.size());
-    CHI_WORK_ORCHESTRATOR->Block(submit_task, rctx);
+    // CHI_WORK_ORCHESTRATOR->Block(submit_task, rctx);
 
     // Replicate task
     for (ResolvedDomainQuery &res_query : dom_queries) {
@@ -172,7 +172,6 @@ class Server : public Module {
 
   /** Push operation called on client */
   void ClientSubmit(ClientSubmitTask *task, RunContext &rctx) {
-    HLOG(kDebug, kRemoteQueue, "");
     if (rctx.worker_props_.Any(CHI_WORKER_IS_FLUSHING)) {
       hshm::mpsc_queue<RemoteEntry> &submit = submit_[0];
       hshm::mpsc_queue<RemoteEntry> &complete = complete_[0];
@@ -225,7 +224,7 @@ class Server : public Module {
 
   /** Complete the task (on the remote node) */
   void ServerPushComplete(ServerPushCompleteTask *task, RunContext &rctx) {
-    // HLOG(kDebug, kRemoteQueue, "");
+    HLOG(kDebug, kRemoteQueue, "");
     NodeId ret_node = task->rctx_.ret_node_;
     size_t node_hash = std::hash<NodeId>{}(ret_node);
     auto &complete = complete_;
@@ -238,7 +237,6 @@ class Server : public Module {
 
   /** Complete the task (on the remote node) */
   void ServerComplete(ServerCompleteTask *task, RunContext &rctx) {
-    HLOG(kDebug, kRemoteQueue, "");
     try {
       // Serialize task completions
       RemoteEntry entry;
