@@ -66,7 +66,7 @@ class WorkOrchestrator {
   ~WorkOrchestrator() = default;
 
   /** Block a task */
-  void Block(Task *task, RunContext &rctx, size_t count);
+  // void Block(Task *task, RunContext &rctx, size_t count);
 
   /** Unblock a task */
   void SignalUnblock(Task *task, RunContext &rctx);

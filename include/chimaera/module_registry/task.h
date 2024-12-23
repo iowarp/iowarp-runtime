@@ -433,7 +433,7 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
   void UnsetBlocked() {}
 
   /** Check if task is blocked */
-  bool IsBlocked() const { return rctx_.block_count_ != 0; }
+  bool IsBlocked() const { return rctx_.block_count_.load() > 0; }
 
   /** Set this task as started */
   void UnsetLongRunning() { task_flags_.UnsetBits(TASK_LONG_RUNNING); }
@@ -645,7 +645,6 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
     if (!subtasks.empty()) {
       SetBlocked(subtasks.size());
       Yield();
-      UnsetBlocked();
     }
 #else
     for (FullPtr<TaskT> &subtask : subtasks) {
@@ -662,7 +661,6 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
     if (count) {
       SetBlocked(count);
       Yield();
-      UnsetBlocked();
     }
 #else
     for (size_t i = 0; i < count; ++i) {
@@ -755,11 +753,6 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
     prio_ = other.prio_;
     method_ = other.method_;
     task_flags_ = other.task_flags_;
-    //    UnsetStarted();
-    //    UnsetSignalUnblock();
-    //    UnsetSignalRemoteComplete();
-    //    UnsetBlocked();
-    //    UnsetRemote();
     UnsetComplete();
     period_ns_ = other.period_ns_;
     start_ = other.start_;

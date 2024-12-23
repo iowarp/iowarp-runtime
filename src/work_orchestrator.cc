@@ -199,9 +199,9 @@ std::vector<Load> WorkOrchestrator::CalculateLoad() {
 }
 
 /** Block a task */
-void WorkOrchestrator::Block(Task *task, RunContext &rctx, size_t count) {
-  rctx.block_count_ += count;
-}
+// void WorkOrchestrator::Block(Task *task, RunContext &rctx, size_t count) {
+//   rctx.block_count_ += count;
+// }
 
 /** Unblock a task */
 void WorkOrchestrator::SignalUnblock(Task *task, RunContext &rctx) {
