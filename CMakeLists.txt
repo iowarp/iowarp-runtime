@@ -17,6 +17,18 @@ option(CHIMAERA_ENABLE_JEMALLOC "Use jemalloc as the allocator" OFF)
 option(CHIMAERA_ENABLE_MIMALLOC "Use mimalloc as the allocator" OFF)
 option(CHIMAERA_ENABLE_PYTHON "Use pybind11" ON)
 
+# A hack for spack to get dependencies
+option(CHIMAERA_NO_COMPILE "Don't compile the code" OFF)
+if (CHIMAERA_NO_COMPILE)
+    install(
+            FILES
+            ${CMAKE_SOURCE_DIR}/.gitignore
+            DESTINATION
+            ${CMAKE_INSTALL_PREFIX}/.gitignore
+    )
+    return()
+endif()
+
 #-----------------------------------------------------------------------------
 # Compiler Optimization
 #-----------------------------------------------------------------------------
@@ -35,7 +47,7 @@ add_compile_options(-march=native -fomit-frame-pointer)
 if (CHIMAERA_REMOTE_DEBUG)
     message("Adding the chimaera remote debug option")
     add_compile_definitions(CHIMAERA_REMOTE_DEBUG)
-    add_compile_definitions(kRemoteQueue = 0)
+    add_compile_definitions(kRemoteQueue=0)
 endif()
 if (CHIMAERA_TASK_DEBUG)
     message("Adding the chimaera task debug option")
@@ -137,6 +149,9 @@ endif()
 
 # Pybind11
 if (CHIMAERA_ENABLE_PYTHON)
+    pkg_check_modules(python3 REQUIRED python3)
+    message("Found python3 at: ${python3_INCLUDE_DIRS}")
+    set(PYBIND11_FINDPYTHON ON)
     find_package(pybind11 REQUIRED)
     set(OPTIONAL_LIBS pybind11::embed)
 endif()

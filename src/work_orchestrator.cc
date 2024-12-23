@@ -19,7 +19,7 @@ namespace chi {
 
 void WorkOrchestrator::ServerInit(ServerConfig *config, QueueManager &qm) {
   config_ = config;
-  blocked_tasks_.Init(config->queue_manager_.queue_depth_);
+  // blocked_tasks_.Init(config->queue_manager_.queue_depth_);
 
   // Initialize argobots
   ABT_init(0, nullptr);
@@ -199,25 +199,17 @@ std::vector<Load> WorkOrchestrator::CalculateLoad() {
 }
 
 /** Block a task */
-void WorkOrchestrator::Block(Task *task, RunContext &rctx) {
-  blocked_tasks_.emplace(rctx.pending_key_, BlockedTask{task});
-}
+// void WorkOrchestrator::Block(Task *task, RunContext &rctx, size_t count) {
+//   rctx.block_count_ += count;
+// }
 
 /** Unblock a task */
 void WorkOrchestrator::SignalUnblock(Task *task, RunContext &rctx) {
-  BlockedTask *blocked;
-  blocked_tasks_.peek(rctx.pending_key_, blocked);
-  if (blocked == nullptr || blocked->task_ != task) {
-    HELOG(kFatal, "Blocked task was not found");
-    return;
-  }
-  ssize_t count = blocked->block_count_.fetch_sub(1) - 1;
+  ssize_t count = rctx.block_count_.fetch_sub(1) - 1;
   if (count == 0) {
-    blocked_tasks_.erase(task->rctx_.pending_key_);
-    task->UnsetBlocked();
     rctx.route_lane_->push<false>(FullPtr<Task>(task));
   } else if (count < 0) {
-    HELOG(kFatal, "Block count should never be negative");
+    // HELOG(kFatal, "Block count should never be negative");
   }
 }
 

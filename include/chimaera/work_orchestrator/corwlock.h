@@ -29,6 +29,9 @@ void CoRwLock::ReadLock() {
   }
   Task *task = CHI_CUR_TASK;
   TaskId task_root = task->task_node_.root_;
+  if (!is_read_ && root_ == task_root) {
+    HELOG(kFatal, "Recursively acquiring read lock during write!");
+  }
   task->SetBlocked(1);
   reader_set_.emplace_back((CoRwLockEntry){task});
   scoped.Unlock();
@@ -67,6 +70,8 @@ void CoRwLock::WriteLock() {
       ++rep_;
       return;
     }
+  } else if (is_read_ && root_ == task_root) {
+    HELOG(kFatal, "Recursively acquiring write lock during read!");
   }
   task->SetBlocked(1);
   if (writer_map_.find(task_root) == writer_map_.end()) {

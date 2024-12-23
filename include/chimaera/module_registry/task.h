@@ -316,11 +316,10 @@ struct RunContext {
   hshm::Timer timer_;
   Task *co_task_;
   Task *pending_to_;
-  size_t pending_key_;
   std::vector<FullPtr<Task>> *replicas_;
   size_t ret_task_addr_;
   NodeId ret_node_;
-  hipc::atomic<ssize_t> block_count_;
+  hipc::atomic<ssize_t> block_count_ = 0;
   ContainerId route_container_id_;
   chi::Lane *route_lane_;
   Load load_;
@@ -428,16 +427,13 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
   bool IsStarted() const { return rctx_.run_flags_.Any(TASK_HAS_STARTED); }
 
   /** Set blocked */
-  void SetBlocked(size_t count) {
-    rctx_.run_flags_.SetBits(TASK_BLOCKED);
-    rctx_.block_count_ = count;
-  }
+  void SetBlocked(size_t count) { rctx_.block_count_ += count; }
 
   /** Unset blocked */
-  void UnsetBlocked() { rctx_.run_flags_.UnsetBits(TASK_BLOCKED); }
+  void UnsetBlocked() {}
 
   /** Check if task is blocked */
-  bool IsBlocked() const { return rctx_.run_flags_.Any(TASK_BLOCKED); }
+  bool IsBlocked() const { return rctx_.block_count_.load() > 0; }
 
   /** Set this task as started */
   void UnsetLongRunning() { task_flags_.UnsetBits(TASK_LONG_RUNNING); }
@@ -649,7 +645,6 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
     if (!subtasks.empty()) {
       SetBlocked(subtasks.size());
       Yield();
-      UnsetBlocked();
     }
 #else
     for (FullPtr<TaskT> &subtask : subtasks) {
@@ -666,7 +661,6 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
     if (count) {
       SetBlocked(count);
       Yield();
-      UnsetBlocked();
     }
 #else
     for (size_t i = 0; i < count; ++i) {
@@ -759,11 +753,6 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
     prio_ = other.prio_;
     method_ = other.method_;
     task_flags_ = other.task_flags_;
-    //    UnsetStarted();
-    //    UnsetSignalUnblock();
-    //    UnsetSignalRemoteComplete();
-    //    UnsetBlocked();
-    //    UnsetRemote();
     UnsetComplete();
     period_ns_ = other.period_ns_;
     start_ = other.start_;
