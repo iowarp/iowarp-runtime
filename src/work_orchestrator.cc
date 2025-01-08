@@ -183,7 +183,7 @@ std::vector<int> WorkOrchestrator::GetWorkerCoresComplement() {
 
 /** Dedicate cores */
 void WorkOrchestrator::DedicateCores() {
-  ProcessAffiner affiner;
+  hshm::ProcessAffiner affiner;
   std::vector<int> worker_pids = GetWorkerPids();
   std::vector<int> cpu_ids = GetWorkerCoresComplement();
   affiner.IgnorePids(worker_pids);

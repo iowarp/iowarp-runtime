@@ -16,7 +16,7 @@ add_executable(test_ipc_exec
 )
 add_dependencies(test_ipc_exec ${Chimaera_CLIENT_DEPS})
 target_link_libraries(test_ipc_exec
-        ${Chimaera_CLIENT_LIBRARIES}
+        chimaera_client
         Catch2::Catch2 MPI::MPI_CXX OpenMP::OpenMP_CXX
         ${OPTIONAL_LIBS})
 target_compile_definitions(test_ipc_exec PRIVATE CHIMAERA_ENABLE_PYTHON)
@@ -34,8 +34,6 @@ target_compile_definitions(test_ipc_exec PRIVATE CHIMAERA_ENABLE_PYTHON)
 #------------------------------------------------------------------------------
 install(TARGETS
         test_ipc_exec
-        EXPORT
-        ${CHIMAERA_EXPORTED_TARGETS}
         LIBRARY DESTINATION ${CHIMAERA_INSTALL_LIB_DIR}
         ARCHIVE DESTINATION ${CHIMAERA_INSTALL_LIB_DIR}
         RUNTIME DESTINATION ${CHIMAERA_INSTALL_BIN_DIR})

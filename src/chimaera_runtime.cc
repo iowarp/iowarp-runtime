@@ -171,10 +171,3 @@ void Runtime::RunDaemon() {
 void Runtime::StopDaemon() { CHI_WORK_ORCHESTRATOR->FinalizeRuntime(); }
 
 }  // namespace chi
-
-/** Runtime singleton */
-DEFINE_SINGLETON_CC(chi::Runtime)
-DEFINE_SINGLETON_CC(chi::RpcContext)
-DEFINE_SINGLETON_CC(chi::WorkOrchestrator)
-DEFINE_SINGLETON_CC(chi::ModuleRegistry)
-DEFINE_SINGLETON_CC(chi::QueueManagerRuntime)

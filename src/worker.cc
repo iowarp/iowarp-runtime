@@ -18,8 +18,8 @@
 #include "chimaera/module_registry/module_registry.h"
 #include "chimaera/network/rpc_thallium.h"
 #include "chimaera/queue_manager/queue_manager_runtime.h"
-#include "chimaera/work_orchestrator/affinity.h"
 #include "chimaera/work_orchestrator/work_orchestrator.h"
+#include "hermes_shm/util/affinity.h"
 #include "hermes_shm/util/timer.h"
 
 namespace chi {
@@ -239,7 +239,7 @@ bool Worker::AnyFlushWorkDone(WorkOrchestrator *orch) {
 /** Worker loop iteration */
 void Worker::Loop() {
   CHI_WORK_ORCHESTRATOR->SetCurrentWorker(this);
-  pid_ = GetLinuxTid();
+  pid_ = HERMES_SYSTEM_INFO->pid_;
   SetCpuAffinity(affinity_);
   if (IsContinuousPolling()) {
     MakeDedicated();

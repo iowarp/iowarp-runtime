@@ -10,9 +10,7 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include "hermes_shm/util/singleton.h"
 #include "chimaera/api/chimaera_client.h"
-#include "chimaera/network/rpc_thallium.h"
 
-/** Runtime singleton */
-DEFINE_SINGLETON_CC(chi::Client)
+#include "chimaera/network/rpc_thallium.h"
+#include "hermes_shm/util/singleton.h"

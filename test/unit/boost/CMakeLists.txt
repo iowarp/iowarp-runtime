@@ -12,7 +12,7 @@ add_executable(test_boost_exec
         test_boost.cc
 )
 target_link_libraries(test_boost_exec
-        ${_Chimaera_RUNTIME_LIBRARIES} Catch2::Catch2 MPI::MPI_CXX)
+        chimaera_runtime Catch2::Catch2 MPI::MPI_CXX)
 
 #------------------------------------------------------------------------------
 # Test Cases
@@ -26,8 +26,6 @@ target_link_libraries(test_boost_exec
 #------------------------------------------------------------------------------
 install(TARGETS
         test_boost_exec
-        EXPORT
-        ${HERMES_EXPORTED_TARGETS}
         LIBRARY DESTINATION ${HERMES_INSTALL_LIB_DIR}
         ARCHIVE DESTINATION ${HERMES_INSTALL_LIB_DIR}
         RUNTIME DESTINATION ${HERMES_INSTALL_BIN_DIR})

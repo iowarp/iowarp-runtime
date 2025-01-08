@@ -15,8 +15,8 @@
 #include "basic_test.h"
 #include "bdev/bdev.h"
 #include "chimaera/api/chimaera_client.h"
-#include "chimaera/work_orchestrator/affinity.h"
 #include "chimaera_admin/chimaera_admin.h"
+#include "hermes_shm/util/affinity.h"
 #include "hermes_shm/util/timer.h"
 #include "omp.h"
 #include "small_message/small_message.h"
@@ -84,8 +84,8 @@ TEST_CASE("TestAsyncIpc") {
       chi::DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0),
       chi::DomainId(client.id_, chi::SubDomainId::kGlobalContainers));
 
-  int pid = getpid();
-  ProcessAffiner::SetCpuAffinity(pid, 8);
+  int pid = HERMES_SYSTEM_INFO->pid_;
+  hshm::ProcessAffiner::SetCpuAffinity(pid, 8);
 
   t.Resume();
   int depth = 8;
@@ -126,8 +126,8 @@ TEST_CASE("TestFlush") {
   MPI_Barrier(MPI_COMM_WORLD);
   hshm::Timer t;
 
-  int pid = getpid();
-  ProcessAffiner::SetCpuAffinity(pid, 8);
+  int pid = HERMES_SYSTEM_INFO->pid_;
+  hshm::ProcessAffiner::SetCpuAffinity(pid, 8);
 
   t.Resume();
   size_t ops = 256;
@@ -206,8 +206,8 @@ void TestBulk(u32 flags) {
       chi::DomainQuery::GetGlobalBcast(), "ipc_test");
   hshm::Timer t;
 
-  int pid = getpid();
-  ProcessAffiner::SetCpuAffinity(pid, 8);
+  int pid = HERMES_SYSTEM_INFO->pid_;
+  hshm::ProcessAffiner::SetCpuAffinity(pid, 8);
 
   HILOG(kInfo, "Starting IO test: {}", nprocs);
 
@@ -262,7 +262,7 @@ TEST_CASE("TestUpgrade") {
       chi::DomainId(client.id_, chi::SubDomainId::kGlobalContainers));
 
   int pid = getpid();
-  ProcessAffiner::SetCpuAffinity(pid, 8);
+  hshm::ProcessAffiner::SetCpuAffinity(pid, 8);
 
   t.Resume();
   int depth = 4;

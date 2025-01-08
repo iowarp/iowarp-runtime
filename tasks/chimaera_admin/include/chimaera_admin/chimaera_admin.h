@@ -31,8 +31,7 @@ class Client : public ModuleClient {
 
   /** Unregister a module */
   HSHM_INLINE
-  void DestroyModule(const hipc::MemContext &mctx,
-                     const DomainQuery &dom_query,
+  void DestroyModule(const hipc::MemContext &mctx, const DomainQuery &dom_query,
                      const std::string &lib_name) {
     FullPtr<DestroyModuleTask> task =
         AsyncDestroyModule(mctx, dom_query, lib_name);
@@ -43,8 +42,7 @@ class Client : public ModuleClient {
 
   /** Register a task library */
   HSHM_INLINE
-  void UpgradeModule(const hipc::MemContext &mctx,
-                     const DomainQuery &dom_query,
+  void UpgradeModule(const hipc::MemContext &mctx, const DomainQuery &dom_query,
                      const std::string &lib_name) {
     FullPtr<UpgradeModuleTask> task =
         AsyncUpgradeModule(mctx, dom_query, lib_name);
@@ -54,11 +52,9 @@ class Client : public ModuleClient {
   CHI_TASK_METHODS(UpgradeModule)
 
   /** Get the ID of a pool */
-  PoolId GetPoolId(const hipc::MemContext &mctx,
-                   const DomainQuery &dom_query,
+  PoolId GetPoolId(const hipc::MemContext &mctx, const DomainQuery &dom_query,
                    const std::string &pool_name) {
-    FullPtr<GetPoolIdTask> task =
-        AsyncGetPoolId(mctx, dom_query, pool_name);
+    FullPtr<GetPoolIdTask> task = AsyncGetPoolId(mctx, dom_query, pool_name);
     task->Wait();
     PoolId new_id = task->id_;
     CHI_CLIENT->DelTask(mctx, task);
@@ -92,13 +88,15 @@ class Client : public ModuleClient {
 
   /** Terminate the runtime */
   void StopRuntime(const hipc::MemContext &mctx) {
-    HILOG(kInfo, "Beginning to flush the runtime.\n"
-                 "If you did async I/O, this may take some time.\n"
-                 "All unflushed data will be written to the PFS.");
+    HILOG(kInfo,
+          "Beginning to flush the runtime.\n"
+          "If you did async I/O, this may take some time.\n"
+          "All unflushed data will be written to the PFS.");
     Flush(mctx, DomainQuery::GetGlobalBcast());
     HILOG(kInfo, "Stopping the runtime");
-    AsyncStopRuntime(mctx, DomainQuery::GetDirectHash(
-        SubDomainId::kLocalContainers, 0), true);
+    AsyncStopRuntime(
+        mctx, DomainQuery::GetDirectHash(SubDomainId::kLocalContainers, 0),
+        true);
     HILOG(kInfo, "All done!");
     exit(1);
   }
@@ -117,10 +115,8 @@ class Client : public ModuleClient {
   void SetWorkOrchQueuePolicyRN(const hipc::MemContext &mctx,
                                 const DomainQuery &dom_query,
                                 const PoolId &policy) {
-    FullPtr<SetWorkOrchQueuePolicyTask> task =
-        AsyncSetWorkOrchQueuePolicyBase(mctx, nullptr,
-                                        CHI_CLIENT->MakeTaskNodeId(),
-                                        dom_query, policy);
+    FullPtr<SetWorkOrchQueuePolicyTask> task = AsyncSetWorkOrchQueuePolicyBase(
+        mctx, nullptr, CHI_CLIENT->MakeTaskNodeId(), dom_query, policy);
     task->SpinWait();
     CHI_CLIENT->DelTask(mctx, task);
   }
@@ -140,10 +136,8 @@ class Client : public ModuleClient {
   void SetWorkOrchProcPolicyRN(const hipc::MemContext &mctx,
                                const DomainQuery &dom_query,
                                const PoolId &policy) {
-    FullPtr<SetWorkOrchProcPolicyTask> task =
-        AsyncSetWorkOrchProcPolicyBase(
-            mctx, nullptr, CHI_CLIENT->MakeTaskNodeId(),
-            dom_query, policy);
+    FullPtr<SetWorkOrchProcPolicyTask> task = AsyncSetWorkOrchProcPolicyBase(
+        mctx, nullptr, CHI_CLIENT->MakeTaskNodeId(), dom_query, policy);
     task->SpinWait();
     CHI_CLIENT->DelTask(mctx, task);
   }
@@ -151,12 +145,10 @@ class Client : public ModuleClient {
   CHI_TASK_METHODS(SetWorkOrchProcPolicy);
 
   /** Flush the runtime */
-  void Flush(const hipc::MemContext &mctx,
-             const DomainQuery &dom_query) {
+  void Flush(const hipc::MemContext &mctx, const DomainQuery &dom_query) {
     size_t work_done = 0;
     do {
-      FullPtr<FlushTask> task =
-          AsyncFlush(mctx, dom_query);
+      FullPtr<FlushTask> task = AsyncFlush(mctx, dom_query);
       task->Wait();
       work_done = task->work_done_;
       CHI_CLIENT->DelTask(mctx, task);
@@ -166,8 +158,7 @@ class Client : public ModuleClient {
 
   /** Get size of a domain */
   size_t GetDomainSize(const hipc::MemContext &mctx,
-                       const DomainQuery &dom_query,
-                       const DomainId &dom_id) {
+                       const DomainQuery &dom_query, const DomainId &dom_id) {
     FullPtr<GetDomainSizeTask> task =
         AsyncGetDomainSize(mctx, dom_query, dom_id);
     task->Wait();
@@ -180,7 +171,6 @@ class Client : public ModuleClient {
 
 }  // namespace chi::Admin
 
-#define CHI_ADMIN \
-  hshm::EasySingleton<chi::Admin::Client>::GetInstance()
+#define CHI_ADMIN hshm::Singleton<chi::Admin::Client>::GetInstance()
 
 #endif  // CHI_TASKS_CHI_ADMIN_CHI_ADMIN_H_

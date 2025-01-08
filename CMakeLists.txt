@@ -4,8 +4,10 @@ project(chimaera)
 #-----------------------------------------------------------------------------
 # Define Options
 #-----------------------------------------------------------------------------
+set(CHIMAERA_IS_MAIN_PROJECT ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 option(BUILD_SHARED_LIBS "Build shared libraries (.dll/.so) instead of static ones (.lib/.a)" ON)
+option(BUILD_TESTS "Build tests which depend on MPI" ON)
 option(BUILD_MPI_TESTS "Build tests which depend on MPI" ON)
 option(BUILD_OpenMP_TESTS "Build tests which depend on OpenMP" ON)
 option(BUILD_ZeroMQ_TESTS "Build tests which depend on ZeroMQ" OFF)
@@ -58,103 +60,14 @@ endif()
 # Targets built within this project are exported at Install time for use
 # by other projects.
 #-----------------------------------------------------------------------------
-if(NOT CHIMAERA_EXPORTED_TARGETS)
-    set(CHIMAERA_EXPORTED_TARGETS "chimaera-targets")
-endif()
+set(CHIMAERA_EXPORTED_TARGETS "Chimaera")
 
 #-----------------------------------------------------------------------------
 # Find Packages
 #-----------------------------------------------------------------------------
-# This is for compatability with SPACK
-SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-
-# HermesShm
-find_package(HermesShm CONFIG REQUIRED)
-message(STATUS "found hermes_shm.h at ${HermesShm_INCLUDE_DIRS}")
-include_directories(${HermesShm_INCLUDE_DIRS})
-link_directories(${HermesShm_LIBRARY_DIRS})
-
-# YAML-CPP
-find_package(yaml-cpp REQUIRED)
-message(STATUS "found yaml-cpp at ${yaml-cpp_DIR}")
-
-# Catch2
-find_package(Catch2 3.0.1 REQUIRED)
-message(STATUS "found catch2.h at ${Catch2_CXX_INCLUDE_DIRS}")
-
-# MPICH
-if(BUILD_MPI_TESTS)
-    find_package(MPI REQUIRED COMPONENTS C CXX)
-    message(STATUS "found mpi.h at ${MPI_CXX_INCLUDE_DIRS}")
-endif()
-
-# OpenMP
-if(BUILD_OpenMP_TESTS)
-    find_package(OpenMP REQUIRED COMPONENTS C CXX)
-    message(STATUS "found omp.h at ${OpenMP_CXX_INCLUDE_DIRS}")
-endif()
-
-# Cereal
-find_package(cereal REQUIRED)
-if(cereal)
-    message(STATUS "found cereal")
-endif()
-
-# Pkg-Config
-find_package(PkgConfig REQUIRED)
-if(PkgConfig)
-    message(STATUS "found pkg config")
-endif()
-
-# Zeromq
-if (BUILD_ZeroMQ_TESTS)
-    pkg_check_modules(ZMQ REQUIRED libzmq)
-    include_directories(${ZMQ_INCLUDE_DIRS})
-    message("Found libzmq at: ${ZMQ_INCLUDE_DIRS}")
-endif()
-
-# Thallium
-find_package(thallium CONFIG REQUIRED)
-if(thallium_FOUND)
-    message(STATUS "found thallium at ${thallium_DIR}")
-endif()
-
-# Boost
-find_package(Boost REQUIRED COMPONENTS regex system filesystem fiber REQUIRED)
-if (Boost_FOUND)
-    message(STATUS "found boost at ${Boost_INCLUDE_DIRS}")
-endif()
-include_directories(${Boost_INCLUDE_DIRS})
-
-# Choose an allocator
-set(ALLOCATOR_LIBRARIES "")
-
-# jemalloc
-if (CHIMAERA_ENABLE_JEMALLOC)
-    pkg_check_modules (JEMALLOC jemalloc)
-    pkg_search_module(JEMALLOC REQUIRED jemalloc)
-    include_directories(${JEMALLOC_INCLUDE_DIRS})
-    link_directories(${JEMALLOC_LIBRARY_DIRS})
-    set(ALLOCATOR_LIBRARIES ${JEMALLOC_LIBRARIES})
-endif()
-
-# mimmalloc
-if (CHIMAERA_ENABLE_MIMALLOC)
-    find_package(mimalloc REQUIRED)
-    if (mimalloc_FOUND)
-        message(STATUS "found mimalloc at ${mimalloc_DIR}")
-    endif()
-    set(ALLOCATOR_LIBRARIES mimalloc)
-endif()
-
-# Pybind11
-if (CHIMAERA_ENABLE_PYTHON)
-    pkg_check_modules(python3 REQUIRED python3)
-    message("Found python3 at: ${python3_INCLUDE_DIRS}")
-    set(PYBIND11_FINDPYTHON ON)
-    find_package(pybind11 REQUIRED)
-    set(OPTIONAL_LIBS pybind11::embed)
-endif()
+include(CMake/ChimaeraCommonConfig.cmake)
+set(Chimaera_CLIENT_DEPS chimaera_client)
+set(Chimaera_RUNTIME_DEPS chimaera_runtime ${Chimaera_CLIENT_DEPS}) 
 
 #------------------------------------------------------------------------------
 # Setup CMake Environment
@@ -199,35 +112,6 @@ include_directories(${CMAKE_SOURCE_DIR}/tasks/worch_queue_round_robin/include)
 include_directories(${CMAKE_SOURCE_DIR}/tasks/proc_queue/include)
 include_directories(${CMAKE_SOURCE_DIR}/tasks/bdev/include)
 
-set(_Chimaera_CLIENT_LIBRARIES
-        ${HermesShm_LIBRARIES}
-        yaml-cpp
-        cereal::cereal
-        thallium
-        -ldl -lrt -lc -pthread
-        ${ALLOCATOR_LIBRARIES})
-set(Chimaera_CLIENT_LIBRARIES
-        ${_Chimaera_CLIENT_LIBRARIES}
-        chimaera_client)
-set(Chimaera_CLIENT_DEPS
-        chimaera_client)
-set(_Chimaera_RUNTIME_LIBRARIES
-        ${_Chimaera_CLIENT_LIBRARIES}
-        ${Boost_LIBRARIES}
-        ${OPTIONAL_LIBS})
-set(Chimaera_RUNTIME_LIBRARIES
-        ${_Chimaera_RUNTIME_LIBRARIES}
-        chimaera_runtime)
-set(Chimaera_RUNTIME_DEPS
-        chimaera_runtime)
-set(Chimaera_RUNTIME_DEFINITIONS
-        CHIMAERA_RUNTIME)
-if (CHIMAERA_ENABLE_PYTHON)
-    set(Chimaera_RUNTIME_DEFINITIONS
-            ${Chimaera_RUNTIME_DEFINITIONS}
-            CHIMAERA_ENABLE_PYTHON)
-endif()
-
 set(TEST_MAIN ${CMAKE_SOURCE_DIR}/test/unit)
 add_subdirectory(tasks)
 add_subdirectory(src)
@@ -244,7 +128,9 @@ function(jarvis_test test_type test_name)
             COMMAND jarvis pipeline run yaml "${CMAKE_SOURCE_DIR}/test/unit/pipelines/${test_type}/${test_name}.yaml")
 endfunction()
 
-enable_testing()
+if (BUILD_TESTS)
+    enable_testing()
+endif()
 
 #-----------------------------------------------------------------------------
 # Install Chimaera Headers
@@ -253,10 +139,20 @@ configure_file(
         ${CMAKE_CURRENT_SOURCE_DIR}/CMake/ChimaeraConfig.cmake
         ${PROJECT_BINARY_DIR}/CMakeFiles/ChimaeraConfig.cmake @ONLY
 )
+configure_file(
+        ${CMAKE_CURRENT_SOURCE_DIR}/CMake/ChimaeraCommonConfig.cmake
+        ${PROJECT_BINARY_DIR}/CMakeFiles/ChimaeraCommonConfig.cmake @ONLY
+)
 install(
         FILES
         ${PROJECT_BINARY_DIR}/CMakeFiles/ChimaeraConfig.cmake
+        ${PROJECT_BINARY_DIR}/CMakeFiles/ChimaeraCommonConfig.cmake
         DESTINATION
         ${CMAKE_INSTALL_PREFIX}/cmake
 )
 install(DIRECTORY include DESTINATION ${CMAKE_INSTALL_PREFIX})
+install(EXPORT ${CHIMAERA_EXPORTED_TARGETS}
+  FILE ${CHIMAERA_EXPORTED_TARGETS}CoreConfig.cmake
+  NAMESPACE Chimaera::
+  DESTINATION cmake
+)

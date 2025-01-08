@@ -1,9 +1,4 @@
 #------------------------------------------------------------------------------
-# External dependencies
-#------------------------------------------------------------------------------
-# None for now
-
-#------------------------------------------------------------------------------
 # Build Chimaera Client Library
 #------------------------------------------------------------------------------
 add_library(chimaera_client SHARED
@@ -13,9 +8,10 @@ add_library(chimaera_client SHARED
         module.cc
         task.cc
 )
-target_link_libraries(chimaera_client
-  ${_Chimaera_CLIENT_LIBRARIES})
-
+target_link_libraries(chimaera_client client_deps)
+add_library(Chimaera::client ALIAS chimaera_client)
+add_library(client INTERFACE)
+target_link_libraries(client INTERFACE chimaera_client)
 #------------------------------------------------------------------------------
 # Build Chimaera Runtime Library
 #------------------------------------------------------------------------------
@@ -33,15 +29,17 @@ add_library(chimaera_runtime
         worker.cc
 )
 add_dependencies(chimaera_runtime ${Chimaera_CLIENT_DEPS})
-target_link_libraries(chimaera_runtime ${_Chimaera_RUNTIME_LIBRARIES})
-target_compile_definitions(chimaera_runtime PRIVATE ${Chimaera_RUNTIME_DEFINITIONS})
+target_link_libraries(chimaera_runtime runtime_deps)
+add_library(Chimaera::runtime ALIAS chimaera_runtime)
+add_library(runtime INTERFACE)
+target_link_libraries(runtime INTERFACE chimaera_runtime)
 #------------------------------------------------------------------------------
 # Build Chimaera Runtime Start Function
 #------------------------------------------------------------------------------
 add_executable(chimaera_start_runtime
         chimaera_start_runtime.cc)
 add_dependencies(chimaera_start_runtime ${Chimaera_RUNTIME_DEPS})
-target_link_libraries(chimaera_start_runtime ${Chimaera_RUNTIME_LIBRARIES}
+target_link_libraries(chimaera_start_runtime chimaera_runtime
         ${ALLOCATOR_LIBRARIES})
 
 #------------------------------------------------------------------------------
@@ -49,7 +47,7 @@ target_link_libraries(chimaera_start_runtime ${Chimaera_RUNTIME_LIBRARIES}
 #------------------------------------------------------------------------------
 add_executable(chimaera_stop_runtime chimaera_stop_runtime.cc)
 add_dependencies(chimaera_stop_runtime ${Chimaera_CLIENT_DEPS})
-target_link_libraries(chimaera_stop_runtime ${Chimaera_CLIENT_LIBRARIES}
+target_link_libraries(chimaera_stop_runtime chimaera_client
         ${ALLOCATOR_LIBRARIES})
 
 #-----------------------------------------------------------------------------
@@ -67,14 +65,21 @@ install(
 #-----------------------------------------------------------------------------
 # Add Target(s) to CMake Install
 #-----------------------------------------------------------------------------
-install(
-  TARGETS
+set(CHIMAERA_EXPORTED_LIBS
+    client 
+    runtime
     chimaera_client
     chimaera_runtime
     chimaera_start_runtime
     chimaera_stop_runtime
+    runtime_deps
+    client_deps)
+
+install(
+  TARGETS
+    ${CHIMAERA_EXPORTED_LIBS}
   EXPORT
-  ${CHIMAERA_EXPORTED_TARGETS}
+    ${CHIMAERA_EXPORTED_TARGETS}
   LIBRARY DESTINATION ${CHIMEARA_INSTALL_LIB_DIR}
   ARCHIVE DESTINATION ${CHIMEARA_INSTALL_LIB_DIR}
   RUNTIME DESTINATION ${CHIMEARA_INSTALL_BIN_DIR}
@@ -87,36 +92,6 @@ install(
         COMPONENT
         headers
 )
-
-#-----------------------------------------------------------------------------
-# Add Target(s) to CMake Install for import into other projects
-#-----------------------------------------------------------------------------
-install(
-        EXPORT
-        ${CHIMAERA_EXPORTED_TARGETS}
-        DESTINATION
-        ${CHIMEARA_INSTALL_DATA_DIR}/cmake/hermes
-        FILE
-        ${CHIMAERA_EXPORTED_TARGETS}.cmake
-)
-
-#-----------------------------------------------------------------------------
-# Export all exported targets to the build tree for use by parent project
-#-----------------------------------------------------------------------------
-set(CHIMAERA_EXPORTED_LIBS
-        chimaera_client
-        chimaera_runtime
-        chimaera_start_runtime
-        chimaera_stop_runtime
-        ${CHIMAERA_EXPORTED_LIBS})
-if(NOT CHIMAERA_EXTERNALLY_CONFIGURED)
-  EXPORT (
-          TARGETS
-          ${CHIMAERA_EXPORTED_LIBS}
-          FILE
-          ${CHIMAERA_EXPORTED_TARGETS}.cmake
-  )
-endif()
 
 #------------------------------------------------------------------------------
 # Coverage

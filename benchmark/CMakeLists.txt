@@ -8,7 +8,7 @@ set(CMAKE_CXX_STANDARD 17)
 #------------------------------------------------------------------------------
 
 set(TEST_LIBS
-        ${Chimaera_CLIENT_LIBRARIES}
+        chimaera_client
         Catch2::Catch2 MPI::MPI_CXX OpenMP::OpenMP_CXX)
 set(TEST_OPTS "")
 
@@ -52,8 +52,6 @@ install(TARGETS
         bench_chimaera_latency
         bench_chimaera_bw
         bench_chimaera_zlib
-        EXPORT
-        ${CHIMAERA_EXPORTED_TARGETS}
         LIBRARY DESTINATION ${CHIMAERA_INSTALL_LIB_DIR}
         ARCHIVE DESTINATION ${CHIMAERA_INSTALL_LIB_DIR}
         RUNTIME DESTINATION ${CHIMAERA_INSTALL_BIN_DIR})

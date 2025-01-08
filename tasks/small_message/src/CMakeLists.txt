@@ -3,8 +3,8 @@
 #------------------------------------------------------------------------------
 add_library(small_message SHARED
         small_message.cc)
-add_dependencies(small_message ${Chimaera_RUNTIME_DEPS})
-target_link_libraries(small_message ${Chimaera_RUNTIME_LIBRARIES})
+add_chimaera_run_deps(small_message)
+target_link_libraries(small_message Chimaera::runtime)
 target_compile_definitions(small_message PRIVATE ${Chimaera_RUNTIME_DEFINITIONS})
 #------------------------------------------------------------------------------
 # Install Small Message Task Library
@@ -12,41 +12,12 @@ target_compile_definitions(small_message PRIVATE ${Chimaera_RUNTIME_DEFINITIONS}
 install(
         TARGETS
         small_message
-        EXPORT
-        ${CHIMAERA_EXPORTED_TARGETS}
         LIBRARY DESTINATION ${CHIMEARA_INSTALL_LIB_DIR}
         ARCHIVE DESTINATION ${CHIMEARA_INSTALL_LIB_DIR}
         RUNTIME DESTINATION ${CHIMEARA_INSTALL_BIN_DIR}
 )
 install(FILES small_message_monitor.py
         DESTINATION ${CHIMEARA_INSTALL_LIB_DIR})
-
-#-----------------------------------------------------------------------------
-# Add Target(s) to CMake Install for import into other projects
-#-----------------------------------------------------------------------------
-install(
-        EXPORT
-        ${CHIMAERA_EXPORTED_TARGETS}
-        DESTINATION
-        ${CHIMEARA_INSTALL_DATA_DIR}/cmake/hermes
-        FILE
-        ${CHIMAERA_EXPORTED_TARGETS}.cmake
-)
-
-#-----------------------------------------------------------------------------
-# Export all exported targets to the build tree for use by parent project
-#-----------------------------------------------------------------------------
-set(CHIMAERA_EXPORTED_LIBS
-        small_message
-        ${CHIMAERA_EXPORTED_LIBS})
-if(NOT CHIMAERA_EXTERNALLY_CONFIGURED)
-    EXPORT (
-            TARGETS
-            ${CHIMAERA_EXPORTED_LIBS}
-            FILE
-            ${CHIMAERA_EXPORTED_TARGETS}.cmake
-    )
-endif()
 
 #------------------------------------------------------------------------------
 # Coverage
