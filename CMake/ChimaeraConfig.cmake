@@ -1,14 +1,5 @@
 # Find Chimaera header and library.
 
-# This module defines the following uncached variables:
-set(Chimaera_FOUND ON)
-# Set Chimaera dirs
-# Chimaera_INCLUDE_DIRS
-# Chimaera_LIBRARY_DIRS
-# Chimaera_CLIENT_LIBRARIES
-# Chimaera_RUNTIME_LIBRARIES
-# Chimaera_RUNTIME_DEFINITIONS
-
 #-----------------------------------------------------------------------------
 # Define constants
 #-----------------------------------------------------------------------------

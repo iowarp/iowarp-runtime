@@ -59,3 +59,13 @@ if (CHIMAERA_ENABLE_PYTHON)
     find_package(pybind11 REQUIRED)
     set(OPTIONAL_LIBS pybind11::embed)
 endif()
+
+# Create function to add dependencies to a target
+if (CHIMAERA_IS_MAIN_PROJECT)
+    function(add_chimaera_run_deps target)
+        add_dependencies(${target} chimaera_client chimaera_runtime)
+    endfunction()
+else()
+    function(add_chimaera_run_deps target)
+    endfunction()
+endif()

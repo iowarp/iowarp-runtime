@@ -96,16 +96,6 @@ endif()
 # Create an imported target for chimaera::run which links to chimaera_runtime
 add_library(chimaera::run ALIAS runtime_deps)
 
-# Create function to add dependencies to a target
-if (CHIMAERA_IS_MAIN_PROJECT)
-    function(add_chimaera_run_deps target)
-        add_dependencies(${target} chimaera_client chimaera_runtime)
-    endfunction()
-else()
-    function(add_chimaera_run_deps target)
-    endfunction()
-endif()
-
 #------------------------------------------------------------------------------
 # Setup CMake Environment
 #------------------------------------------------------------------------------
