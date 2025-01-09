@@ -1,17 +1,28 @@
 #------------------------------------------------------------------------------
 # Build Chimaera Client Library
 #------------------------------------------------------------------------------
-add_library(chimaera_client SHARED
+set(CLIENT_SOURCES
         config_client.cc
         config_server.cc
         chimaera_client.cc
         module.cc
         task.cc
 )
-target_link_libraries(chimaera_client client_deps)
+add_library(chimaera_client ${CLIENT_SOURCES})
+target_link_libraries(chimaera_client HermesShm::cxx)
 add_library(Chimaera::client ALIAS chimaera_client)
 add_library(client INTERFACE)
 target_link_libraries(client INTERFACE chimaera_client)
+
+if (CHIMAERA_ENABLE_ROCM)
+    add_rocm_library(chimaera_client_rocm ${CLIENT_SOURCES})
+    target_link_libraries(chimaera_client HermesShm::rocmcxx)
+    add_library(Chimaera::client_rocm ALIAS chimaera_client_rocm)
+    add_library(client_rocm INTERFACE)
+    target_link_libraries(client_rocm INTERFACE chimaera_client_rocm)
+endif()
+
+
 #------------------------------------------------------------------------------
 # Build Chimaera Runtime Library
 #------------------------------------------------------------------------------
@@ -72,8 +83,7 @@ set(CHIMAERA_EXPORTED_LIBS
     chimaera_runtime
     chimaera_start_runtime
     chimaera_stop_runtime
-    runtime_deps
-    client_deps)
+    runtime_deps)
 
 install(
   TARGETS

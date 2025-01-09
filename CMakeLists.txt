@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.25)
 project(chimaera)
 
 #-----------------------------------------------------------------------------
@@ -18,6 +18,8 @@ option(CHIMAERA_REMOTE_DEBUG "Debug remote tasks" OFF)
 option(CHIMAERA_ENABLE_JEMALLOC "Use jemalloc as the allocator" OFF)
 option(CHIMAERA_ENABLE_MIMALLOC "Use mimalloc as the allocator" OFF)
 option(CHIMAERA_ENABLE_PYTHON "Use pybind11" ON)
+option(CHIMAERA_ENABLE_ROCM "Enable ROCm support" OFF)
+option(CHIMAERA_ENABLE_CUDA "Enable ROCm support" OFF)
 
 # A hack for spack to get dependencies
 option(CHIMAERA_NO_COMPILE "Don't compile the code" OFF)
@@ -69,23 +71,29 @@ include(CMake/ChimaeraCommonConfig.cmake)
 set(Chimaera_CLIENT_DEPS chimaera_client)
 set(Chimaera_RUNTIME_DEPS chimaera_runtime ${Chimaera_CLIENT_DEPS}) 
 
-# Dependencies for the client
-add_library(client_deps INTERFACE)
-target_include_directories(client_deps INTERFACE  
-    ${Boost_INCLUDE_DIRS})
-target_link_libraries(client_deps INTERFACE
-    HermesShm::cxx
-    ${ALLOCATOR_LIBRARIES})
-target_link_directories(client_deps INTERFACE
-    ${Boost_LIBRARY_DIRS})
+# ENABLE GPU SUPPORT
+if (CHIMAERA_ENABLE_CUDA)
+    hermes_enable_cuda(17)
+endif()
+if (CHIMAERA_ENABLE_ROCM)
+    hermes_enable_rocm("HIP" 17)
+endif()
 
 # Dependencies for the runtime 
+set(RUNTIME_DEP_LIBS
+    ${Boost_LIBRARIES}
+    ${OPTIONAL_LIBS}
+    ${ALLOCATOR_LIBRARIES})
+if (CHIMAERA_ENABLE_CUDA)
+    list(APPEND RUNTIME_DEP_LIBS HermesShm::cudacxx)
+elseif (CHIMAERA_ENABLE_ROCM)
+    list(APPEND RUNTIME_DEP_LIBS HermesShm::rocmcxx)
+else()
+    list(APPEND RUNTIME_DEP_LIBS HermesShm::cxx)
+endif()
 add_library(runtime_deps INTERFACE)
 target_link_libraries(runtime_deps INTERFACE
-    client_deps
-    cereal::cereal
-    ${Boost_LIBRARIES}
-    ${OPTIONAL_LIBS})
+    ${RUNTIME_DEP_LIBS})
 target_compile_definitions(runtime_deps INTERFACE
     CHIMAERA_RUNTIME)
 if (CHIMAERA_ENABLE_PYTHON)
