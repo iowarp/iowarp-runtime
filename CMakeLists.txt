@@ -145,7 +145,9 @@ include_directories(${CMAKE_SOURCE_DIR}/tasks/bdev/include)
 set(TEST_MAIN ${CMAKE_SOURCE_DIR}/test/unit)
 add_subdirectory(tasks)
 add_subdirectory(src)
-add_subdirectory(test)
+if (BUILD_TESTS)
+    add_subdirectory(test)
+endif()
 add_subdirectory(benchmark)
 
 #-----------------------------------------------------------------------------
