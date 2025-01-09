@@ -80,20 +80,11 @@ if (CHIMAERA_ENABLE_ROCM)
 endif()
 
 # Dependencies for the runtime 
-set(RUNTIME_DEP_LIBS
+add_library(runtime_deps INTERFACE)
+target_link_libraries(runtime_deps INTERFACE
     ${Boost_LIBRARIES}
     ${OPTIONAL_LIBS}
     ${ALLOCATOR_LIBRARIES})
-if (CHIMAERA_ENABLE_CUDA)
-    list(APPEND RUNTIME_DEP_LIBS HermesShm::cudacxx)
-elseif (CHIMAERA_ENABLE_ROCM)
-    list(APPEND RUNTIME_DEP_LIBS HermesShm::rocmcxx)
-else()
-    list(APPEND RUNTIME_DEP_LIBS HermesShm::cxx)
-endif()
-add_library(runtime_deps INTERFACE)
-target_link_libraries(runtime_deps INTERFACE
-    ${RUNTIME_DEP_LIBS})
 target_include_directories(runtime_deps INTERFACE
     ${Boost_INCLUDE_DIRS})
 target_link_directories(runtime_deps INTERFACE
