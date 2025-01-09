@@ -5,9 +5,9 @@
 #ifndef CHIMAERA_INCLUDE_CHIMAERA_WORK_ORCHESTRATOR_REINFORCE_WORKER_H_
 #define CHIMAERA_INCLUDE_CHIMAERA_WORK_ORCHESTRATOR_REINFORCE_WORKER_H_
 
-#include <thread>
+#include <hermes_shm/util/affinity.h>
 
-#include "hermes_shm/util/affinity.h"
+#include <thread>
 
 namespace chi {
 

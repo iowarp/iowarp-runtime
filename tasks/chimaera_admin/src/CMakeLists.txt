@@ -1,10 +1,7 @@
 #------------------------------------------------------------------------------
 # Build CHI Admin Task Library
 #------------------------------------------------------------------------------
-add_library(chimaera_admin SHARED
-        ${CMAKE_CURRENT_SOURCE_DIR}/chimaera_admin.cc)
-add_chimaera_run_deps(chimaera_admin)
-target_link_libraries(chimaera_admin Chimaera::runtime)
+add_chimod_library(chimaera_admin ${CMAKE_CURRENT_SOURCE_DIR}/chimaera_admin.cc)
 #------------------------------------------------------------------------------
 # Install CHI Admin Task Library
 #------------------------------------------------------------------------------

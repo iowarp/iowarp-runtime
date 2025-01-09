@@ -10,6 +10,9 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
+#include <hermes_shm/util/affinity.h>
+#include <hermes_shm/util/timer.h>
+
 #include <queue>
 #include <thread>
 
@@ -19,8 +22,6 @@
 #include "chimaera/network/rpc_thallium.h"
 #include "chimaera/queue_manager/queue_manager_runtime.h"
 #include "chimaera/work_orchestrator/work_orchestrator.h"
-#include "hermes_shm/util/affinity.h"
-#include "hermes_shm/util/timer.h"
 
 namespace chi {
 

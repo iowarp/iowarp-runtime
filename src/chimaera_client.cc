@@ -12,5 +12,6 @@
 
 #include "chimaera/api/chimaera_client.h"
 
+#include <hermes_shm/util/singleton.h>
+
 #include "chimaera/network/rpc_thallium.h"
-#include "hermes_shm/util/singleton.h"

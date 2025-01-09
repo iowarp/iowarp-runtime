@@ -12,8 +12,9 @@
 
 #include "chimaera/api/chimaera_runtime.h"
 
+#include <hermes_shm/util/singleton.h>
+
 #include "chimaera/module_registry/task.h"
-#include "hermes_shm/util/singleton.h"
 
 namespace chi {
 

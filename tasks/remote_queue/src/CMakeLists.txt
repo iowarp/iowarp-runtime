@@ -1,14 +1,7 @@
 #------------------------------------------------------------------------------
 # Build Small Message Task Library
 #------------------------------------------------------------------------------
-include_directories(myapp PRIVATE ${libfabric_INCLUDE_DIRS})
-link_directories(${libfabric_LIBRARY_DIRS})
-add_library(remote_queue SHARED
-        remote_queue.cc)
-add_chimaera_run_deps(remote_queue)
-target_link_libraries(remote_queue
-        chimaera_runtime ${libfabric_LIBRARIES})
-target_compile_definitions(remote_queue PRIVATE ${Chimaera_RUNTIME_DEFINITIONS})
+add_chimod_library(remote_queue remote_queue.cc)
 #------------------------------------------------------------------------------
 # Install Small Message Task Library
 #------------------------------------------------------------------------------

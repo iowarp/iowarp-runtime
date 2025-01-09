@@ -339,7 +339,7 @@ struct RunContext {
   std::vector<FullPtr<Task>> *replicas_;
   size_t ret_task_addr_;
   NodeId ret_node_;
-  hipc::atomic<ssize_t> block_count_ = 0;
+  hipc::atomic<int> block_count_ = 0;
   ContainerId route_container_id_;
   chi::Lane *route_lane_;
   Load load_;
@@ -536,7 +536,7 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
   bool IsStarted() const { return rctx_.run_flags_.Any(TASK_HAS_STARTED); }
 
   /** Set blocked */
-  void SetBlocked(size_t count) { rctx_.block_count_ += count; }
+  void SetBlocked(int count) { rctx_.block_count_ += count; }
 
   /** Check if task is blocked */
   bool IsBlocked() const { return rctx_.block_count_.load() > 0; }

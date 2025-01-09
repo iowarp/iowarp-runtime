@@ -13,6 +13,8 @@
 #ifndef CHI_INCLUDE_CHI_WORK_ORCHESTRATOR_WORKER_H
 #define CHI_INCLUDE_CHI_WORK_ORCHESTRATOR_WORKER_H
 
+#include <hermes_shm/util/affinity.h>
+
 #include <queue>
 #include <thread>
 
@@ -20,7 +22,6 @@
 #include "chimaera/module_registry/module_registry.h"
 #include "chimaera/network/rpc_thallium.h"
 #include "chimaera/queue_manager/queue_manager_runtime.h"
-#include "hermes_shm/util/affinity.h"
 
 #define CHI_WORKER_SHOULD_RUN BIT_OPT(u32, 1)
 #define CHI_WORKER_IS_FLUSHING BIT_OPT(u32, 2)

@@ -1,10 +1,7 @@
 #------------------------------------------------------------------------------
 # Build Small Message Task Library
 #------------------------------------------------------------------------------
-add_library(worch_queue_round_robin SHARED
-        worch_queue_round_robin.cc)
-add_chimaera_run_deps(worch_queue_round_robin)
-target_link_libraries(worch_queue_round_robin Chimaera::runtime)
+add_chimod_library(worch_queue_round_robin worch_queue_round_robin.cc)
 #------------------------------------------------------------------------------
 # Install Small Message Task Library
 #------------------------------------------------------------------------------

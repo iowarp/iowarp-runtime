@@ -1,11 +1,7 @@
 #------------------------------------------------------------------------------
 # Build Small Message Task Library
 #------------------------------------------------------------------------------
-add_library(small_message SHARED
-        small_message.cc)
-add_chimaera_run_deps(small_message)
-target_link_libraries(small_message Chimaera::runtime)
-target_compile_definitions(small_message PRIVATE ${Chimaera_RUNTIME_DEFINITIONS})
+add_chimod_library(small_message small_message.cc)
 #------------------------------------------------------------------------------
 # Install Small Message Task Library
 #------------------------------------------------------------------------------

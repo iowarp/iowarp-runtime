@@ -13,14 +13,15 @@
 #ifndef CHI_SRC_CONFIG_H_
 #define CHI_SRC_CONFIG_H_
 
+#include <hermes_shm/util/config_parse.h>
 #include <string.h>
 #include <yaml-cpp/yaml.h>
+
 #include <iomanip>
-#include <ostream>
-#include <vector>
-#include <sstream>
 #include <limits>
-#include "hermes_shm/util/config_parse.h"
+#include <ostream>
+#include <sstream>
+#include <vector>
 
 namespace chi::config {
 

@@ -10,13 +10,13 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
+#include <hermes_shm/util/affinity.h>
+#include <hermes_shm/util/timer.h>
 #include <mpi.h>
 
 #include "basic_test.h"
 #include "chimaera/api/chimaera_client.h"
 #include "chimaera_admin/chimaera_admin.h"
-#include "hermes_shm/util/affinity.h"
-#include "hermes_shm/util/timer.h"
 #include "omp.h"
 #include "small_message/small_message.h"
 

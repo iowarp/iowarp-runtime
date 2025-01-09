@@ -13,6 +13,8 @@
 #ifndef CHI_INCLUDE_CHI_CHI_TYPES_H_
 #define CHI_INCLUDE_CHI_CHI_TYPES_H_
 
+#include <hermes_shm/constants/macros.h>
+
 #include <cereal/archives/binary.hpp>
 #include <cereal/types/atomic.hpp>
 #include <cereal/types/list.hpp>
@@ -21,46 +23,25 @@
 #include <cereal/types/unordered_set.hpp>
 #include <cereal/types/vector.hpp>
 
-#include "hermes_shm/memory/allocator/allocator_factory_.h"
-
-#define HSHM_CUSTOM_SETTINGS
-#include <hermes_shm/constants/macros.h>
-
 // Undefine default allocator
 #ifdef HSHM_DEFAULT_ALLOC_T
 #undef HSHM_DEFAULT_ALLOC_T
-#endif
-
-// Undefine default thread model
-#ifdef HSHM_DEFAULT_THREAD_MODEL
-#undef HSHM_DEFAULT_THREAD_MODEL
 #endif
 
 // #define HSHM_DEFAULT_ALLOC_T hipc::ScalablePageAllocator
 #define HSHM_DEFAULT_ALLOC_T hipc::ThreadLocalAllocator
 #define CHI_ALLOC_T HSHM_DEFAULT_ALLOC_T
 
-#ifdef HSHM_IS_HOST
-#ifdef CHIMAERA_RUNTIME
-#define HSHM_DEFAULT_THREAD_MODEL hshm::thread::Argobots
-#else
-#define HSHM_DEFAULT_THREAD_MODEL hshm::thread::Pthread
-#endif
-#else
-#define HSHM_DEFAULT_THREAD_MODEL hshm::thread::Cuda
-#endif
-
 #include <hermes_shm/data_structures/all.h>
+#include <hermes_shm/memory/allocator/allocator_factory_.h>
 #include <hermes_shm/thread/lock.h>
 #include <hermes_shm/thread/thread_model_manager.h>
 #include <hermes_shm/types/atomic.h>
 #include <hermes_shm/util/auto_trace.h>
 #include <hermes_shm/util/config_parse.h>
+#include <hermes_shm/util/singleton.h>
 
 #include <boost/context/fiber_fcontext.hpp>
-
-#include "hermes_shm/constants/macros.h"
-#include "hermes_shm/util/singleton.h"
 
 namespace bctx = boost::context::detail;
 

@@ -16,7 +16,7 @@ target_link_libraries(client INTERFACE chimaera_client)
 
 if (CHIMAERA_ENABLE_ROCM)
     add_rocm_library(chimaera_client_rocm ${CLIENT_SOURCES})
-    target_link_libraries(chimaera_client HermesShm::rocmcxx)
+    target_link_libraries(chimaera_client_rocm PUBLIC HermesShm::rocmcxx)
     add_library(Chimaera::client_rocm ALIAS chimaera_client_rocm)
     add_library(client_rocm INTERFACE)
     target_link_libraries(client_rocm INTERFACE chimaera_client_rocm)
@@ -26,7 +26,7 @@ endif()
 #------------------------------------------------------------------------------
 # Build Chimaera Runtime Library
 #------------------------------------------------------------------------------
-add_library(chimaera_runtime
+set(RUNTIME_SOURCES 
         config_client.cc
         config_server.cc
         chimaera_client.cc
@@ -39,18 +39,20 @@ add_library(chimaera_runtime
         reinforce_worker.cc
         worker.cc
 )
+add_chigpu_library(chimaera_runtime ${RUNTIME_SOURCES})
 add_dependencies(chimaera_runtime ${Chimaera_CLIENT_DEPS})
-target_link_libraries(chimaera_runtime runtime_deps)
+target_link_libraries(chimaera_runtime PUBLIC runtime_deps)
+target_compile_definitions(chimaera_runtime PRIVATE HSHM_DEFAULT_THREAD_MODEL=hshm::thread::Argobots)
 add_library(Chimaera::runtime ALIAS chimaera_runtime)
 add_library(runtime INTERFACE)
 target_link_libraries(runtime INTERFACE chimaera_runtime)
 #------------------------------------------------------------------------------
 # Build Chimaera Runtime Start Function
 #------------------------------------------------------------------------------
-add_executable(chimaera_start_runtime
+add_chigpu_executable(chimaera_start_runtime
         chimaera_start_runtime.cc)
 add_dependencies(chimaera_start_runtime ${Chimaera_RUNTIME_DEPS})
-target_link_libraries(chimaera_start_runtime chimaera_runtime
+target_link_libraries(chimaera_start_runtime PUBLIC chimaera_runtime
         ${ALLOCATOR_LIBRARIES})
 
 #------------------------------------------------------------------------------
@@ -58,7 +60,7 @@ target_link_libraries(chimaera_start_runtime chimaera_runtime
 #------------------------------------------------------------------------------
 add_executable(chimaera_stop_runtime chimaera_stop_runtime.cc)
 add_dependencies(chimaera_stop_runtime ${Chimaera_CLIENT_DEPS})
-target_link_libraries(chimaera_stop_runtime chimaera_client
+target_link_libraries(chimaera_stop_runtime PUBLIC chimaera_client
         ${ALLOCATOR_LIBRARIES})
 
 #-----------------------------------------------------------------------------

@@ -11,7 +11,9 @@ add_executable(test_boost_exec
         test_boost.cc
 )
 target_link_libraries(test_boost_exec
-        chimaera_runtime Catch2::Catch2 MPI::MPI_CXX)
+        HermesShm::cxx Catch2::Catch2 MPI::MPI_CXX ${Boost_LIBRARIES})
+target_link_directories(test_boost_exec PRIVATE ${Boost_LIBRARY_DIRS})
+target_include_directories(test_boost_exec PRIVATE ${Boost_INCLUDE_DIRS})
 
 #------------------------------------------------------------------------------
 # Test Cases

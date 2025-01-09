@@ -94,6 +94,10 @@ endif()
 add_library(runtime_deps INTERFACE)
 target_link_libraries(runtime_deps INTERFACE
     ${RUNTIME_DEP_LIBS})
+target_include_directories(runtime_deps INTERFACE
+    ${Boost_INCLUDE_DIRS})
+target_link_directories(runtime_deps INTERFACE
+    ${Boost_LIBRARY_DIRS})
 target_compile_definitions(runtime_deps INTERFACE
     CHIMAERA_RUNTIME)
 if (CHIMAERA_ENABLE_PYTHON)

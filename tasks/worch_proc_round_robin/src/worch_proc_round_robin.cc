@@ -14,7 +14,6 @@
 
 #include "chimaera/api/chimaera_runtime.h"
 #include "chimaera_admin/chimaera_admin.h"
-#include "hermes_shm/constants/macros.h"
 
 namespace chi::worch_proc_round_robin {
 

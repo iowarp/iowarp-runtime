@@ -1,11 +1,7 @@
 #------------------------------------------------------------------------------
 # Build BDEV Task Library
 #------------------------------------------------------------------------------
-add_library(bdev SHARED
-        bdev.cc
-)
-add_chimaera_run_deps(bdev)
-target_link_libraries(bdev Chimaera::runtime)
+add_chimod_library(bdev bdev.cc)
 #------------------------------------------------------------------------------
 # Install BDEV Task Library
 #------------------------------------------------------------------------------

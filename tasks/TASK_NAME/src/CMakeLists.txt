@@ -1,10 +1,7 @@
 #------------------------------------------------------------------------------
 # Build TASK_NAME Task Library
 #------------------------------------------------------------------------------
-add_library(TASK_NAME SHARED
-        TASK_NAME.cc)
-add_chimaera_run_deps(TASK_NAME)
-target_link_libraries(TASK_NAME Chimaera::runtime)
+add_chimod_library(TASK_NAME TASK_NAME.cc)
 #------------------------------------------------------------------------------
 # Install TASK_NAME Task Library
 #------------------------------------------------------------------------------

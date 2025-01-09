@@ -1,10 +1,11 @@
 //
 // Created by llogan on 6/25/24.
 //
+#include <hermes_shm/util/affinity.h>
+#include <hermes_shm/util/compress/snappy.h>
+#include <hermes_shm/util/random.h>
+
 #include "chimaera/chimaera_types.h"
-#include "hermes_shm/util/affinity.h"
-#include "hermes_shm/util/compress/snappy.h"
-#include "hermes_shm/util/random.h"
 #include "mpi.h"
 
 std::vector<int> MakeDist(size_t xfer_count) {
