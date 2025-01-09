@@ -47,9 +47,11 @@ struct PriorityInfo {
   u32 tether_; /**< Lanes should be pinned to the same workers as the tether */
 
   /** Default constructor */
+  HSHM_CROSS_FUN
   PriorityInfo() = default;
 
   /** Emplace constructor */
+  HSHM_CROSS_FUN
   PriorityInfo(TaskPrio prio, u32 num_lanes, u32 max_lanes, u32 depth,
                u32 flags, u32 tether = 0) {
     prio_ = prio;
@@ -61,6 +63,7 @@ struct PriorityInfo {
   }
 
   /** Emplace constructor */
+  HSHM_CROSS_FUN
   PriorityInfo(TaskPrio prio, u32 num_lanes, u32 max_lanes, u32 depth,
                bitfield32_t flags, u32 tether = 0) {
     prio_ = prio;
@@ -72,6 +75,7 @@ struct PriorityInfo {
   }
 
   /** Copy constructor */
+  HSHM_CROSS_FUN
   PriorityInfo(const PriorityInfo &priority) {
     prio_ = priority.prio_;
     max_lanes_ = priority.max_lanes_;
@@ -82,6 +86,7 @@ struct PriorityInfo {
   }
 
   /** Move constructor */
+  HSHM_CROSS_FUN
   PriorityInfo(PriorityInfo &&priority) noexcept {
     prio_ = priority.prio_;
     max_lanes_ = priority.max_lanes_;
@@ -92,6 +97,7 @@ struct PriorityInfo {
   }
 
   /** Copy assignment operator */
+  HSHM_CROSS_FUN
   PriorityInfo &operator=(const PriorityInfo &priority) {
     if (this != &priority) {
       prio_ = priority.prio_;
@@ -105,6 +111,7 @@ struct PriorityInfo {
   }
 
   /** Move assignment operator */
+  HSHM_CROSS_FUN
   PriorityInfo &operator=(PriorityInfo &&priority) noexcept {
     if (this != &priority) {
       prio_ = priority.prio_;
@@ -119,7 +126,7 @@ struct PriorityInfo {
 
   /** Serialize Priority Info */
   template <typename Ar>
-  void serialize(Ar &ar) {
+  HSHM_CROSS_FUN void serialize(Ar &ar) {
     ar & prio_;
     ar & max_lanes_;
     ar & num_lanes_;

@@ -19,7 +19,7 @@ namespace chi {
 
 /** Allocate a buffer */
 template <bool FROM_REMOTE>
-HSHM_INLINE FullPtr<char> Client::AllocateBufferSafe(
+HSHM_INLINE_CROSS_FUN FullPtr<char> Client::AllocateBufferSafe(
     const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, size_t size) {
   FullPtr<char> p;
   while (true) {

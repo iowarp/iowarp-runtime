@@ -70,7 +70,7 @@ class ConfigurationManager {
   /** Load the server-side configuration */
   void LoadServerConfig(std::string config_path) {
     if (config_path.empty()) {
-      config_path = Constants::GetEnvSafe(Constants::kServerConfEnv);
+      config_path = HERMES_SYSTEM_INFO->Getenv(Constants::kServerConfEnv);
     }
     HILOG(kInfo, "Loading server configuration: {}", config_path);
     server_config_.LoadFromFile(config_path);
@@ -79,7 +79,7 @@ class ConfigurationManager {
   /** Load the client-side configuration */
   void LoadClientConfig(std::string config_path) {
     if (config_path.empty()) {
-      config_path = Constants::GetEnvSafe(Constants::kClientConfEnv);
+      config_path = HERMES_SYSTEM_INFO->Getenv(Constants::kClientConfEnv);
     }
     client_config_.LoadFromFile(config_path);
   }

@@ -6,6 +6,7 @@
 #define CHIMAERA_INCLUDE_CHIMAERA_MONITOR_MODEL_H_
 
 #include <vector>
+
 #include "chimaera/chimaera_constants.h"
 
 namespace chi {
@@ -22,8 +23,7 @@ class Model {
   std::ofstream log_;
 
  public:
-  void TableShape(const std::string &name,
-                  size_t ncol, size_t max_samples) {
+  void TableShape(const std::string &name, size_t ncol, size_t max_samples) {
     ncol_ = ncol;
     max_samples_ = max_samples;
     table_.resize(ncol);
@@ -31,7 +31,7 @@ class Model {
       table_[i].resize(max_samples);
     }
     predicted_.resize(max_samples);
-    std::string path = Constants::GetEnvSafe("CHIMAERA_MONITOR_OUT");
+    std::string path = HERMES_SYSTEM_INFO->Getenv("CHIMAERA_MONITOR_OUT");
     path = hshm::ConfigParse::ExpandPath(path);
     path = hshm::Formatter::format("{}/{}.csv", path, name);
     log_ = std::ofstream(path);
@@ -87,4 +87,4 @@ class Model {
 
 }  // namespace chi
 
-#endif //CHIMAERA_INCLUDE_CHIMAERA_MONITOR_MODEL_H_
+#endif  // CHIMAERA_INCLUDE_CHIMAERA_MONITOR_MODEL_H_

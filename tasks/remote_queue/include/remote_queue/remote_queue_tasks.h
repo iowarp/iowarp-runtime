@@ -26,12 +26,14 @@ CHI_NAMESPACE_INIT
 struct CreateTaskParams {
   CLS_CONST char *lib_name_ = "remote_queue";
 
+  HSHM_INLINE_CROSS_FUN
   CreateTaskParams() = default;
 
+  HSHM_INLINE_CROSS_FUN
   CreateTaskParams(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) {}
 
   template <typename Ar>
-  void serialize(Ar &ar) {}
+  HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {}
 };
 typedef chi::Admin::CreateContainerBaseTask<CreateTaskParams> CreateTask;
 
@@ -42,14 +44,16 @@ struct ClientPushSubmitTask : public Task, TaskFlags<TF_LOCAL> {
   IN Task *orig_task_;
 
   /** SHM default constructor */
-  HSHM_INLINE explicit ClientPushSubmitTask(
-      const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
+  HSHM_INLINE_CROSS_FUN
+  explicit ClientPushSubmitTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
       : Task(alloc) {}
 
   /** Emplace constructor */
-  HSHM_INLINE explicit ClientPushSubmitTask(
-      const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, const TaskNode &task_node,
-      const PoolId &pool_id, const DomainQuery &dom_query, Task *orig_task)
+  HSHM_INLINE_CROSS_FUN
+  explicit ClientPushSubmitTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
+                                const TaskNode &task_node,
+                                const PoolId &pool_id,
+                                const DomainQuery &dom_query, Task *orig_task)
       : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
@@ -69,14 +73,15 @@ struct ClientPushSubmitTask : public Task, TaskFlags<TF_LOCAL> {
 
 struct ClientSubmitTask : public Task, TaskFlags<TF_LOCAL> {
   /** SHM default constructor */
-  HSHM_INLINE explicit ClientSubmitTask(
-      const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
+  HSHM_INLINE_CROSS_FUN
+  explicit ClientSubmitTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
       : Task(alloc) {}
 
   /** Emplace constructor */
-  HSHM_INLINE explicit ClientSubmitTask(
-      const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, const TaskNode &task_node,
-      const PoolId &pool_id, const DomainQuery &dom_query)
+  HSHM_INLINE_CROSS_FUN
+  explicit ClientSubmitTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
+                            const TaskNode &task_node, const PoolId &pool_id,
+                            const DomainQuery &dom_query)
       : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
@@ -90,14 +95,16 @@ struct ClientSubmitTask : public Task, TaskFlags<TF_LOCAL> {
 
 struct ServerPushCompleteTask : public Task, TaskFlags<TF_LOCAL> {
   /** SHM default constructor */
-  HSHM_INLINE explicit ServerPushCompleteTask(
-      const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
+  HSHM_INLINE_CROSS_FUN
+  explicit ServerPushCompleteTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
       : Task(alloc) {}
 
   /** Emplace constructor */
-  HSHM_INLINE explicit ServerPushCompleteTask(
-      const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, const TaskNode &task_node,
-      const PoolId &pool_id, const DomainQuery &dom_query)
+  HSHM_INLINE_CROSS_FUN
+  explicit ServerPushCompleteTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
+                                  const TaskNode &task_node,
+                                  const PoolId &pool_id,
+                                  const DomainQuery &dom_query)
       : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
@@ -111,14 +118,15 @@ struct ServerPushCompleteTask : public Task, TaskFlags<TF_LOCAL> {
 
 struct ServerCompleteTask : public Task, TaskFlags<TF_LOCAL> {
   /** SHM default constructor */
-  HSHM_INLINE explicit ServerCompleteTask(
-      const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
+  HSHM_INLINE_CROSS_FUN
+  explicit ServerCompleteTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
       : Task(alloc) {}
 
   /** Emplace constructor */
-  HSHM_INLINE explicit ServerCompleteTask(
-      const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, const TaskNode &task_node,
-      const PoolId &pool_id, const DomainQuery &dom_query)
+  HSHM_INLINE_CROSS_FUN
+  explicit ServerCompleteTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
+                              const TaskNode &task_node, const PoolId &pool_id,
+                              const DomainQuery &dom_query)
       : Task(alloc) {
     // Initialize task
     task_node_ = task_node;

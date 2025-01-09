@@ -21,10 +21,13 @@ struct CreateTaskParams {
   IN std::string path_;
   IN size_t size_;
 
+  HSHM_INLINE_CROSS_FUN
   CreateTaskParams() = default;
 
+  HSHM_INLINE_CROSS_FUN
   CreateTaskParams(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) {}
 
+  HSHM_INLINE_CROSS_FUN
   CreateTaskParams(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
                    const std::string &path, size_t size)
       : path_(path) {
@@ -50,14 +53,15 @@ struct AllocateTask : public Task, TaskFlags<TF_SRL_SYM> {
   OUT chi::ipc::vector<Block> blocks_;
 
   /** SHM default constructor */
-  HSHM_INLINE explicit AllocateTask(
-      const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
+  HSHM_INLINE_CROSS_FUN
+  explicit AllocateTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
       : Task(alloc), blocks_(alloc) {}
 
   /** Emplace constructor */
-  HSHM_INLINE explicit AllocateTask(
-      const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, const TaskNode &task_node,
-      const PoolId &pool_id, const DomainQuery &dom_query, size_t size)
+  HSHM_INLINE_CROSS_FUN
+  explicit AllocateTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
+                        const TaskNode &task_node, const PoolId &pool_id,
+                        const DomainQuery &dom_query, size_t size)
       : Task(alloc), blocks_(alloc) {
     // Initialize task
     task_node_ = task_node;
@@ -72,6 +76,7 @@ struct AllocateTask : public Task, TaskFlags<TF_SRL_SYM> {
   }
 
   /** Duplicate message */
+  HSHM_INLINE_CROSS_FUN
   void CopyStart(const AllocateTask &other, bool deep) {
     size_ = other.size_;
     blocks_ = other.blocks_;
@@ -79,13 +84,13 @@ struct AllocateTask : public Task, TaskFlags<TF_SRL_SYM> {
 
   /** (De)serialize message call */
   template <typename Ar>
-  void SerializeStart(Ar &ar) {
+  HSHM_INLINE_CROSS_FUN void SerializeStart(Ar &ar) {
     ar(size_);
   }
 
   /** (De)serialize message return */
   template <typename Ar>
-  void SerializeEnd(Ar &ar) {
+  HSHM_INLINE_CROSS_FUN void SerializeEnd(Ar &ar) {
     ar(blocks_, total_size_);
   }
 };
@@ -97,15 +102,15 @@ struct FreeTask : public Task, TaskFlags<TF_SRL_SYM> {
   IN Block block_;
 
   /** SHM default constructor */
-  HSHM_INLINE explicit FreeTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
+  HSHM_INLINE_CROSS_FUN
+  explicit FreeTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
       : Task(alloc) {}
 
   /** Emplace constructor */
-  HSHM_INLINE explicit FreeTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
-                                const TaskNode &task_node,
-                                const PoolId &pool_id,
-                                const DomainQuery &dom_query,
-                                const Block &block)
+  HSHM_INLINE_CROSS_FUN
+  explicit FreeTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
+                    const TaskNode &task_node, const PoolId &pool_id,
+                    const DomainQuery &dom_query, const Block &block)
       : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
@@ -120,17 +125,18 @@ struct FreeTask : public Task, TaskFlags<TF_SRL_SYM> {
   }
 
   /** Duplicate message */
+  HSHM_INLINE_CROSS_FUN
   void CopyStart(const FreeTask &other, bool deep) { block_ = other.block_; }
 
   /** (De)serialize message call */
   template <typename Ar>
-  void SerializeStart(Ar &ar) {
+  HSHM_INLINE_CROSS_FUN void SerializeStart(Ar &ar) {
     ar(block_);
   }
 
   /** (De)serialize message return */
   template <typename Ar>
-  void SerializeEnd(Ar &ar) {}
+  HSHM_INLINE_CROSS_FUN void SerializeEnd(Ar &ar) {}
 };
 
 /**
@@ -143,16 +149,15 @@ struct WriteTask : public Task, TaskFlags<TF_SRL_SYM> {
   OUT bool success_;
 
   /** SHM default constructor */
-  HSHM_INLINE explicit WriteTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
+  HSHM_INLINE_CROSS_FUN explicit WriteTask(
+      const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
       : Task(alloc) {}
 
   /** Emplace constructor */
-  HSHM_INLINE explicit WriteTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
-                                 const TaskNode &task_node,
-                                 const PoolId &pool_id,
-                                 const DomainQuery &dom_query,
-                                 const hipc::Pointer &data, size_t off,
-                                 size_t size)
+  HSHM_INLINE_CROSS_FUN explicit WriteTask(
+      const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, const TaskNode &task_node,
+      const PoolId &pool_id, const DomainQuery &dom_query,
+      const hipc::Pointer &data, size_t off, size_t size)
       : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
@@ -169,6 +174,7 @@ struct WriteTask : public Task, TaskFlags<TF_SRL_SYM> {
   }
 
   /** Duplicate message */
+  HSHM_INLINE_CROSS_FUN
   void CopyStart(const WriteTask &other, bool deep) {
     data_ = other.data_;
     size_ = other.size_;
@@ -180,14 +186,14 @@ struct WriteTask : public Task, TaskFlags<TF_SRL_SYM> {
 
   /** (De)serialize message call */
   template <typename Ar>
-  void SerializeStart(Ar &ar) {
+  HSHM_INLINE_CROSS_FUN void SerializeStart(Ar &ar) {
     ar.bulk(DT_WRITE, data_, size_);
     ar(off_);
   }
 
   /** (De)serialize message return */
   template <typename Ar>
-  void SerializeEnd(Ar &ar) {
+  HSHM_INLINE_CROSS_FUN void SerializeEnd(Ar &ar) {
     // ar(success_);
   }
 };
@@ -202,16 +208,16 @@ struct ReadTask : public Task, TaskFlags<TF_SRL_SYM> {
   OUT bool success_;
 
   /** SHM default constructor */
-  HSHM_INLINE explicit ReadTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
+  HSHM_INLINE_CROSS_FUN
+  explicit ReadTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
       : Task(alloc) {}
 
   /** Emplace constructor */
-  HSHM_INLINE explicit ReadTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
-                                const TaskNode &task_node,
-                                const PoolId &pool_id,
-                                const DomainQuery &dom_query,
-                                const hipc::Pointer &data, size_t off,
-                                size_t size)
+  HSHM_INLINE_CROSS_FUN
+  explicit ReadTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
+                    const TaskNode &task_node, const PoolId &pool_id,
+                    const DomainQuery &dom_query, const hipc::Pointer &data,
+                    size_t off, size_t size)
       : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
@@ -228,6 +234,7 @@ struct ReadTask : public Task, TaskFlags<TF_SRL_SYM> {
   }
 
   /** Duplicate message */
+  HSHM_INLINE_CROSS_FUN
   void CopyStart(const ReadTask &other, bool deep) {
     data_ = other.data_;
     size_ = other.size_;
@@ -239,7 +246,7 @@ struct ReadTask : public Task, TaskFlags<TF_SRL_SYM> {
 
   /** (De)serialize message call */
   template <typename Ar>
-  void SerializeStart(Ar &ar) {
+  HSHM_INLINE_CROSS_FUN void SerializeStart(Ar &ar) {
     ar.bulk(DT_EXPOSE, data_, size_);
     ar(size_, off_);
   }
@@ -259,14 +266,15 @@ struct PollStatsTask : public Task, TaskFlags<TF_SRL_SYM> {
   OUT BdevStats stats_;
 
   /** SHM default constructor */
-  HSHM_INLINE explicit PollStatsTask(
-      const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
+  HSHM_INLINE_CROSS_FUN
+  explicit PollStatsTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
       : Task(alloc) {}
 
   /** Emplace constructor */
-  HSHM_INLINE explicit PollStatsTask(
-      const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, const TaskNode &task_node,
-      const PoolId &pool_id, const DomainQuery &dom_query, u32 period_ms)
+  HSHM_INLINE_CROSS_FUN
+  explicit PollStatsTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
+                         const TaskNode &task_node, const PoolId &pool_id,
+                         const DomainQuery &dom_query, u32 period_ms)
       : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
@@ -285,15 +293,16 @@ struct PollStatsTask : public Task, TaskFlags<TF_SRL_SYM> {
   }
 
   /** Duplicate message */
+  HSHM_INLINE_CROSS_FUN
   void CopyStart(const PollStatsTask &other, bool deep) {}
 
   /** (De)serialize message call */
   template <typename Ar>
-  void SerializeStart(Ar &ar) {}
+  HSHM_INLINE_CROSS_FUN void SerializeStart(Ar &ar) {}
 
   /** (De)serialize message return */
   template <typename Ar>
-  void SerializeEnd(Ar &ar) {
+  HSHM_INLINE_CROSS_FUN void SerializeEnd(Ar &ar) {
     ar(stats_);
   }
 };

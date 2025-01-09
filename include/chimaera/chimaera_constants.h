@@ -21,15 +21,6 @@ class Constants {
  public:
   inline static const std::string kClientConfEnv = "CHIMAERA_CLIENT_CONF";
   inline static const std::string kServerConfEnv = "CHIMAERA_CONF";
-
-  static std::string GetEnvSafe(const std::string &env_name) {
-    char *data = getenv(env_name.c_str());
-    if (data == nullptr) {
-      return "";
-    } else {
-      return data;
-    }
-  }
 };
 
 #define HIDE_SYMBOL __attribute__((visibility("hidden")))

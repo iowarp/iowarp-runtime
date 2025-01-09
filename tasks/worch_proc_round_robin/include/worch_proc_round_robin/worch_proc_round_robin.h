@@ -11,22 +11,22 @@ namespace chi::worch_proc_round_robin {
 
 /** Create admin requests */
 class Client : public ModuleClient {
-
  public:
   /** Default constructor */
+  HSHM_INLINE_CROSS_FUN
   Client() = default;
 
   /** Destructor */
+  HSHM_INLINE_CROSS_FUN
   ~Client() = default;
 
   /** Create a worch_proc_round_robin */
-  void Create(const hipc::MemContext &mctx,
-              const DomainQuery &dom_query,
-              const DomainQuery &affinity,
-              const std::string &pool_name,
+  HSHM_INLINE_CROSS_FUN
+  void Create(const hipc::MemContext &mctx, const DomainQuery &dom_query,
+              const DomainQuery &affinity, const std::string &pool_name,
               const CreateContext &ctx = CreateContext()) {
-    FullPtr<CreateTask> task = AsyncCreate(
-        mctx, dom_query, affinity, pool_name, ctx);
+    FullPtr<CreateTask> task =
+        AsyncCreate(mctx, dom_query, affinity, pool_name, ctx);
     task->Wait();
     Init(task->ctx_.id_);
     CHI_CLIENT->DelTask(mctx, task);
@@ -34,13 +34,12 @@ class Client : public ModuleClient {
   CHI_TASK_METHODS(Create);
 
   /** Destroy state */
-  HSHM_INLINE
-  void Destroy(const hipc::MemContext &mctx,
-               const DomainQuery &dom_query) {
+  HSHM_INLINE_CROSS_FUN
+  void Destroy(const hipc::MemContext &mctx, const DomainQuery &dom_query) {
     CHI_ADMIN->DestroyContainer(mctx, dom_query, id_);
   }
 };
 
-}  // namespace chi
+}  // namespace chi::worch_proc_round_robin
 
 #endif  // CHI_worch_proc_round_robin_H_

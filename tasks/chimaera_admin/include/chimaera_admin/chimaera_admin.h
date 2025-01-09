@@ -18,7 +18,7 @@ class Client : public ModuleClient {
   ~Client() = default;
 
   /** Register a module */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   void RegisterModule(const hipc::MemContext &mctx,
                       const DomainQuery &dom_query,
                       const std::string &lib_name) {
@@ -30,7 +30,7 @@ class Client : public ModuleClient {
   CHI_TASK_METHODS(RegisterModule)
 
   /** Unregister a module */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   void DestroyModule(const hipc::MemContext &mctx, const DomainQuery &dom_query,
                      const std::string &lib_name) {
     FullPtr<DestroyModuleTask> task =
@@ -41,7 +41,7 @@ class Client : public ModuleClient {
   CHI_TASK_METHODS(DestroyModule)
 
   /** Register a task library */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   void UpgradeModule(const hipc::MemContext &mctx, const DomainQuery &dom_query,
                      const std::string &lib_name) {
     FullPtr<UpgradeModuleTask> task =
@@ -52,6 +52,7 @@ class Client : public ModuleClient {
   CHI_TASK_METHODS(UpgradeModule)
 
   /** Get the ID of a pool */
+  HSHM_INLINE_CROSS_FUN
   PoolId GetPoolId(const hipc::MemContext &mctx, const DomainQuery &dom_query,
                    const std::string &pool_name) {
     FullPtr<GetPoolIdTask> task = AsyncGetPoolId(mctx, dom_query, pool_name);
@@ -63,7 +64,7 @@ class Client : public ModuleClient {
   CHI_TASK_METHODS(GetPoolId)
 
   /** Create a pool */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   void CreateContainer(const hipc::MemContext &mctx,
                        const DomainQuery &dom_query,
                        const CreateContainerTask &task) {
@@ -75,7 +76,7 @@ class Client : public ModuleClient {
   CHI_TASK_METHODS(CreateContainer)
 
   /** Terminate a pool */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   void DestroyContainer(const hipc::MemContext &mctx,
                         const DomainQuery &dom_query,
                         const PoolId &destroy_id) {
@@ -87,6 +88,7 @@ class Client : public ModuleClient {
   CHI_TASK_METHODS(DestroyContainer)
 
   /** Terminate the runtime */
+  HSHM_INLINE_CROSS_FUN
   void StopRuntime(const hipc::MemContext &mctx) {
     HILOG(kInfo,
           "Beginning to flush the runtime.\n"
@@ -103,6 +105,7 @@ class Client : public ModuleClient {
   CHI_TASK_METHODS(StopRuntime);
 
   /** Set work orchestrator queue policy */
+  HSHM_INLINE_CROSS_FUN
   void SetWorkOrchQueuePolicy(const hipc::MemContext &mctx,
                               const DomainQuery &dom_query,
                               const PoolId &policy) {
@@ -124,6 +127,7 @@ class Client : public ModuleClient {
   CHI_TASK_METHODS(SetWorkOrchQueuePolicy);
 
   /** Set work orchestrator process policy */
+  HSHM_INLINE_CROSS_FUN
   void SetWorkOrchProcPolicy(const hipc::MemContext &mctx,
                              const DomainQuery &dom_query,
                              const PoolId &policy) {
@@ -145,6 +149,7 @@ class Client : public ModuleClient {
   CHI_TASK_METHODS(SetWorkOrchProcPolicy);
 
   /** Flush the runtime */
+  HSHM_INLINE_CROSS_FUN
   void Flush(const hipc::MemContext &mctx, const DomainQuery &dom_query) {
     size_t work_done = 0;
     do {
@@ -157,6 +162,7 @@ class Client : public ModuleClient {
   CHI_TASK_METHODS(Flush);
 
   /** Get size of a domain */
+  HSHM_INLINE_CROSS_FUN
   size_t GetDomainSize(const hipc::MemContext &mctx,
                        const DomainQuery &dom_query, const DomainId &dom_id) {
     FullPtr<GetDomainSizeTask> task =
