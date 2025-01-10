@@ -40,7 +40,7 @@ set(RUNTIME_SOURCES
 add_chigpu_library(chimaera_runtime ${RUNTIME_SOURCES})
 add_dependencies(chimaera_runtime ${Chimaera_CLIENT_DEPS})
 target_link_libraries(chimaera_runtime PUBLIC runtime_deps)
-target_compile_definitions(chimaera_runtime PRIVATE HSHM_DEFAULT_THREAD_MODEL=hshm::thread::Argobots)
+target_compile_definitions(chimaera_runtime PUBLIC HSHM_DEFAULT_THREAD_MODEL=hshm::thread::Argobots)
 add_library(Chimaera::runtime ALIAS chimaera_runtime)
 add_library(runtime INTERFACE)
 target_link_libraries(runtime INTERFACE chimaera_runtime)

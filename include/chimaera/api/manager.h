@@ -29,6 +29,8 @@ struct ChiShm {
   u64 num_nodes_;
 };
 
+#define MAX_GPU 16
+
 /** The configuration used inherited by runtime + client */
 class ConfigurationManager {
  public:
@@ -41,12 +43,24 @@ class ConfigurationManager {
   CHI_ALLOC_T *main_alloc_;
   CHI_ALLOC_T *data_alloc_;
   CHI_ALLOC_T *rdata_alloc_;
+  CHI_ALLOC_T *gpu_alloc_[MAX_GPU];
   bool is_being_initialized_;
   bool is_initialized_;
   bool is_terminated_;
   bool is_transparent_;
   hshm::Mutex lock_;
   hshm::ThreadType thread_type_;
+
+  /** Get GPU mem backend id */
+  HSHM_INLINE_CROSS_FUN static hipc::MemoryBackendId GetGpuMemBackendId(
+      int gpu_id) {
+    return hipc::MemoryBackendId(3 + gpu_id);
+  }
+
+  /** Get GPU allocator id */
+  HSHM_INLINE_CROSS_FUN static hipc::AllocatorId GetGpuAllocId(int gpu_id) {
+    return hipc::AllocatorId(3 + gpu_id, 1);
+  }
 
   /** Default constructor */
   ConfigurationManager()

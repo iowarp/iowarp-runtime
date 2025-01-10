@@ -151,10 +151,36 @@ void Runtime::InitSharedMemory() {
   rdata_alloc_ = mem_mngr->CreateAllocator<CHI_ALLOC_T>(
       hipc::MemoryBackendId(2), rdata_alloc_id_, 0);
 
-  auto *test = HERMES_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(main_alloc_id_);
-  if (!test) {
-    HILOG(kError, "Failed to create main allocator");
+  // Create per-gpu allocator
+  int num_gpus = 0;
+  int gpu_off = 0;
+#ifdef CHIMAERA_ENABLE_CUDA
+  cudaGetDeviceCount(&num_gpus);
+  for (int gpu_id = 0; gpu_id < num_gpus; ++gpu_id) {
+    hipc::MemoryBackendId backend_id = GetGpuMemBackendId(gpu_off);
+    hipc::AllocatorId alloc_id = GetGpuAllocId(gpu_off);
+    hipc::chararr name = "cuda_shm_" + std::to_string(gpu_id);
+    mem_mngr->CreateBackend<hipc::CudaShmMmap>(backend_id, MEGABYTES(100), name,
+                                               gpu_id);
+    gpu_alloc_[gpu_off] =
+        mem_mngr->CreateAllocator<CHI_ALLOC_T>(backend_id, alloc_id, 0);
+    gpu_off++;
   }
+#endif
+
+#ifdef CHIMAERA_ENABLE_ROCM
+  HIP_ERROR_CHECK(hipGetDeviceCount(&num_gpus));
+  for (int gpu_id = 0; gpu_id < num_gpus; ++gpu_id) {
+    hipc::MemoryBackendId backend_id = GetGpuMemBackendId(gpu_off);
+    hipc::AllocatorId alloc_id = GetGpuAllocId(gpu_off);
+    hipc::chararr name = "rocm_shm_" + std::to_string(gpu_id);
+    mem_mngr->CreateBackend<hipc::RocmShmMmap>(backend_id, MEGABYTES(100), name,
+                                               gpu_id);
+    gpu_alloc_[gpu_off] =
+        mem_mngr->CreateAllocator<CHI_ALLOC_T>(backend_id, alloc_id, 0);
+    gpu_off++;
+  }
+#endif
 }
 
 /** Finalize Hermes explicitly */
