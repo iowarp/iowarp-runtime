@@ -173,6 +173,7 @@ void Runtime::InitSharedMemory() {
   for (int gpu_id = 0; gpu_id < num_gpus; ++gpu_id) {
     hipc::MemoryBackendId backend_id = GetGpuMemBackendId(gpu_off);
     hipc::AllocatorId alloc_id = GetGpuAllocId(gpu_off);
+    // TODO(llogan): Make parameter for gpu_shm_name_ and gpu_shm_size_
     hipc::chararr name = "rocm_shm_" + std::to_string(gpu_id);
     mem_mngr->CreateBackend<hipc::RocmShmMmap>(backend_id, MEGABYTES(100), name,
                                                gpu_id);
