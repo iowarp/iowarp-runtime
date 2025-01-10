@@ -36,6 +36,7 @@ set(RUNTIME_SOURCES
         python_wrapper.cc
         reinforce_worker.cc
         worker.cc
+        queue_manager.cc
 )
 add_chigpu_library(chimaera_runtime ${RUNTIME_SOURCES})
 add_dependencies(chimaera_runtime ${Chimaera_CLIENT_DEPS})

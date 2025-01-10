@@ -17,7 +17,7 @@
 
 #include "chimaera/chimaera_types.h"
 #include "chimaera/network/rpc_thallium.h"
-#include "chimaera/queue_manager/queue_manager_runtime.h"
+#include "chimaera/queue_manager/queue_manager.h"
 #include "reinforce_worker.h"
 #include "worker.h"
 
@@ -185,8 +185,7 @@ class WorkOrchestrator {
 
   /** Get the least-loaded ingress queue */
   ingress::Lane *GetLeastLoadedIngressLane(u32 lane_group_id) {
-    ingress::MultiQueue *queue =
-        CHI_QM_RUNTIME->GetQueue(CHI_QM_RUNTIME->admin_queue_id_);
+    ingress::MultiQueue *queue = CHI_QM->GetQueue(CHI_QM->admin_queue_id_);
     ingress::LaneGroup &lane_group = queue->groups_[lane_group_id];
     ingress::Lane *min_lane = nullptr;
     float min_load = std::numeric_limits<float>::max();
@@ -207,8 +206,7 @@ class WorkOrchestrator {
   ingress::Lane *GetThresholdIngressLane(u32 orig_worker_id,
                                          std::vector<Load> &loads,
                                          u32 lane_group_id) {
-    ingress::MultiQueue *queue =
-        CHI_QM_RUNTIME->GetQueue(CHI_QM_RUNTIME->admin_queue_id_);
+    ingress::MultiQueue *queue = CHI_QM->GetQueue(CHI_QM->admin_queue_id_);
     ingress::LaneGroup &ig_lane_group = queue->groups_[lane_group_id];
     ingress::Lane *min_lane = nullptr;
     // Find the lane with minimum load

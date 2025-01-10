@@ -47,13 +47,13 @@ void Runtime::ServerInit(std::string server_config_path) {
   CHI_MOD_REGISTRY->RegisterModule("remote_queue");
   CHI_MOD_REGISTRY->RegisterModule("bdev");
   // Queue manager + client must be initialized before Work Orchestrator
-  CHI_QM_RUNTIME->ServerInit(main_alloc_, CHI_RPC->node_id_, &server_config_,
-                             header_->queue_manager_);
+  CHI_QM->ServerInit(main_alloc_, CHI_RPC->node_id_, &server_config_,
+                     header_->queue_manager_);
   CHI_CLIENT->Create(server_config_path, "", true);
-  CHI_WORK_ORCHESTRATOR->ServerInit(&server_config_, *CHI_QM_RUNTIME);
+  CHI_WORK_ORCHESTRATOR->ServerInit(&server_config_, *CHI_QM);
   Admin::CreateTask *admin_create_task;
   Admin::CreateContainerTask *create_task;
-  u32 max_containers_pn = CHI_QM_RUNTIME->max_containers_pn_;
+  u32 max_containers_pn = CHI_QM->max_containers_pn_;
   std::vector<UpdateDomainInfo> ops;
   std::vector<SubDomainId> containers;
 
@@ -62,14 +62,14 @@ void Runtime::ServerInit(std::string server_config_path) {
   admin_create_task =
       CHI_CLIENT->AllocateTask<Admin::CreateTask>(HSHM_DEFAULT_MEM_CTX).ptr_;
   ops = CHI_RPC->CreateDefaultDomains(
-      CHI_QM_CLIENT->admin_pool_id_, CHI_QM_CLIENT->admin_pool_id_,
+      CHI_QM->admin_pool_id_, CHI_QM->admin_pool_id_,
       DomainQuery::GetGlobal(chi::SubDomainId::kContainerSet, 0),
       CHI_RPC->hosts_.size(), 1);
   CHI_RPC->UpdateDomains(ops);
-  containers = CHI_RPC->GetLocalContainers(CHI_QM_CLIENT->admin_pool_id_);
+  containers = CHI_RPC->GetLocalContainers(CHI_QM->admin_pool_id_);
   CHI_MOD_REGISTRY->CreateContainer("chimaera_admin", "chimaera_admin",
-                                    CHI_QM_CLIENT->admin_pool_id_,
-                                    admin_create_task, containers);
+                                    CHI_QM->admin_pool_id_, admin_create_task,
+                                    containers);
 
   // Create the work orchestrator queue scheduling library
   PoolId queue_sched_id = CHI_CLIENT->MakePoolId();
@@ -77,7 +77,7 @@ void Runtime::ServerInit(std::string server_config_path) {
       CHI_CLIENT->AllocateTask<Admin::CreateContainerTask>(HSHM_DEFAULT_MEM_CTX)
           .ptr_;
   ops = CHI_RPC->CreateDefaultDomains(
-      queue_sched_id, CHI_QM_CLIENT->admin_pool_id_,
+      queue_sched_id, CHI_QM->admin_pool_id_,
       DomainQuery::GetGlobal(chi::SubDomainId::kLocalContainers, 0), 1, 1);
   CHI_RPC->UpdateDomains(ops);
   containers = CHI_RPC->GetLocalContainers(queue_sched_id);
@@ -91,7 +91,7 @@ void Runtime::ServerInit(std::string server_config_path) {
       CHI_CLIENT->AllocateTask<Admin::CreateContainerTask>(HSHM_DEFAULT_MEM_CTX)
           .ptr_;
   ops = CHI_RPC->CreateDefaultDomains(
-      proc_sched_id, CHI_QM_CLIENT->admin_pool_id_,
+      proc_sched_id, CHI_QM->admin_pool_id_,
       DomainQuery::GetGlobal(chi::SubDomainId::kLocalContainers, 0), 1, 1);
   CHI_RPC->UpdateDomains(ops);
   containers = CHI_RPC->GetLocalContainers(proc_sched_id);

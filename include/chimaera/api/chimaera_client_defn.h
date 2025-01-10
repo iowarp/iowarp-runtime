@@ -16,7 +16,7 @@
 #include <string>
 
 #include "chimaera/network/serialize_defn.h"
-#include "chimaera/queue_manager/queue_manager_client.h"
+#include "chimaera/queue_manager/queue_manager.h"
 #include "manager.h"
 #ifdef CHIMAERA_RUNTIME
 #include "chimaera/work_orchestrator/work_orchestrator.h"
@@ -32,7 +32,6 @@ namespace chi {
 class Client : public ConfigurationManager {
  public:
   int data_;
-  QueueManagerClient queue_manager_;
   hipc::atomic<u64> *unique_;
   NodeId node_id_;
 
@@ -65,8 +64,7 @@ class Client : public ConfigurationManager {
     LoadServerConfig(server_config_path);
     LoadClientConfig(client_config_path);
     LoadSharedMemory(server);
-    queue_manager_.ClientInit(main_alloc_, header_->queue_manager_,
-                              header_->node_id_);
+    CHI_QM->ClientInit(main_alloc_, header_->queue_manager_, header_->node_id_);
   }
 
  public:
@@ -285,10 +283,10 @@ class Client : public ConfigurationManager {
   /** Get the queue ID */
   HSHM_INLINE_CROSS_FUN
   QueueId GetQueueId(const PoolId &id) {
-    if (id == CHI_QM_CLIENT->process_queue_id_) {
-      return CHI_QM_CLIENT->process_queue_id_;
+    if (id == CHI_QM->process_queue_id_) {
+      return CHI_QM->process_queue_id_;
     } else {
-      return CHI_QM_CLIENT->admin_queue_id_;
+      return CHI_QM->admin_queue_id_;
     }
   }
 
@@ -296,7 +294,7 @@ class Client : public ConfigurationManager {
   HSHM_INLINE_CROSS_FUN
   ingress::MultiQueue *GetQueue(const QueueId &queue_id) {
     QueueId real_id = GetQueueId(queue_id);
-    return queue_manager_.GetQueue(real_id);
+    return CHI_QM->GetQueue(real_id);
   }
 
 #ifdef CHIMAERA_RUNTIME
@@ -382,7 +380,7 @@ class Client : public ConfigurationManager {
     hipc::FullPtr<CUSTOM##Task> task =                                       \
         Async##CUSTOM##Alloc(mctx, task_node, std::forward<Args>(args)...);  \
     chi::ingress::MultiQueue *queue =                                        \
-        CHI_CLIENT->GetQueue(CHI_QM_CLIENT->process_queue_id_);              \
+        CHI_CLIENT->GetQueue(CHI_QM->process_queue_id_);                     \
     queue->Emplace(chi::TaskPrioOpt::kLowLatency,                            \
                    std::hash<chi::DomainQuery>{}(task->dom_query_),          \
                    task.shm_);                                               \

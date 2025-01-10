@@ -21,7 +21,7 @@
 #include "chimaera/chimaera_types.h"
 #include "chimaera/module_registry/module_registry.h"
 #include "chimaera/network/rpc_thallium.h"
-#include "chimaera/queue_manager/queue_manager_runtime.h"
+#include "chimaera/queue_manager/queue_manager.h"
 
 #define CHI_WORKER_SHOULD_RUN BIT_OPT(u32, 1)
 #define CHI_WORKER_IS_FLUSHING BIT_OPT(u32, 2)

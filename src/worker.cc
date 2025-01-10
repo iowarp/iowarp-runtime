@@ -20,7 +20,7 @@
 #include "chimaera/chimaera_types.h"
 #include "chimaera/module_registry/module_registry.h"
 #include "chimaera/network/rpc_thallium.h"
-#include "chimaera/queue_manager/queue_manager_runtime.h"
+#include "chimaera/queue_manager/queue_manager.h"
 #include "chimaera/work_orchestrator/work_orchestrator.h"
 
 namespace chi {
@@ -30,7 +30,7 @@ namespace chi {
  * =============================================================== */
 bool PrivateTaskMultiQueue::push(const FullPtr<Task> &task) {
 #ifdef CHIMAERA_REMOTE_DEBUG
-  if (task->pool_ != CHI_QM_CLIENT->admin_pool_id_ &&
+  if (task->pool_ != CHI_QM->admin_pool_id_ &&
       !task->task_flags_.Any(TASK_REMOTE_DEBUG_MARK) &&
       !task->IsLongRunning() && task->method_ != TaskMethod::kCreate &&
       CHI_RUNTIME->remote_created_) {
@@ -154,7 +154,7 @@ Worker::Worker(WorkerId id, int cpu_id, ABT_xstream xstream) {
   }
 
   // MAX_DEPTH * [LOW_LAT, LONG_LAT]
-  config::QueueManagerInfo &qm = CHI_QM_RUNTIME->config_->queue_manager_;
+  config::QueueManagerInfo &qm = CHI_QM->config_->queue_manager_;
   active_.Init(id_, qm.proc_queue_depth_, qm.queue_depth_,
                qm.max_containers_pn_);
 

@@ -17,7 +17,7 @@
 
 #include "chimaera/chimaera_types.h"
 #include "chimaera/network/serialize_defn.h"
-#include "chimaera/queue_manager/queue_factory.h"
+#include "chimaera/queue_manager/queue.h"
 #include "chimaera/work_orchestrator/comutex_defn.h"
 #include "chimaera/work_orchestrator/corwlock_defn.h"
 #include "task.h"

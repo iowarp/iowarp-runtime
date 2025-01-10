@@ -21,7 +21,7 @@
 
 #include "chimaera/api/chimaera_client.h"
 #include "chimaera/module_registry/module.h"
-#include "chimaera/queue_manager/queue_manager_client.h"
+#include "chimaera/queue_manager/queue_manager.h"
 #include "chimaera_admin/chimaera_admin.h"
 
 #define CHI_NAMESPACE_INIT                       \

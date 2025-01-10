@@ -16,7 +16,7 @@
 #include "chimaera/module_registry/module_registry.h"
 #include "chimaera/network/rpc.h"
 #include "chimaera/network/rpc_thallium.h"
-#include "chimaera/queue_manager/queue_manager_runtime.h"
+#include "chimaera/queue_manager/queue_manager.h"
 #include "chimaera/work_orchestrator/work_orchestrator.h"
 #include "chimaera_admin/chimaera_admin.h"
 #include "chimaera_client_defn.h"
@@ -66,7 +66,7 @@ class Runtime : public ConfigurationManager {
   void StopDaemon();
 
   /** Get # of lanes from QueueManager */
-  size_t GetMaxContainersPn() { return CHI_QM_RUNTIME->max_containers_pn_; }
+  size_t GetMaxContainersPn() { return CHI_QM->max_containers_pn_; }
 };
 
 }  // namespace chi

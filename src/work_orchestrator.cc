@@ -79,7 +79,7 @@ void WorkOrchestrator::ServerInit(ServerConfig *config, QueueManager &qm) {
   // Assign ingress queues to workers
   size_t count_lowlat_ = 0;
   size_t count_highlat_ = 0;
-  for (ingress::MultiQueue &queue : *CHI_QM_RUNTIME->queue_map_) {
+  for (ingress::MultiQueue &queue : *CHI_QM->queue_map_) {
     if (queue.id_.IsNull() || !queue.flags_.Any(QUEUE_READY)) {
       continue;
     }

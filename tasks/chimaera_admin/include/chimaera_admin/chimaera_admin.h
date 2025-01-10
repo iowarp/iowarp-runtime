@@ -10,8 +10,8 @@ class Client : public ModuleClient {
  public:
   /** Default constructor */
   Client() {
-    id_ = PoolId(CHI_QM_CLIENT->admin_queue_id_);
-    queue_id_ = CHI_QM_CLIENT->admin_queue_id_;
+    id_ = PoolId(CHI_QM->admin_queue_id_);
+    queue_id_ = CHI_QM->admin_queue_id_;
   }
 
   /** Destructor */
