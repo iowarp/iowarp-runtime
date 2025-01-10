@@ -34,16 +34,10 @@ Runtime *Runtime::Create(std::string server_config_path) {
 /** Initialize */
 void Runtime::ServerInit(std::string server_config_path) {
   LoadServerConfig(server_config_path);
-  // HILOG(kInfo, "Initializing shared memory")
   InitSharedMemory();
-  // HILOG(kInfo, "Initializing RPC")
   CHI_RPC->ServerInit(&server_config_);
-  // HILOG(kInfo, "Initializing thallium")
   thallium_.ServerInit(CHI_RPC);
-  // HILOG(kInfo, "Initializing queues + workers")
-  header_->node_id_ = CHI_RPC->node_id_;
-  header_->unique_ = 0;
-  header_->num_nodes_ = server_config_.rpc_.host_names_.size();
+  InitSharedMemoryGpu();
   // Create module registry
   CHI_MOD_REGISTRY->ServerInit(&server_config_, CHI_RPC->node_id_,
                                header_->unique_);
@@ -150,6 +144,15 @@ void Runtime::InitSharedMemory() {
       hipc::MemoryBackendId(2), qm.rdata_shm_size_, qm.rdata_shm_name_);
   rdata_alloc_ = mem_mngr->CreateAllocator<CHI_ALLOC_T>(
       hipc::MemoryBackendId(2), rdata_alloc_id_, 0);
+}
+
+/** Initialize shared-memory between daemon and client */
+void Runtime::InitSharedMemoryGpu() {
+  // Finish initializing shared memory
+  auto mem_mngr = HERMES_MEMORY_MANAGER;
+  header_->node_id_ = CHI_RPC->node_id_;
+  header_->unique_ = 0;
+  header_->num_nodes_ = server_config_.rpc_.host_names_.size();
 
   // Create per-gpu allocator
   int num_gpus = 0;
@@ -162,9 +165,14 @@ void Runtime::InitSharedMemory() {
     hipc::chararr name = "cuda_shm_" + std::to_string(gpu_id);
     mem_mngr->CreateBackend<hipc::CudaShmMmap>(backend_id, MEGABYTES(100), name,
                                                gpu_id);
-    gpu_alloc_[gpu_off] =
-        mem_mngr->CreateAllocator<CHI_ALLOC_T>(backend_id, alloc_id, 0);
+    gpu_alloc_[gpu_off] = mem_mngr->CreateAllocator<CHI_ALLOC_T>(
+        backend_id, alloc_id, sizeof(ChiShm));
     gpu_off++;
+    ChiShm *header = main_alloc_->GetCustomHeader<ChiShm>();
+    header->node_id_ = CHI_RPC->node_id_;
+    header->unique_ =
+        (1 << 32);  // TODO(llogan): Make a separate unique for gpus
+    header->num_nodes_ = server_config_.rpc_.host_names_.size();
   }
 #endif
 
@@ -177,9 +185,14 @@ void Runtime::InitSharedMemory() {
     hipc::chararr name = "rocm_shm_" + std::to_string(gpu_id);
     mem_mngr->CreateBackend<hipc::RocmShmMmap>(backend_id, MEGABYTES(100), name,
                                                gpu_id);
-    gpu_alloc_[gpu_off] =
-        mem_mngr->CreateAllocator<CHI_ALLOC_T>(backend_id, alloc_id, 0);
+    gpu_alloc_[gpu_off] = mem_mngr->CreateAllocator<CHI_ALLOC_T>(
+        backend_id, alloc_id, sizeof(ChiShm));
     gpu_off++;
+    ChiShm *header = main_alloc_->GetCustomHeader<ChiShm>();
+    header->node_id_ = CHI_RPC->node_id_;
+    header->unique_ =
+        (((u64)1) << 32);  // TODO(llogan): Make a separate unique for gpus
+    header->num_nodes_ = server_config_.rpc_.host_names_.size();
   }
 #endif
 }

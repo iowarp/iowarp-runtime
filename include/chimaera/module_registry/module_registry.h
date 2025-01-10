@@ -127,7 +127,7 @@ class ModuleRegistry {
   /** Map of a semantic exec id to state */
   std::unordered_map<PoolId, PoolInfo> pools_;
   /** A unique identifier counter */
-  std::atomic<u64> *unique_;
+  hipc::atomic<u64> *unique_;
   Mutex lock_;
   CoRwLock upgrade_lock_;
 
@@ -137,7 +137,7 @@ class ModuleRegistry {
 
   /** Initialize the Task Registry */
   void ServerInit(ServerConfig *config, NodeId node_id,
-                  std::atomic<u64> &unique) {
+                  hipc::atomic<u64> &unique) {
     node_id_ = node_id;
     unique_ = &unique;
 

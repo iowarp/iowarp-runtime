@@ -33,7 +33,7 @@ class Client : public ConfigurationManager {
  public:
   int data_;
   QueueManagerClient queue_manager_;
-  std::atomic<u64> *unique_;
+  hipc::atomic<u64> *unique_;
   NodeId node_id_;
 
  public:

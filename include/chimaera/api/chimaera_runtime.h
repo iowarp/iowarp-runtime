@@ -14,14 +14,14 @@
 #define CHI_INCLUDE_CHI_CLIENT_CHI_SERVER_H_
 
 #include "chimaera/module_registry/module_registry.h"
-#include "chimaera/work_orchestrator/work_orchestrator.h"
-#include "chimaera/queue_manager/queue_manager_runtime.h"
-#include "chimaera_admin/chimaera_admin.h"
-#include "remote_queue/remote_queue.h"
-#include "chimaera_client_defn.h"
-#include "manager.h"
 #include "chimaera/network/rpc.h"
 #include "chimaera/network/rpc_thallium.h"
+#include "chimaera/queue_manager/queue_manager_runtime.h"
+#include "chimaera/work_orchestrator/work_orchestrator.h"
+#include "chimaera_admin/chimaera_admin.h"
+#include "chimaera_client_defn.h"
+#include "manager.h"
+#include "remote_queue/remote_queue.h"
 
 // Singleton macros
 #define CHI_RUNTIME hshm::Singleton<chi::Runtime>::GetInstance()
@@ -53,6 +53,9 @@ class Runtime : public ConfigurationManager {
   /** Initialize shared-memory between daemon and client */
   void InitSharedMemory();
 
+  /** Initialize shared-memory between daemon and GPUs */
+  void InitSharedMemoryGpu();
+
   /** Finalize Hermes explicitly */
   void Finalize();
 
@@ -63,9 +66,7 @@ class Runtime : public ConfigurationManager {
   void StopDaemon();
 
   /** Get # of lanes from QueueManager */
-  size_t GetMaxContainersPn() {
-    return CHI_QM_RUNTIME->max_containers_pn_;
-  }
+  size_t GetMaxContainersPn() { return CHI_QM_RUNTIME->max_containers_pn_; }
 };
 
 }  // namespace chi

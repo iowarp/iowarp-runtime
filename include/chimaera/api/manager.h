@@ -25,7 +25,7 @@ namespace chi {
 struct ChiShm {
   NodeId node_id_;
   QueueManagerShm queue_manager_;
-  std::atomic<u64> unique_;
+  hipc::atomic<u64> unique_;
   u64 num_nodes_;
 };
 
