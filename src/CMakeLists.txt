@@ -14,7 +14,7 @@ add_library(client INTERFACE)
 target_link_libraries(client INTERFACE chimaera_client)
 
 if (CHIMAERA_ENABLE_ROCM)
-    add_rocm_library(chimaera_client_rocm ${CLIENT_SOURCES})
+    add_rocm_library(chimaera_client_rocm TRUE ${CLIENT_SOURCES})
     target_link_libraries(chimaera_client_rocm PUBLIC HermesShm::rocmcxx)
     add_library(Chimaera::client_rocm ALIAS chimaera_client_rocm)
     add_library(client_rocm INTERFACE)
@@ -78,9 +78,9 @@ install(
 #-----------------------------------------------------------------------------
 set(CHIMAERA_EXPORTED_LIBS
     client 
-    runtime
     chimaera_client
     chimaera_runtime
+    runtime
     chimaera_start_runtime
     chimaera_stop_runtime
     runtime_deps)
