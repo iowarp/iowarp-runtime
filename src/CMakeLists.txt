@@ -4,7 +4,6 @@
 set(CLIENT_SOURCES
         config_client.cc
         config_server.cc
-        chimaera_client.cc
         module.cc
         task.cc
 )
@@ -29,7 +28,6 @@ endif()
 set(RUNTIME_SOURCES 
         config_client.cc
         config_server.cc
-        chimaera_client.cc
         module.cc
         task.cc
         module_registry.cc

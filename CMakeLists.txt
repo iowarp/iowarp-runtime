@@ -71,14 +71,6 @@ include(CMake/ChimaeraCommonConfig.cmake)
 set(Chimaera_CLIENT_DEPS chimaera_client)
 set(Chimaera_RUNTIME_DEPS chimaera_runtime ${Chimaera_CLIENT_DEPS}) 
 
-# ENABLE GPU SUPPORT
-if (CHIMAERA_ENABLE_CUDA)
-    hermes_enable_cuda(17)
-endif()
-if (CHIMAERA_ENABLE_ROCM)
-    hermes_enable_rocm("HIP" 17)
-endif()
-
 # Dependencies for the runtime 
 add_library(runtime_deps INTERFACE)
 target_link_libraries(runtime_deps INTERFACE

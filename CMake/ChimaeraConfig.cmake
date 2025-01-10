@@ -16,7 +16,8 @@ option(CHIMAERA_ENABLE_DOXYGEN "Check how well the code is documented" @CHIMAERA
 option(CHIMAERA_ENABLE_JEMALLOC "Use jemalloc as the allocator" @CHIMAERA_ENABLE_JEMALLOC@)
 option(CHIMAERA_ENABLE_MIMALLOC "Use mimalloc as the allocator" @CHIMAERA_ENABLE_MIMALLOC@)
 option(CHIMAERA_ENABLE_PYTHON "Use pybind11" @CHIMAERA_ENABLE_PYTHON@)
-
+option(CHIMAERA_ENABLE_ROCM "Enable ROCm support" @CHIMAERA_ENABLE_ROCM@)
+option(CHIMAERA_ENABLE_CUDA "Enable CUDA support" @CHIMAERA_ENABLE_CUDA@)
 
 # Find the Chimaera Package
 find_package(ChimaeraCore REQUIRED)

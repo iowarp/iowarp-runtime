@@ -60,6 +60,19 @@ if (CHIMAERA_ENABLE_PYTHON)
     set(OPTIONAL_LIBS pybind11::embed)
 endif()
 
+#-----------------------------------------------------------------------------
+# GPU Support Code
+#-----------------------------------------------------------------------------
+
+# ENABLE GPU SUPPORT
+if (CHIMAERA_ENABLE_CUDA)
+    hermes_enable_cuda(17)
+endif()
+if (CHIMAERA_ENABLE_ROCM)
+    hermes_enable_rocm("HIP" 17)
+endif()
+
+
 # Create function to add dependencies to a target
 if (CHIMAERA_IS_MAIN_PROJECT)
     function(add_chimaera_run_deps target)
