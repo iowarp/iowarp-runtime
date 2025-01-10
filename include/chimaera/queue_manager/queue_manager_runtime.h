@@ -24,7 +24,6 @@ class QueueManagerRuntime : public QueueManager {
   ServerConfig *config_;
   size_t max_queues_;
   size_t max_containers_pn_;
-  chi::split_ticket_queue<u64> *tickets_;
   NodeId node_id_;
 
  public:
@@ -43,15 +42,11 @@ class QueueManagerRuntime : public QueueManager {
     // Initialize ticket queue (ticket 0 is for admin queue)
     max_queues_ = qm.max_queues_;
     max_containers_pn_ = qm.max_containers_pn_;
-    shm.tickets_.shm_init(alloc, max_queues_);
-    for (u64 i = 1; i <= max_queues_; ++i) {
-      shm.tickets_->emplace(i);
-    }
     // Initialize queue map
     shm.queue_map_.shm_init(alloc);
     queue_map_ = shm.queue_map_.get();
     queue_map_->resize(max_queues_);
-    // Create the admin queue
+    // Create the admin queue (used internally by runtime)
     ingress::MultiQueue *queue;
     queue = CreateQueue(
         admin_queue_id_,
@@ -72,6 +67,11 @@ class QueueManagerRuntime : public QueueManager {
              qm.max_containers_pn_, qm.proc_queue_depth_, 0},
         });
     queue->flags_.SetBits(QUEUE_READY);
+    // Create the CUDA queues
+#ifdef CHIMAERA_ENABLE_CUDA
+#endif
+
+    // Create the ROCm queues
   }
 
   /** Create a new queue (with pre-allocated ID) in the map */
@@ -98,7 +98,6 @@ class QueueManagerRuntime : public QueueManager {
    * */
   void DestroyQueue(QueueId &id) {
     queue_map_->erase(queue_map_->begin() + id.unique_);
-    tickets_->emplace(id.unique_);
   }
 };
 
