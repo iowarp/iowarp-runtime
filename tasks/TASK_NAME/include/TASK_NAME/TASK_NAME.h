@@ -31,7 +31,7 @@ class Client : public ModuleClient {
   /** Create a pool */
   HSHM_INLINE_CROSS_FUN
   void Create(const hipc::MemContext &mctx, const DomainQuery &dom_query,
-              const DomainQuery &affinity, const std::string &pool_name,
+              const DomainQuery &affinity, const chi::string &pool_name,
               const CreateContext &ctx = CreateContext()) {
     FullPtr<CreateTask> task =
         AsyncCreate(mctx, dom_query, affinity, pool_name, ctx);

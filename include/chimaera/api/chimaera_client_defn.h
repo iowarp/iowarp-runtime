@@ -433,6 +433,7 @@ constexpr inline void CALL_NEW_COPY_START(const TaskT *orig_task,
 }  // namespace chi
 
 static HSHM_INLINE_CROSS_FUN bool CHIMAERA_CLIENT_INIT() {
+#if defined(HSHM_IS_HOST)
   if (!CHI_CLIENT->IsInitialized() && !CHI_CLIENT->IsBeingInitialized() &&
       !CHI_CLIENT->IsTerminated()) {
     CHI_CLIENT->Create();
@@ -440,6 +441,9 @@ static HSHM_INLINE_CROSS_FUN bool CHIMAERA_CLIENT_INIT() {
     return true;
   }
   return false;
+#else
+  return true;
+#endif
 }
 #define TRANSPARENT_RUN CHIMAERA_CLIENT_INIT
 

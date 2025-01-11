@@ -532,22 +532,27 @@ struct DomainQuery {
 
   /** Serialize domain id */
   template <typename Ar>
-  void serialize(Ar &ar) {
+  HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
     ar(flags_, sub_id_, sel_);
   }
 
   /** Get iteration flags */
+  HSHM_INLINE_CROSS_FUN
   DomainFlag GetIterFlags() const {
     return flags_.bits_ &
            (kBroadcast | kRepUntilSuccess | kChooseOne | kForwardToLeader);
   }
 
   /** Default constructor. */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   DomainQuery() {}
 
+  /** Destruct */
+  HSHM_INLINE_CROSS_FUN
+  ~DomainQuery() {}
+
   /** Copy constructor */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   DomainQuery(const DomainQuery &other) {
     flags_ = other.flags_;
     sub_id_ = other.sub_id_;
@@ -555,7 +560,7 @@ struct DomainQuery {
   }
 
   /** Copy operator */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   DomainQuery &operator=(const DomainQuery &other) {
     if (this != &other) {
       flags_ = other.flags_;
@@ -566,7 +571,7 @@ struct DomainQuery {
   }
 
   /** Move constructor */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   DomainQuery(DomainQuery &&other) noexcept {
     flags_ = other.flags_;
     sub_id_ = other.sub_id_;
@@ -574,7 +579,7 @@ struct DomainQuery {
   }
 
   /** Move operator */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   DomainQuery &operator=(DomainQuery &&other) noexcept {
     if (this != &other) {
       flags_ = other.flags_;
@@ -585,13 +590,14 @@ struct DomainQuery {
   }
 
   /** Equality operator */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   bool operator==(const DomainQuery &other) const {
     return flags_.bits_ == other.flags_.bits_ && sub_id_ == other.sub_id_ &&
            sel_ == other.sel_;
   }
 
   /** Get the local node domain */
+  HSHM_INLINE_CROSS_FUN
   static DomainQuery GetLocalId(const SubDomainGroup &sub_id, u32 id) {
     DomainQuery query;
     query.flags_.SetBits(kLocal | kId);
@@ -605,6 +611,7 @@ struct DomainQuery {
    * @param sub_id The subdomain to query
    * @param iter_flags The iteration flags to set (e.g., kBroadcast)
    * */
+  HSHM_INLINE_CROSS_FUN
   static DomainQuery GetGlobal(const SubDomainGroup &sub_id, u32 iter_flags) {
     DomainQuery query;
     query.flags_.SetBits(kGlobal | iter_flags);
@@ -617,6 +624,7 @@ struct DomainQuery {
    * @param sub_id The subdomain to query
    * @param iter_flags The iteration flags to set (e.g., kBroadcast)
    * */
+  HSHM_INLINE_CROSS_FUN
   static DomainQuery GetRange(const SubDomainGroup &sub_id, u32 off, u32 count,
                               u32 iter_flags) {
     DomainQuery query;
@@ -632,6 +640,7 @@ struct DomainQuery {
    * @param sub_id The subdomain to query
    * @param iter_flags The iteration flags to set (e.g., kBroadcast)
    * */
+  HSHM_INLINE_CROSS_FUN
   static DomainQuery GetGlobalBcast() {
     DomainQuery query;
     query.flags_.SetBits(kGlobal | kBroadcast);
@@ -645,6 +654,7 @@ struct DomainQuery {
    * @param id The ID to resolve in the subdomain
    * @param flags The iteration flags to set (e.g., kBroadcast)
    * */
+  HSHM_INLINE_CROSS_FUN
   static DomainQuery GetDirectId(const SubDomainGroup &sub_id, u32 id,
                                  u32 iter_flags = kChooseOne) {
     DomainQuery query;
@@ -660,6 +670,7 @@ struct DomainQuery {
    * @param hash The offset hash to resolve in the subdomain
    * @param flags The iteration flags to set (e.g., kBroadcast)
    * */
+  HSHM_INLINE_CROSS_FUN
   static DomainQuery GetDirectHash(const SubDomainGroup &sub_id, u32 hash,
                                    u32 iter_flags = kBroadcast) {
     DomainQuery query;

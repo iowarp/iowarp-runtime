@@ -78,13 +78,15 @@ class ConfigurationManager {
   HSHM_INLINE_CROSS_FUN ~ConfigurationManager() {}
 
   /** Whether or not CHI is currently being initialized */
-  bool IsBeingInitialized() { return is_being_initialized_; }
+  HSHM_INLINE_CROSS_FUN bool IsBeingInitialized() {
+    return is_being_initialized_;
+  }
 
   /** Whether or not CHI is initialized */
-  bool IsInitialized() { return is_initialized_; }
+  HSHM_INLINE_CROSS_FUN bool IsInitialized() { return is_initialized_; }
 
   /** Whether or not CHI is finalized */
-  bool IsTerminated() { return is_terminated_; }
+  HSHM_INLINE_CROSS_FUN bool IsTerminated() { return is_terminated_; }
 
   /** Load the server-side configuration */
   void LoadServerConfig(std::string config_path) {

@@ -54,7 +54,7 @@ class Client : public ModuleClient {
   /** Get the ID of a pool */
   HSHM_INLINE_CROSS_FUN
   PoolId GetPoolId(const hipc::MemContext &mctx, const DomainQuery &dom_query,
-                   const std::string &pool_name) {
+                   const chi::string &pool_name) {
     FullPtr<GetPoolIdTask> task = AsyncGetPoolId(mctx, dom_query, pool_name);
     task->Wait();
     PoolId new_id = task->id_;

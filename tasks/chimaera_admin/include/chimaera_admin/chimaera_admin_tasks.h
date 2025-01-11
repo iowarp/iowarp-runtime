@@ -152,7 +152,7 @@ struct CreateContainerBaseTask : public Task, TaskFlags<TF_SRL_SYM> {
   HSHM_INLINE_CROSS_FUN explicit CreateContainerBaseTask(
       const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, const TaskNode &task_node,
       const PoolId &pool_id, const DomainQuery &dom_query,
-      const DomainQuery &affinity, const std::string &pool_name,
+      const DomainQuery &affinity, const chi::string &pool_name,
       const CreateContext &ctx, Args &&...args)
       : Task(alloc),
         pool_name_(alloc, pool_name),
@@ -264,7 +264,7 @@ struct GetPoolIdTask : public Task, TaskFlags<TF_SRL_SYM> {
   explicit GetPoolIdTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
                          const TaskNode &task_node, const PoolId &pool_id,
                          const DomainQuery &dom_query,
-                         const std::string &pool_name)
+                         const chi::string &pool_name)
       : Task(alloc), pool_name_(alloc, pool_name) {
     // Initialize task
     task_node_ = task_node;
