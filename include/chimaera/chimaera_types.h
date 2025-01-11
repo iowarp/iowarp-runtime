@@ -94,26 +94,26 @@ struct UniqueId {
 
   /** Serialization */
   template <typename Ar>
-  void serialize(Ar &ar) {
+  HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
     ar & node_id_;
     ar & hash_;
     ar & unique_;
   }
 
   /** Default constructor */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   UniqueId() = default;
 
   /** Emplace constructor */
-  HSHM_INLINE explicit UniqueId(NodeId node_id, u64 unique)
+  HSHM_INLINE_CROSS_FUN explicit UniqueId(NodeId node_id, u64 unique)
       : node_id_(node_id), hash_(0), unique_(unique) {}
 
   /** Emplace constructor (+hash) */
-  HSHM_INLINE explicit UniqueId(NodeId node_id, u32 hash, u64 unique)
+  HSHM_INLINE_CROSS_FUN explicit UniqueId(NodeId node_id, u32 hash, u64 unique)
       : node_id_(node_id), hash_(hash), unique_(unique) {}
 
   /** Copy constructor */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   UniqueId(const UniqueId &other) {
     node_id_ = other.node_id_;
     hash_ = other.hash_;
@@ -122,14 +122,14 @@ struct UniqueId {
 
   /** Copy constructor */
   template <int OTHER_TYPE = TYPE>
-  HSHM_INLINE UniqueId(const UniqueId<OTHER_TYPE> &other) {
+  HSHM_INLINE_CROSS_FUN UniqueId(const UniqueId<OTHER_TYPE> &other) {
     node_id_ = other.node_id_;
     hash_ = other.hash_;
     unique_ = other.unique_;
   }
 
   /** Copy assignment */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   UniqueId &operator=(const UniqueId &other) {
     if (this != &other) {
       node_id_ = other.node_id_;
@@ -140,7 +140,7 @@ struct UniqueId {
   }
 
   /** Move constructor */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   UniqueId(UniqueId &&other) noexcept {
     node_id_ = other.node_id_;
     hash_ = other.hash_;
@@ -148,7 +148,7 @@ struct UniqueId {
   }
 
   /** Move assignment */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   UniqueId &operator=(UniqueId &&other) noexcept {
     if (this != &other) {
       node_id_ = other.node_id_;
@@ -160,19 +160,19 @@ struct UniqueId {
 
   /** Check if null */
   [[nodiscard]]
-  HSHM_INLINE bool IsNull() const {
+  HSHM_INLINE_CROSS_FUN bool IsNull() const {
     return node_id_ == 0;
   }
 
   /** Get null id */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   static UniqueId GetNull() {
     static const UniqueId id(0, 0);
     return id;
   }
 
   /** Set to null id */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   void SetNull() {
     node_id_ = 0;
     hash_ = 0;
@@ -181,18 +181,18 @@ struct UniqueId {
 
   /** Get id of node from this id */
   [[nodiscard]]
-  HSHM_INLINE u32 GetNodeId() const {
+  HSHM_INLINE_CROSS_FUN u32 GetNodeId() const {
     return node_id_;
   }
 
   /** Compare two ids for equality */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   bool operator==(const UniqueId &other) const {
     return unique_ == other.unique_ && node_id_ == other.node_id_;
   }
 
   /** Compare two ids for inequality */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   bool operator!=(const UniqueId &other) const {
     return unique_ != other.unique_ || node_id_ != other.node_id_;
   }

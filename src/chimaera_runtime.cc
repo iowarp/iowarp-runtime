@@ -18,6 +18,12 @@
 
 namespace chi {
 
+#if defined(CHIMAERA_ENABLE_ROCM) || defined(CHIMAERA_ENABLE_CUDA)
+HSHM_GPU_KERNEL void CreateClient(CHI_ALLOC_T *alloc) {
+  CHI_CLIENT->CreateGpu(alloc);
+}
+#endif
+
 /** Create the server-side API */
 Runtime *Runtime::Create(std::string server_config_path) {
   hshm::ScopedMutex lock(lock_, 1);
@@ -49,7 +55,7 @@ void Runtime::ServerInit(std::string server_config_path) {
   // Queue manager + client must be initialized before Work Orchestrator
   CHI_QM->ServerInit(main_alloc_, CHI_RPC->node_id_, &server_config_,
                      header_->queue_manager_);
-  CHI_CLIENT->Create(server_config_path, "", true);
+  CHI_CLIENT->Create(server_config_path.c_str(), "", true);
   CHI_WORK_ORCHESTRATOR->ServerInit(&server_config_, *CHI_QM);
   Admin::CreateTask *admin_create_task;
   Admin::CreateContainerTask *create_task;
@@ -156,18 +162,16 @@ void Runtime::InitSharedMemoryGpu() {
 
   // Create per-gpu allocator
   int num_gpus = 0;
-  int gpu_off = 0;
 #ifdef CHIMAERA_ENABLE_CUDA
   cudaGetDeviceCount(&num_gpus);
   for (int gpu_id = 0; gpu_id < num_gpus; ++gpu_id) {
-    hipc::MemoryBackendId backend_id = GetGpuMemBackendId(gpu_off);
-    hipc::AllocatorId alloc_id = GetGpuAllocId(gpu_off);
+    hipc::MemoryBackendId backend_id = GetGpuMemBackendId(gpu_id);
+    hipc::AllocatorId alloc_id = GetGpuAllocId(gpu_id);
     hipc::chararr name = "cuda_shm_" + std::to_string(gpu_id);
     mem_mngr->CreateBackend<hipc::CudaShmMmap>(backend_id, MEGABYTES(100), name,
                                                gpu_id);
-    gpu_alloc_[gpu_off] = mem_mngr->CreateAllocator<CHI_ALLOC_T>(
+    gpu_alloc_[gpu_id] = mem_mngr->CreateAllocator<CHI_ALLOC_T>(
         backend_id, alloc_id, sizeof(ChiShm));
-    gpu_off++;
     ChiShm *header = main_alloc_->GetCustomHeader<ChiShm>();
     header->node_id_ = CHI_RPC->node_id_;
     header->unique_ =
@@ -179,20 +183,26 @@ void Runtime::InitSharedMemoryGpu() {
 #ifdef CHIMAERA_ENABLE_ROCM
   HIP_ERROR_CHECK(hipGetDeviceCount(&num_gpus));
   for (int gpu_id = 0; gpu_id < num_gpus; ++gpu_id) {
-    hipc::MemoryBackendId backend_id = GetGpuMemBackendId(gpu_off);
-    hipc::AllocatorId alloc_id = GetGpuAllocId(gpu_off);
+    hipc::MemoryBackendId backend_id = GetGpuMemBackendId(gpu_id);
+    hipc::AllocatorId alloc_id = GetGpuAllocId(gpu_id);
     // TODO(llogan): Make parameter for gpu_shm_name_ and gpu_shm_size_
     hipc::chararr name = "rocm_shm_" + std::to_string(gpu_id);
     mem_mngr->CreateBackend<hipc::RocmShmMmap>(backend_id, MEGABYTES(100), name,
                                                gpu_id);
-    gpu_alloc_[gpu_off] = mem_mngr->CreateAllocator<CHI_ALLOC_T>(
+    gpu_alloc_[gpu_id] = mem_mngr->CreateAllocator<CHI_ALLOC_T>(
         backend_id, alloc_id, sizeof(ChiShm));
-    gpu_off++;
     ChiShm *header = main_alloc_->GetCustomHeader<ChiShm>();
     header->node_id_ = CHI_RPC->node_id_;
     header->unique_ =
         (((u64)1) << 32);  // TODO(llogan): Make a separate unique for gpus
     header->num_nodes_ = server_config_.rpc_.host_names_.size();
+  }
+#endif
+
+#if defined(CHIMAERA_ENABLE_ROCM) || defined(CHIMAERA_ENABLE_CUDA)
+  // Create client on each GPU
+  for (int gpu_id = 0; gpu_id < num_gpus; ++gpu_id) {
+    CreateClient<<<1, 1>>>(GetGpuAlloc(gpu_id));
   }
 #endif
 }

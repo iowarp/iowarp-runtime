@@ -1,4 +1,5 @@
 template<typename ...Args>
+HSHM_CROSS_FUN
 void Async##CUSTOM##Construct(const hipc::MemContext &mctx,
                               CUSTOM##Task *task,
                               const TaskNode &task_node,
@@ -9,6 +10,7 @@ void Async##CUSTOM##Construct(const hipc::MemContext &mctx,
 }
 
 template<typename ...Args>
+HSHM_CROSS_FUN
 hipc::FullPtr<CUSTOM##Task> Async##CUSTOM##Alloc(const hipc::MemContext &mctx,
                                                   const TaskNode &task_node,
                                                   Args&& ...args) {
@@ -19,6 +21,7 @@ hipc::FullPtr<CUSTOM##Task> Async##CUSTOM##Alloc(const hipc::MemContext &mctx,
 }
 
 template<typename ...Args>
+HSHM_CROSS_FUN
 hipc::FullPtr<CUSTOM##Task> Async##CUSTOM(const hipc::MemContext &mctx,
                                            Args&& ...args) {
   chi::Task *parent_task = CHI_CUR_TASK;

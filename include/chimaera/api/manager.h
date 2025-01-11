@@ -62,15 +62,20 @@ class ConfigurationManager {
     return hipc::AllocatorId(3 + gpu_id, 1);
   }
 
+  /** Get GPU allocator */
+  HSHM_INLINE_CROSS_FUN CHI_ALLOC_T *GetGpuAlloc(int gpu_id) {
+    return gpu_alloc_[gpu_id];
+  }
+
   /** Default constructor */
-  ConfigurationManager()
+  HSHM_INLINE_CROSS_FUN ConfigurationManager()
       : is_being_initialized_(false),
         is_initialized_(false),
         is_terminated_(false),
         is_transparent_(false) {}
 
   /** Destructor */
-  ~ConfigurationManager() {}
+  HSHM_INLINE_CROSS_FUN ~ConfigurationManager() {}
 
   /** Whether or not CHI is currently being initialized */
   bool IsBeingInitialized() { return is_being_initialized_; }

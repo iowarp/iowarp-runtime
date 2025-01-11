@@ -57,6 +57,7 @@ class QueueManager {
   }
 
   /** Initialize client */
+  HSHM_INLINE_CROSS_FUN
   void ClientInit(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
                   QueueManagerShm &shm, NodeId node_id) {
     alloc_ = alloc;

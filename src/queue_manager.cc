@@ -1,5 +1,7 @@
 #include "chimaera/queue_manager/queue_manager.h"
 
+#include "chimaera/api/chimaera_runtime.h"
+
 namespace chi {
 
 #ifdef CHIMAERA_RUNTIME
@@ -39,7 +41,6 @@ void QueueManager::ServerInit(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
   queue->flags_.SetBits(QUEUE_READY);
 
   int num_gpus = 0;
-  int gpu_off = 0;
   // Create the CUDA queues
 #ifdef CHIMAERA_ENABLE_CUDA
 #endif
@@ -48,7 +49,22 @@ void QueueManager::ServerInit(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
 #ifdef CHIMAERA_ENABLE_ROCM
   HIP_ERROR_CHECK(hipGetDeviceCount(&num_gpus));
   for (int gpu_id = 0; gpu_id < num_gpus; ++gpu_id) {
-    gpu_off++;
+    hipc::AllocatorId alloc_id = CHI_RUNTIME->GetGpuAllocId(gpu_id);
+    auto *gpu_alloc =
+        HERMES_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(alloc_id);
+    QueueManagerShm &gpu_shm =
+        gpu_alloc->GetCustomHeader<ChiShm>()->queue_manager_;
+    gpu_shm.queue_map_.shm_init(alloc);
+    gpu_shm.queue_map_.get()->resize(1);
+    queue = CreateQueue(
+        gpu_shm, process_queue_id_,
+        {
+            {TaskPrioOpt::kLowLatency, qm.max_containers_pn_,
+             qm.max_containers_pn_, qm.proc_queue_depth_, QUEUE_LOW_LATENCY},
+            {TaskPrioOpt::kHighLatency, qm.max_containers_pn_,
+             qm.max_containers_pn_, qm.proc_queue_depth_, 0},
+        });
+    queue->flags_.SetBits(QUEUE_READY);
   }
 #endif
 }

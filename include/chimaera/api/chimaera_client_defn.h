@@ -38,29 +38,49 @@ class Client : public ConfigurationManager {
  public:
   /** Default constructor */
   HSHM_INLINE_CROSS_FUN
-  Client() {}
+  Client() = default;
+
+  /** Destructor */
+  HSHM_INLINE_CROSS_FUN
+  ~Client() = default;
 
   /** Initialize the client */
-  HSHM_INLINE_CROSS_FUN
-  Client *Create(std::string server_config_path = "",
-                 std::string client_config_path = "", bool server = false) {
+  HSHM_INLINE
+  Client *Create(const char *server_config_path = "",
+                 const char *client_config_path = "", bool server = false) {
     hshm::ScopedMutex lock(lock_, 1);
     if (is_initialized_) {
       return this;
     }
     is_being_initialized_ = true;
-    ClientInit(std::move(server_config_path), std::move(client_config_path),
-               server);
+    ClientInit(server_config_path, client_config_path, server);
     is_initialized_ = true;
     is_being_initialized_ = false;
     return this;
   }
 
+/** Initialize the client (GPU) */
+#ifdef CHIMAERA_RUNTIME
+  HSHM_INLINE_CROSS_FUN
+  void CreateGpu(CHI_ALLOC_T *alloc) {
+    main_alloc_ = alloc;
+    data_alloc_ = nullptr;
+    rdata_alloc_ = nullptr;
+    HERMES_MEMORY_MANAGER->SetDefaultAllocator(main_alloc_);
+    header_ = main_alloc_->GetCustomHeader<ChiShm>();
+    unique_ = &header_->unique_;
+    node_id_ = header_->node_id_;
+    CHI_QM->ClientInit(main_alloc_, header_->queue_manager_, header_->node_id_);
+    is_initialized_ = true;
+    is_being_initialized_ = false;
+  }
+#endif
+
  private:
   /** Initialize client */
-  HSHM_INLINE_CROSS_FUN
-  void ClientInit(std::string server_config_path,
-                  std::string client_config_path, bool server) {
+  HSHM_INLINE
+  void ClientInit(const char *server_config_path,
+                  const char *client_config_path, bool server) {
     LoadServerConfig(server_config_path);
     LoadClientConfig(client_config_path);
     LoadSharedMemory(server);
@@ -69,7 +89,6 @@ class Client : public ConfigurationManager {
 
  public:
   /** Connect to a Daemon's shared memory */
-  HSHM_INLINE_CROSS_FUN
   void LoadSharedMemory(bool server) {
     // Load shared-memory allocator
     config::QueueManagerInfo &qm = server_config_.queue_manager_;
