@@ -18,7 +18,7 @@ CHI_NAMESPACE_INIT
  * */
 struct CreateTaskParams {
   CLS_CONST char *lib_name_ = "bdev";
-  IN std::string path_;
+  IN chi::string path_;
   IN size_t size_;
 
   HSHM_INLINE_CROSS_FUN
@@ -29,7 +29,7 @@ struct CreateTaskParams {
 
   HSHM_INLINE_CROSS_FUN
   CreateTaskParams(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
-                   const std::string &path, size_t size)
+                   const chi::string &path, size_t size)
       : path_(path) {
     size_ = size;
   }

@@ -26,7 +26,7 @@ struct RegisterModuleTaskTempl : public Task, TaskFlags<TF_SRL_SYM> {
                                    const TaskNode &task_node,
                                    const PoolId &pool_id,
                                    const DomainQuery &dom_query,
-                                   const std::string &lib_name)
+                                   const chi::string &lib_name)
       : Task(alloc), lib_name_(alloc, lib_name) {
     // Initialize task
     task_node_ = task_node;
@@ -83,7 +83,7 @@ struct UpgradeModuleTask : public Task, TaskFlags<TF_SRL_SYM> {
   explicit UpgradeModuleTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
                              const TaskNode &task_node, const PoolId &pool_id,
                              const DomainQuery &dom_query,
-                             const std::string &lib_name)
+                             const chi::string &lib_name)
       : Task(alloc), lib_name_(alloc, lib_name) {
     // Initialize task
     task_node_ = task_node;

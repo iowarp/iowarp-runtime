@@ -9,10 +9,9 @@ set(CMAKE_CXX_STANDARD 17)
 add_rocm_executable(test_rocm_exec FALSE
         test_rocm.cc
 )
-add_dependencies(test_rocm_exec ${Chimaera_CLIENT_DEPS})
+add_dependencies(test_rocm_exec chimaera_client_rocm)
 target_link_libraries(test_rocm_exec PUBLIC
-        Chimaera::client_rocm)
-target_compile_definitions(test_rocm_exec PRIVATE CHIMAERA_ENABLE_PYTHON)
+        chimaera_client_rocm)
 
 #------------------------------------------------------------------------------
 # Test Cases

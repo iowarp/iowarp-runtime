@@ -39,7 +39,7 @@ class Server : public Module {
   /** Construct bdev */
   void Create(CreateTask *task, RunContext &rctx) {
     CreateTaskParams params = task->GetParams();
-    std::string url = params.path_;
+    std::string url = params.path_.str();
     size_t dev_size = params.size_;
     url_.Parse(url);
     alloc_.Init(1, dev_size);

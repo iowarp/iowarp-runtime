@@ -120,11 +120,23 @@ template <>
 struct hash<chi::IngressEntry> {
   HSHM_INLINE
   std::size_t operator()(const chi::IngressEntry &key) const {
-    return std::hash<chi::ingress::MultiQueue *>{}(key.queue_) +
-           std::hash<u32>{}(key.container_id_) + std::hash<u64>{}(key.prio_);
+    return hshm::hash<chi::ingress::MultiQueue *>{}(key.queue_) +
+           hshm::hash<u32>{}(key.container_id_) + hshm::hash<u64>{}(key.prio_);
   }
 };
 }  // namespace std
+
+namespace hshm {
+/** Hash function for IngressEntry */
+template <>
+struct hash<chi::IngressEntry> {
+  HSHM_INLINE
+  std::size_t operator()(const chi::IngressEntry &key) const {
+    return hshm::hash<chi::ingress::MultiQueue *>{}(key.queue_) +
+           hshm::hash<u32>{}(key.container_id_) + hshm::hash<u64>{}(key.prio_);
+  }
+};
+}  // namespace hshm
 
 namespace chi {
 

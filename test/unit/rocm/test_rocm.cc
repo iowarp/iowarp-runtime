@@ -20,9 +20,9 @@
 #include "small_message/small_message.h"
 
 HSHM_GPU_KERNEL void test_kernel() {
-  // CHI_ADMIN->RegisterModule(HSHM_DEFAULT_MEM_CTX,
-  //                           chi::DomainQuery::GetGlobalBcast(),
-  //                           "small_message");
+  CHI_ADMIN->RegisterModule(HSHM_DEFAULT_MEM_CTX,
+                            chi::DomainQuery::GetGlobalBcast(),
+                            "small_message");
   // client.Create(
   //     HSHM_DEFAULT_MEM_CTX,
   //     chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers,

@@ -155,6 +155,7 @@ class Lane : public hipc::ShmContainer {
    * ===================================*/
 
   /** SHM constructor. Default. */
+  HSHM_INLINE_CROSS_FUN
   explicit Lane(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
                 size_t depth = 1024, QueueId id = QueueId::GetNull())
       : queue_(alloc, depth) {
@@ -167,14 +168,17 @@ class Lane : public hipc::ShmContainer {
    * ===================================*/
 
   /** Copy constructor */
+  HSHM_INLINE_CROSS_FUN
   explicit Lane(const Lane &other)
       : queue_(other.queue_.GetCtxAllocator(), other.queue_) {}
 
   /** SHM copy constructor */
+  HSHM_INLINE_CROSS_FUN
   explicit Lane(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, const Lane &other)
       : queue_(alloc, other.queue_) {}
 
   /** SHM copy assignment operator */
+  HSHM_INLINE_CROSS_FUN
   Lane &operator=(const Lane &other) {
     if (this != &other) {
       queue_ = other.queue_;
@@ -187,14 +191,17 @@ class Lane : public hipc::ShmContainer {
    * ===================================*/
 
   /** Move constructor. */
+  HSHM_INLINE_CROSS_FUN
   Lane(Lane &&other) noexcept
       : queue_(other.queue_.GetCtxAllocator(), std::move(other.queue_)) {}
 
   /** SHM move constructor. */
+  HSHM_INLINE_CROSS_FUN
   Lane(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, Lane &&other) noexcept
       : queue_(alloc, std::move(other.queue_)) {}
 
   /** SHM move assignment operator. */
+  HSHM_INLINE_CROSS_FUN
   Lane &operator=(Lane &&other) noexcept {
     if (this != &other) {
       queue_ = std::move(other.queue_);
@@ -207,12 +214,15 @@ class Lane : public hipc::ShmContainer {
    * ===================================*/
 
   /** SHM destructor.  */
+  HSHM_INLINE_CROSS_FUN
   void shm_destroy() { queue_.shm_destroy(); }
 
   /** Check if the list is empty */
+  HSHM_INLINE_CROSS_FUN
   bool IsNull() const { return queue_.IsNull(); }
 
   /** Sets this list as empty */
+  HSHM_INLINE_CROSS_FUN
   void SetNull() { queue_.SetNull(); }
 
   /**====================================
@@ -221,29 +231,35 @@ class Lane : public hipc::ShmContainer {
 
   /** Construct an element at \a pos position in the list */
   template <typename... Args>
-  qtok_t emplace(Args &&...args) {
+  HSHM_INLINE_CROSS_FUN qtok_t emplace(Args &&...args) {
     return queue_.emplace(std::forward<Args>(args)...);
   }
 
  public:
   /** Consumer pops the head object */
+  HSHM_INLINE_CROSS_FUN
   qtok_t pop(LaneData &val) { return queue_.pop(val); }
 
   /** Consumer pops the head object */
+  HSHM_INLINE_CROSS_FUN
   qtok_t pop() { return queue_.pop(); }
 
   /** Consumer peeks an object */
+  HSHM_INLINE_CROSS_FUN
   qtok_t peek(chi::ipc::pair<bitfield32_t, LaneData> *&val, int off = 0) {
     return queue_.peek(val, off);
   }
 
   /** Consumer peeks an object */
+  HSHM_INLINE_CROSS_FUN
   qtok_t peek(LaneData *&val, int off = 0) { return queue_.peek(val, off); }
 
   /** Current size of queue */
+  HSHM_INLINE_CROSS_FUN
   size_t GetSize() { return queue_.GetSize(); }
 
   /** Max depth of queue */
+  HSHM_INLINE_CROSS_FUN
   size_t GetDepth() { return queue_.GetDepth(); }
 };
 
@@ -256,11 +272,11 @@ struct LaneGroup : public PriorityInfo, public hipc::ShmContainer {
                   prio group */
 
   /** Default constructor */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   LaneGroup(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) : lanes_(alloc) {}
 
   /** Set priority info */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   LaneGroup(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
             const PriorityInfo &priority)
       : lanes_(alloc) {
@@ -278,7 +294,7 @@ struct LaneGroup : public PriorityInfo, public hipc::ShmContainer {
    * ===================================*/
 
   /** SHM Copy constructor. Should never actually be called. */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   LaneGroup(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
             const LaneGroup &other)
       : lanes_(alloc, other.lanes_) {
@@ -292,6 +308,7 @@ struct LaneGroup : public PriorityInfo, public hipc::ShmContainer {
   }
 
   /** SHM copy assignment operator */
+  HSHM_INLINE_CROSS_FUN
   LaneGroup &operator=(const LaneGroup &other) {
     if (this != &other) {
       prio_ = other.prio_;
@@ -310,6 +327,7 @@ struct LaneGroup : public PriorityInfo, public hipc::ShmContainer {
    * ===================================*/
 
   /** SHM move constructor. */
+  HSHM_INLINE_CROSS_FUN
   LaneGroup(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
             LaneGroup &&other) noexcept
       : lanes_(alloc, std::move(other.lanes_)) {
@@ -325,6 +343,7 @@ struct LaneGroup : public PriorityInfo, public hipc::ShmContainer {
   }
 
   /** SHM move assignment operator. */
+  HSHM_INLINE_CROSS_FUN
   LaneGroup &operator=(LaneGroup &&other) noexcept {
     if (this != &other) {
       prio_ = other.prio_;
@@ -345,14 +364,15 @@ struct LaneGroup : public PriorityInfo, public hipc::ShmContainer {
    * ===================================*/
 
   /** SHM destructor.  */
+  HSHM_INLINE_CROSS_FUN
   void shm_destroy() { lanes_.shm_destroy(); }
 
   /** Check if the list is empty */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   bool IsNull() const { return lanes_.IsNull(); }
 
   /** Sets this list as empty */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   void SetNull() {}
 
   /**====================================
@@ -360,14 +380,15 @@ struct LaneGroup : public PriorityInfo, public hipc::ShmContainer {
    * ===================================*/
 
   /** Check if this group is long-running or ADMIN */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   bool IsLowPriority() { return flags_.Any(QUEUE_LONG_RUNNING) || prio_ == 0; }
 
   /** Check if this group is long-running or ADMIN */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   bool IsLowLatency() { return flags_.Any(QUEUE_LOW_LATENCY); }
 
   /** Get lane */
+  HSHM_INLINE_CROSS_FUN
   Lane &GetLane(LaneId lane_id) { return lanes_[lane_id]; }
 };
 
@@ -385,6 +406,7 @@ struct MultiQueue : public hipc::ShmContainer {
    * ===================================*/
 
   /** SHM constructor. Default. */
+  HSHM_CROSS_FUN
   explicit MultiQueue(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
       : groups_(alloc) {
     SetNull();
@@ -414,6 +436,7 @@ struct MultiQueue : public hipc::ShmContainer {
    * ===================================*/
 
   /** SHM copy constructor */
+  HSHM_CROSS_FUN
   explicit MultiQueue(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
                       const MultiQueue &other)
       : groups_(alloc) {
@@ -422,6 +445,7 @@ struct MultiQueue : public hipc::ShmContainer {
   }
 
   /** SHM copy assignment operator */
+  HSHM_CROSS_FUN
   MultiQueue &operator=(const MultiQueue &other) {
     if (this != &other) {
       shm_destroy();
@@ -431,6 +455,7 @@ struct MultiQueue : public hipc::ShmContainer {
   }
 
   /** SHM copy constructor + operator main */
+  HSHM_CROSS_FUN
   void shm_strong_copy_construct_and_op(const MultiQueue &other) {
     groups_ = other.groups_;
   }
@@ -440,6 +465,7 @@ struct MultiQueue : public hipc::ShmContainer {
    * ===================================*/
 
   /** SHM move constructor. */
+  HSHM_CROSS_FUN
   MultiQueue(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
              MultiQueue &&other) noexcept
       : groups_(alloc) {
@@ -448,6 +474,7 @@ struct MultiQueue : public hipc::ShmContainer {
   }
 
   /** SHM move assignment operator. */
+  HSHM_CROSS_FUN
   MultiQueue &operator=(MultiQueue &&other) noexcept {
     if (this != &other) {
       groups_ = std::move(other.groups_);
@@ -461,14 +488,15 @@ struct MultiQueue : public hipc::ShmContainer {
    * ===================================*/
 
   /** SHM destructor.  */
+  HSHM_INLINE_CROSS_FUN
   void shm_destroy() { groups_.shm_destroy(); }
 
   /** Check if the list is empty */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   bool IsNull() const { return groups_.IsNull(); }
 
   /** Sets this list as empty */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   void SetNull() {}
 
   /**====================================
@@ -476,25 +504,26 @@ struct MultiQueue : public hipc::ShmContainer {
    * ===================================*/
 
   /** Get the priority struct */
-  HSHM_INLINE LaneGroup &GetGroup(u32 prio) { return groups_[prio]; }
+  HSHM_INLINE_CROSS_FUN LaneGroup &GetGroup(u32 prio) { return groups_[prio]; }
 
   /** Get a lane of the queue */
-  HSHM_INLINE Lane &GetLane(u32 prio, LaneId lane_id) {
+  HSHM_INLINE_CROSS_FUN Lane &GetLane(u32 prio, LaneId lane_id) {
     return GetLane(GetGroup(prio), lane_id);
   }
 
   /** Get a lane of the queue */
-  HSHM_INLINE Lane &GetLane(LaneGroup &lane_group, LaneId lane_id) {
+  HSHM_INLINE_CROSS_FUN Lane &GetLane(LaneGroup &lane_group, LaneId lane_id) {
     return lane_group.GetLane(lane_id);
   }
 
   /** Emplace a SHM pointer to a task */
-  HSHM_INLINE
+  HSHM_CROSS_FUN
   bool Emplace(u32 prio, u32 lane_hash, hipc::Pointer &p) {
     return Emplace(prio, lane_hash, LaneData(p));
   }
 
   /** Emplace a SHM pointer to a task */
+  HSHM_INLINE_CROSS_FUN
   bool Emplace(u32 prio, u32 lane_hash, const LaneData &data) {
     if (IsEmplacePlugged()) {
       WaitForEmplacePlug();
@@ -513,20 +542,23 @@ struct MultiQueue : public hipc::ShmContainer {
   void Resize(u32 num_lanes) {}
 
   /** Begin plugging the queue for resize */
-  HSHM_INLINE bool PlugForResize() { return true; }
+  HSHM_INLINE_CROSS_FUN bool PlugForResize() { return true; }
 
   /** Begin plugging the queue for update tasks */
-  HSHM_INLINE bool PlugForUpdateTask() { return true; }
+  HSHM_INLINE_CROSS_FUN bool PlugForUpdateTask() { return true; }
 
   /** Check if emplace operations are plugged */
-  HSHM_INLINE bool IsEmplacePlugged() { return flags_.Any(QUEUE_RESIZE); }
+  HSHM_INLINE_CROSS_FUN bool IsEmplacePlugged() {
+    return flags_.Any(QUEUE_RESIZE);
+  }
 
   /** Check if pop operations are plugged */
-  HSHM_INLINE bool IsPopPlugged() {
+  HSHM_INLINE_CROSS_FUN bool IsPopPlugged() {
     return flags_.Any(QUEUE_UPDATE | QUEUE_RESIZE);
   }
 
   /** Wait for emplace plug to complete */
+  HSHM_INLINE_CROSS_FUN
   void WaitForEmplacePlug() {
     // NOTE(llogan): will this infinite loop due to CPU caching?
     while (flags_.Any(QUEUE_UPDATE)) {

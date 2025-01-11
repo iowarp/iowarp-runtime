@@ -205,7 +205,7 @@ struct UniqueId {
 
   /** Hash function */
   size_t Hash() const {
-    return std::hash<u64>{}(unique_) + std::hash<u32>{}(node_id_);
+    return hshm::hash<u64>{}(unique_) + hshm::hash<u32>{}(node_id_);
   }
 };
 
@@ -327,7 +327,7 @@ struct SubDomainId {
 
   /** Hash function */
   size_t Hash() const {
-    return std::hash<u32>{}(major_) + std::hash<u32>{}(minor_);
+    return hshm::hash<u32>{}(major_) + hshm::hash<u32>{}(minor_);
   }
 
   /** Print operator */
@@ -681,9 +681,10 @@ struct DomainQuery {
   }
 
   /** Hash function */
+  HSHM_INLINE_CROSS_FUN
   size_t Hash() const {
-    return std::hash<DomainFlag>{}(flags_.bits_) +
-           std::hash<SubDomainGroup>{}(sub_id_) + std::hash<u64>{}(sel_.int_);
+    return hshm::hash<DomainFlag>{}(flags_.bits_) +
+           hshm::hash<SubDomainGroup>{}(sub_id_) + hshm::hash<u64>{}(sel_.int_);
   }
 
   /** Print operator */
@@ -848,6 +849,44 @@ class CacheTimer {
 
 }  // namespace chi
 
+namespace hshm {
+
+/** Hash function for UniqueId */
+template <int TYPE>
+struct hash<chi::UniqueId<TYPE>> {
+  HSHM_INLINE
+  std::size_t operator()(const chi::UniqueId<TYPE> &key) const {
+    return key.Hash();
+  }
+};
+
+/** Hash function for SubDomainId */
+template <>
+struct hash<chi::SubDomainId> {
+  HSHM_INLINE_CROSS_FUN
+  std::size_t operator()(const chi::SubDomainId &key) const {
+    return key.Hash();
+  }
+};
+
+/** Hash function for DomainId */
+template <>
+struct hash<chi::DomainId> {
+  HSHM_INLINE_CROSS_FUN
+  std::size_t operator()(const chi::DomainId &key) const { return key.Hash(); }
+};
+
+/** Hash function for DomainQuery */
+template <>
+struct hash<chi::DomainQuery> {
+  HSHM_INLINE_CROSS_FUN
+  std::size_t operator()(const chi::DomainQuery &key) const {
+    return key.Hash();
+  }
+};
+
+}  // namespace hshm
+
 namespace std {
 
 /** Hash function for UniqueId */
@@ -862,7 +901,7 @@ struct hash<chi::UniqueId<TYPE>> {
 /** Hash function for SubDomainId */
 template <>
 struct hash<chi::SubDomainId> {
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   std::size_t operator()(const chi::SubDomainId &key) const {
     return key.Hash();
   }
@@ -871,14 +910,14 @@ struct hash<chi::SubDomainId> {
 /** Hash function for DomainId */
 template <>
 struct hash<chi::DomainId> {
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   std::size_t operator()(const chi::DomainId &key) const { return key.Hash(); }
 };
 
 /** Hash function for DomainQuery */
 template <>
 struct hash<chi::DomainQuery> {
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   std::size_t operator()(const chi::DomainQuery &key) const {
     return key.Hash();
   }

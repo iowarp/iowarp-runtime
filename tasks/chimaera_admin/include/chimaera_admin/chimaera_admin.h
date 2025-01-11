@@ -9,19 +9,21 @@ namespace chi::Admin {
 class Client : public ModuleClient {
  public:
   /** Default constructor */
+  HSHM_INLINE_CROSS_FUN
   Client() {
     id_ = PoolId(CHI_QM->admin_queue_id_);
     queue_id_ = CHI_QM->admin_queue_id_;
   }
 
   /** Destructor */
+  HSHM_INLINE_CROSS_FUN
   ~Client() = default;
 
   /** Register a module */
   HSHM_INLINE_CROSS_FUN
   void RegisterModule(const hipc::MemContext &mctx,
                       const DomainQuery &dom_query,
-                      const std::string &lib_name) {
+                      const chi::string &lib_name) {
     FullPtr<RegisterModuleTask> task =
         AsyncRegisterModule(mctx, dom_query, lib_name);
     task->Wait();
@@ -32,7 +34,7 @@ class Client : public ModuleClient {
   /** Unregister a module */
   HSHM_INLINE_CROSS_FUN
   void DestroyModule(const hipc::MemContext &mctx, const DomainQuery &dom_query,
-                     const std::string &lib_name) {
+                     const chi::string &lib_name) {
     FullPtr<DestroyModuleTask> task =
         AsyncDestroyModule(mctx, dom_query, lib_name);
     task->Wait();
@@ -43,7 +45,7 @@ class Client : public ModuleClient {
   /** Register a task library */
   HSHM_INLINE_CROSS_FUN
   void UpgradeModule(const hipc::MemContext &mctx, const DomainQuery &dom_query,
-                     const std::string &lib_name) {
+                     const chi::string &lib_name) {
     FullPtr<UpgradeModuleTask> task =
         AsyncUpgradeModule(mctx, dom_query, lib_name);
     task->Wait();

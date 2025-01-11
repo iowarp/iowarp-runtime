@@ -401,7 +401,7 @@ class Client : public ConfigurationManager {
     chi::ingress::MultiQueue *queue =                                        \
         CHI_CLIENT->GetQueue(CHI_QM->process_queue_id_);                     \
     queue->Emplace(chi::TaskPrioOpt::kLowLatency,                            \
-                   std::hash<chi::DomainQuery>{}(task->dom_query_),          \
+                   hshm::hash<chi::DomainQuery>{}(task->dom_query_),         \
                    task.shm_);                                               \
     return task;                                                             \
   }
