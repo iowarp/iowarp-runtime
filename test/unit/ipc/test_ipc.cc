@@ -393,11 +393,3 @@ TEST_CASE("TestPython") {
   HILOG(kInfo, "Slope: {}", ls.consts_[0]);
 }
 #endif
-
-// TEST_CASE("TestHostfile") {
-//  for (NodeId cont_id = 1; node_id <
-//  CHI_THALLIUM->rpc_->hosts_.size() + 1; ++node_id) {
-//    HILOG(kInfo, "Node {}: {}", node_id,
-//    CHI_THALLIUM->GetServerName(node_id));
-//  }
-// }
