@@ -19,8 +19,8 @@
 namespace chi {
 
 #if defined(CHIMAERA_ENABLE_ROCM) || defined(CHIMAERA_ENABLE_CUDA)
-HSHM_GPU_KERNEL void CreateClient(CHI_ALLOC_T *alloc) {
-  CHI_CLIENT->CreateGpu(alloc);
+HSHM_GPU_KERNEL void CreateClient(hipc::AllocatorId alloc_id) {
+  CHI_CLIENT->CreateGpu(alloc_id);
 }
 #endif
 
@@ -202,7 +202,7 @@ void Runtime::InitSharedMemoryGpu() {
 #if defined(CHIMAERA_ENABLE_ROCM) || defined(CHIMAERA_ENABLE_CUDA)
   // Create client on each GPU
   for (int gpu_id = 0; gpu_id < num_gpus; ++gpu_id) {
-    CreateClient<<<1, 1>>>(GetGpuAlloc(gpu_id));
+    CreateClient<<<1, 1>>>(GetGpuAllocId(gpu_id));
   }
 #endif
 }

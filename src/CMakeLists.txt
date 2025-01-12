@@ -33,8 +33,8 @@ target_chigpu_compile_definitions(chimaera runtime PUBLIC HSHM_DEFAULT_THREAD_MO
 #------------------------------------------------------------------------------
 add_chigpu_executable(chimaera_start_runtime
         chimaera_start_runtime.cc)
-add_dependencies(chimaera_start_runtime chimaera::runtime_gpu)
-target_link_libraries(chimaera_start_runtime PUBLIC chimaera::runtime_gpu)
+add_dependencies(chimaera_start_runtime chimaera::runtime_host)
+target_link_libraries(chimaera_start_runtime PUBLIC chimaera::runtime_host)
 
 #------------------------------------------------------------------------------
 # Build Chimaera Runtime Stop Function

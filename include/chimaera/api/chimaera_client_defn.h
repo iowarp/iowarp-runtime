@@ -62,8 +62,8 @@ class Client : public ConfigurationManager {
 /** Initialize the client (GPU) */
 #ifdef CHIMAERA_RUNTIME
   HSHM_INLINE_CROSS_FUN
-  void CreateGpu(CHI_ALLOC_T *alloc) {
-    main_alloc_ = alloc;
+  void CreateGpu(hipc::AllocatorId alloc_id) {
+    main_alloc_ = HERMES_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(alloc_id);
     data_alloc_ = nullptr;
     rdata_alloc_ = nullptr;
     HERMES_MEMORY_MANAGER->SetDefaultAllocator(main_alloc_);

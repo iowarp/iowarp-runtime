@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD 17)
 # Build Tests
 #------------------------------------------------------------------------------
 
-add_rocm_executable(test_rocm_exec FALSE
+add_rocm_gpu_executable(test_rocm_exec FALSE
         test_rocm.cc
 )
 add_dependencies(test_rocm_exec chimaera::client_gpu)
