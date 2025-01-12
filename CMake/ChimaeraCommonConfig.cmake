@@ -72,81 +72,89 @@ if (CHIMAERA_ENABLE_ROCM)
     hermes_enable_rocm("HIP" 17)
 endif()
 
-
-# Create function to add dependencies to a target
-if (CHIMAERA_IS_MAIN_PROJECT)
-    function(add_chimaera_run_deps target)
-        add_dependencies(${target} chimaera_client chimaera_runtime)
-    endfunction()
-else()
-    function(add_chimaera_run_deps target)
-    endfunction()
-endif()
-
 # Create a function to make libraries for chimaera
 macro(add_chigpu_library namespace target)
+    set(${namespace}_${target}_exports)
     if (CHIMAERA_ENABLE_CUDA)
         add_cuda_library(${namespace}_${target}_gpu TRUE ${ARGN})
         target_link_libraries(${namespace}_${target}_gpu PUBLIC HermesShm::cudacxx)
         target_compile_definitions(${namespace}_${target}_gpu PUBLIC CHIMAERA_ENABLE_CUDA)
+        list(APPEND ${namespace}_${target}_exports ${namespace}_${target}_gpu)
 
-        add_library(${namespace}_${target}_host INTERFACE)
-        target_link_libraries(${namespace}_${target}_host INTERFACE ${namespace}_${target}_gpu)
+        add_library(${namespace}_${target}_host ALIAS ${namespace}_${target}_gpu)
+        set(${namespace}_${target}_host_alias ON)
     elseif (CHIMAERA_ENABLE_ROCM)
         add_rocm_library(${namespace}_${target}_gpu TRUE ${ARGN})
         target_link_libraries(${namespace}_${target}_gpu PUBLIC HermesShm::rocmcxx_gpu)
         target_compile_definitions(${namespace}_${target}_gpu PUBLIC CHIMAERA_ENABLE_ROCM)
+        list(APPEND ${namespace}_${target}_exports ${namespace}_${target}_gpu)
 
         add_rocm_host_library(${namespace}_${target}_host TRUE ${ARGN})
         target_link_libraries(${namespace}_${target}_host PUBLIC HermesShm::rocmcxx_host)
+        list(APPEND ${namespace}_${target}_exports ${namespace}_${target}rocmcxx_host)
     else()
-        add_library(${namespace}_${target}_host ${ARGN})
-        target_link_libraries(${namespace}_${target} PUBLIC HermesShm::cxx)
+        add_library(${namespace}_${target}_gpu ${ARGN})
+        target_link_libraries(${namespace}_${target}_gpu PUBLIC HermesShm::cxx)
+        list(APPEND ${namespace}_${target}_exports ${namespace}_${target}_gpu)
 
-        add_library(${namespace}_${target}_gpu INTERFACE)
-        target_link_libraries(${namespace}_${target}_gpu INTERFACE ${namespace}_${target}_host)
+        add_library(${namespace}_${target}_host ALIAS ${namespace}_${target}_gpu)
+        set(${namespace}_${target}_host_alias ON)
     endif()
 
     add_library(${target}_gpu INTERFACE)
     target_link_libraries(${target}_gpu INTERFACE ${namespace}_${target}_gpu)
+    list(APPEND ${namespace}_${target}_exports ${target}_gpu)
     if (CHIMAERA_IS_MAIN_PROJECT)
-        add_library(${namespace}::${target}_gpu ALIAS ${namespace}_${target}_gpu)
+        add_library(${namespace}::${target}_gpu ALIAS ${target}_gpu)
     endif()
 
     add_library(${target}_host INTERFACE)
     target_link_libraries(${target}_host INTERFACE ${namespace}_${target}_host)
+    list(APPEND ${namespace}_${target}_exports ${target}_host)
     if (CHIMAERA_IS_MAIN_PROJECT)
-        add_library(${namespace}::${target}_host ALIAS ${namespace}_${target}_host)
+        add_library(${namespace}::${target}_host ALIAS ${target}_host)
     endif()
 endmacro()
 
-macro(add_chigpu_dependencies namespace target)
-    add_dependencies(${namespace}_${target}_host ${ARGN})
+macro(add_chigpu_dependencies namespace target) 
+    if (NOT ${namespace}_${target}_host_alias)
+        add_dependencies(${namespace}_${target}_host ${ARGN})
+    endif()
     add_dependencies(${namespace}_${target}_gpu ${ARGN})
 endmacro()
 
 macro(target_chigpu_link_libraries namespace target)
-    target_link_libraries(${namespace}_${target}_host PUBLIC ${ARGN})
+    if (NOT ${namespace}_${target}_host_alias)
+        target_link_libraries(${namespace}_${target}_host PUBLIC ${ARGN})
+    endif()
     target_link_libraries(${namespace}_${target}_gpu PUBLIC ${ARGN})
 endmacro()
 
 macro(target_chigpu_compile_definitions namespace target flag)
-    target_compile_definitions(${namespace}_${target}_host ${flag} ${ARGN})
+    if (NOT ${namespace}_${target}_host_alias)
+        target_compile_definitions(${namespace}_${target}_host ${flag} ${ARGN})
+    endif()
     target_compile_definitions(${namespace}_${target}_gpu ${flag} ${ARGN})
 endmacro()
 
 macro(target_chigpu_include_directories namespace target flag)
-    target_include_directories(${namespace}_${target}_host ${flag} ${ARGN})
+    if (NOT ${namespace}_${target}_host_alias)
+        target_include_directories(${namespace}_${target}_host ${flag} ${ARGN})
+    endif()
     target_include_directories(${namespace}_${target}_gpu ${flag} ${ARGN})
 endmacro()
 
 macro(target_chigpu_link_directories namespace target flag)
-    target_link_directories(${namespace}_${target}_host ${flag} ${ARGN})
+    if (NOT ${namespace}_${target}_host_alias)
+        target_link_directories(${namespace}_${target}_host ${flag} ${ARGN})
+    endif()
     target_link_directories(${namespace}_${target}_gpu ${flag} ${ARGN})
 endmacro()
 
 macro(target_chigpu_compile_options target flag)
-    target_compile_options(${namespace}_${target}_host ${flag} ${ARGN})
+    if (NOT ${namespace}_${target}_host_alias)
+        target_compile_options(${namespace}_${target}_host ${flag} ${ARGN})
+    endif()
     target_compile_options(${namespace}_${target}_gpu ${flag} ${ARGN})
 endmacro()
 
@@ -157,7 +165,7 @@ macro(add_chigpu_executable target)
     elseif (CHIMAERA_ENABLE_ROCM)
         add_rocm_executable(${target} TRUE ${ARGN})
     else()
-        add_library(${target} ${ARGN})
+        add_executable(${target} ${ARGN})
     endif()
 endmacro()
 
@@ -168,24 +176,4 @@ macro(add_chimod_library namespace target)
         add_chigpu_dependencies(${namespace} ${target} chimaera::runtime_host)
     endif()
     target_chigpu_link_libraries(${namespace} ${target} chimaera::runtime_host)
-    set(${namespace}_${host}_exports 
-        ${namespace}_${target}_host
-        ${namespace}_${target}_gpu
-        ${target}_host
-        ${target}_gpu)
-endmacro()
-
-# 
-
-# Install chimod library
-macro(install_chimod_library namespace target export)
-    install(TARGETS 
-                ${namespace}_${target}_host
-                ${namespace}_${target}_gpu
-                ${target}_host
-                ${target}_gpu
-            EXPORT ${export}
-            LIBRARY DESTINATION ${CHIMAERA_INSTALL_LIB_DIR}
-            ARCHIVE DESTINATION ${CHIMAERA_INSTALL_LIB_DIR}
-            RUNTIME DESTINATION ${CHIMAERA_INSTALL_BIN_DIR})
 endmacro()

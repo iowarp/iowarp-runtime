@@ -27,6 +27,9 @@ class ChimaeraUnitTests(Application):
                                'TestUpgrade',
                                'TestPython']
 
+        self.test_rocm_execs = ['TestRocm']
+        self.test_cuda_execs = ['TestCuda']
+
     def _configure_menu(self):
         """
         Create a CLI menu for the configurator method.
@@ -84,6 +87,15 @@ class ChimaeraUnitTests(Application):
                              env=self.env,
                              do_dbg=self.config['do_dbg'],
                              dbg_port=self.config['dbg_port']))
+        elif self.config['TEST_CASE'] in self.test_rocm_execs:
+            Exec(f'test_rocm_exec {self.config["TEST_CASE"]}',
+                 MpiExecInfo(hostfile=self.jarvis.hostfile,
+                             nprocs=nprocs,
+                             ppn=self.config['ppn'],
+                             env=self.env,
+                             do_dbg=self.config['do_dbg'],
+                             dbg_port=self.config['dbg_port']))
+        
 
     def stop(self):
         """

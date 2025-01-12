@@ -58,17 +58,10 @@ install(
 #-----------------------------------------------------------------------------
 # Add Target(s) to CMake Install
 #-----------------------------------------------------------------------------
+message(${chimaera_runtime_exports})
 set(CHIMAERA_EXPORTED_LIBS
-    chimaera_client_host
-    chimaera_client_gpu
-    client_host
-    client_gpu
-
-    chimaera_runtime_host
-    chimaera_runtime_gpu
-    runtime_host
-    runtime_gpu
-
+    ${chimaera_client_exports}
+    ${chimaera_runtime_exports}
     chimaera_start_runtime
     chimaera_stop_runtime
     runtime_deps)
