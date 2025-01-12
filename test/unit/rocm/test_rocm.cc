@@ -15,6 +15,7 @@
 
 #include "bdev/bdev.h"
 #include "chimaera/api/chimaera_client.h"
+#include "chimaera/api/chimaera_client_defn.h"
 #include "chimaera_admin/chimaera_admin.h"
 #include "omp.h"
 #include "small_message/small_message.h"
@@ -45,4 +46,7 @@ HSHM_GPU_KERNEL void test_kernel() {
   //   REQUIRE(ret == 1);
 }
 
-int main() {}
+int main() {
+  CHIMAERA_CLIENT_INIT();
+  test_kernel<<<1, 1>>>();
+}

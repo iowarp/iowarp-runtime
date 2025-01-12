@@ -8,7 +8,7 @@ pkgs:
     dbg_port: 4000
   - pkg_type: chimaera_unit_tests
     pkg_name: chimaera_unit_tests
-    TEST_CASE: TestIpc
+    TEST_CASE: TestRocm
     do_dbg: true
     nprocs: 1
     ppn: 4
