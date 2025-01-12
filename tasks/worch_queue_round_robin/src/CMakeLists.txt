@@ -8,9 +8,9 @@ add_chimod_library(chimaera worch_queue_round_robin worch_queue_round_robin.cc)
 install(
         TARGETS
         ${chimaera_worch_queue_round_robin_exports}
-        LIBRARY DESTINATION ${CHIMEARA_INSTALL_LIB_DIR}
-        ARCHIVE DESTINATION ${CHIMEARA_INSTALL_LIB_DIR}
-        RUNTIME DESTINATION ${CHIMEARA_INSTALL_BIN_DIR}
+        LIBRARY DESTINATION ${CHIMAERA_INSTALL_LIB_DIR}
+        ARCHIVE DESTINATION ${CHIMAERA_INSTALL_LIB_DIR}
+        RUNTIME DESTINATION ${CHIMAERA_INSTALL_BIN_DIR}
 )
 
 #------------------------------------------------------------------------------

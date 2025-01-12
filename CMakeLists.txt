@@ -58,6 +58,33 @@ if (CHIMAERA_TASK_DEBUG)
     add_compile_definitions(CHIMAERA_TASK_DEBUG)
 endif()
 
+#------------------------------------------------------------------------------
+# Setup CMake Environment
+#------------------------------------------------------------------------------
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY
+        ${PROJECT_BINARY_DIR}/bin CACHE PATH "Single Directory for all Executables.")
+set(EXECUTABLE_OUTPUT_PATH ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY
+        ${PROJECT_BINARY_DIR}/bin CACHE PATH "Single Directory for all Libraries")
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY
+        ${PROJECT_BINARY_DIR}/bin CACHE PATH "Single Directory for all static libraries.")
+
+#------------------------------------------------------------------------------
+# Setup install and output Directories
+#------------------------------------------------------------------------------
+if(NOT CHIMAERA_INSTALL_BIN_DIR)
+    set(CHIMAERA_INSTALL_BIN_DIR ${CMAKE_INSTALL_PREFIX}/bin)
+endif()
+if(NOT CHIMAERA_INSTALL_LIB_DIR)
+    set(CHIMAERA_INSTALL_LIB_DIR ${CMAKE_INSTALL_PREFIX}/lib)
+endif()
+if(NOT CHIMAERA_INSTALL_INCLUDE_DIR)
+    set(CHIMAERA_INSTALL_INCLUDE_DIR ${CMAKE_INSTALL_PREFIX}/include)
+endif()
+if(NOT CHIMAERA_INSTALL_DATA_DIR)
+    set(CHIMAERA_INSTALL_DATA_DIR ${CMAKE_INSTALL_PREFIX}/share)
+endif()
+
 #-----------------------------------------------------------------------------
 # Targets built within this project are exported at Install time for use
 # by other projects.
@@ -68,6 +95,12 @@ set(CHIMAERA_EXPORTED_TARGETS "Chimaera")
 # Find Packages
 #-----------------------------------------------------------------------------
 include(CMake/ChimaeraCommonConfig.cmake)
+
+# This is for compatability with CLANG + Spack
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+list(APPEND CMAKE_INSTALL_RPATH "${CHIMAERA_INSTALL_LIB_DIR}")
+set(CMAKE_BUILD_WITH_INSTALL_RPATH ON)
+SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 # Dependencies for the runtime 
 add_library(runtime_deps INTERFACE)
@@ -88,33 +121,6 @@ endif()
 
 # Create an imported target for chimaera::run which links to chimaera_runtime
 add_library(chimaera::run ALIAS runtime_deps)
-
-#------------------------------------------------------------------------------
-# Setup CMake Environment
-#------------------------------------------------------------------------------
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY
-        ${PROJECT_BINARY_DIR}/bin CACHE PATH "Single Directory for all Executables.")
-set(EXECUTABLE_OUTPUT_PATH ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY
-        ${PROJECT_BINARY_DIR}/bin CACHE PATH "Single Directory for all Libraries")
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY
-        ${PROJECT_BINARY_DIR}/bin CACHE PATH "Single Directory for all static libraries.")
-
-#------------------------------------------------------------------------------
-# Setup install and output Directories
-#------------------------------------------------------------------------------
-if(NOT CHIMEARA_INSTALL_BIN_DIR)
-    set(CHIMEARA_INSTALL_BIN_DIR ${CMAKE_INSTALL_PREFIX}/bin)
-endif()
-if(NOT CHIMEARA_INSTALL_LIB_DIR)
-    set(CHIMEARA_INSTALL_LIB_DIR ${CMAKE_INSTALL_PREFIX}/lib)
-endif()
-if(NOT CHIMEARA_INSTALL_INCLUDE_DIR)
-    set(CHIMEARA_INSTALL_INCLUDE_DIR ${CMAKE_INSTALL_PREFIX}/include)
-endif()
-if(NOT CHIMEARA_INSTALL_DATA_DIR)
-    set(CHIMEARA_INSTALL_DATA_DIR ${CMAKE_INSTALL_PREFIX}/share)
-endif()
 
 #-----------------------------------------------------------------------------
 # Build Chimaera Main Packages

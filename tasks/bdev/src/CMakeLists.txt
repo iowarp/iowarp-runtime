@@ -8,12 +8,12 @@ add_chimod_library(chimaera bdev bdev.cc)
 install(
         TARGETS
         ${chimaera_bdev_exports}
-        LIBRARY DESTINATION ${CHIMEARA_INSTALL_LIB_DIR}
-        ARCHIVE DESTINATION ${CHIMEARA_INSTALL_LIB_DIR}
-        RUNTIME DESTINATION ${CHIMEARA_INSTALL_BIN_DIR}
+        LIBRARY DESTINATION ${CHIMAERA_INSTALL_LIB_DIR}
+        ARCHIVE DESTINATION ${CHIMAERA_INSTALL_LIB_DIR}
+        RUNTIME DESTINATION ${CHIMAERA_INSTALL_BIN_DIR}
 )
 install(FILES bdev_monitor.py
-        DESTINATION ${CHIMEARA_INSTALL_LIB_DIR})
+        DESTINATION ${CHIMAERA_INSTALL_LIB_DIR})
 
 #------------------------------------------------------------------------------
 # Coverage

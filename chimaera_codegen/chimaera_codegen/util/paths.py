@@ -9,4 +9,4 @@ def GetChimaera():
     return chimaera_path
 
 
-CHIMEARA_ROOT = GetChimaera()
+CHIMAERA_ROOT = GetChimaera()

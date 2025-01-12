@@ -2,41 +2,41 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "remote-debug,",
-      "type": "cppdbg,",
-      "request": "launch,",
-      "program": "echo,",
-      "miDebuggerServerAddress": "localhost:4000,",
-      "miDebuggerPath": "/usr/bin/gdb,",
-      "cwd": "${workspaceFolder},",
+      "name": "remote-debug",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "echo",
+      "miDebuggerServerAddress": "localhost:4000",
+      "miDebuggerPath": "/usr/bin/gdb",
+      "cwd": "${workspaceFolder}",
       "setupCommands": [
         {
-          "description": "Enable pretty-printing for gdb,",
-          "text": "-enable-pretty-printing,",
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
           "ignoreFailures": true
         }
       ],
-      "externalConsole": "true,",
+      "externalConsole": true,
       "logging": {
         "engineLogging": false
       }
     },
     {
-      "name": "client-debug,",
-      "type": "cppdbg,",
-      "request": "launch,",
-      "program": "echo,",
-      "miDebuggerServerAddress": "localhost:4001,",
-      "miDebuggerPath": "/usr/bin/gdb,",
-      "cwd": "${workspaceFolder},",
+      "name": "client-debug",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "echo",
+      "miDebuggerServerAddress": "localhost:4001",
+      "miDebuggerPath": "/usr/bin/gdb",
+      "cwd": "${workspaceFolder}",
       "setupCommands": [
         {
-          "description": "Enable pretty-printing for gdb,",
-          "text": "-enable-pretty-printing,",
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
           "ignoreFailures": true
         }
       ],
-      "externalConsole": "true,",
+      "externalConsole": true,
       "logging": {
         "engineLogging": false
       }
@@ -54,8 +54,8 @@
       "MIMode": "gdb",
       "setupCommands": [
         {
-          "description": "Enable pretty-printing for gdb,",
-          "text": "-enable-pretty-printing,",
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
           "ignoreFailures": true
         }
       ]

@@ -8,12 +8,12 @@ add_chimod_library(chimaera TASK_NAME TASK_NAME.cc)
 install(
         TARGETS
         ${chimaera_TASK_NAME_exports}
-        LIBRARY DESTINATION ${CHIMEARA_INSTALL_LIB_DIR}
-        ARCHIVE DESTINATION ${CHIMEARA_INSTALL_LIB_DIR}
-        RUNTIME DESTINATION ${CHIMEARA_INSTALL_BIN_DIR}
+        LIBRARY DESTINATION ${CHIMAERA_INSTALL_LIB_DIR}
+        ARCHIVE DESTINATION ${CHIMAERA_INSTALL_LIB_DIR}
+        RUNTIME DESTINATION ${CHIMAERA_INSTALL_BIN_DIR}
 )
 install(FILES TASK_NAME_monitor.py
-        DESTINATION ${CHIMEARA_INSTALL_LIB_DIR})
+        DESTINATION ${CHIMAERA_INSTALL_LIB_DIR})
 
 #------------------------------------------------------------------------------
 # Coverage
