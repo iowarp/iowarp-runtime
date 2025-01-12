@@ -408,15 +408,14 @@ struct MultiQueue : public hipc::ShmContainer {
   /** SHM constructor. Default. */
   HSHM_CROSS_FUN
   explicit MultiQueue(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
-      : groups_(alloc) {
+      : groups_(alloc), id_(QueueId::GetNull()) {
     SetNull();
   }
 
   /** SHM constructor. */
   explicit MultiQueue(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
                       const QueueId &id, const std::vector<PriorityInfo> &prios)
-      : groups_(alloc, prios.size()) {
-    id_ = id;
+      : groups_(alloc, prios.size()), id_(id) {
     for (const PriorityInfo &prio_info : prios) {
       groups_.replace(groups_.begin() + prio_info.prio_, prio_info);
       LaneGroup &lane_group = groups_[prio_info.prio_];

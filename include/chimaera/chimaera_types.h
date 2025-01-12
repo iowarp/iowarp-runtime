@@ -166,10 +166,7 @@ struct UniqueId {
 
   /** Get null id */
   HSHM_INLINE_CROSS_FUN
-  static UniqueId GetNull() {
-    static const UniqueId id(0, 0);
-    return id;
-  }
+  static UniqueId GetNull() { return UniqueId(0, 0); }
 
   /** Set to null id */
   HSHM_INLINE_CROSS_FUN

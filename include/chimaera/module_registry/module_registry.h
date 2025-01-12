@@ -171,63 +171,88 @@ class ModuleRegistry {
     }
   }
 
-  /** Load a module */
-  bool LoadModule(const std::string &lib_name, ModuleInfo &info) {
-    std::string lib_dir;
+  /** Check if any path matches */
+  std::string FindExistingPath(const std::vector<std::string> lib_paths) {
+    for (const std::string &lib_path : lib_paths) {
+      if (stdfs::exists(lib_path)) {
+        return lib_path;
+      }
+    }
+    return "";
+  }
+
+  /**
+    Check if any path matches. It checks for GPU variants first, since the
+    runtime supports GPU if enabled. */
+  std::string FindMatchingPathInDirs(const std::string &lib_name) {
+    std::vector<std::string> variants = {"_gpu", "_host", ""};
+    std::vector<std::string> prefixes = {"", "lib"};
+    std::vector<std::string> extensions = {".so", ".dll"};
     for (const std::string &lib_dir : lib_dirs_) {
       // Determine if this directory contains the library
-      std::string lib_path1 =
-          hshm::Formatter::format("{}/{}.so", lib_dir, lib_name);
-      std::string lib_path2 =
-          hshm::Formatter::format("{}/lib{}.so", lib_dir, lib_name);
-      std::string lib_path;
-      if (stdfs::exists(lib_path1)) {
-        lib_path = std::move(lib_path1);
-      } else if (stdfs::exists(lib_path2)) {
-        lib_path = std::move(lib_path2);
-      } else {
+      std::vector<std::string> lib_paths;
+      for (const std::string &variant : variants) {
+        for (const std::string &prefix : prefixes) {
+          for (const std::string &extension : extensions) {
+            lib_paths.emplace_back(hshm::Formatter::format(
+                "{}/{}{}{}{}", lib_dir, prefix, lib_name, variant, extension));
+          }
+        }
+      }
+      std::string lib_path = FindExistingPath(lib_paths);
+      if (lib_path.empty()) {
         continue;
-      }
-
-      // Load the library
-      info.lib_ = dlopen(lib_path.c_str(), RTLD_GLOBAL | RTLD_NOW);
-      if (!info.lib_) {
-        HELOG(kError, "Could not open the lib library: {}. Reason: {}",
-              lib_path, dlerror());
-        return false;
-      }
-
-      // Get the allocate state function
-      info.alloc_state_ = (alloc_state_t)dlsym(info.lib_, "alloc_state");
-      if (!info.alloc_state_) {
-        HELOG(kError, "The lib {} does not have alloc_state symbol", lib_path);
-        return false;
-      }
-
-      // Get the new state function
-      info.new_state_ = (new_state_t)dlsym(info.lib_, "new_state");
-      if (!info.new_state_) {
-        HELOG(kError, "The lib {} does not have new_state symbol", lib_path);
-        return false;
-      }
-
-      // Get the module name function
-      info.get_module_name =
-          (get_module_name_t)dlsym(info.lib_, "get_module_name");
-      if (!info.get_module_name) {
-        HELOG(kError, "The lib {} does not have get_module_name symbol",
-              lib_path);
-        return false;
-      }
-
-      // Check if the lib is already loaded
-      std::string module_name = info.get_module_name();
-      HILOG(kInfo, "(node {}) Finished loading the lib: {}", CHI_RPC->node_id_,
-            module_name);
-      info.static_state_ = info.alloc_state_();
-      return true;
+      };
+      return lib_path;
     }
-    return false;
+    return "";
+  }
+
+  /** Load a module */
+  bool LoadModule(const std::string &lib_name, ModuleInfo &info) {
+    std::string lib_path = FindMatchingPathInDirs(lib_name);
+    if (lib_path.empty()) {
+      HELOG(kError, "Could not find the lib: {}", lib_name);
+      return false;
+    }
+
+    // Load the library
+    info.lib_ = dlopen(lib_path.c_str(), RTLD_GLOBAL | RTLD_NOW);
+    if (!info.lib_) {
+      HELOG(kError, "Could not open the lib library: {}. Reason: {}", lib_path,
+            dlerror());
+      return false;
+    }
+
+    // Get the allocate state function
+    info.alloc_state_ = (alloc_state_t)dlsym(info.lib_, "alloc_state");
+    if (!info.alloc_state_) {
+      HELOG(kError, "The lib {} does not have alloc_state symbol", lib_path);
+      return false;
+    }
+
+    // Get the new state function
+    info.new_state_ = (new_state_t)dlsym(info.lib_, "new_state");
+    if (!info.new_state_) {
+      HELOG(kError, "The lib {} does not have new_state symbol", lib_path);
+      return false;
+    }
+
+    // Get the module name function
+    info.get_module_name =
+        (get_module_name_t)dlsym(info.lib_, "get_module_name");
+    if (!info.get_module_name) {
+      HELOG(kError, "The lib {} does not have get_module_name symbol",
+            lib_path);
+      return false;
+    }
+
+    // Check if the lib is already loaded
+    std::string module_name = info.get_module_name();
+    HILOG(kInfo, "(node {}) Finished loading the lib: {}", CHI_RPC->node_id_,
+          module_name);
+    info.static_state_ = info.alloc_state_();
+    return true;
   }
 
   /** Load a module */
