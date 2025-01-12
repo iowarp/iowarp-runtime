@@ -1,13 +1,13 @@
 #------------------------------------------------------------------------------
 # Build Small Message Task Library
 #------------------------------------------------------------------------------
-add_chimod_library(small_message small_message.cc)
+add_chimod_library(chimaera small_message small_message.cc)
 #------------------------------------------------------------------------------
 # Install Small Message Task Library
 #------------------------------------------------------------------------------
 install(
         TARGETS
-        small_message
+        ${chimaera_small_message_exports}
         LIBRARY DESTINATION ${CHIMEARA_INSTALL_LIB_DIR}
         ARCHIVE DESTINATION ${CHIMEARA_INSTALL_LIB_DIR}
         RUNTIME DESTINATION ${CHIMEARA_INSTALL_BIN_DIR}

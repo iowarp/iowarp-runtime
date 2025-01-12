@@ -68,8 +68,6 @@ set(CHIMAERA_EXPORTED_TARGETS "Chimaera")
 # Find Packages
 #-----------------------------------------------------------------------------
 include(CMake/ChimaeraCommonConfig.cmake)
-set(Chimaera_CLIENT_DEPS chimaera_client)
-set(Chimaera_RUNTIME_DEPS chimaera_runtime ${Chimaera_CLIENT_DEPS}) 
 
 # Dependencies for the runtime 
 add_library(runtime_deps INTERFACE)
@@ -177,6 +175,6 @@ install(
 install(DIRECTORY include DESTINATION ${CMAKE_INSTALL_PREFIX})
 install(EXPORT ${CHIMAERA_EXPORTED_TARGETS}
   FILE ${CHIMAERA_EXPORTED_TARGETS}CoreConfig.cmake
-  NAMESPACE Chimaera::
+  NAMESPACE chimaera::
   DESTINATION cmake
 )

@@ -1,13 +1,13 @@
 #------------------------------------------------------------------------------
 # Build TASK_NAME Task Library
 #------------------------------------------------------------------------------
-add_chimod_library(TASK_NAME TASK_NAME.cc)
+add_chimod_library(chimaera TASK_NAME TASK_NAME.cc)
 #------------------------------------------------------------------------------
 # Install TASK_NAME Task Library
 #------------------------------------------------------------------------------
 install(
         TARGETS
-        TASK_NAME
+        ${chimaera_TASK_NAME_exports}
         LIBRARY DESTINATION ${CHIMEARA_INSTALL_LIB_DIR}
         ARCHIVE DESTINATION ${CHIMEARA_INSTALL_LIB_DIR}
         RUNTIME DESTINATION ${CHIMEARA_INSTALL_BIN_DIR}

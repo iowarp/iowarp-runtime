@@ -9,9 +9,9 @@ set(CMAKE_CXX_STANDARD 17)
 add_rocm_executable(test_rocm_exec FALSE
         test_rocm.cc
 )
-add_dependencies(test_rocm_exec chimaera_client_rocm)
+add_dependencies(test_rocm_exec chimaera::client_gpu)
 target_link_libraries(test_rocm_exec PUBLIC
-        chimaera_client_rocm)
+        chimaera::client_gpu)
 
 #------------------------------------------------------------------------------
 # Test Cases

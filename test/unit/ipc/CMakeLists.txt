@@ -13,9 +13,9 @@ add_executable(test_ipc_exec
         test_serialize.cc
         test_type_sizes.cc
 )
-add_dependencies(test_ipc_exec ${Chimaera_CLIENT_DEPS})
+add_dependencies(test_ipc_exec chimaera::client_host)
 target_link_libraries(test_ipc_exec
-        chimaera_client
+        chimaera::client_host
         Catch2::Catch2 MPI::MPI_CXX OpenMP::OpenMP_CXX
         ${OPTIONAL_LIBS})
 target_compile_definitions(test_ipc_exec PRIVATE CHIMAERA_ENABLE_PYTHON)

@@ -7,20 +7,7 @@ set(CLIENT_SOURCES
         module.cc
         task.cc
 )
-add_library(chimaera_client ${CLIENT_SOURCES})
-target_link_libraries(chimaera_client HermesShm::cxx)
-add_library(Chimaera::client ALIAS chimaera_client)
-add_library(client INTERFACE)
-target_link_libraries(client INTERFACE chimaera_client)
-
-if (CHIMAERA_ENABLE_ROCM)
-    add_rocm_library(chimaera_client_rocm TRUE ${CLIENT_SOURCES})
-    target_link_libraries(chimaera_client_rocm PUBLIC HermesShm::rocmcxx)
-    add_library(Chimaera::client_rocm ALIAS chimaera_client_rocm)
-    add_library(client_rocm INTERFACE)
-    target_link_libraries(client_rocm INTERFACE chimaera_client_rocm)
-endif()
-
+add_chigpu_library(chimaera client ${CLIENT_SOURCES})
 
 #------------------------------------------------------------------------------
 # Build Chimaera Runtime Library
@@ -38,29 +25,23 @@ set(RUNTIME_SOURCES
         worker.cc
         queue_manager.cc
 )
-add_chigpu_library(chimaera_runtime ${RUNTIME_SOURCES})
-add_dependencies(chimaera_runtime ${Chimaera_CLIENT_DEPS})
-target_link_libraries(chimaera_runtime PUBLIC runtime_deps)
-target_compile_definitions(chimaera_runtime PUBLIC HSHM_DEFAULT_THREAD_MODEL=hshm::thread::Argobots)
-add_library(Chimaera::runtime ALIAS chimaera_runtime)
-add_library(runtime INTERFACE)
-target_link_libraries(runtime INTERFACE chimaera_runtime)
+add_chigpu_library(chimaera runtime ${RUNTIME_SOURCES})
+target_chigpu_link_libraries(chimaera runtime PUBLIC runtime_deps)
+target_chigpu_compile_definitions(chimaera runtime PUBLIC HSHM_DEFAULT_THREAD_MODEL=hshm::thread::Argobots)
 #------------------------------------------------------------------------------
 # Build Chimaera Runtime Start Function
 #------------------------------------------------------------------------------
 add_chigpu_executable(chimaera_start_runtime
         chimaera_start_runtime.cc)
-add_dependencies(chimaera_start_runtime ${Chimaera_RUNTIME_DEPS})
-target_link_libraries(chimaera_start_runtime PUBLIC chimaera_runtime
-        ${ALLOCATOR_LIBRARIES})
+add_dependencies(chimaera_start_runtime chimaera::runtime_gpu)
+target_link_libraries(chimaera_start_runtime PUBLIC chimaera::runtime_gpu)
 
 #------------------------------------------------------------------------------
 # Build Chimaera Runtime Stop Function
 #------------------------------------------------------------------------------
 add_executable(chimaera_stop_runtime chimaera_stop_runtime.cc)
-add_dependencies(chimaera_stop_runtime ${Chimaera_CLIENT_DEPS})
-target_link_libraries(chimaera_stop_runtime PUBLIC chimaera_client
-        ${ALLOCATOR_LIBRARIES})
+add_dependencies(chimaera_stop_runtime chimaera::client_host)
+target_link_libraries(chimaera_stop_runtime PUBLIC chimaera::client_host)
 
 #-----------------------------------------------------------------------------
 # Add file(s) to CMake Install
@@ -78,10 +59,16 @@ install(
 # Add Target(s) to CMake Install
 #-----------------------------------------------------------------------------
 set(CHIMAERA_EXPORTED_LIBS
-    client 
-    chimaera_client
-    chimaera_runtime
-    runtime
+    chimaera_client_host
+    chimaera_client_gpu
+    client_host
+    client_gpu
+
+    chimaera_runtime_host
+    chimaera_runtime_gpu
+    runtime_host
+    runtime_gpu
+
     chimaera_start_runtime
     chimaera_stop_runtime
     runtime_deps)

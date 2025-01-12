@@ -1,13 +1,13 @@
 #------------------------------------------------------------------------------
 # Build BDEV Task Library
 #------------------------------------------------------------------------------
-add_chimod_library(bdev bdev.cc)
+add_chimod_library(chimaera bdev bdev.cc)
 #------------------------------------------------------------------------------
 # Install BDEV Task Library
 #------------------------------------------------------------------------------
 install(
         TARGETS
-        bdev
+        ${chimaera_bdev_exports}
         LIBRARY DESTINATION ${CHIMEARA_INSTALL_LIB_DIR}
         ARCHIVE DESTINATION ${CHIMEARA_INSTALL_LIB_DIR}
         RUNTIME DESTINATION ${CHIMEARA_INSTALL_BIN_DIR}

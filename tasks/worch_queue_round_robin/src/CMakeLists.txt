@@ -1,13 +1,13 @@
 #------------------------------------------------------------------------------
 # Build Small Message Task Library
 #------------------------------------------------------------------------------
-add_chimod_library(worch_queue_round_robin worch_queue_round_robin.cc)
+add_chimod_library(chimaera worch_queue_round_robin worch_queue_round_robin.cc)
 #------------------------------------------------------------------------------
 # Install Small Message Task Library
 #------------------------------------------------------------------------------
 install(
         TARGETS
-        worch_queue_round_robin
+        ${chimaera_worch_queue_round_robin_exports}
         LIBRARY DESTINATION ${CHIMEARA_INSTALL_LIB_DIR}
         ARCHIVE DESTINATION ${CHIMEARA_INSTALL_LIB_DIR}
         RUNTIME DESTINATION ${CHIMEARA_INSTALL_BIN_DIR}

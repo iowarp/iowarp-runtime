@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD 17)
 #------------------------------------------------------------------------------
 
 set(TEST_LIBS
-        chimaera_client
+        chimaera::client_host
         Catch2::Catch2 MPI::MPI_CXX OpenMP::OpenMP_CXX)
 set(TEST_OPTS "")
 
@@ -18,13 +18,13 @@ endif()
 
 add_executable(bench_chimaera_latency
         test_latency.cc)
-add_dependencies(bench_chimaera_latency ${Chimaera_CLIENT_DEPS})
+add_dependencies(bench_chimaera_latency chimaera::client_host)
 target_link_libraries(bench_chimaera_latency ${TEST_LIBS})
 target_compile_definitions(bench_chimaera_latency PUBLIC ${TEST_OPTS})
 
 add_executable(bench_chimaera_bw
         test_bw.cc)
-add_dependencies(bench_chimaera_bw ${Chimaera_CLIENT_DEPS})
+add_dependencies(bench_chimaera_bw chimaera::client_host)
 target_link_libraries(bench_chimaera_bw ${TEST_LIBS})
 target_compile_definitions(bench_chimaera_bw PUBLIC ${TEST_OPTS})
 
@@ -32,7 +32,7 @@ target_compile_definitions(bench_chimaera_bw PUBLIC ${TEST_OPTS})
 add_executable(bench_chimaera_zlib
         test_zlib.cc
 )
-add_dependencies(bench_chimaera_zlib ${Chimaera_CLIENT_DEPS})
+add_dependencies(bench_chimaera_zlib chimaera::client_host)
 target_link_libraries(bench_chimaera_zlib ${TEST_LIBS})
 target_compile_definitions(bench_chimaera_zlib PUBLIC ${TEST_OPTS})
 
