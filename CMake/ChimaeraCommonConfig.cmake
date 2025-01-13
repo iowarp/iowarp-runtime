@@ -81,7 +81,8 @@ macro(add_chigpu_library namespace target)
         target_compile_definitions(${target}_gpu PUBLIC CHIMAERA_ENABLE_CUDA)
         list(APPEND ${namespace}_${target}_exports ${target}_gpu)
 
-        add_library(${target}_host ALIAS ${target}_gpu)
+        add_library(${target}_host INTERFACE)
+        target_link_libraries(${target}_host INTERFACE ${target}_gpu)
         set(${target}_host_alias ON)
     elseif (CHIMAERA_ENABLE_ROCM)
         add_rocm_gpu_library(${target}_gpu TRUE ${ARGN})
@@ -95,11 +96,14 @@ macro(add_chigpu_library namespace target)
     else()
         add_library(${target}_gpu ${ARGN})
         target_link_libraries(${target}_gpu PUBLIC HermesShm::cxx)
-        list(APPEND ${namespace}_${target}_exports ${target}_gpu)
-
-        add_library(${target}_host ALIAS ${target}_gpu)
+        
+        add_library(${target}_host INTERFACE)
+        target_link_libraries(${target}_host INTERFACE ${target}_gpu)
         set(${target}_host_alias ON)
     endif()
+
+    list(APPEND ${namespace}_${target}_exports ${target}_host)
+    list(APPEND ${namespace}_${target}_exports ${target}_gpu)
 
     if (CHIMAERA_IS_MAIN_PROJECT)
         add_library(${namespace}::${target}_gpu ALIAS ${target}_gpu)
