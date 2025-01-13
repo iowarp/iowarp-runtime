@@ -184,38 +184,34 @@ class ModuleRegistry {
   /**
     Check if any path matches. It checks for GPU variants first, since the
     runtime supports GPU if enabled. */
-  std::string FindMatchingPathInDirs(const std::string &lib_name) {
+  std::vector<std::string> FindMatchingPathInDirs(const std::string &lib_name) {
     std::vector<std::string> variants = {"_gpu", "_host", ""};
     std::vector<std::string> prefixes = {"", "lib"};
     std::vector<std::string> extensions = {".so", ".dll"};
+    std::vector<std::string> concrete_libs;
     for (const std::string &lib_dir : lib_dirs_) {
       // Determine if this directory contains the library
-      std::vector<std::string> lib_paths;
+      std::vector<std::string> potential_paths;
       for (const std::string &variant : variants) {
         for (const std::string &prefix : prefixes) {
           for (const std::string &extension : extensions) {
-            lib_paths.emplace_back(hshm::Formatter::format(
+            potential_paths.emplace_back(hshm::Formatter::format(
                 "{}/{}{}{}{}", lib_dir, prefix, lib_name, variant, extension));
           }
         }
       }
-      std::string lib_path = FindExistingPath(lib_paths);
+      std::string lib_path = FindExistingPath(potential_paths);
       if (lib_path.empty()) {
         continue;
       };
-      return lib_path;
+      concrete_libs.emplace_back(lib_path);
     }
-    return "";
+    return concrete_libs;
   }
 
-  /** Load a module */
-  bool LoadModule(const std::string &lib_name, ModuleInfo &info) {
-    std::string lib_path = FindMatchingPathInDirs(lib_name);
-    if (lib_path.empty()) {
-      HELOG(kError, "Could not find the lib: {}", lib_name);
-      return false;
-    }
-
+  /** Load a module at path */
+  bool LoadModuleAtPath(const std::string &lib_name,
+                        const std::string &lib_path, ModuleInfo &info) {
     // Load the library
     info.lib_ = dlopen(lib_path.c_str(), RTLD_GLOBAL | RTLD_NOW);
     if (!info.lib_) {
@@ -253,6 +249,21 @@ class ModuleRegistry {
           module_name);
     info.static_state_ = info.alloc_state_();
     return true;
+  }
+
+  /** Load a module */
+  bool LoadModule(const std::string &lib_name, ModuleInfo &info) {
+    std::vector<std::string> lib_path = FindMatchingPathInDirs(lib_name);
+    if (lib_path.empty()) {
+      HELOG(kError, "Could not find the lib: {}", lib_name);
+      return false;
+    }
+    for (const std::string &path : lib_path) {
+      if (LoadModuleAtPath(lib_name, path, info)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /** Load a module */

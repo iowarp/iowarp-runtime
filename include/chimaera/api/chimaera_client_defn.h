@@ -177,7 +177,8 @@ class Client : public ConfigurationManager {
                                                const TaskNode &task_node,
                                                Args &&...args) {
     FullPtr<TaskT> ptr = main_alloc_->NewObjLocal<TaskT>(
-        mctx, main_alloc_, task_node, std::forward<Args>(args)...);
+        mctx, hipc::CtxAllocator<CHI_ALLOC_T>{main_alloc_, mctx}, task_node,
+        std::forward<Args>(args)...);
     if (ptr.shm_.IsNull()) {
       // throw std::runtime_error("Could not allocate buffer");
       HELOG(kFatal, "Could not allocate buffer (4)");
@@ -325,85 +326,63 @@ class Client : public ConfigurationManager {
 };
 
 /** The default asynchronous method behavior */
-#ifdef CHIMAERA_RUNTIME
-#define CHI_TASK_METHODS(CUSTOM)                                               \
-  template <typename... Args>                                                  \
-  void Async##CUSTOM##Construct(const hipc::MemContext &mctx,                  \
-                                CUSTOM##Task *task, const TaskNode &task_node, \
-                                const DomainQuery &dom_query,                  \
-                                Args &&...args) {                              \
-    CHI_CLIENT->ConstructTask<CUSTOM##Task>(                                   \
-        mctx, task, task_node, id_, dom_query, std::forward<Args>(args)...);   \
-  }                                                                            \
-                                                                               \
-  template <typename... Args>                                                  \
-  hipc::FullPtr<CUSTOM##Task> Async##CUSTOM##Alloc(                            \
-      const hipc::MemContext &mctx, const TaskNode &task_node,                 \
-      Args &&...args) {                                                        \
-    hipc::FullPtr<CUSTOM##Task> task =                                         \
-        CHI_CLIENT->AllocateTask<CUSTOM##Task>(mctx);                          \
-    Async##CUSTOM##Construct(mctx, task.ptr_, task_node,                       \
-                             std::forward<Args>(args)...);                     \
-    return task;                                                               \
-  }                                                                            \
-                                                                               \
-  template <typename... Args>                                                  \
-  hipc::FullPtr<CUSTOM##Task> Async##CUSTOM(const hipc::MemContext &mctx,      \
-                                            Args &&...args) {                  \
-    chi::Task *parent_task = CHI_CUR_TASK;                                     \
-    if (parent_task) {                                                         \
-      return Async##CUSTOM##Base(mctx, parent_task,                            \
-                                 parent_task->task_node_ + 1,                  \
-                                 std::forward<Args>(args)...);                 \
-    } else {                                                                   \
-      return Async##CUSTOM##Base(mctx, nullptr, CHI_CLIENT->MakeTaskNodeId(),  \
-                                 std::forward<Args>(args)...);                 \
-    }                                                                          \
-  }                                                                            \
-                                                                               \
-  template <typename... Args>                                                  \
-  hipc::FullPtr<CUSTOM##Task> Async##CUSTOM##Base(                             \
-      const hipc::MemContext &mctx, Task *parent_task,                         \
-      const TaskNode &task_node, Args &&...args) {                             \
-    hipc::FullPtr<CUSTOM##Task> task =                                         \
-        Async##CUSTOM##Alloc(mctx, task_node, std::forward<Args>(args)...);    \
-    CHI_CLIENT->ScheduleTaskRuntime(parent_task, task, task->pool_);           \
-    return task;                                                               \
+#ifndef CHIMAERA_RUNTIME
+#define CHI_TASK_METHODS(CUSTOM)                                            \
+  template <typename... Args>                                               \
+  HSHM_CROSS_FUN hipc::FullPtr<CUSTOM##Task> Async##CUSTOM##Alloc(          \
+      const hipc::MemContext &mctx, const TaskNode &task_node,              \
+      const DomainQuery &dom_query, Args &&...args) {                       \
+    hipc::FullPtr<CUSTOM##Task> task = CHI_CLIENT->NewTask<CUSTOM##Task>(   \
+        mctx, task_node, id_, dom_query, std::forward<Args>(args)...);      \
+    return task;                                                            \
+  }                                                                         \
+                                                                            \
+  template <typename... Args>                                               \
+  HSHM_CROSS_FUN hipc::FullPtr<CUSTOM##Task> Async##CUSTOM(                 \
+      const hipc::MemContext &mctx, Args &&...args) {                       \
+    TaskNode task_node = CHI_CLIENT->MakeTaskNodeId();                      \
+    hipc::FullPtr<CUSTOM##Task> task =                                      \
+        Async##CUSTOM##Alloc(mctx, task_node, std::forward<Args>(args)...); \
+    chi::ingress::MultiQueue *queue =                                       \
+        CHI_CLIENT->GetQueue(CHI_QM->process_queue_id_);                    \
+    queue->Emplace(chi::TaskPrioOpt::kLowLatency,                           \
+                   hshm::hash<chi::DomainQuery>{}(task->dom_query_),        \
+                   task.shm_);                                              \
+    return task;                                                            \
   }
 #else
-#define CHI_TASK_METHODS(CUSTOM)                                             \
-  template <typename... Args>                                                \
-  HSHM_INLINE_CROSS_FUN void Async##CUSTOM##Construct(                       \
-      const hipc::MemContext &mctx, CUSTOM##Task *task,                      \
-      const TaskNode &task_node, const DomainQuery &dom_query,               \
-      Args &&...args) {                                                      \
-    CHI_CLIENT->ConstructTask<CUSTOM##Task>(                                 \
-        mctx, task, task_node, id_, dom_query, std::forward<Args>(args)...); \
-  }                                                                          \
-                                                                             \
-  template <typename... Args>                                                \
-  HSHM_INLINE_CROSS_FUN hipc::FullPtr<CUSTOM##Task> Async##CUSTOM##Alloc(    \
-      const hipc::MemContext &mctx, const TaskNode &task_node,               \
-      Args &&...args) {                                                      \
-    hipc::FullPtr<CUSTOM##Task> task =                                       \
-        CHI_CLIENT->AllocateTask<CUSTOM##Task>(mctx);                        \
-    Async##CUSTOM##Construct(mctx, task.ptr_, task_node,                     \
-                             std::forward<Args>(args)...);                   \
-    return task;                                                             \
-  }                                                                          \
-                                                                             \
-  template <typename... Args>                                                \
-  HSHM_INLINE_CROSS_FUN hipc::FullPtr<CUSTOM##Task> Async##CUSTOM(           \
-      const hipc::MemContext &mctx, Args &&...args) {                        \
-    TaskNode task_node = CHI_CLIENT->MakeTaskNodeId();                       \
-    hipc::FullPtr<CUSTOM##Task> task =                                       \
-        Async##CUSTOM##Alloc(mctx, task_node, std::forward<Args>(args)...);  \
-    chi::ingress::MultiQueue *queue =                                        \
-        CHI_CLIENT->GetQueue(CHI_QM->process_queue_id_);                     \
-    queue->Emplace(chi::TaskPrioOpt::kLowLatency,                            \
-                   hshm::hash<chi::DomainQuery>{}(task->dom_query_),         \
-                   task.shm_);                                               \
-    return task;                                                             \
+#define CHI_TASK_METHODS(CUSTOM)                                              \
+  template <typename... Args>                                                 \
+  HSHM_CROSS_FUN hipc::FullPtr<CUSTOM##Task> Async##CUSTOM##Alloc(            \
+      const hipc::MemContext &mctx, const TaskNode &task_node,                \
+      const DomainQuery &dom_query, Args &&...args) {                         \
+    hipc::FullPtr<CUSTOM##Task> task = CHI_CLIENT->NewTask<CUSTOM##Task>(     \
+        mctx, task_node, id_, dom_query, std::forward<Args>(args)...);        \
+    return task;                                                              \
+  }                                                                           \
+                                                                              \
+  template <typename... Args>                                                 \
+  HSHM_CROSS_FUN hipc::FullPtr<CUSTOM##Task> Async##CUSTOM(                   \
+      const hipc::MemContext &mctx, Args &&...args) {                         \
+    chi::Task *parent_task = CHI_CUR_TASK;                                    \
+    if (parent_task) {                                                        \
+      return Async##CUSTOM##Base(mctx, parent_task,                           \
+                                 parent_task->task_node_ + 1,                 \
+                                 std::forward<Args>(args)...);                \
+    } else {                                                                  \
+      return Async##CUSTOM##Base(mctx, nullptr, CHI_CLIENT->MakeTaskNodeId(), \
+                                 std::forward<Args>(args)...);                \
+    }                                                                         \
+  }                                                                           \
+                                                                              \
+  template <typename... Args>                                                 \
+  hipc::FullPtr<CUSTOM##Task> Async##CUSTOM##Base(                            \
+      const hipc::MemContext &mctx, Task *parent_task,                        \
+      const TaskNode &task_node, Args &&...args) {                            \
+    hipc::FullPtr<CUSTOM##Task> task =                                        \
+        Async##CUSTOM##Alloc(mctx, task_node, std::forward<Args>(args)...);   \
+    CHI_CLIENT->ScheduleTaskRuntime(parent_task, task, task->pool_);          \
+    return task;                                                              \
   }
 #endif
 
