@@ -159,6 +159,8 @@ struct CreateContainerBaseTask : public Task, TaskFlags<TF_SRL_SYM> {
         lib_name_(alloc, TaskParamsT::lib_name_),
         params_(alloc) {
     // Initialize task
+    HILOG(kInfo, "ADMIN TASK: {} {} {}", alloc.alloc_, this,
+          (void *)lib_name_.data());
     task_node_ = task_node;
     prio_ = TaskPrioOpt::kLowLatency;
     pool_ = CHI_QM->admin_pool_id_;

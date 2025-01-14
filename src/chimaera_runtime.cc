@@ -63,6 +63,7 @@ void Runtime::ServerInit(std::string server_config_path) {
   u32 max_containers_pn = CHI_QM->max_containers_pn_;
   std::vector<UpdateDomainInfo> ops;
   std::vector<SubDomainId> containers;
+  HILOG(kInfo, "HSHM_MEMORY_MNGR: {}\n", HSHM_MEMORY_MANAGER);
 
   // Create the admin library
   CHI_CLIENT->MakePoolId();
