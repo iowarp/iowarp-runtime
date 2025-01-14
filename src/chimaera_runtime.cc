@@ -129,7 +129,7 @@ void Runtime::ServerInit(std::string server_config_path) {
 void Runtime::InitSharedMemory() {
   // Create shared-memory allocator
   config::QueueManagerInfo &qm = server_config_.queue_manager_;
-  auto mem_mngr = HERMES_MEMORY_MANAGER;
+  auto mem_mngr = HSHM_MEMORY_MANAGER;
   if (qm.shm_size_ == 0) {
     qm.shm_size_ = hipc::MemoryManager::GetDefaultBackendSize();
   }
@@ -155,7 +155,7 @@ void Runtime::InitSharedMemory() {
 /** Initialize shared-memory between daemon and client */
 void Runtime::InitSharedMemoryGpu() {
   // Finish initializing shared memory
-  auto mem_mngr = HERMES_MEMORY_MANAGER;
+  auto mem_mngr = HSHM_MEMORY_MANAGER;
   header_->node_id_ = CHI_RPC->node_id_;
   header_->unique_ = 0;
   header_->num_nodes_ = server_config_.rpc_.host_names_.size();

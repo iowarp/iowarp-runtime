@@ -561,7 +561,7 @@ struct MultiQueue : public hipc::ShmContainer {
   void WaitForEmplacePlug() {
     // NOTE(llogan): will this infinite loop due to CPU caching?
     while (flags_.Any(QUEUE_UPDATE)) {
-      HERMES_THREAD_MODEL->Yield();
+      HSHM_THREAD_MODEL->Yield();
     }
   }
 

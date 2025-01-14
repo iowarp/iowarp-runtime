@@ -620,7 +620,7 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
 
   /** Yield (standard) */
   HSHM_INLINE_CROSS_FUN
-  static void YieldStd() { HERMES_THREAD_MODEL->Yield(); }
+  static void YieldStd() { HSHM_THREAD_MODEL->Yield(); }
 
   /** Yield (argobots) */
   HSHM_CROSS_FUN

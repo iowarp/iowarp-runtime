@@ -50,8 +50,7 @@ void QueueManager::ServerInit(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
   HIP_ERROR_CHECK(hipGetDeviceCount(&num_gpus));
   for (int gpu_id = 0; gpu_id < num_gpus; ++gpu_id) {
     hipc::AllocatorId alloc_id = CHI_RUNTIME->GetGpuAllocId(gpu_id);
-    auto *gpu_alloc =
-        HERMES_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(alloc_id);
+    auto *gpu_alloc = HSHM_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(alloc_id);
     QueueManagerShm &gpu_shm =
         gpu_alloc->GetCustomHeader<ChiShm>()->queue_manager_;
     gpu_shm.queue_map_.shm_init(alloc);

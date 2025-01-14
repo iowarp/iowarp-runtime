@@ -31,7 +31,7 @@ class Model {
       table_[i].resize(max_samples);
     }
     predicted_.resize(max_samples);
-    std::string path = HERMES_SYSTEM_INFO->Getenv("CHIMAERA_MONITOR_OUT");
+    std::string path = HSHM_SYSTEM_INFO->Getenv("CHIMAERA_MONITOR_OUT");
     path = hshm::ConfigParse::ExpandPath(path);
     path = hshm::Formatter::format("{}/{}.csv", path, name);
     log_ = std::ofstream(path);

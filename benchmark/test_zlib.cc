@@ -43,11 +43,11 @@ int main(int argc, char *argv[]) {
   // Make this rank affine to CPU rank
   hshm::ProcessAffiner::SetCpuAffinity(getpid(), rank);
   // Get core freqeuency of CPU rank
-  int prior_cpu_freq = HERMES_SYSTEM_INFO->GetCpuFreqKhz(rank);
+  int prior_cpu_freq = HSHM_SYSTEM_INFO->GetCpuFreqKhz(rank);
   // Set core frequency of CPU rank
-  int min_cpu_freq = HERMES_SYSTEM_INFO->GetCpuMinFreqKhz(rank);
-  int max_cpu_freq = HERMES_SYSTEM_INFO->GetCpuMaxFreqKhz(rank);
-  HERMES_SYSTEM_INFO->SetCpuFreqKhz(rank, min_cpu_freq);
+  int min_cpu_freq = HSHM_SYSTEM_INFO->GetCpuMinFreqKhz(rank);
+  int max_cpu_freq = HSHM_SYSTEM_INFO->GetCpuMaxFreqKhz(rank);
+  HSHM_SYSTEM_INFO->SetCpuFreqKhz(rank, min_cpu_freq);
 
   // Write compressed data repeatedly
   for (size_t i = 0; i < iter; ++i) {
@@ -74,13 +74,13 @@ int main(int argc, char *argv[]) {
   }
 
   // Get core frequency of CPU rank
-  int cur_cpu_freq = HERMES_SYSTEM_INFO->GetCpuFreqKhz(rank);
+  int cur_cpu_freq = HSHM_SYSTEM_INFO->GetCpuFreqKhz(rank);
   HILOG(kInfo, "Rank {} CPU freq: {} -> {}, min={}, max={}", rank,
         prior_cpu_freq, cur_cpu_freq, min_cpu_freq, max_cpu_freq);
 
   // Set core frequency of CPU rank
-  HERMES_SYSTEM_INFO->SetCpuMinFreqKhz(rank, min_cpu_freq);
-  HERMES_SYSTEM_INFO->SetCpuMaxFreqKhz(rank, max_cpu_freq);
+  HSHM_SYSTEM_INFO->SetCpuMinFreqKhz(rank, min_cpu_freq);
+  HSHM_SYSTEM_INFO->SetCpuMaxFreqKhz(rank, max_cpu_freq);
 
   MPI_Finalize();
 }

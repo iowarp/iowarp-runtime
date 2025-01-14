@@ -84,7 +84,7 @@ TEST_CASE("TestAsyncIpc") {
       chi::DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0),
       chi::DomainId(client.id_, chi::SubDomainId::kGlobalContainers));
 
-  int pid = HERMES_SYSTEM_INFO->pid_;
+  int pid = HSHM_SYSTEM_INFO->pid_;
   hshm::ProcessAffiner::SetCpuAffinity(pid, 8);
 
   t.Resume();
@@ -126,7 +126,7 @@ TEST_CASE("TestFlush") {
   MPI_Barrier(MPI_COMM_WORLD);
   hshm::Timer t;
 
-  int pid = HERMES_SYSTEM_INFO->pid_;
+  int pid = HSHM_SYSTEM_INFO->pid_;
   hshm::ProcessAffiner::SetCpuAffinity(pid, 8);
 
   t.Resume();
@@ -206,7 +206,7 @@ void TestBulk(u32 flags) {
       chi::DomainQuery::GetGlobalBcast(), "ipc_test");
   hshm::Timer t;
 
-  int pid = HERMES_SYSTEM_INFO->pid_;
+  int pid = HSHM_SYSTEM_INFO->pid_;
   hshm::ProcessAffiner::SetCpuAffinity(pid, 8);
 
   HILOG(kInfo, "Starting IO test: {}", nprocs);

@@ -63,10 +63,10 @@ class Client : public ConfigurationManager {
 #ifdef CHIMAERA_RUNTIME
   HSHM_INLINE_CROSS_FUN
   void CreateGpu(hipc::AllocatorId alloc_id) {
-    main_alloc_ = HERMES_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(alloc_id);
+    main_alloc_ = HSHM_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(alloc_id);
     data_alloc_ = nullptr;
     rdata_alloc_ = nullptr;
-    HERMES_MEMORY_MANAGER->SetDefaultAllocator(main_alloc_);
+    HSHM_MEMORY_MANAGER->SetDefaultAllocator(main_alloc_);
     header_ = main_alloc_->GetCustomHeader<ChiShm>();
     unique_ = &header_->unique_;
     node_id_ = header_->node_id_;
@@ -92,7 +92,7 @@ class Client : public ConfigurationManager {
   void LoadSharedMemory(bool server) {
     // Load shared-memory allocator
     config::QueueManagerInfo &qm = server_config_.queue_manager_;
-    auto mem_mngr = HERMES_MEMORY_MANAGER;
+    auto mem_mngr = HSHM_MEMORY_MANAGER;
     if (!server) {
       mem_mngr->AttachBackend(hipc::MemoryBackendType::kPosixShmMmap,
                               qm.shm_name_);
@@ -281,7 +281,7 @@ class Client : public ConfigurationManager {
   /** Free a buffer */
   HSHM_INLINE_CROSS_FUN
   void FreeBuffer(hipc::Pointer &p) {
-    auto alloc = HERMES_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(p.alloc_id_);
+    auto alloc = HSHM_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(p.alloc_id_);
     alloc->Free(hshm::ThreadId::GetNull(), p);
   }
 
@@ -289,14 +289,14 @@ class Client : public ConfigurationManager {
   HSHM_INLINE_CROSS_FUN
   void FreeBuffer(FullPtr<char> &p) {
     auto alloc =
-        HERMES_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(p.shm_.alloc_id_);
+        HSHM_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(p.shm_.alloc_id_);
     alloc->FreeLocalPtr(hshm::ThreadId::GetNull(), p);
   }
 
   /** Convert pointer to char* */
   template <typename T = char>
   HSHM_INLINE_CROSS_FUN T *GetDataPointer(const hipc::Pointer &p) {
-    auto alloc = HERMES_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(p.alloc_id_);
+    auto alloc = HSHM_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(p.alloc_id_);
     return alloc->Convert<T, hipc::Pointer>(p);
   }
 

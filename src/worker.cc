@@ -201,7 +201,7 @@ void Worker::EndFlush(WorkOrchestrator *orch) {
   // Barrier for all workers to complete
   flush_.flushing_ = false;
   while (AnyFlushing(orch)) {
-    HERMES_THREAD_MODEL->Yield();
+    HSHM_THREAD_MODEL->Yield();
   }
   // On the root worker, detect if any work was done
   if (active_.GetFlush().size()) {
@@ -240,7 +240,7 @@ bool Worker::AnyFlushWorkDone(WorkOrchestrator *orch) {
 /** Worker loop iteration */
 void Worker::Loop() {
   CHI_WORK_ORCHESTRATOR->SetCurrentWorker(this);
-  pid_ = HERMES_SYSTEM_INFO->pid_;
+  pid_ = HSHM_SYSTEM_INFO->pid_;
   SetCpuAffinity(affinity_);
   if (IsContinuousPolling()) {
     MakeDedicated();
@@ -262,7 +262,7 @@ void Worker::Loop() {
       cur_time_.Refresh();
       iter_count_ += 1;
       if (load_nsec_ == 0) {
-        // HERMES_THREAD_MODEL->SleepForUs(200);
+        // HSHM_THREAD_MODEL->SleepForUs(200);
       }
     } catch (hshm::Error &e) {
       HELOG(kError, "(node {}) Worker {} caught an error: {}",

@@ -170,8 +170,8 @@ std::vector<int> WorkOrchestrator::GetWorkerPids() {
 /** Get the complement of worker cores */
 std::vector<int> WorkOrchestrator::GetWorkerCoresComplement() {
   std::vector<int> cores;
-  cores.reserve(HERMES_SYSTEM_INFO->ncpu_);
-  for (int i = 0; i < HERMES_SYSTEM_INFO->ncpu_; ++i) {
+  cores.reserve(HSHM_SYSTEM_INFO->ncpu_);
+  for (int i = 0; i < HSHM_SYSTEM_INFO->ncpu_; ++i) {
     cores.push_back(i);
   }
   for (std::unique_ptr<Worker> &worker : workers_) {

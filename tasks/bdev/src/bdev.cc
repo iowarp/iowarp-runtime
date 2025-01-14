@@ -195,7 +195,7 @@ class Server : public Module {
 
   /** Write to the block device */
   void Write(WriteTask *task, RunContext &rctx) {
-    char *data = HERMES_MEMORY_MANAGER->Convert<char>(task->data_);
+    char *data = HSHM_MEMORY_MANAGER->Convert<char>(task->data_);
     switch (url_.scheme_) {
       case BlockUrl::kFs: {
         ssize_t ret = pwrite(fd_, data, task->size_, task->off_);
@@ -246,7 +246,7 @@ class Server : public Module {
 
   /** Read from the block device */
   void Read(ReadTask *task, RunContext &rctx) {
-    char *data = HERMES_MEMORY_MANAGER->Convert<char>(task->data_);
+    char *data = HSHM_MEMORY_MANAGER->Convert<char>(task->data_);
     switch (url_.scheme_) {
       case BlockUrl::kFs: {
         ssize_t ret = pread(fd_, data, task->size_, task->off_);
