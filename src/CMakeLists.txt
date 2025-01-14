@@ -20,6 +20,7 @@ set(RUNTIME_SOURCES
         module_registry.cc
         work_orchestrator.cc
         chimaera_runtime.cc
+        chimaera_runtime_init.cc
         python_wrapper.cc
         reinforce_worker.cc
         worker.cc

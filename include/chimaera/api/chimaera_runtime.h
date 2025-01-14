@@ -42,20 +42,6 @@ class Runtime : public ConfigurationManager {
   /** Default constructor */
   Runtime() = default;
 
-  /** Create the server-side API */
-  Runtime* Create(std::string server_config_path = "");
-
- private:
-  /** Initialize */
-  void ServerInit(std::string server_config_path);
-
- public:
-  /** Initialize shared-memory between daemon and client */
-  void InitSharedMemory();
-
-  /** Initialize shared-memory between daemon and GPUs */
-  void InitSharedMemoryGpu();
-
   /** Finalize Hermes explicitly */
   void Finalize();
 

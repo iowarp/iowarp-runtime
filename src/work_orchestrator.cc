@@ -17,7 +17,7 @@
 
 namespace chi {
 
-void WorkOrchestrator::ServerInit(ServerConfig *config, QueueManager &qm) {
+void WorkOrchestrator::ServerInit(ServerConfig *config) {
   config_ = config;
   // blocked_tasks_.Init(config->queue_manager_.queue_depth_);
 

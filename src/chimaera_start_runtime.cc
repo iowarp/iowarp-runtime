@@ -12,10 +12,10 @@
 
 #include <hermes_shm/util/singleton.h>
 
-#include "chimaera/api/chimaera_runtime.h"
+#include "chimaera/api/chimaera_runtime_init.h"
 
 int main(int argc, char **argv) {
-  CHI_RUNTIME->Create();
+  chi::CHI_RUNTIME_INIT();
   CHI_RUNTIME->RunDaemon();
   CHI_RUNTIME->Finalize();
   return 0;

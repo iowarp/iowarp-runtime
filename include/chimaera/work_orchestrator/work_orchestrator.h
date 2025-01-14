@@ -72,7 +72,7 @@ class WorkOrchestrator {
   void SignalUnblock(Task *task, RunContext &rctx);
 
   /** Create thread pool */
-  void ServerInit(ServerConfig *config, QueueManager &qm);
+  void ServerInit(ServerConfig *config);
 
   /** Finalize thread pool */
   void Join();
