@@ -59,10 +59,27 @@ class Client : public ConfigurationManager {
     return this;
   }
 
+ private:
+  /** Initialize client */
+  HSHM_INLINE
+  void ClientInit(const char *server_config_path,
+                  const char *client_config_path, bool server) {
+    LoadServerConfig(server_config_path);
+    LoadClientConfig(client_config_path);
+    LoadSharedMemory(server);
+    CHI_QM->ClientInit(main_alloc_, header_->queue_manager_, header_->node_id_);
+    CreateClientOnHostForGpu();
+  }
+
 /** Initialize the client (GPU) */
-#ifdef CHIMAERA_RUNTIME
-  HSHM_INLINE_CROSS_FUN
-  void CreateGpu(hipc::AllocatorId alloc_id) {
+#if defined(CHIMAERA_ENABLE_ROCM) || defined(CHIMAERA_ENABLE_CUDA)
+  HSHM_GPU_KERNEL static void CreateClientKernel(hipc::AllocatorId alloc_id) {
+    auto *p = HSHM_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(alloc_id);
+    CHI_CLIENT->CreateOnGpu(alloc_id);
+  }
+
+  HSHM_INLINE_GPU_FUN
+  void CreateOnGpu(hipc::AllocatorId alloc_id) {
     main_alloc_ = HSHM_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(alloc_id);
     data_alloc_ = nullptr;
     rdata_alloc_ = nullptr;
@@ -76,18 +93,6 @@ class Client : public ConfigurationManager {
   }
 #endif
 
- private:
-  /** Initialize client */
-  HSHM_INLINE
-  void ClientInit(const char *server_config_path,
-                  const char *client_config_path, bool server) {
-    LoadServerConfig(server_config_path);
-    LoadClientConfig(client_config_path);
-    LoadSharedMemory(server);
-    CHI_QM->ClientInit(main_alloc_, header_->queue_manager_, header_->node_id_);
-  }
-
- public:
   /** Connect to a Daemon's shared memory */
   void LoadSharedMemory(bool server) {
     // Load shared-memory allocator
@@ -108,8 +113,50 @@ class Client : public ConfigurationManager {
     header_ = main_alloc_->GetCustomHeader<ChiShm>();
     unique_ = &header_->unique_;
     node_id_ = header_->node_id_;
+    RefreshNumGpus();
+
+    // Create per-gpu allocator
+    if (!server) {
+#ifdef CHIMAERA_ENABLE_ROCM
+      LoadSharedMemoryGpu("rocm_shm_", hipc::MemoryBackendType::kRocmShmMmap);
+#endif
+#ifdef CHIMAERA_ENABLE_CUDA
+      LoadSharedMemoryGpu("cuda_shm_", hipc::MemoryBackendType::kCudaShmMmap);
+#endif
+    }
   }
 
+  /** Load the shared memory for GPUs */
+  void LoadSharedMemoryGpu(const std::string &prefix,
+                           hipc::MemoryBackendType backend_type) {
+    for (int gpu_id = 0; gpu_id < ngpu_; ++gpu_id) {
+      hipc::MemoryBackendId backend_id = GetGpuMemBackendId(gpu_id);
+      hipc::AllocatorId alloc_id = GetGpuAllocId(gpu_id);
+      // TODO(llogan): Make parameter for gpu_shm_name_ and gpu_shm_size_
+      hipc::chararr name = prefix + std::to_string(gpu_id);
+      HSHM_MEMORY_MANAGER->AttachBackend(backend_type, name);
+      gpu_alloc_[gpu_id] =
+          HSHM_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(GetGpuAllocId(gpu_id));
+    }
+  }
+
+  /** Creates the CHI_CLIENT on the GPU */
+  void CreateClientOnHostForGpu() {
+    // Get the allocators for the GPUs
+    for (int gpu_id = 0; gpu_id < ngpu_; ++gpu_id) {
+#if defined(CHIMAERA_ENABLE_ROCM)
+      HIP_ERROR_CHECK(hipSetDevice(gpu_id));
+      CreateClientKernel<<<1, 1>>>(GetGpuAllocId(gpu_id));
+      HIP_ERROR_CHECK(hipDeviceSynchronize());
+#elif defined(CHIMAERA_ENABLE_CUDA)
+      cudaSetDevice(gpu_id);
+      CreateClientKernel<<<1, 1>>>(GetGpuAllocId(gpu_id));
+      cudaDeviceSynchronize();
+#endif
+    }
+  }
+
+ public:
   /** Finalize Hermes explicitly */
   HSHM_INLINE_CROSS_FUN
   void Finalize() {}

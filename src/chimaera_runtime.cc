@@ -18,13 +18,6 @@
 
 namespace chi {
 
-#if defined(CHIMAERA_ENABLE_ROCM) || defined(CHIMAERA_ENABLE_CUDA)
-HSHM_GPU_KERNEL void CreateClient(hipc::AllocatorId alloc_id) {
-  auto *p = HSHM_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(alloc_id);
-  CHI_CLIENT->CreateGpu(alloc_id);
-}
-#endif
-
 /** Create the server-side API */
 void Runtime::Create(std::string server_config_path) {
   hshm::ScopedMutex lock(lock_, 1);
@@ -40,6 +33,7 @@ void Runtime::Create(std::string server_config_path) {
 /** Initialize */
 void Runtime::ServerInit(std::string server_config_path) {
   LoadServerConfig(server_config_path);
+  RefreshNumGpus();
   InitSharedMemory();
   CHI_RPC->ServerInit(&server_config_);
   CHI_THALLIUM->ServerInit(CHI_RPC);
@@ -161,9 +155,7 @@ void Runtime::InitSharedMemoryGpu() {
   header_->num_nodes_ = server_config_.rpc_.host_names_.size();
 
   // Create per-gpu allocator
-  ngpu_ = 0;
 #ifdef CHIMAERA_ENABLE_CUDA
-  cudaGetDeviceCount(&ngpu_);
   for (int gpu_id = 0; gpu_id < ngpu_; ++gpu_id) {
     hipc::MemoryBackendId backend_id = GetGpuMemBackendId(gpu_id);
     hipc::AllocatorId alloc_id = GetGpuAllocId(gpu_id);
@@ -184,7 +176,6 @@ void Runtime::InitSharedMemoryGpu() {
 #endif
 
 #ifdef CHIMAERA_ENABLE_ROCM
-  HIP_ERROR_CHECK(hipGetDeviceCount(&ngpu_));
   for (int gpu_id = 0; gpu_id < ngpu_; ++gpu_id) {
     hipc::MemoryBackendId backend_id = GetGpuMemBackendId(gpu_id);
     hipc::AllocatorId alloc_id = GetGpuAllocId(gpu_id);
@@ -200,8 +191,6 @@ void Runtime::InitSharedMemoryGpu() {
         (((u64)1) << 32);  // TODO(llogan): Make a separate unique for gpus
     header->num_nodes_ = server_config_.rpc_.host_names_.size();
     HIP_ERROR_CHECK(hipSetDevice(gpu_id));
-    CreateClient<<<1, 1>>>(GetGpuAllocId(gpu_id));
-    HIP_ERROR_CHECK(hipDeviceSynchronize());
   }
 #endif
 }

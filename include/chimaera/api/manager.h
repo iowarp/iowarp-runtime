@@ -44,12 +44,23 @@ class ConfigurationManager {
   CHI_ALLOC_T *data_alloc_;
   CHI_ALLOC_T *rdata_alloc_;
   CHI_ALLOC_T *gpu_alloc_[MAX_GPU];
+  int ngpu_ = 0;
   bool is_being_initialized_;
   bool is_initialized_;
   bool is_terminated_;
   bool is_transparent_;
   hshm::Mutex lock_;
   hshm::ThreadType thread_type_;
+
+  /** Refresh the number of GPUs */
+  void RefreshNumGpus() {
+#ifdef CHIMAERA_ENABLE_ROCM
+    HIP_ERROR_CHECK(hipGetDeviceCount(&ngpu_));
+#endif
+#ifdef CHIMAERA_ENABLE_CUDA
+    cudaGetDeviceCount(&ngpu_);
+#endif
+  }
 
   /** Get GPU mem backend id */
   HSHM_INLINE_CROSS_FUN static hipc::MemoryBackendId GetGpuMemBackendId(
