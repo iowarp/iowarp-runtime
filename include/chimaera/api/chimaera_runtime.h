@@ -37,6 +37,7 @@ class Runtime : public ConfigurationManager {
   remote_queue::Client remote_queue_;
   ThalliumRpc thallium_;
   bool remote_created_ = false;
+  int ngpu_;
 
  public:
   /** Default constructor */

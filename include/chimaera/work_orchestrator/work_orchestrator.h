@@ -242,6 +242,14 @@ class WorkOrchestrator {
   void RunMethod(const std::string &class_name, const std::string &method_name,
                  PyDataWrapper &data);
 #endif
+
+ private:
+  void PrepareWorkers();
+  void MarkWorkers(std::unordered_map<u32, std::vector<Worker *>> cpu_workers);
+  void SpawnReinforceThread();
+  void AssignAllQueues();
+  void AssignQueueMap(chi::ipc::vector<ingress::MultiQueue> &queue_map);
+  void SpawnWorkers();
 };
 
 }  // namespace chi

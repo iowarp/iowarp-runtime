@@ -161,10 +161,10 @@ void Runtime::InitSharedMemoryGpu() {
   header_->num_nodes_ = server_config_.rpc_.host_names_.size();
 
   // Create per-gpu allocator
-  int num_gpus = 0;
+  ngpu_ = 0;
 #ifdef CHIMAERA_ENABLE_CUDA
-  cudaGetDeviceCount(&num_gpus);
-  for (int gpu_id = 0; gpu_id < num_gpus; ++gpu_id) {
+  cudaGetDeviceCount(&ngpu_);
+  for (int gpu_id = 0; gpu_id < ngpu_; ++gpu_id) {
     hipc::MemoryBackendId backend_id = GetGpuMemBackendId(gpu_id);
     hipc::AllocatorId alloc_id = GetGpuAllocId(gpu_id);
     hipc::chararr name = "cuda_shm_" + std::to_string(gpu_id);
@@ -184,8 +184,8 @@ void Runtime::InitSharedMemoryGpu() {
 #endif
 
 #ifdef CHIMAERA_ENABLE_ROCM
-  HIP_ERROR_CHECK(hipGetDeviceCount(&num_gpus));
-  for (int gpu_id = 0; gpu_id < num_gpus; ++gpu_id) {
+  HIP_ERROR_CHECK(hipGetDeviceCount(&ngpu_));
+  for (int gpu_id = 0; gpu_id < ngpu_; ++gpu_id) {
     hipc::MemoryBackendId backend_id = GetGpuMemBackendId(gpu_id);
     hipc::AllocatorId alloc_id = GetGpuAllocId(gpu_id);
     // TODO(llogan): Make parameter for gpu_shm_name_ and gpu_shm_size_

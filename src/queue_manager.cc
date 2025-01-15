@@ -40,14 +40,13 @@ void QueueManager::ServerInit(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
       });
   queue->flags_.SetBits(QUEUE_READY);
 
-  int num_gpus = 0;
+  int num_gpus = CHI_RUNTIME->ngpu_;
   // Create the CUDA queues
 #ifdef CHIMAERA_ENABLE_CUDA
 #endif
 
   // Create the ROCm queues
 #ifdef CHIMAERA_ENABLE_ROCM
-  HIP_ERROR_CHECK(hipGetDeviceCount(&num_gpus));
   for (int gpu_id = 0; gpu_id < num_gpus; ++gpu_id) {
     hipc::AllocatorId alloc_id = CHI_RUNTIME->GetGpuAllocId(gpu_id);
     auto *gpu_alloc = HSHM_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(alloc_id);
@@ -81,7 +80,7 @@ ingress::MultiQueue *QueueManager::CreateQueue(
     HELOG(kError, "Queue {} already exists", id);
     return nullptr;
   }
-  queue_map_->replace(queue_map_->begin() + id.unique_, id, queue_info);
+  shm.queue_map_->replace(shm.queue_map_->begin() + id.unique_, id, queue_info);
   return queue;
 }
 #endif

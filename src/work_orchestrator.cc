@@ -12,6 +12,7 @@
 
 #include "chimaera/work_orchestrator/work_orchestrator.h"
 
+#include "chimaera/api/chimaera_runtime.h"
 #include "chimaera/module_registry/task.h"
 #include "chimaera/work_orchestrator/worker.h"
 
@@ -31,7 +32,18 @@ void WorkOrchestrator::ServerInit(ServerConfig *config) {
   monitor_gap_ = config_->wo_.monitor_gap_;
   monitor_window_ = config_->wo_.monitor_window_;
 
-  // Spawn workers on the stream
+  PrepareWorkers();
+  SpawnReinforceThread();
+  AssignAllQueues();
+  SpawnWorkers();
+  DedicateCores();
+
+  HILOG(kInfo, "(node {}) Started {} workers", CHI_RPC->node_id_,
+        workers_.size());
+}
+
+/** Creates the execution streams for workers to run on */
+void WorkOrchestrator::PrepareWorkers() {
   size_t num_workers = config_->wo_.cpus_.size();
   workers_.reserve(num_workers);
   int worker_id = 0;
@@ -46,7 +58,12 @@ void WorkOrchestrator::ServerInit(ServerConfig *config) {
     ++worker_id;
   }
   null_worker_ = std::make_unique<Worker>(kNullWorkerId, 0, nullptr);
-  // Mark the workers as dedicated or overlapped
+  MarkWorkers(cpu_workers);
+}
+
+/** Marks the workers as low or high latency */
+void WorkOrchestrator::MarkWorkers(
+    std::unordered_map<u32, std::vector<Worker *>> cpu_workers) {
   for (auto &cpu_work : cpu_workers) {
     std::vector<Worker *> &workers = cpu_work.second;
     if (workers.size() == 1) {
@@ -61,25 +78,26 @@ void WorkOrchestrator::ServerInit(ServerConfig *config) {
       }
     }
   }
-  // Spawn reinforcement thread
-  reinforce_worker_ =
-      std::make_unique<ReinforceWorker>(config_->wo_.reinforce_cpu_);
-  kill_requested_ = false;
-  // Create RPC worker threads
-  rpc_pool_ = tl::pool::create(tl::pool::access::mpmc);
-  for (u32 cpu_id : config_->rpc_.cpus_) {
-    tl::managed<tl::xstream> es =
-        tl::xstream::create(tl::scheduler::predef::deflt, *rpc_pool_);
-    es->set_cpubind(cpu_id);
-    rpc_xstreams_.push_back(std::move(es));
-  }
-  HILOG(kInfo, "(node {}) Worker created RPC pool with {} threads",
-        CHI_RPC->node_id_, CHI_RPC->num_threads_);
+}
 
-  // Assign ingress queues to workers
-  size_t count_lowlat_ = 0;
-  size_t count_highlat_ = 0;
-  for (ingress::MultiQueue &queue : *CHI_QM->queue_map_) {
+/** Map GPU-facing and CPU-facing queues to workers */
+void WorkOrchestrator::AssignAllQueues() {
+  AssignQueueMap(*CHI_QM->queue_map_);
+  int ngpu = CHI_RUNTIME->ngpu_;
+  for (int gpu_id = 0; gpu_id < ngpu; ++gpu_id) {
+    CHI_ALLOC_T *gpu_alloc = CHI_RUNTIME->GetGpuAlloc(gpu_id);
+    QueueManagerShm &gpu_shm =
+        gpu_alloc->GetCustomHeader<ChiShm>()->queue_manager_;
+    AssignQueueMap(*gpu_shm.queue_map_);
+  }
+}
+
+/** Map a device queue map to workers */
+void WorkOrchestrator::AssignQueueMap(
+    chi::ipc::vector<ingress::MultiQueue> &queue_map) {
+  static size_t count_lowlat = 0;
+  static size_t count_highlat = 0;
+  for (ingress::MultiQueue &queue : queue_map) {
     if (queue.id_.IsNull() || !queue.flags_.Any(QUEUE_READY)) {
       continue;
     }
@@ -89,10 +107,9 @@ void WorkOrchestrator::ServerInit(ServerConfig *config) {
            ++lane_id) {
         WorkerId worker_id;
         if (lane_group.IsLowLatency()) {
-          u32 worker_off =
-              count_lowlat_ % CHI_WORK_ORCHESTRATOR->dworkers_.size();
-          count_lowlat_ += 1;
-          Worker &worker = *CHI_WORK_ORCHESTRATOR->dworkers_[worker_off];
+          u32 worker_off = count_lowlat % dworkers_.size();
+          count_lowlat += 1;
+          Worker &worker = *dworkers_[worker_off];
           worker.work_proc_queue_.emplace_back(
               IngressEntry(lane_group.prio_, lane_id, &queue));
           worker_id = worker.id_;
@@ -101,10 +118,9 @@ void WorkOrchestrator::ServerInit(ServerConfig *config) {
           //                  CHI_CLIENT->node_id_, queue.id_, lane_group.prio_,
           //                  lane_id, worker.id_);
         } else {
-          u32 worker_off =
-              count_highlat_ % CHI_WORK_ORCHESTRATOR->oworkers_.size();
-          count_highlat_ += 1;
-          Worker &worker = *CHI_WORK_ORCHESTRATOR->oworkers_[worker_off];
+          u32 worker_off = count_highlat % oworkers_.size();
+          count_highlat += 1;
+          Worker &worker = *oworkers_[worker_off];
           worker.work_proc_queue_.emplace_back(
               IngressEntry(lane_group.prio_, lane_id, &queue));
           worker_id = worker.id_;
@@ -115,7 +131,10 @@ void WorkOrchestrator::ServerInit(ServerConfig *config) {
       lane_group.num_scheduled_ = num_lanes;
     }
   }
+}
 
+/** Spawns the workers */
+void WorkOrchestrator::SpawnWorkers() {
   // Enable the workers to begin polling
   for (std::unique_ptr<Worker> &worker : workers_) {
     worker->Spawn();
@@ -135,13 +154,26 @@ void WorkOrchestrator::ServerInit(ServerConfig *config) {
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(5));
   }
-
-  // Dedicate CPU cores to this runtime
-  DedicateCores();
-
-  HILOG(kInfo, "(node {}) Started {} workers", CHI_RPC->node_id_, num_workers);
 }
 
+/** Spawns the thread for reinforcing models */
+void WorkOrchestrator::SpawnReinforceThread() {
+  reinforce_worker_ =
+      std::make_unique<ReinforceWorker>(config_->wo_.reinforce_cpu_);
+  kill_requested_ = false;
+  // Create RPC worker threads
+  rpc_pool_ = tl::pool::create(tl::pool::access::mpmc);
+  for (u32 cpu_id : config_->rpc_.cpus_) {
+    tl::managed<tl::xstream> es =
+        tl::xstream::create(tl::scheduler::predef::deflt, *rpc_pool_);
+    es->set_cpubind(cpu_id);
+    rpc_xstreams_.push_back(std::move(es));
+  }
+  HILOG(kInfo, "(node {}) Worker created RPC pool with {} threads",
+        CHI_RPC->node_id_, CHI_RPC->num_threads_);
+}
+
+/** Join the workers */
 void WorkOrchestrator::Join() {
   kill_requested_.store(true);
   for (std::unique_ptr<Worker> &worker : workers_) {
