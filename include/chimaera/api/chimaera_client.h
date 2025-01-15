@@ -19,9 +19,8 @@ namespace chi {
 
 /** Allocate a buffer */
 template <bool FROM_REMOTE>
-HSHM_INLINE_CROSS_FUN FullPtr<char>
-Client::AllocateBufferSafe(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
-                           size_t size) {
+HSHM_INLINE_CROSS_FUN FullPtr<char> Client::AllocateBufferSafe(
+    const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, size_t size) {
 #ifdef HSHM_IS_HOST
   FullPtr<char> p;
   while (true) {
@@ -63,6 +62,6 @@ void Client::ScheduleTaskRuntime(Task *parent_task, FullPtr<TaskT> task,
 }
 #endif
 
-} // namespace chi
+}  // namespace chi
 
-#endif // CHI_INCLUDE_CHI_CLIENT_CHI_CLIENT_H_
+#endif  // CHI_INCLUDE_CHI_CLIENT_CHI_CLIENT_H_

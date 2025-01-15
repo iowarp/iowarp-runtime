@@ -35,12 +35,12 @@ class Lane : public hipc::list_queue_entry {
   WorkerId worker_id_;
   Load load_;
   CoMutex comux_;
-  std::atomic<size_t> plug_count_;
+  hipc::atomic<hshm::min_u64> plug_count_;
   size_t lane_req_;
   // TODO(llogan): This doesn't preserve task order
   // chi::mpsc_lifo_list_queue<Task> active_tasks_;
   chi::mpsc_queue<TaskPointer> active_tasks_;
-  hipc::atomic<size_t> count_;
+  hipc::atomic<hshm::min_u64> count_;
 
  public:
   /** Default constructor */
@@ -54,7 +54,7 @@ class Lane : public hipc::list_queue_entry {
         group_id_(group_id),
         worker_id_(worker_id) {
     plug_count_ = 0;
-    count_ = 0;
+    count_ = (hshm::min_u64)0;
     // TODO(llogan): Don't hardcode size
     active_tasks_.resize(8192);
   }
@@ -84,7 +84,7 @@ class Lane : public hipc::list_queue_entry {
 
   size_t size() { return count_.load(); }
 
-  bool IsPlugged() { return plug_count_ > 0; }
+  bool IsPlugged() { return plug_count_.load() > 0; }
 
   void SetPlugged() { plug_count_ += 1; }
 

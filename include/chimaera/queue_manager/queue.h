@@ -154,6 +154,14 @@ class Lane : public hipc::ShmContainer {
    * Default Constructor
    * ===================================*/
 
+  /** Default constructor. */
+  HSHM_INLINE_CROSS_FUN
+  Lane() = default;
+
+  /** Destructor */
+  HSHM_INLINE_CROSS_FUN
+  ~Lane() = default;
+
   /** SHM constructor. Default. */
   HSHM_INLINE_CROSS_FUN
   explicit Lane(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,

@@ -82,7 +82,8 @@ typedef u32 MonitorModeId; /**< The ID of a container monitor mode */
 typedef u32 TaskPrio;      /**< The priority of a task */
 
 /** Represents unique ID for states + queues */
-template <int TYPE> struct UniqueId {
+template <int TYPE>
+struct UniqueId {
   union {
     NodeId node_id_;       /**< The node the content is on */
     LaneGroupId group_id_; /**< The group the content is on */
@@ -92,7 +93,8 @@ template <int TYPE> struct UniqueId {
   u64 unique_; /**< A unique id within the node */
 
   /** Serialization */
-  template <typename Ar> HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
+  template <typename Ar>
+  HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
     ar & node_id_;
     ar & hash_;
     ar & unique_;
@@ -226,7 +228,8 @@ struct CreateContext {
   u32 lanes_per_container_ = 0;
 
   /** Serialization */
-  template <typename Ar> HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
+  template <typename Ar>
+  HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
     ar(id_, global_containers_, local_containers_pn_, lanes_per_container_);
   }
 };
@@ -245,7 +248,7 @@ struct SubDomainId {
   /** Subdomain major groups */
   CLS_CONST SubDomainGroup kPhysicalNode = 0;
   CLS_CONST SubDomainGroup kContainerSet = 1;
-  CLS_CONST SubDomainGroup kGlobalContainers = 1; // Alias for kContainerSet
+  CLS_CONST SubDomainGroup kGlobalContainers = 1;  // Alias for kContainerSet
   CLS_CONST SubDomainGroup kLocalContainers = 3;
   CLS_CONST SubDomainGroup kContainerCache = 4;
   CLS_CONST SubDomainGroup kLast = 5;
@@ -325,7 +328,8 @@ struct SubDomainId {
   }
 
   /** Serialization */
-  template <typename Ar> HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
+  template <typename Ar>
+  HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
     ar(major_, minor_);
   }
 
@@ -410,7 +414,8 @@ struct DomainId {
   }
 
   /** Serialization */
-  template <typename Ar> HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
+  template <typename Ar>
+  HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
     ar(scope_, sub_id_);
   }
 
@@ -441,7 +446,8 @@ union DomainSelection {
   u64 int_;
 
   /** Serialization */
-  template <typename Ar> HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
+  template <typename Ar>
+  HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
     ar(int_);
   }
 
@@ -511,7 +517,8 @@ struct SubDomainIdRange {
   }
 
   /** Serialization */
-  template <typename Ar> HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
+  template <typename Ar>
+  HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
     ar(group_, off_, count_);
   }
 };
@@ -522,7 +529,8 @@ struct UpdateDomainInfo {
   UpdateDomainOp op_;
   SubDomainIdRange range_;
 
-  template <typename Ar> HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
+  template <typename Ar>
+  HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
     ar(domain_id_, op_, range_);
   }
 };
@@ -555,7 +563,8 @@ struct DomainQuery {
   CLS_CONST DomainFlag kForwardToLeader = BIT_OPT(DomainFlag, 17);
 
   /** Serialize domain id */
-  template <typename Ar> HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
+  template <typename Ar>
+  HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
     ar(flags_, sub_id_, sel_);
   }
 
@@ -824,19 +833,20 @@ struct ResolvedDomainQuery {
   }
 
   /** Serialize */
-  template <typename Ar> HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
+  template <typename Ar>
+  HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
     ar(node_, dom_);
   }
 };
 
 class CacheTimer {
-public:
+ public:
   hshm::Timer timer_;
   size_t cur_ns_ = 0;
   size_t start_ns_ = 0;
   size_t net_ns_ = 0;
 
-public:
+ public:
   CacheTimer() { timer_.Now(); }
 
   void Wrap(CacheTimer &other) { cur_ns_ = other.cur_ns_; }
@@ -869,12 +879,13 @@ public:
   }
 };
 
-} // namespace chi
+}  // namespace chi
 
 namespace hshm {
 
 /** Hash function for UniqueId */
-template <int TYPE> struct hash<chi::UniqueId<TYPE>> {
+template <int TYPE>
+struct hash<chi::UniqueId<TYPE>> {
   HSHM_INLINE
   std::size_t operator()(const chi::UniqueId<TYPE> &key) const {
     return key.Hash();
@@ -882,7 +893,8 @@ template <int TYPE> struct hash<chi::UniqueId<TYPE>> {
 };
 
 /** Hash function for SubDomainId */
-template <> struct hash<chi::SubDomainId> {
+template <>
+struct hash<chi::SubDomainId> {
   HSHM_INLINE_CROSS_FUN
   std::size_t operator()(const chi::SubDomainId &key) const {
     return key.Hash();
@@ -890,25 +902,28 @@ template <> struct hash<chi::SubDomainId> {
 };
 
 /** Hash function for DomainId */
-template <> struct hash<chi::DomainId> {
+template <>
+struct hash<chi::DomainId> {
   HSHM_INLINE_CROSS_FUN
   std::size_t operator()(const chi::DomainId &key) const { return key.Hash(); }
 };
 
 /** Hash function for DomainQuery */
-template <> struct hash<chi::DomainQuery> {
+template <>
+struct hash<chi::DomainQuery> {
   HSHM_INLINE_CROSS_FUN
   std::size_t operator()(const chi::DomainQuery &key) const {
     return key.Hash();
   }
 };
 
-} // namespace hshm
+}  // namespace hshm
 
 namespace std {
 
 /** Hash function for UniqueId */
-template <int TYPE> struct hash<chi::UniqueId<TYPE>> {
+template <int TYPE>
+struct hash<chi::UniqueId<TYPE>> {
   HSHM_INLINE
   std::size_t operator()(const chi::UniqueId<TYPE> &key) const {
     return key.Hash();
@@ -916,7 +931,8 @@ template <int TYPE> struct hash<chi::UniqueId<TYPE>> {
 };
 
 /** Hash function for SubDomainId */
-template <> struct hash<chi::SubDomainId> {
+template <>
+struct hash<chi::SubDomainId> {
   HSHM_INLINE_CROSS_FUN
   std::size_t operator()(const chi::SubDomainId &key) const {
     return key.Hash();
@@ -924,19 +940,21 @@ template <> struct hash<chi::SubDomainId> {
 };
 
 /** Hash function for DomainId */
-template <> struct hash<chi::DomainId> {
+template <>
+struct hash<chi::DomainId> {
   HSHM_INLINE_CROSS_FUN
   std::size_t operator()(const chi::DomainId &key) const { return key.Hash(); }
 };
 
 /** Hash function for DomainQuery */
-template <> struct hash<chi::DomainQuery> {
+template <>
+struct hash<chi::DomainQuery> {
   HSHM_INLINE_CROSS_FUN
   std::size_t operator()(const chi::DomainQuery &key) const {
     return key.Hash();
   }
 };
 
-} // namespace std
+}  // namespace std
 
-#endif // CHI_INCLUDE_CHI_CHI_TYPES_H_
+#endif  // CHI_INCLUDE_CHI_CHI_TYPES_H_
