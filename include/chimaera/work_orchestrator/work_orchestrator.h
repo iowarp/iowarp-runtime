@@ -41,13 +41,13 @@ struct BlockedTask {
 };
 
 class WorkOrchestrator {
- public:
+public:
   ServerConfig *config_; /**< The server configuration */
-  std::vector<std::unique_ptr<Worker>> workers_; /**< Workers execute tasks */
-  CLS_CONST WorkerId kNullWorkerId = -1;         /**< Null worker id */
-  std::unique_ptr<Worker> null_worker_;          /**< Null worker */
-  std::vector<Worker *> dworkers_;               /**< Core-dedicated workers */
-  std::vector<Worker *> oworkers_;               /**< Undedicated workers */
+  std::vector<std::unique_ptr<Worker>> workers_;   /**< Workers execute tasks */
+  CLS_CONST WorkerId kNullWorkerId = (WorkerId)-1; /**< Null worker id */
+  std::unique_ptr<Worker> null_worker_;            /**< Null worker */
+  std::vector<Worker *> dworkers_; /**< Core-dedicated workers */
+  std::vector<Worker *> oworkers_; /**< Undedicated workers */
   std::unique_ptr<ReinforceWorker>
       reinforce_worker_;             /**< Reinforcement worker */
   std::atomic<bool> kill_requested_; /**< Kill flushing threads eventually */
@@ -58,7 +58,7 @@ class WorkOrchestrator {
   size_t monitor_window_ = 0;          /**< Sampling window */
   size_t monitor_gap_ = 0;             /**< Monitoring gap */
 
- public:
+public:
   /** Default constructor */
   WorkOrchestrator() = default;
 
@@ -243,7 +243,7 @@ class WorkOrchestrator {
                  PyDataWrapper &data);
 #endif
 
- private:
+private:
   void PrepareWorkers();
   void MarkWorkers(std::unordered_map<u32, std::vector<Worker *>> cpu_workers);
   void SpawnReinforceThread();
@@ -252,12 +252,12 @@ class WorkOrchestrator {
   void SpawnWorkers();
 };
 
-}  // namespace chi
+} // namespace chi
 
-#define CHI_WORK_ORCHESTRATOR \
+#define CHI_WORK_ORCHESTRATOR                                                  \
   hshm::Singleton<chi::WorkOrchestrator>::GetInstance()
 #define CHI_CUR_TASK CHI_WORK_ORCHESTRATOR->GetCurrentTask()
 #define CHI_CUR_LANE CHI_WORK_ORCHESTRATOR->GetCurrentLane()
 #define CHI_CUR_WORKER CHI_WORK_ORCHESTRATOR->GetCurrentWorker()
 
-#endif  // CHI_INCLUDE_CHI_WORK_ORCHESTRATOR_WORK_ORCHESTRATOR_H_
+#endif // CHI_INCLUDE_CHI_WORK_ORCHESTRATOR_WORK_ORCHESTRATOR_H_

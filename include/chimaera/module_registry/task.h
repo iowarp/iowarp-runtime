@@ -94,7 +94,7 @@ struct TaskMethod {
 
 /** Monitoring modes */
 class MonitorMode {
- public:
+public:
   TASK_METHOD_T kEstLoad = 0;
   TASK_METHOD_T kSampleLoad = 1;
   TASK_METHOD_T kReinforceLoad = 2;
@@ -195,8 +195,7 @@ struct TaskNode {
   bool IsRoot() const { return node_depth_ == 0; }
 
   /** Serialization*/
-  template <typename Ar>
-  HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
+  template <typename Ar> HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
     ar(root_, node_depth_);
   }
 
@@ -241,9 +240,8 @@ class IsTask {};
 #define USES_SRL_END(T) T::SRL_SYM_END
 
 /** Compile-time flags indicating task methods and operation support */
-template <u32 FLAGS>
-struct TaskFlags : public IsTask {
- public:
+template <u32 FLAGS> struct TaskFlags : public IsTask {
+public:
   TASK_FLAG_T IS_LOCAL = FLAGS & TF_LOCAL;
   TASK_FLAG_T REPLICA = FLAGS & TF_REPLICA;
   TASK_FLAG_T SUPPORTS_SRL = FLAGS & (TF_SRL_SYM | TF_SRL_ASYM);
@@ -255,7 +253,7 @@ struct TaskFlags : public IsTask {
 
 /** Prioritization of tasks */
 class TaskPrioOpt {
- public:
+public:
   CLS_CONST TaskPrio kLowLatency = 0;  /**< Low latency task lane */
   CLS_CONST TaskPrio kHighLatency = 1; /**< High latency task lane */
   CLS_CONST TaskPrio kNumPrio = 2;     /**< Number of priorities */
@@ -347,7 +345,7 @@ struct RunContext {
 
 /** A generic task base class */
 struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
- public:
+public:
   PoolId pool_;             /**< The unique name of a pool */
   TaskNode task_node_;      /**< The unique ID of this task in the graph */
   DomainQuery dom_query_;   /**< The nodes that the task should run on */
@@ -518,73 +516,93 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
    * ===================================*/
 
   /** Set this task as routed */
+  HSHM_INLINE_CROSS_FUN
   void SetRouted() { rctx_.run_flags_.SetBits(TASK_IS_ROUTED); }
 
   /** Check if task is routed */
+  HSHM_INLINE_CROSS_FUN
   bool IsRouted() const { return rctx_.run_flags_.Any(TASK_IS_ROUTED); }
 
   /** Unset this task as routed */
+  HSHM_INLINE_CROSS_FUN
   void UnsetRouted() { rctx_.run_flags_.UnsetBits(TASK_IS_ROUTED); }
 
   /** Set this task as started */
+  HSHM_INLINE_CROSS_FUN
   void SetStarted() { rctx_.run_flags_.SetBits(TASK_HAS_STARTED); }
 
   /** Set this task as started */
+  HSHM_INLINE_CROSS_FUN
   void UnsetStarted() { rctx_.run_flags_.UnsetBits(TASK_HAS_STARTED); }
 
   /** Check if task has started */
+  HSHM_INLINE_CROSS_FUN
   bool IsStarted() const { return rctx_.run_flags_.Any(TASK_HAS_STARTED); }
 
   /** Set blocked */
+  HSHM_INLINE_CROSS_FUN
   void SetBlocked(int count) { rctx_.block_count_ += count; }
 
   /** Check if task is blocked */
+  HSHM_INLINE_CROSS_FUN
   bool IsBlocked() const { return rctx_.block_count_.load() > 0; }
 
   /** Mark task as routed */
+  HSHM_INLINE_CROSS_FUN
   void SetShouldSample() { rctx_.run_flags_.SetBits(TASK_SHOULD_SAMPLE); }
 
   /** Check if task is routed */
+  HSHM_INLINE_CROSS_FUN
   bool ShouldSample() const { return rctx_.run_flags_.Any(TASK_SHOULD_SAMPLE); }
 
   /** Unset task as routed */
+  HSHM_INLINE_CROSS_FUN
   void UnsetShouldSample() { rctx_.run_flags_.UnsetBits(TASK_SHOULD_SAMPLE); }
 
   /** Set signal complete */
+  HSHM_INLINE_CROSS_FUN
   void SetSignalUnblock() { rctx_.run_flags_.SetBits(TASK_SIGNAL_COMPLETE); }
 
   /** Check if task should signal complete */
+  HSHM_INLINE_CROSS_FUN
   bool ShouldSignalUnblock() const {
     return rctx_.run_flags_.Any(TASK_SIGNAL_COMPLETE);
   }
 
   /** Unset signal complete */
+  HSHM_INLINE_CROSS_FUN
   void UnsetSignalUnblock() {
     rctx_.run_flags_.UnsetBits(TASK_SIGNAL_COMPLETE);
   }
 
   /** Set signal remote complete */
+  HSHM_INLINE_CROSS_FUN
   void SetSignalRemoteComplete() {
     rctx_.run_flags_.SetBits(TASK_SIGNAL_REMOTE_COMPLETE);
   }
 
   /** Check if task should signal complete */
+  HSHM_INLINE_CROSS_FUN
   bool ShouldSignalRemoteComplete() {
     return rctx_.run_flags_.Any(TASK_SIGNAL_REMOTE_COMPLETE);
   }
 
   /** Unset signal complete */
+  HSHM_INLINE_CROSS_FUN
   void UnsetSignalRemoteComplete() {
     rctx_.run_flags_.UnsetBits(TASK_SIGNAL_REMOTE_COMPLETE);
   }
 
   /** Mark this task as remote */
+  HSHM_INLINE_CROSS_FUN
   void SetRemote() { rctx_.run_flags_.SetBits(TASK_REMOTE); }
 
   /** Check if task is remote */
+  HSHM_INLINE_CROSS_FUN
   bool IsRemote() const { return rctx_.run_flags_.Any(TASK_REMOTE); }
 
   /** Unset remote */
+  HSHM_INLINE_CROSS_FUN
   void UnsetRemote() { rctx_.run_flags_.UnsetBits(TASK_REMOTE); }
 
   /** Determine if time has elapsed */
@@ -637,8 +655,7 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
   }
 
   /** Yield the task */
-  template <int THREAD_MODEL = 0>
-  HSHM_INLINE_CROSS_FUN void YieldFactory() {
+  template <int THREAD_MODEL = 0> HSHM_INLINE_CROSS_FUN void YieldFactory() {
     if constexpr (THREAD_MODEL == TASK_YIELD_CO) {
       YieldCo();
     } else {
@@ -824,14 +841,12 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
   /**====================================
    * Serialization
    * ===================================*/
-  template <typename Ar>
-  HSHM_INLINE_CROSS_FUN void task_serialize(Ar &ar) {
+  template <typename Ar> HSHM_INLINE_CROSS_FUN void task_serialize(Ar &ar) {
     // NOTE(llogan): don't serialize start_ because of clock drift
     ar(pool_, task_node_, dom_query_, prio_, method_, task_flags_, period_ns_);
   }
 
-  template <typename TaskT>
-  HSHM_INLINE_CROSS_FUN void task_dup(TaskT &other) {
+  template <typename TaskT> HSHM_INLINE_CROSS_FUN void task_dup(TaskT &other) {
     pool_ = other.pool_;
     task_node_ = other.task_node_;
     dom_query_ = other.dom_query_;
@@ -850,6 +865,6 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
 #define INOUT
 #define TEMP
 
-}  // namespace chi
+} // namespace chi
 
-#endif  // CHI_TASK_DEFN_H
+#endif // CHI_TASK_DEFN_H
