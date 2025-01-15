@@ -6,7 +6,7 @@
       "type": "cppdbg",
       "request": "launch",
       "program": "echo",
-      "miDebuggerServerAddress": "localhost:4000",
+      "miDebuggerServerAddress": 4000,
       "miDebuggerPath": "/usr/bin/gdb",
       "cwd": "${workspaceFolder}",
       "setupCommands": [
@@ -26,7 +26,7 @@
       "type": "cppdbg",
       "request": "launch",
       "program": "echo",
-      "miDebuggerServerAddress": "localhost:4001",
+      "miDebuggerServerAddress": 4001,
       "miDebuggerPath": "/usr/bin/gdb",
       "cwd": "${workspaceFolder}",
       "setupCommands": [
@@ -46,7 +46,30 @@
       "type": "cppdbg",
       "request": "launch",
       "program": "${workspaceFolder}/build/bin/chimaera_start_runtime",
-      "args": "",
+      "args": [
+        ""
+      ],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [],
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "setupCommands": [
+        {
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        }
+      ]
+    },
+    {
+      "name": "test_rocm_exec",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/bin/test_rocm_exec",
+      "args": [
+        ""
+      ],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
       "environment": [],

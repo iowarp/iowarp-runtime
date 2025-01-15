@@ -71,28 +71,6 @@ class Client : public ConfigurationManager {
     CreateClientOnHostForGpu();
   }
 
-/** Initialize the client (GPU) */
-#if defined(CHIMAERA_ENABLE_ROCM) || defined(CHIMAERA_ENABLE_CUDA)
-  HSHM_GPU_KERNEL static void CreateClientKernel(hipc::AllocatorId alloc_id) {
-    auto *p = HSHM_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(alloc_id);
-    CHI_CLIENT->CreateOnGpu(alloc_id);
-  }
-
-  HSHM_INLINE_GPU_FUN
-  void CreateOnGpu(hipc::AllocatorId alloc_id) {
-    main_alloc_ = HSHM_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(alloc_id);
-    data_alloc_ = nullptr;
-    rdata_alloc_ = nullptr;
-    HSHM_MEMORY_MANAGER->SetDefaultAllocator(main_alloc_);
-    header_ = main_alloc_->GetCustomHeader<ChiShm>();
-    unique_ = &header_->unique_;
-    node_id_ = header_->node_id_;
-    CHI_QM->ClientInit(main_alloc_, header_->queue_manager_, header_->node_id_);
-    is_initialized_ = true;
-    is_being_initialized_ = false;
-  }
-#endif
-
   /** Connect to a Daemon's shared memory */
   void LoadSharedMemory(bool server) {
     // Load shared-memory allocator
@@ -155,6 +133,30 @@ class Client : public ConfigurationManager {
 #endif
     }
   }
+
+  /** Initialize the client (GPU) */
+#if defined(CHIMAERA_ENABLE_ROCM) || defined(CHIMAERA_ENABLE_CUDA)
+  HSHM_GPU_KERNEL static void CreateClientKernel(hipc::AllocatorId alloc_id) {
+    auto *p = HSHM_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(alloc_id);
+    CHI_CLIENT->CreateOnGpu(alloc_id);
+  }
+
+  HSHM_INLINE_GPU_FUN
+  void CreateOnGpu(hipc::AllocatorId alloc_id) {
+    printf("CHI_CLIENT: %p\n", this);
+    printf("CHI_QM: %p\n", CHI_QM);
+    main_alloc_ = HSHM_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(alloc_id);
+    data_alloc_ = nullptr;
+    rdata_alloc_ = nullptr;
+    HSHM_MEMORY_MANAGER->SetDefaultAllocator(main_alloc_);
+    header_ = main_alloc_->GetCustomHeader<ChiShm>();
+    unique_ = &header_->unique_;
+    node_id_ = header_->node_id_;
+    CHI_QM->ClientInit(main_alloc_, header_->queue_manager_, header_->node_id_);
+    is_initialized_ = true;
+    is_being_initialized_ = false;
+  }
+#endif
 
  public:
   /** Finalize Hermes explicitly */
