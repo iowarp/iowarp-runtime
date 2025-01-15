@@ -24,7 +24,7 @@
 #include "chimaera/module_registry/task.h"
 
 // Singleton macros
-#define CHI_CLIENT hshm::Singleton<chi::Client>::GetInstance()
+#define CHI_CLIENT hshm::CrossSingleton<chi::Client>::GetInstance()
 #define CHI_CLIENT_T chi::Client *
 
 namespace chi {

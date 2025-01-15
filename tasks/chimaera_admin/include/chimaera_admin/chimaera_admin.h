@@ -179,6 +179,6 @@ class Client : public ModuleClient {
 
 }  // namespace chi::Admin
 
-#define CHI_ADMIN hshm::Singleton<chi::Admin::Client>::GetInstance()
+#define CHI_ADMIN hshm::CrossSingleton<chi::Admin::Client>::GetInstance()
 
 #endif  // CHI_TASKS_CHI_ADMIN_CHI_ADMIN_H_

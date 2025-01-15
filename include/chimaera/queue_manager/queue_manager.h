@@ -20,7 +20,7 @@
 namespace chi {
 
 /** Singleton queue manager */
-#define CHI_QM hshm::Singleton<chi::QueueManager>::GetInstance()
+#define CHI_QM hshm::CrossSingleton<chi::QueueManager>::GetInstance()
 
 /** Shared-memory representation of the QueueManager */
 struct QueueManagerShm {
