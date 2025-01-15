@@ -21,7 +21,6 @@ namespace chi {
 #if defined(CHIMAERA_ENABLE_ROCM) || defined(CHIMAERA_ENABLE_CUDA)
 HSHM_GPU_KERNEL void CreateClient(hipc::AllocatorId alloc_id) {
   auto *p = HSHM_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(alloc_id);
-  printf("%p\n", CHI_CLIENT);
   CHI_CLIENT->CreateGpu(alloc_id);
 }
 #endif
@@ -63,7 +62,6 @@ void Runtime::ServerInit(std::string server_config_path) {
   u32 max_containers_pn = CHI_QM->max_containers_pn_;
   std::vector<UpdateDomainInfo> ops;
   std::vector<SubDomainId> containers;
-  HILOG(kInfo, "HSHM_MEMORY_MNGR: {}\n", HSHM_MEMORY_MANAGER);
 
   // Create the admin library
   CHI_CLIENT->MakePoolId();

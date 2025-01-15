@@ -674,15 +674,12 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
   /** Spin wait */
   HSHM_INLINE_CROSS_FUN
   void SpinWait(u32 flags = TASK_COMPLETE) {
-    // HILOG(kInfo, "SPIN WAIT BEGIN: {} {}", task_flags_.bits_, flags);
     for (;;) {
 #ifdef HSHM_IS_HOST
       std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);
 #endif
       bitfield32_t task_flags = task_flags_;
       if (task_flags.All(flags)) {
-        // HILOG(kInfo, "SPIN WAIT END: {} {} {}", task_flags.bits_, flags,
-        //       task_flags_.All(flags));
         return;
       }
     }

@@ -177,9 +177,6 @@ class Server : public Module {
 
   /** Create a pool */
   void CreateContainer(CreateContainerTask *task, RunContext &rctx) {
-    HILOG(kInfo, "HSHM_MEMORY_MNGR: {}\n", HSHM_MEMORY_MANAGER);
-    HILOG(kInfo, "ADMIN TASK: {} {} {}\n", task->lib_name_.GetAllocator(), task,
-          (void *)task->lib_name_.data());
     ScopedCoMutex lock(CHI_CUR_LANE->comux_);
     std::string lib_name = task->lib_name_.str();
     std::string pool_name = task->pool_name_.str();
