@@ -112,31 +112,29 @@ struct IngressEntry {
   }
 };
 
-}  // namespace chi
+} // namespace chi
 
 namespace std {
 /** Hash function for IngressEntry */
-template <>
-struct hash<chi::IngressEntry> {
+template <> struct hash<chi::IngressEntry> {
   HSHM_INLINE
   std::size_t operator()(const chi::IngressEntry &key) const {
     return hshm::hash<chi::ingress::MultiQueue *>{}(key.queue_) +
            hshm::hash<u32>{}(key.container_id_) + hshm::hash<u64>{}(key.prio_);
   }
 };
-}  // namespace std
+} // namespace std
 
 namespace hshm {
 /** Hash function for IngressEntry */
-template <>
-struct hash<chi::IngressEntry> {
+template <> struct hash<chi::IngressEntry> {
   HSHM_INLINE
   std::size_t operator()(const chi::IngressEntry &key) const {
     return hshm::hash<chi::ingress::MultiQueue *>{}(key.queue_) +
            hshm::hash<u32>{}(key.container_id_) + hshm::hash<u64>{}(key.prio_);
   }
 };
-}  // namespace hshm
+} // namespace hshm
 
 namespace chi {
 
@@ -146,10 +144,10 @@ typedef chi::mpsc_ptr_queue<TaskPointer> PrivateTaskQueue;
 typedef chi::mpsc_queue<chi::Lane *> PrivateLaneQueue;
 
 class PrivateLaneMultiQueue {
- public:
+public:
   PrivateLaneQueue active_[2];
 
- public:
+public:
   void request(chi::Lane *lane) { active_[lane->prio_].push(lane); }
 
   void resize(size_t new_depth) {
@@ -166,18 +164,18 @@ class PrivateLaneMultiQueue {
 };
 
 class PrivateTaskMultiQueue {
- public:
+public:
   CLS_CONST int FLUSH = 1;
   CLS_CONST int FAIL = 2;
   CLS_CONST int REMAP = 3;
   CLS_CONST int NUM_QUEUES = 4;
 
- public:
+public:
   PrivateTaskQueue queues_[NUM_QUEUES];
   PrivateLaneMultiQueue active_lanes_;
   size_t id_;
 
- public:
+public:
   void Init(size_t id, size_t pqdepth, size_t qdepth, size_t max_lanes) {
     id_ = id;
     queues_[FLUSH].resize(max_lanes * qdepth);
@@ -201,14 +199,13 @@ class PrivateTaskMultiQueue {
 
   bool push(const TaskPointer &entry);
 
-  template <typename TaskT>
-  bool push(const FullPtr<TaskT> &task) {
+  template <typename TaskT> bool push(const FullPtr<TaskT> &task) {
     return push(task.template Cast<Task>());
   }
 };
 
 class Worker {
- public:
+public:
   WorkerId id_; /**< Unique identifier of this worker */
   // std::unique_ptr<std::thread> thread_;  /**< The worker thread handle */
   // int pthread_id_;      /**< The worker pthread handle */
@@ -220,9 +217,6 @@ class Worker {
   std::vector<IngressEntry> work_proc_queue_; /**< The set of queues to poll */
   size_t sleep_us_;    /**< Time the worker should sleep after a run */
   bitfield32_t flags_; /**< Worker metadata flags */
-  std::unordered_map<hshm::charwrap, TaskNode>
-      group_map_;       /**< Determine if a task can be executed right now */
-  chi::charwrap group_; /**< The current group */
   chi::lifo_list_queue<hipc::list_queue_entry>
       stacks_;           /**< Cache of stacks for tasks */
   int num_stacks_ = 256; /**< Number of stacks */
@@ -241,7 +235,7 @@ class Worker {
   size_t monitor_gap_;       /**< Distance between sampling phases */
   size_t monitor_window_;    /** Length of sampling phase */
 
- public:
+public:
   /**===============================================================
    * Initialize Worker
    * =============================================================== */
@@ -391,6 +385,6 @@ class Worker {
   void FreeStack(void *stack);
 };
 
-}  // namespace chi
+} // namespace chi
 
-#endif  // CHI_INCLUDE_CHI_WORK_ORCHESTRATOR_WORKER_H
+#endif // CHI_INCLUDE_CHI_WORK_ORCHESTRATOR_WORKER_H

@@ -167,11 +167,8 @@ void Runtime::InitSharedMemoryGpu() {
     ChiShm *header = main_alloc_->GetCustomHeader<ChiShm>();
     header->node_id_ = CHI_RPC->node_id_;
     header->unique_ =
-        (1 << 32);  // TODO(llogan): Make a separate unique for gpus
+        (1 << 32); // TODO(llogan): Make a separate unique for gpus
     header->num_nodes_ = server_config_.rpc_.host_names_.size();
-    cudaSetDevice(gpu_id);
-    CreateClient<<<1, 1>>>(GetGpuAllocId(gpu_id));
-    HIP_ERROR_CHECK(cudaDeviceSynchronize());
   }
 #endif
 
@@ -188,9 +185,8 @@ void Runtime::InitSharedMemoryGpu() {
     ChiShm *header = main_alloc_->GetCustomHeader<ChiShm>();
     header->node_id_ = CHI_RPC->node_id_;
     header->unique_ =
-        (((u64)1) << 32);  // TODO(llogan): Make a separate unique for gpus
+        (((u64)1) << 32); // TODO(llogan): Make a separate unique for gpus
     header->num_nodes_ = server_config_.rpc_.host_names_.size();
-    HIP_ERROR_CHECK(hipSetDevice(gpu_id));
   }
 #endif
 }
@@ -209,4 +205,4 @@ void Runtime::RunDaemon() {
 /** Stop the Hermes core Daemon */
 void Runtime::StopDaemon() { CHI_WORK_ORCHESTRATOR->FinalizeRuntime(); }
 
-}  // namespace chi
+} // namespace chi

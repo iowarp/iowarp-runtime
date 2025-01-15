@@ -31,9 +31,8 @@ namespace chi {
 /** Forward declaration of CreateContainerTask */
 namespace Admin {
 class CreateTaskParams;
-template <typename TaskParamsT>
-class CreateContainerBaseTask;
-}  // namespace Admin
+template <typename TaskParamsT> class CreateContainerBaseTask;
+} // namespace Admin
 
 /** All information needed to create a trait */
 struct ModuleInfo {
@@ -115,7 +114,7 @@ struct PoolInfo {
  * Stores the registered set of Modules and Containers
  * */
 class ModuleRegistry {
- public:
+public:
   /** The node the registry is on */
   NodeId node_id_;
   /** The dirs to search for modules */
@@ -127,17 +126,17 @@ class ModuleRegistry {
   /** Map of a semantic exec id to state */
   std::unordered_map<PoolId, PoolInfo> pools_;
   /** A unique identifier counter */
-  hipc::atomic<u64> *unique_;
+  hipc::atomic<hshm::min_u64> *unique_;
   Mutex lock_;
   CoRwLock upgrade_lock_;
 
- public:
+public:
   /** Default constructor */
   ModuleRegistry() { lock_.Init(); }
 
   /** Initialize the Task Registry */
   void ServerInit(ServerConfig *config, NodeId node_id,
-                  hipc::atomic<u64> &unique) {
+                  hipc::atomic<hshm::min_u64> &unique) {
     node_id_ = node_id;
     unique_ = &unique;
 
@@ -311,10 +310,11 @@ class ModuleRegistry {
    * Create a pool
    * pool_id must not be NULL.
    * */
-  bool CreateContainer(
-      const char *lib_name, const char *pool_name, const PoolId &pool_id,
-      Admin::CreateContainerBaseTask<Admin::CreateTaskParams> *task,
-      const std::vector<SubDomainId> &containers);
+  bool
+  CreateContainer(const char *lib_name, const char *pool_name,
+                  const PoolId &pool_id,
+                  Admin::CreateContainerBaseTask<Admin::CreateTaskParams> *task,
+                  const std::vector<SubDomainId> &containers);
 
   /** Replace a container */
   void ReplaceContainer(Container *new_container) {
@@ -483,6 +483,6 @@ class ModuleRegistry {
 
 /** Singleton macro for task registry */
 #define CHI_MOD_REGISTRY hshm::Singleton<chi::ModuleRegistry>::GetInstance()
-}  // namespace chi
+} // namespace chi
 
-#endif  // CHI_INCLUDE_CHI_TASK_TASK_REGISTRY_H_
+#endif // CHI_INCLUDE_CHI_TASK_TASK_REGISTRY_H_

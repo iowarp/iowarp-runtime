@@ -25,7 +25,7 @@ namespace chi {
 struct ChiShm {
   NodeId node_id_;
   QueueManagerShm queue_manager_;
-  hipc::atomic<u64> unique_;
+  hipc::atomic<hshm::min_u64> unique_;
   u64 num_nodes_;
 };
 
@@ -33,7 +33,7 @@ struct ChiShm {
 
 /** The configuration used inherited by runtime + client */
 class ConfigurationManager {
- public:
+public:
   ChiShm *header_;
   ClientConfig client_config_;
   ServerConfig server_config_;
@@ -63,8 +63,8 @@ class ConfigurationManager {
   }
 
   /** Get GPU mem backend id */
-  HSHM_INLINE_CROSS_FUN static hipc::MemoryBackendId GetGpuMemBackendId(
-      int gpu_id) {
+  HSHM_INLINE_CROSS_FUN static hipc::MemoryBackendId
+  GetGpuMemBackendId(int gpu_id) {
     return hipc::MemoryBackendId(3 + gpu_id);
   }
 
@@ -80,10 +80,8 @@ class ConfigurationManager {
 
   /** Default constructor */
   HSHM_INLINE_CROSS_FUN ConfigurationManager()
-      : is_being_initialized_(false),
-        is_initialized_(false),
-        is_terminated_(false),
-        is_transparent_(false) {}
+      : is_being_initialized_(false), is_initialized_(false),
+        is_terminated_(false), is_transparent_(false) {}
 
   /** Destructor */
   HSHM_INLINE_CROSS_FUN ~ConfigurationManager() {}
@@ -122,6 +120,6 @@ class ConfigurationManager {
   }
 };
 
-}  // namespace chi
+} // namespace chi
 
-#endif  // CHI_INCLUDE_CHI_MANAGER_MANAGER_H_
+#endif // CHI_INCLUDE_CHI_MANAGER_MANAGER_H_
