@@ -2,6 +2,7 @@
 # Build Chimaera Client Library
 # ------------------------------------------------------------------------------
 set(CLIENT_SOURCES
+  chimaera_client.cc
   config_client.cc
   config_server.cc
   module.cc
@@ -43,6 +44,7 @@ endif()
 # Build Chimaera Runtime Library
 # ------------------------------------------------------------------------------
 set(RUNTIME_SOURCES
+  chimaera_client.cc
   config_client.cc
   config_server.cc
   module.cc
