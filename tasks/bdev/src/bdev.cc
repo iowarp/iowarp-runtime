@@ -39,7 +39,7 @@ class Server : public Module {
   /** Construct bdev */
   void Create(CreateTask *task, RunContext &rctx) {
     CreateTaskParams params = task->GetParams();
-    std::string url = params.path_;
+    std::string url = params.path_.str();
     size_t dev_size = params.size_;
     url_.Parse(url);
     alloc_.Init(1, dev_size);
@@ -195,7 +195,7 @@ class Server : public Module {
 
   /** Write to the block device */
   void Write(WriteTask *task, RunContext &rctx) {
-    char *data = HERMES_MEMORY_MANAGER->Convert<char>(task->data_);
+    char *data = HSHM_MEMORY_MANAGER->Convert<char>(task->data_);
     switch (url_.scheme_) {
       case BlockUrl::kFs: {
         ssize_t ret = pwrite(fd_, data, task->size_, task->off_);
@@ -246,7 +246,7 @@ class Server : public Module {
 
   /** Read from the block device */
   void Read(ReadTask *task, RunContext &rctx) {
-    char *data = HERMES_MEMORY_MANAGER->Convert<char>(task->data_);
+    char *data = HSHM_MEMORY_MANAGER->Convert<char>(task->data_);
     switch (url_.scheme_) {
       case BlockUrl::kFs: {
         ssize_t ret = pread(fd_, data, task->size_, task->off_);

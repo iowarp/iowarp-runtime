@@ -60,7 +60,7 @@ class Server : public Module {
     // Creating submitter and completer queues
     DomainQuery dom_query =
         DomainQuery::GetDirectId(SubDomainId::kContainerSet, container_id_);
-    QueueManagerInfo &qm = CHI_QM_RUNTIME->config_->queue_manager_;
+    QueueManagerInfo &qm = CHI_QM->config_->queue_manager_;
     submit_.emplace_back(qm.queue_depth_);
     complete_.emplace_back(qm.queue_depth_);
     submitters_.emplace_back(
@@ -75,10 +75,10 @@ class Server : public Module {
   Lane *Route(const Task *task) override {
     if (task->IsLongRunning()) {
       return GetLaneByHash(kNodeRpcLanes, task->prio_,
-                           std::hash<DomainQuery>()(task->dom_query_));
+                           hshm::hash<DomainQuery>()(task->dom_query_));
     } else {
       return GetLaneByHash(kInitRpcLanes, task->prio_,
-                           std::hash<DomainQuery>()(task->dom_query_));
+                           hshm::hash<DomainQuery>()(task->dom_query_));
     }
   }
 
@@ -112,7 +112,7 @@ class Server : public Module {
                       rctx);
       }
       rep_task->rctx_.pending_to_ = submit_task;
-      size_t node_hash = std::hash<NodeId>{}(res_query.node_);
+      size_t node_hash = hshm::hash<NodeId>{}(res_query.node_);
       auto &submit = submit_;
       HLOG(kDebug, kRemoteQueue, "[TASK_CHECK] Task replica addr {}",
            rep_task.ptr_);
@@ -226,7 +226,7 @@ class Server : public Module {
   void ServerPushComplete(ServerPushCompleteTask *task, RunContext &rctx) {
     HLOG(kDebug, kRemoteQueue, "");
     NodeId ret_node = task->rctx_.ret_node_;
-    size_t node_hash = std::hash<NodeId>{}(ret_node);
+    size_t node_hash = hshm::hash<NodeId>{}(ret_node);
     auto &complete = complete_;
     complete[node_hash % complete.size()].emplace(
         (RemoteEntry){ret_node, task});

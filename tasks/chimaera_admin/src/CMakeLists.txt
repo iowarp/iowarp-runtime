@@ -1,50 +1,18 @@
 #------------------------------------------------------------------------------
 # Build CHI Admin Task Library
 #------------------------------------------------------------------------------
-add_library(chimaera_admin SHARED
-        ${CMAKE_CURRENT_SOURCE_DIR}/chimaera_admin.cc)
-add_dependencies(chimaera_admin ${Chimaera_RUNTIME_DEPS})
-target_link_libraries(chimaera_admin ${Chimaera_RUNTIME_LIBRARIES})
-target_compile_definitions(chimaera_admin PRIVATE ${Chimaera_RUNTIME_DEFINITIONS})
+add_chimod_library(chimaera chimaera_admin ${CMAKE_CURRENT_SOURCE_DIR}/chimaera_admin.cc)
+message("EXPORTS: ${chimaera_chimaera_admin_exports}")
 #------------------------------------------------------------------------------
 # Install CHI Admin Task Library
 #------------------------------------------------------------------------------
 install(
         TARGETS
-        chimaera_admin
-        EXPORT
-        ${CHIMAERA_EXPORTED_TARGETS}
-        LIBRARY DESTINATION ${CHIMEARA_INSTALL_LIB_DIR}
-        ARCHIVE DESTINATION ${CHIMEARA_INSTALL_LIB_DIR}
-        RUNTIME DESTINATION ${CHIMEARA_INSTALL_BIN_DIR}
+        ${chimaera_chimaera_admin_exports}
+        LIBRARY DESTINATION ${CHIMAERA_INSTALL_LIB_DIR}
+        ARCHIVE DESTINATION ${CHIMAERA_INSTALL_LIB_DIR}
+        RUNTIME DESTINATION ${CHIMAERA_INSTALL_BIN_DIR}
 )
-
-#-----------------------------------------------------------------------------
-# Add Target(s) to CMake Install for import into other projects
-#-----------------------------------------------------------------------------
-install(
-        EXPORT
-        ${CHIMAERA_EXPORTED_TARGETS}
-        DESTINATION
-        ${CHIMEARA_INSTALL_DATA_DIR}/cmake/hermes
-        FILE
-        ${CHIMAERA_EXPORTED_TARGETS}.cmake
-)
-
-#-----------------------------------------------------------------------------
-# Export all exported targets to the build tree for use by parent project
-#-----------------------------------------------------------------------------
-set(CHIMAERA_EXPORTED_LIBS
-        chimaera_admin
-        ${CHIMAERA_EXPORTED_LIBS})
-if(NOT CHIMAERA_EXTERNALLY_CONFIGURED)
-    EXPORT (
-            TARGETS
-            ${CHIMAERA_EXPORTED_LIBS}
-            FILE
-            ${CHIMAERA_EXPORTED_TARGETS}.cmake
-    )
-endif()
 
 #------------------------------------------------------------------------------
 # Coverage

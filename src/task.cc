@@ -3,20 +3,23 @@
 //
 #include "chimaera/module_registry/task.h"
 #ifdef CHIMAERA_RUNTIME
-#include "chimaera/work_orchestrator/work_orchestrator.h"
 #include <thallium.hpp>
+
+#include "chimaera/work_orchestrator/work_orchestrator.h"
 #endif
 
 namespace chi {
 
+HSHM_CROSS_FUN
 void Task::YieldArgo() {
-#ifdef CHIMAERA_RUNTIME
+#if defined(CHIMAERA_RUNTIME) and defined(HSHM_IS_HOST)
   ABT_thread_yield();
 #endif
 }
 
+HSHM_CROSS_FUN
 void Task::Wait(u32 flags) {
-#ifdef CHIMAERA_RUNTIME
+#if defined(CHIMAERA_RUNTIME) and defined(HSHM_IS_HOST)
   Task *parent_task = CHI_CUR_TASK;
   if (this != parent_task) {
     parent_task->Wait(this, flags);

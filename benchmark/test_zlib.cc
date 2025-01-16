@@ -1,11 +1,12 @@
 //
 // Created by llogan on 6/25/24.
 //
+#include <hermes_shm/util/affinity.h>
+#include <hermes_shm/util/compress/snappy.h>
+#include <hermes_shm/util/random.h>
+
 #include "chimaera/chimaera_types.h"
 #include "mpi.h"
-#include "hermes_shm/util/compress/snappy.h"
-#include "hermes_shm/util/random.h"
-#include "chimaera/work_orchestrator/affinity.h"
 
 std::vector<int> MakeDist(size_t xfer_count) {
   // Create a normal distribution
@@ -40,13 +41,13 @@ int main(int argc, char *argv[]) {
   std::vector<int> data = MakeDist(xfer_count);
 
   // Make this rank affine to CPU rank
-  ProcessAffiner::SetCpuAffinity(getpid(), rank);
+  hshm::ProcessAffiner::SetCpuAffinity(getpid(), rank);
   // Get core freqeuency of CPU rank
-  int prior_cpu_freq = HERMES_SYSTEM_INFO->GetCpuFreqKhz(rank);
+  int prior_cpu_freq = HSHM_SYSTEM_INFO->GetCpuFreqKhz(rank);
   // Set core frequency of CPU rank
-  int min_cpu_freq = HERMES_SYSTEM_INFO->GetCpuMinFreqKhz(rank);
-  int max_cpu_freq = HERMES_SYSTEM_INFO->GetCpuMaxFreqKhz(rank);
-  HERMES_SYSTEM_INFO->SetCpuFreqKhz(rank, min_cpu_freq);
+  int min_cpu_freq = HSHM_SYSTEM_INFO->GetCpuMinFreqKhz(rank);
+  int max_cpu_freq = HSHM_SYSTEM_INFO->GetCpuMaxFreqKhz(rank);
+  HSHM_SYSTEM_INFO->SetCpuFreqKhz(rank, min_cpu_freq);
 
   // Write compressed data repeatedly
   for (size_t i = 0; i < iter; ++i) {
@@ -58,8 +59,7 @@ int main(int argc, char *argv[]) {
       hshm::Snappy compress;
       size_t compressed_size = xfer;
       std::vector<int> compressed(xfer_count);
-      compress.Compress(compressed.data(), compressed_size,
-                        data.data(), xfer);
+      compress.Compress(compressed.data(), compressed_size, data.data(), xfer);
       // fwrite(compressed.data(), sizeof(char), compressed_size, file);
       write_sz = compressed_size;
     } else {
@@ -69,18 +69,18 @@ int main(int argc, char *argv[]) {
     fflush(file);
     t.Pause();
     // fseek(file, 0, SEEK_SET);
-//    HILOG(kInfo, "Wrote {} bytes in {} usec (compress={})",
-//          write_sz, t.GetUsec(), do_compress);
+    //    HILOG(kInfo, "Wrote {} bytes in {} usec (compress={})",
+    //          write_sz, t.GetUsec(), do_compress);
   }
 
   // Get core frequency of CPU rank
-  int cur_cpu_freq = HERMES_SYSTEM_INFO->GetCpuFreqKhz(rank);
-  HILOG(kInfo, "Rank {} CPU freq: {} -> {}, min={}, max={}",
-        rank, prior_cpu_freq, cur_cpu_freq, min_cpu_freq, max_cpu_freq);
+  int cur_cpu_freq = HSHM_SYSTEM_INFO->GetCpuFreqKhz(rank);
+  HILOG(kInfo, "Rank {} CPU freq: {} -> {}, min={}, max={}", rank,
+        prior_cpu_freq, cur_cpu_freq, min_cpu_freq, max_cpu_freq);
 
   // Set core frequency of CPU rank
-  HERMES_SYSTEM_INFO->SetCpuMinFreqKhz(rank, min_cpu_freq);
-  HERMES_SYSTEM_INFO->SetCpuMaxFreqKhz(rank, max_cpu_freq);
+  HSHM_SYSTEM_INFO->SetCpuMinFreqKhz(rank, min_cpu_freq);
+  HSHM_SYSTEM_INFO->SetCpuMaxFreqKhz(rank, max_cpu_freq);
 
   MPI_Finalize();
 }

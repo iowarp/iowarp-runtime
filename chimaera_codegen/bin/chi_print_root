@@ -10,6 +10,6 @@ OUTPUT:
     ${CHI}/src/config_server_default.h (if server)
 """
 
-from chimaera_codegen.util.paths import CHIMEARA_ROOT
+from chimaera_codegen.util.paths import CHIMAERA_ROOT
 
-print(CHIMEARA_ROOT)
+print(CHIMAERA_ROOT)

@@ -13,10 +13,11 @@
 #ifndef CHIMAERA_RPC_THALLIUM_H_
 #define CHIMAERA_RPC_THALLIUM_H_
 
+#include <hermes_shm/util/singleton.h>
+
 #include <string>
 #include <thallium.hpp>
 
-#include "hermes_shm/util/singleton.h"
 #include "rpc.h"
 #include "serialize_defn.h"
 

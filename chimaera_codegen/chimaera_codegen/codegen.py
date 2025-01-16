@@ -5,7 +5,7 @@ Generate code for chimaera
 import os
 import sys
 import yaml
-from chimaera_codegen.util.paths import CHIMEARA_ROOT
+from chimaera_codegen.util.paths import CHIMAERA_ROOT
 from chimaera_codegen.util.templates import task_template, client_method_template, runtime_method_template
 
 
@@ -34,15 +34,15 @@ class ChimaeraCodegen:
         Creates the default chimaera client and server configurations
         """
         self._create_config(
-            path=f"{CHIMEARA_ROOT}/config/chimaera_client_default.yaml",
+            path=f"{CHIMAERA_ROOT}/config/chimaera_client_default.yaml",
             var_name="kChiDefaultClientConfigStr",
-            config_path=f"{CHIMEARA_ROOT}/include/chimaera/config/config_client_default.h",
+            config_path=f"{CHIMAERA_ROOT}/include/chimaera/config/config_client_default.h",
             macro_name="CHI_CLIENT"
         )
         self._create_config(
-            path=f"{CHIMEARA_ROOT}/config/chimaera_server_default.yaml",
+            path=f"{CHIMAERA_ROOT}/config/chimaera_server_default.yaml",
             var_name="kChiServerDefaultConfigStr",
-            config_path=f"{CHIMEARA_ROOT}/include/chimaera/config/config_server_default.h",
+            config_path=f"{CHIMAERA_ROOT}/include/chimaera/config/config_server_default.h",
             macro_name="CHI_SERVER"
         )
 
@@ -79,7 +79,7 @@ class ChimaeraCodegen:
         Bootstraps a task. Copies all the necessary files and replaces. This
         is an aggressive operation.
         """
-        TASK_TEMPL_ROOT = f'{CHIMEARA_ROOT}/tasks/TASK_NAME'
+        TASK_TEMPL_ROOT = f'{CHIMAERA_ROOT}/tasks/TASK_NAME'
         TASK_NAME = os.path.basename(TASK_ROOT)
         if os.path.exists(f'{TASK_ROOT}/src'):
             ret = input('This task seems bootstrapped, do you really want to continue? (yes/no): ')

@@ -12,39 +12,34 @@
 
 #include "chimaera/api/chimaera_runtime.h"
 
+#include <hermes_shm/util/singleton.h>
+
 #include "chimaera/module_registry/task.h"
-#include "hermes_shm/util/singleton.h"
 
 namespace chi {
 
 /** Create the server-side API */
-Runtime *Runtime::Create(std::string server_config_path) {
+void Runtime::Create(std::string server_config_path) {
   hshm::ScopedMutex lock(lock_, 1);
   if (is_initialized_) {
-    return this;
+    return;
   }
   is_being_initialized_ = true;
   ServerInit(std::move(server_config_path));
   is_initialized_ = true;
   is_being_initialized_ = false;
-  return this;
 }
 
 /** Initialize */
 void Runtime::ServerInit(std::string server_config_path) {
   LoadServerConfig(server_config_path);
-  // HILOG(kInfo, "Initializing shared memory")
+  RefreshNumGpus();
   InitSharedMemory();
-  // HILOG(kInfo, "Initializing RPC")
-  CHI_RPC->ServerInit(&server_config_);
-  // HILOG(kInfo, "Initializing thallium")
-  thallium_.ServerInit(CHI_RPC);
-  // HILOG(kInfo, "Initializing queues + workers")
-  header_->node_id_ = CHI_RPC->node_id_;
-  header_->unique_ = 0;
-  header_->num_nodes_ = server_config_.rpc_.host_names_.size();
+  CHI_RPC->ServerInit(server_config_);
+  CHI_THALLIUM->ServerInit(CHI_RPC);
+  InitSharedMemoryGpu();
   // Create module registry
-  CHI_MOD_REGISTRY->ServerInit(&server_config_, CHI_RPC->node_id_,
+  CHI_MOD_REGISTRY->ServerInit(server_config_, CHI_RPC->node_id_,
                                header_->unique_);
   CHI_MOD_REGISTRY->RegisterModule("chimaera_admin");
   CHI_MOD_REGISTRY->RegisterModule("worch_queue_round_robin");
@@ -52,13 +47,13 @@ void Runtime::ServerInit(std::string server_config_path) {
   CHI_MOD_REGISTRY->RegisterModule("remote_queue");
   CHI_MOD_REGISTRY->RegisterModule("bdev");
   // Queue manager + client must be initialized before Work Orchestrator
-  CHI_QM_RUNTIME->ServerInit(main_alloc_, CHI_RPC->node_id_, &server_config_,
-                             header_->queue_manager_);
-  CHI_CLIENT->Create(server_config_path, "", true);
-  CHI_WORK_ORCHESTRATOR->ServerInit(&server_config_, *CHI_QM_RUNTIME);
+  CHI_QM->ServerInit(main_alloc_, CHI_RPC->node_id_, server_config_,
+                     header_->queue_manager_);
+  CHI_CLIENT->Create(server_config_path.c_str(), "", true);
+  CHI_WORK_ORCHESTRATOR->ServerInit(server_config_);
   Admin::CreateTask *admin_create_task;
   Admin::CreateContainerTask *create_task;
-  u32 max_containers_pn = CHI_QM_RUNTIME->max_containers_pn_;
+  u32 max_containers_pn = CHI_QM->max_containers_pn_;
   std::vector<UpdateDomainInfo> ops;
   std::vector<SubDomainId> containers;
 
@@ -67,14 +62,14 @@ void Runtime::ServerInit(std::string server_config_path) {
   admin_create_task =
       CHI_CLIENT->AllocateTask<Admin::CreateTask>(HSHM_DEFAULT_MEM_CTX).ptr_;
   ops = CHI_RPC->CreateDefaultDomains(
-      CHI_QM_CLIENT->admin_pool_id_, CHI_QM_CLIENT->admin_pool_id_,
+      CHI_QM->admin_pool_id_, CHI_QM->admin_pool_id_,
       DomainQuery::GetGlobal(chi::SubDomainId::kContainerSet, 0),
       CHI_RPC->hosts_.size(), 1);
   CHI_RPC->UpdateDomains(ops);
-  containers = CHI_RPC->GetLocalContainers(CHI_QM_CLIENT->admin_pool_id_);
+  containers = CHI_RPC->GetLocalContainers(CHI_QM->admin_pool_id_);
   CHI_MOD_REGISTRY->CreateContainer("chimaera_admin", "chimaera_admin",
-                                    CHI_QM_CLIENT->admin_pool_id_,
-                                    admin_create_task, containers);
+                                    CHI_QM->admin_pool_id_, admin_create_task,
+                                    containers);
 
   // Create the work orchestrator queue scheduling library
   PoolId queue_sched_id = CHI_CLIENT->MakePoolId();
@@ -82,7 +77,7 @@ void Runtime::ServerInit(std::string server_config_path) {
       CHI_CLIENT->AllocateTask<Admin::CreateContainerTask>(HSHM_DEFAULT_MEM_CTX)
           .ptr_;
   ops = CHI_RPC->CreateDefaultDomains(
-      queue_sched_id, CHI_QM_CLIENT->admin_pool_id_,
+      queue_sched_id, CHI_QM->admin_pool_id_,
       DomainQuery::GetGlobal(chi::SubDomainId::kLocalContainers, 0), 1, 1);
   CHI_RPC->UpdateDomains(ops);
   containers = CHI_RPC->GetLocalContainers(queue_sched_id);
@@ -96,7 +91,7 @@ void Runtime::ServerInit(std::string server_config_path) {
       CHI_CLIENT->AllocateTask<Admin::CreateContainerTask>(HSHM_DEFAULT_MEM_CTX)
           .ptr_;
   ops = CHI_RPC->CreateDefaultDomains(
-      proc_sched_id, CHI_QM_CLIENT->admin_pool_id_,
+      proc_sched_id, CHI_QM->admin_pool_id_,
       DomainQuery::GetGlobal(chi::SubDomainId::kLocalContainers, 0), 1, 1);
   CHI_RPC->UpdateDomains(ops);
   containers = CHI_RPC->GetLocalContainers(proc_sched_id);
@@ -127,8 +122,8 @@ void Runtime::ServerInit(std::string server_config_path) {
 /** Initialize shared-memory between daemon and client */
 void Runtime::InitSharedMemory() {
   // Create shared-memory allocator
-  config::QueueManagerInfo &qm = server_config_.queue_manager_;
-  auto mem_mngr = HERMES_MEMORY_MANAGER;
+  config::QueueManagerInfo &qm = server_config_->queue_manager_;
+  auto mem_mngr = HSHM_MEMORY_MANAGER;
   if (qm.shm_size_ == 0) {
     qm.shm_size_ = hipc::MemoryManager::GetDefaultBackendSize();
   }
@@ -149,11 +144,51 @@ void Runtime::InitSharedMemory() {
       hipc::MemoryBackendId(2), qm.rdata_shm_size_, qm.rdata_shm_name_);
   rdata_alloc_ = mem_mngr->CreateAllocator<CHI_ALLOC_T>(
       hipc::MemoryBackendId(2), rdata_alloc_id_, 0);
+}
 
-  auto *test = HERMES_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(main_alloc_id_);
-  if (!test) {
-    HILOG(kError, "Failed to create main allocator");
+/** Initialize shared-memory between daemon and client */
+void Runtime::InitSharedMemoryGpu() {
+  // Finish initializing shared memory
+  auto mem_mngr = HSHM_MEMORY_MANAGER;
+  header_->node_id_ = CHI_RPC->node_id_;
+  header_->unique_ = 0;
+  header_->num_nodes_ = server_config_->rpc_.host_names_.size();
+
+  // Create per-gpu allocator
+#ifdef CHIMAERA_ENABLE_CUDA
+  for (int gpu_id = 0; gpu_id < ngpu_; ++gpu_id) {
+    hipc::MemoryBackendId backend_id = GetGpuMemBackendId(gpu_id);
+    hipc::AllocatorId alloc_id = GetGpuAllocId(gpu_id);
+    hipc::chararr name = "cuda_shm_" + std::to_string(gpu_id);
+    mem_mngr->CreateBackend<hipc::CudaShmMmap>(backend_id, MEGABYTES(100), name,
+                                               gpu_id);
+    gpu_alloc_[gpu_id] = mem_mngr->CreateAllocator<CHI_ALLOC_T>(
+        backend_id, alloc_id, sizeof(ChiShm));
+    ChiShm *header = main_alloc_->GetCustomHeader<ChiShm>();
+    header->node_id_ = CHI_RPC->node_id_;
+    header->unique_ =
+        (((u64)1) << 32);  // TODO(llogan): Make a separate unique for gpus
+    header->num_nodes_ = server_config_->rpc_.host_names_.size();
   }
+#endif
+
+#ifdef CHIMAERA_ENABLE_ROCM
+  for (int gpu_id = 0; gpu_id < ngpu_; ++gpu_id) {
+    hipc::MemoryBackendId backend_id = GetGpuMemBackendId(gpu_id);
+    hipc::AllocatorId alloc_id = GetGpuAllocId(gpu_id);
+    // TODO(llogan): Make parameter for gpu_shm_name_ and gpu_shm_size_
+    hipc::chararr name = "rocm_shm_" + std::to_string(gpu_id);
+    mem_mngr->CreateBackend<hipc::RocmShmMmap>(backend_id, MEGABYTES(100), name,
+                                               gpu_id);
+    gpu_alloc_[gpu_id] = mem_mngr->CreateAllocator<CHI_ALLOC_T>(
+        backend_id, alloc_id, sizeof(ChiShm));
+    ChiShm *header = main_alloc_->GetCustomHeader<ChiShm>();
+    header->node_id_ = CHI_RPC->node_id_;
+    header->unique_ =
+        (((u64)1) << 32);  // TODO(llogan): Make a separate unique for gpus
+    header->num_nodes_ = server_config_.rpc_.host_names_.size();
+  }
+#endif
 }
 
 /** Finalize Hermes explicitly */
@@ -171,10 +206,3 @@ void Runtime::RunDaemon() {
 void Runtime::StopDaemon() { CHI_WORK_ORCHESTRATOR->FinalizeRuntime(); }
 
 }  // namespace chi
-
-/** Runtime singleton */
-DEFINE_SINGLETON_CC(chi::Runtime)
-DEFINE_SINGLETON_CC(chi::RpcContext)
-DEFINE_SINGLETON_CC(chi::WorkOrchestrator)
-DEFINE_SINGLETON_CC(chi::ModuleRegistry)
-DEFINE_SINGLETON_CC(chi::QueueManagerRuntime)

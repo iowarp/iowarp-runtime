@@ -12,6 +12,8 @@
 
 #include "chimaera/config/config_server.h"
 
+#include <hermes_shm/util/config_parse.h>
+#include <hermes_shm/util/logging.h>
 #include <string.h>
 #include <yaml-cpp/yaml.h>
 
@@ -19,8 +21,6 @@
 
 #include "chimaera/config/config.h"
 #include "chimaera/config/config_server_default.h"
-#include "hermes_shm/util/config_parse.h"
-#include "hermes_shm/util/logging.h"
 
 namespace chi::config {
 

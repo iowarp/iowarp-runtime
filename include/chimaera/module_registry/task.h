@@ -117,25 +117,29 @@ struct TaskNode {
   u32 node_depth_; /**< The depth of the task in the task graph */
 
   /** Default constructor */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   TaskNode() = default;
 
+  /** Destructor */
+  HSHM_INLINE_CROSS_FUN
+  ~TaskNode() = default;
+
   /** Emplace constructor for root task */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   TaskNode(TaskId root) {
     root_ = root;
     node_depth_ = 0;
   }
 
   /** Copy constructor */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   TaskNode(const TaskNode &other) {
     root_ = other.root_;
     node_depth_ = other.node_depth_;
   }
 
   /** Copy assignment operator */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   TaskNode &operator=(const TaskNode &other) {
     root_ = other.root_;
     node_depth_ = other.node_depth_;
@@ -143,14 +147,14 @@ struct TaskNode {
   }
 
   /** Move constructor */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   TaskNode(TaskNode &&other) noexcept {
     root_ = other.root_;
     node_depth_ = other.node_depth_;
   }
 
   /** Move assignment operator */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   TaskNode &operator=(TaskNode &&other) noexcept {
     root_ = other.root_;
     node_depth_ = other.node_depth_;
@@ -158,7 +162,7 @@ struct TaskNode {
   }
 
   /** Addition operator*/
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   TaskNode operator+(int i) const {
     TaskNode ret;
     ret.root_ = root_;
@@ -167,14 +171,14 @@ struct TaskNode {
   }
 
   /** Addition operator*/
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   TaskNode &operator+=(int i) {
     node_depth_ += i;
     return *this;
   }
 
   /** Null task node */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   static TaskNode GetNull() {
     TaskNode ret;
     ret.root_ = TaskId::GetNull();
@@ -183,16 +187,16 @@ struct TaskNode {
   }
 
   /** Check if null */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   bool IsNull() const { return root_.IsNull(); }
 
   /** Check if the root task */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   bool IsRoot() const { return node_depth_ == 0; }
 
   /** Serialization*/
   template <typename Ar>
-  void serialize(Ar &ar) {
+  HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
     ar(root_, node_depth_);
   }
 
@@ -273,6 +277,16 @@ struct Load {
   size_t mem_load_ = 0;
   size_t io_load_ = 0;
 
+  /** Default constructor */
+  HSHM_INLINE_CROSS_FUN
+  Load() = default;
+
+  /** Destructor */
+  HSHM_INLINE_CROSS_FUN
+  ~Load() = default;
+
+  /** Addition operator */
+  HSHM_INLINE_CROSS_FUN
   Load operator+(const Load &other) const {
     Load ret;
     ret.cpu_load_ = cpu_load_ + other.cpu_load_;
@@ -281,6 +295,8 @@ struct Load {
     return ret;
   }
 
+  /** Subtraction operator */
+  HSHM_INLINE_CROSS_FUN
   Load operator-(const Load &other) const {
     Load ret;
     ret.cpu_load_ = cpu_load_ - other.cpu_load_;
@@ -289,6 +305,8 @@ struct Load {
     return ret;
   }
 
+  /** Addition assignment operator */
+  HSHM_INLINE_CROSS_FUN
   Load &operator+=(const Load &other) {
     cpu_load_ += other.cpu_load_;
     mem_load_ += other.mem_load_;
@@ -296,6 +314,8 @@ struct Load {
     return *this;
   }
 
+  /** Subtraction assignment operator */
+  HSHM_INLINE_CROSS_FUN
   Load &operator-=(const Load &other) {
     cpu_load_ -= other.cpu_load_;
     mem_load_ -= other.mem_load_;
@@ -319,7 +339,7 @@ struct RunContext {
   std::vector<FullPtr<Task>> *replicas_;
   size_t ret_task_addr_;
   NodeId ret_node_;
-  hipc::atomic<ssize_t> block_count_ = 0;
+  hipc::atomic<int> block_count_ = 0;
   ContainerId route_container_id_;
   chi::Lane *route_lane_;
   Load load_;
@@ -342,194 +362,249 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
                                 // #endif
 
   /**====================================
-   * Task Helpers
+   * Task Bits
    * ===================================*/
 
   /** Get lane hash */
+  HSHM_INLINE_CROSS_FUN
   const u32 &GetContainerId() const { return dom_query_.sel_.id_; }
 
   /** Set task as externally complete */
+  HSHM_INLINE_CROSS_FUN
   void SetModuleComplete() {
     task_flags_.SetBits(TASK_MODULE_COMPLETE);
     UnsetStarted();
   }
 
   /** Check if a task marked complete externally */
+  HSHM_INLINE_CROSS_FUN
   bool IsModuleComplete() const {
     return task_flags_.Any(TASK_MODULE_COMPLETE);
   }
 
   /** Unset task as complete */
+  HSHM_INLINE_CROSS_FUN
   void UnsetModuleComplete() {
     task_flags_.UnsetBits(TASK_MODULE_COMPLETE);
     SetStarted();
   }
 
   /** Set task as complete */
+  HSHM_INLINE_CROSS_FUN
   void SetComplete() {
     task_flags_.SetBits(TASK_MODULE_COMPLETE | TASK_COMPLETE);
   }
 
   /** Check if task is complete */
+  HSHM_INLINE_CROSS_FUN
   bool IsComplete() const { return task_flags_.Any(TASK_COMPLETE); }
 
   /** Unset task as complete */
+  HSHM_INLINE_CROSS_FUN
   void UnsetComplete() {
     task_flags_.UnsetBits(TASK_MODULE_COMPLETE | TASK_COMPLETE);
   }
 
   /** Set task as fire & forget */
+  HSHM_INLINE_CROSS_FUN
   void SetFireAndForget() { task_flags_.SetBits(TASK_FIRE_AND_FORGET); }
 
   /** Check if a task is fire & forget */
+  HSHM_INLINE_CROSS_FUN
   bool IsFireAndForget() const { return task_flags_.Any(TASK_FIRE_AND_FORGET); }
 
   /** Unset fire & forget */
+  HSHM_INLINE_CROSS_FUN
   void UnsetFireAndForget() { task_flags_.UnsetBits(TASK_FIRE_AND_FORGET); }
 
   /** Check if task is long running */
+  HSHM_INLINE_CROSS_FUN
   bool IsLongRunning() const { return task_flags_.All(TASK_LONG_RUNNING); }
 
   /** Set task as data owner */
+  HSHM_INLINE_CROSS_FUN
   void SetDataOwner() { task_flags_.SetBits(TASK_DATA_OWNER); }
 
   /** Check if task is data owner */
+  HSHM_INLINE_CROSS_FUN
   bool IsDataOwner() const { return task_flags_.Any(TASK_DATA_OWNER); }
 
   /** Unset task as data owner */
+  HSHM_INLINE_CROSS_FUN
   void UnsetDataOwner() { task_flags_.UnsetBits(TASK_DATA_OWNER); }
 
   /** Set this task as started */
+  HSHM_INLINE_CROSS_FUN
   void SetRemoteDebug() { task_flags_.SetBits(TASK_REMOTE_DEBUG_MARK); }
 
   /** Set this task as started */
+  HSHM_INLINE_CROSS_FUN
   void UnsetRemoteDebug() { task_flags_.UnsetBits(TASK_REMOTE_DEBUG_MARK); }
 
   /** Check if task has started */
+  HSHM_INLINE_CROSS_FUN
   bool IsRemoteDebug() const { return task_flags_.Any(TASK_REMOTE_DEBUG_MARK); }
 
-  /** Set this task as routed */
-  void SetRouted() { rctx_.run_flags_.SetBits(TASK_IS_ROUTED); }
-
-  /** Check if task is routed */
-  bool IsRouted() const { return rctx_.run_flags_.Any(TASK_IS_ROUTED); }
-
-  /** Unset this task as routed */
-  void UnsetRouted() { rctx_.run_flags_.UnsetBits(TASK_IS_ROUTED); }
-
   /** Set this task as started */
-  void SetStarted() { rctx_.run_flags_.SetBits(TASK_HAS_STARTED); }
-
-  /** Set this task as started */
-  void UnsetStarted() { rctx_.run_flags_.UnsetBits(TASK_HAS_STARTED); }
-
-  /** Check if task has started */
-  bool IsStarted() const { return rctx_.run_flags_.Any(TASK_HAS_STARTED); }
-
-  /** Set blocked */
-  void SetBlocked(size_t count) { rctx_.block_count_ += count; }
-
-  /** Unset blocked */
-  void UnsetBlocked() {}
-
-  /** Check if task is blocked */
-  bool IsBlocked() const { return rctx_.block_count_.load() > 0; }
-
-  /** Set this task as started */
+  HSHM_INLINE_CROSS_FUN
   void UnsetLongRunning() { task_flags_.UnsetBits(TASK_LONG_RUNNING); }
 
   /** Set this task as blocking */
+  HSHM_INLINE_CROSS_FUN
   bool IsCoroutine() const { return task_flags_.Any(TASK_COROUTINE); }
 
   /** Set this task as blocking */
+  HSHM_INLINE_CROSS_FUN
   void UnsetCoroutine() { task_flags_.UnsetBits(TASK_COROUTINE); }
 
-  /** Mark task as routed */
-  void SetShouldSample() { rctx_.run_flags_.SetBits(TASK_SHOULD_SAMPLE); }
-
-  /** Check if task is routed */
-  bool ShouldSample() const { return rctx_.run_flags_.Any(TASK_SHOULD_SAMPLE); }
-
-  /** Unset task as routed */
-  void UnsetShouldSample() { rctx_.run_flags_.UnsetBits(TASK_SHOULD_SAMPLE); }
-
   /** Set period in nanoseconds */
+  HSHM_INLINE_CROSS_FUN
   void SetPeriodNs(double ns) { period_ns_ = ns; }
 
   /** Set period in microseconds */
+  HSHM_INLINE_CROSS_FUN
   void SetPeriodUs(double us) { period_ns_ = us * 1000; }
 
   /** Set period in milliseconds */
+  HSHM_INLINE_CROSS_FUN
   void SetPeriodMs(double ms) { period_ns_ = ms * 1000000; }
 
   /** Set period in seconds */
+  HSHM_INLINE_CROSS_FUN
   void SetPeriodSec(double sec) { period_ns_ = sec * 1000000000; }
 
   /** Set period in minutes */
+  HSHM_INLINE_CROSS_FUN
   void SetPeriodMin(double min) { period_ns_ = min * 60000000000; }
 
   /** This task flushes the runtime */
+  HSHM_INLINE_CROSS_FUN
   bool IsFlush() const { return task_flags_.Any(TASK_FLUSH); }
 
   /** Set this task as flushing */
+  HSHM_INLINE_CROSS_FUN
   void SetFlush() { task_flags_.SetBits(TASK_FLUSH); }
 
   /** Unset this task as flushing */
+  HSHM_INLINE_CROSS_FUN
   void UnsetFlush() { task_flags_.UnsetBits(TASK_FLUSH); }
 
+  /** Mark this task as remote */
+  HSHM_INLINE_CROSS_FUN
+  void SetRead() { task_flags_.SetBits(TASK_READ); }
+
+  /** Check if task is remote */
+  HSHM_INLINE_CROSS_FUN
+  bool IsRead() const { return task_flags_.Any(TASK_READ); }
+
+  /** Unset remote */
+  HSHM_INLINE_CROSS_FUN
+  void UnsetRead() { task_flags_.UnsetBits(TASK_READ); }
+
+  /** Mark this task as remote */
+  HSHM_INLINE_CROSS_FUN
+  void SetWrite() { task_flags_.SetBits(TASK_WRITE); }
+
+  /** Check if task is remote */
+  HSHM_INLINE_CROSS_FUN
+  bool IsWrite() const { return task_flags_.Any(TASK_WRITE); }
+
+  /** Unset remote */
+  HSHM_INLINE_CROSS_FUN
+  void UnsetWrite() { task_flags_.UnsetBits(TASK_WRITE); }
+
+  /**====================================
+   * RunContext Bits
+   * ===================================*/
+
+  /** Set this task as routed */
+  HSHM_INLINE_CROSS_FUN
+  void SetRouted() { rctx_.run_flags_.SetBits(TASK_IS_ROUTED); }
+
+  /** Check if task is routed */
+  HSHM_INLINE_CROSS_FUN
+  bool IsRouted() const { return rctx_.run_flags_.Any(TASK_IS_ROUTED); }
+
+  /** Unset this task as routed */
+  HSHM_INLINE_CROSS_FUN
+  void UnsetRouted() { rctx_.run_flags_.UnsetBits(TASK_IS_ROUTED); }
+
+  /** Set this task as started */
+  HSHM_INLINE_CROSS_FUN
+  void SetStarted() { rctx_.run_flags_.SetBits(TASK_HAS_STARTED); }
+
+  /** Set this task as started */
+  HSHM_INLINE_CROSS_FUN
+  void UnsetStarted() { rctx_.run_flags_.UnsetBits(TASK_HAS_STARTED); }
+
+  /** Check if task has started */
+  HSHM_INLINE_CROSS_FUN
+  bool IsStarted() const { return rctx_.run_flags_.Any(TASK_HAS_STARTED); }
+
+  /** Set blocked */
+  HSHM_INLINE_CROSS_FUN
+  void SetBlocked(int count) { rctx_.block_count_ += count; }
+
+  /** Check if task is blocked */
+  HSHM_INLINE_CROSS_FUN
+  bool IsBlocked() const { return rctx_.block_count_.load() > 0; }
+
+  /** Mark task as routed */
+  HSHM_INLINE_CROSS_FUN
+  void SetShouldSample() { rctx_.run_flags_.SetBits(TASK_SHOULD_SAMPLE); }
+
+  /** Check if task is routed */
+  HSHM_INLINE_CROSS_FUN
+  bool ShouldSample() const { return rctx_.run_flags_.Any(TASK_SHOULD_SAMPLE); }
+
+  /** Unset task as routed */
+  HSHM_INLINE_CROSS_FUN
+  void UnsetShouldSample() { rctx_.run_flags_.UnsetBits(TASK_SHOULD_SAMPLE); }
+
   /** Set signal complete */
+  HSHM_INLINE_CROSS_FUN
   void SetSignalUnblock() { rctx_.run_flags_.SetBits(TASK_SIGNAL_COMPLETE); }
 
   /** Check if task should signal complete */
+  HSHM_INLINE_CROSS_FUN
   bool ShouldSignalUnblock() const {
     return rctx_.run_flags_.Any(TASK_SIGNAL_COMPLETE);
   }
 
   /** Unset signal complete */
+  HSHM_INLINE_CROSS_FUN
   void UnsetSignalUnblock() {
     rctx_.run_flags_.UnsetBits(TASK_SIGNAL_COMPLETE);
   }
 
   /** Set signal remote complete */
+  HSHM_INLINE_CROSS_FUN
   void SetSignalRemoteComplete() {
     rctx_.run_flags_.SetBits(TASK_SIGNAL_REMOTE_COMPLETE);
   }
 
   /** Check if task should signal complete */
+  HSHM_INLINE_CROSS_FUN
   bool ShouldSignalRemoteComplete() {
     return rctx_.run_flags_.Any(TASK_SIGNAL_REMOTE_COMPLETE);
   }
 
   /** Unset signal complete */
+  HSHM_INLINE_CROSS_FUN
   void UnsetSignalRemoteComplete() {
     rctx_.run_flags_.UnsetBits(TASK_SIGNAL_REMOTE_COMPLETE);
   }
 
   /** Mark this task as remote */
-  void SetRead() { task_flags_.SetBits(TASK_READ); }
-
-  /** Check if task is remote */
-  bool IsRead() const { return task_flags_.Any(TASK_READ); }
-
-  /** Unset remote */
-  void UnsetRead() { task_flags_.UnsetBits(TASK_READ); }
-
-  /** Mark this task as remote */
-  void SetWrite() { task_flags_.SetBits(TASK_WRITE); }
-
-  /** Check if task is remote */
-  bool IsWrite() const { return task_flags_.Any(TASK_WRITE); }
-
-  /** Unset remote */
-  void UnsetWrite() { task_flags_.UnsetBits(TASK_WRITE); }
-
-  /** Mark this task as remote */
+  HSHM_INLINE_CROSS_FUN
   void SetRemote() { rctx_.run_flags_.SetBits(TASK_REMOTE); }
 
   /** Check if task is remote */
+  HSHM_INLINE_CROSS_FUN
   bool IsRemote() const { return rctx_.run_flags_.Any(TASK_REMOTE); }
 
   /** Unset remote */
+  HSHM_INLINE_CROSS_FUN
   void UnsetRemote() { rctx_.run_flags_.UnsetBits(TASK_REMOTE); }
 
   /** Determine if time has elapsed */
@@ -551,18 +626,29 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
   /** Mark this task as having been run */
   void DidRun(CacheTimer &cur_time) { start_ = cur_time.GetNsecFromStart(); }
 
+  /**====================================
+   * Yield and Wait Routines
+   * ===================================*/
+
   /** Yield (coroutine) */
-  void YieldCo() { rctx_.jmp_ = bctx::jump_fcontext(rctx_.jmp_.fctx, nullptr); }
+  HSHM_INLINE_CROSS_FUN
+  void YieldCo() {
+#ifdef HSHM_IS_HOST
+    rctx_.jmp_ = bctx::jump_fcontext(rctx_.jmp_.fctx, nullptr);
+#endif
+  }
 
   /** Yield (standard) */
-  static void YieldStd() { HERMES_THREAD_MODEL->Yield(); }
+  HSHM_INLINE_CROSS_FUN
+  static void YieldStd() { HSHM_THREAD_MODEL->Yield(); }
 
   /** Yield (argobots) */
+  HSHM_CROSS_FUN
   static void YieldArgo();
 
   /** Yield in general */
   template <int THREAD_MODEL = 0>
-  HSHM_INLINE static void StaticYieldFactory() {
+  HSHM_INLINE_CROSS_FUN static void StaticYieldFactory() {
     if constexpr (THREAD_MODEL == TASK_YIELD_STD) {
       YieldStd();
     } else if constexpr (THREAD_MODEL == TASK_YIELD_ABT) {
@@ -572,7 +658,7 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
 
   /** Yield the task */
   template <int THREAD_MODEL = 0>
-  HSHM_INLINE void YieldFactory() {
+  HSHM_INLINE_CROSS_FUN void YieldFactory() {
     if constexpr (THREAD_MODEL == TASK_YIELD_CO) {
       YieldCo();
     } else {
@@ -582,7 +668,7 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
     // actually yield anything. Would longjmp be worthwhile here?
   }
 
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   void Yield() {
 #ifdef CHIMAERA_RUNTIME
     YieldFactory<TASK_YIELD_CO>();
@@ -591,10 +677,9 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
 #endif
   }
 
-  /** Yield a task to a different task */
-  HSHM_INLINE
+  /** Yield a task to a different task (runtime-only) */
   void YieldInit(Task *parent_task) {
-#ifdef CHIMAERA_RUNTIME
+#if defined(CHIMAERA_RUNTIME) and defined(HSHM_IS_HOST)
     if (parent_task && !IsFireAndForget() && !IsLongRunning()) {
       rctx_.pending_to_ = parent_task;
       SetSignalUnblock();
@@ -603,24 +688,31 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
   }
 
   /** Wait for task to complete */
+  HSHM_CROSS_FUN
   void Wait(u32 flags = TASK_COMPLETE);
 
   /** Spin wait */
+  HSHM_INLINE_CROSS_FUN
   void SpinWait(u32 flags = TASK_COMPLETE) {
     for (;;) {
+#ifdef HSHM_IS_HOST
       std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);
-      if (task_flags_.All(flags)) {
-        // std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);
+#endif
+      bitfield32_t task_flags = task_flags_;
+      if (task_flags.All(flags)) {
         return;
       }
     }
   }
 
   /** Spin wait */
+  HSHM_INLINE_CROSS_FUN
   void SpinWaitCo(u32 flags = TASK_COMPLETE) {
     for (;;) {
       if (task_flags_.All(flags)) {
-        // std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);
+#ifdef HSHM_IS_HOST
+        std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);
+#endif
         return;
       }
       Yield();
@@ -629,18 +721,21 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
 
   /** This task waits for subtask to complete */
   template <typename TaskT = Task>
-  void Wait(FullPtr<TaskT> &subtask, u32 flags = TASK_COMPLETE) {
+  HSHM_INLINE_CROSS_FUN void Wait(FullPtr<TaskT> &subtask,
+                                  u32 flags = TASK_COMPLETE) {
     Wait(subtask.ptr_, flags);
   }
 
   /** This task waits for subtask to complete */
+  HSHM_INLINE_CROSS_FUN
   void Wait(Task *subtask, u32 flags = TASK_COMPLETE) {
     Wait(&subtask, 1, flags);
   }
 
   /** This task waits for a set of tasks to complete */
   template <typename TaskT>
-  void Wait(std::vector<FullPtr<TaskT>> &subtasks, u32 flags = TASK_COMPLETE) {
+  HSHM_INLINE void Wait(std::vector<FullPtr<TaskT>> &subtasks,
+                        u32 flags = TASK_COMPLETE) {
 #ifdef CHIMAERA_RUNTIME
     if (!subtasks.empty()) {
       SetBlocked(subtasks.size());
@@ -656,6 +751,7 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
   }
 
   /** This task waits for subtask to complete */
+  HSHM_INLINE_CROSS_FUN
   void Wait(Task **subtasks, size_t count, u32 flags = TASK_COMPLETE) {
 #ifdef CHIMAERA_RUNTIME
     if (count) {
@@ -676,18 +772,22 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
    * ===================================*/
 
   /** Default constructor */
+  HSHM_INLINE_CROSS_FUN
   explicit Task(int) {}
 
   /** Default SHM constructor */
+  HSHM_INLINE_CROSS_FUN
   explicit Task(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) {}
 
   /** SHM constructor */
+  HSHM_INLINE_CROSS_FUN
   explicit Task(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
                 const TaskNode &task_node) {
     task_node_ = task_node;
   }
 
   /** Emplace constructor */
+  HSHM_INLINE_CROSS_FUN
   explicit Task(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
                 const TaskNode &task_node, const DomainQuery &dom_query,
                 const PoolId &task_state, u32 lane_hash, u32 method,
@@ -698,7 +798,6 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
     method_ = method;
     dom_query_ = dom_query;
     task_flags_ = task_flags;
-    // atask_flags_ = task_flags.bits_;
   }
 
   /**====================================
@@ -706,10 +805,12 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
    * ===================================*/
 
   /** SHM copy constructor */
+  HSHM_INLINE_CROSS_FUN
   explicit Task(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
                 const Task &other) {}
 
   /** SHM copy assignment operator */
+  HSHM_INLINE_CROSS_FUN
   Task &operator=(const Task &other) { return *this; }
 
   /**====================================
@@ -717,9 +818,11 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
    * ===================================*/
 
   /** SHM move constructor. */
+  HSHM_INLINE_CROSS_FUN
   Task(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, Task &&other) noexcept {}
 
   /** SHM move assignment operator. */
+  HSHM_INLINE_CROSS_FUN
   Task &operator=(Task &&other) noexcept { return *this; }
 
   /**====================================
@@ -727,26 +830,28 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
    * ===================================*/
 
   /** SHM destructor.  */
+  HSHM_INLINE_CROSS_FUN
   void shm_destroy_main() {}
 
   /** Check if the Task is empty */
+  HSHM_INLINE_CROSS_FUN
   bool IsNull() const { return false; }
 
   /** Sets this Task as empty */
+  HSHM_INLINE_CROSS_FUN
   void SetNull() {}
 
   /**====================================
    * Serialization
    * ===================================*/
   template <typename Ar>
-  void task_serialize(Ar &ar) {
+  HSHM_INLINE_CROSS_FUN void task_serialize(Ar &ar) {
     // NOTE(llogan): don't serialize start_ because of clock drift
-    ar(pool_, task_node_, dom_query_, prio_, method_, task_flags_,
-       period_ns_);  // , atask_flags_);
+    ar(pool_, task_node_, dom_query_, prio_, method_, task_flags_, period_ns_);
   }
 
   template <typename TaskT>
-  void task_dup(TaskT &other) {
+  HSHM_INLINE_CROSS_FUN void task_dup(TaskT &other) {
     pool_ = other.pool_;
     task_node_ = other.task_node_;
     dom_query_ = other.dom_query_;

@@ -24,13 +24,12 @@ class Client : public ModuleClient {
   ~Client() = default;
 
   /** Async create a pool */
-  void Create(const hipc::MemContext &mctx,
-              const DomainQuery &dom_query,
-              const DomainQuery &affinity,
-              const std::string &pool_name,
+  HSHM_INLINE_CROSS_FUN
+  void Create(const hipc::MemContext &mctx, const DomainQuery &dom_query,
+              const DomainQuery &affinity, const chi::string &pool_name,
               const CreateContext &ctx = CreateContext()) {
-    FullPtr<CreateTask> task = AsyncCreate(
-        mctx, dom_query, affinity, pool_name, ctx);
+    FullPtr<CreateTask> task =
+        AsyncCreate(mctx, dom_query, affinity, pool_name, ctx);
     task->SpinWait();
     Init(task->ctx_.id_);
     CHI_CLIENT->DelTask(mctx, task);
@@ -38,9 +37,8 @@ class Client : public ModuleClient {
   CHI_TASK_METHODS(Create);
 
   /** Destroy pool + queue */
-  HSHM_INLINE
-  void Destroy(const hipc::MemContext &mctx,
-               const DomainQuery &dom_query) {
+  HSHM_INLINE_CROSS_FUN
+  void Destroy(const hipc::MemContext &mctx, const DomainQuery &dom_query) {
     CHI_ADMIN->DestroyContainer(mctx, dom_query, id_);
   }
 
@@ -54,6 +52,6 @@ class Client : public ModuleClient {
   CHI_TASK_METHODS(ServerComplete)
 };
 
-}  // namespace chi
+}  // namespace chi::remote_queue
 
 #endif  // CHI_REMOTE_QUEUE_H_

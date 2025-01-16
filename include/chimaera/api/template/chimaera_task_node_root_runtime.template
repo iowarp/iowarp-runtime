@@ -1,24 +1,16 @@
 template<typename ...Args>
-void Async##CUSTOM##Construct(const hipc::MemContext &mctx,
-                              CUSTOM##Task *task,
-                              const TaskNode &task_node,
-                              const DomainQuery &dom_query,
-                              Args&& ...args) {
-  CHI_CLIENT->ConstructTask<CUSTOM##Task>(
-      mctx, task, task_node, id_, dom_query, std::forward<Args>(args)...);
-}
-
-template<typename ...Args>
+HSHM_CROSS_FUN
 hipc::FullPtr<CUSTOM##Task> Async##CUSTOM##Alloc(const hipc::MemContext &mctx,
-                                                  const TaskNode &task_node,
-                                                  Args&& ...args) {
+                                                 const TaskNode &task_node,
+                                                 const DomainQuery &dom_query,
+                                                 Args&& ...args) {
   hipc::FullPtr<CUSTOM##Task> task =
-    CHI_CLIENT->AllocateTask<CUSTOM##Task>(mctx);
-  Async##CUSTOM##Construct(mctx, task.ptr_, task_node, std::forward<Args>(args)...);
+  CHI_CLIENT->NewTask<CUSTOM##Task>(mctx, task_node, id_, dom_query, std::forward<Args>(args)...);
   return task;
 }
 
 template<typename ...Args>
+HSHM_CROSS_FUN
 hipc::FullPtr<CUSTOM##Task> Async##CUSTOM(const hipc::MemContext &mctx,
                                            Args&& ...args) {
   chi::Task *parent_task = CHI_CUR_TASK;

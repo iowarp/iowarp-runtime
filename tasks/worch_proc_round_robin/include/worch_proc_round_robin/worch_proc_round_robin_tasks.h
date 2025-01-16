@@ -21,12 +21,14 @@ typedef SchedulerMethod Method;
 struct CreateTaskParams {
   CLS_CONST char *lib_name_ = "worch_proc_round_robin";
 
+  HSHM_INLINE_CROSS_FUN
   CreateTaskParams() = default;
 
+  HSHM_INLINE_CROSS_FUN
   CreateTaskParams(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) {}
 
   template <typename Ar>
-  void serialize(Ar &ar) {}
+  HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {}
 };
 typedef chi::Admin::CreateContainerBaseTask<CreateTaskParams> CreateTask;
 

@@ -56,6 +56,12 @@ struct QueueManagerInfo {
   size_t data_shm_size_;
   /** Runtime data shared memory region size */
   size_t rdata_shm_size_;
+
+  HSHM_HOST_FUN
+  QueueManagerInfo() = default;
+
+  HSHM_HOST_FUN
+  ~QueueManagerInfo() = default;
 };
 
 /**

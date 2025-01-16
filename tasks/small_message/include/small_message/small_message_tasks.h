@@ -18,12 +18,14 @@ CHI_NAMESPACE_INIT
 struct CreateTaskParams {
   CLS_CONST char *lib_name_ = "small_message";
 
+  HSHM_INLINE_CROSS_FUN
   CreateTaskParams() = default;
 
+  HSHM_INLINE_CROSS_FUN
   CreateTaskParams(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) {}
 
   template <typename Ar>
-  void serialize(Ar &ar) {}
+  HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {}
 };
 typedef chi::Admin::CreateContainerBaseTask<CreateTaskParams> CreateTask;
 
@@ -43,14 +45,14 @@ struct MdTask : public Task, TaskFlags<TF_SRL_SYM> {
   OUT int ret_;
 
   /** SHM default constructor */
-  HSHM_INLINE explicit MdTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
-      : Task(alloc) {}
+  HSHM_INLINE_CROSS_FUN
+  explicit MdTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) : Task(alloc) {}
 
   /** Emplace constructor */
-  HSHM_INLINE explicit MdTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
-                              const TaskNode &task_node, const PoolId &pool_id,
-                              const DomainQuery &dom_query, u32 depth,
-                              u32 flags)
+  HSHM_INLINE_CROSS_FUN
+  explicit MdTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
+                  const TaskNode &task_node, const PoolId &pool_id,
+                  const DomainQuery &dom_query, u32 depth, u32 flags)
       : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
@@ -66,17 +68,18 @@ struct MdTask : public Task, TaskFlags<TF_SRL_SYM> {
   }
 
   /** Duplicate message */
+  HSHM_INLINE_CROSS_FUN
   void CopyStart(const MdTask &other, bool deep) { depth_ = other.depth_; }
 
   /** (De)serialize message call */
   template <typename Ar>
-  void SerializeStart(Ar &ar) {
+  HSHM_INLINE_CROSS_FUN void SerializeStart(Ar &ar) {
     ar(depth_);
   }
 
   /** (De)serialize message return */
   template <typename Ar>
-  void SerializeEnd(Ar &ar) {
+  HSHM_INLINE_CROSS_FUN void SerializeEnd(Ar &ar) {
     ar(ret_);
   }
 };
@@ -93,14 +96,14 @@ struct IoTask : public Task, TaskFlags<TF_SRL_SYM> {
   OUT size_t ret_;
 
   /** SHM default constructor */
-  HSHM_INLINE explicit IoTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
-      : Task(alloc) {}
+  HSHM_INLINE_CROSS_FUN
+  explicit IoTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) : Task(alloc) {}
 
   /** Emplace constructor */
-  HSHM_INLINE explicit IoTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
-                              const TaskNode &task_node, const PoolId &pool_id,
-                              const DomainQuery &dom_query, size_t io_size,
-                              u32 io_flags)
+  HSHM_INLINE_CROSS_FUN
+  explicit IoTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
+                  const TaskNode &task_node, const PoolId &pool_id,
+                  const DomainQuery &dom_query, size_t io_size, u32 io_flags)
       : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
@@ -121,6 +124,7 @@ struct IoTask : public Task, TaskFlags<TF_SRL_SYM> {
   }
 
   /** Destructor */
+  HSHM_INLINE_CROSS_FUN
   ~IoTask() {
     if (IsDataOwner()) {
       CHI_CLIENT->FreeBuffer(data_);
@@ -128,6 +132,7 @@ struct IoTask : public Task, TaskFlags<TF_SRL_SYM> {
   }
 
   /** Duplicate message */
+  HSHM_INLINE_CROSS_FUN
   void CopyStart(const IoTask &other, bool deep) {
     data_ = other.data_;
     size_ = other.size_;
@@ -136,7 +141,7 @@ struct IoTask : public Task, TaskFlags<TF_SRL_SYM> {
 
   /** (De)serialize message call */
   template <typename Ar>
-  void SerializeStart(Ar &ar) {
+  HSHM_INLINE_CROSS_FUN void SerializeStart(Ar &ar) {
     ar(io_flags_);
     if (io_flags_.Any(MD_IO_WRITE)) {
       ar.bulk(DT_WRITE, data_, size_);
@@ -147,7 +152,7 @@ struct IoTask : public Task, TaskFlags<TF_SRL_SYM> {
 
   /** (De)serialize message return */
   template <typename Ar>
-  void SerializeEnd(Ar &ar) {
+  HSHM_INLINE_CROSS_FUN void SerializeEnd(Ar &ar) {
     ar(io_flags_, ret_);
     if (io_flags_.Any(MD_IO_READ)) {
       ar.bulk(DT_WRITE, data_, size_);

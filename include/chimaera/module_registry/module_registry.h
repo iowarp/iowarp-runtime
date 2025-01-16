@@ -31,9 +31,8 @@ namespace chi {
 /** Forward declaration of CreateContainerTask */
 namespace Admin {
 class CreateTaskParams;
-template <typename TaskParamsT>
-class CreateContainerBaseTask;
-}  // namespace Admin
+template <typename TaskParamsT> class CreateContainerBaseTask;
+} // namespace Admin
 
 /** All information needed to create a trait */
 struct ModuleInfo {
@@ -115,7 +114,7 @@ struct PoolInfo {
  * Stores the registered set of Modules and Containers
  * */
 class ModuleRegistry {
- public:
+public:
   /** The node the registry is on */
   NodeId node_id_;
   /** The dirs to search for modules */
@@ -127,17 +126,17 @@ class ModuleRegistry {
   /** Map of a semantic exec id to state */
   std::unordered_map<PoolId, PoolInfo> pools_;
   /** A unique identifier counter */
-  std::atomic<u64> *unique_;
+  hipc::atomic<hshm::min_u64> *unique_;
   Mutex lock_;
   CoRwLock upgrade_lock_;
 
- public:
+public:
   /** Default constructor */
   ModuleRegistry() { lock_.Init(); }
 
   /** Initialize the Task Registry */
   void ServerInit(ServerConfig *config, NodeId node_id,
-                  std::atomic<u64> &unique) {
+                  hipc::atomic<hshm::min_u64> &unique) {
     node_id_ = node_id;
     unique_ = &unique;
 
@@ -171,61 +170,97 @@ class ModuleRegistry {
     }
   }
 
-  /** Load a module */
-  bool LoadModule(const std::string &lib_name, ModuleInfo &info) {
-    std::string lib_dir;
+  /** Check if any path matches */
+  std::string FindExistingPath(const std::vector<std::string> lib_paths) {
+    for (const std::string &lib_path : lib_paths) {
+      if (stdfs::exists(lib_path)) {
+        return lib_path;
+      }
+    }
+    return "";
+  }
+
+  /**
+    Check if any path matches. It checks for GPU variants first, since the
+    runtime supports GPU if enabled. */
+  std::vector<std::string> FindMatchingPathInDirs(const std::string &lib_name) {
+    std::vector<std::string> variants = {"_gpu", "_host", ""};
+    std::vector<std::string> prefixes = {"", "lib"};
+    std::vector<std::string> extensions = {".so", ".dll"};
+    std::vector<std::string> concrete_libs;
     for (const std::string &lib_dir : lib_dirs_) {
       // Determine if this directory contains the library
-      std::string lib_path1 =
-          hshm::Formatter::format("{}/{}.so", lib_dir, lib_name);
-      std::string lib_path2 =
-          hshm::Formatter::format("{}/lib{}.so", lib_dir, lib_name);
-      std::string lib_path;
-      if (stdfs::exists(lib_path1)) {
-        lib_path = std::move(lib_path1);
-      } else if (stdfs::exists(lib_path2)) {
-        lib_path = std::move(lib_path2);
-      } else {
+      std::vector<std::string> potential_paths;
+      for (const std::string &variant : variants) {
+        for (const std::string &prefix : prefixes) {
+          for (const std::string &extension : extensions) {
+            potential_paths.emplace_back(hshm::Formatter::format(
+                "{}/{}{}{}{}", lib_dir, prefix, lib_name, variant, extension));
+          }
+        }
+      }
+      std::string lib_path = FindExistingPath(potential_paths);
+      if (lib_path.empty()) {
         continue;
-      }
+      };
+      concrete_libs.emplace_back(lib_path);
+    }
+    return concrete_libs;
+  }
 
-      // Load the library
-      info.lib_ = dlopen(lib_path.c_str(), RTLD_GLOBAL | RTLD_NOW);
-      if (!info.lib_) {
-        HELOG(kError, "Could not open the lib library: {}. Reason: {}",
-              lib_path, dlerror());
-        return false;
-      }
+  /** Load a module at path */
+  bool LoadModuleAtPath(const std::string &lib_name,
+                        const std::string &lib_path, ModuleInfo &info) {
+    // Load the library
+    info.lib_ = dlopen(lib_path.c_str(), RTLD_GLOBAL | RTLD_NOW);
+    if (!info.lib_) {
+      HELOG(kError, "Could not open the lib library: {}. Reason: {}", lib_path,
+            dlerror());
+      return false;
+    }
 
-      // Get the allocate state function
-      info.alloc_state_ = (alloc_state_t)dlsym(info.lib_, "alloc_state");
-      if (!info.alloc_state_) {
-        HELOG(kError, "The lib {} does not have alloc_state symbol", lib_path);
-        return false;
-      }
+    // Get the allocate state function
+    info.alloc_state_ = (alloc_state_t)dlsym(info.lib_, "alloc_state");
+    if (!info.alloc_state_) {
+      HELOG(kError, "The lib {} does not have alloc_state symbol", lib_path);
+      return false;
+    }
 
-      // Get the new state function
-      info.new_state_ = (new_state_t)dlsym(info.lib_, "new_state");
-      if (!info.new_state_) {
-        HELOG(kError, "The lib {} does not have new_state symbol", lib_path);
-        return false;
-      }
+    // Get the new state function
+    info.new_state_ = (new_state_t)dlsym(info.lib_, "new_state");
+    if (!info.new_state_) {
+      HELOG(kError, "The lib {} does not have new_state symbol", lib_path);
+      return false;
+    }
 
-      // Get the module name function
-      info.get_module_name =
-          (get_module_name_t)dlsym(info.lib_, "get_module_name");
-      if (!info.get_module_name) {
-        HELOG(kError, "The lib {} does not have get_module_name symbol",
-              lib_path);
-        return false;
-      }
+    // Get the module name function
+    info.get_module_name =
+        (get_module_name_t)dlsym(info.lib_, "get_module_name");
+    if (!info.get_module_name) {
+      HELOG(kError, "The lib {} does not have get_module_name symbol",
+            lib_path);
+      return false;
+    }
 
-      // Check if the lib is already loaded
-      std::string module_name = info.get_module_name();
-      HILOG(kInfo, "(node {}) Finished loading the lib: {}", CHI_RPC->node_id_,
-            module_name);
-      info.static_state_ = info.alloc_state_();
-      return true;
+    // Check if the lib is already loaded
+    std::string module_name = info.get_module_name();
+    HILOG(kInfo, "(node {}) Finished loading the lib: {}", CHI_RPC->node_id_,
+          module_name);
+    info.static_state_ = info.alloc_state_();
+    return true;
+  }
+
+  /** Load a module */
+  bool LoadModule(const std::string &lib_name, ModuleInfo &info) {
+    std::vector<std::string> lib_path = FindMatchingPathInDirs(lib_name);
+    if (lib_path.empty()) {
+      HELOG(kError, "Could not find the lib: {}", lib_name);
+      return false;
+    }
+    for (const std::string &path : lib_path) {
+      if (LoadModuleAtPath(lib_name, path, info)) {
+        return true;
+      }
     }
     return false;
   }
@@ -275,10 +310,11 @@ class ModuleRegistry {
    * Create a pool
    * pool_id must not be NULL.
    * */
-  bool CreateContainer(
-      const char *lib_name, const char *pool_name, const PoolId &pool_id,
-      Admin::CreateContainerBaseTask<Admin::CreateTaskParams> *task,
-      const std::vector<SubDomainId> &containers);
+  bool
+  CreateContainer(const char *lib_name, const char *pool_name,
+                  const PoolId &pool_id,
+                  Admin::CreateContainerBaseTask<Admin::CreateTaskParams> *task,
+                  const std::vector<SubDomainId> &containers);
 
   /** Replace a container */
   void ReplaceContainer(Container *new_container) {
@@ -447,6 +483,6 @@ class ModuleRegistry {
 
 /** Singleton macro for task registry */
 #define CHI_MOD_REGISTRY hshm::Singleton<chi::ModuleRegistry>::GetInstance()
-}  // namespace chi
+} // namespace chi
 
-#endif  // CHI_INCLUDE_CHI_TASK_TASK_REGISTRY_H_
+#endif // CHI_INCLUDE_CHI_TASK_TASK_REGISTRY_H_

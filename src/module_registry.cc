@@ -1,8 +1,9 @@
 //
 // Created by llogan on 7/22/24.
 //
-#include "chimaera/api/chimaera_runtime.h"
+#include "chimaera/module_registry/module_registry.h"
 
+#include "chimaera/api/chimaera_runtime.h"
 namespace chi {
 
 /** Create a container */

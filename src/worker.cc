@@ -10,6 +10,9 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
+#include <hermes_shm/util/affinity.h>
+#include <hermes_shm/util/timer.h>
+
 #include <queue>
 #include <thread>
 
@@ -17,10 +20,8 @@
 #include "chimaera/chimaera_types.h"
 #include "chimaera/module_registry/module_registry.h"
 #include "chimaera/network/rpc_thallium.h"
-#include "chimaera/queue_manager/queue_manager_runtime.h"
-#include "chimaera/work_orchestrator/affinity.h"
+#include "chimaera/queue_manager/queue_manager.h"
 #include "chimaera/work_orchestrator/work_orchestrator.h"
-#include "hermes_shm/util/timer.h"
 
 namespace chi {
 
@@ -29,7 +30,7 @@ namespace chi {
  * =============================================================== */
 bool PrivateTaskMultiQueue::push(const FullPtr<Task> &task) {
 #ifdef CHIMAERA_REMOTE_DEBUG
-  if (task->pool_ != CHI_QM_CLIENT->admin_pool_id_ &&
+  if (task->pool_ != CHI_QM->admin_pool_id_ &&
       !task->task_flags_.Any(TASK_REMOTE_DEBUG_MARK) &&
       !task->IsLongRunning() && task->method_ != TaskMethod::kCreate &&
       CHI_RUNTIME->remote_created_) {
@@ -153,7 +154,7 @@ Worker::Worker(WorkerId id, int cpu_id, ABT_xstream xstream) {
   }
 
   // MAX_DEPTH * [LOW_LAT, LONG_LAT]
-  config::QueueManagerInfo &qm = CHI_QM_RUNTIME->config_->queue_manager_;
+  config::QueueManagerInfo &qm = CHI_QM->config_->queue_manager_;
   active_.Init(id_, qm.proc_queue_depth_, qm.queue_depth_,
                qm.max_containers_pn_);
 
@@ -200,7 +201,7 @@ void Worker::EndFlush(WorkOrchestrator *orch) {
   // Barrier for all workers to complete
   flush_.flushing_ = false;
   while (AnyFlushing(orch)) {
-    HERMES_THREAD_MODEL->Yield();
+    HSHM_THREAD_MODEL->Yield();
   }
   // On the root worker, detect if any work was done
   if (active_.GetFlush().size()) {
@@ -239,7 +240,7 @@ bool Worker::AnyFlushWorkDone(WorkOrchestrator *orch) {
 /** Worker loop iteration */
 void Worker::Loop() {
   CHI_WORK_ORCHESTRATOR->SetCurrentWorker(this);
-  pid_ = GetLinuxTid();
+  pid_ = HSHM_SYSTEM_INFO->pid_;
   SetCpuAffinity(affinity_);
   if (IsContinuousPolling()) {
     MakeDedicated();
@@ -261,7 +262,7 @@ void Worker::Loop() {
       cur_time_.Refresh();
       iter_count_ += 1;
       if (load_nsec_ == 0) {
-        // HERMES_THREAD_MODEL->SleepForUs(200);
+        // HSHM_THREAD_MODEL->SleepForUs(200);
       }
     } catch (hshm::Error &e) {
       HELOG(kError, "(node {}) Worker {} caught an error: {}",

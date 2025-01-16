@@ -13,6 +13,8 @@
 #ifndef CHI_INCLUDE_CHI_CHI_TYPES_H_
 #define CHI_INCLUDE_CHI_CHI_TYPES_H_
 
+#include <hermes_shm/constants/macros.h>
+
 #include <cereal/archives/binary.hpp>
 #include <cereal/types/atomic.hpp>
 #include <cereal/types/list.hpp>
@@ -21,46 +23,25 @@
 #include <cereal/types/unordered_set.hpp>
 #include <cereal/types/vector.hpp>
 
-#include "hermes_shm/memory/allocator/allocator_factory_.h"
-
-#define HSHM_CUSTOM_SETTINGS
-#include <hermes_shm/constants/macros.h>
-
 // Undefine default allocator
 #ifdef HSHM_DEFAULT_ALLOC_T
 #undef HSHM_DEFAULT_ALLOC_T
-#endif
-
-// Undefine default thread model
-#ifdef HSHM_DEFAULT_THREAD_MODEL
-#undef HSHM_DEFAULT_THREAD_MODEL
 #endif
 
 // #define HSHM_DEFAULT_ALLOC_T hipc::ScalablePageAllocator
 #define HSHM_DEFAULT_ALLOC_T hipc::ThreadLocalAllocator
 #define CHI_ALLOC_T HSHM_DEFAULT_ALLOC_T
 
-#ifdef HSHM_IS_HOST
-#ifdef CHIMAERA_RUNTIME
-#define HSHM_DEFAULT_THREAD_MODEL hshm::thread::Argobots
-#else
-#define HSHM_DEFAULT_THREAD_MODEL hshm::thread::Pthread
-#endif
-#else
-#define HSHM_DEFAULT_THREAD_MODEL hshm::thread::Cuda
-#endif
-
 #include <hermes_shm/data_structures/all.h>
+#include <hermes_shm/memory/allocator/allocator_factory_.h>
 #include <hermes_shm/thread/lock.h>
 #include <hermes_shm/thread/thread_model_manager.h>
 #include <hermes_shm/types/atomic.h>
 #include <hermes_shm/util/auto_trace.h>
 #include <hermes_shm/util/config_parse.h>
+#include <hermes_shm/util/singleton.h>
 
 #include <boost/context/fiber_fcontext.hpp>
-
-#include "hermes_shm/constants/macros.h"
-#include "hermes_shm/util/singleton.h"
 
 namespace bctx = boost::context::detail;
 
@@ -113,26 +94,30 @@ struct UniqueId {
 
   /** Serialization */
   template <typename Ar>
-  void serialize(Ar &ar) {
+  HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
     ar & node_id_;
     ar & hash_;
     ar & unique_;
   }
 
   /** Default constructor */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   UniqueId() = default;
 
+  /** Destructor */
+  HSHM_INLINE_CROSS_FUN
+  ~UniqueId() = default;
+
   /** Emplace constructor */
-  HSHM_INLINE explicit UniqueId(NodeId node_id, u64 unique)
+  HSHM_INLINE_CROSS_FUN explicit UniqueId(NodeId node_id, u64 unique)
       : node_id_(node_id), hash_(0), unique_(unique) {}
 
   /** Emplace constructor (+hash) */
-  HSHM_INLINE explicit UniqueId(NodeId node_id, u32 hash, u64 unique)
+  HSHM_INLINE_CROSS_FUN explicit UniqueId(NodeId node_id, u32 hash, u64 unique)
       : node_id_(node_id), hash_(hash), unique_(unique) {}
 
   /** Copy constructor */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   UniqueId(const UniqueId &other) {
     node_id_ = other.node_id_;
     hash_ = other.hash_;
@@ -141,14 +126,14 @@ struct UniqueId {
 
   /** Copy constructor */
   template <int OTHER_TYPE = TYPE>
-  HSHM_INLINE UniqueId(const UniqueId<OTHER_TYPE> &other) {
+  HSHM_INLINE_CROSS_FUN UniqueId(const UniqueId<OTHER_TYPE> &other) {
     node_id_ = other.node_id_;
     hash_ = other.hash_;
     unique_ = other.unique_;
   }
 
   /** Copy assignment */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   UniqueId &operator=(const UniqueId &other) {
     if (this != &other) {
       node_id_ = other.node_id_;
@@ -159,7 +144,7 @@ struct UniqueId {
   }
 
   /** Move constructor */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   UniqueId(UniqueId &&other) noexcept {
     node_id_ = other.node_id_;
     hash_ = other.hash_;
@@ -167,7 +152,7 @@ struct UniqueId {
   }
 
   /** Move assignment */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   UniqueId &operator=(UniqueId &&other) noexcept {
     if (this != &other) {
       node_id_ = other.node_id_;
@@ -179,19 +164,16 @@ struct UniqueId {
 
   /** Check if null */
   [[nodiscard]]
-  HSHM_INLINE bool IsNull() const {
+  HSHM_INLINE_CROSS_FUN bool IsNull() const {
     return node_id_ == 0;
   }
 
   /** Get null id */
-  HSHM_INLINE
-  static UniqueId GetNull() {
-    static const UniqueId id(0, 0);
-    return id;
-  }
+  HSHM_INLINE_CROSS_FUN
+  static UniqueId GetNull() { return UniqueId(0, 0); }
 
   /** Set to null id */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   void SetNull() {
     node_id_ = 0;
     hash_ = 0;
@@ -200,18 +182,18 @@ struct UniqueId {
 
   /** Get id of node from this id */
   [[nodiscard]]
-  HSHM_INLINE u32 GetNodeId() const {
+  HSHM_INLINE_CROSS_FUN u32 GetNodeId() const {
     return node_id_;
   }
 
   /** Compare two ids for equality */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   bool operator==(const UniqueId &other) const {
     return unique_ == other.unique_ && node_id_ == other.node_id_;
   }
 
   /** Compare two ids for inequality */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   bool operator!=(const UniqueId &other) const {
     return unique_ != other.unique_ || node_id_ != other.node_id_;
   }
@@ -223,8 +205,9 @@ struct UniqueId {
   }
 
   /** Hash function */
+  HSHM_INLINE_CROSS_FUN
   size_t Hash() const {
-    return std::hash<u64>{}(unique_) + std::hash<u32>{}(node_id_);
+    return hshm::hash<u64>{}(unique_) + hshm::hash<u32>{}(node_id_);
   }
 };
 
@@ -250,7 +233,7 @@ struct CreateContext {
 
   /** Serialization */
   template <typename Ar>
-  void serialize(Ar &ar) {
+  HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
     ar(id_, global_containers_, local_containers_pn_, lanes_per_container_);
   }
 };
@@ -275,27 +258,36 @@ struct SubDomainId {
   CLS_CONST SubDomainGroup kLast = 5;
 
   /** Default constructor */
+  HSHM_INLINE_CROSS_FUN
   SubDomainId() = default;
 
+  /** Destructor */
+  HSHM_INLINE_CROSS_FUN
+  ~SubDomainId() = default;
+
   /** Emplace constructor */
+  HSHM_INLINE_CROSS_FUN
   SubDomainId(SubDomainGroup major, SubDomainMinor minor) {
     major_ = major;
     minor_ = minor;
   }
 
   /** Emplace constructor (2) */
+  HSHM_INLINE_CROSS_FUN
   SubDomainId(SubDomainGroup major) {
     major_ = major;
     minor_ = 0;
   }
 
   /** Copy constructor */
+  HSHM_INLINE_CROSS_FUN
   SubDomainId(const SubDomainId &other) {
     major_ = other.major_;
     minor_ = other.minor_;
   }
 
   /** Copy assignment */
+  HSHM_INLINE_CROSS_FUN
   SubDomainId &operator=(const SubDomainId &other) {
     if (this != &other) {
       major_ = other.major_;
@@ -305,12 +297,14 @@ struct SubDomainId {
   }
 
   /** Move constructor */
+  HSHM_INLINE_CROSS_FUN
   SubDomainId(SubDomainId &&other) noexcept {
     major_ = other.major_;
     minor_ = other.minor_;
   }
 
   /** Move assignment */
+  HSHM_INLINE_CROSS_FUN
   SubDomainId &operator=(SubDomainId &&other) noexcept {
     if (this != &other) {
       major_ = other.major_;
@@ -320,33 +314,39 @@ struct SubDomainId {
   }
 
   /** ID represents a physical node ID */
+  HSHM_INLINE_CROSS_FUN
   bool IsPhysical() const { return major_ == kPhysicalNode; }
 
   /** ID represents a major+minor ID */
+  HSHM_INLINE_CROSS_FUN
   bool IsMajor() const { return minor_ == 0; }
 
   /** ID represents a major ID */
+  HSHM_INLINE_CROSS_FUN
   bool IsMinor() const { return minor_ > 0; }
 
   /** Create a physical ID subdomain */
+  HSHM_INLINE_CROSS_FUN
   static SubDomainId CreatePhysical(SubDomainMinor minor) {
     return {kPhysicalNode, minor};
   }
 
   /** Serialization */
   template <typename Ar>
-  void serialize(Ar &ar) {
+  HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
     ar(major_, minor_);
   }
 
   /** Equality operator */
+  HSHM_INLINE_CROSS_FUN
   bool operator==(const SubDomainId &other) const {
     return major_ == other.major_ && minor_ == other.minor_;
   }
 
   /** Hash function */
+  HSHM_INLINE_CROSS_FUN
   size_t Hash() const {
-    return std::hash<u32>{}(major_) + std::hash<u32>{}(minor_);
+    return hshm::hash<u32>{}(major_) + hshm::hash<u32>{}(minor_);
   }
 
   /** Print operator */
@@ -362,21 +362,25 @@ struct DomainId {
   SubDomainId sub_id_;
 
   /** Default constructor */
+  HSHM_INLINE_CROSS_FUN
   DomainId() = default;
 
   /** Emplace constructor */
+  HSHM_INLINE_CROSS_FUN
   DomainId(const PoolId &scope, const SubDomainId &sub_id) {
     scope_ = scope;
     sub_id_ = sub_id;
   }
 
   /** Emplace constructor (2) */
+  HSHM_INLINE_CROSS_FUN
   DomainId(const PoolId &scope, const SubDomainGroup &group) {
     scope_ = scope;
     sub_id_ = {group};
   }
 
   /** Emplace constructor (3) */
+  HSHM_INLINE_CROSS_FUN
   DomainId(const PoolId &scope, const SubDomainGroup &group,
            const SubDomainMinor &minor) {
     scope_ = scope;
@@ -384,12 +388,14 @@ struct DomainId {
   }
 
   /** Copy constructor */
+  HSHM_INLINE_CROSS_FUN
   DomainId(const DomainId &other) {
     scope_ = other.scope_;
     sub_id_ = other.sub_id_;
   }
 
   /** Copy assignment */
+  HSHM_INLINE_CROSS_FUN
   DomainId &operator=(const DomainId &other) {
     scope_ = other.scope_;
     sub_id_ = other.sub_id_;
@@ -397,12 +403,14 @@ struct DomainId {
   }
 
   /** Move constructor */
+  HSHM_INLINE_CROSS_FUN
   DomainId(DomainId &&other) noexcept {
     scope_ = other.scope_;
     sub_id_ = other.sub_id_;
   }
 
   /** Move assignment */
+  HSHM_INLINE_CROSS_FUN
   DomainId &operator=(DomainId &&other) noexcept {
     scope_ = other.scope_;
     sub_id_ = other.sub_id_;
@@ -411,16 +419,18 @@ struct DomainId {
 
   /** Serialization */
   template <typename Ar>
-  void serialize(Ar &ar) {
+  HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
     ar(scope_, sub_id_);
   }
 
   /** Equality operator */
+  HSHM_INLINE_CROSS_FUN
   bool operator==(const DomainId &other) const {
     return scope_ == other.scope_ && sub_id_ == other.sub_id_;
   }
 
   /** Hash function */
+  HSHM_INLINE_CROSS_FUN
   size_t Hash() const { return scope_.Hash() + sub_id_.Hash(); }
 
   /** Print operator */
@@ -439,13 +449,22 @@ union DomainSelection {
   } range_;
   u64 int_;
 
+  /** Default constructor */
+  HSHM_INLINE_CROSS_FUN
+  DomainSelection() = default;
+
+  /** Destructor */
+  HSHM_INLINE_CROSS_FUN
+  ~DomainSelection() = default;
+
   /** Serialization */
   template <typename Ar>
-  void serialize(Ar &ar) {
+  HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
     ar(int_);
   }
 
   /** Equality operator */
+  HSHM_INLINE_CROSS_FUN
   bool operator==(const DomainSelection &other) const {
     return int_ == other.int_;
   }
@@ -460,9 +479,15 @@ struct SubDomainIdRange {
   u32 off_, count_;
 
   /** Default constructor */
+  HSHM_INLINE_CROSS_FUN
   SubDomainIdRange() = default;
 
+  /** Destructor */
+  HSHM_INLINE_CROSS_FUN
+  ~SubDomainIdRange() = default;
+
   /** Emplace constructor */
+  HSHM_INLINE_CROSS_FUN
   SubDomainIdRange(SubDomainGroup group, u32 off, u32 count) {
     group_ = group;
     off_ = off;
@@ -470,6 +495,7 @@ struct SubDomainIdRange {
   }
 
   /** Copy constructor */
+  HSHM_INLINE_CROSS_FUN
   SubDomainIdRange(const SubDomainIdRange &other) {
     group_ = other.group_;
     off_ = other.off_;
@@ -477,6 +503,7 @@ struct SubDomainIdRange {
   }
 
   /** Copy assignment */
+  HSHM_INLINE_CROSS_FUN
   SubDomainIdRange &operator=(const SubDomainIdRange &other) {
     if (this != &other) {
       group_ = other.group_;
@@ -487,6 +514,7 @@ struct SubDomainIdRange {
   }
 
   /** Move constructor */
+  HSHM_INLINE_CROSS_FUN
   SubDomainIdRange(SubDomainIdRange &&other) noexcept {
     group_ = other.group_;
     off_ = other.off_;
@@ -494,6 +522,7 @@ struct SubDomainIdRange {
   }
 
   /** Move assignment */
+  HSHM_INLINE_CROSS_FUN
   SubDomainIdRange &operator=(SubDomainIdRange &&other) noexcept {
     if (this != &other) {
       group_ = other.group_;
@@ -505,7 +534,7 @@ struct SubDomainIdRange {
 
   /** Serialization */
   template <typename Ar>
-  void serialize(Ar &ar) {
+  HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
     ar(group_, off_, count_);
   }
 };
@@ -516,8 +545,17 @@ struct UpdateDomainInfo {
   UpdateDomainOp op_;
   SubDomainIdRange range_;
 
+  /** Default constructor */
+  HSHM_INLINE_CROSS_FUN
+  UpdateDomainInfo() = default;
+
+  /** Destructor */
+  HSHM_INLINE_CROSS_FUN
+  ~UpdateDomainInfo() = default;
+
+  /** serialization */
   template <typename Ar>
-  void serialize(Ar &ar) {
+  HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
     ar(domain_id_, op_, range_);
   }
 };
@@ -551,22 +589,27 @@ struct DomainQuery {
 
   /** Serialize domain id */
   template <typename Ar>
-  void serialize(Ar &ar) {
+  HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
     ar(flags_, sub_id_, sel_);
   }
 
   /** Get iteration flags */
+  HSHM_INLINE_CROSS_FUN
   DomainFlag GetIterFlags() const {
     return flags_.bits_ &
            (kBroadcast | kRepUntilSuccess | kChooseOne | kForwardToLeader);
   }
 
   /** Default constructor. */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   DomainQuery() {}
 
+  /** Destruct */
+  HSHM_INLINE_CROSS_FUN
+  ~DomainQuery() {}
+
   /** Copy constructor */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   DomainQuery(const DomainQuery &other) {
     flags_ = other.flags_;
     sub_id_ = other.sub_id_;
@@ -574,7 +617,7 @@ struct DomainQuery {
   }
 
   /** Copy operator */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   DomainQuery &operator=(const DomainQuery &other) {
     if (this != &other) {
       flags_ = other.flags_;
@@ -585,7 +628,7 @@ struct DomainQuery {
   }
 
   /** Move constructor */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   DomainQuery(DomainQuery &&other) noexcept {
     flags_ = other.flags_;
     sub_id_ = other.sub_id_;
@@ -593,7 +636,7 @@ struct DomainQuery {
   }
 
   /** Move operator */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   DomainQuery &operator=(DomainQuery &&other) noexcept {
     if (this != &other) {
       flags_ = other.flags_;
@@ -604,13 +647,14 @@ struct DomainQuery {
   }
 
   /** Equality operator */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   bool operator==(const DomainQuery &other) const {
     return flags_.bits_ == other.flags_.bits_ && sub_id_ == other.sub_id_ &&
            sel_ == other.sel_;
   }
 
   /** Get the local node domain */
+  HSHM_INLINE_CROSS_FUN
   static DomainQuery GetLocalId(const SubDomainGroup &sub_id, u32 id) {
     DomainQuery query;
     query.flags_.SetBits(kLocal | kId);
@@ -624,6 +668,7 @@ struct DomainQuery {
    * @param sub_id The subdomain to query
    * @param iter_flags The iteration flags to set (e.g., kBroadcast)
    * */
+  HSHM_INLINE_CROSS_FUN
   static DomainQuery GetGlobal(const SubDomainGroup &sub_id, u32 iter_flags) {
     DomainQuery query;
     query.flags_.SetBits(kGlobal | iter_flags);
@@ -636,6 +681,7 @@ struct DomainQuery {
    * @param sub_id The subdomain to query
    * @param iter_flags The iteration flags to set (e.g., kBroadcast)
    * */
+  HSHM_INLINE_CROSS_FUN
   static DomainQuery GetRange(const SubDomainGroup &sub_id, u32 off, u32 count,
                               u32 iter_flags) {
     DomainQuery query;
@@ -651,6 +697,7 @@ struct DomainQuery {
    * @param sub_id The subdomain to query
    * @param iter_flags The iteration flags to set (e.g., kBroadcast)
    * */
+  HSHM_INLINE_CROSS_FUN
   static DomainQuery GetGlobalBcast() {
     DomainQuery query;
     query.flags_.SetBits(kGlobal | kBroadcast);
@@ -664,6 +711,7 @@ struct DomainQuery {
    * @param id The ID to resolve in the subdomain
    * @param flags The iteration flags to set (e.g., kBroadcast)
    * */
+  HSHM_INLINE_CROSS_FUN
   static DomainQuery GetDirectId(const SubDomainGroup &sub_id, u32 id,
                                  u32 iter_flags = kChooseOne) {
     DomainQuery query;
@@ -679,6 +727,7 @@ struct DomainQuery {
    * @param hash The offset hash to resolve in the subdomain
    * @param flags The iteration flags to set (e.g., kBroadcast)
    * */
+  HSHM_INLINE_CROSS_FUN
   static DomainQuery GetDirectHash(const SubDomainGroup &sub_id, u32 hash,
                                    u32 iter_flags = kBroadcast) {
     DomainQuery query;
@@ -689,9 +738,10 @@ struct DomainQuery {
   }
 
   /** Hash function */
+  HSHM_INLINE_CROSS_FUN
   size_t Hash() const {
-    return std::hash<DomainFlag>{}(flags_.bits_) +
-           std::hash<SubDomainGroup>{}(sub_id_) + std::hash<u64>{}(sel_.int_);
+    return hshm::hash<DomainFlag>{}(flags_.bits_) +
+           hshm::hash<SubDomainGroup>{}(sub_id_) + hshm::hash<u64>{}(sel_.int_);
   }
 
   /** Print operator */
@@ -755,27 +805,27 @@ struct ResolvedDomainQuery {
   DomainQuery dom_;
 
   /** Default constructor */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   ResolvedDomainQuery() {}
 
   /** Emplace constructor */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   ResolvedDomainQuery(NodeId node, const DomainQuery &dom)
       : node_(node), dom_(dom) {}
 
   /** Emplace constructor (2) */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   ResolvedDomainQuery(NodeId node) : node_(node) {}
 
   /** Copy constructor */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   ResolvedDomainQuery(const ResolvedDomainQuery &other) {
     node_ = other.node_;
     dom_ = other.dom_;
   }
 
   /** Copy assignment */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   ResolvedDomainQuery &operator=(const ResolvedDomainQuery &other) {
     if (this != &other) {
       node_ = other.node_;
@@ -785,14 +835,14 @@ struct ResolvedDomainQuery {
   }
 
   /** Move constructor */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   ResolvedDomainQuery(ResolvedDomainQuery &&other) noexcept {
     node_ = other.node_;
     dom_ = other.dom_;
   }
 
   /** Move assignment */
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   ResolvedDomainQuery &operator=(ResolvedDomainQuery &&other) noexcept {
     if (this != &other) {
       node_ = other.node_;
@@ -809,7 +859,7 @@ struct ResolvedDomainQuery {
 
   /** Serialize */
   template <typename Ar>
-  void serialize(Ar &ar) {
+  HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
     ar(node_, dom_);
   }
 };
@@ -856,6 +906,44 @@ class CacheTimer {
 
 }  // namespace chi
 
+namespace hshm {
+
+/** Hash function for UniqueId */
+template <int TYPE>
+struct hash<chi::UniqueId<TYPE>> {
+  HSHM_INLINE
+  std::size_t operator()(const chi::UniqueId<TYPE> &key) const {
+    return key.Hash();
+  }
+};
+
+/** Hash function for SubDomainId */
+template <>
+struct hash<chi::SubDomainId> {
+  HSHM_INLINE_CROSS_FUN
+  std::size_t operator()(const chi::SubDomainId &key) const {
+    return key.Hash();
+  }
+};
+
+/** Hash function for DomainId */
+template <>
+struct hash<chi::DomainId> {
+  HSHM_INLINE_CROSS_FUN
+  std::size_t operator()(const chi::DomainId &key) const { return key.Hash(); }
+};
+
+/** Hash function for DomainQuery */
+template <>
+struct hash<chi::DomainQuery> {
+  HSHM_INLINE_CROSS_FUN
+  std::size_t operator()(const chi::DomainQuery &key) const {
+    return key.Hash();
+  }
+};
+
+}  // namespace hshm
+
 namespace std {
 
 /** Hash function for UniqueId */
@@ -870,7 +958,7 @@ struct hash<chi::UniqueId<TYPE>> {
 /** Hash function for SubDomainId */
 template <>
 struct hash<chi::SubDomainId> {
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   std::size_t operator()(const chi::SubDomainId &key) const {
     return key.Hash();
   }
@@ -879,14 +967,14 @@ struct hash<chi::SubDomainId> {
 /** Hash function for DomainId */
 template <>
 struct hash<chi::DomainId> {
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   std::size_t operator()(const chi::DomainId &key) const { return key.Hash(); }
 };
 
 /** Hash function for DomainQuery */
 template <>
 struct hash<chi::DomainQuery> {
-  HSHM_INLINE
+  HSHM_INLINE_CROSS_FUN
   std::size_t operator()(const chi::DomainQuery &key) const {
     return key.Hash();
   }

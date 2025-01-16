@@ -3,7 +3,7 @@
 
 #include "chimaera/api/chimaera_client.h"
 #include "chimaera/module_registry/module.h"
-#include "chimaera/queue_manager/queue_manager_client.h"
+#include "chimaera/queue_manager/queue_manager.h"
 #include "chimaera/work_orchestrator/scheduler.h"
 
 namespace chi::Admin {
@@ -16,20 +16,22 @@ struct RegisterModuleTaskTempl : public Task, TaskFlags<TF_SRL_SYM> {
   IN chi::ipc::string lib_name_;
 
   /** SHM default constructor */
-  HSHM_INLINE explicit RegisterModuleTaskTempl(
-      const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
+  HSHM_INLINE_CROSS_FUN
+  explicit RegisterModuleTaskTempl(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
       : Task(alloc), lib_name_(alloc) {}
 
   /** Emplace constructor */
-  HSHM_INLINE explicit RegisterModuleTaskTempl(
-      const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, const TaskNode &task_node,
-      const PoolId &pool_id, const DomainQuery &dom_query,
-      const std::string &lib_name)
+  HSHM_INLINE_CROSS_FUN
+  explicit RegisterModuleTaskTempl(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
+                                   const TaskNode &task_node,
+                                   const PoolId &pool_id,
+                                   const DomainQuery &dom_query,
+                                   const chi::string &lib_name)
       : Task(alloc), lib_name_(alloc, lib_name) {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrioOpt::kLowLatency;
-    pool_ = CHI_QM_CLIENT->admin_pool_id_;
+    pool_ = CHI_QM->admin_pool_id_;
     if constexpr (method == 0) {
       method_ = Method::kRegisterModule;
     } else {
@@ -40,22 +42,24 @@ struct RegisterModuleTaskTempl : public Task, TaskFlags<TF_SRL_SYM> {
   }
 
   /** Destructor */
+  HSHM_INLINE_CROSS_FUN
   ~RegisterModuleTaskTempl() {}
 
   /** Duplicate message */
+  HSHM_INLINE_CROSS_FUN
   void CopyStart(const RegisterModuleTaskTempl &other, bool deep) {
     lib_name_ = other.lib_name_;
   }
 
   /** (De)serialize message call */
   template <typename Ar>
-  void SerializeStart(Ar &ar) {
+  HSHM_INLINE_CROSS_FUN void SerializeStart(Ar &ar) {
     ar(lib_name_);
   }
 
   /** (De)serialize message return */
   template <typename Ar>
-  void SerializeEnd(Ar &ar) {}
+  HSHM_INLINE_CROSS_FUN void SerializeEnd(Ar &ar) {}
 };
 
 /** A task to register a Task Library */
@@ -70,45 +74,48 @@ struct UpgradeModuleTask : public Task, TaskFlags<TF_SRL_SYM> {
   TEMP Container *old_;
 
   /** SHM default constructor */
-  HSHM_INLINE explicit UpgradeModuleTask(
-      const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
+  HSHM_INLINE_CROSS_FUN
+  explicit UpgradeModuleTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
       : Task(alloc), lib_name_(alloc) {}
 
   /** Emplace constructor */
-  HSHM_INLINE explicit UpgradeModuleTask(
-      const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, const TaskNode &task_node,
-      const PoolId &pool_id, const DomainQuery &dom_query,
-      const std::string &lib_name)
+  HSHM_INLINE_CROSS_FUN
+  explicit UpgradeModuleTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
+                             const TaskNode &task_node, const PoolId &pool_id,
+                             const DomainQuery &dom_query,
+                             const chi::string &lib_name)
       : Task(alloc), lib_name_(alloc, lib_name) {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrioOpt::kLowLatency;
-    pool_ = CHI_QM_CLIENT->admin_pool_id_;
+    pool_ = CHI_QM->admin_pool_id_;
     method_ = Method::kUpgradeModule;
     task_flags_.SetBits(0);
     dom_query_ = dom_query;
   }
 
   /** Destructor */
+  HSHM_INLINE_CROSS_FUN
   ~UpgradeModuleTask() {}
 
   /** Duplicate message */
+  HSHM_INLINE_CROSS_FUN
   void CopyStart(const UpgradeModuleTask &other, bool deep) {
     lib_name_ = other.lib_name_;
   }
 
   /** (De)serialize message call */
   template <typename Ar>
-  void SerializeStart(Ar &ar) {
+  HSHM_INLINE_CROSS_FUN void SerializeStart(Ar &ar) {
     ar(lib_name_);
   }
 
   /** (De)serialize message return */
   template <typename Ar>
-  void SerializeEnd(Ar &ar) {}
+  HSHM_INLINE_CROSS_FUN void SerializeEnd(Ar &ar) {}
 
   template <typename T>
-  T *Get() {
+  HSHM_INLINE_CROSS_FUN T *Get() {
     return reinterpret_cast<T *>(old_);
   }
 };
@@ -117,12 +124,14 @@ struct UpgradeModuleTask : public Task, TaskFlags<TF_SRL_SYM> {
 struct CreateTaskParams {
   CLS_CONST char *lib_name_ = "no_create";
 
+  HSHM_INLINE_CROSS_FUN
   CreateTaskParams() = default;
 
+  HSHM_INLINE_CROSS_FUN
   CreateTaskParams(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) {}
 
   template <typename Ar>
-  void serialize(Ar &ar) {}
+  HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {}
 };
 template <typename TaskParamsT>
 struct CreateContainerBaseTask : public Task, TaskFlags<TF_SRL_SYM> {
@@ -134,25 +143,27 @@ struct CreateContainerBaseTask : public Task, TaskFlags<TF_SRL_SYM> {
   INOUT CreateContext ctx_;
 
   /** SHM default constructor */
-  HSHM_INLINE explicit CreateContainerBaseTask(
-      const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
+  HSHM_INLINE_CROSS_FUN
+  explicit CreateContainerBaseTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
       : Task(alloc), lib_name_(alloc), pool_name_(alloc), params_(alloc) {}
 
   /** Emplace constructor */
   template <typename... Args>
-  HSHM_INLINE explicit CreateContainerBaseTask(
+  HSHM_INLINE_CROSS_FUN explicit CreateContainerBaseTask(
       const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, const TaskNode &task_node,
       const PoolId &pool_id, const DomainQuery &dom_query,
-      const DomainQuery &affinity, const std::string &pool_name,
+      const DomainQuery &affinity, const chi::string &pool_name,
       const CreateContext &ctx, Args &&...args)
       : Task(alloc),
         pool_name_(alloc, pool_name),
         lib_name_(alloc, TaskParamsT::lib_name_),
         params_(alloc) {
     // Initialize task
+    HILOG(kInfo, "ADMIN TASK: {} {} {}", alloc.alloc_, this,
+          (void *)lib_name_.data());
     task_node_ = task_node;
     prio_ = TaskPrioOpt::kLowLatency;
-    pool_ = CHI_QM_CLIENT->admin_pool_id_;
+    pool_ = CHI_QM->admin_pool_id_;
     method_ = Method::kCreateContainer;
     task_flags_.SetBits(TASK_COROUTINE);
     dom_query_ = dom_query;
@@ -169,7 +180,7 @@ struct CreateContainerBaseTask : public Task, TaskFlags<TF_SRL_SYM> {
 
   /** Broadcast constructor */
   template <typename... Args>
-  HSHM_INLINE explicit CreateContainerBaseTask(
+  HSHM_INLINE_CROSS_FUN explicit CreateContainerBaseTask(
       const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, const TaskNode &task_node,
       const PoolId &pool_id, const DomainQuery &dom_query,
       const CreateContainerBaseTask &other)
@@ -179,7 +190,7 @@ struct CreateContainerBaseTask : public Task, TaskFlags<TF_SRL_SYM> {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrioOpt::kLowLatency;
-    pool_ = CHI_QM_CLIENT->admin_pool_id_;
+    pool_ = CHI_QM->admin_pool_id_;
     method_ = Method::kCreateContainer;
     task_flags_.SetBits(TASK_COROUTINE);
     dom_query_ = dom_query;
@@ -192,9 +203,11 @@ struct CreateContainerBaseTask : public Task, TaskFlags<TF_SRL_SYM> {
   }
 
   /** Destructor */
+  HSHM_INLINE_CROSS_FUN
   ~CreateContainerBaseTask() {}
 
   /** Duplicate message */
+  HSHM_INLINE_CROSS_FUN
   void CopyStart(const CreateContainerBaseTask &other, bool deep) {
     lib_name_ = other.lib_name_;
     pool_name_ = other.pool_name_;
@@ -206,17 +219,18 @@ struct CreateContainerBaseTask : public Task, TaskFlags<TF_SRL_SYM> {
 
   /** (De)serialize message call */
   template <typename Ar>
-  void SerializeStart(Ar &ar) {
+  HSHM_INLINE_CROSS_FUN void SerializeStart(Ar &ar) {
     ar(lib_name_, pool_name_, ctx_, root_, affinity_, params_);
   }
 
   /** (De)serialize message return */
   template <typename Ar>
-  void SerializeEnd(Ar &ar) {
+  HSHM_INLINE_CROSS_FUN void SerializeEnd(Ar &ar) {
     ar(ctx_.id_);
   }
 
   /** Get the parameters */
+  HSHM_INLINE_CROSS_FUN
   TaskParamsT GetParams() {
     std::stringstream ss(params_.str());
     cereal::BinaryInputArchive ar(ss);
@@ -230,7 +244,8 @@ typedef CreateContainerBaseTask<CreateTaskParams> CreateContainerTask;
 /** A task to register a pool + Create a queue */
 struct CreateTask : public CreateContainerTask {
   /** SHM default constructor */
-  HSHM_INLINE explicit CreateTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
+  HSHM_INLINE_CROSS_FUN
+  explicit CreateTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
       : CreateContainerTask(alloc) {
     method_ = Method::kCreate;
   }
@@ -242,41 +257,44 @@ struct GetPoolIdTask : public Task, TaskFlags<TF_SRL_SYM> {
   OUT PoolId id_;
 
   /** SHM default constructor */
-  HSHM_INLINE explicit GetPoolIdTask(
-      const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
+  HSHM_INLINE_CROSS_FUN
+  explicit GetPoolIdTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
       : Task(alloc), pool_name_(alloc) {}
 
   /** Emplace constructor */
-  HSHM_INLINE explicit GetPoolIdTask(
-      const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, const TaskNode &task_node,
-      const PoolId &pool_id, const DomainQuery &dom_query,
-      const std::string &pool_name)
+  HSHM_INLINE_CROSS_FUN
+  explicit GetPoolIdTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
+                         const TaskNode &task_node, const PoolId &pool_id,
+                         const DomainQuery &dom_query,
+                         const chi::string &pool_name)
       : Task(alloc), pool_name_(alloc, pool_name) {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrioOpt::kLowLatency;
-    pool_ = CHI_QM_CLIENT->admin_pool_id_;
+    pool_ = CHI_QM->admin_pool_id_;
     method_ = Method::kGetPoolId;
     task_flags_.SetBits(0);
     dom_query_ = dom_query;
   }
 
+  HSHM_INLINE_CROSS_FUN
   ~GetPoolIdTask() {}
 
   /** Copy message input */
+  HSHM_INLINE_CROSS_FUN
   void CopyStart(const GetPoolIdTask &other, bool deep) {
     pool_name_ = other.pool_name_;
   }
 
   /** (De)serialize message call */
   template <typename Ar>
-  void SerializeStart(Ar &ar) {
+  HSHM_INLINE_CROSS_FUN void SerializeStart(Ar &ar) {
     ar(pool_name_);
   }
 
   /** (De)serialize message return */
   template <typename Ar>
-  void SerializeEnd(Ar &ar) {
+  HSHM_INLINE_CROSS_FUN void SerializeEnd(Ar &ar) {
     ar(id_);
   }
 };
@@ -286,20 +304,22 @@ struct DestroyContainerTask : public Task, TaskFlags<TF_SRL_SYM> {
   IN PoolId id_;
 
   /** SHM default constructor */
-  HSHM_INLINE explicit DestroyContainerTask(
-      const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
+  HSHM_INLINE_CROSS_FUN
+  explicit DestroyContainerTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
       : Task(alloc) {}
 
   /** Emplace constructor */
-  HSHM_INLINE explicit DestroyContainerTask(
-      const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, const TaskNode &task_node,
-      const PoolId &pool_id, const DomainQuery &dom_query,
-      const PoolId &destroy_id)
+  HSHM_INLINE_CROSS_FUN
+  explicit DestroyContainerTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
+                                const TaskNode &task_node,
+                                const PoolId &pool_id,
+                                const DomainQuery &dom_query,
+                                const PoolId &destroy_id)
       : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrioOpt::kLowLatency;
-    pool_ = CHI_QM_CLIENT->admin_pool_id_;
+    pool_ = CHI_QM->admin_pool_id_;
     method_ = Method::kDestroyContainer;
     task_flags_.SetBits(0);
     dom_query_ = dom_query;
@@ -310,19 +330,19 @@ struct DestroyContainerTask : public Task, TaskFlags<TF_SRL_SYM> {
 
   /** Copy message input */
   template <typename DestroyTaskT>
-  void CopyStart(const DestroyTaskT &other, bool deep) {
+  HSHM_INLINE_CROSS_FUN void CopyStart(const DestroyTaskT &other, bool deep) {
     id_ = other.id_;
   }
 
   /** (De)serialize message call */
   template <typename Ar>
-  void SerializeStart(Ar &ar) {
+  HSHM_INLINE_CROSS_FUN void SerializeStart(Ar &ar) {
     ar & id_;
   }
 
   /** (De)serialize message return */
   template <typename Ar>
-  void SerializeEnd(Ar &ar) {}
+  HSHM_INLINE_CROSS_FUN void SerializeEnd(Ar &ar) {}
 };
 
 /** A task to register a pool + Create a queue */
@@ -336,14 +356,15 @@ struct StopRuntimeTask : public Task, TaskFlags<TF_SRL_SYM> {
   StopRuntimeTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) : Task(alloc) {}
 
   /** Emplace constructor */
-  HSHM_INLINE explicit StopRuntimeTask(
-      const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, const TaskNode &task_node,
-      const PoolId &pool_id, const DomainQuery &dom_query, bool root)
+  HSHM_INLINE_CROSS_FUN
+  explicit StopRuntimeTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
+                           const TaskNode &task_node, const PoolId &pool_id,
+                           const DomainQuery &dom_query, bool root)
       : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrioOpt::kLowLatency;
-    pool_ = CHI_QM_CLIENT->admin_pool_id_;
+    pool_ = CHI_QM->admin_pool_id_;
     method_ = Method::kStopRuntime;
     task_flags_.SetBits(TASK_FIRE_AND_FORGET);
     dom_query_ = dom_query;
@@ -352,19 +373,20 @@ struct StopRuntimeTask : public Task, TaskFlags<TF_SRL_SYM> {
   }
 
   /** Duplicate message */
+  HSHM_INLINE_CROSS_FUN
   void CopyStart(const StopRuntimeTask &other, bool deep) {
     root_ = other.root_;
   }
 
   /** (De)serialize message call */
   template <typename Ar>
-  void SerializeStart(Ar &ar) {
+  HSHM_INLINE_CROSS_FUN void SerializeStart(Ar &ar) {
     ar(root_);
   }
 
   /** (De)serialize message return */
   template <typename Ar>
-  void SerializeEnd(Ar &ar) {}
+  HSHM_INLINE_CROSS_FUN void SerializeEnd(Ar &ar) {}
 };
 
 /** A task to set work orchestration policy */
@@ -373,12 +395,14 @@ struct SetWorkOrchestratorPolicyTask : public Task, TaskFlags<TF_SRL_SYM> {
   IN PoolId policy_id_;
 
   /** SHM default constructor */
-  HSHM_INLINE explicit SetWorkOrchestratorPolicyTask(
+  HSHM_INLINE_CROSS_FUN
+  explicit SetWorkOrchestratorPolicyTask(
       const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
       : Task(alloc) {}
 
   /** Emplace constructor */
-  HSHM_INLINE explicit SetWorkOrchestratorPolicyTask(
+  HSHM_INLINE_CROSS_FUN
+  explicit SetWorkOrchestratorPolicyTask(
       const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, const TaskNode &task_node,
       const PoolId &pool_id, const DomainQuery &dom_query,
       const PoolId &policy_id)
@@ -386,7 +410,7 @@ struct SetWorkOrchestratorPolicyTask : public Task, TaskFlags<TF_SRL_SYM> {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrioOpt::kLowLatency;
-    pool_ = CHI_QM_CLIENT->admin_pool_id_;
+    pool_ = CHI_QM->admin_pool_id_;
     if constexpr (method == 0) {
       method_ = Method::kSetWorkOrchQueuePolicy;
     } else {
@@ -400,19 +424,20 @@ struct SetWorkOrchestratorPolicyTask : public Task, TaskFlags<TF_SRL_SYM> {
   }
 
   /** Duplicate message */
+  HSHM_INLINE_CROSS_FUN
   void CopyStart(const SetWorkOrchestratorPolicyTask &other, bool deep) {
     policy_id_ = other.policy_id_;
   }
 
   /** (De)serialize message call */
   template <typename Ar>
-  void SerializeStart(Ar &ar) {
+  HSHM_INLINE_CROSS_FUN void SerializeStart(Ar &ar) {
     ar(policy_id_);
   }
 
   /** (De)serialize message return */
   template <typename Ar>
-  void SerializeEnd(Ar &ar) {}
+  HSHM_INLINE_CROSS_FUN void SerializeEnd(Ar &ar) {}
 };
 using SetWorkOrchQueuePolicyTask = SetWorkOrchestratorPolicyTask<0>;
 using SetWorkOrchProcPolicyTask = SetWorkOrchestratorPolicyTask<1>;
@@ -422,18 +447,19 @@ struct FlushTask : public Task, TaskFlags<TF_SRL_SYM> {
   INOUT size_t work_done_;
 
   /** SHM default constructor */
+  HSHM_INLINE_CROSS_FUN
   FlushTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) : Task(alloc) {}
 
   /** Emplace constructor */
-  HSHM_INLINE explicit FlushTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
-                                 const TaskNode &task_node,
-                                 const PoolId &pool_id,
-                                 const DomainQuery &dom_query)
+  HSHM_INLINE_CROSS_FUN
+  explicit FlushTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
+                     const TaskNode &task_node, const PoolId &pool_id,
+                     const DomainQuery &dom_query)
       : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrioOpt::kLowLatency;
-    pool_ = CHI_QM_CLIENT->admin_pool_id_;
+    pool_ = CHI_QM->admin_pool_id_;
     method_ = Method::kFlush;
     task_flags_.SetBits(TASK_FLUSH);
     dom_query_ = dom_query;
@@ -443,19 +469,20 @@ struct FlushTask : public Task, TaskFlags<TF_SRL_SYM> {
   }
 
   /** Duplicate message */
+  HSHM_INLINE_CROSS_FUN
   void CopyStart(const FlushTask &other, bool deep) {
     work_done_ = other.work_done_;
   }
 
   /** (De)serialize message call */
   template <typename Ar>
-  void SerializeStart(Ar &ar) {
+  HSHM_INLINE_CROSS_FUN void SerializeStart(Ar &ar) {
     ar(work_done_);
   }
 
   /** (De)serialize message return */
   template <typename Ar>
-  void SerializeEnd(Ar &ar) {
+  HSHM_INLINE_CROSS_FUN void SerializeEnd(Ar &ar) {
     ar(work_done_);
   }
 };
@@ -466,19 +493,21 @@ struct GetDomainSizeTask : public Task, TaskFlags<TF_LOCAL> {
   OUT size_t dom_size_;
 
   /** SHM default constructor */
+  HSHM_INLINE_CROSS_FUN
   GetDomainSizeTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
       : Task(alloc) {}
 
   /** Emplace constructor */
-  HSHM_INLINE explicit GetDomainSizeTask(
-      const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, const TaskNode &task_node,
-      const PoolId &pool_id, const DomainQuery &dom_query,
-      const DomainId &dom_id)
+  HSHM_INLINE_CROSS_FUN
+  explicit GetDomainSizeTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
+                             const TaskNode &task_node, const PoolId &pool_id,
+                             const DomainQuery &dom_query,
+                             const DomainId &dom_id)
       : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrioOpt::kLowLatency;
-    pool_ = CHI_QM_CLIENT->admin_pool_id_;
+    pool_ = CHI_QM->admin_pool_id_;
     method_ = Method::kGetDomainSize;
     task_flags_.SetBits(0);
     dom_query_ = dom_query;
@@ -494,19 +523,21 @@ struct UpdateDomainTask : public Task, TaskFlags<TF_SRL_SYM> {
   IN chi::ipc::vector<UpdateDomainInfo> ops_;
 
   /** SHM default constructor */
+  HSHM_INLINE_CROSS_FUN
   UpdateDomainTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
       : Task(alloc), ops_(alloc) {}
 
   /** Emplace constructor */
-  HSHM_INLINE explicit UpdateDomainTask(
-      const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, const TaskNode &task_node,
-      const PoolId &pool_id, const DomainQuery &dom_query,
-      const std::vector<UpdateDomainInfo> &ops)
+  HSHM_INLINE
+  explicit UpdateDomainTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
+                            const TaskNode &task_node, const PoolId &pool_id,
+                            const DomainQuery &dom_query,
+                            const std::vector<UpdateDomainInfo> &ops)
       : Task(alloc), ops_(alloc) {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrioOpt::kLowLatency;
-    pool_ = CHI_QM_CLIENT->admin_pool_id_;
+    pool_ = CHI_QM->admin_pool_id_;
     method_ = Method::kUpdateDomain;
     task_flags_.SetBits(0);
     dom_query_ = dom_query;
@@ -516,19 +547,20 @@ struct UpdateDomainTask : public Task, TaskFlags<TF_SRL_SYM> {
   }
 
   /** Duplicate message */
+  HSHM_INLINE_CROSS_FUN
   void CopyStart(const UpdateDomainTask &other, bool deep) {
     ops_ = other.ops_;
   }
 
   /** (De)serialize message call */
   template <typename Ar>
-  void SerializeStart(Ar &ar) {
+  HSHM_INLINE_CROSS_FUN void SerializeStart(Ar &ar) {
     ar(ops_);
   }
 
   /** (De)serialize message return */
   template <typename Ar>
-  void SerializeEnd(Ar &ar) {}
+  HSHM_INLINE_CROSS_FUN void SerializeEnd(Ar &ar) {}
 };
 
 }  // namespace chi::Admin

@@ -17,7 +17,7 @@
 
 #include "chimaera/chimaera_types.h"
 #include "chimaera/network/rpc_thallium.h"
-#include "chimaera/queue_manager/queue_manager_runtime.h"
+#include "chimaera/queue_manager/queue_manager.h"
 #include "reinforce_worker.h"
 #include "worker.h"
 
@@ -31,7 +31,7 @@ typedef ABT_key TlsKey;
 
 struct BlockedTask {
   Task *task_;
-  hipc::atomic<ssize_t> block_count_;
+  hipc::atomic<int> block_count_;
 
   BlockedTask() = default;
 
@@ -41,13 +41,13 @@ struct BlockedTask {
 };
 
 class WorkOrchestrator {
- public:
+public:
   ServerConfig *config_; /**< The server configuration */
-  std::vector<std::unique_ptr<Worker>> workers_; /**< Workers execute tasks */
-  CLS_CONST WorkerId kNullWorkerId = -1;         /**< Null worker id */
-  std::unique_ptr<Worker> null_worker_;          /**< Null worker */
-  std::vector<Worker *> dworkers_;               /**< Core-dedicated workers */
-  std::vector<Worker *> oworkers_;               /**< Undedicated workers */
+  std::vector<std::unique_ptr<Worker>> workers_;   /**< Workers execute tasks */
+  CLS_CONST WorkerId kNullWorkerId = (WorkerId)-1; /**< Null worker id */
+  std::unique_ptr<Worker> null_worker_;            /**< Null worker */
+  std::vector<Worker *> dworkers_; /**< Core-dedicated workers */
+  std::vector<Worker *> oworkers_; /**< Undedicated workers */
   std::unique_ptr<ReinforceWorker>
       reinforce_worker_;             /**< Reinforcement worker */
   std::atomic<bool> kill_requested_; /**< Kill flushing threads eventually */
@@ -58,7 +58,7 @@ class WorkOrchestrator {
   size_t monitor_window_ = 0;          /**< Sampling window */
   size_t monitor_gap_ = 0;             /**< Monitoring gap */
 
- public:
+public:
   /** Default constructor */
   WorkOrchestrator() = default;
 
@@ -72,7 +72,7 @@ class WorkOrchestrator {
   void SignalUnblock(Task *task, RunContext &rctx);
 
   /** Create thread pool */
-  void ServerInit(ServerConfig *config, QueueManager &qm);
+  void ServerInit(ServerConfig *config);
 
   /** Finalize thread pool */
   void Join();
@@ -185,8 +185,7 @@ class WorkOrchestrator {
 
   /** Get the least-loaded ingress queue */
   ingress::Lane *GetLeastLoadedIngressLane(u32 lane_group_id) {
-    ingress::MultiQueue *queue =
-        CHI_QM_RUNTIME->GetQueue(CHI_QM_RUNTIME->admin_queue_id_);
+    ingress::MultiQueue *queue = CHI_QM->GetQueue(CHI_QM->admin_queue_id_);
     ingress::LaneGroup &lane_group = queue->groups_[lane_group_id];
     ingress::Lane *min_lane = nullptr;
     float min_load = std::numeric_limits<float>::max();
@@ -207,8 +206,7 @@ class WorkOrchestrator {
   ingress::Lane *GetThresholdIngressLane(u32 orig_worker_id,
                                          std::vector<Load> &loads,
                                          u32 lane_group_id) {
-    ingress::MultiQueue *queue =
-        CHI_QM_RUNTIME->GetQueue(CHI_QM_RUNTIME->admin_queue_id_);
+    ingress::MultiQueue *queue = CHI_QM->GetQueue(CHI_QM->admin_queue_id_);
     ingress::LaneGroup &ig_lane_group = queue->groups_[lane_group_id];
     ingress::Lane *min_lane = nullptr;
     // Find the lane with minimum load
@@ -244,14 +242,22 @@ class WorkOrchestrator {
   void RunMethod(const std::string &class_name, const std::string &method_name,
                  PyDataWrapper &data);
 #endif
+
+private:
+  void PrepareWorkers();
+  void MarkWorkers(std::unordered_map<u32, std::vector<Worker *>> cpu_workers);
+  void SpawnReinforceThread();
+  void AssignAllQueues();
+  void AssignQueueMap(chi::ipc::vector<ingress::MultiQueue> &queue_map);
+  void SpawnWorkers();
 };
 
-}  // namespace chi
+} // namespace chi
 
-#define CHI_WORK_ORCHESTRATOR \
+#define CHI_WORK_ORCHESTRATOR                                                  \
   hshm::Singleton<chi::WorkOrchestrator>::GetInstance()
 #define CHI_CUR_TASK CHI_WORK_ORCHESTRATOR->GetCurrentTask()
 #define CHI_CUR_LANE CHI_WORK_ORCHESTRATOR->GetCurrentLane()
 #define CHI_CUR_WORKER CHI_WORK_ORCHESTRATOR->GetCurrentWorker()
 
-#endif  // CHI_INCLUDE_CHI_WORK_ORCHESTRATOR_WORK_ORCHESTRATOR_H_
+#endif // CHI_INCLUDE_CHI_WORK_ORCHESTRATOR_WORK_ORCHESTRATOR_H_
