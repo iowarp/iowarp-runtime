@@ -20,10 +20,5 @@ option(CHIMAERA_ENABLE_ROCM "Enable ROCm support" @CHIMAERA_ENABLE_ROCM@)
 option(CHIMAERA_ENABLE_CUDA "Enable CUDA support" @CHIMAERA_ENABLE_CUDA@)
 
 # Find the Chimaera Package
-find_package(ChimaeraCore REQUIRED)
-
-# Find the Chimaera dependencies
-find_package(ChimaeraCommon REQUIRED)
-
-set(CHIMAERA_CLIENT_DEPS "")
-set(CHIMAERA_RUNTIME_DEPS "")
+include(@CMAKE_INSTALL_PREFIX@/cmake/ChimaeraCoreConfig.cmake)
+include(@CMAKE_INSTALL_PREFIX@/cmake/ChimaeraCommonConfig.cmake)
