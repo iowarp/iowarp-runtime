@@ -35,11 +35,11 @@ void Runtime::ServerInit(std::string server_config_path) {
   LoadServerConfig(server_config_path);
   RefreshNumGpus();
   InitSharedMemory();
-  CHI_RPC->ServerInit(&server_config_);
+  CHI_RPC->ServerInit(server_config_);
   CHI_THALLIUM->ServerInit(CHI_RPC);
   InitSharedMemoryGpu();
   // Create module registry
-  CHI_MOD_REGISTRY->ServerInit(&server_config_, CHI_RPC->node_id_,
+  CHI_MOD_REGISTRY->ServerInit(server_config_, CHI_RPC->node_id_,
                                header_->unique_);
   CHI_MOD_REGISTRY->RegisterModule("chimaera_admin");
   CHI_MOD_REGISTRY->RegisterModule("worch_queue_round_robin");
@@ -47,10 +47,10 @@ void Runtime::ServerInit(std::string server_config_path) {
   CHI_MOD_REGISTRY->RegisterModule("remote_queue");
   CHI_MOD_REGISTRY->RegisterModule("bdev");
   // Queue manager + client must be initialized before Work Orchestrator
-  CHI_QM->ServerInit(main_alloc_, CHI_RPC->node_id_, &server_config_,
+  CHI_QM->ServerInit(main_alloc_, CHI_RPC->node_id_, server_config_,
                      header_->queue_manager_);
   CHI_CLIENT->Create(server_config_path.c_str(), "", true);
-  CHI_WORK_ORCHESTRATOR->ServerInit(&server_config_);
+  CHI_WORK_ORCHESTRATOR->ServerInit(server_config_);
   Admin::CreateTask *admin_create_task;
   Admin::CreateContainerTask *create_task;
   u32 max_containers_pn = CHI_QM->max_containers_pn_;
@@ -122,7 +122,7 @@ void Runtime::ServerInit(std::string server_config_path) {
 /** Initialize shared-memory between daemon and client */
 void Runtime::InitSharedMemory() {
   // Create shared-memory allocator
-  config::QueueManagerInfo &qm = server_config_.queue_manager_;
+  config::QueueManagerInfo &qm = server_config_->queue_manager_;
   auto mem_mngr = HSHM_MEMORY_MANAGER;
   if (qm.shm_size_ == 0) {
     qm.shm_size_ = hipc::MemoryManager::GetDefaultBackendSize();
@@ -152,7 +152,7 @@ void Runtime::InitSharedMemoryGpu() {
   auto mem_mngr = HSHM_MEMORY_MANAGER;
   header_->node_id_ = CHI_RPC->node_id_;
   header_->unique_ = 0;
-  header_->num_nodes_ = server_config_.rpc_.host_names_.size();
+  header_->num_nodes_ = server_config_->rpc_.host_names_.size();
 
   // Create per-gpu allocator
 #ifdef CHIMAERA_ENABLE_CUDA
@@ -168,7 +168,7 @@ void Runtime::InitSharedMemoryGpu() {
     header->node_id_ = CHI_RPC->node_id_;
     header->unique_ =
         (((u64)1) << 32);  // TODO(llogan): Make a separate unique for gpus
-    header->num_nodes_ = server_config_.rpc_.host_names_.size();
+    header->num_nodes_ = server_config_->rpc_.host_names_.size();
   }
 #endif
 

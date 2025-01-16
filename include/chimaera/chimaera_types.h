@@ -104,6 +104,10 @@ struct UniqueId {
   HSHM_INLINE_CROSS_FUN
   UniqueId() = default;
 
+  /** Destructor */
+  HSHM_INLINE_CROSS_FUN
+  ~UniqueId() = default;
+
   /** Emplace constructor */
   HSHM_INLINE_CROSS_FUN explicit UniqueId(NodeId node_id, u64 unique)
       : node_id_(node_id), hash_(0), unique_(unique) {}
@@ -445,6 +449,14 @@ union DomainSelection {
   } range_;
   u64 int_;
 
+  /** Default constructor */
+  HSHM_INLINE_CROSS_FUN
+  DomainSelection() = default;
+
+  /** Destructor */
+  HSHM_INLINE_CROSS_FUN
+  ~DomainSelection() = default;
+
   /** Serialization */
   template <typename Ar>
   HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
@@ -469,6 +481,10 @@ struct SubDomainIdRange {
   /** Default constructor */
   HSHM_INLINE_CROSS_FUN
   SubDomainIdRange() = default;
+
+  /** Destructor */
+  HSHM_INLINE_CROSS_FUN
+  ~SubDomainIdRange() = default;
 
   /** Emplace constructor */
   HSHM_INLINE_CROSS_FUN
@@ -529,6 +545,15 @@ struct UpdateDomainInfo {
   UpdateDomainOp op_;
   SubDomainIdRange range_;
 
+  /** Default constructor */
+  HSHM_INLINE_CROSS_FUN
+  UpdateDomainInfo() = default;
+
+  /** Destructor */
+  HSHM_INLINE_CROSS_FUN
+  ~UpdateDomainInfo() = default;
+
+  /** serialization */
   template <typename Ar>
   HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
     ar(domain_id_, op_, range_);

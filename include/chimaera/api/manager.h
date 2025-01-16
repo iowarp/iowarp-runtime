@@ -35,8 +35,8 @@ struct ChiShm {
 class ConfigurationManager {
  public:
   ChiShm *header_;
-  ClientConfig client_config_;
-  ServerConfig server_config_;
+  ClientConfig *client_config_;
+  ServerConfig *server_config_;
   static inline const hipc::alloc_id_t main_alloc_id_ = hipc::alloc_id_t(0, 1);
   static inline const hipc::alloc_id_t data_alloc_id_ = hipc::alloc_id_t(1, 1);
   static inline const hipc::alloc_id_t rdata_alloc_id_ = hipc::alloc_id_t(2, 1);
@@ -101,24 +101,26 @@ class ConfigurationManager {
 
   /** Load the server-side configuration */
   void LoadServerConfig(std::string config_path) {
+    server_config_ = new ServerConfig();
     if (config_path.empty()) {
       config_path = HSHM_SYSTEM_INFO->Getenv(Constants::kServerConfEnv);
     }
     HILOG(kInfo, "Loading server configuration: {}", config_path);
-    server_config_.LoadFromFile(config_path);
+    server_config_->LoadFromFile(config_path);
   }
 
   /** Load the client-side configuration */
   void LoadClientConfig(std::string config_path) {
+    client_config_ = new ClientConfig();
     if (config_path.empty()) {
       config_path = HSHM_SYSTEM_INFO->Getenv(Constants::kClientConfEnv);
     }
-    client_config_.LoadFromFile(config_path);
+    client_config_->LoadFromFile(config_path);
   }
 
   /** Get number of nodes */
   HSHM_INLINE int GetNumNodes() {
-    return server_config_.rpc_.host_names_.size();
+    return server_config_->rpc_.host_names_.size();
   }
 };
 

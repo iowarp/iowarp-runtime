@@ -528,7 +528,7 @@ struct UpdateDomainTask : public Task, TaskFlags<TF_SRL_SYM> {
       : Task(alloc), ops_(alloc) {}
 
   /** Emplace constructor */
-  HSHM_INLINE_CROSS_FUN
+  HSHM_INLINE
   explicit UpdateDomainTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
                             const TaskNode &task_node, const PoolId &pool_id,
                             const DomainQuery &dom_query,

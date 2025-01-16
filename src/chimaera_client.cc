@@ -53,7 +53,7 @@ void Client::ClientInit(const char *server_config_path,
 /** Connect to a Daemon's shared memory */
 void Client::LoadSharedMemory(bool server) {
   // Load shared-memory allocator
-  config::QueueManagerInfo &qm = server_config_.queue_manager_;
+  config::QueueManagerInfo &qm = server_config_->queue_manager_;
   auto mem_mngr = HSHM_MEMORY_MANAGER;
   if (!server) {
     mem_mngr->AttachBackend(hipc::MemoryBackendType::kPosixShmMmap,
