@@ -52,8 +52,8 @@ void QueueManager::ServerInit(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
     auto *gpu_alloc = HSHM_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(alloc_id);
     QueueManagerShm &gpu_shm =
         gpu_alloc->GetCustomHeader<ChiShm>()->queue_manager_;
-    gpu_shm.queue_map_.shm_init(alloc);
-    gpu_shm.queue_map_.get()->resize(1);
+    gpu_shm.queue_map_.shm_init(gpu_alloc);
+    gpu_shm.queue_map_.get()->resize(2);
     queue = CreateQueue(
         gpu_shm, process_queue_id_,
         {

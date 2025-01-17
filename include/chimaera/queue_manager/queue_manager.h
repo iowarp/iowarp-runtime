@@ -53,6 +53,22 @@ class QueueManager {
    * */
   HSHM_INLINE_CROSS_FUN
   ingress::MultiQueue *GetQueue(const QueueId &id) {
+    ingress::MultiQueue *queue = &(*queue_map_)[id.unique_];
+    queue_map_->GetAllocatorId().Print();
+    auto *alloc = queue_map_->GetAllocator();
+    printf("CONVERT-QM-MAP: %llu\n",
+           (long long unsigned)alloc
+               ->Convert<chi::ipc::vector<ingress::MultiQueue>, hipc::Pointer>(
+                   queue_map_)
+               .ToOffsetPointer()
+               .load());
+    printf("CONVERT-QM: %llu\n",
+           (long long unsigned)alloc
+               ->Convert<ingress::MultiQueue, hipc::Pointer>(queue)
+               .ToOffsetPointer()
+               .load());
+    printf("QUEUE MAP GROUPS: %d\n", (int)queue->groups_.size());
+    queue->groups_.GetAllocatorId().Print();
     return &(*queue_map_)[id.unique_];
   }
 

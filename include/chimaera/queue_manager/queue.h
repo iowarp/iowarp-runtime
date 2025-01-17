@@ -532,13 +532,20 @@ struct MultiQueue : public hipc::ShmContainer {
   /** Emplace a SHM pointer to a task */
   HSHM_INLINE_CROSS_FUN
   bool Emplace(u32 prio, u32 lane_hash, const LaneData &data) {
+    printf("E1\n");
     if (IsEmplacePlugged()) {
       WaitForEmplacePlug();
     }
+    groups_.GetAllocatorId().Print();
+    printf("E2: %d %d %p\n", prio, (int)groups_.size(), groups_.GetAllocator());
     LaneGroup &lane_group = GetGroup(prio);
+    printf("E3\n");
     LaneId lane_id = lane_hash % lane_group.num_lanes_;
+    printf("E4\n");
     Lane &lane = GetLane(lane_group, lane_id);
+    printf("E5\n");
     hshm::qtok_t ret = lane.emplace(data);
+    printf("E6\n");
     return !ret.IsNull();
   }
 
