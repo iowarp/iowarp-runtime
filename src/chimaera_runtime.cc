@@ -186,7 +186,7 @@ void Runtime::InitSharedMemoryGpu() {
     header->node_id_ = CHI_RPC->node_id_;
     header->unique_ =
         (((u64)1) << 32);  // TODO(llogan): Make a separate unique for gpus
-    header->num_nodes_ = server_config_.rpc_.host_names_.size();
+    header->num_nodes_ = server_config_->rpc_.host_names_.size();
   }
 #endif
 }
