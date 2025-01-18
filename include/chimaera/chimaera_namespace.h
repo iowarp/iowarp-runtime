@@ -58,7 +58,12 @@
   using hshm::bitfield;                          \
   using hshm::bitfield8_t;                       \
   using hshm::bitfield16_t;                      \
-  using hshm::bitfield32_t;                      \
+  using hshm::ibitfield;                         \
+  using hshm::ibitfield;                         \
+  using hshm::abitfield8_t;                      \
+  using hshm::abitfield16_t;                     \
+  using hshm::aibitfield;                        \
+  using hshm::aibitfield;                        \
   typedef hshm::bitfield<uint64_t> bitfield64_t; \
   using hipc::FullPtr;                           \
   using hshm::ScopedRwReadLock;                  \

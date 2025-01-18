@@ -42,8 +42,8 @@ struct ModuleInfo {
   new_state_t new_state_;            /**< The non-static create function */
   get_module_name_t get_module_name; /**< The get task name function */
   Container *static_state_;          /**< An allocation for static functions */
-  bitfield32_t flags_;
-  CLS_CONST u32 kPlugged = BIT_OPT(u32, 0);
+  ibitfield flags_;
+  CLS_CONST int kPlugged = BIT_OPT(chi::IntFlag, 0);
 
   void SetPlugged() { flags_.SetBits(kPlugged); }
 

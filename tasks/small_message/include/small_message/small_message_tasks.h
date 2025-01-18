@@ -52,7 +52,7 @@ struct MdTask : public Task, TaskFlags<TF_SRL_SYM> {
   HSHM_INLINE_CROSS_FUN
   explicit MdTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
                   const TaskNode &task_node, const PoolId &pool_id,
-                  const DomainQuery &dom_query, u32 depth, u32 flags)
+                  const DomainQuery &dom_query, u32 depth, chi::IntFlag flags)
       : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
@@ -87,12 +87,12 @@ struct MdTask : public Task, TaskFlags<TF_SRL_SYM> {
 /**
  * A task to read, write or both
  * */
-#define MD_IO_WRITE BIT_OPT(u32, 0)
-#define MD_IO_READ BIT_OPT(u32, 1)
+#define MD_IO_WRITE BIT_OPT(chi::IntFlag, 0)
+#define MD_IO_READ BIT_OPT(chi::IntFlag, 1)
 struct IoTask : public Task, TaskFlags<TF_SRL_SYM> {
   IN hipc::Pointer data_;
   IN size_t size_;
-  IN bitfield32_t io_flags_;
+  IN ibitfield io_flags_;
   OUT size_t ret_;
 
   /** SHM default constructor */

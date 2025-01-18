@@ -25,21 +25,22 @@ HSHM_GPU_KERNEL void test_kernel() {
   chi::TaskNode task_node = CHI_CLIENT->MakeTaskNodeId();
   printf("H2: %p\n", CHI_CLIENT->main_alloc_);
 
-  hipc::FullPtr<chi::Admin::RegisterModuleTask> task =
-      CHI_ADMIN->AsyncRegisterModuleAlloc(HSHM_DEFAULT_MEM_CTX, task_node,
-                                          chi::DomainQuery::GetGlobalBcast(),
-                                          "small_message");
-  printf("H3: %p %p %p %p\n", task.ptr_, CHI_CLIENT, CHI_QM,
-         CHI_QM->queue_map_);
-  chi::ingress::MultiQueue *queue =
-      CHI_CLIENT->GetQueue(CHI_QM->process_queue_id_);
-  printf("H4: %p\n", queue);
-  queue->Emplace(chi::TaskPrioOpt::kLowLatency,
-                 hshm::hash<chi::DomainQuery>{}(task->dom_query_), task.shm_);
+  // hipc::FullPtr<chi::Admin::RegisterModuleTask> task =
+  //     CHI_ADMIN->AsyncRegisterModuleAlloc(HSHM_DEFAULT_MEM_CTX, task_node,
+  //                                         chi::DomainQuery::GetGlobalBcast(),
+  //                                         "small_message");
+  // printf("H3: %p %p %p %p\n", task.ptr_, CHI_CLIENT, CHI_QM,
+  //        CHI_QM->queue_map_);
+  // chi::ingress::MultiQueue *queue =
+  //     CHI_CLIENT->GetQueue(CHI_QM->process_queue_id_);
+  // printf("H4: %p\n", queue);
+  // queue->Emplace(chi::TaskPrioOpt::kLowLatency,
+  //                hshm::hash<chi::DomainQuery>{}(task->dom_query_),
+  //                task.shm_);
   // printf("H5\n");
-  // CHI_ADMIN->RegisterModule(HSHM_DEFAULT_MEM_CTX,
-  //                           chi::DomainQuery::GetGlobalBcast(),
-  //                           "small_message");
+  CHI_ADMIN->RegisterModule(HSHM_DEFAULT_MEM_CTX,
+                            chi::DomainQuery::GetGlobalBcast(),
+                            "small_message");
   // client.Create(
   //     HSHM_DEFAULT_MEM_CTX,
   //     chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers,

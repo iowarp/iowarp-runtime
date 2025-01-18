@@ -92,6 +92,7 @@ class Server : public Module {
   /** Register a module dynamically */
   void RegisterModule(RegisterModuleTask *task, RunContext &rctx) {
     std::string lib_name = task->lib_name_.str();
+    HILOG(kInfo, "Registering module? {}", lib_name);
     CHI_MOD_REGISTRY->RegisterModule(lib_name);
     task->SetModuleComplete();
   }

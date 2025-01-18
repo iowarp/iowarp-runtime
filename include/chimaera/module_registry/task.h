@@ -26,51 +26,51 @@ class Module;
 class Lane;
 
 /** This task reads a state */
-#define TASK_READ BIT_OPT(u32, 0)
+#define TASK_READ BIT_OPT(chi::IntFlag, 0)
 /** This task writes to a state */
-#define TASK_WRITE BIT_OPT(u32, 1)
+#define TASK_WRITE BIT_OPT(chi::IntFlag, 1)
 /** This task fundamentally updates a state */
-#define TASK_UPDATE BIT_OPT(u32, 2)
+#define TASK_UPDATE BIT_OPT(chi::IntFlag, 2)
 /** This task is paused until a set of tasks complete */
-#define TASK_BLOCKED BIT_OPT(u32, 3)
+#define TASK_BLOCKED BIT_OPT(chi::IntFlag, 3)
 /** This task is latency-sensitive (deprecated) */
-#define TASK_SIGNAL_REMOTE_COMPLETE BIT_OPT(u32, 4)
+#define TASK_SIGNAL_REMOTE_COMPLETE BIT_OPT(chi::IntFlag, 4)
 /** This task makes system calls and may hurt caching */
-#define TASK_SYSCALL BIT_OPT(u32, 5)
+#define TASK_SYSCALL BIT_OPT(chi::IntFlag, 5)
 /** This task supports merging */
-#define TASK_MERGE BIT_OPT(u32, 6)
+#define TASK_MERGE BIT_OPT(chi::IntFlag, 6)
 /** The remote task has completed */
-#define TASK_REMOTE_COMPLETE BIT_OPT(u32, 7)
+#define TASK_REMOTE_COMPLETE BIT_OPT(chi::IntFlag, 7)
 /** This task has began execution */
-#define TASK_HAS_STARTED BIT_OPT(u32, 8)
+#define TASK_HAS_STARTED BIT_OPT(chi::IntFlag, 8)
 /** This task is completed */
-#define TASK_COMPLETE BIT_OPT(u32, 9)
+#define TASK_COMPLETE BIT_OPT(chi::IntFlag, 9)
 /** This task was marked completed outside of the worker thread */
-#define TASK_MODULE_COMPLETE BIT_OPT(u32, 10)
+#define TASK_MODULE_COMPLETE BIT_OPT(chi::IntFlag, 10)
 /** This task is long-running */
-#define TASK_LONG_RUNNING BIT_OPT(u32, 11)
+#define TASK_LONG_RUNNING BIT_OPT(chi::IntFlag, 11)
 /** This task is fire and forget. Free when completed */
-#define TASK_FIRE_AND_FORGET BIT_OPT(u32, 12)
+#define TASK_FIRE_AND_FORGET BIT_OPT(chi::IntFlag, 12)
 /** This task should not be run at this time (deprecated) */
-#define TASK_DISABLE_RUN BIT_OPT(u32, 13)
+#define TASK_DISABLE_RUN BIT_OPT(chi::IntFlag, 13)
 /** This task owns the data in the task */
-#define TASK_DATA_OWNER BIT_OPT(u32, 14)
+#define TASK_DATA_OWNER BIT_OPT(chi::IntFlag, 14)
 /** This task uses co-routine wait */
-#define TASK_COROUTINE BIT_OPT(u32, 15)
+#define TASK_COROUTINE BIT_OPT(chi::IntFlag, 15)
 /** Monitor performance of this task */
-#define TASK_SHOULD_SAMPLE BIT_OPT(u32, 18)
+#define TASK_SHOULD_SAMPLE BIT_OPT(chi::IntFlag, 18)
 /** This task should be scheduled on all lanes (deprecated) */
-#define TASK_LANE_ALL BIT_OPT(u32, 19)
+#define TASK_LANE_ALL BIT_OPT(chi::IntFlag, 19)
 /** This task flushes the runtime */
-#define TASK_FLUSH BIT_OPT(u32, 20)
+#define TASK_FLUSH BIT_OPT(chi::IntFlag, 20)
 /** This task signals its completion */
-#define TASK_SIGNAL_COMPLETE BIT_OPT(u32, 21)
+#define TASK_SIGNAL_COMPLETE BIT_OPT(chi::IntFlag, 21)
 /** This task is a remote task */
-#define TASK_REMOTE BIT_OPT(u32, 22)
+#define TASK_REMOTE BIT_OPT(chi::IntFlag, 22)
 /** This task has been scheduled to a lane (deprecated) */
-#define TASK_IS_ROUTED BIT_OPT(u32, 23)
+#define TASK_IS_ROUTED BIT_OPT(chi::IntFlag, 23)
 /** This task is apart of remote debugging */
-#define TASK_REMOTE_DEBUG_MARK BIT_OPT(u32, 31)
+#define TASK_REMOTE_DEBUG_MARK BIT_OPT(chi::IntFlag, 31)
 
 /** Used to define task methods */
 #define TASK_METHOD_T CLS_CONST chi::MethodId
@@ -207,25 +207,25 @@ struct TaskNode {
 };
 
 /** This task supports replication */
-#define TF_REPLICA BIT_OPT(u32, 31)
+#define TF_REPLICA BIT_OPT(chi::IntFlag, 31)
 /** This task uses SerializeStart */
-#define TF_SRL_SYM_START BIT_OPT(u32, 0) | TF_REPLICA
+#define TF_SRL_SYM_START BIT_OPT(chi::IntFlag, 0) | TF_REPLICA
 /** This task uses SaveStart + LoadStart */
-#define TF_SRL_ASYM_START BIT_OPT(u32, 1) | TF_REPLICA
+#define TF_SRL_ASYM_START BIT_OPT(chi::IntFlag, 1) | TF_REPLICA
 /** This task uses SerializeEnd */
-#define TF_SRL_SYM_END BIT_OPT(u32, 2) | TF_REPLICA
+#define TF_SRL_SYM_END BIT_OPT(chi::IntFlag, 2) | TF_REPLICA
 /** This task uses SaveEnd + LoadEnd */
-#define TF_SRL_ASYM_END BIT_OPT(u32, 3) | TF_REPLICA
+#define TF_SRL_ASYM_END BIT_OPT(chi::IntFlag, 3) | TF_REPLICA
 /** This task uses symmetric serialization */
 #define TF_SRL_SYM (TF_SRL_SYM_START | TF_SRL_SYM_END)
 /** This task uses asymmetric serialization */
 #define TF_SRL_ASYM (TF_SRL_ASYM_START | TF_SRL_ASYM_END)
 /** This task is intended to be used only locally */
-#define TF_LOCAL BIT_OPT(u32, 5)
+#define TF_LOCAL BIT_OPT(chi::IntFlag, 5)
 /** This task supports monitoring of all sub-methods */
-#define TF_MONITOR BIT_OPT(u32, 6)
+#define TF_MONITOR BIT_OPT(chi::IntFlag, 6)
 /** This task has a CompareGroup function */
-#define TF_CMPGRP BIT_OPT(u32, 7)
+#define TF_CMPGRP BIT_OPT(chi::IntFlag, 7)
 
 /** All tasks inherit this to easily check if a class is a task using SFINAE */
 class IsTask {};
@@ -241,7 +241,7 @@ class IsTask {};
 #define USES_SRL_END(T) T::SRL_SYM_END
 
 /** Compile-time flags indicating task methods and operation support */
-template <u32 FLAGS>
+template <chi::IntFlag FLAGS>
 struct TaskFlags : public IsTask {
  public:
   TASK_FLAG_T IS_LOCAL = FLAGS & TF_LOCAL;
@@ -326,11 +326,11 @@ struct Load {
 
 /** Context passed to the Run method of a task */
 struct RunContext {
-  bitfield32_t run_flags_;    /**< Properties of the task */
-  bitfield32_t worker_props_; /**< Properties of the worker */
-  WorkerId worker_id_;        /**< The worker id of the task */
-  bctx::transfer_t jmp_;      /**< Stack info for coroutines */
-  void *stack_ptr_;           /**< Stack pointer (coroutine) */
+  ibitfield run_flags_;    /**< Properties of the task */
+  ibitfield worker_props_; /**< Properties of the worker */
+  WorkerId worker_id_;     /**< The worker id of the task */
+  bctx::transfer_t jmp_;   /**< Stack info for coroutines */
+  void *stack_ptr_;        /**< Stack pointer (coroutine) */
   Module *exec_;
   WorkPending *flush_;
   hshm::Timer timer_;
@@ -348,14 +348,14 @@ struct RunContext {
 /** A generic task base class */
 struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
  public:
-  PoolId pool_;             /**< The unique name of a pool */
-  TaskNode task_node_;      /**< The unique ID of this task in the graph */
-  DomainQuery dom_query_;   /**< The nodes that the task should run on */
-  MethodId method_;         /**< The method to call in the state */
-  TaskPrio prio_;           /**< Priority of the request */
-  bitfield32_t task_flags_; /**< Properties of the task */
-  double period_ns_;        /**< The period of the task */
-  size_t start_;            /**< The time the task started */
+  PoolId pool_;           /**< The unique name of a pool */
+  TaskNode task_node_;    /**< The unique ID of this task in the graph */
+  DomainQuery dom_query_; /**< The nodes that the task should run on */
+  MethodId method_;       /**< The method to call in the state */
+  TaskPrio prio_;         /**< Priority of the request */
+  aibitfield task_flags_; /**< Properties of the task */
+  double period_ns_;      /**< The period of the task */
+  size_t start_;          /**< The time the task started */
   RunContext rctx_;
   // #ifdef CHIMAERA_TASK_DEBUG
   std::atomic<int> delcnt_ = 0; /**< # of times deltask called */
@@ -689,16 +689,18 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
 
   /** Wait for task to complete */
   HSHM_CROSS_FUN
-  void Wait(u32 flags = TASK_COMPLETE);
+  void Wait(chi::IntFlag flags = TASK_COMPLETE);
 
   /** Spin wait */
   HSHM_INLINE_CROSS_FUN
-  void SpinWait(u32 flags = TASK_COMPLETE) {
+  void SpinWait(chi::IntFlag flags = TASK_COMPLETE) {
     for (;;) {
-#ifdef HSHM_IS_HOST
-      std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);
-#endif
-      bitfield32_t task_flags = task_flags_;
+      // #ifdef HSHM_IS_HOST
+      //       std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);
+      // #else
+      //       __threadfence();
+      // #endif
+      ibitfield task_flags = task_flags_;
       if (task_flags.All(flags)) {
         return;
       }
@@ -707,12 +709,14 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
 
   /** Spin wait */
   HSHM_INLINE_CROSS_FUN
-  void SpinWaitCo(u32 flags = TASK_COMPLETE) {
+  void SpinWaitCo(chi::IntFlag flags = TASK_COMPLETE) {
     for (;;) {
       if (task_flags_.All(flags)) {
-#ifdef HSHM_IS_HOST
-        std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);
-#endif
+        // #ifdef HSHM_IS_HOST
+        //         std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);
+        // #else
+        //         __threadfence();
+        // #endif
         return;
       }
       Yield();
@@ -722,20 +726,20 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
   /** This task waits for subtask to complete */
   template <typename TaskT = Task>
   HSHM_INLINE_CROSS_FUN void Wait(FullPtr<TaskT> &subtask,
-                                  u32 flags = TASK_COMPLETE) {
+                                  chi::IntFlag flags = TASK_COMPLETE) {
     Wait(subtask.ptr_, flags);
   }
 
   /** This task waits for subtask to complete */
   HSHM_INLINE_CROSS_FUN
-  void Wait(Task *subtask, u32 flags = TASK_COMPLETE) {
+  void Wait(Task *subtask, chi::IntFlag flags = TASK_COMPLETE) {
     Wait(&subtask, 1, flags);
   }
 
   /** This task waits for a set of tasks to complete */
   template <typename TaskT>
   HSHM_INLINE void Wait(std::vector<FullPtr<TaskT>> &subtasks,
-                        u32 flags = TASK_COMPLETE) {
+                        chi::IntFlag flags = TASK_COMPLETE) {
 #ifdef CHIMAERA_RUNTIME
     if (!subtasks.empty()) {
       SetBlocked(subtasks.size());
@@ -752,7 +756,7 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
 
   /** This task waits for subtask to complete */
   HSHM_INLINE_CROSS_FUN
-  void Wait(Task **subtasks, size_t count, u32 flags = TASK_COMPLETE) {
+  void Wait(Task **subtasks, size_t count, chi::IntFlag flags = TASK_COMPLETE) {
 #ifdef CHIMAERA_RUNTIME
     if (count) {
       SetBlocked(count);
@@ -791,7 +795,7 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
   explicit Task(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
                 const TaskNode &task_node, const DomainQuery &dom_query,
                 const PoolId &task_state, u32 lane_hash, u32 method,
-                bitfield32_t task_flags) {
+                ibitfield task_flags) {
     task_node_ = task_node;
     prio_ = TaskPrioOpt::kLowLatency;
     pool_ = task_state;

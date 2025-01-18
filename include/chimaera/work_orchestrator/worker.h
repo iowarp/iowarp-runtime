@@ -23,14 +23,14 @@
 #include "chimaera/network/rpc_thallium.h"
 #include "chimaera/queue_manager/queue_manager.h"
 
-#define CHI_WORKER_SHOULD_RUN BIT_OPT(u32, 1)
-#define CHI_WORKER_IS_FLUSHING BIT_OPT(u32, 2)
+#define CHI_WORKER_SHOULD_RUN BIT_OPT(chi::IntFlag, 1)
+#define CHI_WORKER_IS_FLUSHING BIT_OPT(chi::IntFlag, 2)
 
 namespace chi {
 
-#define WORKER_CONTINUOUS_POLLING BIT_OPT(u32, 0)
-#define WORKER_LOW_LATENCY BIT_OPT(u32, 1)
-#define WORKER_HIGH_LATENCY BIT_OPT(u32, 2)
+#define WORKER_CONTINUOUS_POLLING BIT_OPT(chi::IntFlag, 0)
+#define WORKER_LOW_LATENCY BIT_OPT(chi::IntFlag, 1)
+#define WORKER_HIGH_LATENCY BIT_OPT(chi::IntFlag, 2)
 
 /** Uniquely identify a queue lane */
 struct IngressEntry {
@@ -112,29 +112,31 @@ struct IngressEntry {
   }
 };
 
-} // namespace chi
+}  // namespace chi
 
 namespace std {
 /** Hash function for IngressEntry */
-template <> struct hash<chi::IngressEntry> {
+template <>
+struct hash<chi::IngressEntry> {
   HSHM_INLINE
   std::size_t operator()(const chi::IngressEntry &key) const {
     return hshm::hash<chi::ingress::MultiQueue *>{}(key.queue_) +
            hshm::hash<u32>{}(key.container_id_) + hshm::hash<u64>{}(key.prio_);
   }
 };
-} // namespace std
+}  // namespace std
 
 namespace hshm {
 /** Hash function for IngressEntry */
-template <> struct hash<chi::IngressEntry> {
+template <>
+struct hash<chi::IngressEntry> {
   HSHM_INLINE
   std::size_t operator()(const chi::IngressEntry &key) const {
     return hshm::hash<chi::ingress::MultiQueue *>{}(key.queue_) +
            hshm::hash<u32>{}(key.container_id_) + hshm::hash<u64>{}(key.prio_);
   }
 };
-} // namespace hshm
+}  // namespace hshm
 
 namespace chi {
 
@@ -144,10 +146,10 @@ typedef chi::mpsc_ptr_queue<TaskPointer> PrivateTaskQueue;
 typedef chi::mpsc_queue<chi::Lane *> PrivateLaneQueue;
 
 class PrivateLaneMultiQueue {
-public:
+ public:
   PrivateLaneQueue active_[2];
 
-public:
+ public:
   void request(chi::Lane *lane) { active_[lane->prio_].push(lane); }
 
   void resize(size_t new_depth) {
@@ -164,18 +166,18 @@ public:
 };
 
 class PrivateTaskMultiQueue {
-public:
+ public:
   CLS_CONST int FLUSH = 1;
   CLS_CONST int FAIL = 2;
   CLS_CONST int REMAP = 3;
   CLS_CONST int NUM_QUEUES = 4;
 
-public:
+ public:
   PrivateTaskQueue queues_[NUM_QUEUES];
   PrivateLaneMultiQueue active_lanes_;
   size_t id_;
 
-public:
+ public:
   void Init(size_t id, size_t pqdepth, size_t qdepth, size_t max_lanes) {
     id_ = id;
     queues_[FLUSH].resize(max_lanes * qdepth);
@@ -199,13 +201,14 @@ public:
 
   bool push(const TaskPointer &entry);
 
-  template <typename TaskT> bool push(const FullPtr<TaskT> &task) {
+  template <typename TaskT>
+  bool push(const FullPtr<TaskT> &task) {
     return push(task.template Cast<Task>());
   }
 };
 
 class Worker {
-public:
+ public:
   WorkerId id_; /**< Unique identifier of this worker */
   // std::unique_ptr<std::thread> thread_;  /**< The worker thread handle */
   // int pthread_id_;      /**< The worker pthread handle */
@@ -215,8 +218,8 @@ public:
   u32 numa_node_;        // TODO(llogan): track NUMA affinity
   ABT_xstream xstream_;
   std::vector<IngressEntry> work_proc_queue_; /**< The set of queues to poll */
-  size_t sleep_us_;    /**< Time the worker should sleep after a run */
-  bitfield32_t flags_; /**< Worker metadata flags */
+  size_t sleep_us_; /**< Time the worker should sleep after a run */
+  ibitfield flags_; /**< Worker metadata flags */
   chi::lifo_list_queue<hipc::list_queue_entry>
       stacks_;           /**< Cache of stacks for tasks */
   int num_stacks_ = 256; /**< Number of stacks */
@@ -235,7 +238,7 @@ public:
   size_t monitor_gap_;       /**< Distance between sampling phases */
   size_t monitor_window_;    /** Length of sampling phase */
 
-public:
+ public:
   /**===============================================================
    * Initialize Worker
    * =============================================================== */
@@ -321,7 +324,7 @@ public:
   /** Run an arbitrary task */
   HSHM_INLINE
   void ExecTask(FullPtr<Task> &task, RunContext &rctx, Container *&exec,
-                bitfield32_t &props);
+                ibitfield &props);
 
   /** Run a task */
   HSHM_INLINE
@@ -343,7 +346,7 @@ public:
 
   /** Get the characteristics of a task */
   HSHM_INLINE
-  bitfield32_t GetTaskProperties(Task *&task, bool flushing);
+  ibitfield GetTaskProperties(Task *&task, bool flushing);
 
   /** Join worker */
   void Join();
@@ -385,6 +388,6 @@ public:
   void FreeStack(void *stack);
 };
 
-} // namespace chi
+}  // namespace chi
 
-#endif // CHI_INCLUDE_CHI_WORK_ORCHESTRATOR_WORKER_H
+#endif  // CHI_INCLUDE_CHI_WORK_ORCHESTRATOR_WORKER_H

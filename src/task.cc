@@ -18,7 +18,7 @@ void Task::YieldArgo() {
 }
 
 HSHM_CROSS_FUN
-void Task::Wait(u32 flags) {
+void Task::Wait(chi::IntFlag flags) {
 #if defined(CHIMAERA_RUNTIME) and defined(HSHM_IS_HOST)
   Task *parent_task = CHI_CUR_TASK;
   if (this != parent_task) {

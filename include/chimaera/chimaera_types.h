@@ -62,8 +62,16 @@ namespace chi {
 
 using hshm::bitfield;
 using hshm::bitfield16_t;
-using hshm::bitfield32_t;
 using hshm::bitfield8_t;
+using hshm::ibitfield;
+
+using hshm::abitfield;
+using hshm::abitfield16_t;
+using hshm::abitfield8_t;
+using hshm::aibitfield;
+
+typedef int IntFlag;
+
 using hshm::Mutex;
 using hshm::RwLock;
 typedef hshm::bitfield<uint64_t> bitfield64_t;
