@@ -21,10 +21,7 @@
 #include "small_message/small_message.h"
 
 HSHM_GPU_KERNEL void test_kernel() {
-  printf("(test) HSHM_MEMORY_MANAGER: %p\n", HSHM_MEMORY_MANAGER);
-  chi::TaskNode task_node = CHI_CLIENT->MakeTaskNodeId();
-  printf("H2: %p\n", CHI_CLIENT->main_alloc_);
-
+  // chi::TaskNode task_node = CHI_CLIENT->MakeTaskNodeId();
   // hipc::FullPtr<chi::Admin::RegisterModuleTask> task =
   //     CHI_ADMIN->AsyncRegisterModuleAlloc(HSHM_DEFAULT_MEM_CTX, task_node,
   //                                         chi::DomainQuery::GetGlobalBcast(),
@@ -33,7 +30,8 @@ HSHM_GPU_KERNEL void test_kernel() {
   //        CHI_QM->queue_map_);
   // chi::ingress::MultiQueue *queue =
   //     CHI_CLIENT->GetQueue(CHI_QM->process_queue_id_);
-  // printf("H4: %p\n", queue);
+  // printf("H4: (queue major, minor) %d.%d\n", queue->id_.group_id_,
+  //        (int)queue->id_.unique_);
   // queue->Emplace(chi::TaskPrioOpt::kLowLatency,
   //                hshm::hash<chi::DomainQuery>{}(task->dom_query_),
   //                task.shm_);

@@ -210,12 +210,6 @@ class Client : public ConfigurationManager {
   }
 #endif
 
-  /** Convert pointer to char* */
-  template <typename T = char>
-  HSHM_INLINE_CROSS_FUN T *GetMainPointer(const hipc::Pointer &p) {
-    return main_alloc_->Convert<T, hipc::Pointer>(p);
-  }
-
   /** Allocate a buffer */
   HSHM_INLINE_CROSS_FUN
   FullPtr<char> AllocateBuffer(const hipc::MemContext &mctx, size_t size) {

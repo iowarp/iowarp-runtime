@@ -113,10 +113,6 @@ void WorkOrchestrator::AssignQueueMap(
           worker.work_proc_queue_.emplace_back(
               IngressEntry(lane_group.prio_, lane_id, &queue));
           worker_id = worker.id_;
-          //            HILOG(kInfo, "(node {}) Scheduling the queue {} (prio
-          //            {}, lane {}, worker {})",
-          //                  CHI_CLIENT->node_id_, queue.id_, lane_group.prio_,
-          //                  lane_id, worker.id_);
         } else {
           u32 worker_off = count_highlat % oworkers_.size();
           count_highlat += 1;

@@ -310,9 +310,7 @@ void Worker::IngestLane(IngressEntry &lane_info) {
     if (ig_lane->pop(entry).IsNull()) {
       break;
     }
-    FullPtr<Task> task;
-    task.shm_ = entry;
-    task.ptr_ = CHI_CLIENT->GetMainPointer<Task>(entry);
+    FullPtr<Task> task(entry);
     active_.push(task);
   }
 }

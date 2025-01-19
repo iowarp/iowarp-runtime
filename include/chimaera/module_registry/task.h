@@ -353,7 +353,7 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
   DomainQuery dom_query_; /**< The nodes that the task should run on */
   MethodId method_;       /**< The method to call in the state */
   TaskPrio prio_;         /**< Priority of the request */
-  aibitfield task_flags_; /**< Properties of the task */
+  ibitfield task_flags_;  /**< Properties of the task */
   double period_ns_;      /**< The period of the task */
   size_t start_;          /**< The time the task started */
   RunContext rctx_;
@@ -695,13 +695,12 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
   HSHM_INLINE_CROSS_FUN
   void SpinWait(chi::IntFlag flags = TASK_COMPLETE) {
     for (;;) {
-      // #ifdef HSHM_IS_HOST
-      //       std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);
-      // #else
-      //       __threadfence();
-      // #endif
-      ibitfield task_flags = task_flags_;
-      if (task_flags.All(flags)) {
+#ifdef HSHM_IS_HOST
+      std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);
+#else
+      __threadfence();
+#endif
+      if (task_flags_.All(flags)) {
         return;
       }
     }
@@ -711,12 +710,12 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
   HSHM_INLINE_CROSS_FUN
   void SpinWaitCo(chi::IntFlag flags = TASK_COMPLETE) {
     for (;;) {
+#ifdef HSHM_IS_HOST
+      std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);
+#else
+      __threadfence();
+#endif
       if (task_flags_.All(flags)) {
-        // #ifdef HSHM_IS_HOST
-        //         std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);
-        // #else
-        //         __threadfence();
-        // #endif
         return;
       }
       Yield();

@@ -54,8 +54,10 @@ void QueueManager::ServerInit(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
         gpu_alloc->GetCustomHeader<ChiShm>()->queue_manager_;
     gpu_shm.queue_map_.shm_init(gpu_alloc);
     gpu_shm.queue_map_.get()->resize(2);
+    QueueId gpu_queue_id = process_queue_id_;
+    gpu_queue_id.group_id_ = gpu_id + 3;
     queue = CreateQueue(
-        gpu_shm, process_queue_id_,
+        gpu_shm, gpu_queue_id,
         {
             {TaskPrioOpt::kLowLatency, qm.max_containers_pn_,
              qm.max_containers_pn_, qm.proc_queue_depth_, QUEUE_LOW_LATENCY},
