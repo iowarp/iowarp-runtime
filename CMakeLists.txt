@@ -5,8 +5,7 @@ project(chimaera)
 # DOTENV
 # ------------------------------------------------------------------------------
 if(EXISTS ${CMAKE_SOURCE_DIR}/.env.cmake)
-    include(env.cmake)
-    message("HERE!!!")
+    include(.env.cmake)
 endif()
 
 # -----------------------------------------------------------------------------
