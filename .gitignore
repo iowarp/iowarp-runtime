@@ -15,6 +15,7 @@ build
 *.temp_cc
 *.egg-info
 *.env
+*.env.cmake
 CMakePresets.json
 
 build/
