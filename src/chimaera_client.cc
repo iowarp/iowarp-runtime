@@ -11,8 +11,6 @@ HSHM_GPU_KERNEL static void CreateClientKernel(hipc::AllocatorId alloc_id) {
 
 HSHM_GPU_FUN
 void Client::CreateOnGpu(hipc::AllocatorId alloc_id) {
-  printf("CHI_CLIENT: %p\n", this);
-  printf("CHI_QM: %p\n", CHI_QM);
   main_alloc_ = HSHM_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(alloc_id);
   data_alloc_ = nullptr;
   rdata_alloc_ = nullptr;

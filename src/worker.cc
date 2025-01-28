@@ -310,9 +310,7 @@ void Worker::IngestLane(IngressEntry &lane_info) {
     if (ig_lane->pop(entry).IsNull()) {
       break;
     }
-    FullPtr<Task> task;
-    task.shm_ = entry;
-    task.ptr_ = CHI_CLIENT->GetMainPointer<Task>(entry);
+    FullPtr<Task> task(entry);
     active_.push(task);
   }
 }
@@ -410,7 +408,7 @@ bool Worker::RunTask(FullPtr<Task> &task, bool flushing) {
   }
 #endif
   // Get task properties
-  bitfield32_t props = GetTaskProperties(task.ptr_, flushing);
+  ibitfield props = GetTaskProperties(task.ptr_, flushing);
   // Pack runtime context
   RunContext &rctx = task->rctx_;
   rctx.worker_props_ = props;
@@ -436,7 +434,7 @@ bool Worker::RunTask(FullPtr<Task> &task, bool flushing) {
 /** Run an arbitrary task */
 HSHM_INLINE
 void Worker::ExecTask(FullPtr<Task> &task, RunContext &rctx, Container *&exec,
-                      bitfield32_t &props) {
+                      ibitfield &props) {
   // Determine if a task should be executed
   if (!props.All(CHI_WORKER_SHOULD_RUN)) {
     return;
@@ -523,8 +521,8 @@ void Worker::MigrateLane(Lane *lane, u32 new_worker) {
 
 /** Get the characteristics of a task */
 HSHM_INLINE
-bitfield32_t Worker::GetTaskProperties(Task *&task, bool flushing) {
-  bitfield32_t props;
+ibitfield Worker::GetTaskProperties(Task *&task, bool flushing) {
+  ibitfield props;
 
   bool should_run = task->ShouldRun(cur_time_, flushing);
   if (should_run || task->IsStarted()) {

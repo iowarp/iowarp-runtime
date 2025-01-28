@@ -13,7 +13,8 @@
 namespace chi {
 
 /** Create lanes for the Module */
-void Module::CreateLaneGroup(LaneGroupId group_id, u32 count, u32 flags) {
+void Module::CreateLaneGroup(LaneGroupId group_id, u32 count,
+                             chi::IntFlag flags) {
 #ifdef CHIMAERA_RUNTIME
   lane_groups_.emplace_back(std::make_shared<LaneGroup>(flags));
   LaneGroup &lane_group = *lane_groups_[group_id];

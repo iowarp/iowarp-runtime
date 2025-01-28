@@ -190,7 +190,7 @@ TEST_CASE("TestIpcMultithread16") { TestIpcMultithread(16); }
 
 TEST_CASE("TestIpcMultithread32") { TestIpcMultithread(32); }
 
-void TestBulk(u32 flags) {
+void TestBulk(chi::IntFlag flags) {
   CHIMAERA_CLIENT_INIT();
   int rank, nprocs;
   MPI_Barrier(MPI_COMM_WORLD);

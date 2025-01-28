@@ -31,18 +31,19 @@ namespace chi {
 /** Forward declaration of CreateContainerTask */
 namespace Admin {
 class CreateTaskParams;
-template <typename TaskParamsT> class CreateContainerBaseTask;
-} // namespace Admin
+template <typename TaskParamsT>
+class CreateContainerBaseTask;
+}  // namespace Admin
 
 /** All information needed to create a trait */
 struct ModuleInfo {
-  void *lib_;                        /**< The dlfcn library */
+  void *lib_ = nullptr;              /**< The dlfcn library */
   alloc_state_t alloc_state_;        /**< The static create function */
   new_state_t new_state_;            /**< The non-static create function */
   get_module_name_t get_module_name; /**< The get task name function */
   Container *static_state_;          /**< An allocation for static functions */
-  bitfield32_t flags_;
-  CLS_CONST u32 kPlugged = BIT_OPT(u32, 0);
+  ibitfield flags_;
+  CLS_CONST int kPlugged = BIT_OPT(chi::IntFlag, 0);
 
   void SetPlugged() { flags_.SetBits(kPlugged); }
 
@@ -114,7 +115,7 @@ struct PoolInfo {
  * Stores the registered set of Modules and Containers
  * */
 class ModuleRegistry {
-public:
+ public:
   /** The node the registry is on */
   NodeId node_id_;
   /** The dirs to search for modules */
@@ -130,7 +131,7 @@ public:
   Mutex lock_;
   CoRwLock upgrade_lock_;
 
-public:
+ public:
   /** Default constructor */
   ModuleRegistry() { lock_.Init(); }
 
@@ -310,11 +311,10 @@ public:
    * Create a pool
    * pool_id must not be NULL.
    * */
-  bool
-  CreateContainer(const char *lib_name, const char *pool_name,
-                  const PoolId &pool_id,
-                  Admin::CreateContainerBaseTask<Admin::CreateTaskParams> *task,
-                  const std::vector<SubDomainId> &containers);
+  bool CreateContainer(
+      const char *lib_name, const char *pool_name, const PoolId &pool_id,
+      Admin::CreateContainerBaseTask<Admin::CreateTaskParams> *task,
+      const std::vector<SubDomainId> &containers);
 
   /** Replace a container */
   void ReplaceContainer(Container *new_container) {
@@ -483,6 +483,6 @@ public:
 
 /** Singleton macro for task registry */
 #define CHI_MOD_REGISTRY hshm::Singleton<chi::ModuleRegistry>::GetInstance()
-} // namespace chi
+}  // namespace chi
 
-#endif // CHI_INCLUDE_CHI_TASK_TASK_REGISTRY_H_
+#endif  // CHI_INCLUDE_CHI_TASK_TASK_REGISTRY_H_

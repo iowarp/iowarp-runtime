@@ -53,6 +53,8 @@ class QueueManager {
    * */
   HSHM_INLINE_CROSS_FUN
   ingress::MultiQueue *GetQueue(const QueueId &id) {
+    ingress::MultiQueue *queue = &(*queue_map_)[id.unique_];
+    auto *alloc = queue_map_->GetAllocator();
     return &(*queue_map_)[id.unique_];
   }
 

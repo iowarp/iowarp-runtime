@@ -93,11 +93,11 @@ class Lane : public hipc::list_queue_entry {
 
 /** A group of lanes */
 struct LaneGroup {
-  u32 flags_;
+  chi::IntFlag flags_;
   std::vector<Lane> all_lanes_;
   std::vector<Lane *> lanes_[TaskPrioOpt::kNumPrio];
 
-  LaneGroup(u32 flags) : flags_(flags) {}
+  LaneGroup(chi::IntFlag flags) : flags_(flags) {}
 
   Lane *get(TaskPrio prio, u32 idx) { return lanes_[prio][idx]; }
 
@@ -143,7 +143,7 @@ class Module {
   }
 
   /** Create a lane group */
-  void CreateLaneGroup(LaneGroupId group_id, u32 count, u32 flags);
+  void CreateLaneGroup(LaneGroupId group_id, u32 count, chi::IntFlag flags);
 
   /** Get lane */
   Lane *GetLane(LaneGroupId group_id, TaskPrio prio, u32 idx) {

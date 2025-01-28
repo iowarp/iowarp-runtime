@@ -24,18 +24,18 @@ namespace chi {
  * Sender writes to data_
  * Receiver reads from data_
  * */
-#define DT_EXPOSE BIT_OPT(u32, 0)
-#define DT_WRITE (BIT_OPT(u32, 1) | DT_EXPOSE)
+#define DT_EXPOSE BIT_OPT(chi::IntFlag, 0)
+#define DT_WRITE (BIT_OPT(chi::IntFlag, 1) | DT_EXPOSE)
 
 /** Free data_ when the data transfer is complete */
-#define DT_FREE_DATA BIT_OPT(u32, 2)
+#define DT_FREE_DATA BIT_OPT(chi::IntFlag, 2)
 
 /** Indicate how data should be transferred over network */
 template <bool NO_XFER>
 struct DataTransferBase {
-  hshm::bitfield32_t flags_; /**< Indicates how data will be accessed */
-  void *data_;               /**< The virtual address of data on the node */
-  size_t data_size_;         /**< The amount of data to transfer */
+  hshm::ibitfield flags_; /**< Indicates how data will be accessed */
+  void *data_;            /**< The virtual address of data on the node */
+  size_t data_size_;      /**< The amount of data to transfer */
 
   /** Serialize a data transfer object */
   template <typename Ar>
@@ -47,7 +47,7 @@ struct DataTransferBase {
   DataTransferBase() = default;
 
   /** Emplace constructor */
-  DataTransferBase(u32 flags, void *data, size_t data_size)
+  DataTransferBase(chi::IntFlag flags, void *data, size_t data_size)
       : flags_(flags), data_(data), data_size_(data_size) {}
 
   /** Copy constructor */
@@ -165,14 +165,15 @@ class BinaryOutputArchive {
   }
 
   /** Serialize using xfer */
-  BinaryOutputArchive &bulk(u32 flags, hipc::Pointer &data, size_t &data_size) {
+  BinaryOutputArchive &bulk(chi::IntFlag flags, hipc::Pointer &data,
+                            size_t &data_size) {
     char *data_ptr = HSHM_MEMORY_MANAGER->Convert<char>(data);
     bulk(flags, data_ptr, data_size);
     return *this;
   }
 
   /** Serialize using xfer */
-  BinaryOutputArchive &bulk(u32 flags, char *data, size_t &data_size) {
+  BinaryOutputArchive &bulk(chi::IntFlag flags, char *data, size_t &data_size) {
     xfer_.bulk_.emplace_back((DataTransfer){flags, data, data_size});
     return *this;
   }
@@ -265,7 +266,8 @@ class BinaryInputArchive {
   }
 
   /** Deserialize using xfer */
-  BinaryInputArchive &bulk(u32 flags, hipc::Pointer &data, size_t &data_size) {
+  BinaryInputArchive &bulk(chi::IntFlag flags, hipc::Pointer &data,
+                           size_t &data_size) {
     char *xfer_data;
     if constexpr (!is_start) {
       xfer_data = HSHM_MEMORY_MANAGER->Convert<char>(data);
@@ -278,7 +280,7 @@ class BinaryInputArchive {
   }
 
   /** Deserialize using xfer */
-  BinaryInputArchive &bulk(u32 flags, char *&data, size_t &data_size) {
+  BinaryInputArchive &bulk(chi::IntFlag flags, char *&data, size_t &data_size) {
     DataTransfer &xfer = xfer_.bulk_[xfer_off_++];
     if constexpr (is_start) {
       data = (char *)xfer.data_;

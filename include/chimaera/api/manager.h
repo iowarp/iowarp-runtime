@@ -37,9 +37,12 @@ class ConfigurationManager {
   ChiShm *header_;
   ClientConfig *client_config_;
   ServerConfig *server_config_;
-  static inline const hipc::alloc_id_t main_alloc_id_ = hipc::alloc_id_t(0, 1);
-  static inline const hipc::alloc_id_t data_alloc_id_ = hipc::alloc_id_t(1, 1);
-  static inline const hipc::alloc_id_t rdata_alloc_id_ = hipc::alloc_id_t(2, 1);
+  static inline const hipc::AllocatorId main_alloc_id_ =
+      hipc::AllocatorId(1, 0);
+  static inline const hipc::AllocatorId data_alloc_id_ =
+      hipc::AllocatorId(2, 0);
+  static inline const hipc::AllocatorId rdata_alloc_id_ =
+      hipc::AllocatorId(3, 0);
   CHI_ALLOC_T *main_alloc_;
   CHI_ALLOC_T *data_alloc_;
   CHI_ALLOC_T *rdata_alloc_;
@@ -70,7 +73,7 @@ class ConfigurationManager {
 
   /** Get GPU allocator id */
   HSHM_INLINE_CROSS_FUN static hipc::AllocatorId GetGpuAllocId(int gpu_id) {
-    return hipc::AllocatorId(3 + gpu_id, 1);
+    return hipc::AllocatorId(3 + gpu_id, 0);
   }
 
   /** Get GPU allocator */

@@ -19,31 +19,31 @@
 #include "chimaera/module_registry/task.h"
 
 /** Requests in this queue can be processed in any order */
-#define QUEUE_READY BIT_OPT(u32, 0)
+#define QUEUE_READY BIT_OPT(chi::IntFlag, 0)
 /** This queue contains primarily latency-sensitive tasks */
-#define QUEUE_LOW_LATENCY BIT_OPT(u32, 1)
+#define QUEUE_LOW_LATENCY BIT_OPT(chi::IntFlag, 1)
 /** This queue contains primarily throughput-intense tasks */
 #define QUEUE_HIGH_LATENCY 0
 /** This queue is currently being resized */
-#define QUEUE_RESIZE BIT_OPT(u32, 2)
+#define QUEUE_RESIZE BIT_OPT(chi::IntFlag, 2)
 /** This queue is currently processing updates */
-#define QUEUE_UPDATE BIT_OPT(u32, 3)
+#define QUEUE_UPDATE BIT_OPT(chi::IntFlag, 3)
 /** Requests in this queue can be processed in any order */
-#define QUEUE_UNORDERED BIT_OPT(u32, 4)
+#define QUEUE_UNORDERED BIT_OPT(chi::IntFlag, 4)
 /** Requests in this queue are long-running */
-#define QUEUE_LONG_RUNNING BIT_OPT(u32, 5)
+#define QUEUE_LONG_RUNNING BIT_OPT(chi::IntFlag, 5)
 /** Requests in this queue should not be scheduled on a traditional worker */
-#define QUEUE_DISABLED BIT_OPT(u32, 6)
+#define QUEUE_DISABLED BIT_OPT(chi::IntFlag, 6)
 
 namespace chi::ingress {
 
 /** Prioritization info needed to be set by client */
 struct PriorityInfo {
-  TaskPrio prio_;      /**< Priority ID */
-  u32 max_lanes_;      /**< Maximum number of lanes in the queue */
-  u32 num_lanes_;      /**< Current number of lanes in use */
-  u32 depth_;          /**< The maximum depth of individual lanes */
-  bitfield32_t flags_; /**< Scheduling hints for the queue */
+  TaskPrio prio_;   /**< Priority ID */
+  u32 max_lanes_;   /**< Maximum number of lanes in the queue */
+  u32 num_lanes_;   /**< Current number of lanes in use */
+  u32 depth_;       /**< The maximum depth of individual lanes */
+  ibitfield flags_; /**< Scheduling hints for the queue */
   u32 tether_; /**< Lanes should be pinned to the same workers as the tether */
 
   /** Default constructor */
@@ -53,19 +53,19 @@ struct PriorityInfo {
   /** Emplace constructor */
   HSHM_CROSS_FUN
   PriorityInfo(TaskPrio prio, u32 num_lanes, u32 max_lanes, u32 depth,
-               u32 flags, u32 tether = 0) {
+               chi::IntFlag flags, u32 tether = 0) {
     prio_ = prio;
     max_lanes_ = max_lanes;
     num_lanes_ = num_lanes;
     depth_ = depth;
-    flags_ = bitfield32_t(flags);
+    flags_ = ibitfield(flags);
     tether_ = tether;
   }
 
   /** Emplace constructor */
   HSHM_CROSS_FUN
   PriorityInfo(TaskPrio prio, u32 num_lanes, u32 max_lanes, u32 depth,
-               bitfield32_t flags, u32 tether = 0) {
+               ibitfield flags, u32 tether = 0) {
     prio_ = prio;
     max_lanes_ = max_lanes;
     num_lanes_ = num_lanes;
@@ -254,7 +254,7 @@ class Lane : public hipc::ShmContainer {
 
   /** Consumer peeks an object */
   HSHM_INLINE_CROSS_FUN
-  qtok_t peek(chi::ipc::pair<bitfield32_t, LaneData> *&val, int off = 0) {
+  qtok_t peek(chi::ipc::pair<ibitfield, LaneData> *&val, int off = 0) {
     return queue_.peek(val, off);
   }
 
@@ -406,7 +406,7 @@ struct LaneGroup : public PriorityInfo, public hipc::ShmContainer {
 struct MultiQueue : public hipc::ShmContainer {
   QueueId id_;                         /**< Globally unique ID of this queue */
   chi::ipc::vector<LaneGroup> groups_; /**< Divide the lanes into groups */
-  bitfield32_t flags_;                 /**< Flags for the queue */
+  ibitfield flags_;                    /**< Flags for the queue */
 
  public:
   /**====================================

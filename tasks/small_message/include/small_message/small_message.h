@@ -42,7 +42,7 @@ class Client : public ModuleClient {
   /** Metadata task */
   HSHM_INLINE_CROSS_FUN
   int Md(const hipc::MemContext &mctx, const DomainQuery &dom_query, u32 depth,
-         u32 flags) {
+         chi::IntFlag flags) {
     FullPtr<MdTask> task = AsyncMd(mctx, dom_query, depth, flags);
     task->Wait();
     int ret = task->ret_;
