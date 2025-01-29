@@ -14,7 +14,7 @@
             "binaryDir": "${sourceDir}/build",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_INSTALL_PREFIX": "/home/llogan/Documents/Projects/scspkg/packages/chimaera",
+                "CMAKE_INSTALL_PREFIX": "/home/llogan/.scspkg/packages/chimaera",
                 "CHIMAERA_ENABLE_CUDA": "OFF"
             }
         },
@@ -25,7 +25,7 @@
             "binaryDir": "${sourceDir}/build",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_INSTALL_PREFIX": "/home/llogan/Documents/Projects/scspkg/packages/chimaera",
+                "CMAKE_INSTALL_PREFIX": "/home/llogan/.scspkg/packages/chimaera",
                 "CHIMAERA_ENABLE_CUDA": "ON",
                 "CHIMAERA_ENABLE_ROCM": "OFF",
                 "BUILD_TESTS": "OFF",
@@ -39,7 +39,7 @@
             "binaryDir": "${sourceDir}/build",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_INSTALL_PREFIX": "/home/llogan/Documents/Projects/scspkg/packages/chimaera",
+                "CMAKE_INSTALL_PREFIX": "/home/llogan/.scspkg/packages/chimaera",
                 "CHIMAERA_ENABLE_CUDA": "OFF",
                 "CHIMAERA_ENABLE_ROCM": "ON",
                 "BUILD_TESTS": "OFF",
@@ -53,7 +53,7 @@
             "binaryDir": "${sourceDir}/build",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
-                "CMAKE_INSTALL_PREFIX": "/home/llogan/Documents/Projects/scspkg/packages/chimaera"
+                "CMAKE_INSTALL_PREFIX": "/home/llogan/.scspkg/packages/chimaera"
             }
         }
     ]
