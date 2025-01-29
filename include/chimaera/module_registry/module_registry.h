@@ -277,7 +277,7 @@ class ModuleRegistry {
       return false;
     }
     libs_.emplace(lib_name, std::move(info));
-    return false;
+    return true;
   }
 
   /** Replace a module */
