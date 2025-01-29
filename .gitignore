@@ -16,7 +16,7 @@ build
 *.egg-info
 *.env
 *.env.cmake
-CMakePresets.json
+/CMakePresets.json
 
 build/
 benchmarks/HermesVFD
