@@ -6,7 +6,7 @@ SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 # HermesShm
 find_package(HermesShm CONFIG REQUIRED)
-message(STATUS "found hermes_shm.h at ${HermesShm_INCLUDE_DIRS}")
+message(STATUS "found hermes_shm.h at ${HSHM_INSTALL_INCLUDE_DIR}")
 
 # MPICH
 if(BUILD_MPI_TESTS)
