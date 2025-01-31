@@ -48,19 +48,23 @@ HSHM_INLINE_CROSS_FUN FullPtr<char> Client::AllocateBufferSafe(
 #endif
 }
 
-/** Schedule a task locally */
-#ifdef CHIMAERA_RUNTIME
 template <typename TaskT>
-void Client::ScheduleTaskRuntime(Task *parent_task, FullPtr<TaskT> task,
-                                 const QueueId &ig_queue_id) {
+HSHM_INLINE_CROSS_FUN void Client::ScheduleTask(Task *parent_task,
+                                                const FullPtr<TaskT> &task) {
+#ifndef CHIMAERA_RUNTIME
+  chi::ingress::MultiQueue *queue =
+      CHI_CLIENT->GetQueue(CHI_QM->process_queue_id_);
+  queue->Emplace(chi::TaskPrioOpt::kLowLatency,
+                 hshm::hash<chi::DomainQuery>{}(task->dom_query_), task.shm_);
+#else
   task->YieldInit(parent_task);
   Worker *cur_worker = CHI_CUR_WORKER;
   if (!cur_worker) {
     cur_worker = &CHI_WORK_ORCHESTRATOR->GetWorker(0);
   }
   cur_worker->active_.push(task);
-}
 #endif
+}
 
 }  // namespace chi
 

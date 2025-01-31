@@ -33,7 +33,7 @@ class Lane;
 #define TASK_UPDATE BIT_OPT(chi::IntFlag, 2)
 /** This task is paused until a set of tasks complete */
 #define TASK_BLOCKED BIT_OPT(chi::IntFlag, 3)
-/** This task is latency-sensitive (deprecated) */
+/** This task is should signal completion on remote */
 #define TASK_SIGNAL_REMOTE_COMPLETE BIT_OPT(chi::IntFlag, 4)
 /** This task makes system calls and may hurt caching */
 #define TASK_SYSCALL BIT_OPT(chi::IntFlag, 5)
@@ -51,8 +51,8 @@ class Lane;
 #define TASK_LONG_RUNNING BIT_OPT(chi::IntFlag, 11)
 /** This task is fire and forget. Free when completed */
 #define TASK_FIRE_AND_FORGET BIT_OPT(chi::IntFlag, 12)
-/** This task should not be run at this time (deprecated) */
-#define TASK_DISABLE_RUN BIT_OPT(chi::IntFlag, 13)
+/** This task should be processed directly on this node */
+#define TASK_DIRECT BIT_OPT(chi::IntFlag, 13)
 /** This task owns the data in the task */
 #define TASK_DATA_OWNER BIT_OPT(chi::IntFlag, 14)
 /** This task uses co-routine wait */
@@ -404,6 +404,18 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
   void UnsetComplete() {
     task_flags_.UnsetBits(TASK_MODULE_COMPLETE | TASK_COMPLETE);
   }
+
+  /** Set task as direct */
+  HSHM_INLINE_CROSS_FUN
+  void SetDirect() { task_flags_.SetBits(TASK_DIRECT); }
+
+  /** Check if task is direct */
+  HSHM_INLINE_CROSS_FUN
+  bool IsDirect() const { return task_flags_.Any(TASK_DIRECT); }
+
+  /** Unset task as direct */
+  HSHM_INLINE_CROSS_FUN
+  void UnsetDirect() { task_flags_.UnsetBits(TASK_DIRECT); }
 
   /** Set task as fire & forget */
   HSHM_INLINE_CROSS_FUN

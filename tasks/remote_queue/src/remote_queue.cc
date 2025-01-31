@@ -149,8 +149,7 @@ class Server : public Module {
     if (dom_queries.size() == 0) {
       task->SetModuleComplete();
       orig_task->SetModuleComplete();
-      CHI_CLIENT->ScheduleTaskRuntime(nullptr, FullPtr<Task>(orig_task),
-                                      QueueId(orig_task->pool_));
+      CHI_CLIENT->ScheduleTask(nullptr, FullPtr<Task>(orig_task));
       return;
     }
     // Replicate task
@@ -161,8 +160,7 @@ class Server : public Module {
     }
     HLOG(kDebug, kRemoteQueue, "[TASK_CHECK] Pushing back to runtime {}",
          orig_task);
-    CHI_CLIENT->ScheduleTaskRuntime(nullptr, FullPtr<Task>(orig_task),
-                                    QueueId(orig_task->pool_));
+    CHI_CLIENT->ScheduleTask(nullptr, FullPtr<Task>(orig_task));
 
     // Set this task as complete
     task->SetModuleComplete();
@@ -337,7 +335,7 @@ class Server : public Module {
     rep_task->task_flags_.SetBits(TASK_REMOTE_DEBUG_MARK);
 
     // Execute task
-    CHI_CLIENT->ScheduleTaskRuntime(nullptr, rep_task, QueueId(pool_id));
+    CHI_CLIENT->ScheduleTask(nullptr, rep_task);
   }
 
   /** Receive task completion */

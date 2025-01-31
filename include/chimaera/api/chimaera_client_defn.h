@@ -146,6 +146,41 @@ class Client : public ConfigurationManager {
     return ptr;
   }
 
+  /** Call duplicate if applicable */
+  template <typename TaskT>
+  constexpr inline void CopyTask(const TaskT *orig_task, TaskT *dup_task,
+                                 bool deep) {
+    if constexpr (TaskT::REPLICA) {
+      dup_task->task_dup(*orig_task);
+      if (!deep) {
+        dup_task->UnsetDataOwner();
+      }
+      dup_task->CopyStart(*orig_task, deep);
+    }
+  }
+
+  /** Call duplicate if applicable */
+  template <typename TaskT>
+  constexpr inline void NewCopyTask(const TaskT *orig_task,
+                                    FullPtr<Task> &dup_task, bool deep) {
+    if constexpr (TaskT::REPLICA) {
+      dup_task = NewEmptyTask<TaskT>({}).template Cast<Task>();
+      CopyTask(orig_task, (TaskT *)dup_task.ptr_, deep);
+    }
+  }
+
+  /** Call duplicate if applicable */
+  template <typename TaskT>
+  constexpr inline FullPtr<TaskT> NewCopyTask(const TaskT *orig_task,
+                                              bool deep) {
+    FullPtr<TaskT> dup_task;
+    if constexpr (TaskT::REPLICA) {
+      dup_task = NewEmptyTask<TaskT>({});
+      CopyTask(orig_task, dup_task.ptr_, deep);
+    }
+    return dup_task;
+  }
+
   template <typename TaskT>
   HSHM_INLINE_CROSS_FUN void MonitorTaskFrees(FullPtr<TaskT> &task) {
 #ifdef CHIMAERA_TASK_DEBUG
@@ -271,12 +306,9 @@ class Client : public ConfigurationManager {
     return CHI_QM->GetQueue(real_id);
   }
 
-#ifdef CHIMAERA_RUNTIME
-  /** Performs the lpointer conversion */
   template <typename TaskT>
-  void ScheduleTaskRuntime(Task *parent_task, FullPtr<TaskT> task,
-                           const QueueId &ig_queue_id);
-#endif
+  HSHM_INLINE_CROSS_FUN void ScheduleTask(Task *parent_task,
+                                          const FullPtr<TaskT> &task);
 };
 
 /** The default asynchronous method behavior */
@@ -297,11 +329,7 @@ class Client : public ConfigurationManager {
     TaskNode task_node = CHI_CLIENT->MakeTaskNodeId();                      \
     hipc::FullPtr<CUSTOM##Task> task =                                      \
         Async##CUSTOM##Alloc(mctx, task_node, std::forward<Args>(args)...); \
-    chi::ingress::MultiQueue *queue =                                       \
-        CHI_CLIENT->GetQueue(CHI_QM->process_queue_id_);                    \
-    queue->Emplace(chi::TaskPrioOpt::kLowLatency,                           \
-                   hshm::hash<chi::DomainQuery>{}(task->dom_query_),        \
-                   task.shm_);                                              \
+    CHI_CLIENT->ScheduleTask(nullptr, task);                                \
     return task;                                                            \
   }
 #else
@@ -335,7 +363,7 @@ class Client : public ConfigurationManager {
       const TaskNode &task_node, Args &&...args) {                            \
     hipc::FullPtr<CUSTOM##Task> task =                                        \
         Async##CUSTOM##Alloc(mctx, task_node, std::forward<Args>(args)...);   \
-    CHI_CLIENT->ScheduleTaskRuntime(parent_task, task, task->pool_);          \
+    CHI_CLIENT->ScheduleTask(parent_task, task);                              \
     return task;                                                              \
   }
 #endif
@@ -344,23 +372,14 @@ class Client : public ConfigurationManager {
 template <typename TaskT>
 constexpr inline void CALL_COPY_START(const TaskT *orig_task, TaskT *dup_task,
                                       bool deep) {
-  if constexpr (TaskT::REPLICA) {
-    dup_task->task_dup(*orig_task);
-    if (!deep) {
-      dup_task->UnsetDataOwner();
-    }
-    dup_task->CopyStart(*orig_task, deep);
-  }
+  return CHI_CLIENT->CopyTask(orig_task, dup_task, deep);
 }
 
 /** Call duplicate if applicable */
 template <typename TaskT>
 constexpr inline void CALL_NEW_COPY_START(const TaskT *orig_task,
                                           FullPtr<Task> &dup_task, bool deep) {
-  if constexpr (TaskT::REPLICA) {
-    dup_task = CHI_CLIENT->NewEmptyTask<TaskT>({}).template Cast<Task>();
-    CALL_COPY_START(orig_task, (TaskT *)dup_task.ptr_, deep);
-  }
+  return CHI_CLIENT->NewCopyTask(orig_task, dup_task, deep);
 }
 
 }  // namespace chi

@@ -33,6 +33,6 @@ hipc::FullPtr<CUSTOM##Task> Async##CUSTOM##Base(
   Args&& ...args) {
   hipc::FullPtr<CUSTOM##Task> task = Async##CUSTOM##Alloc(
     mctx, task_node, std::forward<Args>(args)...);
-  CHI_CLIENT->ScheduleTaskRuntime(parent_task, task, task->pool_);
+  CHI_CLIENT->ScheduleTask(parent_task, task);
   return task;
 }
