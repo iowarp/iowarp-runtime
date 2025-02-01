@@ -205,6 +205,27 @@ class PrivateTaskMultiQueue {
   bool push(const FullPtr<TaskT> &task) {
     return push(task.template Cast<Task>());
   }
+
+ private:
+  // PushCompletedTask
+  HSHM_INLINE
+  bool PushCompletedTask(RunContext &rctx, const FullPtr<Task> &task);
+
+  // PushRoutedTask
+  HSHM_INLINE
+  bool PushRoutedTask(RunContext &rctx, const FullPtr<Task> &task);
+
+  // ResolveDynamicTask
+  HSHM_INLINE
+  bool ResolveDynamicTask(RunContext &rctx, const FullPtr<Task> &task);
+
+  // PushLocalTask
+  bool PushLocalTask(const DomainQuery &res_query, RunContext &rctx,
+                     const FullPtr<Task> &task);
+
+  // PushRemoteTask
+  HSHM_INLINE
+  bool PushRemoteTask(RunContext &rctx, const FullPtr<Task> &task);
 };
 
 class Worker {
