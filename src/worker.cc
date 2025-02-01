@@ -48,11 +48,6 @@ bool PrivateTaskMultiQueue::push(const FullPtr<Task> &task) {
   if (task->IsRouted()) {
     return PushRoutedTask(rctx, task);
   }
-  if (task->dom_query_.IsDynamic()) {
-    if (!ResolveDynamicTask(rctx, task)) {
-      return false;
-    }
-  }
   std::vector<ResolvedDomainQuery> resolved =
       CHI_RPC->ResolveDomainQuery(task->pool_, task->dom_query_, false);
   DomainQuery res_query = resolved[0].dom_;
@@ -92,24 +87,7 @@ bool PrivateTaskMultiQueue::PushRoutedTask(RunContext &rctx,
   return true;
 }
 
-// CASE 3: We need to determine the route of the task dynamically
-HSHM_INLINE
-bool PrivateTaskMultiQueue::ResolveDynamicTask(RunContext &rctx,
-                                               const FullPtr<Task> &task) {
-  std::vector<ResolvedDomainQuery> resolved = CHI_RPC->ResolveDomainQuery(
-      task->pool_,
-      DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0), false);
-  DomainQuery res_query = resolved[0].dom_;
-  Container *exec =
-      CHI_MOD_REGISTRY->GetContainer(task->pool_, res_query.sel_.id_);
-  if (!exec || !exec->is_created_) {
-    return !GetFail().push(task).IsNull();
-  }
-  exec->Monitor(MonitorMode::kSchedule, task->method_, task.ptr_, rctx);
-  return true;
-}
-
-// CASE 4: The task is local to this machine.
+// CASE 3: The task is local to this machine.
 bool PrivateTaskMultiQueue::PushLocalTask(const DomainQuery &res_query,
                                           RunContext &rctx,
                                           const FullPtr<Task> &task) {
@@ -140,7 +118,7 @@ bool PrivateTaskMultiQueue::PushLocalTask(const DomainQuery &res_query,
   return true;
 }
 
-// CASE 5: The task is remote to this machine
+// CASE 4: The task is remote to this machine
 HSHM_INLINE
 bool PrivateTaskMultiQueue::PushRemoteTask(RunContext &rctx,
                                            const FullPtr<Task> &task) {
@@ -474,6 +452,15 @@ bool Worker::RunTask(FullPtr<Task> &task, bool flushing) {
   if (!task->IsModuleComplete() && !task->IsBlocked()) {
     // Make this task current
     cur_task_ = task.ptr_;
+    // Check if the task is dynamically-scheduled
+    if (task->dom_query_.IsDynamic()) {
+      rctx.exec_->Monitor(MonitorMode::kSchedule, task->method_, task.ptr_,
+                          rctx);
+      if (!task->IsRouted()) {
+        active_.GetFail().push(task);
+        return false;
+      }
+    }
     // Execute the task based on its properties
     ExecTask(task, rctx, rctx.exec_, props);
   }

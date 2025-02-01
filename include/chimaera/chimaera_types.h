@@ -675,7 +675,7 @@ struct DomainQuery {
    */
   HSHM_INLINE_CROSS_FUN
   static DomainQuery GetDynamic() {
-    DomainQuery query;
+    DomainQuery query = GetDirectHash(SubDomainId::kLocalContainers, 0);
     query.flags_.SetBits(kSchedule);
     return query;
   }

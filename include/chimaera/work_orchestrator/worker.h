@@ -215,10 +215,6 @@ class PrivateTaskMultiQueue {
   HSHM_INLINE
   bool PushRoutedTask(RunContext &rctx, const FullPtr<Task> &task);
 
-  // ResolveDynamicTask
-  HSHM_INLINE
-  bool ResolveDynamicTask(RunContext &rctx, const FullPtr<Task> &task);
-
   // PushLocalTask
   bool PushLocalTask(const DomainQuery &res_query, RunContext &rctx,
                      const FullPtr<Task> &task);
