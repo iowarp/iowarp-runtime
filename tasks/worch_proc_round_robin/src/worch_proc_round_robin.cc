@@ -29,7 +29,7 @@ class Server : public Module {
   void MonitorCreate(MonitorModeId mode, CreateTask *task, RunContext &rctx) {}
 
   /** Route a task to a lane */
-  Lane *Route(const Task *task) override {
+  Lane *MapTaskToLane(const Task *task) override {
     return GetLaneByHash(kDefaultGroup, task->prio_, 0);
   }
 

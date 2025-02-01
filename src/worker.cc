@@ -84,7 +84,7 @@ bool PrivateTaskMultiQueue::push(const FullPtr<Task> &task) {
       return !GetFail().push(task).IsNull();
     }
     // Find the lane
-    chi::Lane *chi_lane = exec->Route(task.ptr_);
+    chi::Lane *chi_lane = exec->MapTaskToLane(task.ptr_);
     rctx.exec_ = exec;
     rctx.route_container_id_ = container_id;
     rctx.route_lane_ = chi_lane;

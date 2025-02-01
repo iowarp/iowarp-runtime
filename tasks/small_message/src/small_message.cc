@@ -61,7 +61,7 @@ class Server : public Module {
   }
 
   /** Route a task to a lane */
-  Lane *Route(const Task *task) override {
+  Lane *MapTaskToLane(const Task *task) override {
     count_ += 1;
     return GetLaneByHash(kDefaultGroup, task->prio_, count_);
   }

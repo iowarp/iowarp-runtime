@@ -72,7 +72,7 @@ class Server : public Module {
   void MonitorCreate(MonitorModeId mode, CreateTask *task, RunContext &rctx) {}
 
   /** Route a task to a lane */
-  Lane *Route(const Task *task) override {
+  Lane *MapTaskToLane(const Task *task) override {
     if (task->IsLongRunning()) {
       return GetLaneByHash(kNodeRpcLanes, task->prio_,
                            hshm::hash<DomainQuery>()(task->dom_query_));

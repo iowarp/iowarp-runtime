@@ -34,7 +34,7 @@ class Server : public Module {
   void MonitorCreate(MonitorModeId mode, CreateTask *task, RunContext &rctx) {}
 
   /** Route a task to a lane */
-  Lane *Route(const Task *task) override {
+  Lane *MapTaskToLane(const Task *task) override {
     // Route tasks to lanes based on their properties
     // E.g., a strongly consistent filesystem could map tasks to a lane
     // by the hash of an absolute filename path.
