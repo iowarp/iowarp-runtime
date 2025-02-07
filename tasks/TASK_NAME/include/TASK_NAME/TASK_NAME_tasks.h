@@ -32,45 +32,6 @@ typedef chi::Admin::CreateContainerBaseTask<CreateTaskParams> CreateTask;
 /** A task to destroy TASK_NAME */
 typedef chi::Admin::DestroyContainerTask DestroyTask;
 
-/**
- * A custom task in TASK_NAME
- * */
-struct CustomTask : public Task, TaskFlags<TF_SRL_SYM> {
-  /** SHM default constructor */
-  HSHM_INLINE_CROSS_FUN
-  explicit CustomTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
-      : Task(alloc) {}
-
-  /** Emplace constructor */
-  HSHM_INLINE_CROSS_FUN
-  explicit CustomTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
-                      const TaskNode &task_node, const PoolId &pool_id,
-                      const DomainQuery &dom_query)
-      : Task(alloc) {
-    // Initialize task
-    task_node_ = task_node;
-    prio_ = TaskPrioOpt::kLowLatency;
-    pool_ = pool_id;
-    method_ = Method::kCustom;
-    task_flags_.SetBits(0);
-    dom_query_ = dom_query;
-
-    // Custom params
-  }
-
-  /** Duplicate message */
-  HSHM_INLINE_CROSS_FUN
-  void CopyStart(const CustomTask &other, bool deep) {}
-
-  /** (De)serialize message call */
-  template <typename Ar>
-  HSHM_INLINE_CROSS_FUN void SerializeStart(Ar &ar) {}
-
-  /** (De)serialize message return */
-  template <typename Ar>
-  HSHM_INLINE_CROSS_FUN void SerializeEnd(Ar &ar) {}
-};
-
 }  // namespace chi::TASK_NAME
 
 #endif  // CHI_TASKS_TASK_TEMPL_INCLUDE_TASK_NAME_TASK_NAME_TASKS_H_

@@ -46,14 +46,6 @@ class Client : public ModuleClient {
   void Destroy(const hipc::MemContext &mctx, const DomainQuery &dom_query) {
     CHI_ADMIN->DestroyContainer(mctx, dom_query, id_);
   }
-
-  /** Call a custom method */
-  HSHM_INLINE_CROSS_FUN
-  void Custom(const hipc::MemContext &mctx, const DomainQuery &dom_query) {
-    FullPtr<CustomTask> task = AsyncCustom(mctx, dom_query);
-    task.ptr_->Wait();
-  }
-  CHI_TASK_METHODS(Custom);
 };
 
 }  // namespace chi::TASK_NAME
