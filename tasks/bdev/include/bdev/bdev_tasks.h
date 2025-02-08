@@ -179,7 +179,7 @@ struct WriteTask : public Task, TaskFlags<TF_SRL_SYM> {
     data_ = other.data_;
     size_ = other.size_;
     off_ = other.off_;
-    if (deep) {
+    if (!deep) {
       UnsetDataOwner();
     }
   }
@@ -239,7 +239,7 @@ struct ReadTask : public Task, TaskFlags<TF_SRL_SYM> {
     data_ = other.data_;
     size_ = other.size_;
     off_ = other.off_;
-    if (deep) {
+    if (!deep) {
       UnsetDataOwner();
     }
   }

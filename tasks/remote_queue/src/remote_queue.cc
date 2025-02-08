@@ -106,7 +106,7 @@ class Server : public Module {
     // Replicate task
     for (ResolvedDomainQuery &res_query : dom_queries) {
       FullPtr<Task> rep_task;
-      exec->NewCopyStart(orig_task->method_, orig_task, rep_task, true);
+      exec->NewCopyStart(orig_task->method_, orig_task, rep_task, false);
       if (res_query.dom_.flags_.Any(DomainQuery::kLocal)) {
         exec->Monitor(MonitorMode::kReplicaStart, orig_task->method_, orig_task,
                       rctx);
