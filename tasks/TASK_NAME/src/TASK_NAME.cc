@@ -48,17 +48,6 @@ class Server : public Module {
   void MonitorDestroy(MonitorModeId mode, DestroyTask *task, RunContext &rctx) {
   }
 
-  /** A custom method */
-  void Custom(CustomTask *task, RunContext &rctx) { task->SetModuleComplete(); }
-  void MonitorCustom(MonitorModeId mode, CustomTask *task, RunContext &rctx) {
-    switch (mode) {
-      case MonitorMode::kReplicaAgg: {
-        std::vector<FullPtr<Task>> &replicas = *rctx.replicas_;
-        auto replica = reinterpret_cast<CustomTask *>(replicas[0].ptr_);
-      }
-    }
-  }
-
  public:
 #include "TASK_NAME/TASK_NAME_lib_exec.h"
 };
