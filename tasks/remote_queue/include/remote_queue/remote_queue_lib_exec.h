@@ -60,30 +60,30 @@ void Monitor(MonitorModeId mode, MethodId method, Task *task, RunContext &rctx) 
   }
 }
 /** Delete a task */
-void Del(u32 method, Task *task) override {
+void Del(const hipc::MemContext &mctx, u32 method, Task *task) override {
   switch (method) {
     case Method::kCreate: {
-      CHI_CLIENT->DelTask<CreateTask>(reinterpret_cast<CreateTask *>(task));
+      CHI_CLIENT->DelTask<CreateTask>(mctx, reinterpret_cast<CreateTask *>(task));
       break;
     }
     case Method::kDestroy: {
-      CHI_CLIENT->DelTask<DestroyTask>(reinterpret_cast<DestroyTask *>(task));
+      CHI_CLIENT->DelTask<DestroyTask>(mctx, reinterpret_cast<DestroyTask *>(task));
       break;
     }
     case Method::kClientPushSubmit: {
-      CHI_CLIENT->DelTask<ClientPushSubmitTask>(reinterpret_cast<ClientPushSubmitTask *>(task));
+      CHI_CLIENT->DelTask<ClientPushSubmitTask>(mctx, reinterpret_cast<ClientPushSubmitTask *>(task));
       break;
     }
     case Method::kClientSubmit: {
-      CHI_CLIENT->DelTask<ClientSubmitTask>(reinterpret_cast<ClientSubmitTask *>(task));
+      CHI_CLIENT->DelTask<ClientSubmitTask>(mctx, reinterpret_cast<ClientSubmitTask *>(task));
       break;
     }
     case Method::kServerPushComplete: {
-      CHI_CLIENT->DelTask<ServerPushCompleteTask>(reinterpret_cast<ServerPushCompleteTask *>(task));
+      CHI_CLIENT->DelTask<ServerPushCompleteTask>(mctx, reinterpret_cast<ServerPushCompleteTask *>(task));
       break;
     }
     case Method::kServerComplete: {
-      CHI_CLIENT->DelTask<ServerCompleteTask>(reinterpret_cast<ServerCompleteTask *>(task));
+      CHI_CLIENT->DelTask<ServerCompleteTask>(mctx, reinterpret_cast<ServerCompleteTask *>(task));
       break;
     }
   }
@@ -130,7 +130,7 @@ void CopyStart(u32 method, const Task *orig_task, Task *dup_task, bool deep) ove
   }
 }
 /** Duplicate a task */
-void NewCopyStart(u32 method, const Task *orig_task, LPointer<Task> &dup_task, bool deep) override {
+void NewCopyStart(u32 method, const Task *orig_task, FullPtr<Task> &dup_task, bool deep) override {
   switch (method) {
     case Method::kCreate: {
       chi::CALL_NEW_COPY_START(reinterpret_cast<const CreateTask*>(orig_task), dup_task, deep);
@@ -159,7 +159,9 @@ void NewCopyStart(u32 method, const Task *orig_task, LPointer<Task> &dup_task, b
   }
 }
 /** Serialize a task when initially pushing into remote */
-void SaveStart(u32 method, BinaryOutputArchive<true> &ar, Task *task) override {
+void SaveStart(
+    u32 method, BinaryOutputArchive<true> &ar,
+    Task *task) override {
   switch (method) {
     case Method::kCreate: {
       ar << *reinterpret_cast<CreateTask*>(task);
@@ -188,36 +190,42 @@ void SaveStart(u32 method, BinaryOutputArchive<true> &ar, Task *task) override {
   }
 }
 /** Deserialize a task when popping from remote queue */
-TaskPointer LoadStart(u32 method, BinaryInputArchive<true> &ar) override {
+TaskPointer LoadStart(    u32 method, BinaryInputArchive<true> &ar) override {
   TaskPointer task_ptr;
   switch (method) {
     case Method::kCreate: {
-      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<CreateTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<CreateTask>(
+             HSHM_DEFAULT_MEM_CTX, task_ptr.shm_);
       ar >> *reinterpret_cast<CreateTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kDestroy: {
-      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<DestroyTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<DestroyTask>(
+             HSHM_DEFAULT_MEM_CTX, task_ptr.shm_);
       ar >> *reinterpret_cast<DestroyTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kClientPushSubmit: {
-      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<ClientPushSubmitTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<ClientPushSubmitTask>(
+             HSHM_DEFAULT_MEM_CTX, task_ptr.shm_);
       ar >> *reinterpret_cast<ClientPushSubmitTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kClientSubmit: {
-      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<ClientSubmitTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<ClientSubmitTask>(
+             HSHM_DEFAULT_MEM_CTX, task_ptr.shm_);
       ar >> *reinterpret_cast<ClientSubmitTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kServerPushComplete: {
-      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<ServerPushCompleteTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<ServerPushCompleteTask>(
+             HSHM_DEFAULT_MEM_CTX, task_ptr.shm_);
       ar >> *reinterpret_cast<ServerPushCompleteTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kServerComplete: {
-      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<ServerCompleteTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<ServerCompleteTask>(
+             HSHM_DEFAULT_MEM_CTX, task_ptr.shm_);
       ar >> *reinterpret_cast<ServerCompleteTask*>(task_ptr.ptr_);
       break;
     }

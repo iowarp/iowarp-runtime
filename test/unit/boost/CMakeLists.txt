@@ -1,4 +1,3 @@
-cmake_minimum_required(VERSION 3.10)
 project(hermes)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -12,7 +11,9 @@ add_executable(test_boost_exec
         test_boost.cc
 )
 target_link_libraries(test_boost_exec
-        ${_Chimaera_RUNTIME_LIBRARIES} Catch2::Catch2 MPI::MPI_CXX)
+        hshm::cxx Catch2::Catch2 MPI::MPI_CXX ${Boost_LIBRARIES})
+target_link_directories(test_boost_exec PRIVATE ${Boost_LIBRARY_DIRS})
+target_include_directories(test_boost_exec PRIVATE ${Boost_INCLUDE_DIRS})
 
 #------------------------------------------------------------------------------
 # Test Cases
@@ -26,15 +27,13 @@ target_link_libraries(test_boost_exec
 #------------------------------------------------------------------------------
 install(TARGETS
         test_boost_exec
-        EXPORT
-        ${HERMES_EXPORTED_TARGETS}
-        LIBRARY DESTINATION ${HERMES_INSTALL_LIB_DIR}
-        ARCHIVE DESTINATION ${HERMES_INSTALL_LIB_DIR}
-        RUNTIME DESTINATION ${HERMES_INSTALL_BIN_DIR})
+        LIBRARY DESTINATION ${HSHM_INSTALL_LIB_DIR}
+        ARCHIVE DESTINATION ${HSHM_INSTALL_LIB_DIR}
+        RUNTIME DESTINATION ${HSHM_INSTALL_BIN_DIR})
 
 #-----------------------------------------------------------------------------
 # Coverage
 #-----------------------------------------------------------------------------
-if(HERMES_ENABLE_COVERAGE)
+if(HSHM_ENABLE_COVERAGE)
     set_coverage_flags(test_boost_exec)
 endif()

@@ -10,10 +10,12 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include "hermes_shm/util/singleton.h"
+#include <hermes_shm/util/singleton.h>
+
 #include "chimaera/api/chimaera_runtime.h"
 
 int main(int argc, char **argv) {
+  // chi::CHI_RUNTIME_INIT();
   CHI_RUNTIME->Create();
   CHI_RUNTIME->RunDaemon();
   CHI_RUNTIME->Finalize();

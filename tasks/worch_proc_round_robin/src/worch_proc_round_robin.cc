@@ -10,25 +10,27 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include "chimaera_admin/chimaera_admin.h"
-#include "chimaera/api/chimaera_runtime.h"
 #include "worch_proc_round_robin/worch_proc_round_robin.h"
+
+#include "chimaera/api/chimaera_runtime.h"
+#include "chimaera_admin/chimaera_admin.h"
 
 namespace chi::worch_proc_round_robin {
 
 class Server : public Module {
  public:
+  CLS_CONST LaneGroupId kDefaultGroup = 0;
+
   /** Construct the work orchestrator process scheduler */
   void Create(CreateTask *task, RunContext &rctx) {
-    CreateLaneGroup(0, 1, QUEUE_HIGH_LATENCY);
+    CreateLaneGroup(kDefaultGroup, 1, QUEUE_HIGH_LATENCY);
     task->SetModuleComplete();
   }
-  void MonitorCreate(MonitorModeId mode, CreateTask *task, RunContext &rctx) {
-  }
+  void MonitorCreate(MonitorModeId mode, CreateTask *task, RunContext &rctx) {}
 
   /** Route a task to a lane */
-  Lane* Route(const Task *task) override {
-    return GetLaneByHash(0, 0);
+  Lane *MapTaskToLane(const Task *task) override {
+    return GetLaneByHash(kDefaultGroup, task->prio_, 0);
   }
 
   /** Destroy the work orchestrator process queue */
@@ -42,12 +44,12 @@ class Server : public Module {
   void Schedule(ScheduleTask *task, RunContext &rctx) {
     CHI_WORK_ORCHESTRATOR->DedicateCores();
   }
-  void MonitorSchedule(MonitorModeId mode, ScheduleTask *task, RunContext &rctx) {
-  }
+  void MonitorSchedule(MonitorModeId mode, ScheduleTask *task,
+                       RunContext &rctx) {}
 
 #include "worch_proc_round_robin/worch_proc_round_robin_lib_exec.h"
 };
 
-}  // namespace chi
+}  // namespace chi::worch_proc_round_robin
 
 CHI_TASK_CC(chi::worch_proc_round_robin::Server, "worch_proc_round_robin");

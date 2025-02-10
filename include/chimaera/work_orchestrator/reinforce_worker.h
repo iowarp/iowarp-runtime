@@ -5,8 +5,9 @@
 #ifndef CHIMAERA_INCLUDE_CHIMAERA_WORK_ORCHESTRATOR_REINFORCE_WORKER_H_
 #define CHIMAERA_INCLUDE_CHIMAERA_WORK_ORCHESTRATOR_REINFORCE_WORKER_H_
 
+#include <hermes_shm/util/affinity.h>
+
 #include <thread>
-#include "affinity.h"
 
 namespace chi {
 
@@ -18,7 +19,8 @@ class ReinforceWorker {
  public:
   explicit ReinforceWorker(int affinity) {
     thread_ = std::make_unique<std::thread>(&ReinforceWorker::Run, this);
-    ProcessAffiner::SetCpuAffinity((int)thread_->native_handle(), affinity);
+    hshm::ProcessAffiner::SetCpuAffinity((int)thread_->native_handle(),
+                                         affinity);
   }
 
   void Run();
@@ -27,4 +29,4 @@ class ReinforceWorker {
 
 }  // namespace chi
 
-#endif //CHIMAERA_INCLUDE_CHIMAERA_WORK_ORCHESTRATOR_REINFORCE_WORKER_H_
+#endif  // CHIMAERA_INCLUDE_CHIMAERA_WORK_ORCHESTRATOR_REINFORCE_WORKER_H_

@@ -21,8 +21,8 @@ class CoRwLock {
  public:
   TaskId root_;
   size_t rep_;
-  size_t read_count_;
-  std::unordered_map<TaskId, COMUTEX_QUEUE_T> blocked_map_;
+  std::unordered_map<TaskId, COMUTEX_QUEUE_T> writer_map_;
+  COMUTEX_QUEUE_T reader_set_;
   bool is_read_;
   hshm::Mutex mux_;
 
@@ -31,7 +31,6 @@ class CoRwLock {
   CoRwLock() {
     root_.SetNull();
     rep_ = 0;
-    read_count_ = 0;
     mux_.Init();
     is_read_ = false;
   }

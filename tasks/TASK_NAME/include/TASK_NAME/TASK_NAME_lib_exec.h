@@ -12,10 +12,6 @@ void Run(u32 method, Task *task, RunContext &rctx) override {
       Destroy(reinterpret_cast<DestroyTask *>(task), rctx);
       break;
     }
-    case Method::kCustom: {
-      Custom(reinterpret_cast<CustomTask *>(task), rctx);
-      break;
-    }
   }
 }
 /** Execute a task */
@@ -29,25 +25,17 @@ void Monitor(MonitorModeId mode, MethodId method, Task *task, RunContext &rctx) 
       MonitorDestroy(mode, reinterpret_cast<DestroyTask *>(task), rctx);
       break;
     }
-    case Method::kCustom: {
-      MonitorCustom(mode, reinterpret_cast<CustomTask *>(task), rctx);
-      break;
-    }
   }
 }
 /** Delete a task */
-void Del(u32 method, Task *task) override {
+void Del(const hipc::MemContext &mctx, u32 method, Task *task) override {
   switch (method) {
     case Method::kCreate: {
-      CHI_CLIENT->DelTask<CreateTask>(reinterpret_cast<CreateTask *>(task));
+      CHI_CLIENT->DelTask<CreateTask>(mctx, reinterpret_cast<CreateTask *>(task));
       break;
     }
     case Method::kDestroy: {
-      CHI_CLIENT->DelTask<DestroyTask>(reinterpret_cast<DestroyTask *>(task));
-      break;
-    }
-    case Method::kCustom: {
-      CHI_CLIENT->DelTask<CustomTask>(reinterpret_cast<CustomTask *>(task));
+      CHI_CLIENT->DelTask<DestroyTask>(mctx, reinterpret_cast<DestroyTask *>(task));
       break;
     }
   }
@@ -67,16 +55,10 @@ void CopyStart(u32 method, const Task *orig_task, Task *dup_task, bool deep) ove
         reinterpret_cast<DestroyTask*>(dup_task), deep);
       break;
     }
-    case Method::kCustom: {
-      chi::CALL_COPY_START(
-        reinterpret_cast<const CustomTask*>(orig_task), 
-        reinterpret_cast<CustomTask*>(dup_task), deep);
-      break;
-    }
   }
 }
 /** Duplicate a task */
-void NewCopyStart(u32 method, const Task *orig_task, LPointer<Task> &dup_task, bool deep) override {
+void NewCopyStart(u32 method, const Task *orig_task, FullPtr<Task> &dup_task, bool deep) override {
   switch (method) {
     case Method::kCreate: {
       chi::CALL_NEW_COPY_START(reinterpret_cast<const CreateTask*>(orig_task), dup_task, deep);
@@ -86,14 +68,12 @@ void NewCopyStart(u32 method, const Task *orig_task, LPointer<Task> &dup_task, b
       chi::CALL_NEW_COPY_START(reinterpret_cast<const DestroyTask*>(orig_task), dup_task, deep);
       break;
     }
-    case Method::kCustom: {
-      chi::CALL_NEW_COPY_START(reinterpret_cast<const CustomTask*>(orig_task), dup_task, deep);
-      break;
-    }
   }
 }
 /** Serialize a task when initially pushing into remote */
-void SaveStart(u32 method, BinaryOutputArchive<true> &ar, Task *task) override {
+void SaveStart(
+    u32 method, BinaryOutputArchive<true> &ar,
+    Task *task) override {
   switch (method) {
     case Method::kCreate: {
       ar << *reinterpret_cast<CreateTask*>(task);
@@ -103,29 +83,22 @@ void SaveStart(u32 method, BinaryOutputArchive<true> &ar, Task *task) override {
       ar << *reinterpret_cast<DestroyTask*>(task);
       break;
     }
-    case Method::kCustom: {
-      ar << *reinterpret_cast<CustomTask*>(task);
-      break;
-    }
   }
 }
 /** Deserialize a task when popping from remote queue */
-TaskPointer LoadStart(u32 method, BinaryInputArchive<true> &ar) override {
+TaskPointer LoadStart(    u32 method, BinaryInputArchive<true> &ar) override {
   TaskPointer task_ptr;
   switch (method) {
     case Method::kCreate: {
-      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<CreateTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<CreateTask>(
+             HSHM_DEFAULT_MEM_CTX, task_ptr.shm_);
       ar >> *reinterpret_cast<CreateTask*>(task_ptr.ptr_);
       break;
     }
     case Method::kDestroy: {
-      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<DestroyTask>(task_ptr.shm_);
+      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<DestroyTask>(
+             HSHM_DEFAULT_MEM_CTX, task_ptr.shm_);
       ar >> *reinterpret_cast<DestroyTask*>(task_ptr.ptr_);
-      break;
-    }
-    case Method::kCustom: {
-      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<CustomTask>(task_ptr.shm_);
-      ar >> *reinterpret_cast<CustomTask*>(task_ptr.ptr_);
       break;
     }
   }
@@ -142,10 +115,6 @@ void SaveEnd(u32 method, BinaryOutputArchive<false> &ar, Task *task) override {
       ar << *reinterpret_cast<DestroyTask*>(task);
       break;
     }
-    case Method::kCustom: {
-      ar << *reinterpret_cast<CustomTask*>(task);
-      break;
-    }
   }
 }
 /** Deserialize a task when popping from remote queue */
@@ -157,10 +126,6 @@ void LoadEnd(u32 method, BinaryInputArchive<false> &ar, Task *task) override {
     }
     case Method::kDestroy: {
       ar >> *reinterpret_cast<DestroyTask*>(task);
-      break;
-    }
-    case Method::kCustom: {
-      ar >> *reinterpret_cast<CustomTask*>(task);
       break;
     }
   }

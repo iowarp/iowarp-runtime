@@ -1,13 +1,11 @@
 name: chimaera_unit_ipc
-env: chimaera_codegen
+env: chimaera
 pkgs:
   - pkg_type: chimaera_run
     pkg_name: chimaera_run
     sleep: 5
     do_dbg: false
     dbg_port: 4000
-    dworkers: 3
-    oworkers: 4
   - pkg_type: chimaera_unit_tests
     pkg_name: chimaera_unit_tests
     TEST_CASE: TestUpgrade

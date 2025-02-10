@@ -14,14 +14,14 @@
 #define CHI_RPC_H_
 
 #include <arpa/inet.h>
+#include <ifaddrs.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
-#include <ifaddrs.h>
 
+#include <fstream>
 #include <functional>
 #include <iostream>
-#include <fstream>
 #include <string>
 #include <vector>
 
@@ -31,18 +31,16 @@
 namespace chi {
 
 /** Create RPC singleton */
-#define CHI_RPC \
-  hshm::Singleton<RpcContext>::GetInstance()
+#define CHI_RPC hshm::Singleton<RpcContext>::GetInstance()
 
 /** Uniquely identify a host machine */
 struct HostInfo {
-  NodeId node_id_;           /**< Hermes-assigned node id */
-  std::string hostname_;  /**< Host name */
-  std::string ip_addr_;   /**< Host IP address */
+  NodeId node_id_;       /**< Hermes-assigned node id */
+  std::string hostname_; /**< Host name */
+  std::string ip_addr_;  /**< Host IP address */
 
   HostInfo() = default;
-  explicit HostInfo(const std::string &hostname,
-                    const std::string &ip_addr,
+  explicit HostInfo(const std::string &hostname, const std::string &ip_addr,
                     NodeId node_id)
       : hostname_(hostname), ip_addr_(ip_addr), node_id_(node_id) {}
 };
@@ -81,21 +79,20 @@ struct DomainMapEntry {
     ids_ = std::move(ids);
   }
 
-  SubDomainId& Get(ContainerId hash) {
-    return ids_[hash % size_];
-  }
+  SubDomainId &Get(ContainerId hash) { return ids_[hash % size_]; }
 };
 
 /** A structure to represent RPC context. */
 class RpcContext {
  public:
   ServerConfig *config_;
-  int port_;  /**< port number */
-  std::string protocol_;  /**< Libfabric provider */
-  std::string domain_;    /**< Libfabric domain */
-  NodeId node_id_;        /**< the ID of this node */
-  int num_threads_;       /**< Number of RPC threads */
-  std::vector<HostInfo> hosts_;  /**< Hostname and ip addr per-node */
+  int port_;                    /**< port number */
+  std::string protocol_;        /**< Libfabric provider */
+  std::string domain_;          /**< Libfabric domain */
+  NodeId node_id_;              /**< the ID of this node */
+  int num_threads_;             /**< Number of RPC threads */
+  std::vector<u32> cpus_;       /** Mapping of RPC threads to CPUs */
+  std::vector<HostInfo> hosts_; /**< Hostname and ip addr per-node */
   size_t neighborhood_size_ = 32;
 
  public:
@@ -168,10 +165,8 @@ class RpcContext {
   /**
    * Resolve the minor domain of a domain query
    * */
-  void ResolveMinorDomain(const PoolId &scope,
-                          const DomainQuery &dom_query,
-                          std::vector<ResolvedDomainQuery> &res,
-                          bool full) {
+  void ResolveMinorDomain(const PoolId &scope, const DomainQuery &dom_query,
+                          std::vector<ResolvedDomainQuery> &res, bool full) {
     // Get minor domain
     DomainId dom_id = GetDomainId(scope, dom_query);
     DomainMapEntry &entry = domain_map_[dom_id];
@@ -189,8 +184,8 @@ class RpcContext {
             id.major_, id.minor_, DomainQuery::kBroadcast);
         ResolveMinorDomain(scope, sub_query, res, full);
       } else if (id.IsMajor()) {
-        DomainQuery sub_query = DomainQuery::GetGlobal(
-            id.major_, DomainQuery::kBroadcast);
+        DomainQuery sub_query =
+            DomainQuery::GetGlobal(id.major_, DomainQuery::kBroadcast);
         ResolveMinorDomain(scope, sub_query, res, full);
       }
     }
@@ -199,10 +194,8 @@ class RpcContext {
   /**
    * Resolve the major domain of a domain query
    * */
-  void ResolveMajorDomain(const PoolId &scope,
-                          const DomainQuery &dom_query,
-                          std::vector<ResolvedDomainQuery> &res,
-                          bool full) {
+  void ResolveMajorDomain(const PoolId &scope, const DomainQuery &dom_query,
+                          std::vector<ResolvedDomainQuery> &res, bool full) {
     // Get major domain
     DomainId dom_id = GetDomainId(scope, dom_query);
     DomainMapEntry &entry = domain_map_[dom_id];
@@ -248,10 +241,8 @@ class RpcContext {
   /**
    * Convert a DomainQuery into a set of more concretized queries.
    * */
-  std::vector<ResolvedDomainQuery>
-  ResolveDomainQuery(const PoolId &scope,
-                     const DomainQuery &dom_query,
-                     bool full) {
+  std::vector<ResolvedDomainQuery> ResolveDomainQuery(
+      const PoolId &scope, const DomainQuery &dom_query, bool full) {
     ScopedRwReadLock lock(domain_map_lock_, 0);
     std::vector<ResolvedDomainQuery> res;
     if (dom_query.flags_.All(DomainQuery::kLocal | DomainQuery::kId)) {
@@ -260,7 +251,7 @@ class RpcContext {
       sub_query.dom_ = dom_query;
       sub_query.node_ = node_id_;
       res.emplace_back(sub_query);
-    } else if(dom_query.flags_.Any(DomainQuery::kForwardToLeader)) {
+    } else if (dom_query.flags_.Any(DomainQuery::kForwardToLeader)) {
       // Forward to leader
       DomainQuery sub_query = DomainQuery::GetDirectHash(
           dom_query.sub_id_, 1, dom_query.flags_.bits_);
@@ -272,23 +263,21 @@ class RpcContext {
     } else if (dom_query.flags_.Any(DomainQuery::kGlobal)) {
       ResolveMajorDomain(scope, dom_query, res, full);
     } else {
-      HELOG(kError, "(node {}) Unknown domain query type: {}",
-            node_id_, dom_query)
+      HELOG(kError, "(node {}) Unknown domain query type: {}", node_id_,
+            dom_query);
     }
     return res;
   }
 
   /** Create the default domains */
-  std::vector<UpdateDomainInfo>
-  CreateDefaultDomains(const PoolId &task_state,
-                       const PoolId &admin_state,
-                       const DomainQuery &affinity,
-                       u32 global_containers,
-                       u32 local_containers_pn) {
+  std::vector<UpdateDomainInfo> CreateDefaultDomains(
+      const PoolId &task_state, const PoolId &admin_state,
+      const DomainQuery &affinity, u32 global_containers,
+      u32 local_containers_pn) {
     std::vector<UpdateDomainInfo> ops;
     // Resolve the admin scope domain
-    std::vector<ResolvedDomainQuery> dom = ResolveDomainQuery(
-        admin_state, affinity, true);
+    std::vector<ResolvedDomainQuery> dom =
+        ResolveDomainQuery(admin_state, affinity, true);
     size_t dom_size = dom.size();
     if (dom_size == 0) {
       for (u32 i = 1; i <= hosts_.size(); ++i) {
@@ -300,39 +289,32 @@ class RpcContext {
       // Create the major LaneSet domain
       size_t total_dom_size = dom.size();
       DomainId dom_id(task_state, SubDomainId::kContainerSet);
-      SubDomainIdRange range(
-          SubDomainId::kContainerSet,
-          1,
-          total_dom_size);
-      ops.emplace_back(UpdateDomainInfo{
-          dom_id, UpdateDomainOp::kExpand, range});
+      SubDomainIdRange range(SubDomainId::kContainerSet, 1, total_dom_size);
+      ops.emplace_back(
+          UpdateDomainInfo{dom_id, UpdateDomainOp::kExpand, range});
     }
     {
       // Create the major LocalContainer domain
       DomainId dom_id(task_state, SubDomainId::kLocalContainers);
-      SubDomainIdRange range(
-          SubDomainId::kLocalContainers,
-          1, 1);
-      ops.emplace_back(UpdateDomainInfo{
-          dom_id, UpdateDomainOp::kExpand, range});
+      SubDomainIdRange range(SubDomainId::kLocalContainers, 1, 1);
+      ops.emplace_back(
+          UpdateDomainInfo{dom_id, UpdateDomainOp::kExpand, range});
     }
     // Create the set of global lanes
     {
       for (size_t i = 1; i <= global_containers; ++i) {
         // Update GlobalContainers
         NodeId node_id = dom[(i - 1) % dom.size()].node_;
-        SubDomainIdRange res_set(
-            SubDomainId::kPhysicalNode, node_id, 1);
+        SubDomainIdRange res_set(SubDomainId::kPhysicalNode, node_id, 1);
         ops.emplace_back(UpdateDomainInfo{
             DomainId(task_state, SubDomainId::kContainerSet, i),
             UpdateDomainOp::kExpand, res_set});
         if (node_id == node_id_) {
-            // Update LocalContainers
-            SubDomainIdRange res_loc(
-                SubDomainId::kContainerSet, i, 1);
-            ops.emplace_back(UpdateDomainInfo{
-                DomainId(task_state, SubDomainId::kLocalContainers, 1),
-                UpdateDomainOp::kExpand, res_loc});
+          // Update LocalContainers
+          SubDomainIdRange res_loc(SubDomainId::kContainerSet, i, 1);
+          ops.emplace_back(UpdateDomainInfo{
+              DomainId(task_state, SubDomainId::kLocalContainers, 1),
+              UpdateDomainOp::kExpand, res_loc});
         }
       }
     }
@@ -350,12 +332,14 @@ class RpcContext {
   }
 
   /** Print domain resolution */
-  void PrintDomainResolution(const PoolId &scope, const DomainQuery &dom_query) {
+  void PrintDomainResolution(const PoolId &scope,
+                             const DomainQuery &dom_query) {
     std::vector<ResolvedDomainQuery> res_query =
         ResolveDomainQuery(scope, dom_query, true);
     HILOG(kInfo, "(node {}) Domain resolution for {}", node_id_, dom_query);
     for (const ResolvedDomainQuery &query : res_query) {
-      HILOG(kInfo, "(node {}) Resolved: node={} / {}", node_id_, query.node_, query.dom_);
+      HILOG(kInfo, "(node {}) Resolved: node={} / {}", node_id_, query.node_,
+            query.dom_);
     }
   }
 
@@ -370,13 +354,16 @@ class RpcContext {
   /** Get the set of lanes on this node */
   std::vector<SubDomainId> GetLocalContainers(const PoolId &scope) {
     std::vector<SubDomainId> res;
-    size_t dom_size = GetDomainSize(DomainId(scope, SubDomainId::kContainerSet));
+    size_t dom_size =
+        GetDomainSize(DomainId(scope, SubDomainId::kContainerSet));
     ScopedRwReadLock lock(domain_map_lock_, 0);
     for (u32 i = 0; i < dom_size; ++i) {
       std::vector<ResolvedDomainQuery> res_query = ResolveDomainQuery(
-          scope, DomainQuery::GetDirectHash(SubDomainId::kContainerSet, i), true);
+          scope, DomainQuery::GetDirectHash(SubDomainId::kContainerSet, i),
+          true);
       if (res_query.size() == 1 && res_query[0].node_ == node_id_) {
-        res.emplace_back(SubDomainId::kContainerSet, res_query[0].dom_.sel_.id_);
+        res.emplace_back(SubDomainId::kContainerSet,
+                         res_query[0].dom_.sel_.id_);
       }
     }
     return res;
@@ -393,14 +380,16 @@ class RpcContext {
     protocol_ = config_->rpc_.protocol_;
     domain_ = config_->rpc_.domain_;
     num_threads_ = config_->rpc_.num_threads_;
-    if (hosts_.size()) { return; }
+    cpus_ = config_->rpc_.cpus_;
+    if (hosts_.size()) {
+      return;
+    }
     // Uses hosts produced by host_names
-    std::vector<std::string> &hosts =
-        config_->rpc_.host_names_;
+    std::vector<std::string> &hosts = config_->rpc_.host_names_;
     // Get all host info
     hosts_.reserve(hosts.size());
     NodeId node_id = 1;
-    for (const std::string& name : hosts) {
+    for (const std::string &name : hosts) {
       hosts_.emplace_back(name, _GetIpAddress(name), node_id++);
     }
     // Get id of current host
@@ -425,38 +414,36 @@ class RpcContext {
   }
 
   /** Get RPC address for this node */
-  std::string GetMyRpcAddress() {
-    return GetRpcAddress(node_id_, port_);
-  }
+  std::string GetMyRpcAddress() { return GetRpcAddress(node_id_, port_); }
 
   /** get host name from node ID */
   std::string GetHostNameFromNodeId(NodeId node_id) {
     // NOTE(llogan): node_id 0 is reserved as the NULL node
     if (node_id <= 0 || node_id > (i32)hosts_.size()) {
-      HELOG(kFatal, "Attempted to get from node {}, which is out of "
-                    "the range 1-{}", node_id, hosts_.size())
+      HELOG(kFatal,
+            "Attempted to get from node {}, which is out of "
+            "the range 1-{}",
+            node_id, hosts_.size());
     }
     u32 index = node_id - 1;
     return hosts_[index].hostname_;
   }
 
   /** get host name from node ID */
-  std::string GetIpAddressFromNodeId(NodeId node_id){
+  std::string GetIpAddressFromNodeId(NodeId node_id) {
     // NOTE(llogan): node_id 0 is reserved as the NULL node
     if (node_id <= 0 || node_id > (u32)hosts_.size()) {
-      throw std::runtime_error(
-          hshm::Formatter::format(
-              "Attempted to get from node {}, which is out of "
-              "the range 1-{}", node_id, hosts_.size()));
+      throw std::runtime_error(hshm::Formatter::format(
+          "Attempted to get from node {}, which is out of "
+          "the range 1-{}",
+          node_id, hosts_.size()));
     }
     u32 index = node_id - 1;
     return hosts_[index].ip_addr_;
   }
 
   /** Get RPC protocol */
-  std::string GetProtocol() {
-    return config_->rpc_.protocol_;
-  }
+  std::string GetProtocol() { return config_->rpc_.protocol_; }
 
  private:
   /** Get the node ID of this machine according to hostfile */
@@ -474,7 +461,7 @@ class RpcContext {
 
   /** Check if an IP address is local */
   bool _IsAddressLocal(const std::string &addr) {
-    struct ifaddrs* ifAddrList = nullptr;
+    struct ifaddrs *ifAddrList = nullptr;
     bool found = false;
 
     if (getifaddrs(&ifAddrList) == -1) {
@@ -482,15 +469,15 @@ class RpcContext {
       return false;
     }
 
-    for (struct ifaddrs* ifAddr = ifAddrList;
-         ifAddr != nullptr; ifAddr = ifAddr->ifa_next) {
+    for (struct ifaddrs *ifAddr = ifAddrList; ifAddr != nullptr;
+         ifAddr = ifAddr->ifa_next) {
       if (ifAddr->ifa_addr == nullptr ||
           ifAddr->ifa_addr->sa_family != AF_INET) {
         continue;
       }
 
-      struct sockaddr_in* sin =
-          reinterpret_cast<struct sockaddr_in*>(ifAddr->ifa_addr);
+      struct sockaddr_in *sin =
+          reinterpret_cast<struct sockaddr_in *>(ifAddr->ifa_addr);
       char ipAddress[INET_ADDRSTRLEN] = {0};
       inet_ntop(AF_INET, &(sin->sin_addr), ipAddress, INET_ADDRSTRLEN);
 
@@ -512,18 +499,18 @@ class RpcContext {
     char hostname_buffer[4096] = {};
 #ifdef __APPLE__
     hostname_result = gethostbyname(host_name.c_str());
-  in_addr **addr_list = (struct in_addr **)hostname_result->h_addr_list;
+    in_addr **addr_list = (struct in_addr **)hostname_result->h_addr_list;
 #else
     int gethostbyname_result =
         gethostbyname_r(host_name.c_str(), &hostname_info, hostname_buffer,
                         4096, &hostname_result, &hostname_error);
     if (gethostbyname_result != 0) {
-      HELOG(kFatal, hstrerror(h_errno))
+      HELOG(kFatal, hstrerror(h_errno));
     }
     in_addr **addr_list = (struct in_addr **)hostname_info.h_addr_list;
 #endif
     if (!addr_list[0]) {
-      HELOG(kFatal, hstrerror(h_errno))
+      HELOG(kFatal, hstrerror(h_errno));
     }
 
     char ip_address[INET_ADDRSTRLEN] = {0};
@@ -537,6 +524,6 @@ class RpcContext {
   }
 };
 
-}  // namespace hermes
+}  // namespace chi
 
 #endif  // CHI_RPC_H_

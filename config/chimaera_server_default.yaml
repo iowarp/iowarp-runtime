@@ -1,11 +1,9 @@
 ### Runtime orchestration settings
 work_orchestrator:
-  # The max number of dedicated worker threads
-  max_dworkers: 4
-  # The max number of overlapping threads
-  max_oworkers: 4
-  # The max number of total dedicated cores
-  owork_per_core: 32
+  # The mapping of workers to CPUs
+  cpus: [0, 1, 2, 2, 3, 3]
+  # Where the reinforcement thread maps to CPU
+  reinforce_cpu: 3
   # Monitoring window (seconds)
   monitor_window: 1
   # Monitoring gap (seconds)
@@ -21,8 +19,6 @@ queue_manager:
   max_lanes: 16
   # The maximum number of queues
   max_queues: 1024
-  # The shared memory allocator to use
-  shm_allocator: kScalablePageAllocator
   # The name of the shared memory region to create
   shm_name: "chimaera_shm"
   # The size of the shared memory region to allocate for general data structures
@@ -55,8 +51,8 @@ rpc:
   # Desired RPC port number.
   port: 8080
 
-  # The number of handler threads for each RPC server.
-  num_threads: 4
+  # The mapping of RPC threads to CPUs
+  cpus: [4, 5]
 
 ### Task Registry
 module_registry: []

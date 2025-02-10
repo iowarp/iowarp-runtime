@@ -16,6 +16,8 @@ void ReinforceWorker::Run() {
 }
 
 void ReinforceWorker::Reinforce() {
+  // TODO(llogan): figure out why this may be segaulting
+  return;
   ScopedCoRwTryReadLock upgrade_lock(CHI_MOD_REGISTRY->upgrade_lock_);
   if (!upgrade_lock.locked_) {
     return;

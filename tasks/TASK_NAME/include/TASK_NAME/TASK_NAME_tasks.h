@@ -15,93 +15,22 @@ CHI_NAMESPACE_INIT
 /**
  * A task to create TASK_NAME
  * */
-using chi::Admin::CreateContainerTask;
-struct CreateTask : public CreateContainerTask {
-  /** SHM default constructor */
-  HSHM_ALWAYS_INLINE explicit
-  CreateTask(hipc::Allocator *alloc)
-      : CreateContainerTask(alloc) {}
+struct CreateTaskParams {
+  CLS_CONST char *lib_name_ = "TASK_NAME";
 
-  /** Emplace constructor */
-  HSHM_ALWAYS_INLINE explicit
-  CreateTask(hipc::Allocator *alloc,
-             const TaskNode &task_node,
-             const PoolId &pool_id,
-             const DomainQuery &dom_query,
-             const DomainQuery &affinity,
-             const std::string &pool_name,
-             const CreateContext &ctx)
-      : CreateContainerTask(alloc, task_node, pool_id, dom_query, affinity,
-                            pool_name, "TASK_NAME", ctx) {
-    // Custom params
-  }
+  HSHM_INLINE_CROSS_FUN
+  CreateTaskParams() = default;
 
-  HSHM_ALWAYS_INLINE
-  ~CreateTask() {
-    // Custom params
-  }
+  HSHM_INLINE_CROSS_FUN
+  CreateTaskParams(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) {}
 
-  /** Duplicate message */
-  template<typename CreateTaskT = CreateContainerTask>
-  void CopyStart(const CreateTaskT &other, bool deep) {
-    BaseCopyStart(other, deep);
-  }
-
-  /** (De)serialize message call */
-  template<typename Ar>
-  void SerializeStart(Ar &ar) {
-    BaseSerializeStart(ar);
-  }
-
-  /** (De)serialize message return */
-  template<typename Ar>
-  void SerializeEnd(Ar &ar) {
-    BaseSerializeEnd(ar);
-  }
+  template <typename Ar>
+  HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {}
 };
+typedef chi::Admin::CreateContainerBaseTask<CreateTaskParams> CreateTask;
 
 /** A task to destroy TASK_NAME */
 typedef chi::Admin::DestroyContainerTask DestroyTask;
-
-/**
- * A custom task in TASK_NAME
- * */
-struct CustomTask : public Task, TaskFlags<TF_SRL_SYM> {
-  /** SHM default constructor */
-  HSHM_ALWAYS_INLINE explicit
-  CustomTask(hipc::Allocator *alloc) : Task(alloc) {}
-
-  /** Emplace constructor */
-  HSHM_ALWAYS_INLINE explicit
-  CustomTask(hipc::Allocator *alloc,
-             const TaskNode &task_node,
-             const PoolId &pool_id,
-             const DomainQuery &dom_query) : Task(alloc) {
-    // Initialize task
-    task_node_ = task_node;
-    prio_ = TaskPrio::kLowLatency;
-    pool_ = pool_id;
-    method_ = Method::kCustom;
-    task_flags_.SetBits(0);
-    dom_query_ = dom_query;
-
-    // Custom params
-  }
-
-  /** Duplicate message */
-  void CopyStart(const CustomTask &other, bool deep) {
-  }
-
-  /** (De)serialize message call */
-  template<typename Ar>
-  void SerializeStart(Ar &ar) {
-  }
-
-  /** (De)serialize message return */
-  template<typename Ar>
-  void SerializeEnd(Ar &ar) {
-  }
-};
 
 }  // namespace chi::TASK_NAME
 

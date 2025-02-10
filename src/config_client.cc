@@ -11,9 +11,12 @@
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include "chimaera/config/config_client.h"
-#include "chimaera/config/config_client_default.h"
-#include "hermes_shm/util/config_parse.h"
+
+#include <hermes_shm/util/config_parse.h>
+
 #include <filesystem>
+
+#include "chimaera/config/config_client_default.h"
 
 namespace stdfs = std::filesystem;
 

@@ -13,8 +13,8 @@
 #ifndef CHI_SRC_CONFIG_SERVER_H_
 #define CHI_SRC_CONFIG_SERVER_H_
 
-#include "config.h"
 #include "chimaera/chimaera_types.h"
+#include "config.h"
 
 namespace chi::config {
 
@@ -22,12 +22,10 @@ namespace chi::config {
  * Work orchestrator information defined in server config
  * */
 struct WorkOrchestratorInfo {
-  /** Maximum number of dedicated workers */
-  size_t max_dworkers_;
-  /** Maximum number of overlapping workers */
-  size_t max_oworkers_;
-  /** Overlapped workers per core */
-  size_t owork_per_core_;
+  /** CPU bindings for workers */
+  std::vector<u32> cpus_;
+  /** CPU binding for reinforcement worker */
+  u32 reinforce_cpu_;
   /** Monitoring gap */
   size_t monitor_gap_;
   /** Monitoring window */
@@ -46,8 +44,6 @@ struct QueueManagerInfo {
   u32 max_containers_pn_;
   /** Maximum number of allocatable IPC queues */
   u32 max_queues_;
-  /** Shared memory allocator */
-  std::string shm_allocator_;
   /** Shared memory region name */
   std::string shm_name_;
   /** Shared memory region size */
@@ -60,6 +56,12 @@ struct QueueManagerInfo {
   size_t data_shm_size_;
   /** Runtime data shared memory region size */
   size_t rdata_shm_size_;
+
+  HSHM_HOST_FUN
+  QueueManagerInfo() = default;
+
+  HSHM_HOST_FUN
+  ~QueueManagerInfo() = default;
 };
 
 /**
@@ -78,6 +80,8 @@ struct RpcInfo {
   int port_;
   /** Number of RPC threads */
   int num_threads_;
+  /** CPU bindings for workers */
+  std::vector<u32> cpus_;
 };
 
 /**

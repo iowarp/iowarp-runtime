@@ -16,5 +16,5 @@
 
 TEST_CASE("TestFinalize") {
   CHIMAERA_CLIENT_INIT();
-  CHI_ADMIN->StopRuntime();
+  CHI_ADMIN->StopRuntime(HSHM_DEFAULT_MEM_CTX);
 }

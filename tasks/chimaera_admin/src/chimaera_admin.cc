@@ -11,16 +11,18 @@
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include "chimaera_admin/chimaera_admin.h"
+
 #include "chimaera/api/chimaera_runtime.h"
+#include "chimaera/monitor/monitor.h"
 #include "chimaera/work_orchestrator/comutex.h"
 #include "chimaera/work_orchestrator/corwlock.h"
 #include "chimaera/work_orchestrator/scheduler.h"
-#include "chimaera/monitor/monitor.h"
 
 namespace chi::Admin {
 
 class Server : public Module {
  public:
+  CLS_CONST LaneGroupId kDefaultGroup = 0;
   Task *queue_sched_;
   Task *proc_sched_;
   RollingAverage monitor_[Method::kCount];
@@ -29,8 +31,8 @@ class Server : public Module {
   Server() : queue_sched_(nullptr), proc_sched_(nullptr) {}
 
   /** Basic monitoring function */
-  void MonitorBase(MonitorModeId mode, MethodId method,
-                   Task *task, RunContext &rctx) {
+  void MonitorBase(MonitorModeId mode, MethodId method, Task *task,
+                   RunContext &rctx) {
     switch (mode) {
       case MonitorMode::kEstLoad: {
         rctx.load_.cpu_load_ = monitor_[method].Predict();
@@ -45,7 +47,7 @@ class Server : public Module {
         break;
       }
       case MonitorMode::kReplicaAgg: {
-        std::vector<LPointer<Task>> &replicas = *rctx.replicas_;
+        std::vector<FullPtr<Task>> &replicas = *rctx.replicas_;
         break;
       }
     }
@@ -53,8 +55,7 @@ class Server : public Module {
 
   /** Create the state */
   void Create(CreateTask *task, RunContext &rctx) {
-    CreateLaneGroup(0, 1, QUEUE_LOW_LATENCY);
-    CreateLaneGroup(1, 1, QUEUE_HIGH_LATENCY);
+    CreateLaneGroup(kDefaultGroup, 1, QUEUE_LOW_LATENCY);
     for (int i = 0; i < Method::kCount; ++i) {
       monitor_[i].Shape(hshm::Formatter::format("{}-method-{}", name_, i));
     }
@@ -73,8 +74,8 @@ class Server : public Module {
   }
 
   /** Route a task to a lane */
-  Lane* Route(const Task *task) override {
-    return GetLaneByHash(task->prio_, 0);
+  Lane *MapTaskToLane(const Task *task) override {
+    return GetLaneByHash(kDefaultGroup, task->prio_, 0);
   }
 
   /** Update number of lanes */
@@ -83,8 +84,7 @@ class Server : public Module {
     CHI_RPC->UpdateDomains(ops);
     task->SetModuleComplete();
   }
-  void MonitorUpdateDomain(MonitorModeId mode,
-                           UpdateDomainTask *task,
+  void MonitorUpdateDomain(MonitorModeId mode, UpdateDomainTask *task,
                            RunContext &rctx) {
     MonitorBase(mode, Method::kUpdateDomain, task, rctx);
   }
@@ -92,12 +92,12 @@ class Server : public Module {
   /** Register a module dynamically */
   void RegisterModule(RegisterModuleTask *task, RunContext &rctx) {
     std::string lib_name = task->lib_name_.str();
+    HILOG(kInfo, "Registering module? {}", lib_name);
     CHI_MOD_REGISTRY->RegisterModule(lib_name);
     task->SetModuleComplete();
   }
-  void MonitorRegisterModule(MonitorModeId mode,
-                              RegisterModuleTask *task,
-                              RunContext &rctx) {
+  void MonitorRegisterModule(MonitorModeId mode, RegisterModuleTask *task,
+                             RunContext &rctx) {
     MonitorBase(mode, Method::kRegisterModule, task, rctx);
   }
 
@@ -107,9 +107,8 @@ class Server : public Module {
     CHI_MOD_REGISTRY->DestroyModule(lib_name);
     task->SetModuleComplete();
   }
-  void MonitorDestroyModule(MonitorModeId mode,
-                             DestroyModuleTask *task,
-                             RunContext &rctx) {
+  void MonitorDestroyModule(MonitorModeId mode, DestroyModuleTask *task,
+                            RunContext &rctx) {
     MonitorBase(mode, Method::kDestroyModule, task, rctx);
   }
 
@@ -118,9 +117,9 @@ class Server : public Module {
     ScopedCoRwWriteLock upgrade_lock(CHI_MOD_REGISTRY->upgrade_lock_);
     // Get the set of ChiContainers
     std::string lib_name = task->lib_name_.str();
-    std::vector<Container*> containers =
+    std::vector<Container *> containers =
         CHI_MOD_REGISTRY->GetContainers(lib_name);
-    std::vector<Container*> new_containers;
+    std::vector<Container *> new_containers;
     // Load the updated code
     ModuleInfo new_info;
     CHI_MOD_REGISTRY->LoadModule(lib_name, new_info);
@@ -144,7 +143,8 @@ class Server : public Module {
     }
     // Wait for at least two iterations per-worker
     for (size_t i = 0; i < iter_counts.size(); ++i) {
-      while (CHI_WORK_ORCHESTRATOR->workers_[i]->iter_count_ < iter_counts[i] + 2) {
+      while (CHI_WORK_ORCHESTRATOR->workers_[i]->iter_count_ <
+             iter_counts[i] + 2) {
         task->Yield();
       }
     }
@@ -153,7 +153,8 @@ class Server : public Module {
     // Wait for all active tasks to complete
     for (Container *container : containers) {
       while (container->GetNumActiveTasks() > 0) {
-//        HILOG(kInfo, "Active tasks: {}", container->GetNumActiveTasks());
+        //        HILOG(kInfo, "Active tasks: {}",
+        //        container->GetNumActiveTasks());
         task->Yield();
       }
     }
@@ -170,8 +171,7 @@ class Server : public Module {
     CHI_MOD_REGISTRY->UnplugModule(lib_name);
     task->SetModuleComplete();
   }
-  void MonitorUpgradeModule(MonitorModeId mode,
-                            UpgradeModuleTask *task,
+  void MonitorUpgradeModule(MonitorModeId mode, UpgradeModuleTask *task,
                             RunContext &rctx) {
     MonitorBase(mode, Method::kUpgradeModule, task, rctx);
   }
@@ -183,8 +183,7 @@ class Server : public Module {
     std::string pool_name = task->pool_name_.str();
     // Check local registry for pool
     bool state_existed = false;
-    PoolId found_pool = CHI_MOD_REGISTRY->PoolExists(
-        pool_name, task->ctx_.id_);
+    PoolId found_pool = CHI_MOD_REGISTRY->PoolExists(pool_name, task->ctx_.id_);
     if (!found_pool.IsNull()) {
       task->ctx_.id_ = found_pool;
       state_existed = true;
@@ -196,8 +195,9 @@ class Server : public Module {
       task->ctx_.id_ = CHI_MOD_REGISTRY->GetOrCreatePoolId(pool_name);
     }
     // Create the pool
-    HILOG(kInfo, "(node {}) Creating pool {} with id {} (task_node={})",
-          CHI_CLIENT->node_id_, pool_name, task->ctx_.id_, task->task_node_);
+    HILOG(kInfo, "(node {}) Creating pool {} ({}) with id {} (task_node={})",
+          CHI_CLIENT->node_id_, pool_name, pool_name.size(), task->ctx_.id_,
+          task->task_node_);
     if (task->ctx_.id_.IsNull()) {
       HELOG(kError, "(node {}) The pool {} with id {} is NULL.",
             CHI_CLIENT->node_id_, pool_name, task->ctx_.id_);
@@ -216,23 +216,17 @@ class Server : public Module {
     }
     // Update the default domains for the state
     std::vector<UpdateDomainInfo> ops = CHI_RPC->CreateDefaultDomains(
-        task->ctx_.id_,
-        CHI_QM_CLIENT->admin_pool_id_,
-        task->affinity_,
-        global_containers,
-        local_containers_pn);
+        task->ctx_.id_, CHI_QM->admin_pool_id_, task->affinity_,
+        global_containers, local_containers_pn);
     CHI_RPC->UpdateDomains(ops);
     std::vector<SubDomainId> containers =
         CHI_RPC->GetLocalContainers(task->ctx_.id_);
     // Print the created domain
-//    CHI_RPC->PrintDomain(DomainId{task->ctx_.id_, SubDomainId::kContainerSet});
-//    CHI_RPC->PrintSubdomainSet(containers);
+    //    CHI_RPC->PrintDomain(DomainId{task->ctx_.id_,
+    //    SubDomainId::kContainerSet}); CHI_RPC->PrintSubdomainSet(containers);
     // Create the pool
     bool did_create = CHI_MOD_REGISTRY->CreateContainer(
-        lib_name.c_str(),
-        pool_name.c_str(),
-        task->ctx_.id_,
-        task, containers);
+        lib_name.c_str(), pool_name.c_str(), task->ctx_.id_, task, containers);
     if (!did_create) {
       HELOG(kFatal, "Failed to create container: {}", pool_name);
       task->SetModuleComplete();
@@ -240,25 +234,13 @@ class Server : public Module {
     }
     if (task->root_) {
       // Broadcast the state creation to all nodes
-      Container *exec = CHI_MOD_REGISTRY->GetStaticContainer(task->ctx_.id_);
-      LPointer<Task> bcast;
-      exec->NewCopyStart(Method::kCreate, task, bcast, true);
-      auto *bcast_ptr = reinterpret_cast<CreateContainerTask *>(
-          bcast.ptr_);
-      bcast_ptr->task_node_ += 1;
-      bcast_ptr->root_ = false;
-      bcast_ptr->dom_query_ = bcast_ptr->affinity_;
-      bcast_ptr->method_ = Method::kCreateContainer;
-      bcast_ptr->pool_ = CHI_ADMIN->id_;
-      ingress::MultiQueue *queue =
-          CHI_QM_CLIENT->GetQueue(CHI_QM_CLIENT->admin_queue_id_);
-      bcast->YieldInit(task);
-      queue->Emplace(bcast->prio_, bcast->GetContainerId(), bcast.shm_);
-      task->Wait(bcast);
-      exec->Del(Method::kCreate, bcast.ptr_);
+      CHI_ADMIN->CreateContainer(HSHM_DEFAULT_MEM_CTX, task->dom_query_, *task);
+      HILOG(kInfo,
+            "(node {}) Broadcasting container creation (task_node={}): pool {}",
+            CHI_RPC->node_id_, task->task_node_, task->pool_name_.str());
     }
-    HILOG(kInfo, "(node {}) Created containers for task {}",
-          CHI_RPC->node_id_, task->task_node_);
+    HILOG(kInfo, "(node {}) Created containers for task {}", CHI_RPC->node_id_,
+          task->task_node_);
     task->SetModuleComplete();
   }
   void MonitorCreateContainer(MonitorModeId mode, CreateContainerTask *task,
@@ -269,7 +251,8 @@ class Server : public Module {
         break;
       }
       case MonitorMode::kSampleLoad: {
-        monitor_[Method::kCreateContainer].Add(rctx.timer_.GetNsec(), rctx.load_);
+        monitor_[Method::kCreateContainer].Add(rctx.timer_.GetNsec(),
+                                               rctx.load_);
         break;
       }
       case MonitorMode::kReinforceLoad: {
@@ -277,9 +260,9 @@ class Server : public Module {
         break;
       }
       case MonitorMode::kReplicaAgg: {
-        std::vector<LPointer<Task>> &replicas = *rctx.replicas_;
-        auto replica = reinterpret_cast<CreateContainerTask *>(
-            replicas[0].ptr_);
+        std::vector<FullPtr<Task>> &replicas = *rctx.replicas_;
+        auto replica =
+            reinterpret_cast<CreateContainerTask *>(replicas[0].ptr_);
         task->ctx_ = replica->ctx_;
         break;
       }
@@ -292,8 +275,7 @@ class Server : public Module {
     task->id_ = CHI_MOD_REGISTRY->GetPoolId(pool_name);
     task->SetModuleComplete();
   }
-  void MonitorGetPoolId(MonitorModeId mode,
-                        GetPoolIdTask *task,
+  void MonitorGetPoolId(MonitorModeId mode, GetPoolIdTask *task,
                         RunContext &rctx) {
     switch (mode) {
       case MonitorMode::kEstLoad: {
@@ -309,9 +291,8 @@ class Server : public Module {
         break;
       }
       case MonitorMode::kReplicaAgg: {
-        std::vector<LPointer<Task>> &replicas = *rctx.replicas_;
-        auto replica = reinterpret_cast<GetPoolIdTask *>(
-            replicas[0].ptr_);
+        std::vector<FullPtr<Task>> &replicas = *rctx.replicas_;
+        auto replica = reinterpret_cast<GetPoolIdTask *>(replicas[0].ptr_);
         task->id_ = replica->id_;
       }
     }
@@ -322,8 +303,7 @@ class Server : public Module {
     CHI_MOD_REGISTRY->DestroyContainer(task->id_);
     task->SetModuleComplete();
   }
-  void MonitorDestroyContainer(MonitorModeId mode,
-                               DestroyContainerTask *task,
+  void MonitorDestroyContainer(MonitorModeId mode, DestroyContainerTask *task,
                                RunContext &rctx) {
     MonitorBase(mode, Method::kDestroyContainer, task, rctx);
   }
@@ -333,8 +313,8 @@ class Server : public Module {
     if (task->root_) {
       HILOG(kInfo, "(node {}) Broadcasting runtime stop (task_node={})",
             CHI_RPC->node_id_, task->task_node_);
-      CHI_ADMIN->AsyncStopRuntime(
-          DomainQuery::GetGlobalBcast(), false);
+      CHI_ADMIN->AsyncStopRuntime(HSHM_DEFAULT_MEM_CTX,
+                                  DomainQuery::GetGlobalBcast(), false);
     } else if (CHI_RPC->node_id_ == task->task_node_.root_.node_id_) {
       task->SetModuleComplete();
       HILOG(kInfo, "(node {}) Ignoring runtime stop (task_node={})",
@@ -347,12 +327,14 @@ class Server : public Module {
     CHI_WORK_ORCHESTRATOR->FinalizeRuntime();
     task->SetModuleComplete();
   }
-  void MonitorStopRuntime(MonitorModeId mode, StopRuntimeTask *task, RunContext &rctx) {
+  void MonitorStopRuntime(MonitorModeId mode, StopRuntimeTask *task,
+                          RunContext &rctx) {
     MonitorBase(mode, Method::kStopRuntime, task, rctx);
   }
 
   /** Set work orchestrator policy */
-  void SetWorkOrchQueuePolicy(SetWorkOrchQueuePolicyTask *task, RunContext &rctx) {
+  void SetWorkOrchQueuePolicy(SetWorkOrchQueuePolicyTask *task,
+                              RunContext &rctx) {
     if (queue_sched_) {
       queue_sched_->SetModuleComplete();
     }
@@ -360,13 +342,12 @@ class Server : public Module {
       return;
     }
     auto queue_sched = CHI_CLIENT->NewTask<ScheduleTask>(
-        task->task_node_,
+        HSHM_DEFAULT_MEM_CTX, task->task_node_,
         chi::DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0),
-        task->policy_id_,
-        250);
+        task->policy_id_, 250);
     queue_sched_ = queue_sched.ptr_;
     ingress::MultiQueue *queue = CHI_CLIENT->GetQueue(queue_id_);
-    queue->Emplace(TaskPrio::kLowLatency, 0, queue_sched.shm_);
+    queue->Emplace(TaskPrioOpt::kLowLatency, 0, queue_sched.shm_);
     task->SetModuleComplete();
   }
   void MonitorSetWorkOrchQueuePolicy(MonitorModeId mode,
@@ -385,10 +366,9 @@ class Server : public Module {
       return;
     }
     auto proc_sched = CHI_CLIENT->NewTask<ScheduleTask>(
-        task->task_node_,
+        HSHM_DEFAULT_MEM_CTX, task->task_node_,
         chi::DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0),
-        task->policy_id_,
-        1000);
+        task->policy_id_, 1000);
     proc_sched_ = proc_sched.ptr_;
     ingress::MultiQueue *queue = CHI_CLIENT->GetQueue(queue_id_);
     queue->Emplace(0, 0, proc_sched.shm_);
@@ -401,9 +381,7 @@ class Server : public Module {
   }
 
   /** Flush the runtime */
-  void Flush(FlushTask *task, RunContext &rctx) {
-    task->SetModuleComplete();
-  }
+  void Flush(FlushTask *task, RunContext &rctx) { task->SetModuleComplete(); }
   void MonitorFlush(MonitorModeId mode, FlushTask *task, RunContext &rctx) {
     switch (mode) {
       case MonitorMode::kEstLoad: {
@@ -419,9 +397,8 @@ class Server : public Module {
         break;
       }
       case MonitorMode::kReplicaAgg: {
-        std::vector<LPointer<Task>> &replicas = *rctx.replicas_;
-        auto replica = reinterpret_cast<FlushTask *>(
-            replicas[0].ptr_);
+        std::vector<FullPtr<Task>> &replicas = *rctx.replicas_;
+        auto replica = reinterpret_cast<FlushTask *>(replicas[0].ptr_);
         task->work_done_ += replica->work_done_;
       }
     }
@@ -429,12 +406,10 @@ class Server : public Module {
 
   /** Get the domain size */
   void GetDomainSize(GetDomainSizeTask *task, RunContext &rctx) {
-    task->dom_size_ =
-        CHI_RPC->GetDomainSize(task->dom_id_);
+    task->dom_size_ = CHI_RPC->GetDomainSize(task->dom_id_);
     task->SetModuleComplete();
   }
-  void MonitorGetDomainSize(MonitorModeId mode,
-                            GetDomainSizeTask *task,
+  void MonitorGetDomainSize(MonitorModeId mode, GetDomainSizeTask *task,
                             RunContext &rctx) {
     MonitorBase(mode, Method::kGetDomainSize, task, rctx);
   }
@@ -443,6 +418,6 @@ class Server : public Module {
 #include "chimaera_admin/chimaera_admin_lib_exec.h"
 };
 
-}  // namespace chi
+}  // namespace chi::Admin
 
 CHI_TASK_CC(chi::Admin::Server, "chimaera_admin");

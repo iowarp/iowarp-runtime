@@ -93,12 +93,19 @@ class ChimaeraRun(Service):
                 'rank': 1,
             },
             {
-                'name': 'rpc_threads',
-                'msg': 'the number of rpc threads to create',
-                'type': int,
-                'default': 4,
+                'name': 'rpc_cpus',
+                'msg': 'the mapping of rpc threads to cpus',
+                'type': list,
+                'default': None,
                 'class': 'communication',
                 'rank': 1,
+                'args': [
+                    {
+                        'name': 'cpu_id',
+                        'msg': 'An integer representing CPU ID',
+                        'type': int,
+                    }
+                ],
             },
             {
                 'name': 'qdepth',
@@ -125,26 +132,25 @@ class ChimaeraRun(Service):
                 'rank': 1,
             },
             {
-                'name': 'dworkers',
-                'msg': 'The number of core-dedicated workers',
-                'type': int,
-                'default': 2,
+                'name': 'worker_cpus',
+                'msg': 'the mapping of workers to cpu cores',
+                'type': list,
+                'default': None,
                 'class': 'work orchestrator',
                 'rank': 1,
+                'args': [
+                    {
+                        'name': 'cpu_id',
+                        'msg': 'An integer representing CPU ID',
+                        'type': int,
+                    }
+                ],
             },
             {
-                'name': 'oworkers',
-                'msg': 'The number of overlapping workers',
+                'name': 'reinforce_cpu',
+                'msg': 'the mapping of the reinforce worker to cpu',
                 'type': int,
-                'default': 4,
-                'class': 'work orchestrator',
-                'rank': 1,
-            },
-            {
-                'name': 'oworkers_per_core',
-                'msg': 'Overlapping workers per core',
-                'type': int,
-                'default': 32,
+                'default': 3,
                 'class': 'work orchestrator',
                 'rank': 1,
             },
@@ -214,9 +220,7 @@ class ChimaeraRun(Service):
         # Begin making chimaera_run config
         chimaera_server = {
             'work_orchestrator': {
-                'max_dworkers': self.config['dworkers'],
-                'max_oworkers': self.config['oworkers'],
-                'oworkers_per_core': self.config['oworkers_per_core'],
+                'reinforce_cpu': self.config['reinforce_cpu'],
                 'monitor_window': self.config['monitor_window'],
                 'monitor_gap': self.config['monitor_gap']
             },
@@ -225,14 +229,14 @@ class ChimaeraRun(Service):
                 'proc_queue_depth': self.config['pqdepth'],
                 'max_lanes': self.config['qlanes'],
                 'max_queues': 1024,
-                'shm_allocator': 'kScalablePageAllocator',
                 'shm_name': self.config['shm_name'],
                 'shm_size': self.config['task_shm'],
                 'data_shm_size': self.config['data_shm'],
                 'rdata_shm_size': self.config['rdata_shm'],
-            },
-            'rpc': {}
+            }
         }
+        if self.config['worker_cpus'] is not None:
+            chimaera_server['work_orchestrator']['cpus'] = self.config['worker_cpus']
         if len(self.config['monitor_out']):
             self.env['CHIMAERA_MONITOR_OUT'] = os.path.expandvars(self.config['monitor_out'])
             os.makedirs(self.env['CHIMAERA_MONITOR_OUT'], exist_ok=True)
@@ -274,8 +278,9 @@ class ChimaeraRun(Service):
             'protocol': protocol,
             'domain': domain,
             'port': self.config['port'],
-            'num_threads': self.config['rpc_threads']
         }
+        if self.config['rpc_cpus'] is not None:
+            chimaera_server['rpc']['cpus'] = self.config['rpc_cpus']
         if self.hostfile.path is None:
             chimaera_server['rpc']['host_names'] = self.hostfile.hosts
 

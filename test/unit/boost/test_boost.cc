@@ -10,15 +10,15 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include "basic_test.h"
+#include <hermes_shm/util/logging.h>
+#include <hermes_shm/util/timer.h>
+
 #include <boost/context/fiber_fcontext.hpp>
-#include "hermes_shm/util/timer.h"
-#include "hermes_shm/util/logging.h"
 #include <boost/coroutine2/all.hpp>
 
+#include "basic_test.h"
 
-void function() {
-}
+void function() {}
 
 TEST_CASE("TestBoostFiber") {
   hshm::Timer t;
@@ -37,20 +37,14 @@ TEST_CASE("TestBoostFiber") {
   HILOG(kInfo, "Latency: {} MOps", ops / t.GetUsec());
 }
 
-template< std::size_t Max, std::size_t Default, std::size_t Min >
+template <std::size_t Max, std::size_t Default, std::size_t Min>
 class simple_stack_allocator {
  public:
-  static std::size_t maximum_stacksize() {
-    return Max;
-  }
+  static std::size_t maximum_stacksize() { return Max; }
 
-  static std::size_t default_stacksize() {
-    return Default;
-  }
+  static std::size_t default_stacksize() { return Default; }
 
-  static std::size_t minimum_stacksize() {
-    return Min;
-  }
+  static std::size_t minimum_stacksize() { return Min; }
 
   void *allocate(std::size_t size) const {
     BOOST_ASSERT(minimum_stacksize() <= size);
@@ -60,7 +54,7 @@ class simple_stack_allocator {
     return static_cast<char *>(limit) + size;
   }
 
-  void deallocate(void * vp, std::size_t size) const {
+  void deallocate(void *vp, std::size_t size) const {
     BOOST_ASSERT(vp);
     BOOST_ASSERT(minimum_stacksize() <= size);
     BOOST_ASSERT(maximum_stacksize() >= size);
@@ -70,10 +64,7 @@ class simple_stack_allocator {
   }
 };
 
-typedef simple_stack_allocator<
-    8 * 1024 * 1024,
-    64 * 1024,
-    32> stack_allocator;
+typedef simple_stack_allocator<8 * 1024 * 1024, 64 * 1024, 32> stack_allocator;
 
 int value1;
 namespace bctx = boost::context::detail;
@@ -87,7 +78,6 @@ void f3(bctx::transfer_t t) {
   ++value1;
   shared_xfer = bctx::jump_fcontext(shared_xfer.fctx, shared_xfer.data);
 }
-
 
 TEST_CASE("TestBoostFcontext") {
   value1 = 0;
@@ -112,7 +102,7 @@ TEST_CASE("TestBoostFcontext") {
 
 namespace co = boost::coroutines2;
 
-void myCoroutine(co::coroutine<void>::push_type& yield) {
+void myCoroutine(co::coroutine<void>::push_type &yield) {
   for (int i = 1; i <= 5; ++i) {
     yield();
   }

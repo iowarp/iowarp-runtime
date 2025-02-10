@@ -19,7 +19,6 @@ namespace chi::bdev {
 
 /** Create bdev requests */
 class Client : public ModuleClient {
-
  public:
   /** Default constructor */
   Client() = default;
@@ -28,85 +27,80 @@ class Client : public ModuleClient {
   ~Client() = default;
 
   /** Create a pool */
-  void Create(const DomainQuery &dom_query,
-              const DomainQuery &affinity,
-              const std::string &pool_name,
-              const std::string &path,
-              size_t max_size,
+  HSHM_INLINE_CROSS_FUN
+  void Create(const hipc::MemContext &mctx, const DomainQuery &dom_query,
+              const DomainQuery &affinity, const chi::string &pool_name,
+              const chi::string &path, size_t max_size,
               const CreateContext &ctx = CreateContext()) {
-    LPointer<CreateTask> task = AsyncCreate(
-        dom_query, affinity, pool_name, ctx, path, max_size);
+    FullPtr<CreateTask> task =
+        AsyncCreate(mctx, dom_query, affinity, pool_name, ctx, path, max_size);
     task->Wait();
     Init(task->ctx_.id_);
-    CHI_CLIENT->DelTask(task);
+    CHI_CLIENT->DelTask(mctx, task);
   }
   CHI_TASK_METHODS(Create);
 
   /** Destroy pool + queue */
-  HSHM_ALWAYS_INLINE
-  void Destroy(const DomainQuery &dom_query) {
-    CHI_ADMIN->DestroyContainer(dom_query, id_);
+  HSHM_INLINE_CROSS_FUN
+  void Destroy(const hipc::MemContext &mctx, const DomainQuery &dom_query) {
+    CHI_ADMIN->DestroyContainer(mctx, dom_query, id_);
   }
 
   /** Allocate a section of the block device */
-  HSHM_ALWAYS_INLINE
-  std::vector<Block> Allocate(const DomainQuery &dom_query,
-                              size_t size) {
-    LPointer<AllocateTask> task =
-        AsyncAllocate(dom_query, size);
+  HSHM_INLINE_CROSS_FUN
+  std::vector<Block> Allocate(const hipc::MemContext &mctx,
+                              const DomainQuery &dom_query, size_t size) {
+    FullPtr<AllocateTask> task = AsyncAllocate(mctx, dom_query, size);
     task.ptr_->Wait();
     std::vector<Block> blocks = task->blocks_.vec();
-    CHI_CLIENT->DelTask(task);
+    CHI_CLIENT->DelTask(mctx, task);
     return blocks;
   }
   CHI_TASK_METHODS(Allocate);
 
   /** Free a section of the block device */
-  HSHM_ALWAYS_INLINE
-  void Free(const DomainQuery &dom_query,
+  HSHM_INLINE_CROSS_FUN
+  void Free(const hipc::MemContext &mctx, const DomainQuery &dom_query,
             const Block &block) {
-    LPointer<FreeTask> task = AsyncFree(dom_query, block);
+    FullPtr<FreeTask> task = AsyncFree(mctx, dom_query, block);
     task.ptr_->Wait();
-    CHI_CLIENT->DelTask(task);
+    CHI_CLIENT->DelTask(mctx, task);
   }
   CHI_TASK_METHODS(Free);
 
   /** Write to the block device */
-  HSHM_ALWAYS_INLINE
-  void Write(const DomainQuery &dom_query,
-             const hipc::Pointer &data,
-             size_t off,
-             size_t size) {
-    LPointer<WriteTask> task = AsyncWrite(dom_query, data, off, size);
+  HSHM_INLINE_CROSS_FUN
+  void Write(const hipc::MemContext &mctx, const DomainQuery &dom_query,
+             const hipc::Pointer &data, size_t off, size_t size) {
+    FullPtr<WriteTask> task = AsyncWrite(mctx, dom_query, data, off, size);
     task.ptr_->Wait();
-    CHI_CLIENT->DelTask(task);
+    CHI_CLIENT->DelTask(mctx, task);
   }
   CHI_TASK_METHODS(Write);
 
   /** Read from the block device */
-  HSHM_ALWAYS_INLINE
-  void Read(const DomainQuery &dom_query,
-            const hipc::Pointer &data,
-            size_t size,
-            size_t off) {
-    LPointer<ReadTask> task = AsyncRead(dom_query, data, size, off);
+  HSHM_INLINE_CROSS_FUN
+  void Read(const hipc::MemContext &mctx, const DomainQuery &dom_query,
+            const hipc::Pointer &data, size_t size, size_t off) {
+    FullPtr<ReadTask> task = AsyncRead(mctx, dom_query, data, size, off);
     task.ptr_->Wait();
-    CHI_CLIENT->DelTask(task);
+    CHI_CLIENT->DelTask(mctx, task);
   }
   CHI_TASK_METHODS(Read);
 
   /** Periodically poll block device stats */
-  HSHM_ALWAYS_INLINE
-  BdevStats PollStats(const DomainQuery &dom_query) {
-    LPointer<PollStatsTask> task = AsyncPollStats(dom_query, 0);
+  HSHM_INLINE_CROSS_FUN
+  BdevStats PollStats(const hipc::MemContext &mctx,
+                      const DomainQuery &dom_query) {
+    FullPtr<PollStatsTask> task = AsyncPollStats(mctx, dom_query, 0);
     task.ptr_->Wait();
     BdevStats stats = task->stats_;
-    CHI_CLIENT->DelTask(task);
+    CHI_CLIENT->DelTask(mctx, task);
     return stats;
   }
   CHI_TASK_METHODS(PollStats);
 };
 
-}  // namespace chi
+}  // namespace chi::bdev
 
 #endif  // CHI_bdev_H_

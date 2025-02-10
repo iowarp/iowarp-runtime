@@ -1,5 +1,5 @@
 name: bench_latency_ipc
-env: chimaera_codegen
+env: chimaera
 pkgs:
   - pkg_type: chimaera_run
     pkg_name: chimaera_run
@@ -11,7 +11,7 @@ pkgs:
     nprocs: 1
     ppn: 16
     msg_size: '4k'
-    ops: 1m
+    ops: 4k
     async: false
     do_dbg: false
     dbg_port: 4001

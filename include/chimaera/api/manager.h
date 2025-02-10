@@ -13,8 +13,8 @@
 #ifndef CHI_INCLUDE_CHI_MANAGER_MANAGER_H_
 #define CHI_INCLUDE_CHI_MANAGER_MANAGER_H_
 
-#include "chimaera/chimaera_types.h"
 #include "chimaera/chimaera_constants.h"
+#include "chimaera/chimaera_types.h"
 #include "chimaera/config/config_client.h"
 #include "chimaera/config/config_server.h"
 #include "chimaera/queue_manager/queue_manager.h"
@@ -25,25 +25,29 @@ namespace chi {
 struct ChiShm {
   NodeId node_id_;
   QueueManagerShm queue_manager_;
-  std::atomic<u64> unique_;
+  hipc::atomic<hshm::min_u64> unique_;
   u64 num_nodes_;
 };
+
+#define MAX_GPU 16
 
 /** The configuration used inherited by runtime + client */
 class ConfigurationManager {
  public:
   ChiShm *header_;
-  ClientConfig client_config_;
-  ServerConfig server_config_;
-  static inline const hipc::allocator_id_t main_alloc_id_ =
-      hipc::allocator_id_t(0, 1);
-  static inline const hipc::allocator_id_t data_alloc_id_ =
-      hipc::allocator_id_t(1, 1);
-  static inline const hipc::allocator_id_t rdata_alloc_id_ =
-      hipc::allocator_id_t(2, 1);
-  hipc::Allocator *main_alloc_;
-  hipc::Allocator *data_alloc_;
-  hipc::Allocator *rdata_alloc_;
+  ClientConfig *client_config_;
+  ServerConfig *server_config_;
+  static inline const hipc::AllocatorId main_alloc_id_ =
+      hipc::AllocatorId(1, 0);
+  static inline const hipc::AllocatorId data_alloc_id_ =
+      hipc::AllocatorId(2, 0);
+  static inline const hipc::AllocatorId rdata_alloc_id_ =
+      hipc::AllocatorId(3, 0);
+  CHI_ALLOC_T *main_alloc_;
+  CHI_ALLOC_T *data_alloc_;
+  CHI_ALLOC_T *rdata_alloc_;
+  CHI_ALLOC_T *gpu_alloc_[MAX_GPU];
+  int ngpu_ = 0;
   bool is_being_initialized_;
   bool is_initialized_;
   bool is_terminated_;
@@ -51,44 +55,75 @@ class ConfigurationManager {
   hshm::Mutex lock_;
   hshm::ThreadType thread_type_;
 
+  /** Refresh the number of GPUs */
+  void RefreshNumGpus() {
+#ifdef CHIMAERA_ENABLE_ROCM
+    HIP_ERROR_CHECK(hipGetDeviceCount(&ngpu_));
+#endif
+#ifdef CHIMAERA_ENABLE_CUDA
+    cudaGetDeviceCount(&ngpu_);
+#endif
+  }
+
+  /** Get GPU mem backend id */
+  HSHM_INLINE_CROSS_FUN static hipc::MemoryBackendId GetGpuMemBackendId(
+      int gpu_id) {
+    return hipc::MemoryBackendId(3 + gpu_id);
+  }
+
+  /** Get GPU allocator id */
+  HSHM_INLINE_CROSS_FUN static hipc::AllocatorId GetGpuAllocId(int gpu_id) {
+    return hipc::AllocatorId(3 + gpu_id, 0);
+  }
+
+  /** Get GPU allocator */
+  HSHM_INLINE_CROSS_FUN CHI_ALLOC_T *GetGpuAlloc(int gpu_id) {
+    return gpu_alloc_[gpu_id];
+  }
+
   /** Default constructor */
-  ConfigurationManager() : is_being_initialized_(false),
-                           is_initialized_(false),
-                           is_terminated_(false),
-                           is_transparent_(false) {}
+  HSHM_INLINE_CROSS_FUN ConfigurationManager()
+      : is_being_initialized_(false),
+        is_initialized_(false),
+        is_terminated_(false),
+        is_transparent_(false) {}
 
   /** Destructor */
-  ~ConfigurationManager() {}
+  HSHM_INLINE_CROSS_FUN ~ConfigurationManager() {}
 
   /** Whether or not CHI is currently being initialized */
-  bool IsBeingInitialized() { return is_being_initialized_; }
+  HSHM_INLINE_CROSS_FUN bool IsBeingInitialized() {
+    return is_being_initialized_;
+  }
 
   /** Whether or not CHI is initialized */
-  bool IsInitialized() { return is_initialized_; }
+  HSHM_INLINE_CROSS_FUN bool IsInitialized() { return is_initialized_; }
 
   /** Whether or not CHI is finalized */
-  bool IsTerminated() { return is_terminated_; }
+  HSHM_INLINE_CROSS_FUN bool IsTerminated() { return is_terminated_; }
 
   /** Load the server-side configuration */
   void LoadServerConfig(std::string config_path) {
+    server_config_ = new ServerConfig();
     if (config_path.empty()) {
-      config_path = Constants::GetEnvSafe(Constants::kServerConfEnv);
+      config_path = HSHM_SYSTEM_INFO->Getenv(Constants::kServerConfEnv);
     }
     HILOG(kInfo, "Loading server configuration: {}", config_path);
-    server_config_.LoadFromFile(config_path);
+    server_config_->LoadFromFile(config_path);
   }
 
   /** Load the client-side configuration */
   void LoadClientConfig(std::string config_path) {
+    client_config_ = new ClientConfig();
     if (config_path.empty()) {
-      config_path = Constants::GetEnvSafe(Constants::kClientConfEnv);
+      config_path = HSHM_SYSTEM_INFO->Getenv(Constants::kClientConfEnv);
     }
-    client_config_.LoadFromFile(config_path);
+    client_config_->LoadFromFile(config_path);
   }
 
   /** Get number of nodes */
-  HSHM_ALWAYS_INLINE int GetNumNodes() {
-    return server_config_.rpc_.host_names_.size();
+  HSHM_INLINE int GetNumNodes() {
+    return server_config_->rpc_.host_names_.size();
   }
 };
 

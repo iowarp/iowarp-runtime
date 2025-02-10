@@ -137,7 +137,7 @@ struct BlockAllocator {
   }
 
   void Allocate(int lane, size_t size,
-                hipc::vector<Block> &buffers,
+                chi::ipc::vector<Block> &buffers,
                 size_t &total_size) {
     u32 buffer_count = 0;
     std::vector<SlabCount> coins = CoinSelect(lane, size, buffer_count);
@@ -203,7 +203,7 @@ struct BlockAllocator {
   /** Allocate slabs of a certain size */
   void AllocateSlabs(size_t slab_size,
                      int slab_idx, size_t count,
-                     hipc::vector<Block> &buffers,
+                     chi::ipc::vector<Block> &buffers,
                      size_t &total_size) {
     for (size_t i = 0; i < count; ++i) {
       Block block = ListAllocate(slab_size, 0, slab_idx);

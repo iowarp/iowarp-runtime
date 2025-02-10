@@ -5,8 +5,8 @@
 #ifndef CHIMAERA_INCLUDE_CHIMAERA_WORK_ORCHESTRATOR_COMUTEX_H_
 #define CHIMAERA_INCLUDE_CHIMAERA_WORK_ORCHESTRATOR_COMUTEX_H_
 
-#include "worker.h"
 #include "comutex_defn.h"
+#include "worker.h"
 
 namespace chi {
 
@@ -26,7 +26,7 @@ void CoMutex::Lock() {
   hshm::ScopedMutex scoped(mux_, 0);
   Task *task = CHI_CUR_TASK;
   TaskId task_root = task->task_node_.root_;
-  if (root_.IsNull() || root_ == task_root) {
+  if (rep_ == 0 || root_ == task_root) {
     root_ = task_root;
     ++rep_;
     return;
@@ -35,6 +35,8 @@ void CoMutex::Lock() {
   if (blocked_map_.find(task_root) == blocked_map_.end()) {
     blocked_map_[task_root] = COMUTEX_QUEUE_T();
   }
+  // HILOG(kInfo, "Locking task {} (id={}, pool={}, method={})",
+  //       (void*)task, task->task_node_, task->pool_, task->method_);
   COMUTEX_QUEUE_T &blocked = blocked_map_[task_root];
   blocked.emplace_back((CoMutexEntry){task});
   scoped.Unlock();
@@ -45,16 +47,23 @@ void CoMutex::Unlock() {
   hshm::ScopedMutex scoped(mux_, 0);
   if (--rep_ == 0) {
     root_.SetNull();
+  } else {
+    return;
   }
   if (blocked_map_.empty()) {
     return;
   }
-  COMUTEX_QUEUE_T &blocked = blocked_map_.begin()->second;
+  auto it = blocked_map_.begin();
+  COMUTEX_QUEUE_T &blocked = it->second;
+  root_ = it->first;
   for (size_t i = 0; i < blocked.size(); ++i) {
-    Worker::SignalUnblock(blocked[i].task_);
+    Task *task = blocked[i].task_;
+    // HILOG(kInfo, "Unlocking task {} (id={}, pool={}, method={})", (void *)task,
+    //       task->task_node_, task->pool_, task->method_);
+    CHI_WORK_ORCHESTRATOR->SignalUnblock(task, task->rctx_);
     ++rep_;
   }
-  blocked_map_.erase(blocked_map_.begin());
+  blocked_map_.erase(it);
 }
 
 }  // namespace chi

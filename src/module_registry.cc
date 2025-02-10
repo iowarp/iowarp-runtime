@@ -1,16 +1,16 @@
 //
 // Created by llogan on 7/22/24.
 //
-#include "chimaera/api/chimaera_runtime.h"
+#include "chimaera/module_registry/module_registry.h"
 
+#include "chimaera/api/chimaera_runtime.h"
 namespace chi {
 
 /** Create a container */
-bool ModuleRegistry::CreateContainer(const char *lib_name,
-                                     const char *pool_name,
-                                     const PoolId &pool_id,
-                                     Admin::CreateContainerTask *task,
-                                     const std::vector<SubDomainId> &containers) {
+bool ModuleRegistry::CreateContainer(
+    const char *lib_name, const char *pool_name, const PoolId &pool_id,
+    Admin::CreateContainerBaseTask<Admin::CreateTaskParams> *task,
+    const std::vector<SubDomainId> &containers) {
   ScopedMutex lock(lock_, 0);
   // Ensure pool_id is not NULL
   if (pool_id.IsNull()) {
@@ -18,8 +18,8 @@ bool ModuleRegistry::CreateContainer(const char *lib_name,
     task->SetModuleComplete();
     return false;
   }
-//    HILOG(kInfo, "(node {}) Creating an instance of {} with name {}",
-//          CHI_CLIENT->node_id_, lib_name, pool_name)
+  //    HILOG(kInfo, "(node {}) Creating an instance of {} with name {}",
+  //          CHI_CLIENT->node_id_, lib_name, pool_name);
 
   // Find the module to instantiate
   auto it = libs_.find(lib_name);
@@ -57,15 +57,16 @@ bool ModuleRegistry::CreateContainer(const char *lib_name,
 
     // Construct the state
     task->ctx_.id_ = pool_id;
-    lock.Unlock();
+    lock.Unlock();  // May spawn subtask that needs the lock
     exec->Run(TaskMethod::kCreate, task, task->rctx_);
     lock.Lock(0);
+    exec->is_created_ = true;
     task->UnsetModuleComplete();
   }
-  HILOG(kInfo, "(node {})  Created an instance of {} with pool name {} "
-               "and pool ID {} ({} containers)",
-        CHI_CLIENT->node_id_, lib_name, pool_name,
-        pool_id, containers.size());
+  HILOG(kInfo,
+        "(node {})  Created an instance of {} with pool name {} "
+        "and pool ID {} ({} containers)",
+        CHI_CLIENT->node_id_, lib_name, pool_name, pool_id, containers.size());
   return true;
 }
 
