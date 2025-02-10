@@ -110,9 +110,11 @@ macro(add_chimod_library namespace target)
     # Add chimod library no gpu client interface
     add_library(${namespace}_${target}_client INTERFACE)
     target_link_libraries(${namespace}_${target}_client INTERFACE chimaera::client_host)
+    target_include_directories(${namespace}_${target}_client INTERFACE ${CMAKE_INSTALL_PREFIX}/include)
     list(APPEND ${namespace}_${target}_exports ${namespace}_${target}_client)
     add_library(${target}_client INTERFACE)
     target_link_libraries(${target}_client INTERFACE ${namespace}_${target}_client)
+    target_include_directories(${target}_client INTERFACE ${CMAKE_INSTALL_PREFIX}/include)
     list(APPEND ${namespace}_${target}_exports ${target}_client)
 
     # Add chimod library with cuda support
