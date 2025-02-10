@@ -1,8 +1,8 @@
 # Find Chimaera header and library.
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Define constants
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 set(Chimaera_VERSION_MAJOR @Chimaera_VERSION_MAJOR@)
 set(Chimaera_VERSION_MINOR @Chimaera_VERSION_MINOR@)
 set(Chimaera_VERSION_PATCH @Chimaera_VERSION_PATCH@)
@@ -19,15 +19,15 @@ option(CHIMAERA_ENABLE_PYTHON "Use pybind11" @CHIMAERA_ENABLE_PYTHON@)
 option(CHIMAERA_ENABLE_ROCM "Enable ROCm support" @CHIMAERA_ENABLE_ROCM@)
 option(CHIMAERA_ENABLE_CUDA "Enable CUDA support" @CHIMAERA_ENABLE_CUDA@)
 
-set(CHIMAERA_INSTALL_LIB_DIR @CHIMAERA_INSTALL_LIB_DIR@)
-set(CHIMAERA_INSTALL_INCLUDE_DIR @CHIMAERA_INSTALL_INCLUDE_DIR@)
-set(CHIMAERA_INSTALL_BIN_DIR @CHIMAERA_INSTALL_BIN_DIR@)
+set(CHIMAERA_LIB_DIR @CHIMAERA_INSTALL_LIB_DIR@)
+set(CHIMAERA_INCLUDE_DIR @CHIMAERA_INSTALL_INCLUDE_DIR@)
+set(CHIMAERA_BIN_DIR @CHIMAERA_INSTALL_BIN_DIR@)
 
 # Find the Chimaera Package
 include(@CMAKE_INSTALL_PREFIX@/cmake/ChimaeraCoreConfig.cmake)
 include(@CMAKE_INSTALL_PREFIX@/cmake/ChimaeraCommonConfig.cmake)
-include_directories(${CHIMAERA_INSTALL_INCLUDE_DIR})
-link_directories(${CHIMAERA_INSTALL_LIB_DIR})
+include_directories("@CHIMAERA_INSTALL_INCLUDE_DIR@")
+link_directories("@CHIMAERA_INSTALL_LIB_DIR@")
 
 # Add my library to RPATH
 list(APPEND CMAKE_INSTALL_RPATH "@CHIMAERA_INSTALL_LIB_DIR@")
