@@ -203,7 +203,7 @@ class Module {
   virtual ~Module() = default;
 
   /** Route to a virtual lane */
-  virtual Lane *Route(const Task *task) = 0;
+  virtual Lane *MapTaskToLane(const Task *task) = 0;
 
   /** Run a method of the task */
   virtual void Run(u32 method, Task *task, RunContext &rctx) = 0;

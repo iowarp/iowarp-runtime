@@ -154,7 +154,7 @@ class Server : public Module {
   }
 
   /** Route a task to a bdev lane */
-  Lane *Route(const Task *task) override {
+  Lane *MapTaskToLane(const Task *task) override {
     switch (task->method_) {
       case Method::kRead:
       case Method::kWrite: {

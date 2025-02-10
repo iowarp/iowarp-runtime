@@ -5,7 +5,7 @@ hipc::FullPtr<CUSTOM##Task> Async##CUSTOM##Alloc(const hipc::MemContext &mctx,
                                                   const DomainQuery &dom_query,
                                                   Args&& ...args) {
   hipc::FullPtr<CUSTOM##Task> task =
-  CHI_CLIENT->NewTask<CUSTOM##Task>(mctx, task_node, id_, dom_query, std::forward<Args>(args)...);
+    CHI_CLIENT->NewTask<CUSTOM##Task>(mctx, task_node, id_, dom_query, std::forward<Args>(args)...);
   return task;
 }
 
@@ -13,12 +13,12 @@ template<typename ...Args>
 HSHM_CROSS_FUN
 hipc::FullPtr<CUSTOM##Task>
 Async##CUSTOM(const hipc::MemContext &mctx, Args&& ...args) {
-  TaskNode task_node = CHI_CLIENT->MakeTaskNodeId();
-  hipc::FullPtr<CUSTOM##Task> task = Async##CUSTOM##Alloc(
-      mctx, task_node, std::forward<Args>(args)...);
-  chi::ingress::MultiQueue *queue = CHI_CLIENT->GetQueue(CHI_QM->process_queue_id_);
-  queue->Emplace(chi::TaskPrioOpt::kLowLatency,
-                 hshm::hash<chi::DomainQuery>{}(task->dom_query_),
-                 task.shm_);
-  return task;
+  return CHI_CLIENT->ScheduleNewTask<CUSTOM##Task>(mctx, id_, std::forward<Args>(args)...);
+}
+
+template<typename ...Args>
+HSHM_CROSS_FUN
+hipc::FullPtr<CUSTOM##Task>
+Async##CUSTOM##Base(const hipc::MemContext &mctx, chi::Task *parent, const chi::TaskNode &task_node, Args&& ...args) {
+  return CHI_CLIENT->ScheduleNewTask<CUSTOM##Task>(mctx, parent, task_node, id_, std::forward<Args>(args)...);
 }

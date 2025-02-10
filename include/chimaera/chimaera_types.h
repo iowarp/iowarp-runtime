@@ -229,9 +229,6 @@ using TaskId = UniqueId<3>;
 /** The types of I/O that can be performed (for IoCall RPC) */
 enum class IoType { kRead, kWrite, kNone };
 
-/** Route mode */
-enum class TaskRouteMode { kThisWorker, kLocalWorker, kRemoteWorker };
-
 /** Context used for creating objects */
 struct CreateContext {
   PoolId id_ = PoolId::GetNull();
@@ -262,8 +259,7 @@ struct SubDomainId {
   CLS_CONST SubDomainGroup kContainerSet = 1;
   CLS_CONST SubDomainGroup kGlobalContainers = 1;  // Alias for kContainerSet
   CLS_CONST SubDomainGroup kLocalContainers = 3;
-  CLS_CONST SubDomainGroup kContainerCache = 4;
-  CLS_CONST SubDomainGroup kLast = 5;
+  CLS_CONST SubDomainGroup kLast = 4;
 
   /** Default constructor */
   HSHM_INLINE_CROSS_FUN
@@ -583,11 +579,12 @@ struct DomainQuery {
   CLS_CONST DomainFlag kLocal = BIT_OPT(DomainFlag, 1);
   CLS_CONST DomainFlag kDirect = BIT_OPT(DomainFlag, 2);
   CLS_CONST DomainFlag kGlobal = BIT_OPT(DomainFlag, 3);
+  CLS_CONST DomainFlag kSchedule = BIT_OPT(DomainFlag, 4);
 
   /** Selection flags */
-  CLS_CONST DomainFlag kId = BIT_OPT(DomainFlag, 4);
-  CLS_CONST DomainFlag kHash = BIT_OPT(DomainFlag, 5);
-  CLS_CONST DomainFlag kRange = BIT_OPT(DomainFlag, 6);
+  CLS_CONST DomainFlag kId = BIT_OPT(DomainFlag, 8);
+  CLS_CONST DomainFlag kHash = BIT_OPT(DomainFlag, 9);
+  CLS_CONST DomainFlag kRange = BIT_OPT(DomainFlag, 10);
 
   /** Iteration algos */
   CLS_CONST DomainFlag kBroadcast = BIT_OPT(DomainFlag, 15);
@@ -672,6 +669,21 @@ struct DomainQuery {
   }
 
   /**
+   * The scope of the query is unkown and will be determined dynamically
+   * This assumes the module dev has implemented the Monitor(kSchedule) method.
+   */
+  HSHM_INLINE_CROSS_FUN
+  static DomainQuery GetDynamic() {
+    DomainQuery query = GetDirectHash(SubDomainId::kLocalContainers, 0);
+    query.flags_.SetBits(kSchedule);
+    return query;
+  }
+
+  /** Check if this query is dynamic */
+  HSHM_INLINE_CROSS_FUN
+  bool IsDynamic() const { return flags_.Any(kSchedule); }
+
+  /**
    * The scope of the query is the entire subdomain
    * @param sub_id The subdomain to query
    * @param iter_flags The iteration flags to set (e.g., kBroadcast)
@@ -701,9 +713,7 @@ struct DomainQuery {
   }
 
   /**
-   * The scope of the query is the entire subdomain
-   * @param sub_id The subdomain to query
-   * @param iter_flags The iteration flags to set (e.g., kBroadcast)
+   * The scope of the query is the entire set of containers
    * */
   HSHM_INLINE_CROSS_FUN
   static DomainQuery GetGlobalBcast() {

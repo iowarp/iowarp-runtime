@@ -10,14 +10,14 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef CHI_TASK_NAME_H_
-#define CHI_TASK_NAME_H_
+#ifndef CHI_compressor_H_
+#define CHI_compressor_H_
 
-#include "TASK_NAME_tasks.h"
+#include "compressor_tasks.h"
 
-namespace chi::TASK_NAME {
+namespace chi::compressor {
 
-/** Create TASK_NAME requests */
+/** Create compressor requests */
 class Client : public ModuleClient {
  public:
   /** Default constructor */
@@ -48,6 +48,6 @@ class Client : public ModuleClient {
   }
 };
 
-}  // namespace chi::TASK_NAME
+}  // namespace chi::compressor
 
-#endif  // CHI_TASK_NAME_H_
+#endif  // CHI_compressor_H_

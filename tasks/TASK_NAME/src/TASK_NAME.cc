@@ -34,7 +34,7 @@ class Server : public Module {
   void MonitorCreate(MonitorModeId mode, CreateTask *task, RunContext &rctx) {}
 
   /** Route a task to a lane */
-  Lane *Route(const Task *task) override {
+  Lane *MapTaskToLane(const Task *task) override {
     // Route tasks to lanes based on their properties
     // E.g., a strongly consistent filesystem could map tasks to a lane
     // by the hash of an absolute filename path.
@@ -46,17 +46,6 @@ class Server : public Module {
     task->SetModuleComplete();
   }
   void MonitorDestroy(MonitorModeId mode, DestroyTask *task, RunContext &rctx) {
-  }
-
-  /** A custom method */
-  void Custom(CustomTask *task, RunContext &rctx) { task->SetModuleComplete(); }
-  void MonitorCustom(MonitorModeId mode, CustomTask *task, RunContext &rctx) {
-    switch (mode) {
-      case MonitorMode::kReplicaAgg: {
-        std::vector<FullPtr<Task>> &replicas = *rctx.replicas_;
-        auto replica = reinterpret_cast<CustomTask *>(replicas[0].ptr_);
-      }
-    }
   }
 
  public:

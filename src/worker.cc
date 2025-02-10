@@ -28,6 +28,7 @@ namespace chi {
 /**===============================================================
  * Private Task Multi Queue
  * =============================================================== */
+// Schedule the task to another node or to a local lane
 bool PrivateTaskMultiQueue::push(const FullPtr<Task> &task) {
 #ifdef CHIMAERA_REMOTE_DEBUG
   if (task->pool_ != CHI_QM->admin_pool_id_ &&
@@ -42,71 +43,105 @@ bool PrivateTaskMultiQueue::push(const FullPtr<Task> &task) {
 #endif
   RunContext &rctx = task->rctx_;
   if (task->IsModuleComplete()) {
-    // CASE 1: The task is complete, just finish it out
-    HLOG(kDebug, kRemoteQueue, "[TASK_CHECK] Completing {}", task.ptr_);
-    Container *exec = CHI_MOD_REGISTRY->GetStaticContainer(task->pool_);
-    CHI_CUR_WORKER->EndTask(exec, task, task->rctx_);
-    return true;
+    return PushCompletedTask(rctx, task);
   }
   if (task->IsRouted()) {
-    // CASE 2: The task is already routed, just push it
-    Container *exec =
-        CHI_MOD_REGISTRY->GetContainer(task->pool_, rctx.route_container_id_);
-    if (!exec || !exec->is_created_) {
-      return !GetFail().push(task).IsNull();
-    }
-    chi::Lane *chi_lane = rctx.route_lane_;
-    chi_lane->push<false>(task);
-    HLOG(kDebug, kWorkerDebug, "[TASK_CHECK] (node {}) Pushing task {}",
-         CHI_CLIENT->node_id_, (void *)task.ptr_);
-    return true;
+    return PushRoutedTask(rctx, task);
   }
-  // Determine the domain of the task
   std::vector<ResolvedDomainQuery> resolved =
       CHI_RPC->ResolveDomainQuery(task->pool_, task->dom_query_, false);
   DomainQuery res_query = resolved[0].dom_;
   if (!task->IsRemote() && resolved.size() == 1 &&
       resolved[0].node_ == CHI_RPC->node_id_ &&
       res_query.flags_.All(DomainQuery::kLocal | DomainQuery::kId)) {
-    // CASE 2: The task is a flushing task. Place in the flush queue.
-    if (task->IsFlush()) {
-      HLOG(kDebug, kWorkerDebug, "[TASK_CHECK] (node {}) Failing task {}",
-           CHI_CLIENT->node_id_, (void *)task.ptr_);
-      return !GetFlush().push(task).IsNull();
-    }
-    // CASE 3: The task is local to this machine, just find the lane.
-    // Determine the lane the task should map to within container
-    ContainerId container_id = res_query.sel_.id_;
-    Container *exec = CHI_MOD_REGISTRY->GetContainer(task->pool_, container_id);
-    if (!exec || !exec->is_created_) {
-      // If the container doesn't exist, it's probably going to get created.
-      // Put in the failed queue.
-      return !GetFail().push(task).IsNull();
-    }
-    // Find the lane
-    chi::Lane *chi_lane = exec->Route(task.ptr_);
-    rctx.exec_ = exec;
-    rctx.route_container_id_ = container_id;
-    rctx.route_lane_ = chi_lane;
-    rctx.worker_id_ = chi_lane->worker_id_;
-    task->SetRouted();
-    chi_lane->push<false>(task);
-    HLOG(kDebug, kWorkerDebug, "[TASK_CHECK] (node {}) Pushing task {}",
-         CHI_CLIENT->node_id_, (void *)task.ptr_);
+    return PushLocalTask(res_query, rctx, task);
   } else {
-    HLOG(kDebug, kWorkerDebug, "[TASK_CHECK] (node {}) Remoting task {}",
-         CHI_CLIENT->node_id_, (void *)task.ptr_);
-    // CASE 4: The task is remote to this machine, put in the remote queue.
-    CHI_REMOTE_QUEUE->AsyncClientPushSubmitBase(
-        HSHM_DEFAULT_MEM_CTX, nullptr, task->task_node_ + 1,
-        DomainQuery::GetDirectId(SubDomainId::kGlobalContainers, 1), task.ptr_);
+    return PushRemoteTask(rctx, task);
   }
+  return true;
+}
+
+// CASE 1: The task is completed, just end it
+HSHM_INLINE
+bool PrivateTaskMultiQueue::PushCompletedTask(RunContext &rctx,
+                                              const FullPtr<Task> &task) {
+  HLOG(kDebug, kRemoteQueue, "[TASK_CHECK] Completing {}", task.ptr_);
+  Container *exec = CHI_MOD_REGISTRY->GetStaticContainer(task->pool_);
+  CHI_CUR_WORKER->EndTask(exec, task, task->rctx_);
+  return true;
+}
+
+// CASE 2: The task is already routed, just push it
+HSHM_INLINE
+bool PrivateTaskMultiQueue::PushRoutedTask(RunContext &rctx,
+                                           const FullPtr<Task> &task) {
+  Container *exec =
+      CHI_MOD_REGISTRY->GetContainer(task->pool_, rctx.route_container_id_);
+  if (!exec || !exec->is_created_) {
+    return !GetFail().push(task).IsNull();
+  }
+  chi::Lane *chi_lane = rctx.route_lane_;
+  chi_lane->push<false>(task);
+  HLOG(kDebug, kWorkerDebug, "[TASK_CHECK] (node {}) Pushing task {}",
+       CHI_CLIENT->node_id_, (void *)task.ptr_);
+  return true;
+}
+
+// CASE 3: The task is local to this machine.
+bool PrivateTaskMultiQueue::PushLocalTask(const DomainQuery &res_query,
+                                          RunContext &rctx,
+                                          const FullPtr<Task> &task) {
+  // If the task is a flushing task. Place in the flush queue.
+  if (task->IsFlush()) {
+    HLOG(kDebug, kWorkerDebug, "[TASK_CHECK] (node {}) Failing task {}",
+         CHI_CLIENT->node_id_, (void *)task.ptr_);
+    return !GetFlush().push(task).IsNull();
+  }
+  // Determine the lane the task should map to within container
+  ContainerId container_id = res_query.sel_.id_;
+  Container *exec = CHI_MOD_REGISTRY->GetContainer(task->pool_, container_id);
+  if (!exec || !exec->is_created_) {
+    // If the container doesn't exist, it's probably going to get created.
+    // Put in the failed queue.
+    return !GetFail().push(task).IsNull();
+  }
+  // Find the lane
+  chi::Lane *chi_lane = exec->MapTaskToLane(task.ptr_);
+  rctx.exec_ = exec;
+  rctx.route_container_id_ = container_id;
+  rctx.route_lane_ = chi_lane;
+  rctx.worker_id_ = chi_lane->worker_id_;
+  task->SetRouted();
+  chi_lane->push<false>(task);
+  HLOG(kDebug, kWorkerDebug, "[TASK_CHECK] (node {}) Pushing task {}",
+       CHI_CLIENT->node_id_, (void *)task.ptr_);
+  return true;
+}
+
+// CASE 4: The task is remote to this machine
+HSHM_INLINE
+bool PrivateTaskMultiQueue::PushRemoteTask(RunContext &rctx,
+                                           const FullPtr<Task> &task) {
+  HLOG(kDebug, kWorkerDebug, "[TASK_CHECK] (node {}) Remoting task {}",
+       CHI_CLIENT->node_id_, (void *)task.ptr_);
+  // CASE 6: The task is remote to this machine, put in the remote queue.
+  CHI_REMOTE_QUEUE->AsyncClientPushSubmitBase(
+      HSHM_DEFAULT_MEM_CTX, nullptr, task->task_node_ + 1,
+      DomainQuery::GetDirectId(SubDomainId::kGlobalContainers, 1), task.ptr_);
   return true;
 }
 
 /**===============================================================
  * Lanes
  * =============================================================== */
+/**
+ * Forward declaration of Lane:push templates
+ * This was because ROCM compiler was not able to resolve the template
+ * without this.
+ */
+template hshm::qtok_t Lane::push<false>(const FullPtr<Task> &task);
+template hshm::qtok_t Lane::push<true>(const FullPtr<Task> &task);
+
 /** Push a task  */
 template <bool NO_COUNT>
 hshm::qtok_t Lane::push(const FullPtr<Task> &task) {
@@ -417,6 +452,15 @@ bool Worker::RunTask(FullPtr<Task> &task, bool flushing) {
   if (!task->IsModuleComplete() && !task->IsBlocked()) {
     // Make this task current
     cur_task_ = task.ptr_;
+    // Check if the task is dynamically-scheduled
+    if (task->dom_query_.IsDynamic()) {
+      rctx.exec_->Monitor(MonitorMode::kSchedule, task->method_, task.ptr_,
+                          rctx);
+      if (!task->IsRouted()) {
+        active_.GetFail().push(task);
+        return false;
+      }
+    }
     // Execute the task based on its properties
     ExecTask(task, rctx, rctx.exec_, props);
   }

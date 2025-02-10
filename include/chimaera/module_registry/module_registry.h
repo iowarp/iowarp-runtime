@@ -186,7 +186,7 @@ class ModuleRegistry {
     runtime supports GPU if enabled. */
   std::vector<std::string> FindMatchingPathInDirs(const std::string &lib_name) {
     std::vector<std::string> variants = {"_gpu", "_host", ""};
-    std::vector<std::string> prefixes = {"", "lib"};
+    std::vector<std::string> prefixes = {"", "lib", "libchimaera_"};
     std::vector<std::string> extensions = {".so", ".dll"};
     std::vector<std::string> concrete_libs;
     for (const std::string &lib_dir : lib_dirs_) {
@@ -277,7 +277,7 @@ class ModuleRegistry {
       return false;
     }
     libs_.emplace(lib_name, std::move(info));
-    return false;
+    return true;
   }
 
   /** Replace a module */

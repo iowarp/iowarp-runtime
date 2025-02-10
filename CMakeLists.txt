@@ -205,3 +205,14 @@ install(EXPORT ${CHIMAERA_EXPORTED_TARGETS}
     NAMESPACE chimaera::
     DESTINATION cmake
 )
+
+# copy tasks/TASK_NAME to HOME directory
+# Create .chimaera directory in home if it doesn't exist
+file(MAKE_DIRECTORY "$ENV{HOME}/.chimaera")
+
+# Copy tasks/TASK_NAME directory to ~/.chimaera during configure
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/tasks/TASK_NAME
+    DESTINATION $ENV{HOME}/.chimaera)
+
+# Install jarvis repo
+jarvis_repo_add("${CMAKE_SOURCE_DIR}/test/jarvis_chimaera" "${CMAKE_SOURCE_DIR}/test/pipelines")

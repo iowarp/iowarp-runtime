@@ -2,21 +2,21 @@
 // Created by lukemartinlogan on 8/11/23.
 //
 
-#ifndef CHI_TASKS_TASK_TEMPL_INCLUDE_TASK_NAME_TASK_NAME_TASKS_H_
-#define CHI_TASKS_TASK_TEMPL_INCLUDE_TASK_NAME_TASK_NAME_TASKS_H_
+#ifndef CHI_TASKS_TASK_TEMPL_INCLUDE_compressor_compressor_TASKS_H_
+#define CHI_TASKS_TASK_TEMPL_INCLUDE_compressor_compressor_TASKS_H_
 
 #include "chimaera/chimaera_namespace.h"
 
-namespace chi::TASK_NAME {
+namespace chi::compressor {
 
-#include "TASK_NAME_methods.h"
+#include "compressor_methods.h"
 CHI_NAMESPACE_INIT
 
 /**
- * A task to create TASK_NAME
+ * A task to create compressor
  * */
 struct CreateTaskParams {
-  CLS_CONST char *lib_name_ = "TASK_NAME";
+  CLS_CONST char *lib_name_ = "compressor";
 
   HSHM_INLINE_CROSS_FUN
   CreateTaskParams() = default;
@@ -29,9 +29,9 @@ struct CreateTaskParams {
 };
 typedef chi::Admin::CreateContainerBaseTask<CreateTaskParams> CreateTask;
 
-/** A task to destroy TASK_NAME */
+/** A task to destroy compressor */
 typedef chi::Admin::DestroyContainerTask DestroyTask;
 
-}  // namespace chi::TASK_NAME
+}  // namespace chi::compressor
 
-#endif  // CHI_TASKS_TASK_TEMPL_INCLUDE_TASK_NAME_TASK_NAME_TASKS_H_
+#endif  // CHI_TASKS_TASK_TEMPL_INCLUDE_compressor_compressor_TASKS_H_
