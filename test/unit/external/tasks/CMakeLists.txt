@@ -1,7 +1,7 @@
 
 cmake_minimum_required(VERSION 3.25)
-project(chimaera)
-set(MOD_NAMESPACE chimaera)
+project(example)
+set(MOD_NAMESPACE example)
 
 # FIND CHIMAERA
 if (NOT CHIMAERA_IS_MAIN_PROJECT)
@@ -26,23 +26,17 @@ if(NOT CHIMAERA_INSTALL_DATA_DIR)
 endif()
 
 if (NOT CHIMAERA_EXPORTED_TARGETS)
-  set(CHIMAERA_EXPORTED_TARGETS Chimaera)
+  set(CHIMAERA_EXPORTED_TARGETS Example)
 endif()
 
 # ADD SUBDIRECTORIES
-add_subdirectory(TASK_NAME)
-add_subdirectory(bdev)
-add_subdirectory(chimaera_admin)
-add_subdirectory(remote_queue)
-add_subdirectory(small_message)
-add_subdirectory(worch_proc_round_robin)
-add_subdirectory(worch_queue_round_robin)
+add_subdirectory(compressor)
 
 # INSTALL TARGETS
 if (NOT CHIMAERA_IS_MAIN_PROJECT)
   install(EXPORT ${CHIMAERA_EXPORTED_TARGETS}
           FILE ${CHIMAERA_EXPORTED_TARGETS}Config.cmake
-          NAMESPACE chimaera::
+          NAMESPACE example::
           DESTINATION cmake
    )
 endif()
