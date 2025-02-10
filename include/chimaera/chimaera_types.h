@@ -259,8 +259,7 @@ struct SubDomainId {
   CLS_CONST SubDomainGroup kContainerSet = 1;
   CLS_CONST SubDomainGroup kGlobalContainers = 1;  // Alias for kContainerSet
   CLS_CONST SubDomainGroup kLocalContainers = 3;
-  CLS_CONST SubDomainGroup kContainerCache = 4;
-  CLS_CONST SubDomainGroup kLast = 5;
+  CLS_CONST SubDomainGroup kLast = 4;
 
   /** Default constructor */
   HSHM_INLINE_CROSS_FUN
