@@ -10,6 +10,5 @@ ARG DEBIAN_FRONTEND=noninteractive
 # Install iowarp
 RUN . /module_load.sh && \
     . "${SPACK_DIR}/share/spack/setup-env.sh" && \
-    spack external find && \
     spack install chimaera@main+depsonly
 
