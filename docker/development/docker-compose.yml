@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  chimaera:
+    image: lukemartinlogan/chimaera-deps:latest
+    container_name: chimaera
+    shm_size: 8g
+    memory: 8g
+    volumes:
+      - ~/.ssh:/root/.ssh
+      - ~/cte-hermes-shm:/cte-hermes-shm
+      - ~/iowarp-runtime:/iowarp-runtime
+      - ~/content-transfer-engine:/content-transfer-engine
+    stdin_open: true
+    tty: true
+    ports:
+      - "4000:4000"
+      - "4001:4001"
+    network_mode: host
