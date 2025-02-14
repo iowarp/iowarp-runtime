@@ -250,6 +250,9 @@ class ChimaeraRun(Service):
         provider = self.config['provider']
         if provider is None:
             opts = net_info['provider'].unique().list()
+            if len(opts) == 0:
+                print('No networks discovered')
+                exit(1)
             order = ['sockets', 'tcp', 'udp', 'verbs', 'ib']
             for opt in order:
                 if opt in opts:
