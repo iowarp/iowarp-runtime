@@ -215,4 +215,4 @@ file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/tasks/TASK_NAME
     DESTINATION $ENV{HOME}/.chimaera)
 
 # Install jarvis repo
-jarvis_repo_add("${CMAKE_SOURCE_DIR}/test/jarvis_chimaera" "${CMAKE_SOURCE_DIR}/test/pipelines")
+jarvis_repo_add("${CMAKE_SOURCE_DIR}/test/jarvis_chimaera" "${CMAKE_SOURCE_DIR}/test/jarvis_chimaera/pipelines")
