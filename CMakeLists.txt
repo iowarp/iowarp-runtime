@@ -174,7 +174,7 @@ add_custom_target(lint COMMAND bash ${CMAKE_SOURCE_DIR}/ci/lint.sh ${CMAKE_SOURC
 # General function used to hook ctest to python test tool lib
 function(jarvis_test test_type test_name)
     add_test(NAME ${test_name}
-        COMMAND jarvis pipeline run yaml "${CMAKE_SOURCE_DIR}/test/unit/pipelines/${test_type}/${test_name}.yaml")
+        COMMAND jarvis pipeline run yaml "${CMAKE_SOURCE_DIR}/test/unit/jarvis_chimaera/pipelines/${test_type}/${test_name}.yaml")
 endfunction()
 
 if(BUILD_TESTS)
