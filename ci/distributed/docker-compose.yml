@@ -1,8 +1,6 @@
-version: "3"
-
 services:
   node1:
-    image: lukemartinlogan/chimaera-deps:latest
+    image: iowarp-dev
     links:
       - node2
     networks:
@@ -12,7 +10,7 @@ services:
     tty: true
 
   node2:
-    image: lukemartinlogan/chimaera-deps:latest
+    image: iowarp-dev
     networks:
       - net
     hostname: node2
