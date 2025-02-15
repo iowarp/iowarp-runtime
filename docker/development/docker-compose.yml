@@ -5,7 +5,6 @@ services:
     shm_size: 8g
     mem_limit: 8g
     volumes:
-      - ~/.ssh:/root/.ssh
       - ${IOWARP_PKGS}/cte-hermes-shm:/cte-hermes-shm
       - ${IOWARP_PKGS}/iowarp-runtime:/iowarp-runtime
       - ${IOWARP_PKGS}/content-transfer-engine:/content-transfer-engine

@@ -1,7 +1,7 @@
 
 services:
   node1:
-    image: iowarp-dev
+    image: lukemartinlogan/chimaera-deps:latest
     links:
       - node2
     networks:
@@ -9,19 +9,15 @@ services:
     hostname: node1
     stdin_open: true
     tty: true
-    ports:
-      - 22:22
-
+    
   node2:
-    image: iowarp-dev
+    image: lukemartinlogan/chimaera-deps:latest
     networks:
       - net
     hostname: node2
     stdin_open: true
     tty: true
-    ports:
-      - 22:22
-
+    
 networks:
   net:
     driver: bridge
