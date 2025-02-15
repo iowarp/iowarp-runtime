@@ -1,3 +1,4 @@
+
 services:
   node1:
     image: iowarp-dev
@@ -8,6 +9,8 @@ services:
     hostname: node1
     stdin_open: true
     tty: true
+    ports:
+      - 22:22
 
   node2:
     image: iowarp-dev
@@ -16,6 +19,8 @@ services:
     hostname: node2
     stdin_open: true
     tty: true
+    ports:
+      - 22:22
 
 networks:
   net:
