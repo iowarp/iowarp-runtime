@@ -2,8 +2,6 @@
 services:
   node1:
     image: lukemartinlogan/chimaera-deps:latest
-    links:
-      - node2
     networks:
       - net
     hostname: node1
