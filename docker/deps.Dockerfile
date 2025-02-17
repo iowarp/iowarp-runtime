@@ -10,5 +10,10 @@ ARG DEBIAN_FRONTEND=noninteractive
 # Install iowarp
 RUN . /module_load.sh && \
     . "${SPACK_DIR}/share/spack/setup-env.sh" && \
-    spack install chimaera@main+depsonly
+    spack install iowarp@main+nocompile
 
+# Setup modules
+RUN . "${SPACK_DIR}/share/spack/setup-env.sh" && \
+    spack load iowarp && \
+    echo "module use $(scspkg module dir)" >> ${HOME}/.bashrc && \
+    scspkg init

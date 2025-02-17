@@ -1,0 +1,21 @@
+
+services:
+  node1:
+    image: lukemartinlogan/chimaera-deps:latest
+    networks:
+      - net
+    hostname: node1
+    stdin_open: true
+    tty: true
+    
+  node2:
+    image: lukemartinlogan/chimaera-deps:latest
+    networks:
+      - net
+    hostname: node2
+    stdin_open: true
+    tty: true
+    
+networks:
+  net:
+    driver: bridge
