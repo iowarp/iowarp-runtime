@@ -15,7 +15,8 @@
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
                 "CMAKE_INSTALL_PREFIX": "/home/llogan/.scspkg/packages/chimaera",
-                "CHIMAERA_ENABLE_CUDA": "OFF"
+                "CHIMAERA_ENABLE_CUDA": "OFF",
+                "HSHM_ENABLE_CMAKE_DOTENV": "ON"
             }
         },
         {
