@@ -234,7 +234,7 @@ class Server : public Module {
     }
     if (task->root_) {
       // Broadcast the state creation to all nodes
-      CHI_ADMIN->CreateContainer(HSHM_DEFAULT_MEM_CTX, task->dom_query_, *task);
+      CHI_ADMIN->CreateContainer(HSHM_DEFAULT_MEM_CTX, task->affinity_, *task);
       HILOG(kInfo,
             "(node {}) Broadcasting container creation (task_node={}): pool {}",
             CHI_RPC->node_id_, task->task_node_, task->pool_name_.str());
