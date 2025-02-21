@@ -163,7 +163,7 @@ struct CreateContainerBaseTask : public Task, TaskFlags<TF_SRL_SYM> {
     prio_ = TaskPrioOpt::kLowLatency;
     pool_ = CHI_QM->admin_pool_id_;
     method_ = Method::kCreateContainer;
-    task_flags_.SetBits(TASK_COROUTINE);
+    task_flags_.SetBits(0);
     dom_query_ = dom_query;
 
     // Initialize
@@ -190,7 +190,7 @@ struct CreateContainerBaseTask : public Task, TaskFlags<TF_SRL_SYM> {
     prio_ = TaskPrioOpt::kLowLatency;
     pool_ = CHI_QM->admin_pool_id_;
     method_ = Method::kCreateContainer;
-    task_flags_.SetBits(TASK_COROUTINE);
+    task_flags_.SetBits(0);
     dom_query_ = dom_query;
 
     // Initialize

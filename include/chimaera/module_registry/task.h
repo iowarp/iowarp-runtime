@@ -55,12 +55,12 @@ class Lane;
 #define TASK_DIRECT BIT_OPT(chi::IntFlag, 13)
 /** This task owns the data in the task */
 #define TASK_DATA_OWNER BIT_OPT(chi::IntFlag, 14)
-/** This task uses co-routine wait */
+/** This task uses co-routine wait  (deprecated)*/
 #define TASK_COROUTINE BIT_OPT(chi::IntFlag, 15)
 /** Monitor performance of this task */
 #define TASK_SHOULD_SAMPLE BIT_OPT(chi::IntFlag, 18)
-/** This task should be scheduled on all lanes (deprecated) */
-#define TASK_LANE_ALL BIT_OPT(chi::IntFlag, 19)
+/** Trigger completion event when appropriate */
+#define TASK_TRIGGER_COMPLETE BIT_OPT(chi::IntFlag, 19)
 /** This task flushes the runtime */
 #define TASK_FLUSH BIT_OPT(chi::IntFlag, 20)
 /** This task signals its completion */
@@ -380,7 +380,23 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
 
   /** Unset task as complete */
   HSHM_INLINE_CROSS_FUN
-  void UnsetComplete() { task_flags_.UnsetBits(TASK_COMPLETE); }
+  void UnsetComplete() {
+    task_flags_.UnsetBits(TASK_TRIGGER_COMPLETE | TASK_COMPLETE);
+  }
+
+  /** Set trigger complete */
+  HSHM_INLINE_CROSS_FUN
+  void SetTriggerComplete() { task_flags_.SetBits(TASK_TRIGGER_COMPLETE); }
+
+  /** Check if task is trigger complete */
+  HSHM_INLINE_CROSS_FUN
+  bool IsTriggerComplete() const {
+    return task_flags_.Any(TASK_TRIGGER_COMPLETE | TASK_COMPLETE);
+  }
+
+  /** Unset trigger complete */
+  HSHM_INLINE_CROSS_FUN
+  void UnsetTriggerComplete() { task_flags_.UnsetBits(TASK_TRIGGER_COMPLETE); }
 
   /** Set task as direct */
   HSHM_INLINE_CROSS_FUN
@@ -437,14 +453,6 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
   /** Set this task as started */
   HSHM_INLINE_CROSS_FUN
   void UnsetLongRunning() { task_flags_.UnsetBits(TASK_LONG_RUNNING); }
-
-  /** Set this task as blocking */
-  HSHM_INLINE_CROSS_FUN
-  bool IsCoroutine() const { return task_flags_.Any(TASK_COROUTINE); }
-
-  /** Set this task as blocking */
-  HSHM_INLINE_CROSS_FUN
-  void UnsetCoroutine() { task_flags_.UnsetBits(TASK_COROUTINE); }
 
   /** Set task as yielded */
   HSHM_INLINE_CROSS_FUN

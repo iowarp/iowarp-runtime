@@ -37,12 +37,12 @@ bool PrivateTaskMultiQueue::push(const FullPtr<Task> &task) {
       CHI_RUNTIME->remote_created_) {
     task->SetRemote();
   }
-  if (task->IsComplete()) {
+  if (task->IsTriggerComplete()) {
     task->UnsetRemote();
   }
 #endif
   RunContext &rctx = task->rctx_;
-  if (task->IsComplete()) {
+  if (task->IsTriggerComplete()) {
     return PushCompletedTask(rctx, task);
   }
   if (task->IsRouted()) {
@@ -450,7 +450,7 @@ bool Worker::RunTask(FullPtr<Task> &task, bool flushing) {
   rctx.worker_props_ = props;
   rctx.flush_ = &flush_;
   // Run the task
-  if (!task->IsComplete() && !task->IsBlocked()) {
+  if (!task->IsTriggerComplete() && !task->IsBlocked()) {
     // Make this task current
     cur_task_ = task.ptr_;
     // Check if the task is dynamically-scheduled
@@ -473,7 +473,7 @@ bool Worker::RunTask(FullPtr<Task> &task, bool flushing) {
   } else if (task->IsYielded()) {
     pushback = true;
     task->UnsetYielded();
-  } else {
+  } else if (!task->IsLongRunning() || task->IsTriggerComplete()) {
     pushback = false;
     EndTask(rctx.exec_, task, rctx);
   }

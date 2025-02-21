@@ -151,6 +151,11 @@ class Server : public Module {
     Replicate(task, orig_task, dom_queries, rctx);
     HLOG(kDebug, kRemoteQueue, "[TASK_CHECK] Pushing back to runtime {}",
          orig_task);
+
+    // Push back to runtime
+    if (!orig_task->IsLongRunning()) {
+      orig_task->SetTriggerComplete();
+    }
     CHI_CLIENT->ScheduleTask(nullptr, FullPtr<Task>(orig_task));
   }
   void MonitorClientPushSubmit(MonitorModeId mode, ClientPushSubmitTask *task,
