@@ -31,7 +31,6 @@ class Server : public Module {
   /** Construct small_message */
   void Create(CreateTask *task, RunContext &rctx) {
     client_.Init(id_, CHI_ADMIN->queue_id_);
-    task->SetModuleComplete();
     CreateLaneGroup(kDefaultGroup, 4, QUEUE_LOW_LATENCY);
 
     // Create monitoring functions
@@ -67,9 +66,7 @@ class Server : public Module {
   }
 
   /** Destroy small_message */
-  void Destroy(DestroyTask *task, RunContext &rctx) {
-    task->SetModuleComplete();
-  }
+  void Destroy(DestroyTask *task, RunContext &rctx) {}
   void MonitorDestroy(MonitorModeId mode, DestroyTask *task, RunContext &rctx) {
     switch (mode) {
       case MonitorMode::kEstLoad: {
@@ -91,7 +88,6 @@ class Server : public Module {
   void Upgrade(UpgradeTask *task, RunContext &rctx) {
     auto *old = task->Get<Server>();
     upgrade_count_ = old->upgrade_count_ + 1;
-    task->SetModuleComplete();
   }
   void MonitorUpgrade(MonitorModeId mode, UpgradeTask *task, RunContext &rctx) {
     switch (mode) {
@@ -118,7 +114,6 @@ class Server : public Module {
     task->ret_ = 1;
     //    HILOG(kInfo, "Executing small message on worker {}",
     //          CHI_WORK_ORCHESTRATOR->GetCurrentWorker()->id_);
-    task->SetModuleComplete();
   }
   void MonitorMd(MonitorModeId mode, MdTask *task, RunContext &rctx) {
     switch (mode) {
@@ -152,7 +147,6 @@ class Server : public Module {
       task->ret_ += data[i];
     }
     memset(data, 15, task->size_);
-    task->SetModuleComplete();
   }
   void MonitorIo(MonitorModeId mode, IoTask *task, RunContext &rctx) {
     switch (mode) {

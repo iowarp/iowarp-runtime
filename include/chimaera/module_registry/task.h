@@ -45,8 +45,8 @@ class Lane;
 #define TASK_HAS_STARTED BIT_OPT(chi::IntFlag, 8)
 /** This task is completed */
 #define TASK_COMPLETE BIT_OPT(chi::IntFlag, 9)
-/** This task was marked completed outside of the worker thread */
-#define TASK_MODULE_COMPLETE BIT_OPT(chi::IntFlag, 10)
+/** This task was yielded */
+#define TASK_YIELDED BIT_OPT(chi::IntFlag, 10)
 /** This task is long-running */
 #define TASK_LONG_RUNNING BIT_OPT(chi::IntFlag, 11)
 /** This task is fire and forget. Free when completed */
@@ -370,31 +370,9 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
   HSHM_INLINE_CROSS_FUN
   const u32 &GetContainerId() const { return dom_query_.sel_.id_; }
 
-  /** Set task as externally complete */
-  HSHM_INLINE_CROSS_FUN
-  void SetModuleComplete() {
-    task_flags_.SetBits(TASK_MODULE_COMPLETE);
-    UnsetStarted();
-  }
-
-  /** Check if a task marked complete externally */
-  HSHM_INLINE_CROSS_FUN
-  bool IsModuleComplete() const {
-    return task_flags_.Any(TASK_MODULE_COMPLETE);
-  }
-
-  /** Unset task as complete */
-  HSHM_INLINE_CROSS_FUN
-  void UnsetModuleComplete() {
-    task_flags_.UnsetBits(TASK_MODULE_COMPLETE);
-    SetStarted();
-  }
-
   /** Set task as complete */
   HSHM_INLINE_CROSS_FUN
-  void SetComplete() {
-    task_flags_.SetBits(TASK_MODULE_COMPLETE | TASK_COMPLETE);
-  }
+  void SetComplete() { task_flags_.SetBits(TASK_COMPLETE); }
 
   /** Check if task is complete */
   HSHM_INLINE_CROSS_FUN
@@ -402,9 +380,7 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
 
   /** Unset task as complete */
   HSHM_INLINE_CROSS_FUN
-  void UnsetComplete() {
-    task_flags_.UnsetBits(TASK_MODULE_COMPLETE | TASK_COMPLETE);
-  }
+  void UnsetComplete() { task_flags_.UnsetBits(TASK_COMPLETE); }
 
   /** Set task as direct */
   HSHM_INLINE_CROSS_FUN
@@ -469,6 +445,18 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
   /** Set this task as blocking */
   HSHM_INLINE_CROSS_FUN
   void UnsetCoroutine() { task_flags_.UnsetBits(TASK_COROUTINE); }
+
+  /** Set task as yielded */
+  HSHM_INLINE_CROSS_FUN
+  void SetYielded() { task_flags_.SetBits(TASK_YIELDED); }
+
+  /** Check if task is yielded */
+  HSHM_INLINE_CROSS_FUN
+  bool IsYielded() const { return task_flags_.Any(TASK_YIELDED); }
+
+  /** Unset task as yielded */
+  HSHM_INLINE_CROSS_FUN
+  void UnsetYielded() { task_flags_.UnsetBits(TASK_YIELDED); }
 
   /** Set period in nanoseconds */
   HSHM_INLINE_CROSS_FUN
@@ -681,13 +669,21 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
     // actually yield anything. Would longjmp be worthwhile here?
   }
 
+  /** Yield task (called outside of modules) */
   HSHM_INLINE_CROSS_FUN
-  void Yield() {
+  void BaseYield() {
 #ifdef CHIMAERA_RUNTIME
     YieldFactory<TASK_YIELD_CO>();
 #else
     YieldFactory<TASK_YIELD_STD>();
 #endif
+  }
+
+  /*** Yield task (called in modules) */
+  HSHM_INLINE_CROSS_FUN
+  void Yield() {
+    SetYielded();
+    BaseYield();
   }
 
   /** Yield a task to a different task (runtime-only) */

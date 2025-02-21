@@ -29,7 +29,6 @@ class Server : public Module {
     count_lowlat_ = 0;
     count_highlat_ = 0;
     CreateLaneGroup(kDefaultGroup, 1, QUEUE_HIGH_LATENCY);
-    task->SetModuleComplete();
   }
   void MonitorCreate(MonitorModeId mode, CreateTask *task, RunContext &rctx) {}
 
@@ -39,9 +38,7 @@ class Server : public Module {
   }
 
   /** Destroy work orchestrator queue scheduler */
-  void Destroy(DestroyTask *task, RunContext &rctx) {
-    task->SetModuleComplete();
-  }
+  void Destroy(DestroyTask *task, RunContext &rctx) {}
   void MonitorDestroy(MonitorModeId mode, DestroyTask *task, RunContext &rctx) {
   }
 
@@ -59,7 +56,6 @@ class Server : public Module {
   /** Schedule work orchestrator queues */
   void Schedule(ScheduleTask *task, RunContext &rctx) {
     // TODO(llogan): Finish
-    task->UnsetStarted();
     return;
   }
   void MonitorSchedule(MonitorModeId mode, ScheduleTask *task,

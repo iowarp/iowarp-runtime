@@ -29,7 +29,6 @@ class Server : public Module {
   void Create(CreateTask *task, RunContext &rctx) {
     // Create a set of lanes for holding tasks
     CreateLaneGroup(kDefaultGroup, 1, QUEUE_LOW_LATENCY);
-    task->SetModuleComplete();
   }
   void MonitorCreate(MonitorModeId mode, CreateTask *task, RunContext &rctx) {}
 
@@ -42,9 +41,7 @@ class Server : public Module {
   }
 
   /** Destroy TASK_NAME */
-  void Destroy(DestroyTask *task, RunContext &rctx) {
-    task->SetModuleComplete();
-  }
+  void Destroy(DestroyTask *task, RunContext &rctx) {}
   void MonitorDestroy(MonitorModeId mode, DestroyTask *task, RunContext &rctx) {
   }
 

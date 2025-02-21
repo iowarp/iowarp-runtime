@@ -32,7 +32,6 @@ class Server : public Module {
   size_t lat_cutoff_;
   CLS_CONST LaneGroupId kMdGroup = 0;
   CLS_CONST LaneGroupId kDataGroup = 1;
-  CLS_CONST LaneGroupId kLongRunning = 2;
 
  public:
   Server() = default;
@@ -46,7 +45,6 @@ class Server : public Module {
     alloc_.Init(1, dev_size);
     CreateLaneGroup(kMdGroup, 1, QUEUE_LOW_LATENCY);
     CreateLaneGroup(kDataGroup, 8, QUEUE_LOW_LATENCY);
-    CreateLaneGroup(kLongRunning, 1, QUEUE_LONG_RUNNING);
 
     // Create monitoring functions
     for (int i = 0; i < Method::kCount; ++i) {
@@ -148,8 +146,6 @@ class Server : public Module {
         break;
       }
     }
-
-    task->SetModuleComplete();
   }
   void MonitorCreate(MonitorModeId mode, CreateTask *task, RunContext &rctx) {
     AverageMonitor(Method::kCreate, mode, rctx);
@@ -157,9 +153,6 @@ class Server : public Module {
 
   /** Route a task to a bdev lane */
   Lane *MapTaskToLane(const Task *task) override {
-    if (task->IsLongRunning()) {
-      return GetLaneByHash(kLongRunning, task->prio_, 0);
-    }
     switch (task->method_) {
       case Method::kRead:
       case Method::kWrite: {
@@ -174,9 +167,7 @@ class Server : public Module {
   }
 
   /** Destroy bdev */
-  void Destroy(DestroyTask *task, RunContext &rctx) {
-    task->SetModuleComplete();
-  }
+  void Destroy(DestroyTask *task, RunContext &rctx) {}
   void MonitorDestroy(MonitorModeId mode, DestroyTask *task, RunContext &rctx) {
     AverageMonitor(Method::kDestroy, mode, rctx);
   }
@@ -184,7 +175,6 @@ class Server : public Module {
   /** Allocate a section of the block device */
   void Allocate(AllocateTask *task, RunContext &rctx) {
     alloc_.Allocate(0, task->size_, task->blocks_, task->total_size_);
-    task->SetModuleComplete();
   }
   void MonitorAllocate(MonitorModeId mode, AllocateTask *task,
                        RunContext &rctx) {
@@ -192,10 +182,7 @@ class Server : public Module {
   }
 
   /** Free a section of the block device */
-  void Free(FreeTask *task, RunContext &rctx) {
-    alloc_.Free(0, task->block_);
-    task->SetModuleComplete();
-  }
+  void Free(FreeTask *task, RunContext &rctx) { alloc_.Free(0, task->block_); }
   void MonitorFree(MonitorModeId mode, FreeTask *task, RunContext &rctx) {}
 
   /** Write to the block device */
@@ -220,7 +207,6 @@ class Server : public Module {
         break;
       }
     }
-    task->SetModuleComplete();
   }
   void MonitorWrite(MonitorModeId mode, WriteTask *task, RunContext &rctx) {
     switch (mode) {
@@ -271,7 +257,6 @@ class Server : public Module {
         break;
       }
     }
-    task->SetModuleComplete();
   }
   void MonitorRead(MonitorModeId mode, ReadTask *task, RunContext &rctx) {}
 
@@ -282,7 +267,6 @@ class Server : public Module {
     task->stats_.read_latency_ = monitor_read_lat_.consts_[1];
     task->stats_.write_latency_ = monitor_write_lat_.consts_[1];
     task->stats_.free_ = alloc_.free_size_;
-    task->SetModuleComplete();
   }
   void MonitorPollStats(MonitorModeId mode, PollStatsTask *task,
                         RunContext &rctx) {

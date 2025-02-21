@@ -15,7 +15,6 @@ bool ModuleRegistry::CreateContainer(
   // Ensure pool_id is not NULL
   if (pool_id.IsNull()) {
     HELOG(kError, "The pool ID cannot be null");
-    task->SetModuleComplete();
     return false;
   }
   //    HILOG(kInfo, "(node {}) Creating an instance of {} with name {}",
@@ -25,7 +24,6 @@ bool ModuleRegistry::CreateContainer(
   auto it = libs_.find(lib_name);
   if (it == libs_.end()) {
     HELOG(kError, "Could not find the task lib: {}", lib_name);
-    task->SetModuleComplete();
     return false;
   }
   ModuleInfo &info = it->second;
@@ -45,7 +43,6 @@ bool ModuleRegistry::CreateContainer(
     Container *exec = info.new_state_(&pool_id, pool_name);
     if (!exec) {
       HELOG(kError, "Could not create the pool: {}", pool_name);
-      task->SetModuleComplete();
       return false;
     }
 
@@ -61,7 +58,6 @@ bool ModuleRegistry::CreateContainer(
     exec->Run(TaskMethod::kCreate, task, task->rctx_);
     lock.Lock(0);
     exec->is_created_ = true;
-    task->UnsetModuleComplete();
   }
   HILOG(kInfo,
         "(node {})  Created an instance of {} with pool name {} "

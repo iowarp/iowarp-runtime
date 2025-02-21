@@ -20,7 +20,7 @@ macros:
     name: $(launch-name)
     type: cppdbg
     request: launch
-    program: echo
+    program: /usr/bin/echo
     miDebuggerServerAddress: localhost:$(port)
     miDebuggerPath: /usr/bin/gdb
     cwd: ${workspaceFolder}

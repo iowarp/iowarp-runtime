@@ -67,7 +67,6 @@ class Server : public Module {
         CHI_REMOTE_QUEUE->AsyncClientSubmit(HSHM_DEFAULT_MEM_CTX, dom_query));
     completers_.emplace_back(
         CHI_REMOTE_QUEUE->AsyncServerComplete(HSHM_DEFAULT_MEM_CTX, dom_query));
-    task->SetModuleComplete();
   }
   void MonitorCreate(MonitorModeId mode, CreateTask *task, RunContext &rctx) {}
 
@@ -83,9 +82,7 @@ class Server : public Module {
   }
 
   /** Destroy remote queue */
-  void Destroy(DestroyTask *task, RunContext &rctx) {
-    task->SetModuleComplete();
-  }
+  void Destroy(DestroyTask *task, RunContext &rctx) {}
   void MonitorDestroy(MonitorModeId mode, DestroyTask *task, RunContext &rctx) {
   }
 
@@ -147,23 +144,14 @@ class Server : public Module {
     std::vector<ResolvedDomainQuery> dom_queries = CHI_RPC->ResolveDomainQuery(
         orig_task->pool_, orig_task->dom_query_, false);
     if (dom_queries.size() == 0) {
-      task->SetModuleComplete();
-      orig_task->SetModuleComplete();
       CHI_CLIENT->ScheduleTask(nullptr, FullPtr<Task>(orig_task));
       return;
     }
     // Replicate task
     Replicate(task, orig_task, dom_queries, rctx);
-    // Unblock original task
-    if (!orig_task->IsLongRunning()) {
-      orig_task->SetModuleComplete();
-    }
     HLOG(kDebug, kRemoteQueue, "[TASK_CHECK] Pushing back to runtime {}",
          orig_task);
     CHI_CLIENT->ScheduleTask(nullptr, FullPtr<Task>(orig_task));
-
-    // Set this task as complete
-    task->SetModuleComplete();
   }
   void MonitorClientPushSubmit(MonitorModeId mode, ClientPushSubmitTask *task,
                                RunContext &rctx) {}
@@ -215,7 +203,6 @@ class Server : public Module {
       HELOG(kError, "(node {}) Worker {} caught an unknown exception",
             CHI_CLIENT->node_id_, id_);
     }
-    task->UnsetStarted();
   }
   void MonitorClientSubmit(MonitorModeId mode, ClientSubmitTask *task,
                            RunContext &rctx) {}
@@ -269,7 +256,6 @@ class Server : public Module {
       HELOG(kError, "(node {}) Worker {} caught an unknown exception",
             CHI_CLIENT->node_id_, id_);
     }
-    task->UnsetStarted();
   }
   void MonitorServerComplete(MonitorModeId mode, ServerCompleteTask *task,
                              RunContext &rctx) {}

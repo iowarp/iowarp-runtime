@@ -24,7 +24,6 @@ class Server : public Module {
   /** Construct the work orchestrator process scheduler */
   void Create(CreateTask *task, RunContext &rctx) {
     CreateLaneGroup(kDefaultGroup, 1, QUEUE_HIGH_LATENCY);
-    task->SetModuleComplete();
   }
   void MonitorCreate(MonitorModeId mode, CreateTask *task, RunContext &rctx) {}
 
@@ -34,9 +33,7 @@ class Server : public Module {
   }
 
   /** Destroy the work orchestrator process queue */
-  void Destroy(DestroyTask *task, RunContext &rctx) {
-    task->SetModuleComplete();
-  }
+  void Destroy(DestroyTask *task, RunContext &rctx) {}
   void MonitorDestroy(MonitorModeId mode, DestroyTask *task, RunContext &rctx) {
   }
 

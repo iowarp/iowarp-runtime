@@ -59,16 +59,13 @@ class Server : public Module {
     for (int i = 0; i < Method::kCount; ++i) {
       monitor_[i].Shape(hshm::Formatter::format("{}-method-{}", name_, i));
     }
-    task->SetModuleComplete();
   }
   void MonitorCreate(MonitorModeId mode, CreateTask *task, RunContext &rctx) {
     MonitorBase(mode, Method::kCreate, task, rctx);
   }
 
   /** Destroy the state */
-  void Destroy(DestroyTask *task, RunContext &rctx) {
-    task->SetModuleComplete();
-  }
+  void Destroy(DestroyTask *task, RunContext &rctx) {}
   void MonitorDestroy(MonitorModeId mode, DestroyTask *task, RunContext &rctx) {
     MonitorBase(mode, Method::kDestroy, task, rctx);
   }
@@ -82,7 +79,6 @@ class Server : public Module {
   void UpdateDomain(UpdateDomainTask *task, RunContext &rctx) {
     std::vector<UpdateDomainInfo> ops = task->ops_.vec();
     CHI_RPC->UpdateDomains(ops);
-    task->SetModuleComplete();
   }
   void MonitorUpdateDomain(MonitorModeId mode, UpdateDomainTask *task,
                            RunContext &rctx) {
@@ -94,7 +90,6 @@ class Server : public Module {
     std::string lib_name = task->lib_name_.str();
     HILOG(kInfo, "Registering module? {}", lib_name);
     CHI_MOD_REGISTRY->RegisterModule(lib_name);
-    task->SetModuleComplete();
   }
   void MonitorRegisterModule(MonitorModeId mode, RegisterModuleTask *task,
                              RunContext &rctx) {
@@ -105,7 +100,6 @@ class Server : public Module {
   void DestroyModule(DestroyModuleTask *task, RunContext &rctx) {
     std::string lib_name = task->lib_name_.str();
     CHI_MOD_REGISTRY->DestroyModule(lib_name);
-    task->SetModuleComplete();
   }
   void MonitorDestroyModule(MonitorModeId mode, DestroyModuleTask *task,
                             RunContext &rctx) {
@@ -131,7 +125,6 @@ class Server : public Module {
       new_container->Run(Method::kUpgrade, task, rctx);
       new_containers.emplace_back(new_container);
     }
-    task->UnsetModuleComplete();
     // Get current iter count for each worker
     std::vector<size_t> iter_counts;
     for (std::unique_ptr<Worker> &worker : CHI_WORK_ORCHESTRATOR->workers_) {
@@ -169,7 +162,6 @@ class Server : public Module {
       container->UnplugAllLanes();
     }
     CHI_MOD_REGISTRY->UnplugModule(lib_name);
-    task->SetModuleComplete();
   }
   void MonitorUpgradeModule(MonitorModeId mode, UpgradeModuleTask *task,
                             RunContext &rctx) {
@@ -187,7 +179,6 @@ class Server : public Module {
     if (!found_pool.IsNull()) {
       task->ctx_.id_ = found_pool;
       state_existed = true;
-      task->SetModuleComplete();
       return;
     }
     // Check global registry for pool
@@ -201,7 +192,6 @@ class Server : public Module {
     if (task->ctx_.id_.IsNull()) {
       HELOG(kError, "(node {}) The pool {} with id {} is NULL.",
             CHI_CLIENT->node_id_, pool_name, task->ctx_.id_);
-      task->SetModuleComplete();
       return;
     }
     // Get # of lanes to create
@@ -229,7 +219,6 @@ class Server : public Module {
         lib_name.c_str(), pool_name.c_str(), task->ctx_.id_, task, containers);
     if (!did_create) {
       HELOG(kFatal, "Failed to create container: {}", pool_name);
-      task->SetModuleComplete();
       return;
     }
     if (task->root_) {
@@ -241,7 +230,6 @@ class Server : public Module {
     }
     HILOG(kInfo, "(node {}) Created containers for task {}", CHI_RPC->node_id_,
           task->task_node_);
-    task->SetModuleComplete();
   }
   void MonitorCreateContainer(MonitorModeId mode, CreateContainerTask *task,
                               RunContext &rctx) {
@@ -273,7 +261,6 @@ class Server : public Module {
   void GetPoolId(GetPoolIdTask *task, RunContext &rctx) {
     std::string pool_name = task->pool_name_.str();
     task->id_ = CHI_MOD_REGISTRY->GetPoolId(pool_name);
-    task->SetModuleComplete();
   }
   void MonitorGetPoolId(MonitorModeId mode, GetPoolIdTask *task,
                         RunContext &rctx) {
@@ -301,7 +288,6 @@ class Server : public Module {
   /** Destroy a pool */
   void DestroyContainer(DestroyContainerTask *task, RunContext &rctx) {
     CHI_MOD_REGISTRY->DestroyContainer(task->id_);
-    task->SetModuleComplete();
   }
   void MonitorDestroyContainer(MonitorModeId mode, DestroyContainerTask *task,
                                RunContext &rctx) {
@@ -316,7 +302,6 @@ class Server : public Module {
       CHI_ADMIN->AsyncStopRuntime(HSHM_DEFAULT_MEM_CTX,
                                   DomainQuery::GetGlobalBcast(), false);
     } else if (CHI_RPC->node_id_ == task->task_node_.root_.node_id_) {
-      task->SetModuleComplete();
       HILOG(kInfo, "(node {}) Ignoring runtime stop (task_node={})",
             CHI_RPC->node_id_, task->task_node_);
       return;
@@ -325,7 +310,6 @@ class Server : public Module {
           CHI_RPC->node_id_, task->task_node_);
     CHI_THALLIUM->StopThisDaemon();
     CHI_WORK_ORCHESTRATOR->FinalizeRuntime();
-    task->SetModuleComplete();
   }
   void MonitorStopRuntime(MonitorModeId mode, StopRuntimeTask *task,
                           RunContext &rctx) {
@@ -334,22 +318,7 @@ class Server : public Module {
 
   /** Set work orchestrator policy */
   void SetWorkOrchQueuePolicy(SetWorkOrchQueuePolicyTask *task,
-                              RunContext &rctx) {
-    if (queue_sched_) {
-      queue_sched_->SetModuleComplete();
-    }
-    if (queue_sched_ && !queue_sched_->IsComplete()) {
-      return;
-    }
-    auto queue_sched = CHI_CLIENT->NewTask<ScheduleTask>(
-        HSHM_DEFAULT_MEM_CTX, task->task_node_,
-        chi::DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0),
-        task->policy_id_, 250);
-    queue_sched_ = queue_sched.ptr_;
-    ingress::MultiQueue *queue = CHI_CLIENT->GetQueue(queue_id_);
-    queue->Emplace(TaskPrioOpt::kLowLatency, 0, queue_sched.shm_);
-    task->SetModuleComplete();
-  }
+                              RunContext &rctx) {}
   void MonitorSetWorkOrchQueuePolicy(MonitorModeId mode,
                                      SetWorkOrchQueuePolicyTask *task,
                                      RunContext &rctx) {
@@ -358,22 +327,7 @@ class Server : public Module {
 
   /** Set work orchestration policy */
   void SetWorkOrchProcPolicy(SetWorkOrchProcPolicyTask *task,
-                             RunContext &rctx) {
-    if (proc_sched_) {
-      proc_sched_->SetModuleComplete();
-    }
-    if (proc_sched_ && !proc_sched_->IsComplete()) {
-      return;
-    }
-    auto proc_sched = CHI_CLIENT->NewTask<ScheduleTask>(
-        HSHM_DEFAULT_MEM_CTX, task->task_node_,
-        chi::DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0),
-        task->policy_id_, 1000);
-    proc_sched_ = proc_sched.ptr_;
-    ingress::MultiQueue *queue = CHI_CLIENT->GetQueue(queue_id_);
-    queue->Emplace(0, 0, proc_sched.shm_);
-    task->SetModuleComplete();
-  }
+                             RunContext &rctx) {}
   void MonitorSetWorkOrchProcPolicy(MonitorModeId mode,
                                     SetWorkOrchProcPolicyTask *task,
                                     RunContext &rctx) {
@@ -381,7 +335,7 @@ class Server : public Module {
   }
 
   /** Flush the runtime */
-  void Flush(FlushTask *task, RunContext &rctx) { task->SetModuleComplete(); }
+  void Flush(FlushTask *task, RunContext &rctx) {}
   void MonitorFlush(MonitorModeId mode, FlushTask *task, RunContext &rctx) {
     switch (mode) {
       case MonitorMode::kEstLoad: {
@@ -407,7 +361,6 @@ class Server : public Module {
   /** Get the domain size */
   void GetDomainSize(GetDomainSizeTask *task, RunContext &rctx) {
     task->dom_size_ = CHI_RPC->GetDomainSize(task->dom_id_);
-    task->SetModuleComplete();
   }
   void MonitorGetDomainSize(MonitorModeId mode, GetDomainSizeTask *task,
                             RunContext &rctx) {

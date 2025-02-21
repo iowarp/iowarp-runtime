@@ -37,12 +37,12 @@ bool PrivateTaskMultiQueue::push(const FullPtr<Task> &task) {
       CHI_RUNTIME->remote_created_) {
     task->SetRemote();
   }
-  if (task->IsModuleComplete()) {
+  if (task->IsComplete()) {
     task->UnsetRemote();
   }
 #endif
   RunContext &rctx = task->rctx_;
-  if (task->IsModuleComplete()) {
+  if (task->IsComplete()) {
     return PushCompletedTask(rctx, task);
   }
   if (task->IsRouted()) {
@@ -450,7 +450,7 @@ bool Worker::RunTask(FullPtr<Task> &task, bool flushing) {
   rctx.worker_props_ = props;
   rctx.flush_ = &flush_;
   // Run the task
-  if (!task->IsModuleComplete() && !task->IsBlocked()) {
+  if (!task->IsComplete() && !task->IsBlocked()) {
     // Make this task current
     cur_task_ = task.ptr_;
     // Check if the task is dynamically-scheduled
@@ -467,11 +467,15 @@ bool Worker::RunTask(FullPtr<Task> &task, bool flushing) {
   }
   // Cleanup allocations
   bool pushback = true;
-  if (task->IsModuleComplete()) {
+  if (task->IsBlocked()) {
+    pushback = false;
+    task->UnsetYielded();
+  } else if (task->IsYielded()) {
+    pushback = true;
+    task->UnsetYielded();
+  } else {
     pushback = false;
     EndTask(rctx.exec_, task, rctx);
-  } else if (task->IsBlocked()) {
-    pushback = false;
   }
   return pushback;
 }
@@ -492,10 +496,6 @@ void Worker::ExecTask(FullPtr<Task> &task, RunContext &rctx, Container *&exec,
   }
   // Execute + monitor the task
   ExecCoroutine(task.ptr_, rctx);
-  // Block the task
-  // if (task->IsBlocked()) {
-  //   CHI_WORK_ORCHESTRATOR->Block(task.ptr_, rctx);
-  // }
 }
 
 /** Run a task */
@@ -531,7 +531,7 @@ void Worker::CoroutineEntry(bctx::transfer_t t) {
   rctx.jmp_ = t;
   exec->Run(task->method_, task, rctx);
   task->UnsetStarted();
-  task->Yield();
+  task->BaseYield();
 }
 
 /** Free a task when it is no longer needed */
