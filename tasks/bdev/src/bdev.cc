@@ -32,6 +32,7 @@ class Server : public Module {
   size_t lat_cutoff_;
   CLS_CONST LaneGroupId kMdGroup = 0;
   CLS_CONST LaneGroupId kDataGroup = 1;
+  CLS_CONST LaneGroupId kLongRunning = 2;
 
  public:
   Server() = default;
@@ -45,6 +46,7 @@ class Server : public Module {
     alloc_.Init(1, dev_size);
     CreateLaneGroup(kMdGroup, 1, QUEUE_LOW_LATENCY);
     CreateLaneGroup(kDataGroup, 8, QUEUE_LOW_LATENCY);
+    CreateLaneGroup(kLongRunning, 1, QUEUE_LONG_RUNNING);
 
     // Create monitoring functions
     for (int i = 0; i < Method::kCount; ++i) {
@@ -155,6 +157,9 @@ class Server : public Module {
 
   /** Route a task to a bdev lane */
   Lane *MapTaskToLane(const Task *task) override {
+    if (task->IsLongRunning()) {
+      return GetLaneByHash(kLongRunning, task->prio_, 0);
+    }
     switch (task->method_) {
       case Method::kRead:
       case Method::kWrite: {
