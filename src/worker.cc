@@ -95,7 +95,8 @@ bool PrivateTaskMultiQueue::PushLocalTask(const DomainQuery &res_query,
   if (task->IsFlush()) {
     HLOG(kDebug, kWorkerDebug, "[TASK_CHECK] (node {}) Failing task {}",
          CHI_CLIENT->node_id_, (void *)task.ptr_);
-    return !GetFlush().push(task).IsNull();
+    chi::Worker &flusher = CHI_WORK_ORCHESTRATOR->GetWorker(0);
+    return !flusher.active_.GetFlush().push(task).IsNull();
   }
   // Determine the lane the task should map to within container
   ContainerId container_id = res_query.sel_.id_;
