@@ -57,7 +57,7 @@ HSHM_INLINE_CROSS_FUN void Client::ScheduleTask(Task *parent_task,
       CHI_CLIENT->GetQueue(CHI_QM->process_queue_id_);
   queue->Emplace(chi::TaskPrioOpt::kLowLatency,
                  hshm::hash<chi::DomainQuery>{}(task->dom_query_), task.shm_);
-  HILOG(kInfo, "Scheduling task (client): {}", task.shm_.ptr_);
+  HILOG(kInfo, "Scheduling task (client): {}", task.ptr_);
 #else
   task->YieldInit(parent_task);
   Worker *cur_worker = CHI_CUR_WORKER;
@@ -65,7 +65,7 @@ HSHM_INLINE_CROSS_FUN void Client::ScheduleTask(Task *parent_task,
     cur_worker = &CHI_WORK_ORCHESTRATOR->GetWorker(0);
   }
   cur_worker->active_.push(task);
-  HILOG(kInfo, "Scheduling task (runtime): {}", task.shm_.ptr_);
+  HILOG(kInfo, "Scheduling task (runtime): {}", task.ptr_);
 #endif
 }
 
