@@ -55,19 +55,23 @@ HSHM_INLINE_CROSS_FUN void Client::ScheduleTask(Task *parent_task,
 #ifndef CHIMAERA_RUNTIME
   chi::ingress::MultiQueue *queue =
       CHI_CLIENT->GetQueue(CHI_QM->process_queue_id_);
-  HILOG(kInfo, "Scheduling task (client, prior): {}", task->task_node_);
+  HILOG(kInfo, "Scheduling task (client, prior): {} dom={}", task->task_node_,
+        task->dom_query_);
   queue->Emplace(chi::TaskPrioOpt::kLowLatency,
                  hshm::hash<chi::DomainQuery>{}(task->dom_query_), task.shm_);
-  HILOG(kInfo, "Scheduling task (client): {}", task->task_node_);
+  HILOG(kInfo, "Scheduling task (client): {} dom={}", task->task_node_,
+        task->dom_query_);
 #else
-  HILOG(kInfo, "Scheduling task (runtime, prior): {}", task->task_node_);
+  HILOG(kInfo, "Scheduling task (runtime, prior): {} dom={}", task->task_node_,
+        task->dom_query_);
   task->YieldInit(parent_task);
   Worker *cur_worker = CHI_CUR_WORKER;
   if (!cur_worker) {
     cur_worker = &CHI_WORK_ORCHESTRATOR->GetWorker(0);
   }
   cur_worker->active_.push(task);
-  HILOG(kInfo, "Scheduling task (runtime): {}", task->task_node_);
+  HILOG(kInfo, "Scheduling task (runtime): {} dom={}", task->task_node_,
+        task->dom_query_);
 #endif
 }
 
