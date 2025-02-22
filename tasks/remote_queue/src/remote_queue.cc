@@ -86,6 +86,32 @@ class Server : public Module {
   void MonitorDestroy(MonitorModeId mode, DestroyTask *task, RunContext &rctx) {
   }
 
+  /** Send the task directly to a node */
+  void Direct(Task *submit_task, Task *orig_task,
+              ResolvedDomainQuery &res_query, RunContext &rctx) {
+    // Save the original domain query
+    Task *orig_pending_to = orig_task->rctx_.pending_to_;
+    DomainQuery orig_dom_query = orig_task->dom_query_;
+    orig_task->dom_query_ = res_query.dom_;
+
+    // Register the block
+    submit_task->SetBlocked(1);
+    orig_task->rctx_.pending_to_ = submit_task;
+
+    // Submit to the new domain
+    size_t node_hash = hshm::hash<NodeId>{}(res_query.node_);
+    auto &submit = submit_;
+    submit[node_hash % submit.size()].emplace(
+        (RemoteEntry){res_query, orig_task});
+
+    // Actually block
+    submit_task->Yield();
+
+    // Restore the original domain query
+    orig_task->dom_query_ = orig_dom_query;
+    orig_task->rctx_.pending_to_ = orig_pending_to;
+  }
+
   /** Replicate the task across a node set */
   void Replicate(Task *submit_task, Task *orig_task,
                  std::vector<ResolvedDomainQuery> &dom_queries,
@@ -100,7 +126,7 @@ class Server : public Module {
     submit_task->SetBlocked(dom_queries.size());
     // CHI_WORK_ORCHESTRATOR->Block(submit_task, rctx);
 
-    // Replicate task
+    // Replicate and submit task
     for (ResolvedDomainQuery &res_query : dom_queries) {
       FullPtr<Task> rep_task;
       exec->NewCopyStart(orig_task->method_, orig_task, rep_task, false);
@@ -123,14 +149,14 @@ class Server : public Module {
     // Actually block
     submit_task->Yield();
 
-    // Combine
+    // Combine replicas into the original task
     rctx.replicas_ = &replicas;
     exec->Monitor(MonitorMode::kReplicaAgg, orig_task->method_, orig_task,
                   rctx);
     HLOG(kDebug, kRemoteQueue, "[TASK_CHECK] Back in submit_task {}",
          submit_task);
 
-    // Free
+    // Free replicas
     for (FullPtr<Task> &replica : replicas) {
       CHI_CLIENT->DelTask(HSHM_DEFAULT_MEM_CTX, exec, replica.ptr_);
     }
@@ -143,12 +169,16 @@ class Server : public Module {
     Task *orig_task = task->orig_task_;
     std::vector<ResolvedDomainQuery> dom_queries = CHI_RPC->ResolveDomainQuery(
         orig_task->pool_, orig_task->dom_query_, false);
+
+    // Submit task
     if (dom_queries.size() == 0) {
       CHI_CLIENT->ScheduleTask(nullptr, FullPtr<Task>(orig_task));
       return;
+    } else if (dom_queries.size() == 1) {
+      Direct(task, orig_task, dom_queries[0], rctx);
+    } else {
+      Replicate(task, orig_task, dom_queries, rctx);
     }
-    // Replicate task
-    Replicate(task, orig_task, dom_queries, rctx);
     HLOG(kDebug, kRemoteQueue, "[TASK_CHECK] Pushing back to runtime {}",
          orig_task);
 

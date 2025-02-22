@@ -5,6 +5,8 @@
 #ifndef CHIMAERA_INCLUDE_CHIMAERA_WORK_ORCHESTRATOR_COMUTEX_DEFN_H_
 #define CHIMAERA_INCLUDE_CHIMAERA_WORK_ORCHESTRATOR_COMUTEX_DEFN_H_
 
+#include <map>
+
 #include "chimaera/module_registry/task.h"
 
 namespace chi {
@@ -21,12 +23,13 @@ class CoMutex {
  public:
   TaskId root_;
   size_t rep_;
+  chi::spsc_queue<TaskId> order_;
   std::unordered_map<TaskId, COMUTEX_QUEUE_T> blocked_map_;
   hshm::Mutex mux_;
 
  public:
   /** Default constructor */
-  CoMutex() {
+  CoMutex() : order_(CHI_LANE_SIZE) {
     root_.SetNull();
     rep_ = 0;
     mux_.Init();
@@ -44,14 +47,9 @@ class ScopedCoMutex {
   CoMutex &mutex_;
 
  public:
-  ScopedCoMutex(CoMutex &mutex)
-      : mutex_(mutex) {
-    mutex_.Lock();
-  }
+  ScopedCoMutex(CoMutex &mutex) : mutex_(mutex) { mutex_.Lock(); }
 
-  ~ScopedCoMutex() {
-    mutex_.Unlock();
-  }
+  ~ScopedCoMutex() { mutex_.Unlock(); }
 };
 
 class ScopedTryCoMutex {
@@ -60,8 +58,7 @@ class ScopedTryCoMutex {
   bool is_locked_;
 
  public:
-  ScopedTryCoMutex(CoMutex &mutex)
-      : mutex_(mutex) {
+  ScopedTryCoMutex(CoMutex &mutex) : mutex_(mutex) {
     is_locked_ = mutex_.TryLock();
   }
 

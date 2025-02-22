@@ -49,15 +49,14 @@ void CoRwLock::ReadUnlock() {
   if (writer_map_.empty()) {
     return;
   }
-  auto it = writer_map_.begin();
-  COMUTEX_QUEUE_T &blocked = it->second;
-  root_ = it->first;
+  order_.pop(root_);
+  COMUTEX_QUEUE_T &blocked = writer_map_[root_];
   for (size_t i = 0; i < blocked.size(); ++i) {
     Task *task = blocked[i].task_;
     CHI_WORK_ORCHESTRATOR->SignalUnblock(task, task->rctx_);
     ++rep_;
   }
-  writer_map_.erase(it);
+  writer_map_.erase(root_);
 }
 
 void CoRwLock::WriteLock() {
@@ -76,6 +75,7 @@ void CoRwLock::WriteLock() {
   task->SetBlocked(1);
   if (writer_map_.find(task_root) == writer_map_.end()) {
     writer_map_[task_root] = COMUTEX_QUEUE_T();
+    order_.push(task_root);
   }
   COMUTEX_QUEUE_T &blocked = writer_map_[task_root];
   blocked.emplace_back((CoRwLockEntry){task});
@@ -91,15 +91,14 @@ void CoRwLock::WriteUnlock() {
     return;
   }
   if (!writer_map_.empty()) {
-    auto it = writer_map_.begin();
-    COMUTEX_QUEUE_T &blocked = it->second;
-    root_ = it->first;
+    order_.pop(root_);
+    COMUTEX_QUEUE_T &blocked = writer_map_[root_];
     for (size_t i = 0; i < blocked.size(); ++i) {
       Task *task = blocked[i].task_;
       CHI_WORK_ORCHESTRATOR->SignalUnblock(task, task->rctx_);
       ++rep_;
     }
-    writer_map_.erase(it);
+    writer_map_.erase(root_);
   } else if (!reader_set_.empty()) {
     is_read_ = true;
     for (size_t i = 0; i < reader_set_.size(); ++i) {

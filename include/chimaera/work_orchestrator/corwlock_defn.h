@@ -21,6 +21,7 @@ class CoRwLock {
  public:
   TaskId root_;
   size_t rep_;
+  chi::spsc_queue<TaskId> order_;
   std::unordered_map<TaskId, COMUTEX_QUEUE_T> writer_map_;
   COMUTEX_QUEUE_T reader_set_;
   bool is_read_;
@@ -28,7 +29,7 @@ class CoRwLock {
 
  public:
   /** Default constructor */
-  CoRwLock() {
+  CoRwLock() : order_(CHI_LANE_SIZE) {
     root_.SetNull();
     rep_ = 0;
     mux_.Init();
@@ -51,14 +52,9 @@ class ScopedCoRwReadLock {
   CoRwLock &mutex_;
 
  public:
-  ScopedCoRwReadLock(CoRwLock &mutex)
-      : mutex_(mutex) {
-    mutex_.ReadLock();
-  }
+  ScopedCoRwReadLock(CoRwLock &mutex) : mutex_(mutex) { mutex_.ReadLock(); }
 
-  ~ScopedCoRwReadLock() {
-    mutex_.ReadUnlock();
-  }
+  ~ScopedCoRwReadLock() { mutex_.ReadUnlock(); }
 };
 
 class ScopedCoRwTryReadLock {
@@ -67,9 +63,8 @@ class ScopedCoRwTryReadLock {
   bool locked_;
 
  public:
-  ScopedCoRwTryReadLock(CoRwLock &mutex)
-  : mutex_(mutex) {
-      locked_ = mutex_.TryReadLock();
+  ScopedCoRwTryReadLock(CoRwLock &mutex) : mutex_(mutex) {
+    locked_ = mutex_.TryReadLock();
   }
 
   ~ScopedCoRwTryReadLock() {
@@ -84,14 +79,9 @@ class ScopedCoRwWriteLock {
   CoRwLock &mutex_;
 
  public:
-  ScopedCoRwWriteLock(CoRwLock &mutex)
-      : mutex_(mutex) {
-    mutex_.WriteLock();
-  }
+  ScopedCoRwWriteLock(CoRwLock &mutex) : mutex_(mutex) { mutex_.WriteLock(); }
 
-  ~ScopedCoRwWriteLock() {
-    mutex_.WriteUnlock();
-  }
+  ~ScopedCoRwWriteLock() { mutex_.WriteUnlock(); }
 };
 
 }  // namespace chi

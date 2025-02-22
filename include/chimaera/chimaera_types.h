@@ -60,6 +60,8 @@ HSHM_DATA_STRUCTURES_TEMPLATE(chi, CHI_ALLOC_T);
 
 namespace chi {
 
+#define CHI_LANE_SIZE 8192
+
 using hshm::bitfield;
 using hshm::bitfield16_t;
 using hshm::bitfield8_t;

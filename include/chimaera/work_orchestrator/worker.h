@@ -184,7 +184,7 @@ class PrivateTaskMultiQueue {
     queues_[FAIL].resize(max_lanes * qdepth);
     queues_[REMAP].resize(max_lanes * qdepth);
     // TODO(llogan): Don't hardcode lane queue depth
-    active_lanes_.resize(8192);
+    active_lanes_.resize(CHI_LANE_SIZE);
   }
 
   PrivateLaneQueue &GetLowLatency() { return active_lanes_.GetLowLatency(); }

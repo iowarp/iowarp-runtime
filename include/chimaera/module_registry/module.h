@@ -56,7 +56,7 @@ class Lane : public hipc::list_queue_entry {
     plug_count_ = 0;
     count_ = (hshm::min_u64)0;
     // TODO(llogan): Don't hardcode size
-    active_tasks_.resize(8192);
+    active_tasks_.resize(CHI_LANE_SIZE);
   }
 
   /** Copy constructor */
@@ -67,7 +67,7 @@ class Lane : public hipc::list_queue_entry {
     plug_count_ = lane.plug_count_.load();
     prio_ = lane.prio_;
     // TODO(llogan): Don't hardcode size
-    active_tasks_.resize(8192);
+    active_tasks_.resize(CHI_LANE_SIZE);
   }
 
 #ifdef CHIMAERA_RUNTIME
