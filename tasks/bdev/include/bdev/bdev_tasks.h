@@ -290,6 +290,7 @@ struct PollStatsTask : public Task, TaskFlags<TF_SRL_SYM> {
     dom_query_ = dom_query;
 
     SetPeriodMs(period_ms);
+    HILOG(kInfo, "PollStatsTask: period_ms={}", period_ms);
   }
 
   /** Duplicate message */
