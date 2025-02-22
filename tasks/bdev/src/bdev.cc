@@ -267,7 +267,6 @@ class Server : public Module {
     task->stats_.read_latency_ = monitor_read_lat_.consts_[1];
     task->stats_.write_latency_ = monitor_write_lat_.consts_[1];
     task->stats_.free_ = alloc_.free_size_;
-    HILOG(kInfo, "Polling stats");
   }
   void MonitorPollStats(MonitorModeId mode, PollStatsTask *task,
                         RunContext &rctx) {
