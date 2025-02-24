@@ -247,6 +247,7 @@ void Worker::EndFlush(WorkOrchestrator *orch) {
     } else {
       // Reap all FlushTasks and end recurion
       PollTempQueue<true>(active_.GetFlush(), false);
+      HILOG(kInfo, "ENDING FLUSH (node={})", CHI_CLIENT->node_id_);
     }
   }
 }
