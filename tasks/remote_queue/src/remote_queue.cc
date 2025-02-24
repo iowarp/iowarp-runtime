@@ -203,7 +203,7 @@ class Server : public Module {
         }
         Task *rep_task = entry.task_;
         if (rctx.worker_props_.Any(CHI_WORKER_IS_FLUSHING)) {
-          rctx.flush_->count_ += !task->IsLongRunning();
+          rctx.flush_->count_ += !task->IsLongRunning() && !task->IsFlush();
         }
         Container *exec = CHI_MOD_REGISTRY->GetStaticContainer(rep_task->pool_);
         if (exec == nullptr) {
