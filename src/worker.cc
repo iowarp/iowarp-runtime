@@ -492,7 +492,7 @@ void Worker::ExecTask(FullPtr<Task> &task, RunContext &rctx, Container *&exec,
   // Flush tasks
   if (props.Any(CHI_WORKER_IS_FLUSHING)) {
     if (!task->IsLongRunning() && !task->ShouldSignalRemoteComplete()) {
-      flush_.count_ += 1;
+      // flush_.count_ += 1;
     }
   }
   // Execute + monitor the task
