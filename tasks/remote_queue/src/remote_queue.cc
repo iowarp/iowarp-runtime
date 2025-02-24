@@ -215,7 +215,7 @@ class Server : public Module {
         BinaryOutputArchive<true> &ar = entries[entry.res_domain_.node_];
         exec->SaveStart(rep_task->method_, ar, rep_task);
         HILOG(kInfo, "REMOTE TASK: pool={} lib={} method={}", task->pool_,
-              exec->name_, task->method_);
+              CHI_MOD_REGISTRY->GetModuleName(exec->id_), task->method_);
         HLOG(kDebug, kRemoteQueue,
              "[TASK_CHECK] Serializing rep_task {}({} -> {}) ", rep_task,
              CHI_RPC->node_id_, entry.res_domain_.node_);

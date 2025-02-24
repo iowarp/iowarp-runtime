@@ -400,6 +400,16 @@ class ModuleRegistry {
     return id;
   }
 
+  /** Get module name from pool */
+  std::string GetModuleName(const PoolId &pool_id) {
+    ScopedMutex lock(lock_, 0);
+    auto it = pools_.find(pool_id);
+    if (it == pools_.end()) {
+      return "";
+    }
+    return it->second.lib_name_;
+  }
+
   /** Get a pool instance */
   Container *GetContainer(const PoolId &pool_id,
                           const ContainerId &container_id) {
