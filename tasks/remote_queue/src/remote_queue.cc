@@ -193,11 +193,6 @@ class Server : public Module {
 
   /** Push operation called on client */
   void ClientSubmit(ClientSubmitTask *task, RunContext &rctx) {
-    if (rctx.worker_props_.Any(CHI_WORKER_IS_FLUSHING)) {
-      hshm::mpsc_queue<RemoteEntry> &complete = complete_[0];
-      rctx.flush_->count_ += complete.GetSize();
-    }
-
     try {
       RemoteEntry entry;
       std::unordered_map<NodeId, BinaryOutputArchive<true>> entries;
