@@ -194,9 +194,8 @@ class Server : public Module {
   /** Push operation called on client */
   void ClientSubmit(ClientSubmitTask *task, RunContext &rctx) {
     if (rctx.worker_props_.Any(CHI_WORKER_IS_FLUSHING)) {
-      hshm::mpsc_queue<RemoteEntry> &submit = submit_[0];
       hshm::mpsc_queue<RemoteEntry> &complete = complete_[0];
-      rctx.flush_->count_ += submit.GetSize() + complete.GetSize();
+      rctx.flush_->count_ += complete.GetSize();
     }
 
     try {
@@ -208,6 +207,9 @@ class Server : public Module {
           entries.emplace(entry.res_domain_.node_, BinaryOutputArchive<true>());
         }
         Task *rep_task = entry.task_;
+        if (rctx.worker_props_.Any(CHI_WORKER_IS_FLUSHING)) {
+          rctx.flush_->count_ += !task->IsLongRunning();
+        }
         Container *exec = CHI_MOD_REGISTRY->GetStaticContainer(rep_task->pool_);
         if (exec == nullptr) {
           HELOG(kFatal, "(node {}) Could not find the pool {}",
