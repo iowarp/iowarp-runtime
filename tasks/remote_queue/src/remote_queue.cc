@@ -147,7 +147,9 @@ class Server : public Module {
          submit_task);
 
     // Actually block
+    HILOG(kInfo, "Blocking submit_task {}", submit_task);
     submit_task->Yield();
+    HILOG(kInfo, "Completing submit_task {}", submit_task);
 
     // Combine replicas into the original task
     rctx.replicas_ = &replicas;
