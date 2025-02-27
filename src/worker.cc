@@ -474,7 +474,9 @@ bool Worker::RunTask(FullPtr<Task> &task, bool flushing) {
   } else if (task->IsYielded()) {
     pushback = true;
     task->UnsetYielded();
-  } else if (!task->IsLongRunning() || task->IsTriggerComplete()) {
+  } else if (task->IsLongRunning() && !task->IsTriggerComplete()) {
+    pushback = true;
+  } else {
     pushback = false;
     EndTask(rctx.exec_, task, rctx);
   }
