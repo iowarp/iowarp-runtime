@@ -351,6 +351,7 @@ class Server : public Module {
     rep_task->SetDataOwner();
     rep_task->UnsetFireAndForget();
     rep_task->UnsetLongRunning();
+    rep_task->UnsetRemote();
     rep_task->SetSignalRemoteComplete();
     rep_task->task_flags_.SetBits(TASK_REMOTE_DEBUG_MARK);
 
