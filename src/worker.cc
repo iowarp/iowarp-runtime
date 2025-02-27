@@ -125,7 +125,6 @@ bool PrivateTaskMultiQueue::PushRemoteTask(RunContext &rctx,
                                            const FullPtr<Task> &task) {
   HLOG(kDebug, kWorkerDebug, "[TASK_CHECK] (node {}) Remoting task {}",
        CHI_CLIENT->node_id_, (void *)task.ptr_);
-  HILOG(kInfo, "Finishing remote task {}", task.ptr_);
   // CASE 6: The task is remote to this machine, put in the remote queue.
   CHI_REMOTE_QUEUE->AsyncClientPushSubmitBase(
       HSHM_DEFAULT_MEM_CTX, nullptr, task->task_node_ + 1,
