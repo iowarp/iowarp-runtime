@@ -187,6 +187,7 @@ class Server : public Module {
     // Push back to runtime
     if (!orig_task->IsLongRunning()) {
       orig_task->SetTriggerComplete();
+      HILOG(kInfo, "Done with original task {}", orig_task);
     }
     CHI_CLIENT->ScheduleTask(nullptr, FullPtr<Task>(orig_task));
   }

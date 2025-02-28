@@ -21,7 +21,7 @@ macros:
     type: cppdbg
     request: launch
     program: /usr/bin/echo
-    miDebuggerServerAddress: localhost:$(port)
+    miDebuggerServerAddress: "localhost:$(port)"
     miDebuggerPath: /usr/bin/gdb
     cwd: ${workspaceFolder}
     setupCommands:
