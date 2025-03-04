@@ -67,15 +67,13 @@ class Client : public ModuleClient {
 
   /** Create a pool */
   HSHM_INLINE_CROSS_FUN
-  void CreateContainer(const hipc::MemContext &mctx,
-                       const DomainQuery &dom_query,
-                       const CreateContainerTask &task) {
-    FullPtr<CreateContainerTask> task_ptr =
-        AsyncCreateContainer(mctx, dom_query, task);
+  void CreatePool(const hipc::MemContext &mctx, const DomainQuery &dom_query,
+                  const CreatePoolTask &task) {
+    FullPtr<CreatePoolTask> task_ptr = AsyncCreatePool(mctx, dom_query, task);
     task_ptr->Wait();
     CHI_CLIENT->DelTask(mctx, task_ptr);
   }
-  CHI_TASK_METHODS(CreateContainer)
+  CHI_TASK_METHODS(CreatePool)
 
   /** Terminate a pool */
   HSHM_INLINE_CROSS_FUN

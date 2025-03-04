@@ -3,7 +3,7 @@
 
 /** The set of methods in the admin task */
 struct Method : public TaskMethod {
-  TASK_METHOD_T kCreateContainer = 10;
+  TASK_METHOD_T kCreatePool = 10;
   TASK_METHOD_T kDestroyContainer = 11;
   TASK_METHOD_T kRegisterModule = 12;
   TASK_METHOD_T kDestroyModule = 13;

@@ -39,7 +39,7 @@ struct CreateTaskParams {
     ar(path_, size_);
   }
 };
-typedef chi::Admin::CreateContainerBaseTask<CreateTaskParams> CreateTask;
+typedef chi::Admin::CreatePoolBaseTask<CreateTaskParams> CreateTask;
 
 /** A task to destroy bdev */
 typedef chi::Admin::DestroyContainerTask DestroyTask;

@@ -27,7 +27,7 @@ struct CreateTaskParams {
   template <typename Ar>
   HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {}
 };
-typedef chi::Admin::CreateContainerBaseTask<CreateTaskParams> CreateTask;
+typedef chi::Admin::CreatePoolBaseTask<CreateTaskParams> CreateTask;
 
 /** A task to destroy small_message */
 typedef chi::Admin::DestroyContainerTask DestroyTask;

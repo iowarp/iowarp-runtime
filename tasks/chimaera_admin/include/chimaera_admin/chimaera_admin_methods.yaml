@@ -7,7 +7,7 @@ kMigrate: -1      # 4
 kUpgrade: -1       # 5
 
 # Custom Methods
-kCreateContainer: 10
+kCreatePool: 10
 kDestroyContainer: 11
 kRegisterModule: 12
 kDestroyModule: 13

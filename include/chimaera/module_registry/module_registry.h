@@ -28,11 +28,11 @@ namespace stdfs = std::filesystem;
 
 namespace chi {
 
-/** Forward declaration of CreateContainerTask */
+/** Forward declaration of CreatePoolTask */
 namespace Admin {
 class CreateTaskParams;
 template <typename TaskParamsT>
-class CreateContainerBaseTask;
+class CreatePoolBaseTask;
 }  // namespace Admin
 
 /** All information needed to create a trait */
@@ -311,10 +311,10 @@ class ModuleRegistry {
    * Create a pool
    * pool_id must not be NULL.
    * */
-  bool CreateContainer(
-      const char *lib_name, const char *pool_name, const PoolId &pool_id,
-      Admin::CreateContainerBaseTask<Admin::CreateTaskParams> *task,
-      const std::vector<SubDomainId> &containers);
+  bool CreatePool(const char *lib_name, const char *pool_name,
+                  const PoolId &pool_id,
+                  Admin::CreatePoolBaseTask<Admin::CreateTaskParams> *task,
+                  const std::vector<SubDomainId> &containers);
 
   /** Replace a container */
   void ReplaceContainer(Container *new_container) {

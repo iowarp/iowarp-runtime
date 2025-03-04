@@ -134,7 +134,7 @@ struct CreateTaskParams {
   HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {}
 };
 template <typename TaskParamsT>
-struct CreateContainerBaseTask : public Task, TaskFlags<TF_SRL_SYM> {
+struct CreatePoolBaseTask : public Task, TaskFlags<TF_SRL_SYM> {
   IN chi::ipc::string lib_name_;
   IN chi::ipc::string pool_name_;
   IN DomainQuery affinity_;
@@ -144,12 +144,12 @@ struct CreateContainerBaseTask : public Task, TaskFlags<TF_SRL_SYM> {
 
   /** SHM default constructor */
   HSHM_INLINE_CROSS_FUN
-  explicit CreateContainerBaseTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
+  explicit CreatePoolBaseTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
       : Task(alloc), lib_name_(alloc), pool_name_(alloc), params_(alloc) {}
 
   /** Emplace constructor */
   template <typename... Args>
-  HSHM_INLINE_CROSS_FUN explicit CreateContainerBaseTask(
+  HSHM_INLINE_CROSS_FUN explicit CreatePoolBaseTask(
       const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, const TaskNode &task_node,
       const PoolId &pool_id, const DomainQuery &dom_query,
       const DomainQuery &affinity, const chi::string &pool_name,
@@ -162,7 +162,7 @@ struct CreateContainerBaseTask : public Task, TaskFlags<TF_SRL_SYM> {
     task_node_ = task_node;
     prio_ = TaskPrioOpt::kLowLatency;
     pool_ = CHI_QM->admin_pool_id_;
-    method_ = Method::kCreateContainer;
+    method_ = Method::kCreatePool;
     task_flags_.SetBits(0);
     dom_query_ = dom_query;
 
@@ -178,10 +178,10 @@ struct CreateContainerBaseTask : public Task, TaskFlags<TF_SRL_SYM> {
 
   /** Broadcast constructor */
   template <typename... Args>
-  HSHM_INLINE_CROSS_FUN explicit CreateContainerBaseTask(
+  HSHM_INLINE_CROSS_FUN explicit CreatePoolBaseTask(
       const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, const TaskNode &task_node,
       const PoolId &pool_id, const DomainQuery &dom_query,
-      const CreateContainerBaseTask &other)
+      const CreatePoolBaseTask &other)
       : Task(alloc),
         pool_name_(alloc, other.pool_name_),
         lib_name_(alloc, other.lib_name_) {
@@ -189,7 +189,7 @@ struct CreateContainerBaseTask : public Task, TaskFlags<TF_SRL_SYM> {
     task_node_ = task_node;
     prio_ = TaskPrioOpt::kLowLatency;
     pool_ = CHI_QM->admin_pool_id_;
-    method_ = Method::kCreateContainer;
+    method_ = Method::kCreatePool;
     task_flags_.SetBits(0);
     dom_query_ = dom_query;
 
@@ -202,11 +202,11 @@ struct CreateContainerBaseTask : public Task, TaskFlags<TF_SRL_SYM> {
 
   /** Destructor */
   HSHM_INLINE_CROSS_FUN
-  ~CreateContainerBaseTask() {}
+  ~CreatePoolBaseTask() {}
 
   /** Duplicate message */
   HSHM_INLINE_CROSS_FUN
-  void CopyStart(const CreateContainerBaseTask &other, bool deep) {
+  void CopyStart(const CreatePoolBaseTask &other, bool deep) {
     lib_name_ = other.lib_name_;
     pool_name_ = other.pool_name_;
     ctx_ = other.ctx_;
@@ -237,14 +237,14 @@ struct CreateContainerBaseTask : public Task, TaskFlags<TF_SRL_SYM> {
     return params;
   }
 };
-typedef CreateContainerBaseTask<CreateTaskParams> CreateContainerTask;
+typedef CreatePoolBaseTask<CreateTaskParams> CreatePoolTask;
 
 /** A task to register a pool + Create a queue */
-struct CreateTask : public CreateContainerTask {
+struct CreateTask : public CreatePoolTask {
   /** SHM default constructor */
   HSHM_INLINE_CROSS_FUN
   explicit CreateTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
-      : CreateContainerTask(alloc) {
+      : CreatePoolTask(alloc) {
     method_ = Method::kCreate;
   }
 };

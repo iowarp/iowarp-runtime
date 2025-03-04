@@ -169,7 +169,7 @@ class Server : public Module {
   }
 
   /** Create a pool */
-  void CreateContainer(CreateContainerTask *task, RunContext &rctx) {
+  void CreatePool(CreatePoolTask *task, RunContext &rctx) {
     ScopedCoMutex lock(CHI_CUR_LANE->comux_);
     std::string lib_name = task->lib_name_.str();
     std::string pool_name = task->pool_name_.str();
@@ -215,7 +215,7 @@ class Server : public Module {
     //    CHI_RPC->PrintDomain(DomainId{task->ctx_.id_,
     //    SubDomainId::kContainerSet}); CHI_RPC->PrintSubdomainSet(containers);
     // Create the pool
-    bool did_create = CHI_MOD_REGISTRY->CreateContainer(
+    bool did_create = CHI_MOD_REGISTRY->CreatePool(
         lib_name.c_str(), pool_name.c_str(), task->ctx_.id_, task, containers);
     if (!did_create) {
       HELOG(kFatal, "Failed to create container: {}", pool_name);
@@ -223,7 +223,7 @@ class Server : public Module {
     }
     if (task->root_) {
       // Broadcast the state creation to all nodes
-      CHI_ADMIN->CreateContainer(HSHM_DEFAULT_MEM_CTX, task->affinity_, *task);
+      CHI_ADMIN->CreatePool(HSHM_DEFAULT_MEM_CTX, task->affinity_, *task);
       HILOG(kInfo,
             "(node {}) Broadcasting container creation (task_node={}): pool {}",
             CHI_RPC->node_id_, task->task_node_, task->pool_name_.str());
@@ -231,26 +231,24 @@ class Server : public Module {
     HILOG(kInfo, "(node {}) Created containers for task {}", CHI_RPC->node_id_,
           task->task_node_);
   }
-  void MonitorCreateContainer(MonitorModeId mode, CreateContainerTask *task,
-                              RunContext &rctx) {
+  void MonitorCreatePool(MonitorModeId mode, CreatePoolTask *task,
+                         RunContext &rctx) {
     switch (mode) {
       case MonitorMode::kEstLoad: {
-        rctx.load_.cpu_load_ = monitor_[Method::kCreateContainer].Predict();
+        rctx.load_.cpu_load_ = monitor_[Method::kCreatePool].Predict();
         break;
       }
       case MonitorMode::kSampleLoad: {
-        monitor_[Method::kCreateContainer].Add(rctx.timer_.GetNsec(),
-                                               rctx.load_);
+        monitor_[Method::kCreatePool].Add(rctx.timer_.GetNsec(), rctx.load_);
         break;
       }
       case MonitorMode::kReinforceLoad: {
-        monitor_[Method::kCreateContainer].DoTrain();
+        monitor_[Method::kCreatePool].DoTrain();
         break;
       }
       case MonitorMode::kReplicaAgg: {
         std::vector<FullPtr<Task>> &replicas = *rctx.replicas_;
-        auto replica =
-            reinterpret_cast<CreateContainerTask *>(replicas[0].ptr_);
+        auto replica = reinterpret_cast<CreatePoolTask *>(replicas[0].ptr_);
         task->ctx_ = replica->ctx_;
         break;
       }

@@ -52,7 +52,7 @@ void Runtime::ServerInit(std::string server_config_path) {
   CHI_CLIENT->Create(server_config_path.c_str(), "", true);
   CHI_WORK_ORCHESTRATOR->ServerInit(server_config_);
   Admin::CreateTask *admin_create_task;
-  Admin::CreateContainerTask *create_task;
+  Admin::CreatePoolTask *create_task;
   u32 max_containers_pn = CHI_QM->max_containers_pn_;
   std::vector<UpdateDomainInfo> ops;
   std::vector<SubDomainId> containers;
@@ -67,37 +67,37 @@ void Runtime::ServerInit(std::string server_config_path) {
       CHI_RPC->hosts_.size(), 1);
   CHI_RPC->UpdateDomains(ops);
   containers = CHI_RPC->GetLocalContainers(CHI_QM->admin_pool_id_);
-  CHI_MOD_REGISTRY->CreateContainer("chimaera_admin", "chimaera_admin",
-                                    CHI_QM->admin_pool_id_, admin_create_task,
-                                    containers);
+  CHI_MOD_REGISTRY->CreatePool("chimaera_admin", "chimaera_admin",
+                               CHI_QM->admin_pool_id_, admin_create_task,
+                               containers);
 
   // Create the work orchestrator queue scheduling library
   PoolId queue_sched_id = CHI_CLIENT->MakePoolId();
   create_task =
-      CHI_CLIENT->AllocateTask<Admin::CreateContainerTask>(HSHM_DEFAULT_MEM_CTX)
+      CHI_CLIENT->AllocateTask<Admin::CreatePoolTask>(HSHM_DEFAULT_MEM_CTX)
           .ptr_;
   ops = CHI_RPC->CreateDefaultDomains(
       queue_sched_id, CHI_QM->admin_pool_id_,
       DomainQuery::GetGlobal(chi::SubDomainId::kLocalContainers, 0), 1, 1);
   CHI_RPC->UpdateDomains(ops);
   containers = CHI_RPC->GetLocalContainers(queue_sched_id);
-  CHI_MOD_REGISTRY->CreateContainer("worch_queue_round_robin",
-                                    "worch_queue_round_robin", queue_sched_id,
-                                    create_task, containers);
+  CHI_MOD_REGISTRY->CreatePool("worch_queue_round_robin",
+                               "worch_queue_round_robin", queue_sched_id,
+                               create_task, containers);
 
   // Create the work orchestrator process scheduling library
   PoolId proc_sched_id = CHI_CLIENT->MakePoolId();
   create_task =
-      CHI_CLIENT->AllocateTask<Admin::CreateContainerTask>(HSHM_DEFAULT_MEM_CTX)
+      CHI_CLIENT->AllocateTask<Admin::CreatePoolTask>(HSHM_DEFAULT_MEM_CTX)
           .ptr_;
   ops = CHI_RPC->CreateDefaultDomains(
       proc_sched_id, CHI_QM->admin_pool_id_,
       DomainQuery::GetGlobal(chi::SubDomainId::kLocalContainers, 0), 1, 1);
   CHI_RPC->UpdateDomains(ops);
   containers = CHI_RPC->GetLocalContainers(proc_sched_id);
-  CHI_MOD_REGISTRY->CreateContainer("worch_proc_round_robin",
-                                    "worch_proc_round_robin", proc_sched_id,
-                                    create_task, containers);
+  CHI_MOD_REGISTRY->CreatePool("worch_proc_round_robin",
+                               "worch_proc_round_robin", proc_sched_id,
+                               create_task, containers);
 
   // Set the work orchestrator queue scheduler
   CHI_ADMIN->SetWorkOrchQueuePolicyRN(

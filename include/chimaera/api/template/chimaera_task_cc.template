@@ -1,5 +1,5 @@
 extern "C" {
-  void* alloc_state(chi::Admin::CreateContainerTask *task, const char *pool_name) {
+  void* alloc_state(chi::Admin::CreatePoolTask *task, const char *pool_name) {
     chi::Container *exec = reinterpret_cast<chi::Container*>(
         new TYPE_UNWRAP(TRAIT_CLASS)());
     exec->Init(task->ctx_.id_, CHI_CLIENT->GetQueueId(task->ctx_.id_), pool_name);
