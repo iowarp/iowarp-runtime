@@ -147,9 +147,7 @@ class Server : public Module {
          submit_task);
 
     // Actually block
-    HILOG(kInfo, "Blocking submit_task {}", submit_task);
     submit_task->Yield();
-    HILOG(kInfo, "Completing submit_task {}", submit_task);
 
     // Combine replicas into the original task
     rctx.replicas_ = &replicas;
@@ -187,7 +185,6 @@ class Server : public Module {
     // Push back to runtime
     if (!orig_task->IsLongRunning()) {
       orig_task->SetTriggerComplete();
-      HILOG(kInfo, "Done with original task {}", orig_task);
     }
     CHI_CLIENT->ScheduleTask(nullptr, FullPtr<Task>(orig_task));
   }
@@ -217,9 +214,6 @@ class Server : public Module {
         rep_task->dom_query_ = entry.res_domain_.dom_;
         BinaryOutputArchive<true> &ar = entries[entry.res_domain_.node_];
         exec->SaveStart(rep_task->method_, ar, rep_task);
-        // HILOG(kInfo, "REMOTE TASK: pool={} method={} lib={}",
-        // rep_task->pool_,
-        //       CHI_MOD_REGISTRY->GetModuleName(exec->id_), rep_task->method_);
         HLOG(kDebug, kRemoteQueue,
              "[TASK_CHECK] Serializing rep_task {}({} -> {}) ", rep_task,
              CHI_RPC->node_id_, entry.res_domain_.node_);
