@@ -22,17 +22,19 @@ struct BdevStats {
   float read_latency_;
   float write_latency_;
   size_t free_;
+  size_t max_cap_;
 
-  template<typename Ar>
+  template <typename Ar>
   void serialize(Ar &ar) {
-    ar(read_bw_, write_bw_, read_latency_, write_latency_, free_);
+    ar(read_bw_, write_bw_, read_latency_, write_latency_, free_, max_cap_);
   }
 
   friend std::ostream &operator<<(std::ostream &os, const BdevStats &stats) {
     os << hshm::Formatter::format(
-        "ReadLat: {}, ReadBW: {}, WriteLat: {}, WriteBw: {}, Free: {}",
+        "ReadLat: {}, ReadBW: {}, WriteLat: {}, WriteBw: {}, Free: {}, Max "
+        "Cap: {}",
         stats.read_latency_, stats.read_bw_, stats.write_latency_,
-        stats.write_bw_, stats.free_);
+        stats.write_bw_, stats.free_, stats.max_cap_);
     return os;
   }
 };
@@ -75,7 +77,7 @@ struct Block {
   size_t off_;
   size_t size_;
 
-  template<typename Ar>
+  template <typename Ar>
   void serialize(Ar &ar) {
     ar(off_, size_);
   }
@@ -87,9 +89,7 @@ struct PerCoreFreeList {
   hshm::Mutex lock_;
   std::vector<FREE_LIST> lanes_;
 
-  void resize(int num_lanes) {
-    lanes_.resize(num_lanes);
-  }
+  void resize(int num_lanes) { lanes_.resize(num_lanes); }
 };
 
 struct FreeListMap {
@@ -136,8 +136,7 @@ struct BlockAllocator {
     free_list_.resize(num_lanes, slab_sizes_.size());
   }
 
-  void Allocate(int lane, size_t size,
-                chi::ipc::vector<Block> &buffers,
+  void Allocate(int lane, size_t size, chi::ipc::vector<Block> &buffers,
                 size_t &total_size) {
     u32 buffer_count = 0;
     std::vector<SlabCount> coins = CoinSelect(lane, size, buffer_count);
@@ -145,10 +144,7 @@ struct BlockAllocator {
     total_size = 0;
     int slab_idx = 0;
     for (auto &coin : coins) {
-      AllocateSlabs(coin.slab_size_,
-                    slab_idx,
-                    coin.count_,
-                    buffers,
+      AllocateSlabs(coin.slab_size_, slab_idx, coin.count_, buffers,
                     total_size);
       ++slab_idx;
     }
@@ -181,7 +177,9 @@ struct BlockAllocator {
         }
         ++slab_id;
       }
-      if (slab_id == slab_sizes_.size()) { slab_id -= 1; }
+      if (slab_id == slab_sizes_.size()) {
+        slab_id -= 1;
+      }
       slab_size = slab_sizes_[slab_id];
 
       // Divide rem_size into slabs
@@ -201,10 +199,8 @@ struct BlockAllocator {
   }
 
   /** Allocate slabs of a certain size */
-  void AllocateSlabs(size_t slab_size,
-                     int slab_idx, size_t count,
-                     chi::ipc::vector<Block> &buffers,
-                     size_t &total_size) {
+  void AllocateSlabs(size_t slab_size, int slab_idx, size_t count,
+                     chi::ipc::vector<Block> &buffers, size_t &total_size) {
     for (size_t i = 0; i < count; ++i) {
       Block block = ListAllocate(slab_size, 0, slab_idx);
       buffers.emplace_back(block);
@@ -234,4 +230,4 @@ struct BlockAllocator {
 
 }  // namespace chi
 
-#endif //CHIMAERA_INCLUDE_CHIMAERA_IO_BLOCK_ALLOCATOR_H_
+#endif  // CHIMAERA_INCLUDE_CHIMAERA_IO_BLOCK_ALLOCATOR_H_
