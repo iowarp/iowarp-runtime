@@ -19,7 +19,7 @@ option(CHIMAERA_ENABLE_JEMALLOC "Use jemalloc as the allocator" OFF)
 option(CHIMAERA_ENABLE_MIMALLOC "Use mimalloc as the allocator" OFF)
 option(CHIMAERA_ENABLE_PYTHON "Use pybind11" ON)
 option(CHIMAERA_ENABLE_ROCM "Enable ROCm support" OFF)
-option(CHIMAERA_ENABLE_CUDA "Enable ROCm support" OFF)
+option(CHIMAERA_ENABLE_CUDA "Enable CUDA support" OFF)
 option(CHIMAERA_ENABLE_DOTENV "Use cmake dotenv" OFF)
 
 # A hack for spack to get dependencies
