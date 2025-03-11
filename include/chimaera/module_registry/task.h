@@ -41,7 +41,7 @@ class Lane;
 #define TASK_MERGE BIT_OPT(chi::IntFlag, 6)
 /** The remote task has completed */
 #define TASK_REMOTE_COMPLETE BIT_OPT(chi::IntFlag, 7)
-/** This task has began execution */
+/** This task has begun execution */
 #define TASK_HAS_STARTED BIT_OPT(chi::IntFlag, 8)
 /** This task is completed */
 #define TASK_COMPLETE BIT_OPT(chi::IntFlag, 9)

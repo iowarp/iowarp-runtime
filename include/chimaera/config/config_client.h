@@ -21,7 +21,7 @@ namespace stdfs = std::filesystem;
 namespace chi::config {
 
 /**
- * Configuration used to intialize client
+ * Configuration used to initialize client
  * */
 class ClientConfig : public BaseConfig {
  public:
