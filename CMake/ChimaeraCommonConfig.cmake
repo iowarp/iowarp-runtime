@@ -59,6 +59,7 @@ endif()
 
 # Pybind11
 if(CHIMAERA_ENABLE_PYTHON)
+    find_first_path_python()
     find_package(pybind11 REQUIRED)
     set(OPTIONAL_LIBS pybind11::embed)
 endif()
