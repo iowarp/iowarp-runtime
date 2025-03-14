@@ -163,6 +163,22 @@ struct BlockAllocator {
   }
 
  private:
+  /** Find slab nearest to size */
+  void FindNearestSlab(size_t size, size_t &slab_id, size_t &slab_size) {
+    slab_id = 0;
+    slab_size = 0;
+    for (slab_id = 0; slab_id < slab_sizes_.size(); ++slab_id) {
+      slab_size = slab_sizes_[slab_id];
+      if (slab_size >= size) {
+        break;
+      }
+    }
+    if (slab_id == slab_sizes_.size()) {
+      slab_id -= 1;
+    }
+    slab_size = slab_sizes_[slab_id];
+  }
+
   /** Determine how many of each slab size to allocate */
   std::vector<SlabCount> CoinSelect(int lane, size_t size, u32 &buffer_count) {
     std::vector<SlabCount> coins(slab_sizes_.size());
@@ -171,16 +187,7 @@ struct BlockAllocator {
     while (rem_size) {
       // Find the slab size nearest to the rem_size
       size_t slab_id = 0, slab_size = 0;
-      for (auto &slab : free_list_.list_[slab_id].lanes_[lane]) {
-        if (slab_sizes_[slab_id] >= rem_size) {
-          break;
-        }
-        ++slab_id;
-      }
-      if (slab_id == slab_sizes_.size()) {
-        slab_id -= 1;
-      }
-      slab_size = slab_sizes_[slab_id];
+      FindNearestSlab(rem_size, slab_id, slab_size);
 
       // Divide rem_size into slabs
       if (rem_size > slab_size) {
@@ -203,6 +210,9 @@ struct BlockAllocator {
                      chi::ipc::vector<Block> &buffers, size_t &total_size) {
     for (size_t i = 0; i < count; ++i) {
       Block block = ListAllocate(slab_size, 0, slab_idx);
+      if (block.size_ == 0) {
+        break;
+      }
       buffers.emplace_back(block);
       total_size += block.size_;
       free_size_ -= block.size_;
@@ -218,12 +228,12 @@ struct BlockAllocator {
     } else {
       Block block;
       block.off_ = heap_off_.fetch_add(slab_size);
+      block.size_ = slab_size;
       if (block.off_ + block.size_ > max_heap_size_) {
         block.off_ = 0;
         block.size_ = 0;
         return block;
       }
-      block.size_ = slab_size;
       return block;
     }
   }
