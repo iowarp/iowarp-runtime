@@ -218,7 +218,7 @@ struct BlockAllocator {
     } else {
       Block block;
       block.off_ = heap_off_.fetch_add(slab_size);
-      if (block.off_ > max_heap_size_) {
+      if (block.off_ + block.size_ > max_heap_size_) {
         block.off_ = 0;
         block.size_ = 0;
         return block;
