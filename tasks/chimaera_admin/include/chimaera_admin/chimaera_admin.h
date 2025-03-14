@@ -175,8 +175,9 @@ class Client : public ModuleClient {
   CHI_TASK_METHODS(GetDomainSize)
 };
 
-}  // namespace chi::Admin
+HSHM_DEFINE_GLOBAL_VAR_H(Client, chiAdminClient);
+#define CHI_ADMIN (&chi::Admin::chiAdminClient)
 
-#define CHI_ADMIN hshm::CrossSingleton<chi::Admin::Client>::GetInstance()
+}  // namespace chi::Admin
 
 #endif  // CHI_TASKS_CHI_ADMIN_CHI_ADMIN_H_

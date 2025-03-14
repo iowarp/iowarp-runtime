@@ -19,9 +19,6 @@
 
 namespace chi {
 
-/** Singleton queue manager */
-#define CHI_QM hshm::CrossSingleton<chi::QueueManager>::GetInstance()
-
 /** Shared-memory representation of the QueueManager */
 struct QueueManagerShm {
   hipc::delay_ar<chi::ipc::vector<ingress::MultiQueue>> queue_map_;
@@ -97,6 +94,10 @@ class QueueManager {
     process_queue_id_ = QueueId(1, 1);
   }
 };
+
+/** Singleton queue manager */
+HSHM_DEFINE_GLOBAL_VAR_H(QueueManager, chiQueueManager);
+#define CHI_QM (&chi::chiQueueManager)
 
 }  // namespace chi
 

@@ -23,10 +23,6 @@
 #endif
 #include "chimaera/module_registry/task.h"
 
-// Singleton macros
-#define CHI_CLIENT hshm::CrossSingleton<chi::Client>::GetInstance()
-#define CHI_CLIENT_T chi::Client *
-
 namespace chi {
 
 class Client : public ConfigurationManager {
@@ -348,6 +344,11 @@ class Client : public ConfigurationManager {
     return CHI_CLIENT->ScheduleNewTask<CUSTOM##Task>(                     \
         mctx, parent, task_node, id_, std::forward<Args>(args)...);       \
   }
+
+// Singleton macros
+HSHM_DEFINE_GLOBAL_VAR_H(chi::Client, chiClient);
+#define CHI_CLIENT (&chi::chiClient)
+#define CHI_CLIENT_T chi::Client *
 
 /** Call duplicate if applicable */
 template <typename TaskT>

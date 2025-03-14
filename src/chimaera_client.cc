@@ -1,5 +1,7 @@
 #include "chimaera/api/chimaera_client.h"
 
+#include "chimaera_admin/chimaera_admin.h"
+
 namespace chi {
 
 /** Initialize the client (GPU) */
@@ -110,5 +112,9 @@ void Client::CreateClientOnHostForGpu() {
 #endif
   }
 }
+
+HSHM_DEFINE_GLOBAL_VAR_CC(Client, chiClient);
+HSHM_DEFINE_GLOBAL_VAR_CC(QueueManager, chiQueueManager);
+HSHM_DEFINE_GLOBAL_VAR_CC(chi::Admin::Client, chi::Admin::chiAdminClient);
 
 }  // namespace chi
