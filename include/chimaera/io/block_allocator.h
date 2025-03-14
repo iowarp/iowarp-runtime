@@ -204,8 +204,8 @@ struct BlockAllocator {
     for (size_t i = 0; i < count; ++i) {
       Block block = ListAllocate(slab_size, 0, slab_idx);
       buffers.emplace_back(block);
-      total_size += block.size;
-      free_size_ -= block.size;
+      total_size += block.size_;
+      free_size_ -= block.size_;
     }
   }
 
