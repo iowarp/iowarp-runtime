@@ -205,6 +205,7 @@ struct BlockAllocator {
       Block block = ListAllocate(slab_size, 0, slab_idx);
       buffers.emplace_back(block);
       total_size += slab_size;
+      free_size_ -= slab_size;
     }
   }
 
