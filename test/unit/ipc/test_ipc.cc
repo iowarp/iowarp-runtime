@@ -361,8 +361,8 @@ void TestBdevIo(const std::string &path) {
   }
   t.Pause();
 
-  CHI_CLIENT->FreeBuffer(io_write);
-  CHI_CLIENT->FreeBuffer(io_read);
+  CHI_CLIENT->FreeBuffer(HSHM_DEFAULT_MEM_CTX, io_write);
+  CHI_CLIENT->FreeBuffer(HSHM_DEFAULT_MEM_CTX, io_read);
 }
 
 TEST_CASE("TestBdevIo") { TestBdevIo("fs::///tmp/chi_test_bdev.bin"); }

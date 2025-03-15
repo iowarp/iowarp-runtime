@@ -127,7 +127,7 @@ struct IoTask : public Task, TaskFlags<TF_SRL_SYM> {
   HSHM_INLINE_CROSS_FUN
   ~IoTask() {
     if (IsDataOwner()) {
-      CHI_CLIENT->FreeBuffer(data_);
+      CHI_CLIENT->FreeBuffer(HSHM_DEFAULT_MEM_CTX, data_);
     }
   }
 

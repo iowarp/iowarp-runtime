@@ -265,17 +265,17 @@ class Client : public ConfigurationManager {
  public:
   /** Free a buffer */
   HSHM_INLINE_CROSS_FUN
-  void FreeBuffer(hipc::Pointer &p) {
+  void FreeBuffer(const hipc::MemContext &mctx, hipc::Pointer &p) {
     auto alloc = HSHM_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(p.alloc_id_);
-    alloc->Free(hshm::ThreadId::GetNull(), p);
+    alloc->Free(mctx, p);
   }
 
   /** Free a buffer */
   HSHM_INLINE_CROSS_FUN
-  void FreeBuffer(FullPtr<char> &p) {
+  void FreeBuffer(const hipc::MemContext &mctx, FullPtr<char> &p) {
     auto alloc =
         HSHM_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(p.shm_.alloc_id_);
-    alloc->FreeLocalPtr(hshm::ThreadId::GetNull(), p);
+    alloc->FreeLocalPtr(mctx, p);
   }
 
   /** Convert pointer to char* */
@@ -288,8 +288,8 @@ class Client : public ConfigurationManager {
   /** Get the queue ID */
   HSHM_INLINE_CROSS_FUN
   QueueId GetQueueId(const PoolId &id) {
-    if (id == chi::PROCESS_QUEUE_ID) {
-      return chi::PROCESS_QUEUE_ID;
+    if (id == CHI_QM->process_queue_id_) {
+      return CHI_QM->process_queue_id_;
     } else {
       return chi::ADMIN_QUEUE_ID;
     }
