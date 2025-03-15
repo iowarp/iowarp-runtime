@@ -173,6 +173,14 @@ class Client : public ModuleClient {
     return dom_size;
   }
   CHI_TASK_METHODS(GetDomainSize)
+
+  /** PollStats task */
+  void PollStats(const hipc::MemContext &mctx, const DomainQuery &dom_query) {
+    FullPtr<PollStatsTask> task = AsyncPollStats(mctx, dom_query);
+    task->Wait();
+    CHI_CLIENT->DelTask(mctx, task);
+  }
+  CHI_TASK_METHODS(PollStats);
 };
 
 HSHM_DEFINE_GLOBAL_VAR_H(Client, chiAdminClient);

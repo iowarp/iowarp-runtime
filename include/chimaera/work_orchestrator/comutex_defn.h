@@ -23,7 +23,7 @@ class CoMutex {
  public:
   TaskId root_;
   size_t rep_;
-  chi::spsc_queue<TaskId> order_;
+  chi::ext_ring_buffer<TaskId> order_;
   std::unordered_map<TaskId, COMUTEX_QUEUE_T> blocked_map_;
   hshm::Mutex mux_;
 

@@ -44,7 +44,7 @@ class Server : public Module {
     url_.Parse(url);
     alloc_.Init(1, dev_size);
     CreateLaneGroup(kMdGroup, 1, QUEUE_LOW_LATENCY);
-    CreateLaneGroup(kDataGroup, 8, QUEUE_LOW_LATENCY);
+    CreateLaneGroup(kDataGroup, 32, QUEUE_HIGH_LATENCY);
 
     // Create monitoring functions
     for (int i = 0; i < Method::kCount; ++i) {
@@ -65,6 +65,9 @@ class Server : public Module {
         1, "Bdev.monitor_io");
 
     // Allocate data
+    InitialStats(dev_size);
+  }
+  void InitialStats(size_t dev_size) {
     switch (url_.scheme_) {
       case BlockUrl::kFs: {
         ssize_t ret;

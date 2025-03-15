@@ -561,6 +561,47 @@ struct UpdateDomainTask : public Task, TaskFlags<TF_SRL_SYM> {
   HSHM_INLINE_CROSS_FUN void SerializeEnd(Ar &ar) {}
 };
 
+/** The PollStatsTask task */
+struct PollStatsTask : public Task, TaskFlags<TF_SRL_SYM> {
+  OUT chi::ipc::vector<chi::WorkerStats> stats_;
+
+  /** SHM default constructor */
+  HSHM_INLINE explicit PollStatsTask(
+      const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
+      : Task(alloc), stats_(alloc) {}
+
+  /** Emplace constructor */
+  HSHM_INLINE explicit PollStatsTask(
+      const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, const TaskNode &task_node,
+      const PoolId &pool_id, const DomainQuery &dom_query)
+      : Task(alloc), stats_(alloc) {
+    // Initialize task
+    task_node_ = task_node;
+    prio_ = TaskPrioOpt::kLowLatency;
+    pool_ = pool_id;
+    method_ = Method::kPollStats;
+    task_flags_.SetBits(0);
+    dom_query_ = dom_query;
+
+    // Custom
+  }
+
+  /** Duplicate message */
+  void CopyStart(const PollStatsTask &other, bool deep) {
+    stats_ = other.stats_;
+  }
+
+  /** (De)serialize message call */
+  template <typename Ar>
+  void SerializeStart(Ar &ar) {}
+
+  /** (De)serialize message return */
+  template <typename Ar>
+  void SerializeEnd(Ar &ar) {
+    ar(stats_);
+  }
+};
+
 }  // namespace chi::Admin
 
 #endif  // CHI_TASKS_CHI_ADMIN_INCLUDE_CHI_ADMIN_CHI_ADMIN_TASKS_H_

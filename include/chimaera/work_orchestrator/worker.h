@@ -163,6 +163,39 @@ class PrivateLaneMultiQueue {
   PrivateLaneQueue &GetHighLatency() {
     return active_[TaskPrioOpt::kHighLatency];
   }
+
+  size_t GetNumLanes() {
+    return active_[TaskPrioOpt::kLowLatency].size() +
+           active_[TaskPrioOpt::kHighLatency].size();
+  }
+
+  size_t GetStats(chi::ipc::vector<LaneStats> &stats) {
+    size_t num_tasks = 0;
+    stats.reserve(GetNumLanes());
+    num_tasks += GetStats(stats, TaskPrioOpt::kLowLatency);
+    num_tasks += GetStats(stats, TaskPrioOpt::kHighLatency);
+    return num_tasks;
+  }
+
+  size_t GetStats(chi::ipc::vector<LaneStats> &stats, TaskPrio prio) {
+    size_t num_tasks = 0;
+    int num_lanes = active_[prio].size();
+    for (int i = 0; i < num_lanes; ++i) {
+      chi::Lane **lane_p;
+      if (active_[prio].peek(lane_p, i).IsNull()) {
+        continue;
+      }
+      chi::Lane *lane = *lane_p;
+      LaneStats lane_stat;
+      lane_stat.lane_id_ = lane->lane_id_;
+      lane_stat.num_tasks_ = lane->size();
+      lane_stat.load_ = lane->load_;
+      lane_stat.lane_depth_ = lane->active_tasks_.GetDepth();
+      stats.emplace_back(lane_stat);
+      num_tasks += lane_stat.num_tasks_;
+    }
+    return num_tasks;
+  }
 };
 
 class PrivateTaskMultiQueue {
@@ -254,6 +287,7 @@ class Worker {
   bool do_sampling_ = false; /**< Whether or not to sample */
   size_t monitor_gap_;       /**< Distance between sampling phases */
   size_t monitor_window_;    /** Length of sampling phase */
+  CoMutex task_lock_;        /**< Lock for tasks accessing worker metadata */
 
  public:
   /**===============================================================

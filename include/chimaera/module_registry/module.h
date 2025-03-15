@@ -37,9 +37,7 @@ class Lane : public hipc::list_queue_entry {
   CoMutex comux_;
   hipc::atomic<hshm::min_u64> plug_count_;
   size_t lane_req_;
-  // TODO(llogan): This doesn't preserve task order
-  // chi::mpsc_lifo_list_queue<Task> active_tasks_;
-  chi::mpsc_queue<TaskPointer> active_tasks_;
+  chi::ext_ring_buffer<TaskPointer> active_tasks_;
   hipc::atomic<hshm::min_u64> count_;
 
  public:

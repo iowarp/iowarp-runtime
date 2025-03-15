@@ -17,6 +17,7 @@
 #include "chimaera/work_orchestrator/comutex.h"
 #include "chimaera/work_orchestrator/corwlock.h"
 #include "chimaera/work_orchestrator/scheduler.h"
+#include "chimaera/work_orchestrator/work_orchestrator.h"
 
 namespace chi::Admin {
 
@@ -363,6 +364,25 @@ class Server : public Module {
   void MonitorGetDomainSize(MonitorModeId mode, GetDomainSizeTask *task,
                             RunContext &rctx) {
     MonitorBase(mode, Method::kGetDomainSize, task, rctx);
+  }
+
+  /** The PollStats method */
+  void PollStats(PollStatsTask *task, RunContext &rctx) {
+    task->stats_.resize(CHI_WORK_ORCHESTRATOR->workers_.size());
+    for (const std::unique_ptr<Worker> &worker :
+         CHI_WORK_ORCHESTRATOR->workers_) {
+      WorkerStats &stats = task->stats_[worker->id_];
+      stats.worker_id_ = worker->id_;
+      stats.num_tasks_ = worker->active_.active_lanes_.GetStats(stats.lanes_);
+    }
+  }
+  void MonitorPollStats(MonitorModeId mode, PollStatsTask *task,
+                        RunContext &rctx) {
+    switch (mode) {
+      case MonitorMode::kReplicaAgg: {
+        std::vector<FullPtr<Task>> &replicas = *rctx.replicas_;
+      }
+    }
   }
 
  public:

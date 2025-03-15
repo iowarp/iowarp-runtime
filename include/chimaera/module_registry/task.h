@@ -272,59 +272,6 @@ struct WorkPending {
 
 struct Task;
 
-/** Load definition */
-struct Load {
-  size_t cpu_load_ = 0;
-  size_t mem_load_ = 0;
-  size_t io_load_ = 0;
-
-  /** Default constructor */
-  HSHM_INLINE_CROSS_FUN
-  Load() = default;
-
-  /** Destructor */
-  HSHM_INLINE_CROSS_FUN
-  ~Load() = default;
-
-  /** Addition operator */
-  HSHM_INLINE_CROSS_FUN
-  Load operator+(const Load &other) const {
-    Load ret;
-    ret.cpu_load_ = cpu_load_ + other.cpu_load_;
-    ret.mem_load_ = mem_load_ + other.mem_load_;
-    ret.io_load_ = io_load_ + other.io_load_;
-    return ret;
-  }
-
-  /** Subtraction operator */
-  HSHM_INLINE_CROSS_FUN
-  Load operator-(const Load &other) const {
-    Load ret;
-    ret.cpu_load_ = cpu_load_ - other.cpu_load_;
-    ret.mem_load_ = mem_load_ - other.mem_load_;
-    ret.io_load_ = io_load_ - other.io_load_;
-    return ret;
-  }
-
-  /** Addition assignment operator */
-  HSHM_INLINE_CROSS_FUN
-  Load &operator+=(const Load &other) {
-    cpu_load_ += other.cpu_load_;
-    mem_load_ += other.mem_load_;
-    io_load_ += other.io_load_;
-    return *this;
-  }
-
-  /** Subtraction assignment operator */
-  HSHM_INLINE_CROSS_FUN
-  Load &operator-=(const Load &other) {
-    cpu_load_ -= other.cpu_load_;
-    mem_load_ -= other.mem_load_;
-    io_load_ -= other.io_load_;
-    return *this;
-  }
-};
-
 /** Context passed to the Run method of a task */
 struct RunContext {
   ibitfield run_flags_;    /**< Properties of the task */

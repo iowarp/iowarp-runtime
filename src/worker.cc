@@ -21,6 +21,7 @@
 #include "chimaera/module_registry/module_registry.h"
 #include "chimaera/network/rpc_thallium.h"
 #include "chimaera/queue_manager/queue_manager.h"
+#include "chimaera/work_orchestrator/comutex.h"
 #include "chimaera/work_orchestrator/work_orchestrator.h"
 
 namespace chi {
@@ -108,6 +109,10 @@ bool PrivateTaskMultiQueue::PushLocalTask(const DomainQuery &res_query,
   }
   // Find the lane
   chi::Lane *chi_lane = exec->MapTaskToLane(task.ptr_);
+  if (rctx.load_.CalculateLoad()) {
+    exec->Monitor(MonitorMode::kEstLoad, task->method_, task.ptr_, rctx);
+    chi_lane->load_ += rctx.load_;
+  }
   rctx.exec_ = exec;
   rctx.route_container_id_ = container_id;
   rctx.route_lane_ = chi_lane;
@@ -147,6 +152,10 @@ template hshm::qtok_t Lane::push<true>(const FullPtr<Task> &task);
 template <bool NO_COUNT>
 hshm::qtok_t Lane::push(const FullPtr<Task> &task) {
   Worker &worker = CHI_WORK_ORCHESTRATOR->GetWorker(worker_id_);
+  if (&worker != CHI_CUR_WORKER) {
+    worker.active_.GetFail().push(task);
+    return hshm::qtok_t();
+  }
   if constexpr (!NO_COUNT) {
     size_t dup = count_.fetch_add(1);
     if (dup == 0) {
@@ -504,6 +513,7 @@ void Worker::ExecTask(FullPtr<Task> &task, RunContext &rctx, Container *&exec,
 /** Run a task */
 HSHM_INLINE
 void Worker::ExecCoroutine(Task *&task, RunContext &rctx) {
+  ScopedCoMutex lock(task_lock_);
   // If task isn't started, allocate stack pointer
   if (!task->IsStarted()) {
     rctx.co_task_ = task;
@@ -540,6 +550,8 @@ void Worker::CoroutineEntry(bctx::transfer_t t) {
 /** Free a task when it is no longer needed */
 HSHM_INLINE
 void Worker::EndTask(Container *exec, FullPtr<Task> task, RunContext &rctx) {
+  chi::Lane *chi_lane = rctx.route_lane_;
+  chi_lane->load_ -= rctx.load_;
   if (task->ShouldSignalUnblock()) {
     Task *pending_to = rctx.pending_to_;
     CHI_WORK_ORCHESTRATOR->SignalUnblock(pending_to, pending_to->rctx_);

@@ -924,6 +924,96 @@ class CacheTimer {
   }
 };
 
+/** Load definition */
+struct Load {
+  size_t cpu_load_ = 0;
+  size_t mem_load_ = 0;
+  size_t io_load_ = 0;
+
+  /** Default constructor */
+  HSHM_INLINE_CROSS_FUN
+  Load() = default;
+
+  /** Destructor */
+  HSHM_INLINE_CROSS_FUN
+  ~Load() = default;
+
+  /** Addition operator */
+  HSHM_INLINE_CROSS_FUN
+  Load operator+(const Load &other) const {
+    Load ret;
+    ret.cpu_load_ = cpu_load_ + other.cpu_load_;
+    ret.mem_load_ = mem_load_ + other.mem_load_;
+    ret.io_load_ = io_load_ + other.io_load_;
+    return ret;
+  }
+
+  /** Subtraction operator */
+  HSHM_INLINE_CROSS_FUN
+  Load operator-(const Load &other) const {
+    Load ret;
+    ret.cpu_load_ = cpu_load_ - other.cpu_load_;
+    ret.mem_load_ = mem_load_ - other.mem_load_;
+    ret.io_load_ = io_load_ - other.io_load_;
+    return ret;
+  }
+
+  /** Addition assignment operator */
+  HSHM_INLINE_CROSS_FUN
+  Load &operator+=(const Load &other) {
+    cpu_load_ += other.cpu_load_;
+    mem_load_ += other.mem_load_;
+    io_load_ += other.io_load_;
+    return *this;
+  }
+
+  /** Subtraction assignment operator */
+  HSHM_INLINE_CROSS_FUN
+  Load &operator-=(const Load &other) {
+    cpu_load_ -= other.cpu_load_;
+    mem_load_ -= other.mem_load_;
+    io_load_ -= other.io_load_;
+    return *this;
+  }
+
+  /** Check if unset */
+  bool CalculateLoad() {
+    return cpu_load_ == 0 && mem_load_ == 0 && io_load_ == 0;
+  }
+
+  /** Serialization */
+  template <typename Ar>
+  HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
+    ar(cpu_load_, mem_load_, io_load_);
+  }
+};
+
+struct LaneStats {
+  Load load_;
+  size_t num_tasks_;
+  size_t lane_depth_;
+  LaneId lane_id_;
+
+  template <typename Ar>
+  void serialize(Ar &ar) {
+    ar(load_, num_tasks_, lane_depth_, lane_id_);
+  }
+};
+
+struct WorkerStats {
+  int worker_id_;
+  int num_tasks_;
+  chi::ipc::vector<LaneStats> lanes_;
+
+  WorkerStats() = default;
+  WorkerStats(hipc::CtxAllocator<CHI_ALLOC_T> &alloc) : lanes_(alloc) {}
+
+  template <typename Ar>
+  void serialize(Ar &ar) {
+    ar(worker_id_, num_tasks_, lanes_);
+  }
+};
+
 }  // namespace chi
 
 namespace hshm {
