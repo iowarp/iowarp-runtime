@@ -11,8 +11,8 @@ class Client : public ModuleClient {
   /** Default constructor */
   HSHM_INLINE_CROSS_FUN
   Client() {
-    id_ = PoolId(CHI_QM->admin_queue_id_);
-    queue_id_ = CHI_QM->admin_queue_id_;
+    id_ = chi::ADMIN_POOL_ID;
+    queue_id_ = chi::ADMIN_QUEUE_ID;
   }
 
   /** Destructor */

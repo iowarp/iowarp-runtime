@@ -207,8 +207,8 @@ class Server : public Module {
     }
     // Update the default domains for the state
     std::vector<UpdateDomainInfo> ops = CHI_RPC->CreateDefaultDomains(
-        task->ctx_.id_, CHI_QM->admin_pool_id_, task->affinity_,
-        global_containers, local_containers_pn);
+        task->ctx_.id_, chi::ADMIN_POOL_ID, task->affinity_, global_containers,
+        local_containers_pn);
     CHI_RPC->UpdateDomains(ops);
     std::vector<SubDomainId> containers =
         CHI_RPC->GetLocalContainers(task->ctx_.id_);

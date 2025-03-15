@@ -41,7 +41,7 @@ struct BlockedTask {
 };
 
 class WorkOrchestrator {
-public:
+ public:
   ServerConfig *config_; /**< The server configuration */
   std::vector<std::unique_ptr<Worker>> workers_;   /**< Workers execute tasks */
   CLS_CONST WorkerId kNullWorkerId = (WorkerId)-1; /**< Null worker id */
@@ -58,7 +58,7 @@ public:
   size_t monitor_window_ = 0;          /**< Sampling window */
   size_t monitor_gap_ = 0;             /**< Monitoring gap */
 
-public:
+ public:
   /** Default constructor */
   WorkOrchestrator() = default;
 
@@ -185,7 +185,7 @@ public:
 
   /** Get the least-loaded ingress queue */
   ingress::Lane *GetLeastLoadedIngressLane(u32 lane_group_id) {
-    ingress::MultiQueue *queue = CHI_QM->GetQueue(CHI_QM->admin_queue_id_);
+    ingress::MultiQueue *queue = CHI_QM->GetQueue(chi::ADMIN_QUEUE_ID);
     ingress::LaneGroup &lane_group = queue->groups_[lane_group_id];
     ingress::Lane *min_lane = nullptr;
     float min_load = std::numeric_limits<float>::max();
@@ -206,7 +206,7 @@ public:
   ingress::Lane *GetThresholdIngressLane(u32 orig_worker_id,
                                          std::vector<Load> &loads,
                                          u32 lane_group_id) {
-    ingress::MultiQueue *queue = CHI_QM->GetQueue(CHI_QM->admin_queue_id_);
+    ingress::MultiQueue *queue = CHI_QM->GetQueue(chi::ADMIN_QUEUE_ID);
     ingress::LaneGroup &ig_lane_group = queue->groups_[lane_group_id];
     ingress::Lane *min_lane = nullptr;
     // Find the lane with minimum load
@@ -243,7 +243,7 @@ public:
                  PyDataWrapper &data);
 #endif
 
-private:
+ private:
   void PrepareWorkers();
   void MarkWorkers(std::unordered_map<u32, std::vector<Worker *>> cpu_workers);
   void SpawnReinforceThread();
@@ -252,12 +252,12 @@ private:
   void SpawnWorkers();
 };
 
-} // namespace chi
+}  // namespace chi
 
-#define CHI_WORK_ORCHESTRATOR                                                  \
+#define CHI_WORK_ORCHESTRATOR \
   hshm::Singleton<chi::WorkOrchestrator>::GetInstance()
 #define CHI_CUR_TASK CHI_WORK_ORCHESTRATOR->GetCurrentTask()
 #define CHI_CUR_LANE CHI_WORK_ORCHESTRATOR->GetCurrentLane()
 #define CHI_CUR_WORKER CHI_WORK_ORCHESTRATOR->GetCurrentWorker()
 
-#endif // CHI_INCLUDE_CHI_WORK_ORCHESTRATOR_WORK_ORCHESTRATOR_H_
+#endif  // CHI_INCLUDE_CHI_WORK_ORCHESTRATOR_WORK_ORCHESTRATOR_H_

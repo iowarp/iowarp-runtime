@@ -29,7 +29,7 @@ HSHM_GPU_KERNEL void test_kernel() {
   // printf("H3: %p %p %p %p\n", task.ptr_, CHI_CLIENT, CHI_QM,
   //        CHI_QM->queue_map_);
   // chi::ingress::MultiQueue *queue =
-  //     CHI_CLIENT->GetQueue(CHI_QM->process_queue_id_);
+  //     CHI_CLIENT->GetQueue(chi::PROCESS_QUEUE_ID);
   // printf("H4: (queue major, minor) %d.%d\n", queue->id_.group_id_,
   //        (int)queue->id_.unique_);
   // queue->Emplace(chi::TaskPrioOpt::kLowLatency,

@@ -19,6 +19,10 @@
 
 namespace chi {
 
+GLOBAL_CONST QueueId ADMIN_QUEUE_ID = QueueId(1, 0);
+GLOBAL_CONST PoolId ADMIN_POOL_ID = PoolId(1, 0);
+GLOBAL_CONST QueueId PROCESS_QUEUE_ID = QueueId(1, 1);
+
 /** Shared-memory representation of the QueueManager */
 struct QueueManagerShm {
   hipc::delay_ar<chi::ipc::vector<ingress::MultiQueue>> queue_map_;
@@ -35,10 +39,9 @@ class QueueManager {
   chi::ipc::vector<ingress::MultiQueue>
       *queue_map_; /**< Queues which directly interact with tasks states */
   NodeId node_id_; /**< The ID of the node this QueueManager is on */
-  QueueId
-      admin_queue_id_; /**< The queue used to submit administrative requests */
-  QueueId process_queue_id_; /**< ID of process queue task */
-  PoolId admin_pool_id_;     /**< The ID of the admin queue */
+  QueueId admin_queue_id_ = ADMIN_QUEUE_ID;     /**< Admin queue ID */
+  QueueId process_queue_id_ = PROCESS_QUEUE_ID; /**< Process queue ID */
+  PoolId admin_pool_id_ = ADMIN_POOL_ID;        /**< Admin pool ID */
   ServerConfig *config_;
   size_t max_queues_;
   size_t max_containers_pn_;
@@ -87,12 +90,7 @@ class QueueManager {
 
  private:
   HSHM_INLINE_CROSS_FUN
-  void Init(NodeId node_id) {
-    node_id_ = node_id;
-    admin_queue_id_ = QueueId(1, 0);
-    admin_pool_id_ = PoolId(1, 0);
-    process_queue_id_ = QueueId(1, 1);
-  }
+  void Init(NodeId node_id) { node_id_ = node_id; }
 };
 
 /** Singleton queue manager */

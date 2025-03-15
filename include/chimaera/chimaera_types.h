@@ -978,7 +978,8 @@ struct Load {
 
   /** Check if unset */
   bool CalculateLoad() {
-    return cpu_load_ == 0 && mem_load_ == 0 && io_load_ == 0;
+    // return cpu_load_ == 0 && mem_load_ == 0 && io_load_ == 0;
+    return true;
   }
 
   /** Serialization */

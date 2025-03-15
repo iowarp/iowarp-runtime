@@ -31,7 +31,7 @@ struct RegisterModuleTaskTempl : public Task, TaskFlags<TF_SRL_SYM> {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrioOpt::kLowLatency;
-    pool_ = CHI_QM->admin_pool_id_;
+    pool_ = chi::ADMIN_POOL_ID;
     if constexpr (method == 0) {
       method_ = Method::kRegisterModule;
     } else {
@@ -88,7 +88,7 @@ struct UpgradeModuleTask : public Task, TaskFlags<TF_SRL_SYM> {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrioOpt::kLowLatency;
-    pool_ = CHI_QM->admin_pool_id_;
+    pool_ = chi::ADMIN_POOL_ID;
     method_ = Method::kUpgradeModule;
     task_flags_.SetBits(0);
     dom_query_ = dom_query;
@@ -161,7 +161,7 @@ struct CreatePoolBaseTask : public Task, TaskFlags<TF_SRL_SYM> {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrioOpt::kLowLatency;
-    pool_ = CHI_QM->admin_pool_id_;
+    pool_ = chi::ADMIN_POOL_ID;
     method_ = Method::kCreatePool;
     task_flags_.SetBits(0);
     dom_query_ = dom_query;
@@ -188,7 +188,7 @@ struct CreatePoolBaseTask : public Task, TaskFlags<TF_SRL_SYM> {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrioOpt::kLowLatency;
-    pool_ = CHI_QM->admin_pool_id_;
+    pool_ = chi::ADMIN_POOL_ID;
     method_ = Method::kCreatePool;
     task_flags_.SetBits(0);
     dom_query_ = dom_query;
@@ -269,7 +269,7 @@ struct GetPoolIdTask : public Task, TaskFlags<TF_SRL_SYM> {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrioOpt::kLowLatency;
-    pool_ = CHI_QM->admin_pool_id_;
+    pool_ = chi::ADMIN_POOL_ID;
     method_ = Method::kGetPoolId;
     task_flags_.SetBits(0);
     dom_query_ = dom_query;
@@ -317,7 +317,7 @@ struct DestroyContainerTask : public Task, TaskFlags<TF_SRL_SYM> {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrioOpt::kLowLatency;
-    pool_ = CHI_QM->admin_pool_id_;
+    pool_ = chi::ADMIN_POOL_ID;
     method_ = Method::kDestroyContainer;
     task_flags_.SetBits(0);
     dom_query_ = dom_query;
@@ -362,7 +362,7 @@ struct StopRuntimeTask : public Task, TaskFlags<TF_SRL_SYM> {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrioOpt::kLowLatency;
-    pool_ = CHI_QM->admin_pool_id_;
+    pool_ = chi::ADMIN_POOL_ID;
     method_ = Method::kStopRuntime;
     task_flags_.SetBits(TASK_FIRE_AND_FORGET);
     dom_query_ = dom_query;
@@ -408,7 +408,7 @@ struct SetWorkOrchestratorPolicyTask : public Task, TaskFlags<TF_SRL_SYM> {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrioOpt::kLowLatency;
-    pool_ = CHI_QM->admin_pool_id_;
+    pool_ = chi::ADMIN_POOL_ID;
     if constexpr (method == 0) {
       method_ = Method::kSetWorkOrchQueuePolicy;
     } else {
@@ -457,7 +457,7 @@ struct FlushTask : public Task, TaskFlags<TF_SRL_SYM> {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrioOpt::kLowLatency;
-    pool_ = CHI_QM->admin_pool_id_;
+    pool_ = chi::ADMIN_POOL_ID;
     method_ = Method::kFlush;
     task_flags_.SetBits(TASK_FLUSH);
     dom_query_ = dom_query;
@@ -505,7 +505,7 @@ struct GetDomainSizeTask : public Task, TaskFlags<TF_LOCAL> {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrioOpt::kLowLatency;
-    pool_ = CHI_QM->admin_pool_id_;
+    pool_ = chi::ADMIN_POOL_ID;
     method_ = Method::kGetDomainSize;
     task_flags_.SetBits(0);
     dom_query_ = dom_query;
@@ -535,7 +535,7 @@ struct UpdateDomainTask : public Task, TaskFlags<TF_SRL_SYM> {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrioOpt::kLowLatency;
-    pool_ = CHI_QM->admin_pool_id_;
+    pool_ = chi::ADMIN_POOL_ID;
     method_ = Method::kUpdateDomain;
     task_flags_.SetBits(0);
     dom_query_ = dom_query;
@@ -578,7 +578,7 @@ struct PollStatsTask : public Task, TaskFlags<TF_SRL_SYM> {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrioOpt::kLowLatency;
-    pool_ = pool_id;
+    pool_ = chi::ADMIN_POOL_ID;
     method_ = Method::kPollStats;
     task_flags_.SetBits(0);
     dom_query_ = dom_query;

@@ -18,6 +18,11 @@
 
 namespace chi::bdev {
 
+struct IoPerf {
+  LeastSquares bw_;   // bytes / nsec -> GB / sec
+  LeastSquares lat_;  // nsec
+};
+
 class Server : public Module {
  public:
   BlockAllocator alloc_;
@@ -25,10 +30,9 @@ class Server : public Module {
   int fd_;
   char *ram_;
   RollingAverage monitor_[Method::kCount];
-  LeastSquares monitor_read_bw_;    // bytes / nsec -> GB / sec
-  LeastSquares monitor_read_lat_;   // nsec
-  LeastSquares monitor_write_bw_;   // bytes / nsec -> GB / sec
-  LeastSquares monitor_write_lat_;  // nsec
+  CLS_CONST int kRead = 0;
+  CLS_CONST int kWrite = 1;
+  IoPerf io_perf_[2];
   size_t lat_cutoff_;
   CLS_CONST LaneGroupId kMdGroup = 0;
   CLS_CONST LaneGroupId kDataGroup = 1;
@@ -51,16 +55,16 @@ class Server : public Module {
       if (i == Method::kRead || i == Method::kWrite) continue;
       monitor_[i].Shape(hshm::Formatter::format("{}-method-{}", name_, i));
     }
-    monitor_read_bw_.Shape(
+    io_perf_[kRead].bw_.Shape(
         hshm::Formatter::format("{}-method-{}-bw", name_, Method::kWrite), 1, 2,
         1, "Bdev.monitor_io");
-    monitor_read_lat_.Shape(
+    io_perf_[kRead].lat_.Shape(
         hshm::Formatter::format("{}-method-{}-lat", name_, Method::kRead), 1, 2,
         1, "Bdev.monitor_io");
-    monitor_write_bw_.Shape(
+    io_perf_[kWrite].bw_.Shape(
         hshm::Formatter::format("{}-method-{}-bw", name_, Method::kWrite), 1, 2,
         1, "Bdev.monitor_io");
-    monitor_write_lat_.Shape(
+    io_perf_[kWrite].lat_.Shape(
         hshm::Formatter::format("{}-method-{}-lat", name_, Method::kRead), 1, 2,
         1, "Bdev.monitor_io");
 
@@ -83,8 +87,8 @@ class Server : public Module {
         ret = pwrite(fd_, data.data(), KILOBYTES(16), 0);
         fdatasync(fd_);
         time.Pause();
-        monitor_write_lat_.consts_[0] = 0;
-        monitor_write_lat_.consts_[1] = (float)time.GetNsec();
+        io_perf_[kWrite].lat_.consts_[0] = 0;
+        io_perf_[kWrite].lat_.consts_[1] = (float)time.GetNsec();
         time.Reset();
 
         // Write 1MB to the beginning with pwrite
@@ -92,9 +96,9 @@ class Server : public Module {
         ret = pwrite(fd_, data.data(), MEGABYTES(1), 0);
         fdatasync(fd_);
         time.Pause();
-        monitor_write_bw_.consts_[0] =
+        io_perf_[kWrite].bw_.consts_[0] =
             (float)MEGABYTES(1) / (float)time.GetNsec();
-        monitor_write_bw_.consts_[1] = 0;
+        io_perf_[kWrite].bw_.consts_[1] = 0;
         time.Reset();
 
         // Read 4KB from the beginning with pread
@@ -102,8 +106,8 @@ class Server : public Module {
         fdatasync(fd_);
         ret = pread(fd_, data.data(), KILOBYTES(16), 0);
         time.Pause();
-        monitor_read_lat_.consts_[0] = 0;
-        monitor_read_lat_.consts_[1] = (float)time.GetNsec();
+        io_perf_[kRead].lat_.consts_[0] = 0;
+        io_perf_[kRead].lat_.consts_[1] = (float)time.GetNsec();
         time.Reset();
 
         // Read 1MB from the beginning with pread
@@ -111,10 +115,10 @@ class Server : public Module {
         fdatasync(fd_);
         ret = pread(fd_, data.data(), MEGABYTES(1), 0);
         time.Pause();
-        monitor_read_bw_.consts_[0] =
+        io_perf_[kRead].bw_.consts_[0] =
             (float)MEGABYTES(1) / (float)time.GetNsec();
         ;
-        monitor_read_bw_.consts_[1] = 0;
+        io_perf_[kRead].bw_.consts_[1] = 0;
         time.Reset();
         break;
       }
@@ -129,18 +133,18 @@ class Server : public Module {
         time.Resume();
         memcpy(ram_, data.data(), MEGABYTES(1));
         time.Pause();
-        monitor_write_bw_.consts_[0] =
+        io_perf_[kWrite].bw_.consts_[0] =
             (float)time.GetNsec() / (float)MEGABYTES(1);
-        monitor_write_bw_.consts_[1] = 0;
+        io_perf_[kWrite].bw_.consts_[1] = 0;
         time.Reset();
 
         // Read 1MB from the beginning with pread
         time.Resume();
         memcpy(data.data(), ram_, MEGABYTES(1));
         time.Pause();
-        monitor_read_bw_.consts_[0] =
+        io_perf_[kRead].bw_.consts_[0] =
             (float)time.GetNsec() / (float)MEGABYTES(1);
-        monitor_read_bw_.consts_[1] = 0;
+        io_perf_[kRead].bw_.consts_[1] = 0;
         time.Reset();
         break;
       }
@@ -161,7 +165,7 @@ class Server : public Module {
       case Method::kWrite: {
         return GetLeastLoadedLane(
             kDataGroup, task->prio_,
-            [](Load &lhs, Load &rhs) { return lhs.io_load_ < rhs.io_load_; });
+            [](Load &lhs, Load &rhs) { return lhs.cpu_load_ < rhs.cpu_load_; });
       }
       default: {
         return GetLaneByHash(kMdGroup, task->prio_, 0);
@@ -212,30 +216,7 @@ class Server : public Module {
     }
   }
   void MonitorWrite(MonitorModeId mode, WriteTask *task, RunContext &rctx) {
-    switch (mode) {
-      case MonitorMode::kEstLoad: {
-        if (task->size_ < lat_cutoff_) {
-        } else {
-          rctx.load_.cpu_load_ = monitor_write_bw_.consts_[0] * task->size_;
-        }
-        break;
-      }
-      case MonitorMode::kSampleLoad: {
-        monitor_write_bw_.Add({(float)task->size_,
-                               // (float)rctx.load_.cpu_load_,
-                               (float)rctx.timer_.GetNsec()},
-                              rctx.load_);
-        break;
-      }
-      case MonitorMode::kReinforceLoad: {
-        if (monitor_write_bw_.DoTrain()) {
-          CHI_WORK_ORCHESTRATOR->ImportModule("bdev_monitor");
-          CHI_WORK_ORCHESTRATOR->RunMethod(
-              "ChimaeraMonitor", "least_squares_fit", monitor_write_bw_);
-        }
-        break;
-      }
-    }
+    IoMonitor(mode, task->size_, io_perf_[kWrite], rctx);
   }
 
   /** Read from the block device */
@@ -261,14 +242,16 @@ class Server : public Module {
       }
     }
   }
-  void MonitorRead(MonitorModeId mode, ReadTask *task, RunContext &rctx) {}
+  void MonitorRead(MonitorModeId mode, ReadTask *task, RunContext &rctx) {
+    IoMonitor(mode, task->size_, io_perf_[kRead], rctx);
+  }
 
   /** Poll block device statistics */
   void PollStats(PollStatsTask *task, RunContext &rctx) {
-    task->stats_.read_bw_ = monitor_read_bw_.consts_[0];
-    task->stats_.write_bw_ = monitor_write_bw_.consts_[0];
-    task->stats_.read_latency_ = monitor_read_lat_.consts_[1];
-    task->stats_.write_latency_ = monitor_write_lat_.consts_[1];
+    task->stats_.read_bw_ = io_perf_[kRead].bw_.consts_[0];
+    task->stats_.write_bw_ = io_perf_[kWrite].bw_.consts_[0];
+    task->stats_.read_latency_ = io_perf_[kRead].lat_.consts_[1];
+    task->stats_.write_latency_ = io_perf_[kWrite].lat_.consts_[1];
     task->stats_.free_ = alloc_.free_size_;
     task->stats_.max_cap_ = alloc_.max_heap_size_;
   }
@@ -290,6 +273,36 @@ class Server : public Module {
       }
       case MonitorMode::kReinforceLoad: {
         monitor_[Method::kFree].DoTrain();
+        break;
+      }
+    }
+  }
+
+  /** I/O task monitoring */
+  void IoMonitor(MonitorModeId mode, size_t io_size, IoPerf &io_perf,
+                 RunContext &rctx) {
+    switch (mode) {
+      case MonitorMode::kEstLoad: {
+        if (io_size < lat_cutoff_) {
+          rctx.load_.cpu_load_ = io_perf.lat_.consts_[1];
+        } else {
+          rctx.load_.cpu_load_ = io_perf.bw_.consts_[0] * io_size;
+        }
+        break;
+      }
+      case MonitorMode::kSampleLoad: {
+        io_perf.bw_.Add({(float)io_size,
+                         // (float)rctx.load_.cpu_load_,
+                         (float)rctx.timer_.GetNsec()},
+                        rctx.load_);
+        break;
+      }
+      case MonitorMode::kReinforceLoad: {
+        if (io_perf.bw_.DoTrain()) {
+          CHI_WORK_ORCHESTRATOR->ImportModule("bdev_monitor");
+          CHI_WORK_ORCHESTRATOR->RunMethod("ChimaeraMonitor",
+                                           "least_squares_fit", io_perf.bw_);
+        }
         break;
       }
     }

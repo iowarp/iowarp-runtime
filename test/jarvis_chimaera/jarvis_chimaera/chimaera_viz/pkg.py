@@ -44,7 +44,10 @@ class ChimaeraViz(Application):
 
         :return: None
         """
-        Exec('chimaera_stat_runtime', LocalExecInfo(env=self.env))
+        Exec('chimaera_stat_runtime', LocalExecInfo(env=self.env,
+                                                    do_dbg=self.config['do_dbg'],
+                                                    dbg_port=self.config['dbg_port'],
+                                                    exec_async=True))
         
     def stop(self):
         """

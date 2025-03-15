@@ -32,7 +32,7 @@ namespace chi {
 // Schedule the task to another node or to a local lane
 bool PrivateTaskMultiQueue::push(const FullPtr<Task> &task) {
 #ifdef CHIMAERA_REMOTE_DEBUG
-  if (task->pool_ != CHI_QM->admin_pool_id_ &&
+  if (task->pool_ != chi::ADMIN_POOL_ID &&
       !task->task_flags_.Any(TASK_REMOTE_DEBUG_MARK) &&
       !task->IsLongRunning() && task->method_ != TaskMethod::kCreate &&
       CHI_RUNTIME->remote_created_) {

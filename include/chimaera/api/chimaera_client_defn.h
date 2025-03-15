@@ -288,10 +288,10 @@ class Client : public ConfigurationManager {
   /** Get the queue ID */
   HSHM_INLINE_CROSS_FUN
   QueueId GetQueueId(const PoolId &id) {
-    if (id == CHI_QM->process_queue_id_) {
-      return CHI_QM->process_queue_id_;
+    if (id == chi::PROCESS_QUEUE_ID) {
+      return chi::PROCESS_QUEUE_ID;
     } else {
-      return CHI_QM->admin_queue_id_;
+      return chi::ADMIN_QUEUE_ID;
     }
   }
 

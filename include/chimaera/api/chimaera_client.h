@@ -53,8 +53,7 @@ template <typename TaskT>
 HSHM_INLINE_CROSS_FUN void Client::ScheduleTask(Task *parent_task,
                                                 const FullPtr<TaskT> &task) {
 #ifndef CHIMAERA_RUNTIME
-  chi::ingress::MultiQueue *queue =
-      CHI_CLIENT->GetQueue(CHI_QM->process_queue_id_);
+  chi::ingress::MultiQueue *queue = CHI_CLIENT->GetQueue(chi::PROCESS_QUEUE_ID);
   // HILOG(kInfo, "Scheduling task (client, prior, node={}): {} pool={} dom={}",
   //       node_id_, task->task_node_, task->pool_, task->dom_query_);
   queue->Emplace(chi::TaskPrioOpt::kLowLatency,

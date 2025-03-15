@@ -6,12 +6,12 @@ pkgs:
     sleep: 2
     do_dbg: false
     dbg_port: 4000
-  - pkg_type: chimaera_viz
-    pkg_name: chimaera_viz
   - pkg_type: chimaera_unit_tests
     pkg_name: chimaera_unit_tests
     TEST_CASE: TestIpc
-    do_dbg: false
     nprocs: 1
     ppn: 4
+  - pkg_type: chimaera_viz
+    pkg_name: chimaera_viz
+    do_dbg: false
     dbg_port: 4001
