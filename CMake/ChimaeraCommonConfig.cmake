@@ -69,8 +69,6 @@ endif()
 # -----------------------------------------------------------------------------
 
 # ENABLE GPU SUPPORT
-message("CHIMAERA_ENABLE_CUDA: ${CHIMAERA_ENABLE_CUDA}")
-
 if(CHIMAERA_ENABLE_CUDA)
     hshm_enable_cuda(17)
 endif()

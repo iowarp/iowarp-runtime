@@ -2,7 +2,6 @@
 # Build CHI Admin Task Library
 # ------------------------------------------------------------------------------
 add_chimod_library(chimaera chimaera_admin ${CMAKE_CURRENT_SOURCE_DIR}/chimaera_admin.cc)
-message("EXPORTS: ${chimaera_chimaera_admin_exports}")
 
 # ------------------------------------------------------------------------------
 # Install CHI Admin Task Library
