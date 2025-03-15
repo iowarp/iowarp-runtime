@@ -23,9 +23,16 @@ bool malloc_intercepted = true;
 using hshm::ipc::Allocator;
 using hshm::ipc::Pointer;
 
+namespace chi {
+HSHM_DEFINE_GLOBAL_VAR_CC(chi::MallocApi, chiMallocApi);
+}  // namespace chi
+
 /** Allocate SIZE bytes of memory. */
 void* malloc(size_t size) {
-  if (size < hshm::Unit<size_t>::Megabytes(1)) {
+  if (!CHI_MALLOC->is_loaded_) {
+    new (CHI_MALLOC) chi::MallocApi();
+  }
+  if (size < hshm::Unit<size_t>::Megabytes(1) || !CHI_CLIENT->IsInitialized()) {
     return CHI_MALLOC->malloc(size);
   } else {
     return CHI_CLIENT->AllocateBuffer(HSHM_DEFAULT_MEM_CTX, size).ptr_;
@@ -50,7 +57,8 @@ void* realloc(void* ptr, size_t size) {
   if (ptr == nullptr) {
     return malloc(size);
   }
-  if (!CHI_CLIENT->data_alloc_->ContainsPtr(ptr)) {
+  if (!CHI_CLIENT->IsInitialized() ||
+      !CHI_CLIENT->data_alloc_->ContainsPtr(ptr)) {
     return CHI_MALLOC->realloc(ptr, size);
   } else {
     hipc::FullPtr<char> p((char*)ptr);
@@ -61,7 +69,9 @@ void* realloc(void* ptr, size_t size) {
 
 /** Free a block allocated by `malloc', `realloc' or `calloc'. */
 void free(void* ptr) {
-  if (!CHI_CLIENT->data_alloc_->ContainsPtr(ptr)) {
+  if (!CHI_CLIENT->IsInitialized() ||
+      !CHI_CLIENT->data_alloc_->ContainsPtr(ptr)) {
+    CHI_MALLOC->free(ptr);
   } else {
     hipc::FullPtr<char> p((char*)ptr);
     CHI_CLIENT->FreeBuffer(HSHM_DEFAULT_MEM_CTX, p);

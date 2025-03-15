@@ -17,6 +17,7 @@
 #include <stdlib.h>
 
 #include "hermes_shm/util/real_api.h"
+#include "hermes_shm/util/singleton.h"
 
 extern "C" {
 typedef void* (*malloc_t)(size_t);
@@ -43,7 +44,7 @@ class MallocApi : public RealApi {
   free_t free = nullptr;
 
  public:
-  MallocApi() : RealApi("malloc", "malloc_intercepted") {
+  MallocApi() : RealApi("malloc", "malloc_intercepted", true) {
     malloc = (malloc_t)dlsym(real_lib_, "malloc");
     REQUIRE_API(malloc)
     calloc = (calloc_t)dlsym(real_lib_, "calloc");
@@ -52,15 +53,15 @@ class MallocApi : public RealApi {
     REQUIRE_API(realloc)
     free = (free_t)dlsym(real_lib_, "free");
     REQUIRE_API(free)
+    is_loaded_ = true;
   }
 };
 
-}  // namespace chi
-
 // Singleton macros
-#include "hermes_shm/util/singleton.h"
-
-#define CHI_MALLOC hshm::Singleton<::chi::MallocApi>::GetInstance()
+HSHM_DEFINE_GLOBAL_VAR_H(chi::MallocApi, chiMallocApi);
+#define CHI_MALLOC hshm::GetGlobalVar(chi::chiMallocApi)
 #define CHI_MALLOC_T chi::MallocApi*
+
+}  // namespace chi
 
 #endif  // HSHM_SRC_MEMORY_MEMORY_INTERCEPT_H_

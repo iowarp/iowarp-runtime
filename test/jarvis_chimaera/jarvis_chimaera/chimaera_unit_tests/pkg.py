@@ -25,7 +25,8 @@ class ChimaeraUnitTests(Application):
                                'TestIpcMultithread8',
                                'TestSerialize',
                                'TestUpgrade',
-                               'TestPython']
+                               'TestPython',
+                               'TestMalloc']
 
         self.test_rocm_execs = ['TestRocm']
         self.test_cuda_execs = ['TestCuda']
@@ -78,13 +79,19 @@ class ChimaeraUnitTests(Application):
         """
         nprocs = self.config['nprocs']
         if self.config['nprocs'] is None:
-            nprocs = len(self.jarvis.hostfile)
-        if self.config['TEST_CASE'] in self.test_ipc_execs:
+            nprocs = len(self.jarvis.hostfile) 
+        if self.config['TEST_CASE'] == 'TestMalloc': 
+            Exec(f'test_ipc_exec {self.config["TEST_CASE"]}',
+                 LocalExecInfo(hostfile=self.jarvis.hostfile,
+                               env=self.mod_env,
+                               do_dbg=self.config['do_dbg'],
+                               dbg_port=self.config['dbg_port']))
+        elif self.config['TEST_CASE'] in self.test_ipc_execs:
             Exec(f'test_ipc_exec {self.config["TEST_CASE"]}',
                  MpiExecInfo(hostfile=self.jarvis.hostfile,
                              nprocs=nprocs,
                              ppn=self.config['ppn'],
-                             env=self.env,
+                             env=self.mod_env,
                              do_dbg=self.config['do_dbg'],
                              dbg_port=self.config['dbg_port']))
         elif self.config['TEST_CASE'] in self.test_rocm_execs:
@@ -92,7 +99,7 @@ class ChimaeraUnitTests(Application):
                  MpiExecInfo(hostfile=self.jarvis.hostfile,
                              nprocs=nprocs,
                              ppn=self.config['ppn'],
-                             env=self.env,
+                             env=self.mod_env,
                              do_dbg=self.config['do_dbg'],
                              dbg_port=self.config['dbg_port']))
         
