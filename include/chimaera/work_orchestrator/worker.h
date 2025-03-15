@@ -287,7 +287,6 @@ class Worker {
   bool do_sampling_ = false; /**< Whether or not to sample */
   size_t monitor_gap_;       /**< Distance between sampling phases */
   size_t monitor_window_;    /** Length of sampling phase */
-  CoMutex task_lock_;        /**< Lock for tasks accessing worker metadata */
 
  public:
   /**===============================================================

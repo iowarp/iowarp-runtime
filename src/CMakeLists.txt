@@ -110,6 +110,13 @@ add_executable(chimaera_stop_runtime chimaera_stop_runtime.cc)
 add_dependencies(chimaera_stop_runtime chimaera::client_host)
 target_link_libraries(chimaera_stop_runtime PUBLIC chimaera::client_host)
 
+# ------------------------------------------------------------------------------
+# Build Chimaera Runtime Stat Function
+# ------------------------------------------------------------------------------
+add_executable(chimaera_stat_runtime chimaera_stat_runtime.cc)
+add_dependencies(chimaera_stat_runtime chimaera::client_host)
+target_link_libraries(chimaera_stat_runtime PUBLIC chimaera::client_host)
+
 # -----------------------------------------------------------------------------
 # Add file(s) to CMake Install
 # -----------------------------------------------------------------------------
@@ -130,6 +137,7 @@ set(CHIMAERA_EXPORTED_LIBS
   ${chimaera_runtime_exports}
   chimaera_start_runtime
   chimaera_stop_runtime
+  chimaera_stat_runtime
   runtime_deps)
 
 install(
@@ -157,5 +165,6 @@ if(CHIMAERA_ENABLE_COVERAGE)
   set_coverage_flags(chimaera_client)
   set_coverage_flags(chimaera_runtime)
   set_coverage_flags(chimaera_start_runtime)
+  set_coverage_flags(chimaera_stat_runtime)
   set_coverage_flags(chimaera_stop_runtime)
 endif()

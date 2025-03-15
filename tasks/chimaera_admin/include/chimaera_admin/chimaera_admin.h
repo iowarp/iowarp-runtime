@@ -175,10 +175,13 @@ class Client : public ModuleClient {
   CHI_TASK_METHODS(GetDomainSize)
 
   /** PollStats task */
-  void PollStats(const hipc::MemContext &mctx, const DomainQuery &dom_query) {
+  std::vector<WorkerStats> PollStats(const hipc::MemContext &mctx,
+                                     const DomainQuery &dom_query) {
     FullPtr<PollStatsTask> task = AsyncPollStats(mctx, dom_query);
     task->Wait();
+    std::vector<WorkerStats> stats = task->stats_.vec();
     CHI_CLIENT->DelTask(mctx, task);
+    return stats;
   }
   CHI_TASK_METHODS(PollStats);
 };

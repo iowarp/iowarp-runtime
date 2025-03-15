@@ -998,6 +998,16 @@ struct LaneStats {
   void serialize(Ar &ar) {
     ar(load_, num_tasks_, lane_depth_, lane_id_);
   }
+
+  /** Print operator */
+  friend std::ostream &operator<<(std::ostream &os, const LaneStats &stats) {
+    return os << "LaneStats(lane_id=" << stats.lane_id_
+              << ", num_tasks=" << stats.num_tasks_
+              << ", lane_depth=" << stats.lane_depth_
+              << ", load={cpu: " << stats.load_.cpu_load_
+              << ", mem: " << stats.load_.mem_load_
+              << ", io: " << stats.load_.io_load_ << "})";
+  }
 };
 
 struct WorkerStats {
@@ -1011,6 +1021,17 @@ struct WorkerStats {
   template <typename Ar>
   void serialize(Ar &ar) {
     ar(worker_id_, num_tasks_, lanes_);
+  }
+
+  /** Print operator */
+  friend std::ostream &operator<<(std::ostream &os, const WorkerStats &stats) {
+    os << "WorkerStats(worker_id=" << stats.worker_id_
+       << ", num_tasks=" << stats.num_tasks_ << ", lanes=[";
+    for (size_t i = 0; i < stats.lanes_.size(); ++i) {
+      if (i > 0) os << ", ";
+      os << stats.lanes_[i];
+    }
+    return os << "])";
   }
 };
 

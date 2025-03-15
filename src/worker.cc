@@ -513,7 +513,6 @@ void Worker::ExecTask(FullPtr<Task> &task, RunContext &rctx, Container *&exec,
 /** Run a task */
 HSHM_INLINE
 void Worker::ExecCoroutine(Task *&task, RunContext &rctx) {
-  ScopedCoMutex lock(task_lock_);
   // If task isn't started, allocate stack pointer
   if (!task->IsStarted()) {
     rctx.co_task_ = task;
