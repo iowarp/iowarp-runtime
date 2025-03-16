@@ -12,6 +12,12 @@
 
 #include "remote_queue/remote_queue.h"
 
+#include <thallium.hpp>
+#include <thallium/serialization/stl/list.hpp>
+#include <thallium/serialization/stl/pair.hpp>
+#include <thallium/serialization/stl/string.hpp>
+#include <thallium/serialization/stl/vector.hpp>
+
 #include "chimaera/api/chimaera_runtime.h"
 #include "chimaera/network/serialize.h"
 #include "chimaera/work_orchestrator/work_orchestrator.h"

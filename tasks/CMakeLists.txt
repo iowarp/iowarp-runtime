@@ -39,10 +39,8 @@ add_subdirectory(worch_proc_round_robin)
 add_subdirectory(worch_queue_round_robin)
 
 # INSTALL TARGETS
-if(NOT CHIMAERA_IS_MAIN_PROJECT)
-  install(EXPORT ${CHIMAERA_EXPORTED_TARGETS}
-    FILE ${CHIMAERA_EXPORTED_TARGETS}Config.cmake
-    NAMESPACE chimaera::
-    DESTINATION cmake
-  )
-endif()
+install(EXPORT ${CHIMAERA_EXPORTED_TARGETS}
+  FILE ${CHIMAERA_EXPORTED_TARGETS}Config.cmake
+  NAMESPACE chimaera::
+  DESTINATION cmake
+)

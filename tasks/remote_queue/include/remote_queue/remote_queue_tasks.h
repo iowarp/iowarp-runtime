@@ -5,12 +5,6 @@
 #ifndef CHI_TASKS_REMOTE_QUEUE_INCLUDE_REMOTE_QUEUE_REMOTE_QUEUE_TASKS_H_
 #define CHI_TASKS_REMOTE_QUEUE_INCLUDE_REMOTE_QUEUE_REMOTE_QUEUE_TASKS_H_
 
-#include <thallium.hpp>
-#include <thallium/serialization/stl/list.hpp>
-#include <thallium/serialization/stl/pair.hpp>
-#include <thallium/serialization/stl/string.hpp>
-#include <thallium/serialization/stl/vector.hpp>
-
 #include "chimaera/chimaera_namespace.h"
 
 namespace tl = thallium;

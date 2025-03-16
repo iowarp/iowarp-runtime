@@ -108,7 +108,7 @@ endif()
 # Targets built within this project are exported at Install time for use
 # by other projects.
 # -----------------------------------------------------------------------------
-set(CHIMAERA_EXPORTED_TARGETS "Chimaera")
+set(CHIMAERA_EXPORTED_TARGETS "ChimaeraCore")
 
 # -----------------------------------------------------------------------------
 # Find Packages
@@ -203,11 +203,6 @@ install(
     ${CMAKE_INSTALL_PREFIX}/cmake
 )
 install(DIRECTORY include DESTINATION ${CMAKE_INSTALL_PREFIX})
-install(EXPORT ${CHIMAERA_EXPORTED_TARGETS}
-    FILE ${CHIMAERA_EXPORTED_TARGETS}CoreConfig.cmake
-    NAMESPACE chimaera::
-    DESTINATION cmake
-)
 
 # copy tasks/TASK_NAME to HOME directory
 # Create .chimaera directory in home if it doesn't exist
