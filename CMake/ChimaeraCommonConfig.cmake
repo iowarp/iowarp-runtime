@@ -78,6 +78,9 @@ if(CHIMAERA_ENABLE_ROCM)
 endif()
 
 # Create a chimod library
+# Runtime Library Names: namespace_target
+# Client Libraries: namespace_target_client, target_client
+# GPU Client Libraries: namespace_target_client_gpu, target_client_gpu
 macro(add_chimod_library namespace target)
     # Create the loadable chimod runtime library
     set(${namespace}_${target}_exports)
