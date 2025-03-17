@@ -11,6 +11,7 @@ option(BUILD_TESTS "Build tests" ON)
 option(BUILD_MPI_TESTS "Build tests which depend on MPI" ON)
 option(BUILD_OpenMP_TESTS "Build tests which depend on OpenMP" ON)
 option(BUILD_ZeroMQ_TESTS "Build tests which depend on ZeroMQ" OFF)
+option(CHIMAERA_BUILD_BENCHMARKS "Build chimaera benchmarks" OFF)
 option(CHIMAERA_ENABLE_COVERAGE "Check how well tests cover code" OFF)
 option(CHIMAERA_ENABLE_DOXYGEN "Check how well the code is documented" OFF)
 option(CHIMAERA_TASK_DEBUG "Debug tasks" OFF)
@@ -167,7 +168,9 @@ if(BUILD_TESTS)
     add_subdirectory(test)
 endif()
 
-add_subdirectory(benchmark)
+if(CHIMAERA_BUILD_BENCHMARKS)
+    add_subdirectory(benchmark)
+endif()
 
 # -----------------------------------------------------------------------------
 # Build + Enable Testing

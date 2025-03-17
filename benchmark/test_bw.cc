@@ -6,6 +6,7 @@
 #include <hermes_shm/util/timer.h>
 #include <hermes_shm/util/timer_mpi.h>
 #include <mpi.h>
+#include <sched.h>
 
 #include "chimaera/api/chimaera_client.h"
 #include "chimaera_admin/chimaera_admin.h"
