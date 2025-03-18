@@ -550,12 +550,12 @@ void Worker::CoroutineEntry(bctx::transfer_t t) {
 /** Free a task when it is no longer needed */
 HSHM_INLINE
 void Worker::EndTask(Container *exec, FullPtr<Task> task, RunContext &rctx) {
-  chi::Lane *chi_lane = rctx.route_lane_;
-  chi_lane->load_ -= rctx.load_;
+  // Unblock the task pending on this one's completion
   if (task->ShouldSignalUnblock()) {
     Task *pending_to = rctx.pending_to_;
     CHI_WORK_ORCHESTRATOR->SignalUnblock(pending_to, pending_to->rctx_);
   }
+  // Signal back to the remote that spawned this task
   if (task->ShouldSignalRemoteComplete()) {
     Container *remote_exec =
         CHI_MOD_REGISTRY->GetContainer(CHI_REMOTE_QUEUE->id_, 1);
@@ -563,6 +563,13 @@ void Worker::EndTask(Container *exec, FullPtr<Task> task, RunContext &rctx) {
                      rctx);
     return;
   }
+  // Update the lane's load
+  // chi_lane is null if this was a remote task
+  chi::Lane *chi_lane = rctx.route_lane_;
+  if (chi_lane) {
+    chi_lane->load_ -= rctx.load_;
+  }
+  // Free or complete the task
   if (exec && task->IsFireAndForget()) {
     CHI_CLIENT->DelTask(HSHM_DEFAULT_MEM_CTX, exec, task.ptr_);
   } else {
