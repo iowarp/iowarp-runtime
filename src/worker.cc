@@ -565,8 +565,8 @@ void Worker::EndTask(Container *exec, FullPtr<Task> task, RunContext &rctx) {
   }
   // Update the lane's load
   // chi_lane is null if this was a remote task
-  chi::Lane *chi_lane = rctx.route_lane_;
-  if (chi_lane) {
+  if (task->IsRouted()) {
+    chi::Lane *chi_lane = rctx.route_lane_;
     chi_lane->load_ -= rctx.load_;
   }
   // Free or complete the task
