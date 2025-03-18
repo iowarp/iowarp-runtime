@@ -715,6 +715,18 @@ struct DomainQuery {
   }
 
   /**
+   * Get local hash
+   */
+  HSHM_INLINE_CROSS_FUN
+  static DomainQuery GetLocalHash(u32 hash) {
+    DomainQuery query;
+    query.flags_.SetBits(kLocal | kHash);
+    query.sub_id_ = SubDomainId::kLocalContainers;
+    query.sel_.hash_ = hash;
+    return query;
+  }
+
+  /**
    * The scope of the query is the entire set of containers
    * */
   HSHM_INLINE_CROSS_FUN
