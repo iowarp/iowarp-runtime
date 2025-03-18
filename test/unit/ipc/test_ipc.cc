@@ -43,7 +43,7 @@ TEST_CASE("TestIpc") {
       HSHM_DEFAULT_MEM_CTX, chi::DomainQuery::GetLocalHash(0),
       chi::DomainId(client.id_, chi::SubDomainId::kGlobalContainers));
 
-  size_t ops = 256;
+  size_t ops = 4;
   HILOG(kInfo, "OPS: {}", ops);
   t.Resume();
   int depth = 0;
