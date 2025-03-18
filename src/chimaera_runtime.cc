@@ -76,9 +76,8 @@ void Runtime::ServerInit(std::string server_config_path) {
   create_task =
       CHI_CLIENT->AllocateTask<Admin::CreatePoolTask>(HSHM_DEFAULT_MEM_CTX)
           .ptr_;
-  ops = CHI_RPC->CreateDefaultDomains(
-      queue_sched_id, chi::ADMIN_POOL_ID,
-      DomainQuery::GetGlobal(chi::SubDomainId::kLocalContainers, 0), 1, 1);
+  ops = CHI_RPC->CreateDefaultDomains(queue_sched_id, chi::ADMIN_POOL_ID,
+                                      DomainQuery::GetLocalHash(0), 1, 1);
   CHI_RPC->UpdateDomains(ops);
   containers = CHI_RPC->GetLocalContainers(queue_sched_id);
   CHI_MOD_REGISTRY->CreatePool("worch_queue_round_robin",
@@ -90,9 +89,8 @@ void Runtime::ServerInit(std::string server_config_path) {
   create_task =
       CHI_CLIENT->AllocateTask<Admin::CreatePoolTask>(HSHM_DEFAULT_MEM_CTX)
           .ptr_;
-  ops = CHI_RPC->CreateDefaultDomains(
-      proc_sched_id, chi::ADMIN_POOL_ID,
-      DomainQuery::GetGlobal(chi::SubDomainId::kLocalContainers, 0), 1, 1);
+  ops = CHI_RPC->CreateDefaultDomains(proc_sched_id, chi::ADMIN_POOL_ID,
+                                      DomainQuery::GetLocalHash(0), 1, 1);
   CHI_RPC->UpdateDomains(ops);
   containers = CHI_RPC->GetLocalContainers(proc_sched_id);
   CHI_MOD_REGISTRY->CreatePool("worch_proc_round_robin",
@@ -101,20 +99,14 @@ void Runtime::ServerInit(std::string server_config_path) {
 
   // Set the work orchestrator queue scheduler
   CHI_ADMIN->SetWorkOrchQueuePolicyRN(
-      HSHM_DEFAULT_MEM_CTX,
-      DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0),
-      queue_sched_id);
+      HSHM_DEFAULT_MEM_CTX, DomainQuery::GetLocalHash(0), queue_sched_id);
   CHI_ADMIN->SetWorkOrchProcPolicyRN(
-      HSHM_DEFAULT_MEM_CTX,
-      DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0),
-      proc_sched_id);
+      HSHM_DEFAULT_MEM_CTX, DomainQuery::GetLocalHash(0), proc_sched_id);
 
   // Create the remote queue library
   remote_queue_.Create(
-      HSHM_DEFAULT_MEM_CTX,
-      DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0),
-      DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0),
-      "remote_queue",
+      HSHM_DEFAULT_MEM_CTX, DomainQuery::GetLocalHash(0),
+      DomainQuery::GetLocalHash(0), "remote_queue",
       CreateContext{CHI_CLIENT->MakePoolId(), 1, max_containers_pn});
   remote_created_ = true;
 }

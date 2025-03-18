@@ -40,8 +40,7 @@ TEST_CASE("TestIpc") {
       chi::DomainQuery::GetGlobalBcast(), "ipc_test");
   hshm::Timer t;
   size_t domain_size = CHI_ADMIN->GetDomainSize(
-      HSHM_DEFAULT_MEM_CTX,
-      chi::DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0),
+      HSHM_DEFAULT_MEM_CTX, chi::DomainQuery::GetLocalHash(0),
       chi::DomainId(client.id_, chi::SubDomainId::kGlobalContainers));
 
   size_t ops = 256;
@@ -80,8 +79,7 @@ TEST_CASE("TestAsyncIpc") {
   MPI_Barrier(MPI_COMM_WORLD);
   hshm::Timer t;
   size_t domain_size = CHI_ADMIN->GetDomainSize(
-      HSHM_DEFAULT_MEM_CTX,
-      chi::DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0),
+      HSHM_DEFAULT_MEM_CTX, chi::DomainQuery::GetLocalHash(0),
       chi::DomainId(client.id_, chi::SubDomainId::kGlobalContainers));
 
   int pid = HSHM_SYSTEM_INFO->pid_;
@@ -99,9 +97,7 @@ TEST_CASE("TestAsyncIpc") {
                        chi::SubDomainId::kGlobalContainers, cont_id),
                    depth, TASK_FIRE_AND_FORGET);
   }
-  CHI_ADMIN->Flush(
-      HSHM_DEFAULT_MEM_CTX,
-      DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0));
+  CHI_ADMIN->Flush(HSHM_DEFAULT_MEM_CTX, DomainQuery::GetLocalHash(0));
   t.Pause();
 
   HILOG(kInfo, "Latency: {} MOps, {} MTasks", ops / t.GetUsec(),
@@ -257,8 +253,7 @@ TEST_CASE("TestUpgrade") {
   MPI_Barrier(MPI_COMM_WORLD);
   hshm::Timer t;
   size_t domain_size = CHI_ADMIN->GetDomainSize(
-      HSHM_DEFAULT_MEM_CTX,
-      chi::DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0),
+      HSHM_DEFAULT_MEM_CTX, chi::DomainQuery::GetLocalHash(0),
       chi::DomainId(client.id_, chi::SubDomainId::kGlobalContainers));
 
   int pid = getpid();
@@ -289,9 +284,7 @@ TEST_CASE("TestUpgrade") {
                    depth, TASK_FIRE_AND_FORGET);
   }
 
-  CHI_ADMIN->Flush(
-      HSHM_DEFAULT_MEM_CTX,
-      DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0));
+  CHI_ADMIN->Flush(HSHM_DEFAULT_MEM_CTX, DomainQuery::GetLocalHash(0));
   t.Pause();
 
   HILOG(kInfo, "Latency: {} MOps, {} MTasks", ops / t.GetUsec(),

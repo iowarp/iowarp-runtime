@@ -46,7 +46,7 @@ HSHM_GPU_KERNEL void test_kernel() {
   // hshm::Timer t;
   // size_t domain_size = CHI_ADMIN->GetDomainSize(
   //     HSHM_DEFAULT_MEM_CTX,
-  //     chi::DomainQuery::GetDirectHash(chi::SubDomainId::kLocalContainers, 0),
+  //     chi::DomainQuery::GetLocalHash(0),
   //     chi::DomainId(client.id_, chi::SubDomainId::kGlobalContainers));
 
   // size_t ops = 256;
