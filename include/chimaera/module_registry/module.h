@@ -13,7 +13,11 @@
 #ifndef CHI_INCLUDE_CHI_TASK_TASK_H_
 #define CHI_INCLUDE_CHI_TASK_TASK_H_
 
+#ifdef _WIN32
+#include <windows.h>
+#else
 #include <dlfcn.h>
+#endif
 
 #include "chimaera/chimaera_types.h"
 #include "chimaera/network/serialize_defn.h"
