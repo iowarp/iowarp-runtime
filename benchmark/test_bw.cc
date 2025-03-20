@@ -30,15 +30,14 @@ void SyncIoTest(int rank, int nprocs, size_t msg_size, size_t ops_pp) {
   HILOG(kInfo, "I'm on CPU {}", cpu_id);
 
   chi::small_message::Client client;
-  CHI_ADMIN->RegisterModule(HSHM_DEFAULT_MEM_CTX,
-                            chi::DomainQuery::GetGlobalBcast(),
+  CHI_ADMIN->RegisterModule(HSHM_MCTX, chi::DomainQuery::GetGlobalBcast(),
                             "small_message");
   client.Create(
-      HSHM_DEFAULT_MEM_CTX,
+      HSHM_MCTX,
       chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
       chi::DomainQuery::GetGlobalBcast(), "ipc_test");
   size_t domain_size = CHI_ADMIN->GetDomainSize(
-      HSHM_DEFAULT_MEM_CTX, chi::DomainQuery::GetLocalHash(0),
+      HSHM_MCTX, chi::DomainQuery::GetLocalHash(0),
       chi::DomainId(client.id_, chi::SubDomainId::kGlobalContainers));
 
   hshm::MpiTimer t(MPI_COMM_WORLD);
@@ -46,7 +45,7 @@ void SyncIoTest(int rank, int nprocs, size_t msg_size, size_t ops_pp) {
   for (size_t i = 0; i < ops_pp; ++i) {
     int container_id = i;
     size_t read_size, write_size;
-    client.Io(HSHM_DEFAULT_MEM_CTX,
+    client.Io(HSHM_MCTX,
               chi::DomainQuery::GetDirectHash(
                   chi::SubDomainId::kGlobalContainers, container_id),
               msg_size, MD_IO_WRITE, write_size, read_size);

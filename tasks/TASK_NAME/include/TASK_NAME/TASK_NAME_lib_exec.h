@@ -15,7 +15,8 @@ void Run(u32 method, Task *task, RunContext &rctx) override {
   }
 }
 /** Execute a task */
-void Monitor(MonitorModeId mode, MethodId method, Task *task, RunContext &rctx) override {
+void Monitor(MonitorModeId mode, MethodId method, Task *task,
+             RunContext &rctx) override {
   switch (method) {
     case Method::kCreate: {
       MonitorCreate(mode, reinterpret_cast<CreateTask *>(task), rctx);
@@ -31,74 +32,76 @@ void Monitor(MonitorModeId mode, MethodId method, Task *task, RunContext &rctx) 
 void Del(const hipc::MemContext &mctx, u32 method, Task *task) override {
   switch (method) {
     case Method::kCreate: {
-      CHI_CLIENT->DelTask<CreateTask>(mctx, reinterpret_cast<CreateTask *>(task));
+      CHI_CLIENT->DelTask<CreateTask>(mctx,
+                                      reinterpret_cast<CreateTask *>(task));
       break;
     }
     case Method::kDestroy: {
-      CHI_CLIENT->DelTask<DestroyTask>(mctx, reinterpret_cast<DestroyTask *>(task));
+      CHI_CLIENT->DelTask<DestroyTask>(mctx,
+                                       reinterpret_cast<DestroyTask *>(task));
       break;
     }
   }
 }
 /** Duplicate a task */
-void CopyStart(u32 method, const Task *orig_task, Task *dup_task, bool deep) override {
+void CopyStart(u32 method, const Task *orig_task, Task *dup_task,
+               bool deep) override {
   switch (method) {
     case Method::kCreate: {
-      chi::CALL_COPY_START(
-        reinterpret_cast<const CreateTask*>(orig_task), 
-        reinterpret_cast<CreateTask*>(dup_task), deep);
+      chi::CALL_COPY_START(reinterpret_cast<const CreateTask *>(orig_task),
+                           reinterpret_cast<CreateTask *>(dup_task), deep);
       break;
     }
     case Method::kDestroy: {
-      chi::CALL_COPY_START(
-        reinterpret_cast<const DestroyTask*>(orig_task), 
-        reinterpret_cast<DestroyTask*>(dup_task), deep);
+      chi::CALL_COPY_START(reinterpret_cast<const DestroyTask *>(orig_task),
+                           reinterpret_cast<DestroyTask *>(dup_task), deep);
       break;
     }
   }
 }
 /** Duplicate a task */
-void NewCopyStart(u32 method, const Task *orig_task, FullPtr<Task> &dup_task, bool deep) override {
+void NewCopyStart(u32 method, const Task *orig_task, FullPtr<Task> &dup_task,
+                  bool deep) override {
   switch (method) {
     case Method::kCreate: {
-      chi::CALL_NEW_COPY_START(reinterpret_cast<const CreateTask*>(orig_task), dup_task, deep);
+      chi::CALL_NEW_COPY_START(reinterpret_cast<const CreateTask *>(orig_task),
+                               dup_task, deep);
       break;
     }
     case Method::kDestroy: {
-      chi::CALL_NEW_COPY_START(reinterpret_cast<const DestroyTask*>(orig_task), dup_task, deep);
+      chi::CALL_NEW_COPY_START(reinterpret_cast<const DestroyTask *>(orig_task),
+                               dup_task, deep);
       break;
     }
   }
 }
 /** Serialize a task when initially pushing into remote */
-void SaveStart(
-    u32 method, BinaryOutputArchive<true> &ar,
-    Task *task) override {
+void SaveStart(u32 method, BinaryOutputArchive<true> &ar, Task *task) override {
   switch (method) {
     case Method::kCreate: {
-      ar << *reinterpret_cast<CreateTask*>(task);
+      ar << *reinterpret_cast<CreateTask *>(task);
       break;
     }
     case Method::kDestroy: {
-      ar << *reinterpret_cast<DestroyTask*>(task);
+      ar << *reinterpret_cast<DestroyTask *>(task);
       break;
     }
   }
 }
 /** Deserialize a task when popping from remote queue */
-TaskPointer LoadStart(    u32 method, BinaryInputArchive<true> &ar) override {
+TaskPointer LoadStart(u32 method, BinaryInputArchive<true> &ar) override {
   TaskPointer task_ptr;
   switch (method) {
     case Method::kCreate: {
-      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<CreateTask>(
-             HSHM_DEFAULT_MEM_CTX, task_ptr.shm_);
-      ar >> *reinterpret_cast<CreateTask*>(task_ptr.ptr_);
+      task_ptr.ptr_ =
+          CHI_CLIENT->NewEmptyTask<CreateTask>(HSHM_MCTX, task_ptr.shm_);
+      ar >> *reinterpret_cast<CreateTask *>(task_ptr.ptr_);
       break;
     }
     case Method::kDestroy: {
-      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<DestroyTask>(
-             HSHM_DEFAULT_MEM_CTX, task_ptr.shm_);
-      ar >> *reinterpret_cast<DestroyTask*>(task_ptr.ptr_);
+      task_ptr.ptr_ =
+          CHI_CLIENT->NewEmptyTask<DestroyTask>(HSHM_MCTX, task_ptr.shm_);
+      ar >> *reinterpret_cast<DestroyTask *>(task_ptr.ptr_);
       break;
     }
   }
@@ -108,11 +111,11 @@ TaskPointer LoadStart(    u32 method, BinaryInputArchive<true> &ar) override {
 void SaveEnd(u32 method, BinaryOutputArchive<false> &ar, Task *task) override {
   switch (method) {
     case Method::kCreate: {
-      ar << *reinterpret_cast<CreateTask*>(task);
+      ar << *reinterpret_cast<CreateTask *>(task);
       break;
     }
     case Method::kDestroy: {
-      ar << *reinterpret_cast<DestroyTask*>(task);
+      ar << *reinterpret_cast<DestroyTask *>(task);
       break;
     }
   }
@@ -121,11 +124,11 @@ void SaveEnd(u32 method, BinaryOutputArchive<false> &ar, Task *task) override {
 void LoadEnd(u32 method, BinaryInputArchive<false> &ar, Task *task) override {
   switch (method) {
     case Method::kCreate: {
-      ar >> *reinterpret_cast<CreateTask*>(task);
+      ar >> *reinterpret_cast<CreateTask *>(task);
       break;
     }
     case Method::kDestroy: {
-      ar >> *reinterpret_cast<DestroyTask*>(task);
+      ar >> *reinterpret_cast<DestroyTask *>(task);
       break;
     }
   }

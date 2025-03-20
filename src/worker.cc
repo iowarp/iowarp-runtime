@@ -132,7 +132,7 @@ bool PrivateTaskMultiQueue::PushRemoteTask(RunContext &rctx,
        CHI_CLIENT->node_id_, (void *)task.ptr_);
   // CASE 6: The task is remote to this machine, put in the remote queue.
   CHI_REMOTE_QUEUE->AsyncClientPushSubmitBase(
-      HSHM_DEFAULT_MEM_CTX, nullptr, task->task_node_ + 1,
+      HSHM_MCTX, nullptr, task->task_node_ + 1,
       DomainQuery::GetDirectId(SubDomainId::kGlobalContainers, 1), task.ptr_);
   return true;
 }
@@ -571,7 +571,7 @@ void Worker::EndTask(Container *exec, FullPtr<Task> task, RunContext &rctx) {
   }
   // Free or complete the task
   if (exec && task->IsFireAndForget()) {
-    CHI_CLIENT->DelTask(HSHM_DEFAULT_MEM_CTX, exec, task.ptr_);
+    CHI_CLIENT->DelTask(HSHM_MCTX, exec, task.ptr_);
   } else {
     task->SetComplete();
   }

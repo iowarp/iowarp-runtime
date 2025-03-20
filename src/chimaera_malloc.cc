@@ -35,7 +35,7 @@ void* malloc(size_t size) {
   if (size < hshm::Unit<size_t>::Megabytes(1) || !CHI_CLIENT->IsInitialized()) {
     return CHI_MALLOC->malloc(size);
   } else {
-    return CHI_CLIENT->AllocateBuffer(HSHM_DEFAULT_MEM_CTX, size).ptr_;
+    return CHI_CLIENT->AllocateBuffer(HSHM_MCTX, size).ptr_;
   }
 }
 
@@ -62,7 +62,7 @@ void* realloc(void* ptr, size_t size) {
     return CHI_MALLOC->realloc(ptr, size);
   } else {
     hipc::FullPtr<char> p((char*)ptr);
-    CHI_CLIENT->data_alloc_->ReallocateLocalPtr(HSHM_DEFAULT_MEM_CTX, p, size);
+    CHI_CLIENT->data_alloc_->ReallocateLocalPtr(HSHM_MCTX, p, size);
     return p.ptr_;
   }
 }
@@ -74,6 +74,6 @@ void free(void* ptr) {
     CHI_MALLOC->free(ptr);
   } else {
     hipc::FullPtr<char> p((char*)ptr);
-    CHI_CLIENT->FreeBuffer(HSHM_DEFAULT_MEM_CTX, p);
+    CHI_CLIENT->FreeBuffer(HSHM_MCTX, p);
   }
 }

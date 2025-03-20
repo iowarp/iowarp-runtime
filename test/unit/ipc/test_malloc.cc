@@ -15,6 +15,8 @@ CHI_NAMESPACE_INIT
 
 TEST_CASE("TestMalloc") {
   CHIMAERA_CLIENT_INIT();
-  malloc(10);
-  malloc(hshm::Unit<size_t>::Megabytes(1));
+  void *x = malloc(10);
+  void *y = malloc(hshm::Unit<size_t>::Megabytes(1));
+  free(x);
+  free(y);
 }

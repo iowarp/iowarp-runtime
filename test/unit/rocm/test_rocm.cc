@@ -23,7 +23,7 @@
 HSHM_GPU_KERNEL void test_kernel() {
   // chi::TaskNode task_node = CHI_CLIENT->MakeTaskNodeId();
   // hipc::FullPtr<chi::Admin::RegisterModuleTask> task =
-  //     CHI_ADMIN->AsyncRegisterModuleAlloc(HSHM_DEFAULT_MEM_CTX, task_node,
+  //     CHI_ADMIN->AsyncRegisterModuleAlloc(HSHM_MCTX, task_node,
   //                                         chi::DomainQuery::GetGlobalBcast(),
   //                                         "small_message");
   // printf("H3: %p %p %p %p\n", task.ptr_, CHI_CLIENT, CHI_QM,
@@ -36,16 +36,15 @@ HSHM_GPU_KERNEL void test_kernel() {
   //                hshm::hash<chi::DomainQuery>{}(task->dom_query_),
   //                task.shm_);
   // printf("H5\n");
-  CHI_ADMIN->RegisterModule(HSHM_DEFAULT_MEM_CTX,
-                            chi::DomainQuery::GetGlobalBcast(),
+  CHI_ADMIN->RegisterModule(HSHM_MCTX, chi::DomainQuery::GetGlobalBcast(),
                             "small_message");
   // client.Create(
-  //     HSHM_DEFAULT_MEM_CTX,
+  //     HSHM_MCTX,
   //     chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers,
   //     0), chi::DomainQuery::GetGlobalBcast(), "ipc_test");
   // hshm::Timer t;
   // size_t domain_size = CHI_ADMIN->GetDomainSize(
-  //     HSHM_DEFAULT_MEM_CTX,
+  //     HSHM_MCTX,
   //     chi::DomainQuery::GetLocalHash(0),
   //     chi::DomainId(client.id_, chi::SubDomainId::kGlobalContainers));
 
@@ -54,7 +53,7 @@ HSHM_GPU_KERNEL void test_kernel() {
   // int depth = 0;
   // for (size_t i = 0; i < ops; ++i) {
   //   int cont_id = i;
-  //   int ret = client.Md(HSHM_DEFAULT_MEM_CTX,
+  //   int ret = client.Md(HSHM_MCTX,
   //                       chi::DomainQuery::GetDirectHash(
   //                           chi::SubDomainId::kGlobalContainers, cont_id),
   //                       depth, 0);

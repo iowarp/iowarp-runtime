@@ -109,7 +109,7 @@ class Server : public Module {
   /** A metadata operation */
   void Md(MdTask *task, RunContext &rctx) {
     if (task->depth_ > 0) {
-      client_.Md(HSHM_DEFAULT_MEM_CTX, task->dom_query_, task->depth_ - 1, 0);
+      client_.Md(HSHM_MCTX, task->dom_query_, task->depth_ - 1, 0);
     }
     task->ret_ = 1;
     //    HILOG(kInfo, "Executing small message on worker {}",

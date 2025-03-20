@@ -21,7 +21,8 @@ void Run(u32 method, Task *task, RunContext &rctx) override {
       break;
     }
     case Method::kServerPushComplete: {
-      ServerPushComplete(reinterpret_cast<ServerPushCompleteTask *>(task), rctx);
+      ServerPushComplete(reinterpret_cast<ServerPushCompleteTask *>(task),
+                         rctx);
       break;
     }
     case Method::kServerComplete: {
@@ -31,7 +32,8 @@ void Run(u32 method, Task *task, RunContext &rctx) override {
   }
 }
 /** Execute a task */
-void Monitor(MonitorModeId mode, MethodId method, Task *task, RunContext &rctx) override {
+void Monitor(MonitorModeId mode, MethodId method, Task *task,
+             RunContext &rctx) override {
   switch (method) {
     case Method::kCreate: {
       MonitorCreate(mode, reinterpret_cast<CreateTask *>(task), rctx);
@@ -42,19 +44,23 @@ void Monitor(MonitorModeId mode, MethodId method, Task *task, RunContext &rctx) 
       break;
     }
     case Method::kClientPushSubmit: {
-      MonitorClientPushSubmit(mode, reinterpret_cast<ClientPushSubmitTask *>(task), rctx);
+      MonitorClientPushSubmit(
+          mode, reinterpret_cast<ClientPushSubmitTask *>(task), rctx);
       break;
     }
     case Method::kClientSubmit: {
-      MonitorClientSubmit(mode, reinterpret_cast<ClientSubmitTask *>(task), rctx);
+      MonitorClientSubmit(mode, reinterpret_cast<ClientSubmitTask *>(task),
+                          rctx);
       break;
     }
     case Method::kServerPushComplete: {
-      MonitorServerPushComplete(mode, reinterpret_cast<ServerPushCompleteTask *>(task), rctx);
+      MonitorServerPushComplete(
+          mode, reinterpret_cast<ServerPushCompleteTask *>(task), rctx);
       break;
     }
     case Method::kServerComplete: {
-      MonitorServerComplete(mode, reinterpret_cast<ServerCompleteTask *>(task), rctx);
+      MonitorServerComplete(mode, reinterpret_cast<ServerCompleteTask *>(task),
+                            rctx);
       break;
     }
   }
@@ -63,170 +69,184 @@ void Monitor(MonitorModeId mode, MethodId method, Task *task, RunContext &rctx) 
 void Del(const hipc::MemContext &mctx, u32 method, Task *task) override {
   switch (method) {
     case Method::kCreate: {
-      CHI_CLIENT->DelTask<CreateTask>(mctx, reinterpret_cast<CreateTask *>(task));
+      CHI_CLIENT->DelTask<CreateTask>(mctx,
+                                      reinterpret_cast<CreateTask *>(task));
       break;
     }
     case Method::kDestroy: {
-      CHI_CLIENT->DelTask<DestroyTask>(mctx, reinterpret_cast<DestroyTask *>(task));
+      CHI_CLIENT->DelTask<DestroyTask>(mctx,
+                                       reinterpret_cast<DestroyTask *>(task));
       break;
     }
     case Method::kClientPushSubmit: {
-      CHI_CLIENT->DelTask<ClientPushSubmitTask>(mctx, reinterpret_cast<ClientPushSubmitTask *>(task));
+      CHI_CLIENT->DelTask<ClientPushSubmitTask>(
+          mctx, reinterpret_cast<ClientPushSubmitTask *>(task));
       break;
     }
     case Method::kClientSubmit: {
-      CHI_CLIENT->DelTask<ClientSubmitTask>(mctx, reinterpret_cast<ClientSubmitTask *>(task));
+      CHI_CLIENT->DelTask<ClientSubmitTask>(
+          mctx, reinterpret_cast<ClientSubmitTask *>(task));
       break;
     }
     case Method::kServerPushComplete: {
-      CHI_CLIENT->DelTask<ServerPushCompleteTask>(mctx, reinterpret_cast<ServerPushCompleteTask *>(task));
+      CHI_CLIENT->DelTask<ServerPushCompleteTask>(
+          mctx, reinterpret_cast<ServerPushCompleteTask *>(task));
       break;
     }
     case Method::kServerComplete: {
-      CHI_CLIENT->DelTask<ServerCompleteTask>(mctx, reinterpret_cast<ServerCompleteTask *>(task));
+      CHI_CLIENT->DelTask<ServerCompleteTask>(
+          mctx, reinterpret_cast<ServerCompleteTask *>(task));
       break;
     }
   }
 }
 /** Duplicate a task */
-void CopyStart(u32 method, const Task *orig_task, Task *dup_task, bool deep) override {
+void CopyStart(u32 method, const Task *orig_task, Task *dup_task,
+               bool deep) override {
   switch (method) {
     case Method::kCreate: {
-      chi::CALL_COPY_START(
-        reinterpret_cast<const CreateTask*>(orig_task), 
-        reinterpret_cast<CreateTask*>(dup_task), deep);
+      chi::CALL_COPY_START(reinterpret_cast<const CreateTask *>(orig_task),
+                           reinterpret_cast<CreateTask *>(dup_task), deep);
       break;
     }
     case Method::kDestroy: {
-      chi::CALL_COPY_START(
-        reinterpret_cast<const DestroyTask*>(orig_task), 
-        reinterpret_cast<DestroyTask*>(dup_task), deep);
+      chi::CALL_COPY_START(reinterpret_cast<const DestroyTask *>(orig_task),
+                           reinterpret_cast<DestroyTask *>(dup_task), deep);
       break;
     }
     case Method::kClientPushSubmit: {
       chi::CALL_COPY_START(
-        reinterpret_cast<const ClientPushSubmitTask*>(orig_task), 
-        reinterpret_cast<ClientPushSubmitTask*>(dup_task), deep);
+          reinterpret_cast<const ClientPushSubmitTask *>(orig_task),
+          reinterpret_cast<ClientPushSubmitTask *>(dup_task), deep);
       break;
     }
     case Method::kClientSubmit: {
       chi::CALL_COPY_START(
-        reinterpret_cast<const ClientSubmitTask*>(orig_task), 
-        reinterpret_cast<ClientSubmitTask*>(dup_task), deep);
+          reinterpret_cast<const ClientSubmitTask *>(orig_task),
+          reinterpret_cast<ClientSubmitTask *>(dup_task), deep);
       break;
     }
     case Method::kServerPushComplete: {
       chi::CALL_COPY_START(
-        reinterpret_cast<const ServerPushCompleteTask*>(orig_task), 
-        reinterpret_cast<ServerPushCompleteTask*>(dup_task), deep);
+          reinterpret_cast<const ServerPushCompleteTask *>(orig_task),
+          reinterpret_cast<ServerPushCompleteTask *>(dup_task), deep);
       break;
     }
     case Method::kServerComplete: {
       chi::CALL_COPY_START(
-        reinterpret_cast<const ServerCompleteTask*>(orig_task), 
-        reinterpret_cast<ServerCompleteTask*>(dup_task), deep);
+          reinterpret_cast<const ServerCompleteTask *>(orig_task),
+          reinterpret_cast<ServerCompleteTask *>(dup_task), deep);
       break;
     }
   }
 }
 /** Duplicate a task */
-void NewCopyStart(u32 method, const Task *orig_task, FullPtr<Task> &dup_task, bool deep) override {
+void NewCopyStart(u32 method, const Task *orig_task, FullPtr<Task> &dup_task,
+                  bool deep) override {
   switch (method) {
     case Method::kCreate: {
-      chi::CALL_NEW_COPY_START(reinterpret_cast<const CreateTask*>(orig_task), dup_task, deep);
+      chi::CALL_NEW_COPY_START(reinterpret_cast<const CreateTask *>(orig_task),
+                               dup_task, deep);
       break;
     }
     case Method::kDestroy: {
-      chi::CALL_NEW_COPY_START(reinterpret_cast<const DestroyTask*>(orig_task), dup_task, deep);
+      chi::CALL_NEW_COPY_START(reinterpret_cast<const DestroyTask *>(orig_task),
+                               dup_task, deep);
       break;
     }
     case Method::kClientPushSubmit: {
-      chi::CALL_NEW_COPY_START(reinterpret_cast<const ClientPushSubmitTask*>(orig_task), dup_task, deep);
+      chi::CALL_NEW_COPY_START(
+          reinterpret_cast<const ClientPushSubmitTask *>(orig_task), dup_task,
+          deep);
       break;
     }
     case Method::kClientSubmit: {
-      chi::CALL_NEW_COPY_START(reinterpret_cast<const ClientSubmitTask*>(orig_task), dup_task, deep);
+      chi::CALL_NEW_COPY_START(
+          reinterpret_cast<const ClientSubmitTask *>(orig_task), dup_task,
+          deep);
       break;
     }
     case Method::kServerPushComplete: {
-      chi::CALL_NEW_COPY_START(reinterpret_cast<const ServerPushCompleteTask*>(orig_task), dup_task, deep);
+      chi::CALL_NEW_COPY_START(
+          reinterpret_cast<const ServerPushCompleteTask *>(orig_task), dup_task,
+          deep);
       break;
     }
     case Method::kServerComplete: {
-      chi::CALL_NEW_COPY_START(reinterpret_cast<const ServerCompleteTask*>(orig_task), dup_task, deep);
+      chi::CALL_NEW_COPY_START(
+          reinterpret_cast<const ServerCompleteTask *>(orig_task), dup_task,
+          deep);
       break;
     }
   }
 }
 /** Serialize a task when initially pushing into remote */
-void SaveStart(
-    u32 method, BinaryOutputArchive<true> &ar,
-    Task *task) override {
+void SaveStart(u32 method, BinaryOutputArchive<true> &ar, Task *task) override {
   switch (method) {
     case Method::kCreate: {
-      ar << *reinterpret_cast<CreateTask*>(task);
+      ar << *reinterpret_cast<CreateTask *>(task);
       break;
     }
     case Method::kDestroy: {
-      ar << *reinterpret_cast<DestroyTask*>(task);
+      ar << *reinterpret_cast<DestroyTask *>(task);
       break;
     }
     case Method::kClientPushSubmit: {
-      ar << *reinterpret_cast<ClientPushSubmitTask*>(task);
+      ar << *reinterpret_cast<ClientPushSubmitTask *>(task);
       break;
     }
     case Method::kClientSubmit: {
-      ar << *reinterpret_cast<ClientSubmitTask*>(task);
+      ar << *reinterpret_cast<ClientSubmitTask *>(task);
       break;
     }
     case Method::kServerPushComplete: {
-      ar << *reinterpret_cast<ServerPushCompleteTask*>(task);
+      ar << *reinterpret_cast<ServerPushCompleteTask *>(task);
       break;
     }
     case Method::kServerComplete: {
-      ar << *reinterpret_cast<ServerCompleteTask*>(task);
+      ar << *reinterpret_cast<ServerCompleteTask *>(task);
       break;
     }
   }
 }
 /** Deserialize a task when popping from remote queue */
-TaskPointer LoadStart(    u32 method, BinaryInputArchive<true> &ar) override {
+TaskPointer LoadStart(u32 method, BinaryInputArchive<true> &ar) override {
   TaskPointer task_ptr;
   switch (method) {
     case Method::kCreate: {
-      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<CreateTask>(
-             HSHM_DEFAULT_MEM_CTX, task_ptr.shm_);
-      ar >> *reinterpret_cast<CreateTask*>(task_ptr.ptr_);
+      task_ptr.ptr_ =
+          CHI_CLIENT->NewEmptyTask<CreateTask>(HSHM_MCTX, task_ptr.shm_);
+      ar >> *reinterpret_cast<CreateTask *>(task_ptr.ptr_);
       break;
     }
     case Method::kDestroy: {
-      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<DestroyTask>(
-             HSHM_DEFAULT_MEM_CTX, task_ptr.shm_);
-      ar >> *reinterpret_cast<DestroyTask*>(task_ptr.ptr_);
+      task_ptr.ptr_ =
+          CHI_CLIENT->NewEmptyTask<DestroyTask>(HSHM_MCTX, task_ptr.shm_);
+      ar >> *reinterpret_cast<DestroyTask *>(task_ptr.ptr_);
       break;
     }
     case Method::kClientPushSubmit: {
       task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<ClientPushSubmitTask>(
-             HSHM_DEFAULT_MEM_CTX, task_ptr.shm_);
-      ar >> *reinterpret_cast<ClientPushSubmitTask*>(task_ptr.ptr_);
+          HSHM_MCTX, task_ptr.shm_);
+      ar >> *reinterpret_cast<ClientPushSubmitTask *>(task_ptr.ptr_);
       break;
     }
     case Method::kClientSubmit: {
-      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<ClientSubmitTask>(
-             HSHM_DEFAULT_MEM_CTX, task_ptr.shm_);
-      ar >> *reinterpret_cast<ClientSubmitTask*>(task_ptr.ptr_);
+      task_ptr.ptr_ =
+          CHI_CLIENT->NewEmptyTask<ClientSubmitTask>(HSHM_MCTX, task_ptr.shm_);
+      ar >> *reinterpret_cast<ClientSubmitTask *>(task_ptr.ptr_);
       break;
     }
     case Method::kServerPushComplete: {
       task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<ServerPushCompleteTask>(
-             HSHM_DEFAULT_MEM_CTX, task_ptr.shm_);
-      ar >> *reinterpret_cast<ServerPushCompleteTask*>(task_ptr.ptr_);
+          HSHM_MCTX, task_ptr.shm_);
+      ar >> *reinterpret_cast<ServerPushCompleteTask *>(task_ptr.ptr_);
       break;
     }
     case Method::kServerComplete: {
       task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<ServerCompleteTask>(
-             HSHM_DEFAULT_MEM_CTX, task_ptr.shm_);
-      ar >> *reinterpret_cast<ServerCompleteTask*>(task_ptr.ptr_);
+          HSHM_MCTX, task_ptr.shm_);
+      ar >> *reinterpret_cast<ServerCompleteTask *>(task_ptr.ptr_);
       break;
     }
   }
@@ -236,27 +256,27 @@ TaskPointer LoadStart(    u32 method, BinaryInputArchive<true> &ar) override {
 void SaveEnd(u32 method, BinaryOutputArchive<false> &ar, Task *task) override {
   switch (method) {
     case Method::kCreate: {
-      ar << *reinterpret_cast<CreateTask*>(task);
+      ar << *reinterpret_cast<CreateTask *>(task);
       break;
     }
     case Method::kDestroy: {
-      ar << *reinterpret_cast<DestroyTask*>(task);
+      ar << *reinterpret_cast<DestroyTask *>(task);
       break;
     }
     case Method::kClientPushSubmit: {
-      ar << *reinterpret_cast<ClientPushSubmitTask*>(task);
+      ar << *reinterpret_cast<ClientPushSubmitTask *>(task);
       break;
     }
     case Method::kClientSubmit: {
-      ar << *reinterpret_cast<ClientSubmitTask*>(task);
+      ar << *reinterpret_cast<ClientSubmitTask *>(task);
       break;
     }
     case Method::kServerPushComplete: {
-      ar << *reinterpret_cast<ServerPushCompleteTask*>(task);
+      ar << *reinterpret_cast<ServerPushCompleteTask *>(task);
       break;
     }
     case Method::kServerComplete: {
-      ar << *reinterpret_cast<ServerCompleteTask*>(task);
+      ar << *reinterpret_cast<ServerCompleteTask *>(task);
       break;
     }
   }
@@ -265,27 +285,27 @@ void SaveEnd(u32 method, BinaryOutputArchive<false> &ar, Task *task) override {
 void LoadEnd(u32 method, BinaryInputArchive<false> &ar, Task *task) override {
   switch (method) {
     case Method::kCreate: {
-      ar >> *reinterpret_cast<CreateTask*>(task);
+      ar >> *reinterpret_cast<CreateTask *>(task);
       break;
     }
     case Method::kDestroy: {
-      ar >> *reinterpret_cast<DestroyTask*>(task);
+      ar >> *reinterpret_cast<DestroyTask *>(task);
       break;
     }
     case Method::kClientPushSubmit: {
-      ar >> *reinterpret_cast<ClientPushSubmitTask*>(task);
+      ar >> *reinterpret_cast<ClientPushSubmitTask *>(task);
       break;
     }
     case Method::kClientSubmit: {
-      ar >> *reinterpret_cast<ClientSubmitTask*>(task);
+      ar >> *reinterpret_cast<ClientSubmitTask *>(task);
       break;
     }
     case Method::kServerPushComplete: {
-      ar >> *reinterpret_cast<ServerPushCompleteTask*>(task);
+      ar >> *reinterpret_cast<ServerPushCompleteTask *>(task);
       break;
     }
     case Method::kServerComplete: {
-      ar >> *reinterpret_cast<ServerCompleteTask*>(task);
+      ar >> *reinterpret_cast<ServerCompleteTask *>(task);
       break;
     }
   }

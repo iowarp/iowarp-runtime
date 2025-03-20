@@ -13,8 +13,8 @@
 #ifndef CHI_INCLUDE_CHI_NETWORK_SERIALIZE_H_
 #define CHI_INCLUDE_CHI_NETWORK_SERIALIZE_H_
 
-#include "serialize_defn.h"
 #include "chimaera/api/chimaera_client.h"
+#include "serialize_defn.h"
 
 namespace chi {
 
@@ -22,8 +22,8 @@ namespace chi {
 #ifdef CHIMAERA_RUNTIME
 void SegmentedTransfer::AllocateBulksServer() {
   for (DataTransfer &xfer : bulk_) {
-    FullPtr<char> data = CHI_CLIENT->AllocateBufferRemote(
-        HSHM_DEFAULT_MEM_CTX, xfer.data_size_);
+    FullPtr<char> data =
+        CHI_CLIENT->AllocateBufferRemote(HSHM_MCTX, xfer.data_size_);
     xfer.data_ = data.ptr_;
   }
 }

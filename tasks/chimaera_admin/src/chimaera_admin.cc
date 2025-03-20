@@ -224,7 +224,7 @@ class Server : public Module {
     }
     if (task->root_) {
       // Broadcast the state creation to all nodes
-      CHI_ADMIN->CreatePool(HSHM_DEFAULT_MEM_CTX, task->affinity_, *task);
+      CHI_ADMIN->CreatePool(HSHM_MCTX, task->affinity_, *task);
       HILOG(kInfo,
             "(node {}) Broadcasting container creation (task_node={}): pool {}",
             CHI_RPC->node_id_, task->task_node_, task->pool_name_.str());
@@ -298,8 +298,8 @@ class Server : public Module {
     if (task->root_) {
       HILOG(kInfo, "(node {}) Broadcasting runtime stop (task_node={})",
             CHI_RPC->node_id_, task->task_node_);
-      CHI_ADMIN->AsyncStopRuntime(HSHM_DEFAULT_MEM_CTX,
-                                  DomainQuery::GetGlobalBcast(), false);
+      CHI_ADMIN->AsyncStopRuntime(HSHM_MCTX, DomainQuery::GetGlobalBcast(),
+                                  false);
     } else if (CHI_RPC->node_id_ == task->task_node_.root_.node_id_) {
       HILOG(kInfo, "(node {}) Ignoring runtime stop (task_node={})",
             CHI_RPC->node_id_, task->task_node_);

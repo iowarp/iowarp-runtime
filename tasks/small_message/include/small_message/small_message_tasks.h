@@ -114,8 +114,7 @@ struct IoTask : public Task, TaskFlags<TF_SRL_SYM> {
     dom_query_ = dom_query;
 
     // Custom params
-    FullPtr<char> data =
-        CHI_CLIENT->AllocateBuffer(HSHM_DEFAULT_MEM_CTX, io_size);
+    FullPtr<char> data = CHI_CLIENT->AllocateBuffer(HSHM_MCTX, io_size);
     data_ = data.shm_;
     size_ = io_size;
     ret_ = 0;
@@ -127,7 +126,7 @@ struct IoTask : public Task, TaskFlags<TF_SRL_SYM> {
   HSHM_INLINE_CROSS_FUN
   ~IoTask() {
     if (IsDataOwner()) {
-      CHI_CLIENT->FreeBuffer(HSHM_DEFAULT_MEM_CTX, data_);
+      CHI_CLIENT->FreeBuffer(HSHM_MCTX, data_);
     }
   }
 
