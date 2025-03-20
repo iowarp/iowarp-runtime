@@ -86,6 +86,7 @@ macro(add_chimod_library namespace target)
     set(${namespace}_${target}_exports)
     set(${namespace}_${target}_client_iter)
     set(${namespace}_${target}_runtime_iter)
+    set(${namespace}_${target}_iter)
 
     if(CHIMAERA_ENABLE_CUDA)
         add_cuda_library(${namespace}_${target} SHARED TRUE ${ARGN})
@@ -148,4 +149,7 @@ macro(add_chimod_library namespace target)
         target_link_libraries(${target}_client_gpu INTERFACE ${namespace}_${target}_client_gpu)
         list(APPEND ${namespace}_${target}_exports ${target}_client_gpu)
     endif()
+
+    # Create the full iterator
+    set(${namespace}_${target}_iter ${${namespace}_${target}_runtime_iter} ${${namespace}_${target}_client_iter})
 endmacro()
