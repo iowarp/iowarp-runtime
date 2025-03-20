@@ -24,8 +24,6 @@ struct SchedulerMethod : public TaskMethod {
 
 /** The task type used for scheduling */
 struct ScheduleTask : public Task, TaskFlags<TF_LOCAL> {
-  OUT hipc::pod_array<int, 1> ret_;
-
   /** SHM default constructor */
   HSHM_INLINE explicit ScheduleTask(
       const hipc::CtxAllocator<CHI_ALLOC_T> &alloc)
@@ -44,9 +42,6 @@ struct ScheduleTask : public Task, TaskFlags<TF_LOCAL> {
     task_flags_.SetBits(TASK_LONG_RUNNING | TASK_REMOTE_DEBUG_MARK);
     SetPeriodMs(period_ms);
     dom_query_ = dom_query;
-
-    // Custom params
-    ret_.construct(alloc, 1);
   }
 };
 
