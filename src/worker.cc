@@ -403,7 +403,7 @@ size_t Worker::PollPrivateLaneMultiQueue(PrivateLaneQueue &lanes,
     for (size_t lane_off = 0; lane_off < num_lanes; ++lane_off) {
       // Get the lane and make it current
       chi::Lane *chi_lane;
-      if (lanes.pop(chi_lane).IsNull()) {
+      if (lanes.pop(chi_lane).IsNull() || chi_lane == nullptr) {
         break;
       }
       cur_lane_ = chi_lane;

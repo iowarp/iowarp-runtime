@@ -23,11 +23,7 @@ namespace stdfs = std::filesystem;
 namespace chi::config {
 
 /** parse the YAML node */
-void ClientConfig::ParseYAML(YAML::Node &yaml_conf) {
-  if (yaml_conf["thread_model"]) {
-    thread_model_ = yaml_conf["thread_model"].as<std::string>();
-  }
-}
+void ClientConfig::ParseYAML(YAML::Node &yaml_conf) {}
 
 /** Load the default configuration */
 void ClientConfig::LoadDefault() {
