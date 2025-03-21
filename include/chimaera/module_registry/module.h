@@ -31,7 +31,7 @@ namespace chi {
 typedef FullPtr<Task> TaskPointer;
 
 /** The information of a lane */
-class Lane : public hipc::list_queue_entry {
+class Lane {
  public:
   LaneId lane_id_;
   TaskPrio prio_;
@@ -41,7 +41,8 @@ class Lane : public hipc::list_queue_entry {
   CoMutex comux_;
   hipc::atomic<hshm::min_u64> plug_count_;
   size_t lane_req_;
-  chi::ext_ring_buffer<TaskPointer> active_tasks_;
+  // chi::ext_ring_buffer<TaskPointer> active_tasks_;
+  chi::mpsc_queue<TaskPointer> active_tasks_;
   hipc::atomic<hshm::min_u64> count_;
 
  public:
