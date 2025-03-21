@@ -109,10 +109,10 @@ bool PrivateTaskMultiQueue::PushLocalTask(const DomainQuery &res_query,
   }
   // Find the lane
   chi::Lane *chi_lane = exec->MapTaskToLane(task.ptr_);
-  if (rctx.load_.CalculateLoad()) {
-    exec->Monitor(MonitorMode::kEstLoad, task->method_, task.ptr_, rctx);
-    chi_lane->load_ += rctx.load_;
-  }
+  // if (rctx.load_.CalculateLoad()) {
+  //   exec->Monitor(MonitorMode::kEstLoad, task->method_, task.ptr_, rctx);
+  //   chi_lane->load_ += rctx.load_;
+  // }
   rctx.exec_ = exec;
   rctx.route_container_id_ = container_id;
   rctx.route_lane_ = chi_lane;
@@ -565,10 +565,10 @@ void Worker::EndTask(Container *exec, FullPtr<Task> task, RunContext &rctx) {
   }
   // Update the lane's load
   // chi_lane is null if this was a remote task
-  if (task->IsRouted()) {
-    chi::Lane *chi_lane = rctx.route_lane_;
-    chi_lane->load_ -= rctx.load_;
-  }
+  // if (task->IsRouted()) {
+  //   chi::Lane *chi_lane = rctx.route_lane_;
+  //   chi_lane->load_ -= rctx.load_;
+  // }
   // Free or complete the task
   if (exec && task->IsFireAndForget()) {
     CHI_CLIENT->DelTask(HSHM_MCTX, exec, task.ptr_);
