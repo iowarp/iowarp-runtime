@@ -66,7 +66,7 @@ bool PrivateTaskMultiQueue::push(const FullPtr<Task> &task) {
 HSHM_INLINE
 bool PrivateTaskMultiQueue::PushCompletedTask(RunContext &rctx,
                                               const FullPtr<Task> &task) {
-  HLOG(kDebug, kRemoteQueue, "[TASK_CHECK] Completing {}", task.ptr_);
+  HLOG(kInfo, kRemoteQueue, "[TASK_CHECK] Completing {}", task.ptr_);
   Container *exec = CHI_MOD_REGISTRY->GetStaticContainer(task->pool_);
   CHI_CUR_WORKER->EndTask(exec, task, task->rctx_);
   return true;

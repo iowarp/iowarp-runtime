@@ -143,13 +143,13 @@ class Server : public Module {
       rep_task->rctx_.pending_to_ = submit_task;
       size_t node_hash = hshm::hash<NodeId>{}(res_query.node_);
       auto &submit = submit_;
-      HLOG(kDebug, kRemoteQueue, "[TASK_CHECK] Task replica addr {}",
+      HLOG(kInfo, kRemoteQueue, "[TASK_CHECK] Task replica addr {}",
            rep_task.ptr_);
       submit[node_hash % submit.size()].emplace(
           (RemoteEntry){res_query, rep_task.ptr_});
       replicas.emplace_back(rep_task);
     }
-    HLOG(kDebug, kRemoteQueue, "[TASK_CHECK] Replicated the submit_task {}",
+    HLOG(kInfo, kRemoteQueue, "[TASK_CHECK] Replicated the submit_task {}",
          submit_task);
 
     // Actually block
@@ -159,7 +159,7 @@ class Server : public Module {
     rctx.replicas_ = &replicas;
     exec->Monitor(MonitorMode::kReplicaAgg, orig_task->method_, orig_task,
                   rctx);
-    HLOG(kDebug, kRemoteQueue, "[TASK_CHECK] Back in submit_task {}",
+    HLOG(kInfo, kRemoteQueue, "[TASK_CHECK] Back in submit_task {}",
          submit_task);
 
     // Free replicas
@@ -170,7 +170,7 @@ class Server : public Module {
 
   /** Push operation called on client */
   void ClientPushSubmit(ClientPushSubmitTask *task, RunContext &rctx) {
-    HLOG(kDebug, kRemoteQueue, "");
+    HLOG(kInfo, kRemoteQueue, "");
     // Get domain IDs
     Task *orig_task = task->orig_task_;
     std::vector<ResolvedDomainQuery> dom_queries = CHI_RPC->ResolveDomainQuery(
@@ -185,7 +185,7 @@ class Server : public Module {
     } else {
       Replicate(task, orig_task, dom_queries, rctx);
     }
-    HLOG(kDebug, kRemoteQueue, "[TASK_CHECK] Pushing back to runtime {}",
+    HLOG(kInfo, kRemoteQueue, "[TASK_CHECK] Pushing back to runtime {}",
          orig_task);
 
     // Push back to runtime
@@ -220,7 +220,7 @@ class Server : public Module {
         rep_task->dom_query_ = entry.res_domain_.dom_;
         BinaryOutputArchive<true> &ar = entries[entry.res_domain_.node_];
         exec->SaveStart(rep_task->method_, ar, rep_task);
-        HLOG(kDebug, kRemoteQueue,
+        HLOG(kInfo, kRemoteQueue,
              "[TASK_CHECK] Serializing rep_task {}({} -> {}) ", rep_task,
              CHI_RPC->node_id_, entry.res_domain_.node_);
       }
@@ -247,7 +247,7 @@ class Server : public Module {
 
   /** Complete the task (on the remote node) */
   void ServerPushComplete(ServerPushCompleteTask *task, RunContext &rctx) {
-    HLOG(kDebug, kRemoteQueue, "");
+    HLOG(kInfo, kRemoteQueue, "");
     NodeId ret_node = task->rctx_.ret_node_;
     size_t node_hash = hshm::hash<NodeId>{}(ret_node);
     auto &complete = complete_;
@@ -303,7 +303,7 @@ class Server : public Module {
   void RpcTaskSubmit(const tl::request &req, tl::bulk &bulk,
                      SegmentedTransfer &xfer) {
     try {
-      HLOG(kDebug, kRemoteQueue, "");
+      HLOG(kInfo, kRemoteQueue, "");
       xfer.AllocateBulksServer();
       CHI_THALLIUM->IoCallServerWrite(req, bulk, xfer);
       BinaryInputArchive<true> ar(xfer);
@@ -342,7 +342,7 @@ class Server : public Module {
     if (rep_task->rctx_.ret_task_addr_ == (size_t)rep_task.ptr_) {
       HELOG(kFatal, "This shouldn't happen ever");
     }
-    HLOG(kDebug, kRemoteQueue,
+    HLOG(kInfo, kRemoteQueue,
          "[TASK_CHECK] (node {}) Deserialized task {} with replica addr {} "
          "(pool={}, method={})",
          CHI_CLIENT->node_id_, rep_task.ptr_,
@@ -378,7 +378,7 @@ class Server : public Module {
           return;
         }
         exec->LoadEnd(rep_task->method_, ar, rep_task);
-        HLOG(kDebug, kRemoteQueue, "[TASK_CHECK] Completing replica {}",
+        HLOG(kInfo, kRemoteQueue, "[TASK_CHECK] Completing replica {}",
              rep_task);
       }
       // Process bulk message
@@ -387,7 +387,7 @@ class Server : public Module {
       for (size_t i = 0; i < xfer.tasks_.size(); ++i) {
         Task *rep_task = (Task *)xfer.tasks_[i].task_addr_;
         Task *submit_task = rep_task->rctx_.pending_to_;
-        HLOG(kDebug, kRemoteQueue, "[TASK_CHECK] Unblocking the submit_task {}",
+        HLOG(kInfo, kRemoteQueue, "[TASK_CHECK] Unblocking the submit_task {}",
              submit_task);
         if (submit_task->pool_ != id_) {
           HELOG(kFatal, "This shouldn't happen ever");
