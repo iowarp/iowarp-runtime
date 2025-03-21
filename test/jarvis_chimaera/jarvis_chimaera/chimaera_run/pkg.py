@@ -242,7 +242,7 @@ class ChimaeraRun(Service):
             os.makedirs(self.env['CHIMAERA_MONITOR_OUT'], exist_ok=True)
 
         # Get network Info 
-        net_info = rg.find_net_info(self.hostfile, strip_ips=True, local=len(self.hostfile) == 1)
+        net_info = rg.find_net_info(self.hostfile, strip_ips=True, local=len(self.hostfile) == 1, env=self.env)
         provider = self.config['provider']
         if provider is None:
             opts = net_info['provider'].unique().list()
