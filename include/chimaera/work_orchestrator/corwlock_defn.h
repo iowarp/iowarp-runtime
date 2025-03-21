@@ -21,8 +21,7 @@ class CoRwLock {
  public:
   TaskId root_;
   size_t rep_;
-  // chi::ext_ring_buffer<TaskId> order_;
-  chi::mpsc_queue<TaskId> order_;
+  chi::ext_ring_buffer<TaskId> order_;
   std::unordered_map<TaskId, COMUTEX_QUEUE_T> writer_map_;
   COMUTEX_QUEUE_T reader_set_;
   bool is_read_;
