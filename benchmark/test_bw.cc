@@ -9,9 +9,9 @@
 #include <sched.h>
 
 #include "chimaera/api/chimaera_client.h"
-#include "chimaera_admin/chimaera_admin.h"
+#include "chimaera_admin/chimaera_admin_client.h"
 #include "omp.h"
-#include "small_message/small_message.h"
+#include "small_message/small_message_client.h"
 
 void Summarize(size_t nprocs, double time_usec, size_t ops_pp,
                size_t msg_size) {

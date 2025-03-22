@@ -10,7 +10,7 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include "chimaera_admin/chimaera_admin.h"
+#include "chimaera_admin/chimaera_admin_client.h"
 
 int main() {
   CHIMAERA_CLIENT_INIT();

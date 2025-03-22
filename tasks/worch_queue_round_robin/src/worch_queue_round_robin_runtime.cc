@@ -10,45 +10,59 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include "TASK_NAME/TASK_NAME.h"
-
 #include "chimaera/api/chimaera_runtime.h"
-#include "chimaera/monitor/monitor.h"
-#include "chimaera_admin/chimaera_admin.h"
+#include "chimaera_admin/chimaera_admin_client.h"
+#include "worch_queue_round_robin/worch_queue_round_robin_client.h"
 
-namespace chi::TASK_NAME {
+namespace chi::worch_queue_round_robin {
 
 class Server : public Module {
  public:
   CLS_CONST LaneGroupId kDefaultGroup = 0;
+  u32 count_lowlat_;
+  u32 count_highlat_;
 
  public:
-  Server() = default;
-
-  /** Construct TASK_NAME */
+  /** Construct work orchestrator queue scheduler */
   void Create(CreateTask *task, RunContext &rctx) {
-    // Create a set of lanes for holding tasks
-    CreateLaneGroup(kDefaultGroup, 1, QUEUE_LOW_LATENCY);
+    count_lowlat_ = 0;
+    count_highlat_ = 0;
+    CreateLaneGroup(kDefaultGroup, 1, QUEUE_HIGH_LATENCY);
   }
   void MonitorCreate(MonitorModeId mode, CreateTask *task, RunContext &rctx) {}
 
   /** Route a task to a lane */
   Lane *MapTaskToLane(const Task *task) override {
-    // Route tasks to lanes based on their properties
-    // E.g., a strongly consistent filesystem could map tasks to a lane
-    // by the hash of an absolute filename path.
     return GetLaneByHash(kDefaultGroup, task->prio_, 0);
   }
 
-  /** Destroy TASK_NAME */
+  /** Destroy work orchestrator queue scheduler */
   void Destroy(DestroyTask *task, RunContext &rctx) {}
   void MonitorDestroy(MonitorModeId mode, DestroyTask *task, RunContext &rctx) {
   }
 
- public:
-#include "TASK_NAME/TASK_NAME_lib_exec.h"
+  /** Check if low latency */
+  bool IsLowLatency(Lane &lane) {
+    size_t num_tasks = lane.size();
+    if (num_tasks == 0) {
+      return lane.prio_ == TaskPrioOpt::kLowLatency;
+    }
+    size_t avg_cpu_load = lane.load_.cpu_load_ / num_tasks;
+    size_t avg_io_load = lane.load_.io_load_ / num_tasks;
+    return avg_cpu_load < KILOBYTES(50) && avg_io_load < KILOBYTES(8);
+  }
+
+  /** Schedule work orchestrator queues */
+  void Schedule(ScheduleTask *task, RunContext &rctx) {
+    // TODO(llogan): Finish
+    return;
+  }
+  void MonitorSchedule(MonitorModeId mode, ScheduleTask *task,
+                       RunContext &rctx) {}
+
+#include "worch_queue_round_robin/worch_queue_round_robin_lib_exec.h"
 };
 
-}  // namespace chi::TASK_NAME
+}  // namespace chi::worch_queue_round_robin
 
-CHI_TASK_CC(chi::TASK_NAME::Server, "TASK_NAME");
+CHI_TASK_CC(chi::worch_queue_round_robin::Server, "worch_queue_round_robin");

@@ -10,43 +10,44 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include "worch_proc_round_robin/worch_proc_round_robin.h"
-
+#include "TASK_NAME/TASK_NAME_client.h"
 #include "chimaera/api/chimaera_runtime.h"
-#include "chimaera_admin/chimaera_admin.h"
+#include "chimaera/monitor/monitor.h"
+#include "chimaera_admin/chimaera_admin_client.h"
 
-namespace chi::worch_proc_round_robin {
+namespace chi::TASK_NAME {
 
 class Server : public Module {
  public:
   CLS_CONST LaneGroupId kDefaultGroup = 0;
 
-  /** Construct the work orchestrator process scheduler */
+ public:
+  Server() = default;
+
+  /** Construct TASK_NAME */
   void Create(CreateTask *task, RunContext &rctx) {
-    CreateLaneGroup(kDefaultGroup, 1, QUEUE_HIGH_LATENCY);
+    // Create a set of lanes for holding tasks
+    CreateLaneGroup(kDefaultGroup, 1, QUEUE_LOW_LATENCY);
   }
   void MonitorCreate(MonitorModeId mode, CreateTask *task, RunContext &rctx) {}
 
   /** Route a task to a lane */
   Lane *MapTaskToLane(const Task *task) override {
+    // Route tasks to lanes based on their properties
+    // E.g., a strongly consistent filesystem could map tasks to a lane
+    // by the hash of an absolute filename path.
     return GetLaneByHash(kDefaultGroup, task->prio_, 0);
   }
 
-  /** Destroy the work orchestrator process queue */
+  /** Destroy TASK_NAME */
   void Destroy(DestroyTask *task, RunContext &rctx) {}
   void MonitorDestroy(MonitorModeId mode, DestroyTask *task, RunContext &rctx) {
   }
 
-  /** Schedule running processes */
-  void Schedule(ScheduleTask *task, RunContext &rctx) {
-    CHI_WORK_ORCHESTRATOR->DedicateCores();
-  }
-  void MonitorSchedule(MonitorModeId mode, ScheduleTask *task,
-                       RunContext &rctx) {}
-
-#include "worch_proc_round_robin/worch_proc_round_robin_lib_exec.h"
+ public:
+#include "TASK_NAME/TASK_NAME_lib_exec.h"
 };
 
-}  // namespace chi::worch_proc_round_robin
+}  // namespace chi::TASK_NAME
 
-CHI_TASK_CC(chi::worch_proc_round_robin::Server, "worch_proc_round_robin");
+CHI_TASK_CC(chi::TASK_NAME::Server, "TASK_NAME");

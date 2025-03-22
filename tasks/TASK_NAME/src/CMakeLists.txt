@@ -6,7 +6,8 @@ set(MOD_EXPORTS ${MOD_NAMESPACE}_TASK_NAME_exports)
 # ------------------------------------------------------------------------------
 # Build TASK_NAME Task Library
 # ------------------------------------------------------------------------------
-add_chimod_library(${MOD_NAMESPACE} TASK_NAME TASK_NAME.cc)
+add_chimod_runtime_lib(${MOD_NAMESPACE} TASK_NAME TASK_NAME_runtime.cc)
+add_chimod_client_lib(${MOD_NAMESPACE} TASK_NAME TASK_NAME_client.cc)
 
 # ------------------------------------------------------------------------------
 # Install TASK_NAME Task Library

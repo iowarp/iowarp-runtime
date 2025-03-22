@@ -18,10 +18,10 @@
 #include "chimaera/network/rpc_thallium.h"
 #include "chimaera/queue_manager/queue_manager.h"
 #include "chimaera/work_orchestrator/work_orchestrator.h"
-#include "chimaera_admin/chimaera_admin.h"
+#include "chimaera_admin/chimaera_admin_client.h"
 #include "chimaera_client_defn.h"
 #include "manager.h"
-#include "remote_queue/remote_queue.h"
+#include "remote_queue/remote_queue_client.h"
 
 // Singleton macros
 #define CHI_RUNTIME hshm::Singleton<chi::Runtime>::GetInstance()

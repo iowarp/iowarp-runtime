@@ -10,8 +10,6 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include "remote_queue/remote_queue.h"
-
 #include <thallium.hpp>
 #include <thallium/serialization/stl/list.hpp>
 #include <thallium/serialization/stl/pair.hpp>
@@ -21,7 +19,8 @@
 #include "chimaera/api/chimaera_runtime.h"
 #include "chimaera/network/serialize.h"
 #include "chimaera/work_orchestrator/work_orchestrator.h"
-#include "chimaera_admin/chimaera_admin.h"
+#include "chimaera_admin/chimaera_admin_client.h"
+#include "remote_queue/remote_queue_client.h"
 
 namespace chi::remote_queue {
 

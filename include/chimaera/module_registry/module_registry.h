@@ -21,7 +21,7 @@
 
 #include "chimaera/config/config_server.h"
 #include "module.h"
-// #include "chimaera_admin/chimaera_admin.h"
+// #include "chimaera_admin/chimaera_admin_client.h"
 #include "chimaera/network/rpc.h"
 
 namespace stdfs = std::filesystem;

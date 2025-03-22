@@ -22,7 +22,7 @@
 #include "chimaera/api/chimaera_client.h"
 #include "chimaera/module_registry/module.h"
 #include "chimaera/queue_manager/queue_manager.h"
-#include "chimaera_admin/chimaera_admin.h"
+#include "chimaera_admin/chimaera_admin_client.h"
 
 #define CHI_NAMESPACE_INIT                       \
   using chi::CreateContext;                      \
