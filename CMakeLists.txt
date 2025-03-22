@@ -28,6 +28,10 @@ option(CHIMAERA_ENABLE_DOTENV "Use cmake dotenv" OFF)
 option(CHIMAERA_NO_COMPILE "Don't compile the code" OFF)
 
 if(CHIMAERA_NO_COMPILE)
+    # Copy tasks/TASK_NAME directory to ~/.chimaera during configure
+    file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/tasks/TASK_NAME
+        DESTINATION $ENV{HOME}/.chimaera)
+
     install(
         FILES
         ${CMAKE_SOURCE_DIR}/.gitignore
