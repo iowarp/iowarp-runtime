@@ -306,6 +306,8 @@ struct PollStatsTask : public Task, TaskFlags<TF_SRL_SYM> {
   HSHM_INLINE_CROSS_FUN void SerializeEnd(Ar &ar) {
     ar(stats_);
   }
+
+  CHI_AUTOGEN_METHODS  // keep at class bottom
 };
 
 }  // namespace chi::bdev

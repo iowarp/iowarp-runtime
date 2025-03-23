@@ -19,6 +19,11 @@
 
 namespace chi {
 
+/** Macro used by chimaera-util to autogenerate task helpers */
+#define CHI_AUTOGEN_METHODS
+#define CHI_BEGIN(X)
+#define CHI_END(X)
+
 template <typename DataT = hshm::charwrap>
 using LocalSerialize = hipc::LocalSerialize<DataT>;
 

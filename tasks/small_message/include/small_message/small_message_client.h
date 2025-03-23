@@ -66,6 +66,8 @@ class Client : public ModuleClient {
     CHI_CLIENT->DelTask(mctx, task);
   }
   CHI_TASK_METHODS(Io)
+
+  CHI_AUTOGEN_METHODS  // keep at class bottom
 };
 
 }  // namespace chi::small_message

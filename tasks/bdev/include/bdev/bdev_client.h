@@ -99,6 +99,8 @@ class Client : public ModuleClient {
     return stats;
   }
   CHI_TASK_METHODS(PollStats);
+
+  CHI_AUTOGEN_METHODS  // keep at class bottom
 };
 
 }  // namespace chi::bdev

@@ -406,7 +406,9 @@ class Server : public Module {
     req.respond(0);
   }
 
- public:
+  CHI_AUTOGEN_METHODS  // keep at class bottom
+
+      public:
 #include "remote_queue/remote_queue_lib_exec.h"
 };
 }  // namespace chi::remote_queue

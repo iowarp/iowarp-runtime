@@ -40,6 +40,8 @@ class Client : public ModuleClient {
   }
 };
 
+CHI_AUTOGEN_METHODS  // keep at class bottom
+
 }  // namespace chi::worch_proc_round_robin
 
 #endif  // CHI_worch_proc_round_robin_H_

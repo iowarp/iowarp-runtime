@@ -35,6 +35,8 @@ typedef chi::Admin::CreatePoolBaseTask<CreateTaskParams> CreateTask;
 /** A task to destroy worch_proc_round_robin */
 typedef chi::Admin::DestroyContainerTask DestroyTask;
 
+CHI_AUTOGEN_METHODS  // keep at class bottom
+
 }  // namespace chi::worch_proc_round_robin
 
 #endif  // CHI_WORCH_PROC_ROUND_ROBIN_TASKS_H__

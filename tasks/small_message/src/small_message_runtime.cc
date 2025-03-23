@@ -178,7 +178,8 @@ class Server : public Module {
     }
   }
 
- public:
+  CHI_AUTOGEN_METHODS  // keep at class bottom
+      public:
 #include "small_message/small_message_lib_exec.h"
 };
 

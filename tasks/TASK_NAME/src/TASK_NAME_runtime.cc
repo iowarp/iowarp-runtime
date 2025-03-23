@@ -24,12 +24,14 @@ class Server : public Module {
  public:
   Server() = default;
 
+  CHI_BEGIN(Create)
   /** Construct TASK_NAME */
   void Create(CreateTask *task, RunContext &rctx) {
     // Create a set of lanes for holding tasks
     CreateLaneGroup(kDefaultGroup, 1, QUEUE_LOW_LATENCY);
   }
   void MonitorCreate(MonitorModeId mode, CreateTask *task, RunContext &rctx) {}
+  CHI_END(Create)
 
   /** Route a task to a lane */
   Lane *MapTaskToLane(const Task *task) override {
@@ -39,12 +41,15 @@ class Server : public Module {
     return GetLaneByHash(kDefaultGroup, task->prio_, 0);
   }
 
+  CHI_BEGIN(Destroy)
   /** Destroy TASK_NAME */
   void Destroy(DestroyTask *task, RunContext &rctx) {}
   void MonitorDestroy(MonitorModeId mode, DestroyTask *task, RunContext &rctx) {
   }
+  CHI_END(Destroy)
 
- public:
+  CHI_AUTOGEN_METHODS  // keep at class bottom
+      public:
 #include "TASK_NAME/TASK_NAME_lib_exec.h"
 };
 

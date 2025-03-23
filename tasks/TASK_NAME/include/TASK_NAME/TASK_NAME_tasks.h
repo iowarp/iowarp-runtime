@@ -12,9 +12,8 @@ namespace chi::TASK_NAME {
 #include "TASK_NAME_methods.h"
 CHI_NAMESPACE_INIT
 
-/**
- * A task to create TASK_NAME
- * */
+CHI_BEGIN(Create)
+/** A task to create TASK_NAME */
 struct CreateTaskParams {
   CLS_CONST char *lib_name_ = "TASK_NAME";
 
@@ -28,9 +27,14 @@ struct CreateTaskParams {
   HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {}
 };
 typedef chi::Admin::CreatePoolBaseTask<CreateTaskParams> CreateTask;
+CHI_END(Create)
 
+CHI_BEGIN(Destroy)
 /** A task to destroy TASK_NAME */
 typedef chi::Admin::DestroyContainerTask DestroyTask;
+CHI_END(Destroy)
+
+CHI_AUTOGEN_METHODS  // keep at class bottom
 
 }  // namespace chi::TASK_NAME
 

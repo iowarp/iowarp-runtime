@@ -157,6 +157,8 @@ struct IoTask : public Task, TaskFlags<TF_SRL_SYM> {
       ar.bulk(DT_WRITE, data_, size_);
     }
   }
+
+  CHI_AUTOGEN_METHODS  // keep at class bottom
 };
 
 }  // namespace chi::small_message

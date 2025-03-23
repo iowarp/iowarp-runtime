@@ -43,6 +43,8 @@ class Server : public Module {
   void MonitorSchedule(MonitorModeId mode, ScheduleTask *task,
                        RunContext &rctx) {}
 
+  CHI_AUTOGEN_METHODS  // keep at class bottom
+
 #include "worch_proc_round_robin/worch_proc_round_robin_lib_exec.h"
 };
 

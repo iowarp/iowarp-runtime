@@ -130,6 +130,8 @@ struct ServerCompleteTask : public Task, TaskFlags<TF_LOCAL> {
     dom_query_ = dom_query;
     SetPeriodUs(15);
   }
+
+  CHI_AUTOGEN_METHODS  // keep at class bottom
 };
 
 }  // namespace chi::remote_queue

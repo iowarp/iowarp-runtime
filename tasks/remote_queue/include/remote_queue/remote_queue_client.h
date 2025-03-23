@@ -50,6 +50,8 @@ class Client : public ModuleClient {
 
   /** Construct complete aggregator */
   CHI_TASK_METHODS(ServerComplete)
+
+  CHI_AUTOGEN_METHODS  // keep at class bottom
 };
 
 }  // namespace chi::remote_queue
