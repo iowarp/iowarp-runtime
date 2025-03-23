@@ -12,10 +12,6 @@ void Run(u32 method, Task *task, RunContext &rctx) override {
       Destroy(reinterpret_cast<DestroyTask *>(task), rctx);
       break;
     }
-    case Method::kUpgrade: {
-      Upgrade(reinterpret_cast<UpgradeTask *>(task), rctx);
-      break;
-    }
     case Method::kMd: {
       Md(reinterpret_cast<MdTask *>(task), rctx);
       break;
@@ -37,10 +33,6 @@ void Monitor(MonitorModeId mode, MethodId method, Task *task, RunContext &rctx) 
       MonitorDestroy(mode, reinterpret_cast<DestroyTask *>(task), rctx);
       break;
     }
-    case Method::kUpgrade: {
-      MonitorUpgrade(mode, reinterpret_cast<UpgradeTask *>(task), rctx);
-      break;
-    }
     case Method::kMd: {
       MonitorMd(mode, reinterpret_cast<MdTask *>(task), rctx);
       break;
@@ -60,10 +52,6 @@ void Del(const hipc::MemContext &mctx, u32 method, Task *task) override {
     }
     case Method::kDestroy: {
       CHI_CLIENT->DelTask<DestroyTask>(mctx, reinterpret_cast<DestroyTask *>(task));
-      break;
-    }
-    case Method::kUpgrade: {
-      CHI_CLIENT->DelTask<UpgradeTask>(mctx, reinterpret_cast<UpgradeTask *>(task));
       break;
     }
     case Method::kMd: {
@@ -91,12 +79,6 @@ void CopyStart(u32 method, const Task *orig_task, Task *dup_task, bool deep) ove
         reinterpret_cast<DestroyTask*>(dup_task), deep);
       break;
     }
-    case Method::kUpgrade: {
-      chi::CALL_COPY_START(
-        reinterpret_cast<const UpgradeTask*>(orig_task), 
-        reinterpret_cast<UpgradeTask*>(dup_task), deep);
-      break;
-    }
     case Method::kMd: {
       chi::CALL_COPY_START(
         reinterpret_cast<const MdTask*>(orig_task), 
@@ -122,10 +104,6 @@ void NewCopyStart(u32 method, const Task *orig_task, FullPtr<Task> &dup_task, bo
       chi::CALL_NEW_COPY_START(reinterpret_cast<const DestroyTask*>(orig_task), dup_task, deep);
       break;
     }
-    case Method::kUpgrade: {
-      chi::CALL_NEW_COPY_START(reinterpret_cast<const UpgradeTask*>(orig_task), dup_task, deep);
-      break;
-    }
     case Method::kMd: {
       chi::CALL_NEW_COPY_START(reinterpret_cast<const MdTask*>(orig_task), dup_task, deep);
       break;
@@ -147,10 +125,6 @@ void SaveStart(
     }
     case Method::kDestroy: {
       ar << *reinterpret_cast<DestroyTask*>(task);
-      break;
-    }
-    case Method::kUpgrade: {
-      ar << *reinterpret_cast<UpgradeTask*>(task);
       break;
     }
     case Method::kMd: {
@@ -179,12 +153,6 @@ TaskPointer LoadStart(    u32 method, BinaryInputArchive<true> &ar) override {
       ar >> *reinterpret_cast<DestroyTask*>(task_ptr.ptr_);
       break;
     }
-    case Method::kUpgrade: {
-      task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<UpgradeTask>(
-             HSHM_DEFAULT_MEM_CTX, task_ptr.shm_);
-      ar >> *reinterpret_cast<UpgradeTask*>(task_ptr.ptr_);
-      break;
-    }
     case Method::kMd: {
       task_ptr.ptr_ = CHI_CLIENT->NewEmptyTask<MdTask>(
              HSHM_DEFAULT_MEM_CTX, task_ptr.shm_);
@@ -211,10 +179,6 @@ void SaveEnd(u32 method, BinaryOutputArchive<false> &ar, Task *task) override {
       ar << *reinterpret_cast<DestroyTask*>(task);
       break;
     }
-    case Method::kUpgrade: {
-      ar << *reinterpret_cast<UpgradeTask*>(task);
-      break;
-    }
     case Method::kMd: {
       ar << *reinterpret_cast<MdTask*>(task);
       break;
@@ -234,10 +198,6 @@ void LoadEnd(u32 method, BinaryInputArchive<false> &ar, Task *task) override {
     }
     case Method::kDestroy: {
       ar >> *reinterpret_cast<DestroyTask*>(task);
-      break;
-    }
-    case Method::kUpgrade: {
-      ar >> *reinterpret_cast<UpgradeTask*>(task);
       break;
     }
     case Method::kMd: {

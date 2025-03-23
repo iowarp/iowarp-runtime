@@ -1,0 +1,15 @@
+kCreate: {'val': 0, 'compiled': True}
+kDestroy: {'val': 1, 'compiled': True}
+kCreatePool: {'val': 10, 'compiled': False}
+kDestroyContainer: {'val': 11, 'compiled': False}
+kRegisterModule: {'val': 12, 'compiled': False}
+kDestroyModule: {'val': 13, 'compiled': False}
+kUpgradeModule: {'val': 14, 'compiled': False}
+kGetPoolId: {'val': 15, 'compiled': False}
+kStopRuntime: {'val': 16, 'compiled': False}
+kSetWorkOrchQueuePolicy: {'val': 17, 'compiled': False}
+kSetWorkOrchProcPolicy: {'val': 18, 'compiled': False}
+kFlush: {'val': 19, 'compiled': False}
+kGetDomainSize: {'val': 20, 'compiled': False}
+kUpdateDomain: {'val': 21, 'compiled': False}
+kPollStats: {'val': 22, 'compiled': False}
