@@ -185,4 +185,4 @@ class Server : public Module {
 
 }  // namespace chi::small_message
 
-CHI_TASK_CC(chi::small_message::Server, "small_message");
+CHI_TASK_CC(chi::small_message::Server, "chimaera_small_message");

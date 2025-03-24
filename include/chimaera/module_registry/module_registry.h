@@ -187,6 +187,7 @@ class ModuleRegistry {
   std::vector<std::string> FindMatchingPathInDirs(const std::string &lib_name) {
     std::vector<std::string> variants = {"_gpu", "_host", ""};
     std::vector<std::string> prefixes = {"", "lib", "libchimaera_"};
+    std::vector<std::string> suffixes = {"", "_runtime"};
     std::vector<std::string> extensions = {".so", ".dll"};
     std::vector<std::string> concrete_libs;
     for (const std::string &lib_dir : lib_dirs_) {
@@ -194,9 +195,12 @@ class ModuleRegistry {
       std::vector<std::string> potential_paths;
       for (const std::string &variant : variants) {
         for (const std::string &prefix : prefixes) {
-          for (const std::string &extension : extensions) {
-            potential_paths.emplace_back(hshm::Formatter::format(
-                "{}/{}{}{}{}", lib_dir, prefix, lib_name, variant, extension));
+          for (const std::string &suffix : suffixes) {
+            for (const std::string &extension : extensions) {
+              potential_paths.emplace_back(hshm::Formatter::format(
+                  "{}/{}{}{}{}{}", lib_dir, prefix, lib_name, variant, suffix,
+                  extension));
+            }
           }
         }
       }

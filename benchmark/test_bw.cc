@@ -31,7 +31,7 @@ void SyncIoTest(int rank, int nprocs, size_t msg_size, size_t ops_pp) {
 
   chi::small_message::Client client;
   CHI_ADMIN->RegisterModule(HSHM_MCTX, chi::DomainQuery::GetGlobalBcast(),
-                            "small_message");
+                            "chimaera_small_message");
   client.Create(
       HSHM_MCTX,
       chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),

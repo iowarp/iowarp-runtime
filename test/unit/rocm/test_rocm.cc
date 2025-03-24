@@ -25,7 +25,7 @@ HSHM_GPU_KERNEL void test_kernel() {
   // hipc::FullPtr<chi::Admin::RegisterModuleTask> task =
   //     CHI_ADMIN->AsyncRegisterModuleAlloc(HSHM_MCTX, task_node,
   //                                         chi::DomainQuery::GetGlobalBcast(),
-  //                                         "small_message");
+  //                                         "chimaera_small_message");
   // printf("H3: %p %p %p %p\n", task.ptr_, CHI_CLIENT, CHI_QM,
   //        CHI_QM->queue_map_);
   // chi::ingress::MultiQueue *queue =
@@ -37,7 +37,7 @@ HSHM_GPU_KERNEL void test_kernel() {
   //                task.shm_);
   // printf("H5\n");
   CHI_ADMIN->RegisterModule(HSHM_MCTX, chi::DomainQuery::GetGlobalBcast(),
-                            "small_message");
+                            "chimaera_small_message");
   // client.Create(
   //     HSHM_MCTX,
   //     chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers,

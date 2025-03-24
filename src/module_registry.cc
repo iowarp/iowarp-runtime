@@ -23,7 +23,7 @@ bool ModuleRegistry::CreatePool(
   // Find the module to instantiate
   auto it = libs_.find(lib_name);
   if (it == libs_.end()) {
-    HELOG(kError, "Could not find the task lib: {}", lib_name);
+    HELOG(kError, "Could not find the module: {}", lib_name);
     return false;
   }
   ModuleInfo &info = it->second;

@@ -10,7 +10,7 @@ namespace chi::Admin {
 
 #include "chimaera_admin_methods.h"
 
-/** A template to register or destroy a task library */
+/** A template to register or destroy a module */
 template <int method>
 struct RegisterModuleTaskTempl : public Task, TaskFlags<TF_SRL_SYM> {
   IN chi::ipc::string lib_name_;
@@ -68,7 +68,7 @@ using RegisterModuleTask = RegisterModuleTaskTempl<0>;
 /** A task to destroy a Task Library */
 using DestroyModuleTask = RegisterModuleTaskTempl<1>;
 
-/** A template to register or destroy a task library */
+/** A template to register or destroy a module */
 struct UpgradeModuleTask : public Task, TaskFlags<TF_SRL_SYM> {
   IN chi::ipc::string lib_name_;
   TEMP Container *old_;

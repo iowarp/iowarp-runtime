@@ -41,11 +41,11 @@ void Runtime::ServerInit(std::string server_config_path) {
   // Create module registry
   CHI_MOD_REGISTRY->ServerInit(server_config_, CHI_RPC->node_id_,
                                header_->unique_);
-  CHI_MOD_REGISTRY->RegisterModule("chimaera_admin");
-  CHI_MOD_REGISTRY->RegisterModule("worch_queue_round_robin");
-  CHI_MOD_REGISTRY->RegisterModule("worch_proc_round_robin");
-  CHI_MOD_REGISTRY->RegisterModule("remote_queue");
-  CHI_MOD_REGISTRY->RegisterModule("bdev");
+  CHI_MOD_REGISTRY->RegisterModule("chimaera_chimaera_admin");
+  CHI_MOD_REGISTRY->RegisterModule("chimaera_worch_queue_round_robin");
+  CHI_MOD_REGISTRY->RegisterModule("chimaera_worch_proc_round_robin");
+  CHI_MOD_REGISTRY->RegisterModule("chimaera_remote_queue");
+  CHI_MOD_REGISTRY->RegisterModule("chimaera_bdev");
   // Queue manager + client must be initialized before Work Orchestrator
   CHI_QM->ServerInit(main_alloc_, CHI_RPC->node_id_, server_config_,
                      header_->queue_manager_);
@@ -67,7 +67,7 @@ void Runtime::ServerInit(std::string server_config_path) {
       CHI_RPC->hosts_.size(), 1);
   CHI_RPC->UpdateDomains(ops);
   containers = CHI_RPC->GetLocalContainers(chi::ADMIN_POOL_ID);
-  CHI_MOD_REGISTRY->CreatePool("chimaera_admin", "chimaera_admin",
+  CHI_MOD_REGISTRY->CreatePool("chimaera_chimaera_admin", "chimaera_admin",
                                chi::ADMIN_POOL_ID, admin_create_task,
                                containers);
 
@@ -78,7 +78,7 @@ void Runtime::ServerInit(std::string server_config_path) {
                                       DomainQuery::GetLocalHash(0), 1, 1);
   CHI_RPC->UpdateDomains(ops);
   containers = CHI_RPC->GetLocalContainers(queue_sched_id);
-  CHI_MOD_REGISTRY->CreatePool("worch_queue_round_robin",
+  CHI_MOD_REGISTRY->CreatePool("chimaera_worch_queue_round_robin",
                                "worch_queue_round_robin", queue_sched_id,
                                create_task, containers);
 
@@ -89,7 +89,7 @@ void Runtime::ServerInit(std::string server_config_path) {
                                       DomainQuery::GetLocalHash(0), 1, 1);
   CHI_RPC->UpdateDomains(ops);
   containers = CHI_RPC->GetLocalContainers(proc_sched_id);
-  CHI_MOD_REGISTRY->CreatePool("worch_proc_round_robin",
+  CHI_MOD_REGISTRY->CreatePool("chimaera_worch_proc_round_robin",
                                "worch_proc_round_robin", proc_sched_id,
                                create_task, containers);
 

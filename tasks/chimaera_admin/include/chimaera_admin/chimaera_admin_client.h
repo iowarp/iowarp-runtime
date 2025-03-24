@@ -42,7 +42,7 @@ class Client : public ModuleClient {
   }
   CHI_TASK_METHODS(DestroyModule)
 
-  /** Register a task library */
+  /** Register a module */
   HSHM_INLINE_CROSS_FUN
   void UpgradeModule(const hipc::MemContext &mctx, const DomainQuery &dom_query,
                      const chi::string &lib_name) {

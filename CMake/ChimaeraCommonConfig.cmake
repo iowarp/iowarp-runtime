@@ -83,6 +83,7 @@ macro(add_chimod_runtime_lib namespace target)
     # Create the loadable chimod runtime library
     set(${namespace}_${target}_exports)
     set(${namespace}_${target}_runtime_iter)
+    set(${namespace}_${target}_client_iter)
     set(${namespace}_${target}_iter)
 
     if(CHIMAERA_ENABLE_CUDA)
@@ -118,11 +119,6 @@ endmacro()
 # Client Libraries: namespace_target_client, target_client
 # GPU Client Libraries: namespace_target_client_gpu, target_client_gpu
 macro(add_chimod_client_lib namespace target)
-    # Create the loadable chimod runtime library
-    set(${namespace}_${target}_exports)
-    set(${namespace}_${target}_client_iter)
-    set(${namespace}_${target}_iter)
-
     # Add chimod library no gpu client interface
     add_library(${namespace}_${target}_client ${ARGN})
     target_link_libraries(${namespace}_${target}_client PUBLIC chimaera::client_host)

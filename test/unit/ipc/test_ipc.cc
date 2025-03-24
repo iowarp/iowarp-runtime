@@ -32,7 +32,7 @@ TEST_CASE("TestIpc") {
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
   chi::small_message::Client client;
   CHI_ADMIN->RegisterModule(HSHM_MCTX, chi::DomainQuery::GetGlobalBcast(),
-                            "small_message");
+                            "chimaera_small_message");
   client.Create(
       HSHM_MCTX,
       chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
@@ -69,7 +69,7 @@ TEST_CASE("TestAsyncIpc") {
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
   chi::small_message::Client client;
   CHI_ADMIN->RegisterModule(HSHM_MCTX, chi::DomainQuery::GetGlobalBcast(),
-                            "small_message");
+                            "chimaera_small_message");
   client.Create(
       HSHM_MCTX,
       chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
@@ -111,7 +111,7 @@ TEST_CASE("TestFlush") {
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
   chi::small_message::Client client;
   CHI_ADMIN->RegisterModule(HSHM_MCTX, chi::DomainQuery::GetGlobalBcast(),
-                            "small_message");
+                            "chimaera_small_message");
   client.Create(
       HSHM_MCTX,
       chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
@@ -145,7 +145,7 @@ void TestIpcMultithread(int nprocs) {
 
   chi::small_message::Client client;
   CHI_ADMIN->RegisterModule(HSHM_MCTX, chi::DomainQuery::GetGlobalBcast(),
-                            "small_message");
+                            "chimaera_small_message");
   client.Create(
       HSHM_MCTX,
       chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
@@ -190,7 +190,7 @@ void TestBulk(chi::IntFlag flags) {
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
   chi::small_message::Client client;
   CHI_ADMIN->RegisterModule(HSHM_MCTX, chi::DomainQuery::GetGlobalBcast(),
-                            "small_message");
+                            "chimaera_small_message");
   client.Create(
       HSHM_MCTX,
       chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
@@ -239,7 +239,7 @@ TEST_CASE("TestUpgrade") {
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
   chi::small_message::Client client;
   CHI_ADMIN->RegisterModule(HSHM_MCTX, chi::DomainQuery::GetGlobalBcast(),
-                            "small_message");
+                            "chimaera_small_message");
   client.Create(
       HSHM_MCTX,
       chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
@@ -266,7 +266,7 @@ TEST_CASE("TestUpgrade") {
                    depth, TASK_FIRE_AND_FORGET);
   }
   CHI_ADMIN->AsyncUpgradeModule(HSHM_MCTX, chi::DomainQuery::GetGlobalBcast(),
-                                "small_message");
+                                "chimaera_small_message");
   for (size_t i = 0; i < ops / 2; ++i) {
     int ret;
     // HILOG(kInfo, "Sending message {}", i);
@@ -293,7 +293,7 @@ void TestBdevIo(const std::string &path) {
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
   chi::bdev::Client client;
   CHI_ADMIN->RegisterModule(HSHM_MCTX, chi::DomainQuery::GetGlobalBcast(),
-                            "bdev");
+                            "chimaera_bdev");
   client.Create(
       HSHM_MCTX,
       chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),

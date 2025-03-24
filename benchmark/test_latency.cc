@@ -31,7 +31,7 @@ void AllocFreeIpcTest(int rank, int nprocs, int depth, size_t ops) {
   HILOG(kInfo, "");
   chi::small_message::Client client;
   CHI_ADMIN->RegisterModule(HSHM_MCTX, chi::DomainQuery::GetGlobalBcast(),
-                            "small_message");
+                            "chimaera_small_message");
   client.Create(
       HSHM_MCTX,
       chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
@@ -59,7 +59,7 @@ void AllocNoFreeIpcTest(int rank, int nprocs, int depth, size_t ops) {
   HILOG(kInfo, "");
   chi::small_message::Client client;
   CHI_ADMIN->RegisterModule(HSHM_MCTX, chi::DomainQuery::GetGlobalBcast(),
-                            "small_message");
+                            "chimaera_small_message");
   client.Create(
       HSHM_MCTX,
       chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
@@ -91,7 +91,7 @@ void SyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
 
   chi::small_message::Client client;
   CHI_ADMIN->RegisterModule(HSHM_MCTX, chi::DomainQuery::GetGlobalBcast(),
-                            "small_message");
+                            "chimaera_small_message");
   HILOG(kInfo, "Finished registering module small_message", cpu_id);
   client.Create(
       HSHM_MCTX,
@@ -119,7 +119,7 @@ void AsyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
   HILOG(kInfo, "");
   chi::small_message::Client client;
   CHI_ADMIN->RegisterModule(HSHM_MCTX, chi::DomainQuery::GetGlobalBcast(),
-                            "small_message");
+                            "chimaera_small_message");
   client.Create(
       HSHM_MCTX,
       chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
