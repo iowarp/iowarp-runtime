@@ -17,7 +17,7 @@ CHI_NAMESPACE_INIT
  * A task to create bdev
  * */
 struct CreateTaskParams {
-  CLS_CONST char *lib_name_ = "bdev";
+  CLS_CONST char *lib_name_ = "chimaera_bdev";
   IN chi::string path_;
   IN size_t size_;
 

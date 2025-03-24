@@ -18,7 +18,7 @@ CHI_NAMESPACE_INIT
  * A task to create remote_queue
  * */
 struct CreateTaskParams {
-  CLS_CONST char *lib_name_ = "remote_queue";
+  CLS_CONST char *lib_name_ = "chimaera_remote_queue";
 
   HSHM_INLINE_CROSS_FUN
   CreateTaskParams() = default;

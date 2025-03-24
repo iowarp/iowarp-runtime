@@ -16,7 +16,7 @@ CHI_NAMESPACE_INIT
  * A task to create small_message
  * */
 struct CreateTaskParams {
-  CLS_CONST char *lib_name_ = "small_message";
+  CLS_CONST char *lib_name_ = "chimaera_small_message";
 
   HSHM_INLINE_CROSS_FUN
   CreateTaskParams() = default;

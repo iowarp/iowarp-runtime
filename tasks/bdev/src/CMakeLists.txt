@@ -1,14 +1,20 @@
 # ------------------------------------------------------------------------------
+# Set variables
+# ------------------------------------------------------------------------------
+set(MOD_EXPORTS ${REPO_NAMESPACE}_bdev_exports)
+
+# ------------------------------------------------------------------------------
 # Build BDEV Task Library
 # ------------------------------------------------------------------------------
-add_chimod_library(chimaera bdev bdev_runtime.cc)
+add_chimod_runtime_lib(${REPO_NAMESPACE} bdev bdev_runtime.cc)
+add_chimod_client_lib(${REPO_NAMESPACE} bdev bdev_client.cc)
 
 # ------------------------------------------------------------------------------
 # Install BDEV Task Library
 # ------------------------------------------------------------------------------
 install(
         TARGETS
-        ${chimaera_bdev_exports}
+        ${${MOD_EXPORTS}}
         EXPORT
         ${CHIMAERA_EXPORTED_TARGETS}
         LIBRARY DESTINATION ${CHIMAERA_INSTALL_LIB_DIR}

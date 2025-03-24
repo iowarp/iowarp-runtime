@@ -15,7 +15,7 @@ CHI_NAMESPACE_INIT
 CHI_BEGIN(Create)
 /** A task to create MOD_NAME */
 struct CreateTaskParams {
-  CLS_CONST char *lib_name_ = "MOD_NAME";
+  CLS_CONST char *lib_name_ = "chimaera_MOD_NAME";
 
   HSHM_INLINE_CROSS_FUN
   CreateTaskParams() = default;

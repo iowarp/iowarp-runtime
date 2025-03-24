@@ -1,13 +1,13 @@
 # ------------------------------------------------------------------------------
 # Set variables
 # ------------------------------------------------------------------------------
-set(MOD_EXPORTS ${MOD_NAMESPACE}_MOD_NAME_exports)
+set(MOD_EXPORTS ${REPO_NAMESPACE}_MOD_NAME_exports)
 
 # ------------------------------------------------------------------------------
 # Build MOD_NAME Task Library
 # ------------------------------------------------------------------------------
-add_chimod_runtime_lib(${MOD_NAMESPACE} MOD_NAME MOD_NAME_runtime.cc)
-add_chimod_client_lib(${MOD_NAMESPACE} MOD_NAME MOD_NAME_client.cc)
+add_chimod_runtime_lib(${REPO_NAMESPACE} MOD_NAME MOD_NAME_runtime.cc)
+add_chimod_client_lib(${REPO_NAMESPACE} MOD_NAME MOD_NAME_client.cc)
 
 # ------------------------------------------------------------------------------
 # Install MOD_NAME Task Library

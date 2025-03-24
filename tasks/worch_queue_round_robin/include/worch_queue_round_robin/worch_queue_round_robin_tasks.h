@@ -19,7 +19,7 @@ typedef SchedulerMethod Method;
  * A task to create worch_queue_round_robin
  * */
 struct CreateTaskParams {
-  CLS_CONST char *lib_name_ = "worch_queue_round_robin";
+  CLS_CONST char *lib_name_ = "chimaera_worch_queue_round_robin";
 
   HSHM_INLINE_CROSS_FUN
   CreateTaskParams() = default;

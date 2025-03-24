@@ -1,12 +1,12 @@
 # ------------------------------------------------------------------------------
 # Set variables
 # ------------------------------------------------------------------------------
-set(MOD_EXPORTS ${MOD_NAMESPACE}_compressor_exports)
+set(MOD_EXPORTS ${REPO_NAMESPACE}_compressor_exports)
 
 # ------------------------------------------------------------------------------
 # Build compressor Task Library
 # ------------------------------------------------------------------------------
-add_chimod_library(${MOD_NAMESPACE} compressor compressor.cc)
+add_chimod_library(${REPO_NAMESPACE} compressor compressor.cc)
 
 # ------------------------------------------------------------------------------
 # Install compressor Task Library
