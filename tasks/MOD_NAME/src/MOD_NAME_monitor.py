@@ -8,7 +8,7 @@ This skeleton does not actually call this file right now.
 More detailed examples on how to use Python for monitoring
 in Chimaera are in tasks/small_message.
 """
-class TASK_NAME:
+class MOD_NAME:
     @staticmethod
     def monitor_io(params, x, y):
         io_size = x[:, 0]

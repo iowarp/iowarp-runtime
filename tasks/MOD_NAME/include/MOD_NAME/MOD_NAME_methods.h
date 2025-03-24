@@ -1,9 +1,9 @@
-#ifndef CHI_TASK_NAME_METHODS_H_
-#define CHI_TASK_NAME_METHODS_H_
+#ifndef CHI_MOD_NAME_METHODS_H_
+#define CHI_MOD_NAME_METHODS_H_
 
 /** The set of methods in the admin task */
 struct Method : public TaskMethod {
   TASK_METHOD_T kCount = 2;
 };
 
-#endif  // CHI_TASK_NAME_METHODS_H_
+#endif  // CHI_MOD_NAME_METHODS_H_

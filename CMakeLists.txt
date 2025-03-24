@@ -28,8 +28,8 @@ option(CHIMAERA_ENABLE_DOTENV "Use cmake dotenv" OFF)
 option(CHIMAERA_NO_COMPILE "Don't compile the code" OFF)
 
 if(CHIMAERA_NO_COMPILE)
-    # Copy tasks/TASK_NAME directory to ~/.chimaera during configure
-    file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/tasks/TASK_NAME
+    # Copy tasks/MOD_NAME directory to ~/.chimaera during configure
+    file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/tasks/MOD_NAME
         DESTINATION $ENV{HOME}/.chimaera)
 
     install(
@@ -216,12 +216,12 @@ install(
 )
 install(DIRECTORY include DESTINATION ${CMAKE_INSTALL_PREFIX})
 
-# copy tasks/TASK_NAME to HOME directory
+# copy tasks/MOD_NAME to HOME directory
 # Create .chimaera directory in home if it doesn't exist
 file(MAKE_DIRECTORY "$ENV{HOME}/.chimaera")
 
-# Copy tasks/TASK_NAME directory to ~/.chimaera during configure
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/tasks/TASK_NAME
+# Copy tasks/MOD_NAME directory to ~/.chimaera during configure
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/tasks/MOD_NAME
     DESTINATION $ENV{HOME}/.chimaera)
 
 # Install jarvis repo

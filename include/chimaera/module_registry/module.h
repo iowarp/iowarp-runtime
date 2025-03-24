@@ -284,7 +284,7 @@ typedef const char *(*get_module_name_t)(void);
 }  // extern c
 
 /** Used internally by task source file */
-#define CHI_TASK_CC(TRAIT_CLASS, TASK_NAME)                                 \
+#define CHI_TASK_CC(TRAIT_CLASS, MOD_NAME)                                  \
   extern "C" {                                                              \
   void *alloc_state(const chi::PoolId *pool_id, const char *pool_name) {    \
     chi::Container *exec =                                                  \
@@ -297,7 +297,7 @@ typedef const char *(*get_module_name_t)(void);
     exec->Init(*pool_id, CHI_CLIENT->GetQueueId(*pool_id), pool_name);      \
     return exec;                                                            \
   }                                                                         \
-  const char *get_module_name(void) { return TASK_NAME; }                   \
+  const char *get_module_name(void) { return MOD_NAME; }                    \
   bool is_chimaera_task_ = true;                                            \
   }
 

@@ -30,7 +30,7 @@ if(NOT CHIMAERA_EXPORTED_TARGETS)
 endif()
 
 # ADD SUBDIRECTORIES
-add_subdirectory(TASK_NAME)
+add_subdirectory(MOD_NAME)
 add_subdirectory(bdev)
 add_subdirectory(chimaera_admin)
 add_subdirectory(remote_queue)

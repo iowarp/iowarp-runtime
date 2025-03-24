@@ -10,14 +10,14 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef CHI_TASK_NAME_H_
-#define CHI_TASK_NAME_H_
+#ifndef CHI_MOD_NAME_H_
+#define CHI_MOD_NAME_H_
 
-#include "TASK_NAME_tasks.h"
+#include "MOD_NAME_tasks.h"
 
-namespace chi::TASK_NAME {
+namespace chi::MOD_NAME {
 
-/** Create TASK_NAME requests */
+/** Create MOD_NAME requests */
 class Client : public ModuleClient {
  public:
   /** Default constructor */
@@ -54,6 +54,6 @@ class Client : public ModuleClient {
   CHI_AUTOGEN_METHODS  // keep at class bottom
 };
 
-}  // namespace chi::TASK_NAME
+}  // namespace chi::MOD_NAME
 
-#endif  // CHI_TASK_NAME_H_
+#endif  // CHI_MOD_NAME_H_

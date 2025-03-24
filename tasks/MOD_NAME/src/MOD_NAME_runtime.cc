@@ -10,12 +10,12 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include "TASK_NAME/TASK_NAME_client.h"
+#include "MOD_NAME/MOD_NAME_client.h"
 #include "chimaera/api/chimaera_runtime.h"
 #include "chimaera/monitor/monitor.h"
 #include "chimaera_admin/chimaera_admin_client.h"
 
-namespace chi::TASK_NAME {
+namespace chi::MOD_NAME {
 
 class Server : public Module {
  public:
@@ -25,7 +25,7 @@ class Server : public Module {
   Server() = default;
 
   CHI_BEGIN(Create)
-  /** Construct TASK_NAME */
+  /** Construct MOD_NAME */
   void Create(CreateTask *task, RunContext &rctx) {
     // Create a set of lanes for holding tasks
     CreateLaneGroup(kDefaultGroup, 1, QUEUE_LOW_LATENCY);
@@ -42,7 +42,7 @@ class Server : public Module {
   }
 
   CHI_BEGIN(Destroy)
-  /** Destroy TASK_NAME */
+  /** Destroy MOD_NAME */
   void Destroy(DestroyTask *task, RunContext &rctx) {}
   void MonitorDestroy(MonitorModeId mode, DestroyTask *task, RunContext &rctx) {
   }
@@ -50,9 +50,9 @@ class Server : public Module {
 
   CHI_AUTOGEN_METHODS  // keep at class bottom
       public:
-#include "TASK_NAME/TASK_NAME_lib_exec.h"
+#include "MOD_NAME/MOD_NAME_lib_exec.h"
 };
 
-}  // namespace chi::TASK_NAME
+}  // namespace chi::MOD_NAME
 
-CHI_TASK_CC(chi::TASK_NAME::Server, "TASK_NAME");
+CHI_TASK_CC(chi::MOD_NAME::Server, "MOD_NAME");
