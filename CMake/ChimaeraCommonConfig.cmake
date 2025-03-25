@@ -139,6 +139,7 @@ macro(add_chimod_client_lib namespace target)
 
     # Create the ${namespace}::${target}_client alias
     add_library(${namespace}::${target}_client ALIAS ${namespace}_${target}_client)
+    message("Creating alias: ${namespace}::${target}_client to ${namespace}_${target}_client")
 
     # Add chimod library with cuda support
     if(CHIMAERA_ENABLE_CUDA)
