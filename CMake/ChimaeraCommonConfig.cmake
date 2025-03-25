@@ -100,13 +100,6 @@ macro(add_chimod_runtime_lib namespace target)
         target_link_libraries(${namespace}_${target} PUBLIC hshm::cxx)
     endif()
 
-    # Add the runtime library to the main project
-    add_library(${namespace}::${target} ALIAS ${namespace}_${target})
-
-    if(CHIMAERA_IS_MAIN_PROJECT)
-        add_dependencies(${namespace}_${target} chimaera::runtime)
-    endif()
-
     # Link the runtime library to the chimaera runtime
     target_link_libraries(${namespace}_${target} PUBLIC chimaera::runtime)
     list(APPEND ${namespace}_${target}_exports ${namespace}_${target})
@@ -116,6 +109,13 @@ macro(add_chimod_runtime_lib namespace target)
     add_library(${target} INTERFACE)
     target_link_libraries(${target} INTERFACE ${namespace}_${target})
     list(APPEND ${namespace}_${target}_exports ${target})
+
+    # Add the runtime library to the main project
+    add_library(${namespace}::${target} ALIAS ${namespace}_${target})
+
+    if(CHIMAERA_IS_MAIN_PROJECT)
+        add_dependencies(${namespace}_${target} chimaera::runtime)
+    endif()
 endmacro()
 
 # Create a chimod client library
@@ -125,9 +125,9 @@ macro(add_chimod_client_lib namespace target)
     # Create the ${namespace}_${target}_client library
     add_library(${namespace}_${target}_client ${ARGN})
     target_link_libraries(${namespace}_${target}_client PUBLIC chimaera::client_host)
-    target_include_directories(${namespace}_${target}_client PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../include>
-        $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/include>
+    target_include_directories(${namespace}_${target}_client
+        PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../include>
+        PUBLIC $<INSTALL_INTERFACE:include>
     )
     list(APPEND ${namespace}_${target}_exports ${namespace}_${target}_client)
     list(APPEND ${namespace}_${target}_client_iter ${namespace}_${target}_client)
@@ -137,14 +137,17 @@ macro(add_chimod_client_lib namespace target)
     target_link_libraries(${target}_client INTERFACE ${namespace}_${target}_client)
     list(APPEND ${namespace}_${target}_exports ${target}_client)
 
+    # Create the ${namespace}::${target}_client alias
+    add_library(${namespace}::${target}_client ALIAS ${namespace}_${target}_client)
+
     # Add chimod library with cuda support
     if(CHIMAERA_ENABLE_CUDA)
         # Create the ${namespace}_${target}_client_gpu library
         add_library(${namespace}_${target}_client_gpu ${ARGN})
         target_link_libraries(${namespace}_${target}_client_gpu PUBLIC hshm::cudacxx chimaera::client_gpu)
-        target_include_directories(${namespace}_${target}_client_gpu PUBLIC
-            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../include>
-            $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/include>
+        target_include_directories(${namespace}_${target}_client_gpu
+            PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../include>
+            PUBLIC $<INSTALL_INTERFACE:include>
         )
         list(APPEND ${namespace}_${target}_exports ${namespace}_${target}_client_gpu)
         list(APPEND ${namespace}_${target}_client_iter ${namespace}_${target}_client_gpu)
@@ -153,6 +156,9 @@ macro(add_chimod_client_lib namespace target)
         add_library(${target}_client_gpu INTERFACE)
         target_link_libraries(${target}_client_gpu INTERFACE ${namespace}_${target}_client_gpu)
         list(APPEND ${namespace}_${target}_exports ${target}_client_gpu)
+
+        # Create the ${namespace}::${target}_client alias
+        add_library(${namespace}::${target}_client_gpu ALIAS ${namespace}_${target}_client)
     endif()
 
     # Add chimod library with rocm support
@@ -160,9 +166,9 @@ macro(add_chimod_client_lib namespace target)
         # Create the ${namespace}_${target}_client_gpu library
         add_library(${namespace}_${target}_client_gpu ${ARGN})
         target_link_libraries(${namespace}_${target}_client_gpu PUBLIC hshm::rocmcxx_gpu chimaera::client_gpu)
-        target_include_directories(${namespace}_${target}_client_gpu PUBLIC
-            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../include>
-            $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/include>
+        target_include_directories(${namespace}_${target}_client_gpu
+            PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../include>
+            PUBLIC $<INSTALL_INTERFACE:include>
         )
         list(APPEND ${namespace}_${target}_exports ${namespace}_${target}_client_gpu)
         list(APPEND ${namespace}_${target}_client_iter ${namespace}_${target}_gpu)
@@ -171,6 +177,9 @@ macro(add_chimod_client_lib namespace target)
         add_library(${target}_client_gpu INTERFACE)
         target_link_libraries(${target}_client_gpu INTERFACE ${namespace}_${target}_client_gpu)
         list(APPEND ${namespace}_${target}_exports ${target}_client_gpu)
+
+        # Create the ${namespace}::${target}_client alias
+        add_library(${namespace}::${target}_client_gpu ALIAS ${namespace}_${target}_client)
     endif()
 
     # Create the full iterator

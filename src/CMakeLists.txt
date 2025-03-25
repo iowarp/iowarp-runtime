@@ -13,6 +13,10 @@ set(chimaera_client_exports)
 # Create the no-gpu client library
 add_library(chimaera_client_host ${CLIENT_SOURCES})
 target_link_libraries(chimaera_client_host PUBLIC hshm::cxx)
+target_include_directories(chimaera_client_host
+  PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../include>
+  PUBLIC $<INSTALL_INTERFACE:include>
+)
 add_library(client_host INTERFACE)
 target_link_libraries(client_host INTERFACE chimaera_client_host)
 add_library(chimaera::client_host ALIAS chimaera_client_host)
@@ -22,6 +26,10 @@ list(APPEND chimaera_client_exports chimaera_client_host client_host)
 if(CHIMAERA_ENABLE_CUDA)
   add_cuda_library(chimaera_client_gpu STATIC TRUE ${CLIENT_SOURCES})
   target_link_libraries(chimaera_client_gpu PUBLIC hshm::cudacxx)
+  target_include_directories(chimaera_client_gpu
+    PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../include>
+    PUBLIC $<INSTALL_INTERFACE:include>
+  )
   target_compile_definitions(chimaera_client_gpu PUBLIC CHIMAERA_ENABLE_CUDA)
   add_library(client_gpu INTERFACE)
   target_link_libraries(client_gpu INTERFACE chimaera_client_gpu)
@@ -33,6 +41,10 @@ endif()
 if(CHIMAERA_ENABLE_ROCM)
   add_rocm_gpu_library(chimaera_client_gpu STATIC TRUE ${CLIENT_SOURCES})
   target_link_libraries(chimaera_client_gpu PUBLIC hshm::rocmcxx_gpu)
+  target_include_directories(chimaera_client_gpu
+    PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../include>
+    PUBLIC $<INSTALL_INTERFACE:include>
+  )
   target_compile_definitions(chimaera_client_gpu PUBLIC CHIMAERA_ENABLE_ROCM)
   add_library(client_gpu INTERFACE)
   target_link_libraries(client_gpu INTERFACE chimaera_client_gpu)
@@ -74,11 +86,13 @@ elseif(CHIMAERA_ENABLE_ROCM)
 else()
   add_library(chimaera_runtime ${RUNTIME_SOURCES})
   target_link_libraries(chimaera_runtime PUBLIC hshm::cxx)
-
-  # add_library(chimaera_runtime_init SHARED chimaera_runtime_init.cc)
 endif()
 
 target_link_libraries(chimaera_runtime PUBLIC runtime_deps)
+target_include_directories(chimaera_runtime
+  PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../include>
+  PUBLIC $<INSTALL_INTERFACE:include>
+)
 target_compile_definitions(chimaera_runtime PUBLIC HSHM_DEFAULT_THREAD_MODEL=hshm::thread::Argobots)
 add_library(runtime INTERFACE)
 target_link_libraries(runtime INTERFACE chimaera_runtime)

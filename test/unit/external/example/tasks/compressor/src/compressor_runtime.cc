@@ -10,8 +10,7 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include "compressor/compressor.h"
-
+#include "compressor/compressor_client.h"
 #include "chimaera/api/chimaera_runtime.h"
 #include "chimaera/monitor/monitor.h"
 #include "chimaera_admin/chimaera_admin_client.h"
@@ -25,12 +24,14 @@ class Server : public Module {
  public:
   Server() = default;
 
+  CHI_BEGIN(Create)
   /** Construct compressor */
   void Create(CreateTask *task, RunContext &rctx) {
     // Create a set of lanes for holding tasks
     CreateLaneGroup(kDefaultGroup, 1, QUEUE_LOW_LATENCY);
   }
   void MonitorCreate(MonitorModeId mode, CreateTask *task, RunContext &rctx) {}
+  CHI_END(Create)
 
   /** Route a task to a lane */
   Lane *MapTaskToLane(const Task *task) override {
@@ -40,12 +41,15 @@ class Server : public Module {
     return GetLaneByHash(kDefaultGroup, task->prio_, 0);
   }
 
+  CHI_BEGIN(Destroy)
   /** Destroy compressor */
   void Destroy(DestroyTask *task, RunContext &rctx) {}
   void MonitorDestroy(MonitorModeId mode, DestroyTask *task, RunContext &rctx) {
   }
+  CHI_END(Destroy)
 
- public:
+  CHI_AUTOGEN_METHODS  // keep at class bottom
+      public:
 #include "compressor/compressor_lib_exec.h"
 };
 

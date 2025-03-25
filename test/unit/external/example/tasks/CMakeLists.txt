@@ -1,7 +1,10 @@
+
+cmake_minimum_required(VERSION 3.25)
+project(example)
 set(REPO_NAMESPACE example)
 
 # FIND CHIMAERA
-if(NOT CHIMAERA_IS_MAIN_PROJECT)
+if (NOT CHIMAERA_IS_MAIN_PROJECT)
   find_package(Chimaera CONFIG REQUIRED)
 endif()
 
@@ -22,7 +25,7 @@ if(NOT CHIMAERA_INSTALL_DATA_DIR)
   set(CHIMAERA_INSTALL_DATA_DIR ${CMAKE_INSTALL_PREFIX}/share)
 endif()
 
-if(NOT CHIMAERA_EXPORTED_TARGETS)
+if (NOT CHIMAERA_EXPORTED_TARGETS)
   set(CHIMAERA_EXPORTED_TARGETS Example)
 endif()
 
@@ -30,10 +33,8 @@ endif()
 add_subdirectory(compressor)
 
 # INSTALL TARGETS
-if(NOT CHIMAERA_IS_MAIN_PROJECT)
-  install(EXPORT ${CHIMAERA_EXPORTED_TARGETS}
-    FILE ${CHIMAERA_EXPORTED_TARGETS}Config.cmake
-    NAMESPACE example::
-    DESTINATION cmake
-  )
-endif()
+install(EXPORT ${CHIMAERA_EXPORTED_TARGETS}
+        FILE ${CHIMAERA_EXPORTED_TARGETS}Config.cmake
+        NAMESPACE example::
+        DESTINATION cmake
+)

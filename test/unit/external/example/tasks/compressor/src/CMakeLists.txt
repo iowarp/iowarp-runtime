@@ -6,7 +6,8 @@ set(MOD_EXPORTS ${REPO_NAMESPACE}_compressor_exports)
 # ------------------------------------------------------------------------------
 # Build compressor Task Library
 # ------------------------------------------------------------------------------
-add_chimod_library(${REPO_NAMESPACE} compressor compressor.cc)
+add_chimod_runtime_lib(${REPO_NAMESPACE} compressor compressor_runtime.cc)
+add_chimod_client_lib(${REPO_NAMESPACE} compressor compressor_client.cc)
 
 # ------------------------------------------------------------------------------
 # Install compressor Task Library

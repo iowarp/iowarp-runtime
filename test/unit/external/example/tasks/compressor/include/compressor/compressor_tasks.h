@@ -12,11 +12,10 @@ namespace chi::compressor {
 #include "compressor_methods.h"
 CHI_NAMESPACE_INIT
 
-/**
- * A task to create compressor
- * */
+CHI_BEGIN(Create)
+/** A task to create compressor */
 struct CreateTaskParams {
-  CLS_CONST char *lib_name_ = "compressor";
+  CLS_CONST char *lib_name_ = "chimaera_compressor";
 
   HSHM_INLINE_CROSS_FUN
   CreateTaskParams() = default;
@@ -28,9 +27,14 @@ struct CreateTaskParams {
   HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {}
 };
 typedef chi::Admin::CreatePoolBaseTask<CreateTaskParams> CreateTask;
+CHI_END(Create)
 
+CHI_BEGIN(Destroy)
 /** A task to destroy compressor */
 typedef chi::Admin::DestroyContainerTask DestroyTask;
+CHI_END(Destroy)
+
+CHI_AUTOGEN_METHODS  // keep at class bottom
 
 }  // namespace chi::compressor
 
