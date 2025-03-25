@@ -1,7 +1,7 @@
 
 services:
   node1:
-    image: lukemartinlogan/chimaera-deps:latest
+    image: iowarp/iowarp-deps:latest
     networks:
       - net
     hostname: node1
@@ -9,7 +9,7 @@ services:
     tty: true
     
   node2:
-    image: lukemartinlogan/chimaera-deps:latest
+    image: iowarp/iowarp-deps:latest
     networks:
       - net
     hostname: node2
