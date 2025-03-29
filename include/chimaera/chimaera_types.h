@@ -28,8 +28,8 @@
 #undef HSHM_DEFAULT_ALLOC_T
 #endif
 
-// #define HSHM_DEFAULT_ALLOC_T hipc::ScalablePageAllocator
-#define HSHM_DEFAULT_ALLOC_T hipc::ThreadLocalAllocator
+#define HSHM_DEFAULT_ALLOC_T hipc::ScalablePageAllocator
+// #define HSHM_DEFAULT_ALLOC_T hipc::ThreadLocalAllocator
 #define CHI_ALLOC_T HSHM_DEFAULT_ALLOC_T
 
 #include <hermes_shm/data_structures/all.h>
