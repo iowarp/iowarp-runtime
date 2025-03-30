@@ -295,7 +295,14 @@ class Server : public Module {
       // Free tasks
       for (FullPtr<Task> &task : done_tasks) {
         Container *exec = CHI_MOD_REGISTRY->GetStaticContainer(task->pool_);
-        CHI_CLIENT->DelTask(HSHM_MCTX, exec, task.ptr_);
+        try {
+          CHI_CLIENT->DelTask(HSHM_MCTX, exec, task.ptr_);
+        } catch (hshm::Error &e) {
+          HELOG(kError, "(node {}) Worker {} caught an error: {}",
+                CHI_CLIENT->node_id_, id_, e.what());
+          HELOG(kError, "(node {}) Was deleting task {}", CHI_CLIENT->node_id_,
+                task.ptr_);
+        }
       }
     } catch (hshm::Error &e) {
       HELOG(kError, "(node {}) Worker {} caught an error: {}",

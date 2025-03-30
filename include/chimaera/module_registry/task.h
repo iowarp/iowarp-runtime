@@ -318,6 +318,13 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
    * Task Bits
    * ===================================*/
 
+  /** ostream print */
+  friend std::ostream &operator<<(std::ostream &os, const Task &task) {
+    return os << hshm::Formatter::format("Task[{}]: pool={} method={} dom={}",
+                                         task.task_node_, task.pool_,
+                                         task.method_, task.dom_query_);
+  }
+
   /** Get lane hash */
   HSHM_INLINE_CROSS_FUN
   const u32 &GetContainerId() const { return dom_query_.sel_.id_; }
