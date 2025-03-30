@@ -140,6 +140,10 @@ class SegmentedTransfer {
     for (const TaskSegment &task : xfer.tasks_) {
       os << task << std::endl;
     }
+    for (const DataTransfer &xfer : xfer.bulk_) {
+      os << hshm::Formatter::format("DataTransfer: data={} size={}",
+                                    (void *)xfer.data_, xfer.data_size_);
+    }
     return os;
   }
 };

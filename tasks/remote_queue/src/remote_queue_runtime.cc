@@ -282,8 +282,13 @@ class Server : public Module {
       // Do transfers
       for (auto it = entries.begin(); it != entries.end(); ++it) {
         SegmentedTransfer xfer = it->second.Get();
-        CHI_THALLIUM->SyncIoCall<int>((i32)it->first, "RpcTaskComplete", xfer,
-                                      DT_WRITE);
+        try {
+          CHI_THALLIUM->SyncIoCall<int>((i32)it->first, "RpcTaskComplete", xfer,
+                                        DT_WRITE);
+        } catch (std::exception &e) {
+          HELOG(kError, "(node {}) Worker {} caught an exception: {} -- \n {}",
+                CHI_CLIENT->node_id_, id_, e.what(), xfer);
+        }
       }
 
       // Free tasks
