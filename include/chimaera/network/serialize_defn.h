@@ -142,7 +142,7 @@ class SegmentedTransfer {
     }
     for (const DataTransfer &xfer : xfer.bulk_) {
       os << hshm::Formatter::format("DataTransfer: data={} size={}",
-                                    (void *)xfer.data_, xfer.data_size_);
+                                    (size_t)xfer.data_, xfer.data_size_);
     }
     return os;
   }
