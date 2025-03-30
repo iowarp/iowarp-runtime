@@ -131,6 +131,7 @@ bool PrivateTaskMultiQueue::PushRemoteTask(RunContext &rctx,
   HLOG(kDebug, kWorkerDebug, "[TASK_CHECK] (node {}) Remoting task {}",
        CHI_CLIENT->node_id_, (void *)task.ptr_);
   // CASE 6: The task is remote to this machine, put in the remote queue.
+  rctx.exec_ = CHI_MOD_REGISTRY->GetStaticContainer(task->pool_);
   CHI_REMOTE_QUEUE->AsyncClientPushSubmitBase(
       HSHM_MCTX, nullptr, task->task_node_ + 1,
       DomainQuery::GetDirectId(SubDomainId::kGlobalContainers, 1), task.ptr_);
