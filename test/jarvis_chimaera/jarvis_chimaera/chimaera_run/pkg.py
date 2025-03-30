@@ -336,13 +336,14 @@ class ChimaeraRun(Service):
 
     def kill(self):
         self.get_hostfile()
-        Kill('.*chimaera.*',
-             PsshExecInfo(hostfile=self.hostfile,
-                          env=self.env))
-        self.log('Client Exited?')
+        for i in range(5):
+            Kill('.*chimaera.*',
+                PsshExecInfo(hostfile=self.hostfile,
+                            env=self.env))
+        self.log('Client Exited (killed 5 times)', Color.YELLOW)
         if self.daemon_pkg is not None:
             self.daemon_pkg.wait()
-        self.log('Daemon Exited?')
+        self.log('Daemon Exited', Color.YELLOW)
 
     def clean(self):
         """
