@@ -119,6 +119,8 @@ class SegmentedTransfer {
 
   void AllocateBulksServer();
 
+  void FreeBulksServer();
+
   size_t size() const {
     size_t size = 0;
     for (const DataTransfer &xfer : bulk_) {

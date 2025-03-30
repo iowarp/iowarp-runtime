@@ -264,6 +264,8 @@ class Server : public Module {
       RemoteEntry entry;
       std::unordered_map<NodeId, BinaryOutputArchive<false>> entries;
       auto &complete = complete_;
+      std::vector<FullPtr<Task>> done_tasks;
+      done_tasks.reserve(complete[0].size());
       while (!complete[0].pop(entry).IsNull()) {
         if (entries.find(entry.res_domain_.node_) == entries.end()) {
           entries.emplace(entry.res_domain_.node_,
@@ -274,7 +276,7 @@ class Server : public Module {
             CHI_MOD_REGISTRY->GetStaticContainer(done_task->pool_);
         BinaryOutputArchive<false> &ar = entries[entry.res_domain_.node_];
         exec->SaveEnd(done_task->method_, ar, done_task);
-        CHI_CLIENT->DelTask(HSHM_MCTX, exec, done_task);
+        done_tasks.emplace_back(done_task);
       }
 
       // Do transfers
@@ -282,6 +284,12 @@ class Server : public Module {
         SegmentedTransfer xfer = it->second.Get();
         CHI_THALLIUM->SyncIoCall<int>((i32)it->first, "RpcTaskComplete", xfer,
                                       DT_WRITE);
+      }
+
+      // Free tasks
+      for (FullPtr<Task> &task : done_tasks) {
+        Container *exec = CHI_MOD_REGISTRY->GetStaticContainer(task->pool_);
+        CHI_CLIENT->DelTask(HSHM_MCTX, exec, task.ptr_);
       }
     } catch (hshm::Error &e) {
       HELOG(kError, "(node {}) Worker {} caught an error: {}",

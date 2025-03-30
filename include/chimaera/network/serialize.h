@@ -27,6 +27,13 @@ void SegmentedTransfer::AllocateBulksServer() {
     xfer.data_ = data.ptr_;
   }
 }
+
+void SegmentedTransfer::FreeBulksServer() {
+  for (DataTransfer &xfer : bulk_) {
+    FullPtr<char> data((char *)xfer.data_);
+    CHI_CLIENT->FreeBuffer(HSHM_MCTX, data.shm_);
+  }
+}
 #endif
 
 }  // namespace chi
