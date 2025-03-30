@@ -286,8 +286,9 @@ class Server : public Module {
           CHI_THALLIUM->SyncIoCall<int>((i32)it->first, "RpcTaskComplete", xfer,
                                         DT_WRITE);
         } catch (std::exception &e) {
-          HELOG(kError, "(node {}) Worker {} caught an exception: {} -- \n {}",
-                CHI_CLIENT->node_id_, id_, e.what(), xfer);
+          HELOG(kError, "(node {}) Worker {} caught an exception: {}",
+                CHI_CLIENT->node_id_, id_, e.what());
+          HELOG(kError, "Current XFER {}", xfer);
         }
       }
 
@@ -394,7 +395,13 @@ class Server : public Module {
              rep_task);
       }
       // Process bulk message
-      CHI_THALLIUM->IoCallServerWrite(req, bulk, xfer);
+      try {
+        CHI_THALLIUM->IoCallServerWrite(req, bulk, xfer);
+      } catch (std::exception &e) {
+        HELOG(kError, "(node {}) Worker {} caught an exception: {}",
+              CHI_CLIENT->node_id_, id_, e.what());
+        HELOG(kError, "Current XFER {}", xfer);
+      }
       // Unblock completed tasks
       for (size_t i = 0; i < xfer.tasks_.size(); ++i) {
         Task *rep_task = (Task *)xfer.tasks_[i].task_addr_;
