@@ -20,14 +20,6 @@ install(
   ARCHIVE DESTINATION ${CHIMAERA_INSTALL_LIB_DIR}
   RUNTIME DESTINATION ${CHIMAERA_INSTALL_BIN_DIR}
 )
-install(
-  FILES
-  chimaera_monitor.py
-  DESTINATION
-  ${CHIMAERA_INSTALL_LIB_DIR}
-  COMPONENT
-  headers
-)
 
 # ------------------------------------------------------------------------------
 # Coverage
