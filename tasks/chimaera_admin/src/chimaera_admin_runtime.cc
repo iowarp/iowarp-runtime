@@ -10,14 +10,13 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include "chimaera_admin/chimaera_admin_client.h"
-
 #include "chimaera/api/chimaera_runtime.h"
 #include "chimaera/monitor/monitor.h"
 #include "chimaera/work_orchestrator/comutex.h"
 #include "chimaera/work_orchestrator/corwlock.h"
 #include "chimaera/work_orchestrator/scheduler.h"
 #include "chimaera/work_orchestrator/work_orchestrator.h"
+#include "chimaera_admin/chimaera_admin_client.h"
 
 namespace chi::Admin {
 

@@ -106,6 +106,8 @@ bool PrivateTaskMultiQueue::PushLocalTask(const DomainQuery &res_query,
   if (!exec || !exec->is_created_) {
     // If the container doesn't exist, it's probably going to get created.
     // Put in the failed queue.
+    HILOG(kWarning, "Either {} or {} does not exist", task->pool_,
+          container_id);
     return !GetFail().push(task).IsNull();
   }
   // Find the lane
