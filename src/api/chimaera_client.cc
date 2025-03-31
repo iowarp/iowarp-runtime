@@ -49,7 +49,7 @@ static inline void ExceptionTerminator() {
   } catch (const std::exception &e) {
     std::cerr << "Uncaught exception: " << e.what() << std::endl;
   } catch (hshm::Error &e) {
-    e.print();
+    HILOG(kInfo, "(node {}) {}", e.what());
   } catch (...) {
     std::cerr << "Uncaught exception of unknown type." << std::endl;
   }
