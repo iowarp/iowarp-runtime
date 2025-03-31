@@ -153,11 +153,11 @@ template hshm::qtok_t Lane::push<true>(const FullPtr<Task> &task);
 template <bool NO_COUNT>
 hshm::qtok_t Lane::push(const FullPtr<Task> &task) {
   Worker &worker = CHI_WORK_ORCHESTRATOR->GetWorker(worker_id_);
-  // Worker *cur_worker = CHI_CUR_WORKER;
-  // if (!cur_worker || worker.id_ != cur_worker->id_) {
-  //   worker.active_.GetFail().push(task);
-  //   return hshm::qtok_t();
-  // }
+  Worker *cur_worker = CHI_CUR_WORKER;
+  if (!cur_worker || worker.id_ != cur_worker->id_) {
+    worker.active_.GetFail().push(task);
+    return hshm::qtok_t();
+  }
   if constexpr (!NO_COUNT) {
     size_t dup = count_.fetch_add(1);
     if (dup == 0) {
@@ -374,6 +374,9 @@ HSHM_INLINE void Worker::PollTempQueue(PrivateTaskQueue &priv_queue,
     if (priv_queue.pop(task).IsNull()) {
       break;
     }
+    if (task.IsNull()) {
+      continue;
+    }
     if constexpr (FROM_FLUSH) {
       if (task->IsFlush()) {
         task->UnsetFlush();
@@ -423,6 +426,9 @@ size_t Worker::PollPrivateLaneMultiQueue(PrivateLaneQueue &lanes,
         if (chi_lane->pop(task).IsNull()) {
           HLOG(kDebug, kWorkerDebug, "Lane has no tasks {}", chi_lane);
           break;
+        }
+        if (task.IsNull()) {
+          continue;
         }
         bool pushback = RunTask(task, flushing);
         if (pushback) {
