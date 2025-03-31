@@ -295,7 +295,8 @@ void Worker::Loop() {
     MakeDedicated();
   }
   HLOG(kDebug, kWorkerDebug, "Entered worker {}", id_);
-  HILOG(kInfo, "CURRENT WORKER {} (node {})", id_, CHI_CLIENT->node_id_);
+  HILOG(kInfo, "CURRENT WORKER {} (node {})", CHI_CUR_WORKER->id_,
+        CHI_CLIENT->node_id_);
   WorkOrchestrator *orch = CHI_WORK_ORCHESTRATOR;
   cur_time_.Refresh();
   while (orch->IsAlive()) {
