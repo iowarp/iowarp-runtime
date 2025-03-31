@@ -103,6 +103,7 @@ class Server : public Module {
     // Register the block
     submit_task->SetBlocked(1);
     orig_task->rctx_.pending_to_ = submit_task;
+    doing_tasks_.emplace((size_t)orig_task, (size_t)submit_task);
 
     // Submit to the new domain
     size_t node_hash = hshm::hash<NodeId>{}(res_query.node_);
@@ -145,6 +146,7 @@ class Server : public Module {
       auto &submit = submit_;
       HLOG(kInfo, kRemoteQueue, "[TASK_CHECK] Task replica addr {}",
            rep_task.ptr_);
+      doing_tasks_.emplace((size_t)rep_task.ptr_, (size_t)submit_task);
       submit[node_hash % submit.size()].emplace(
           (RemoteEntry){res_query, rep_task.ptr_});
       replicas.emplace_back(rep_task);
@@ -223,8 +225,6 @@ class Server : public Module {
         HLOG(kInfo, kRemoteQueue,
              "[TASK_CHECK] Serializing rep_task {}({} -> {}) ", rep_task,
              CHI_RPC->node_id_, entry.res_domain_.node_);
-        doing_tasks_.emplace((size_t)rep_task,
-                             (size_t)rep_task->rctx_.pending_to_);
       }
 
       for (auto it = entries.begin(); it != entries.end(); ++it) {
@@ -420,13 +420,12 @@ class Server : public Module {
           HELOG(kFatal,
                 "(node {}) An invalid task was sent as complete to this node");
         } else if (task_exists->second != (size_t)rep_task->rctx_.pending_to_) {
-          // HELOG(kWarning,
-          //       "A valid task's pending_to was erroneously changed from {} ->
-          //       "
-          //       "{}: "
-          //       "task_node={} pool={} method={}",
-          //       task_exists->second, (size_t)rep_task->rctx_.pending_to_,
-          //       rep_task->task_node_, rep_task->pool_, rep_task->method_);
+          HELOG(kWarning,
+                "A valid task's pending_to was erroneously changed from {} ->"
+                "{}: "
+                "task_node={} pool={} method={}",
+                task_exists->second, (size_t)rep_task->rctx_.pending_to_,
+                rep_task->task_node_, rep_task->pool_, rep_task->method_);
         }
         Task *submit_task = (Task *)task_exists->second;
         HLOG(kInfo, kRemoteQueue, "[TASK_CHECK] Unblocking the submit_task {}",
