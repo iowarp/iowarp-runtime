@@ -40,9 +40,26 @@ Client *Client::Create(const char *server_config_path,
   return this;
 }
 
+void ExceptionTerminator() {
+  try {
+    std::exception_ptr currentException = std::current_exception();
+    if (currentException) {
+      std::rethrow_exception(currentException);
+    }
+  } catch (const std::exception &e) {
+    std::cerr << "Uncaught exception: " << e.what() << std::endl;
+  } catch (hshm::Error &e) {
+    e.print();
+  } catch (...) {
+    std::cerr << "Uncaught exception of unknown type." << std::endl;
+  }
+  std::abort();  // Terminate after printing the error.
+}
+
 /** Initialize client */
 void Client::ClientInit(const char *server_config_path,
                         const char *client_config_path, bool server) {
+  std::set_terminate(ExceptionTerminator);
   LoadServerConfig(server_config_path);
   LoadClientConfig(client_config_path);
   LoadSharedMemory(server);

@@ -30,8 +30,26 @@ void Runtime::Create(std::string server_config_path) {
   is_being_initialized_ = false;
 }
 
+void ExceptionTerminator() {
+  try {
+    std::exception_ptr currentException = std::current_exception();
+    if (currentException) {
+      std::rethrow_exception(currentException);
+    }
+  } catch (const std::exception &e) {
+    std::cerr << "Uncaught exception: " << e.what() << std::endl;
+  } catch (hshm::Error &e) {
+    e.print();
+  } catch (...) {
+    std::cerr << "Uncaught exception of unknown type." << std::endl;
+  }
+  std::abort();  // Terminate after printing the error.
+}
+
 /** Initialize */
 void Runtime::ServerInit(std::string server_config_path) {
+  std::set_terminate(ExceptionTerminator);
+
   LoadServerConfig(server_config_path);
   RefreshNumGpus();
   InitSharedMemory();
