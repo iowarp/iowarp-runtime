@@ -30,7 +30,7 @@ void Runtime::Create(std::string server_config_path) {
   is_being_initialized_ = false;
 }
 
-void ExceptionTerminator() {
+static inline void ExceptionTerminator() {
   try {
     std::exception_ptr currentException = std::current_exception();
     if (currentException) {
