@@ -173,6 +173,16 @@ struct WriteTask : public Task, TaskFlags<TF_SRL_SYM> {
     off_ = off;
   }
 
+  /** Destructor */
+  ~WriteTask() {
+    // HILOG(kInfo, "(node {}) Destroying PUT {} of size {}",
+    // CHI_CLIENT->node_id_,
+    //       task_node_, data_size_);
+    if (IsDataOwner() && !data_.IsNull()) {
+      CHI_CLIENT->FreeBuffer(HSHM_MCTX, data_);
+    }
+  }
+
   /** Duplicate message */
   HSHM_INLINE_CROSS_FUN
   void CopyStart(const WriteTask &other, bool deep) {
@@ -231,6 +241,16 @@ struct ReadTask : public Task, TaskFlags<TF_SRL_SYM> {
     data_ = data;
     size_ = size;
     off_ = off;
+  }
+
+  /** Destructor */
+  ~ReadTask() {
+    // HILOG(kInfo, "(node {}) Destroying PUT {} of size {}",
+    // CHI_CLIENT->node_id_,
+    //       task_node_, data_size_);
+    if (IsDataOwner() && !data_.IsNull()) {
+      CHI_CLIENT->FreeBuffer(HSHM_MCTX, data_);
+    }
   }
 
   /** Duplicate message */
