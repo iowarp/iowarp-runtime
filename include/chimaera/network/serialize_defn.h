@@ -180,6 +180,7 @@ class BinaryOutputArchive {
 
   /** Serialize using xfer */
   BinaryOutputArchive &bulk(chi::IntFlag flags, char *data, size_t &data_size) {
+    Serialize(data_size);
     if (!data_size) {
       return *this;
     }
@@ -290,15 +291,15 @@ class BinaryInputArchive {
 
   /** Deserialize using xfer */
   BinaryInputArchive &bulk(chi::IntFlag flags, char *&data, size_t &data_size) {
-    DataTransfer &xfer = xfer_.bulk_[xfer_off_];
+    Deserialize(data_size);
+    if (!data_size) {
+      return *this;
+    }
+    DataTransfer &xfer = xfer_.bulk_[xfer_off_++];
     if constexpr (is_start) {
       data = (char *)xfer.data_;
-      data_size = xfer.data_size_;
     } else {
       xfer.data_ = data;
-    }
-    if (data_size > 0) {
-      xfer_off_++;
     }
     return *this;
   }
