@@ -30,33 +30,8 @@ void Runtime::Create(std::string server_config_path) {
   is_being_initialized_ = false;
 }
 
-static inline std::string get_process_filename() {
-  char result[PATH_MAX];
-  ssize_t count = readlink("/proc/self/exe", result, PATH_MAX);
-  return std::string(result, (count > 0) ? count : 0);
-}
-
-static inline void ExceptionTerminator() {
-  try {
-    std::exception_ptr currentException = std::current_exception();
-    if (currentException) {
-      std::rethrow_exception(currentException);
-    }
-  } catch (const std::exception &e) {
-    std::cerr << "Uncaught exception: " << e.what() << std::endl;
-  } catch (hshm::Error &e) {
-    std::string exe = get_process_filename();
-    HILOG(kInfo, "(node {}, exe {}) {}", CHI_CLIENT->node_id_, exe, e.what());
-  } catch (...) {
-    std::cerr << "Uncaught exception of unknown type." << std::endl;
-  }
-  std::abort();  // Terminate after printing the error.
-}
-
 /** Initialize */
 void Runtime::ServerInit(std::string server_config_path) {
-  std::set_terminate(ExceptionTerminator);
-
   LoadServerConfig(server_config_path);
   RefreshNumGpus();
   InitSharedMemory();
