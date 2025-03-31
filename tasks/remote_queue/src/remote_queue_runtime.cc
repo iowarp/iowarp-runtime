@@ -408,9 +408,11 @@ class Server : public Module {
           HELOG(kFatal,
                 "(node {}) An invalid task was sent as complete to this node");
         } else if (task_exists->second != (size_t)rep_task->rctx_.pending_to_) {
-          HELOG(kFatal,
-                "A valid task's pending_to was erroneously changed: "
+          HELOG(kWarning,
+                "A valid task's pending_to was erroneously changed from {} -> "
+                "{}: "
                 "task_node={} pool={} method={}",
+                task_exists->second, (size_t)rep_task->rctx_.pending_to_,
                 rep_task->task_node_, rep_task->pool_, rep_task->method_);
         }
       }
