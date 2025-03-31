@@ -23,7 +23,11 @@ HSHM_INLINE_CROSS_FUN FullPtr<char> Client::AllocateBufferSafe(
     const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, size_t size) {
 #ifdef HSHM_IS_HOST
   FullPtr<char> p(FullPtr<char>::GetNull());
-  HILOG(kInfo, "(node {}) Beginning to allocate", CHI_CLIENT->node_id_);
+  HILOG(kInfo, "(node {}) Beginning to allocate {}", CHI_CLIENT->node_id_,
+        size);
+  if (size == 0) {
+    return FullPtr<char>::GetNull();
+  }
   while (true) {
     try {
       p = alloc->AllocateLocalPtr<char>(alloc.ctx_, size);
@@ -44,7 +48,7 @@ HSHM_INLINE_CROSS_FUN FullPtr<char> Client::AllocateBufferSafe(
     Task::StaticYieldFactory<TASK_YIELD_STD>();
 #endif
   }
-  HILOG(kInfo, "(node {}) Allocated", CHI_CLIENT->node_id_);
+  HILOG(kInfo, "(node {}) Allocated {}", CHI_CLIENT->node_id_, size);
   return p;
 #endif
 }
