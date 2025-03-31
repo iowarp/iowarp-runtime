@@ -211,7 +211,8 @@ struct UniqueId {
   /** Print operator */
   friend std::ostream &operator<<(std::ostream &os, const UniqueId &id) {
     return os << (std::to_string(id.node_id_) + "." +
-                  std::to_string(id.unique_));
+                  std::to_string(id.unique_)) +
+                     "::" + std::to_string(id.hash_);
   }
 
   /** Hash function */
