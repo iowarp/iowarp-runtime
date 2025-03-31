@@ -35,6 +35,7 @@ class Server : public Module {
   std::vector<hshm::mpsc_queue<RemoteEntry>> complete_;
   std::vector<FullPtr<ClientSubmitTask>> submitters_;
   std::vector<FullPtr<ServerCompleteTask>> completers_;
+  std::unordered_map<size_t, size_t> doing_tasks_;
   CLS_CONST int kNodeRpcLanes = 0;
   CLS_CONST int kInitRpcLanes = 1;
 
@@ -222,6 +223,8 @@ class Server : public Module {
         HLOG(kInfo, kRemoteQueue,
              "[TASK_CHECK] Serializing rep_task {}({} -> {}) ", rep_task,
              CHI_RPC->node_id_, entry.res_domain_.node_);
+        doing_tasks_.emplace((size_t)rep_task,
+                             (size_t)rep_task->rctx_.pending_to_);
       }
 
       for (auto it = entries.begin(); it != entries.end(); ++it) {
@@ -400,6 +403,16 @@ class Server : public Module {
         exec->LoadEnd(rep_task->method_, ar, rep_task);
         HLOG(kInfo, kRemoteQueue, "[TASK_CHECK] Completing replica {}",
              rep_task);
+        auto task_exists = doing_tasks_.find((size_t)rep_task);
+        if (task_exists == doing_tasks_.end()) {
+          HELOG(kFatal,
+                "(node {}) An invalid task was sent as complete to this node");
+        } else if (task_exists->second != (size_t)rep_task->rctx_.pending_to_) {
+          HELOG(kFatal,
+                "A valid task's pending_to was erroneously changed: "
+                "task_node={} pool={} method={}",
+                rep_task->task_node_, rep_task->pool_, rep_task->method_);
+        }
       }
       // Process bulk message
       try {
