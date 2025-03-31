@@ -11,6 +11,7 @@
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include <hermes_shm/util/affinity.h>
+#include <hermes_shm/util/logging.h>
 #include <hermes_shm/util/timer.h>
 
 #include <queue>
@@ -155,7 +156,9 @@ hshm::qtok_t Lane::push(const FullPtr<Task> &task) {
   Worker &worker = CHI_WORK_ORCHESTRATOR->GetWorker(worker_id_);
   Worker *cur_worker = CHI_CUR_WORKER;
   if (!cur_worker || worker.id_ != cur_worker->id_) {
+    HILOG(kInfo, "Adding to GetFail queue {}", task.ptr_);
     worker.active_.GetFail().push(task);
+    HILOG(kInfo, "GetFail queue size {}", worker.active_.GetFail().size());
     return hshm::qtok_t();
   }
   if constexpr (!NO_COUNT) {
