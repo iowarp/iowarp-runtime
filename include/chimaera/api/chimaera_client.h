@@ -46,6 +46,7 @@ HSHM_INLINE_CROSS_FUN FullPtr<char> Client::AllocateBufferSafe(
   }
   HILOG(kInfo, "Allocated");
   return p;
+#endif
 }
 
 /** Send a task to the runtime */
