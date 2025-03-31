@@ -376,6 +376,8 @@ class ChimaeraRun(Service):
             for line in output:
                 if 'grep' in line:
                     continue
+                if 'chimaera_run' not in line:
+                    continue
                 self.log(f'Chimaera is running on {host} ({line})', Color.CYAN)
                 running.append(host)
                 break
