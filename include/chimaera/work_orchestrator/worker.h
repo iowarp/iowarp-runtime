@@ -259,6 +259,7 @@ class PrivateTaskMultiQueue {
 
 class Worker {
  public:
+  CLS_CONST WorkerId kNullWorkerId = (WorkerId)-1; /**< Null worker id */
   WorkerId id_; /**< Unique identifier of this worker */
   // std::unique_ptr<std::thread> thread_;  /**< The worker thread handle */
   // int pthread_id_;      /**< The worker pthread handle */
@@ -292,6 +293,9 @@ class Worker {
   /**===============================================================
    * Initialize Worker
    * =============================================================== */
+
+  /** Null worker check */
+  bool IsNull() { return id_ == kNullWorkerId; }
 
   /** Constructor */
   Worker(WorkerId id, int cpu_id, ABT_xstream xstream);

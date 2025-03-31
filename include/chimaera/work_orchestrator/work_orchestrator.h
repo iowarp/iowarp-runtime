@@ -43,11 +43,10 @@ struct BlockedTask {
 class WorkOrchestrator {
  public:
   ServerConfig *config_; /**< The server configuration */
-  std::vector<std::unique_ptr<Worker>> workers_;   /**< Workers execute tasks */
-  CLS_CONST WorkerId kNullWorkerId = (WorkerId)-1; /**< Null worker id */
-  std::unique_ptr<Worker> null_worker_;            /**< Null worker */
-  std::vector<Worker *> dworkers_; /**< Core-dedicated workers */
-  std::vector<Worker *> oworkers_; /**< Undedicated workers */
+  std::vector<std::unique_ptr<Worker>> workers_; /**< Workers execute tasks */
+  std::unique_ptr<Worker> null_worker_;          /**< Null worker */
+  std::vector<Worker *> dworkers_;               /**< Core-dedicated workers */
+  std::vector<Worker *> oworkers_;               /**< Undedicated workers */
   std::unique_ptr<ReinforceWorker>
       reinforce_worker_;             /**< Reinforcement worker */
   std::atomic<bool> kill_requested_; /**< Kill flushing threads eventually */

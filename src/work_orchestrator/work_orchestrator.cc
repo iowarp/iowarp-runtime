@@ -57,7 +57,7 @@ void WorkOrchestrator::PrepareWorkers() {
     cpu_workers[cpu_id].push_back(&worker);
     ++worker_id;
   }
-  null_worker_ = std::make_unique<Worker>(kNullWorkerId, 0, nullptr);
+  null_worker_ = std::make_unique<Worker>(Worker::kNullWorkerId, 0, nullptr);
   MarkWorkers(cpu_workers);
 }
 
@@ -179,7 +179,7 @@ void WorkOrchestrator::Join() {
 
 /** Get worker with this id */
 Worker &WorkOrchestrator::GetWorker(WorkerId worker_id) {
-  if (worker_id == kNullWorkerId) {
+  if (worker_id == Worker::kNullWorkerId) {
     return *null_worker_;
   } else if (worker_id < workers_.size()) {
     return *workers_[worker_id];
