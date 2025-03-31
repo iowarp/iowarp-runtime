@@ -67,7 +67,7 @@ HSHM_INLINE_CROSS_FUN void Client::ScheduleTask(Task *parent_task,
   //       node_id_, task->task_node_, task->pool_, task->dom_query_);
   task->YieldInit(parent_task);
   Worker *cur_worker = CHI_CUR_WORKER;
-  if (!cur_worker) {
+  if (cur_worker->id_ == WorkOrchestrator::kNullWorkerId) {
     cur_worker = &CHI_WORK_ORCHESTRATOR->GetWorker(0);
   }
   cur_worker->active_.push(task);
