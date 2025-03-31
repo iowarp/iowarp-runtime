@@ -366,7 +366,7 @@ class ChimaeraRun(Service):
         :return: True or false
         """
         self.get_hostfile()
-        stats = Exec('ps -ef | grep .*chimaera_run.*', 
+        stats = Exec('ps -ef | grep .*chimaera_start_runtime.*', 
              PsshExecInfo(hostfile=self.hostfile,
              env=self.env,
              collect_output=True,
@@ -376,7 +376,7 @@ class ChimaeraRun(Service):
             for line in output.splitlines():
                 if 'grep' in line:
                     continue
-                if 'chimaera_run' not in line:
+                if 'chimaera_start_runtime' not in line:
                     continue
                 self.log(f'Chimaera is running on {host}', Color.CYAN)
                 running.append(host)
