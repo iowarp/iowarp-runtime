@@ -77,6 +77,7 @@ class Server : public Module {
 
         // Open file for read & write, no override
         fd_ = open(url_.path_.c_str(), O_RDWR | O_CREAT, 0666);
+        ftruncate(fd_, dev_size);
         hshm::Timer time;
         lat_cutoff_ = KILOBYTES(16);
         std::vector<char> data(MEGABYTES(1));
