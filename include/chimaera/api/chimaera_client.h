@@ -32,12 +32,13 @@ HSHM_INLINE_CROSS_FUN FullPtr<char> Client::AllocateBufferSafe(
     if (!p.shm_.IsNull()) {
       break;
     }
+#ifdef CHIMAERA_RUNTIME
     if constexpr (FROM_REMOTE) {
       Task::StaticYieldFactory<TASK_YIELD_ABT>();
+    } else {
+      Task *task = CHI_CUR_TASK;
+      task->Yield();
     }
-#ifdef CHIMAERA_RUNTIME
-    Task *task = CHI_CUR_TASK;
-    task->Yield();
 #else
     Task::StaticYieldFactory<TASK_YIELD_STD>();
 #endif
