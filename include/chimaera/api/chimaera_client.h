@@ -69,7 +69,7 @@ HSHM_INLINE_CROSS_FUN void Client::ScheduleTask(Task *parent_task,
   Worker *cur_worker = CHI_CUR_WORKER;
   if (cur_worker->IsNull()) {
     cur_worker = &CHI_WORK_ORCHESTRATOR->GetWorker(0);
-    cur_worker->active_.GetFail().push(task);
+    cur_worker->active_.GetFail().push(task.template Cast<Task>());
   } else {
     cur_worker->active_.push(task);
   }
