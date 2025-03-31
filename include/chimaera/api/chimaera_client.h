@@ -47,6 +47,9 @@ HSHM_INLINE_CROSS_FUN FullPtr<char> Client::AllocateBufferSafe(
 #else
     Task::StaticYieldFactory<TASK_YIELD_STD>();
 #endif
+
+    HILOG(kInfo, "(node {}) Trying {} from {}", CHI_CLIENT->node_id_, size,
+          alloc->GetId());
   }
   HILOG(kInfo, "(node {}) Allocated {} from {}", CHI_CLIENT->node_id_, size,
         alloc->GetId());
