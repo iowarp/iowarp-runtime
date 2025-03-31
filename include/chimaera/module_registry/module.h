@@ -41,8 +41,8 @@ class Lane {
   CoMutex comux_;
   hipc::atomic<hshm::min_u64> plug_count_;
   size_t lane_req_;
-  chi::ext_ring_buffer<TaskPointer> active_tasks_;
-  // chi::mpsc_queue<TaskPointer> active_tasks_;
+  // chi::ext_ring_buffer<TaskPointer> active_tasks_;
+  chi::mpsc_queue<TaskPointer> active_tasks_;
   hipc::atomic<hshm::min_u64> count_;
 
  public:
