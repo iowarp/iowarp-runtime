@@ -248,7 +248,7 @@ struct ReadTask : public Task, TaskFlags<TF_SRL_SYM> {
   template <typename Ar>
   HSHM_INLINE_CROSS_FUN void SerializeStart(Ar &ar) {
     ar.bulk(DT_EXPOSE, data_, size_);
-    ar(size_, off_);
+    ar(off_);
   }
 
   /** (De)serialize message return */

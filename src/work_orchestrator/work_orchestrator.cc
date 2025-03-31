@@ -179,7 +179,14 @@ void WorkOrchestrator::Join() {
 
 /** Get worker with this id */
 Worker &WorkOrchestrator::GetWorker(WorkerId worker_id) {
-  return *workers_[worker_id];
+  if (worker_id == kNullWorkerId) {
+    return *null_worker_;
+  } else if (worker_id < workers_.size()) {
+    return *workers_[worker_id];
+  } else {
+    HELOG(kError, "Worker {} does not exist", worker_id);
+    return *null_worker_;
+  }
 }
 
 /** Get the number of workers */
