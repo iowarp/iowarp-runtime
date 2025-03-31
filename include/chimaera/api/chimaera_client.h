@@ -69,8 +69,10 @@ HSHM_INLINE_CROSS_FUN void Client::ScheduleTask(Task *parent_task,
   Worker *cur_worker = CHI_CUR_WORKER;
   if (cur_worker->IsNull()) {
     cur_worker = &CHI_WORK_ORCHESTRATOR->GetWorker(0);
+    cur_worker->active_.GetFail().push(task);
+  } else {
+    cur_worker->active_.push(task);
   }
-  cur_worker->active_.push(task);
   // HILOG(kInfo, "Scheduling task (runtime, node={}): {} pool={} dom={}",
   //       node_id_, task->task_node_, task->pool_, task->dom_query_);
 #endif
