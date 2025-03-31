@@ -420,7 +420,7 @@ class ModuleRegistry {
     // ScopedMutex lock(lock_, 0);
     auto pool_it = pools_.find(pool_id);
     if (pool_it == pools_.end()) {
-      HELOG(kFatal, "Could not find pool {}", pool_id);
+      // HELOG(kFatal, "Could not find pool {}", pool_id);
       return nullptr;
     }
     PoolInfo &pool = pool_it->second;
