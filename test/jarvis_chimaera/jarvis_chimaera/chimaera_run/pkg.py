@@ -378,7 +378,7 @@ class ChimaeraRun(Service):
                     continue
                 if 'chimaera_run' not in line:
                     continue
-                self.log(f'Chimaera is running on {host} ({line})', Color.CYAN)
+                self.log(f'Chimaera is running on {host}', Color.CYAN)
                 running.append(host)
                 break
         is_running = len(running) == len(self.hostfile)
