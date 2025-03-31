@@ -80,6 +80,36 @@ class WorkOrchestrator {
   /** Get worker with this id */
   Worker &GetWorker(WorkerId worker_id);
 
+  /** Get overlap workers by hash */
+  Worker &GetOverlapWorkerByHash(u32 hash) {
+    return *workers_[hash % workers_.size()];
+  }
+
+  /** Get dedicated worker by hash */
+  Worker &GetDedicatedWorkerByHash(u32 hash) {
+    return *dworkers_[hash % dworkers_.size()];
+  }
+
+  /** Get worker by hash */
+  Worker &GetWorkerByHash(TaskPrio prio, u32 hash) {
+    if (prio == TaskPrioOpt::kLowLatency) {
+      return GetDedicatedWorkerByHash(hash);
+    } else {
+      return GetOverlapWorkerByHash(hash);
+    }
+  }
+
+  /** Get overlap worker round-robin */
+  Worker &GetWorkerRoundRobin(TaskPrio prio) {
+    static int ohash = 0;
+    static int dhash = 0;
+    if (prio == TaskPrioOpt::kLowLatency) {
+      return GetDedicatedWorkerByHash(dhash++);
+    } else {
+      return GetOverlapWorkerByHash(dhash++);
+    }
+  }
+
   /** Get the number of workers */
   size_t GetNumWorkers();
 
