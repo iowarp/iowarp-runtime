@@ -35,7 +35,6 @@ class Server : public Module {
   std::vector<hshm::mpsc_queue<RemoteEntry>> complete_;
   std::vector<FullPtr<ClientSubmitTask>> submitters_;
   std::vector<FullPtr<ServerCompleteTask>> completers_;
-  std::unordered_map<size_t, size_t> doing_tasks_;
   CLS_CONST int kNodeRpcLanes = 0;
   CLS_CONST int kInitRpcLanes = 1;
 
@@ -96,14 +95,12 @@ class Server : public Module {
   void Direct(Task *submit_task, Task *orig_task,
               ResolvedDomainQuery &res_query, RunContext &rctx) {
     // Save the original domain query
-    Task *orig_pending_to = orig_task->rctx_.pending_to_;
     DomainQuery orig_dom_query = orig_task->dom_query_;
     orig_task->dom_query_ = res_query.dom_;
 
     // Register the block
     submit_task->SetBlocked(1);
-    orig_task->rctx_.pending_to_ = submit_task;
-    doing_tasks_.emplace((size_t)orig_task, (size_t)submit_task);
+    orig_task->rctx_.remote_pending_ = submit_task;
 
     // Submit to the new domain
     size_t node_hash = hshm::hash<NodeId>{}(res_query.node_);
@@ -116,7 +113,6 @@ class Server : public Module {
 
     // Restore the original domain query
     orig_task->dom_query_ = orig_dom_query;
-    orig_task->rctx_.pending_to_ = orig_pending_to;
   }
 
   /** Replicate the task across a node set */
@@ -141,12 +137,11 @@ class Server : public Module {
         exec->Monitor(MonitorMode::kReplicaStart, orig_task->method_, orig_task,
                       rctx);
       }
-      rep_task->rctx_.pending_to_ = submit_task;
+      rep_task->rctx_.remote_pending_ = submit_task;
       size_t node_hash = hshm::hash<NodeId>{}(res_query.node_);
       auto &submit = submit_;
       HLOG(kInfo, kRemoteQueue, "[TASK_CHECK] Task replica addr {}",
            rep_task.ptr_);
-      doing_tasks_.emplace((size_t)rep_task.ptr_, (size_t)submit_task);
       submit[node_hash % submit.size()].emplace(
           (RemoteEntry){res_query, rep_task.ptr_});
       replicas.emplace_back(rep_task);
@@ -415,19 +410,7 @@ class Server : public Module {
       // Unblock completed tasks
       for (size_t i = 0; i < xfer.tasks_.size(); ++i) {
         Task *rep_task = (Task *)xfer.tasks_[i].task_addr_;
-        auto task_exists = doing_tasks_.find((size_t)rep_task);
-        if (task_exists == doing_tasks_.end()) {
-          HELOG(kFatal,
-                "(node {}) An invalid task was sent as complete to this node");
-        } else if (task_exists->second != (size_t)rep_task->rctx_.pending_to_) {
-          HELOG(kWarning,
-                "A valid task's pending_to was erroneously changed from {} ->"
-                "{}: "
-                "task_node={} pool={} method={}",
-                task_exists->second, (size_t)rep_task->rctx_.pending_to_,
-                rep_task->task_node_, rep_task->pool_, rep_task->method_);
-        }
-        Task *submit_task = (Task *)task_exists->second;
+        Task *submit_task = (Task *)rep_task->rctx_.remote_pending_;
         HLOG(kInfo, kRemoteQueue, "[TASK_CHECK] Unblocking the submit_task {}",
              submit_task);
         if (submit_task->pool_ != id_) {

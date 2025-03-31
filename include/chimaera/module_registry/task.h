@@ -289,6 +289,7 @@ struct RunContext {
   hshm::Timer timer_;
   Task *co_task_;
   Task *pending_to_;
+  Task *remote_pending_;
   std::vector<FullPtr<Task>> *replicas_;
   size_t ret_task_addr_;
   NodeId ret_node_;
