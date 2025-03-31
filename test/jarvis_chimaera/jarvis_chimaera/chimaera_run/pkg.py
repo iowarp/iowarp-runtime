@@ -365,4 +365,20 @@ class ChimaeraRun(Service):
 
         :return: True or false
         """
-        return True
+        self.get_hostfile()
+        stats = Exec('ps -ef | grep .*chimaera_run.*', 
+             PsshExecInfo(hostfile=self.hostfile,
+             env=self.env,
+             collect_output=True,
+             hide_output=True))
+        running = []
+        for host, output in stats.stdout.items():
+            for line in output:
+                if 'grep' in line:
+                    continue
+                self.log(f'Chimaera is running on {host}', Color.CYAN)
+                running.append(host)
+                break
+        is_running = len(running) == len(self.hostfile)
+        self.log(f'Chimaera is running on {len(running)}/{len(self.hostfile)} nodes', Color.YELLOW)
+        return is_running
