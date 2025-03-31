@@ -40,7 +40,7 @@ Client *Client::Create(const char *server_config_path,
   return this;
 }
 
-void ExceptionTerminator() {
+static inline void ExceptionTerminator() {
   try {
     std::exception_ptr currentException = std::current_exception();
     if (currentException) {
