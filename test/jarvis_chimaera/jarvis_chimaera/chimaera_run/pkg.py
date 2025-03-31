@@ -248,8 +248,12 @@ class ChimaeraRun(Service):
         if provider is None:
             opts = net_info['provider'].unique().list()
             if len(opts) == 0:
-                self.log('No networks discovered', Color.RED)
-                exit(1)
+                self.log(
+                    'WARNING: No networks discovered. '
+                    'This can happen if you are building the pipeline on a node that is not'
+                    'where you plan to run the test.'
+                    'If this is the case, run `jarvis ppl update`` in your batch job before running'
+                    'this pipeline.', Color.RED)
             order = ['sockets', 'tcp', 'udp', 'verbs', 'ib']
             for opt in order:
                 if opt in opts:
