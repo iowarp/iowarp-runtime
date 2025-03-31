@@ -29,7 +29,7 @@ void Module::CreateLaneGroup(LaneGroupId group_id, u32 count,
     Worker &worker = CHI_WORK_ORCHESTRATOR->GetWorkerRoundRobin(group_prio);
     for (TaskPrio prio = 0; prio < TaskPrioOpt::kNumPrio; ++prio) {
       worker.load_ += 1;
-      lane_group.emplace_back(lane_id, prio, group_id, ig_lane->worker_id_);
+      lane_group.emplace_back(lane_id, prio, group_id, worker.id_);
     }
   }
 #endif
