@@ -373,7 +373,7 @@ class ChimaeraRun(Service):
              hide_output=True))
         running = []
         for host, output in stats.stdout.items():
-            for line in output:
+            for line in output.splitlines():
                 if 'grep' in line:
                     continue
                 if 'chimaera_run' not in line:
