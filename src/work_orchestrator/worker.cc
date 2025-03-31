@@ -156,12 +156,7 @@ hshm::qtok_t Lane::push(const FullPtr<Task> &task) {
   Worker &worker = CHI_WORK_ORCHESTRATOR->GetWorker(worker_id_);
   Worker *cur_worker = CHI_CUR_WORKER;
   if (!cur_worker || worker.id_ != cur_worker->id_) {
-    HILOG(kInfo, "Adding to GetFail queue {}, {} <- {}", task.ptr_, worker.id_,
-          cur_worker->id_);
-    task->UnsetRouted();
     worker.active_.GetFail().push(task);
-    HILOG(kInfo, "GetFail queue size {}, {} <- {}",
-          worker.active_.GetFail().size(), worker.id_, cur_worker->id_);
     return hshm::qtok_t();
   }
   if constexpr (!NO_COUNT) {
@@ -300,6 +295,7 @@ void Worker::Loop() {
     MakeDedicated();
   }
   HLOG(kDebug, kWorkerDebug, "Entered worker {}", id_);
+  HILOG(kInfo, "CURRENT WORKER {} (node {})", id_, CHI_CLIENT->node_id_);
   WorkOrchestrator *orch = CHI_WORK_ORCHESTRATOR;
   cur_time_.Refresh();
   while (orch->IsAlive()) {
