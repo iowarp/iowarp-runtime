@@ -268,7 +268,7 @@ class Client : public ConfigurationManager {
   void FreeBuffer(const hipc::MemContext &mctx, hipc::Pointer &p) {
     auto alloc = HSHM_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(p.alloc_id_);
     alloc->Free(mctx, p);
-    HILOG(kInfo, "(node {}) Freeing to {}", node_id_, alloc->GetId());
+    // HILOG(kInfo, "(node {}) Freeing to {}", node_id_, alloc->GetId());
   }
 
   /** Free a buffer */
@@ -277,7 +277,7 @@ class Client : public ConfigurationManager {
     auto alloc =
         HSHM_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(p.shm_.alloc_id_);
     alloc->FreeLocalPtr(mctx, p);
-    HILOG(kInfo, "(node {}) Freeing to {}", node_id_, alloc->GetId());
+    // HILOG(kInfo, "(node {}) Freeing to {}", node_id_, alloc->GetId());
   }
 
   /** Convert pointer to char* */
