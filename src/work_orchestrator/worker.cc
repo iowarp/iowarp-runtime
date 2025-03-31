@@ -152,7 +152,7 @@ template hshm::qtok_t Lane::push<true>(const FullPtr<Task> &task);
 /** Push a task  */
 template <bool NO_COUNT>
 hshm::qtok_t Lane::push(const FullPtr<Task> &task) {
-  // Worker &worker = CHI_WORK_ORCHESTRATOR->GetWorker(worker_id_);
+  Worker &worker = CHI_WORK_ORCHESTRATOR->GetWorker(worker_id_);
   // Worker *cur_worker = CHI_CUR_WORKER;
   // if (!cur_worker || worker.id_ != cur_worker->id_) {
   //   worker.active_.GetFail().push(task);
