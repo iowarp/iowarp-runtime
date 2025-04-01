@@ -20,6 +20,7 @@ class IoTest {
     timer.Resume();
     int node_id = 1;
     for (size_t io_done = 0; io_done < block_; io_done += xfer_) {
+      HILOG(kInfo, "(rank {}) writing at offset {}", rank_, io_done);
       chi::DomainQuery dom_query = chi::DomainQuery::GetDirectHash(
           chi::SubDomainId::kGlobalContainers, node_id);
       std::vector<chi::Block> blocks =
@@ -53,6 +54,7 @@ class IoTest {
     timer.Resume();
     int node_id = 1;
     for (chi::Block &block : blocks_) {
+      HILOG(kInfo, "(rank {}) reading at offset {}", rank_, block.off_);
       chi::DomainQuery dom_query = chi::DomainQuery::GetDirectHash(
           chi::SubDomainId::kGlobalContainers, node_id);
       hipc::FullPtr<char> data = CHI_CLIENT->AllocateBuffer(HSHM_MCTX, xfer_);
