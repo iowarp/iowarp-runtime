@@ -575,9 +575,6 @@ void Worker::EndTask(Container *exec, FullPtr<Task> task, RunContext &rctx) {
   // Unblock the task pending on this one's completion
   if (task->ShouldSignalUnblock()) {
     Task *pending_to = rctx.pending_to_;
-    if (!pending_to) {
-      HELOG(kFatal, "(node {}) Invalid pending to during signalling unblock");
-    }
     CHI_WORK_ORCHESTRATOR->SignalUnblock(pending_to, pending_to->rctx_);
   }
   // Signal back to the remote that spawned this task
