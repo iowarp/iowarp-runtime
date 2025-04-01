@@ -248,9 +248,9 @@ void WorkOrchestrator::SignalUnblock(Task *task, RunContext &rctx) {
     HELOG(kFatal, "(node {}) No route lane during unblock",
           CHI_CLIENT->node_id_);
   }
-  rctx.ref_count_ += 1;
   ssize_t count = rctx.block_count_.fetch_sub(1) - 1;
   if (count == 0) {
+    rctx.ref_count_ += 1;
     rctx.route_lane_->push<false>(FullPtr<Task>(task));
   } else if (count < 0) {
     // HELOG(kFatal, "Block count should never be negative");
