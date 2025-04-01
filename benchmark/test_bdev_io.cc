@@ -14,7 +14,7 @@ class IoTest {
   bool read_;
   std::vector<chi::Block> blocks_;
   int rank_;
-  CLS_CONST int key_ = 251;
+  CLS_CONST char key_ = 122;
 
  public:
   void TestWrite() {
