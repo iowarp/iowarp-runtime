@@ -1,17 +1,22 @@
 #include <bdev/bdev_client.h>
 #include <mpi.h>
 
+#include "hermes_shm/util/timer_mpi.h"
+
 class IoTest {
  public:
   chi::bdev::Client client_;
   std::string path_;
   int xfer_;
   int block_;
+  size_t net_size_;
   bool read_;
   std::vector<chi::Block> blocks_;
 
  public:
   void TestWrite() {
+    hshm::MpiTimer timer(MPI_COMM_WORLD);
+    timer.Resume();
     int node_id = 1;
     for (size_t io_done = 0; io_done < block_; io_done += xfer_) {
       chi::DomainQuery dom_query = chi::DomainQuery::GetDirectHash(
@@ -30,9 +35,16 @@ class IoTest {
       CHI_CLIENT->FreeBuffer(HSHM_MCTX, data);
       node_id++;
     }
+    timer.Pause();
+    timer.Collect();
+    float mb = net_size_ * 1.0 / hshm::Unit<size_t>::Megabytes(1);
+    HILOG(kInfo, "{} MB / sec ({} mb in total {} sec) of data",
+          mb / timer.GetSec(), mb, timer.GetSec());
   }
 
   void TestRead() {
+    hshm::MpiTimer timer(MPI_COMM_WORLD);
+    timer.Resume();
     int node_id = 1;
     for (chi::Block &block : blocks_) {
       chi::DomainQuery dom_query = chi::DomainQuery::GetDirectHash(
@@ -43,6 +55,11 @@ class IoTest {
       CHI_CLIENT->FreeBuffer(HSHM_MCTX, data);
       node_id++;
     }
+    timer.Pause();
+    timer.Collect();
+    float mb = net_size_ * 1.0 / hshm::Unit<size_t>::Megabytes(1);
+    HILOG(kInfo, "{} MB / sec ({} mb in total {} sec) of data",
+          mb / timer.GetSec(), mb, timer.GetSec());
   }
 };
 
@@ -63,12 +80,13 @@ int main(int argc, char **argv) {
   test.xfer_ = hshm::ConfigParse::ParseSize(argv[2]);
   test.block_ = hshm::ConfigParse::ParseSize(argv[3]);
   test.read_ = atoi(argv[4]);
-  size_t net_size = test.block_ * nprocs * 2;
+  test.net_size_ = test.block_ * nprocs * 2;
 
   test.client_.Create(
       HSHM_MCTX,
       chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
-      chi::DomainQuery::GetGlobalBcast(), "bdev_test", test.path_, net_size);
+      chi::DomainQuery::GetGlobalBcast(), "bdev_test", test.path_,
+      test.net_size_);
   test.TestWrite();
   MPI_Barrier(MPI_COMM_WORLD);
   if (test.read_) {
