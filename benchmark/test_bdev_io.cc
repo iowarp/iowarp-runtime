@@ -66,7 +66,8 @@ class IoTest {
       HILOG(kInfo, "(rank {}) reading at offset {}", rank_, block.off_);
       chi::DomainQuery dom_query = chi::DomainQuery::GetDirectHash(
           chi::SubDomainId::kGlobalContainers, node_id);
-      hipc::FullPtr<char> data = CHI_CLIENT->AllocateBuffer(HSHM_MCTX, xfer_);
+      hipc::FullPtr<char> data =
+          CHI_CLIENT->AllocateBuffer(HSHM_MCTX, block.size_);
       client_.Read(HSHM_MCTX, dom_query, data.shm_, block);
       client_.Free(HSHM_MCTX, dom_query, block);
       if (!Verify(data.ptr_, node_id, block.size_)) {
