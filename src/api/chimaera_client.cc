@@ -56,7 +56,8 @@ static inline void ExceptionTerminator() {
     std::cerr << "Uncaught exception: " << e.what() << std::endl;
   } catch (hshm::Error &e) {
     std::string exe = get_process_filename();
-    HILOG(kInfo, "(node {}, exe {}) {}", CHI_CLIENT->node_id_, exe, e.what());
+    HELOG(kError, "(node {}, exe {}) {}: \n {}", CHI_CLIENT->node_id_, exe,
+          e.what(), boost::stacktrace::stacktrace());
   } catch (...) {
     std::cerr << "Uncaught exception of unknown type." << std::endl;
   }
