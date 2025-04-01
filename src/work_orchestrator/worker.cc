@@ -122,7 +122,6 @@ bool PrivateTaskMultiQueue::PushLocalTask(const DomainQuery &res_query,
   rctx.route_container_id_ = container_id;
   rctx.route_lane_ = chi_lane;
   rctx.worker_id_ = chi_lane->worker_id_;
-  rctx.pending_to_ = nullptr;
   task->SetRouted();
   chi_lane->push<false>(task);
   HLOG(kDebug, kWorkerDebug, "[TASK_CHECK] (node {}) Pushing task {}",
@@ -137,7 +136,6 @@ bool PrivateTaskMultiQueue::PushRemoteTask(RunContext &rctx,
   HLOG(kDebug, kWorkerDebug, "[TASK_CHECK] (node {}) Remoting task {}",
        CHI_CLIENT->node_id_, (void *)task.ptr_);
   // CASE 6: The task is remote to this machine, put in the remote queue.
-  rctx.pending_to_ = nullptr;
   rctx.exec_ = CHI_MOD_REGISTRY->GetStaticContainer(task->pool_);
   if (!rctx.exec_) {
     HELOG(kFatal,
