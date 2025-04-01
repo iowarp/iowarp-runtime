@@ -92,10 +92,12 @@ int main(int argc, char **argv) {
   test.xfer_ = hshm::ConfigParse::ParseSize(argv[2]);
   test.block_ = hshm::ConfigParse::ParseSize(argv[3]);
   test.read_ = atoi(argv[4]);
-  test.net_size_ = test.block_ * nprocs * 2;
+  test.net_size_ = test.block_ * (size_t)nprocs * 2;
   if (rank == 0) {
-    HILOG(kInfo, "TEST BEGIN: nprocs={} xfer={}, block={}, total={}", nprocs,
-          test.xfer_, test.block_, test.net_size_);
+    HILOG(kInfo,
+          "TEST BEGIN: nprocs={} xfer={}, block={} total={}, block * nprocs={}",
+          nprocs, test.xfer_, test.block_, test.net_size_,
+          test.block_ * nprocs);
   }
 
   test.client_.Create(
