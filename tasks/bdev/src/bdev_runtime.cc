@@ -45,6 +45,7 @@ class Server : public Module {
     std::string url = params.path_.str();
     size_t dev_size = params.size_;
     url_.Parse(url);
+    url_.path_ = hshm::Formatter::format("{}.{}", url_.path_, id_);
     alloc_.Init(1, dev_size);
     CreateLaneGroup(kMdGroup, 1, QUEUE_LOW_LATENCY);
     CreateLaneGroup(kDataGroup, 32, QUEUE_HIGH_LATENCY);
