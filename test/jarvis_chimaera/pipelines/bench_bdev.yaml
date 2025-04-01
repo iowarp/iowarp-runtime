@@ -10,7 +10,7 @@ pkgs:
     pkg_name: chimaera_io_bench
     nprocs: 1
     ppn: 16
-    path: '${HOME}/test_bdev'
+    path: '${HOME}/test_bdev/test.bin'
     xfer: '1m'
     block: '32m'
     do_read: True

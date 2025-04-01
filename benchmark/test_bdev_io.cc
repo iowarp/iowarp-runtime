@@ -13,7 +13,7 @@ class IoTest {
  public:
   void TestWrite() {
     int node_id = 1;
-    for (size_t io_done; io_done < block_; io_done += xfer_) {
+    for (size_t io_done = 0; io_done < block_; io_done += xfer_) {
       chi::DomainQuery dom_query = chi::DomainQuery::GetDirectHash(
           chi::SubDomainId::kLocalContainers, node_id);
       std::vector<chi::Block> blocks =
@@ -21,7 +21,7 @@ class IoTest {
       if (blocks.size() == 0) {
         HELOG(kFatal, "Not enough space for this workload on {}", path_);
       }
-      chi::Block &block = blocks_[0];
+      chi::Block &block = blocks[0];
       hipc::FullPtr<char> data =
           CHI_CLIENT->AllocateBuffer(HSHM_MCTX, block.size_);
       memset(data.ptr_, node_id, block.size_);
@@ -63,7 +63,7 @@ int main(int argc, char **argv) {
   test.xfer_ = hshm::ConfigParse::ParseSize(argv[2]);
   test.block_ = hshm::ConfigParse::ParseSize(argv[3]);
   test.read_ = atoi(argv[4]);
-  size_t net_size = test.xfer_ * test.block_ * nprocs * 2;
+  size_t net_size = test.block_ * nprocs * 2;
 
   test.client_.Create(
       HSHM_MCTX,

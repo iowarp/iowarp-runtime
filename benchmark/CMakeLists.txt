@@ -52,6 +52,7 @@ install(TARGETS
         bench_chimaera_latency
         bench_chimaera_bw
         bench_chimaera_zlib
+        chimaera_io_bench
         LIBRARY DESTINATION ${CHIMAERA_INSTALL_LIB_DIR}
         ARCHIVE DESTINATION ${CHIMAERA_INSTALL_LIB_DIR}
         RUNTIME DESTINATION ${CHIMAERA_INSTALL_BIN_DIR})

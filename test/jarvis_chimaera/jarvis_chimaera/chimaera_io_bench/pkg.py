@@ -71,7 +71,10 @@ class ChimaeraIoBench(Application):
         :param kwargs: Configuration parameters for this pkg.
         :return: None
         """
-        pass
+        path = os.path.expandvars(self.config['path'])
+        parent_dir = os.path.dirname(path)
+        Mkdir(parent_dir)
+        self.log(f'Created directory: {parent_dir}')
 
     def start(self):
         """
@@ -114,7 +117,7 @@ class ChimaeraIoBench(Application):
         Kills this
         """
         for i in range(3):
-            Kill('*.chimaera_bdev_io.*', PsshExecInfo(hostfile=self.jarvis.hostfile))
+            Kill('.*chimaera_bdev_io.*', PsshExecInfo(hostfile=self.jarvis.hostfile))
 
     def clean(self):
         """
@@ -123,4 +126,5 @@ class ChimaeraIoBench(Application):
 
         :return: None
         """
-        pass
+        path = os.path.expandvars(self.config['path'])
+        Rm(path)
