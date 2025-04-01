@@ -73,7 +73,7 @@ class ChimaeraIoBench(Application):
         """
         path = os.path.expandvars(self.config['path'])
         parent_dir = os.path.dirname(path)
-        Mkdir(parent_dir)
+        Mkdir(parent_dir, PsshExecInfo(hostfile=self.jarvis.hostfile))
         self.log(f'Created directory: {parent_dir}')
 
     def start(self):
