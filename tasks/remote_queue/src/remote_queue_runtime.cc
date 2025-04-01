@@ -294,6 +294,7 @@ class Server : public Module {
       for (FullPtr<Task> &task : done_tasks) {
         Container *exec = CHI_MOD_REGISTRY->GetStaticContainer(task->pool_);
         try {
+          HILOG(kInfo, "Freeing task {} ({})", *task, (void *)task.ptr_);
           CHI_CLIENT->DelTask(HSHM_MCTX, exec, task.ptr_);
         } catch (hshm::Error &e) {
           HELOG(kError, "(node {}) Worker {} caught an error: {}",
