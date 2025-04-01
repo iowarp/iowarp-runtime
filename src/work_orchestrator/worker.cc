@@ -497,20 +497,35 @@ bool Worker::RunTask(FullPtr<Task> &task, bool flushing) {
     ExecTask(task, rctx, rctx.exec_, props);
   }
   // Cleanup allocations
-  if (task->IsTriggerComplete()) {
-    rctx.ref_count_ -= 1;
-    EndTask(rctx.exec_, task, rctx);
-    return false;
-  } else if (task->IsBlocked()) {
-    rctx.ref_count_ -= 1;
+  if (task->IsBlocked()) {
     task->UnsetBlocked();
     return false;
   } else if (task->IsYielded()) {
     task->UnsetYielded();
     return true;
-  } else {
+  } else if (task->IsLongRunning() && !task->IsTriggerComplete()) {
     return true;
+  } else {
+    EndTask(rctx.exec_, task, rctx);
+    return false;
   }
+
+  // bool pushback = true;
+  // if (task->IsBlocked()) {
+  //   pushback = false;
+  //   HILOG(kInfo, "(node {}) Signaled unblock for {}", CHI_CLIENT->node_id_,
+  //         *task);
+  //   task->UnsetBlocked();
+  // } else if (task->IsYielded()) {
+  //   pushback = true;
+  //   task->UnsetYielded();
+  // } else if (task->IsLongRunning() && !task->IsTriggerComplete()) {
+  //   pushback = true;
+  // } else {
+  //   pushback = false;
+  //   EndTask(rctx.exec_, task, rctx);
+  // }
+  // return pushback;
 }
 
 /** Run an arbitrary task */
@@ -581,10 +596,6 @@ void Worker::CoroutineEntry(bctx::transfer_t t) {
 /** Free a task when it is no longer needed */
 HSHM_INLINE
 void Worker::EndTask(Container *exec, FullPtr<Task> task, RunContext &rctx) {
-  // Don't free duplicate
-  if (rctx.ref_count_ > 0) {
-    return;
-  }
   // Unblock the task pending on this one's completion
   if (task->ShouldSignalUnblock()) {
     Task *pending_to = rctx.pending_to_;
