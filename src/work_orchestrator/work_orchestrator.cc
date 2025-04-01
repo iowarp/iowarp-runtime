@@ -240,6 +240,8 @@ std::vector<Load> WorkOrchestrator::CalculateLoad() {
 
 /** Unblock a task */
 void WorkOrchestrator::SignalUnblock(Task *task, RunContext &rctx) {
+  HILOG(kInfo, "(node {}) Signaled unblock for {}", CHI_CLIENT->node_id_,
+        *task);
   if (!task) {
     HELOG(kFatal, "(node {}) Invalid pending to during signalling unblock",
           CHI_CLIENT->node_id_);
@@ -248,17 +250,17 @@ void WorkOrchestrator::SignalUnblock(Task *task, RunContext &rctx) {
     HELOG(kFatal, "(node {}) No route lane during unblock",
           CHI_CLIENT->node_id_);
   }
-  if (task->IsBlockedOrYielded()) {
-    HELOG(kWarning, "(node {}) Rescheduling a task still marked as blocked",
-          CHI_CLIENT->node_id_);
-    while (task->IsBlockedOrYielded()) {
-      std::atomic_thread_fence(std::memory_order_acquire);
-      continue;
-    }
-    HILOG(kInfo, "(node {}) Task unblocked", CHI_CLIENT->node_id_);
-  }
   ssize_t count = rctx.block_count_.fetch_sub(1) - 1;
   if (count == 0) {
+    if (task->IsBlockedOrYielded()) {
+      HELOG(kWarning, "(node {}) Rescheduling a task still marked as blocked",
+            CHI_CLIENT->node_id_);
+      while (task->IsBlockedOrYielded()) {
+        std::atomic_thread_fence(std::memory_order_acquire);
+        continue;
+      }
+      HILOG(kInfo, "(node {}) Task unblocked", CHI_CLIENT->node_id_);
+    }
     rctx.route_lane_->push<false>(FullPtr<Task>(task));
   } else if (count < 0) {
     // HELOG(kFatal, "Block count should never be negative");
