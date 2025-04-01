@@ -252,7 +252,8 @@ void WorkOrchestrator::SignalUnblock(Task *task, RunContext &rctx) {
   if (count == 0) {
     rctx.route_lane_->push<false>(FullPtr<Task>(task));
   } else if (count < 0) {
-    HELOG(kFatal, "Block count should never be negative");
+    HELOG(kFatal, "Block count should never be negative: \n{}",
+          boost::stacktrace::stacktrace());
   }
 }
 
