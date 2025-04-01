@@ -12,15 +12,17 @@ class IoTest {
   size_t net_size_;
   bool read_;
   std::vector<chi::Block> blocks_;
+  int rank_;
 
  public:
   void TestWrite() {
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank_);
     hshm::MpiTimer timer(MPI_COMM_WORLD);
     timer.Resume();
     int node_id = 1;
     for (size_t io_done = 0; io_done < block_; io_done += xfer_) {
       chi::DomainQuery dom_query = chi::DomainQuery::GetDirectHash(
-          chi::SubDomainId::kLocalContainers, node_id);
+          chi::SubDomainId::kGlobalContainers, node_id);
       std::vector<chi::Block> blocks =
           client_.Allocate(HSHM_MCTX, dom_query, xfer_);
       if (blocks.size() == 0) {
@@ -38,8 +40,10 @@ class IoTest {
     timer.Pause();
     timer.Collect();
     float mb = net_size_ * 1.0 / hshm::Unit<size_t>::Megabytes(1);
-    HILOG(kInfo, "{} MB / sec ({} mb in total {} sec) of data",
-          mb / timer.GetSec(), mb, timer.GetSec());
+    if (rank_ == 0) {
+      HILOG(kInfo, "{} MB / sec ({} mb in total {} sec) of data",
+            mb / timer.GetSec(), mb, timer.GetSec());
+    }
   }
 
   void TestRead() {
@@ -48,7 +52,7 @@ class IoTest {
     int node_id = 1;
     for (chi::Block &block : blocks_) {
       chi::DomainQuery dom_query = chi::DomainQuery::GetDirectHash(
-          chi::SubDomainId::kLocalContainers, node_id);
+          chi::SubDomainId::kGlobalContainers, node_id);
       hipc::FullPtr<char> data = CHI_CLIENT->AllocateBuffer(HSHM_MCTX, xfer_);
       client_.Read(HSHM_MCTX, dom_query, data.shm_, block);
       client_.Free(HSHM_MCTX, dom_query, block);
@@ -58,8 +62,10 @@ class IoTest {
     timer.Pause();
     timer.Collect();
     float mb = net_size_ * 1.0 / hshm::Unit<size_t>::Megabytes(1);
-    HILOG(kInfo, "{} MB / sec ({} mb in total {} sec) of data",
-          mb / timer.GetSec(), mb, timer.GetSec());
+    if (rank_ == 0) {
+      HILOG(kInfo, "{} MB / sec ({} mb in total {} sec) of data",
+            mb / timer.GetSec(), mb, timer.GetSec());
+    }
   }
 };
 
