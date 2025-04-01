@@ -75,7 +75,12 @@ class IoTest {
       client_.Read(HSHM_MCTX, dom_query, data.shm_, block);
       // client_.Free(HSHM_MCTX, dom_query, block);
       if (!Verify(data.ptr_, node_id, block.size_)) {
-        HELOG(kFatal, "Read did not get the written data properly");
+        std::string xs[3];
+        xs[0] = std::to_string((int)data.ptr_[0]);
+        xs[xfer_ / 2] = std::to_string((int)data.ptr_[xfer_ / 2]);
+        xs[xfer_ - 1] = std::to_string((int)data.ptr_[xfer_ - 1]);
+        HELOG(kFatal, "Read did not get the written data properly: {} {} {}",
+              xs[0], xs[1], xs[2]);
       }
       CHI_CLIENT->FreeBuffer(HSHM_MCTX, data);
       node_id++;
