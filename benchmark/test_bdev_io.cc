@@ -24,15 +24,15 @@ class IoTest {
       HILOG(kInfo, "(rank {}) writing at offset {}", rank_, io_done);
       chi::DomainQuery dom_query = chi::DomainQuery::GetDirectHash(
           chi::SubDomainId::kGlobalContainers, node_id);
-      std::vector<chi::Block> blocks =
-          client_.Allocate(HSHM_MCTX, dom_query, xfer_);
-      if (blocks.size() == 0) {
-        HELOG(kFatal, "Not enough space for this workload on {}", path_);
-      }
-      chi::Block &block = blocks[0];
-      // chi::Block block;
-      // block.off_ = base_ + io_done;
-      // block.size_ = xfer_;
+      // std::vector<chi::Block> blocks =
+      //     client_.Allocate(HSHM_MCTX, dom_query, xfer_);
+      // if (blocks.size() == 0) {
+      //   HELOG(kFatal, "Not enough space for this workload on {}", path_);
+      // }
+      // chi::Block &block = blocks[0];
+      chi::Block block;
+      block.off_ = base_ + io_done;
+      block.size_ = xfer_;
       hipc::FullPtr<char> data =
           CHI_CLIENT->AllocateBuffer(HSHM_MCTX, block.size_);
       memset(data.ptr_, node_id, block.size_);
@@ -73,7 +73,7 @@ class IoTest {
       hipc::FullPtr<char> data =
           CHI_CLIENT->AllocateBuffer(HSHM_MCTX, block.size_);
       client_.Read(HSHM_MCTX, dom_query, data.shm_, block);
-      client_.Free(HSHM_MCTX, dom_query, block);
+      // client_.Free(HSHM_MCTX, dom_query, block);
       if (!Verify(data.ptr_, node_id, block.size_)) {
         std::string xs[3];
         xs[0] = std::to_string((int)data.ptr_[0]);
