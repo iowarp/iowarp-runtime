@@ -76,7 +76,7 @@ class IoTest {
       hipc::FullPtr<char> data =
           CHI_CLIENT->AllocateBuffer(HSHM_MCTX, block.size_);
       HILOG(kInfo, "(rank {}) reading at offset {} ({}%) ptr={}", rank_,
-            block.off_, block.off_ * 100.0 / (base_ + block_),
+            block.off_, (node_id - 1) * 100.0 / (blocks_.size()),
             (void *)data.ptr_);
       client_.Read(HSHM_MCTX, dom_query, data.shm_, block);
       if (data.IsNull()) {
