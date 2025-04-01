@@ -299,8 +299,8 @@ class Server : public Module {
         } catch (hshm::Error &e) {
           HELOG(kError, "(node {}) Worker {} caught an error: {}",
                 CHI_CLIENT->node_id_, id_, e.what());
-          HELOG(kError, "(node {}) Was deleting task {}", CHI_CLIENT->node_id_,
-                task.ptr_);
+          HELOG(kError, "(node {}) Was deleting task {} ({})",
+                CHI_CLIENT->node_id_, *task.ptr_, task.ptr_);
         }
       }
     } catch (hshm::Error &e) {
