@@ -14,6 +14,7 @@ class IoTest {
   bool read_;
   std::vector<chi::Block> blocks_;
   int rank_;
+  CLS_CONST int key_ = 251;
 
  public:
   void TestWrite() {
@@ -39,7 +40,7 @@ class IoTest {
       if (data.IsNull()) {
         HELOG(kFatal, "Buffer allocated was null");
       }
-      memset(data.ptr_, node_id, block.size_);
+      memset(data.ptr_, key_, block.size_);
       client_.Write(HSHM_MCTX, dom_query, data.shm_, block);
       blocks_.emplace_back(block);
       CHI_CLIENT->FreeBuffer(HSHM_MCTX, data);
@@ -83,7 +84,7 @@ class IoTest {
         HELOG(kFatal, "Buffer allocated was null");
       }
       client_.Free(HSHM_MCTX, dom_query, block);
-      if (!Verify(data.ptr_, 0, block.size_)) {
+      if (!Verify(data.ptr_, key_, block.size_)) {
         std::string xs[3];
         xs[0] = std::to_string((int)data.ptr_[0]);
         xs[block.size_ / 2] = std::to_string((int)data.ptr_[block.size_ / 2]);

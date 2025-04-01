@@ -201,15 +201,14 @@ class Server : public Module {
         HILOG(kInfo, "(node {}) Writing to FS, alloc={} off={} size={} ptr={}",
               CHI_CLIENT->node_id_, task->data_.alloc_id_, task->off_,
               task->size_, (void *)data);
-        memset(data, 0, task->size_);
-        // ssize_t ret = pwrite(fd_, data, task->size_, task->off_);
-        // if (ret == task->size_) {
-        //   task->success_ = true;
-        // } else {
-        //   HELOG(kWarning, "Failed to write to bdev (off={}, size={}): {}",
-        //         task->off_, task->size_, strerror(errno));
-        //   task->success_ = false;
-        // }
+        ssize_t ret = pwrite(fd_, data, task->size_, task->off_);
+        if (ret == task->size_) {
+          task->success_ = true;
+        } else {
+          HELOG(kWarning, "Failed to write to bdev (off={}, size={}): {}",
+                task->off_, task->size_, strerror(errno));
+          task->success_ = false;
+        }
         break;
       }
       case BlockUrl::kRam: {
@@ -235,15 +234,14 @@ class Server : public Module {
               "(node {}) Reading from FS, alloc={} off={} size={} ptr={}",
               CHI_CLIENT->node_id_, task->data_.alloc_id_, task->off_,
               task->size_, (void *)data);
-        memset(data, 0, task->size_);
-        // ssize_t ret = pread(fd_, data, task->size_, task->off_);
-        // if (ret == task->size_) {
-        //   task->success_ = true;
-        // } else {
-        //   HELOG(kWarning, "Failed to read from bdev (off={}, size={}): {}",
-        //         task->off_, task->size_, strerror(errno));
-        //   task->success_ = false;
-        // }
+        ssize_t ret = pread(fd_, data, task->size_, task->off_);
+        if (ret == task->size_) {
+          task->success_ = true;
+        } else {
+          HELOG(kWarning, "Failed to read from bdev (off={}, size={}): {}",
+                task->off_, task->size_, strerror(errno));
+          task->success_ = false;
+        }
         break;
       }
       case BlockUrl::kRam: {
