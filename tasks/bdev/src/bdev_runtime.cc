@@ -10,6 +10,8 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
+#include <unistd.h>
+
 #include "bdev/bdev_client.h"
 #include "chimaera/api/chimaera_runtime.h"
 #include "chimaera/monitor/monitor.h"
@@ -201,7 +203,7 @@ class Server : public Module {
         HILOG(kInfo, "(node {}) Writing to FS, alloc={} off={} size={} ptr={}",
               CHI_CLIENT->node_id_, task->data_.alloc_id_, task->off_,
               task->size_, (void *)data);
-        ssize_t ret = pwrite(fd_, data, task->size_, task->off_);
+        ssize_t ret = pwrite64(fd_, data, task->size_, task->off_);
         if (ret == task->size_) {
           task->success_ = true;
         } else {
@@ -234,7 +236,7 @@ class Server : public Module {
               "(node {}) Reading from FS, alloc={} off={} size={} ptr={}",
               CHI_CLIENT->node_id_, task->data_.alloc_id_, task->off_,
               task->size_, (void *)data);
-        ssize_t ret = pread(fd_, data, task->size_, task->off_);
+        ssize_t ret = pread64(fd_, data, task->size_, task->off_);
         if (ret == task->size_) {
           task->success_ = true;
         } else {
