@@ -293,7 +293,7 @@ struct RunContext {
   size_t ret_task_addr_;
   NodeId ret_node_;
   hipc::atomic<int> block_count_ = 0;
-  hipc::atomic<int> ref_count_ = 0;
+  hipc::atomic<int> ref_count_ = 1;
   ContainerId route_container_id_;
   chi::Lane *route_lane_;
   Load load_;

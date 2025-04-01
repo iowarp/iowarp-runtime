@@ -180,7 +180,6 @@ hshm::qtok_t Lane::push(const FullPtr<Task> &task) {
            this, dup, task.ptr_);
     }
   }
-  task->rctx_.ref_count_ += 1;
   hshm::qtok_t ret = active_tasks_.push(task);
   return ret;
 }
@@ -194,7 +193,6 @@ hshm::qtok_t Lane::pop(FullPtr<Task> &task) {
   if (!ret.IsNull() && !task->IsLongRunning()) {
     HLOG(kDebug, kWorkerDebug, "Popping task {} from {}", task.ptr_, this);
   }
-  task->rctx_.ref_count_ -= 1;
   return ret;
 }
 
@@ -502,6 +500,7 @@ bool Worker::RunTask(FullPtr<Task> &task, bool flushing) {
   bool pushback = true;
   if (task->IsBlocked()) {
     pushback = false;
+    rctx.ref_count_ -= 1;
     task->UnsetBlocked();
   } else if (task->IsYielded()) {
     pushback = true;
@@ -512,7 +511,7 @@ bool Worker::RunTask(FullPtr<Task> &task, bool flushing) {
     pushback = false;
     EndTask(rctx.exec_, task, rctx);
   }
-  if (rctx.ref_count_ > 0) {
+  if (rctx.ref_count_ > 1) {
     pushback = false;
   }
   return pushback;
@@ -523,7 +522,7 @@ HSHM_INLINE
 void Worker::ExecTask(FullPtr<Task> &task, RunContext &rctx, Container *&exec,
                       ibitfield &props) {
   // Don't free duplicate
-  if (rctx.ref_count_ > 0) {
+  if (rctx.ref_count_ > 1) {
     return;
   }
   // Determine if a task should be executed
