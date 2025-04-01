@@ -522,7 +522,8 @@ HSHM_INLINE
 void Worker::ExecTask(FullPtr<Task> &task, RunContext &rctx, Container *&exec,
                       ibitfield &props) {
   // Don't free duplicate
-  if (rctx.ref_count_ > 1) {
+  --rctx.ref_count_;
+  if (rctx.ref_count_ > 0) {
     return;
   }
   // Determine if a task should be executed
