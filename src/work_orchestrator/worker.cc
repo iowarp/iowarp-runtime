@@ -584,7 +584,7 @@ void Worker::EndTask(Container *exec, FullPtr<Task> task, RunContext &rctx) {
   // Unblock the task pending on this one's completion
   if (task->ShouldSignalUnblock()) {
     Task *pending_to = rctx.pending_to_;
-    if (!pending_to) {
+    if (!pending_to || pending_to == task.ptr_) {
       HELOG(kFatal,
             "(node {}) Invalid pending to during signaling unblock for task {}",
             CHI_CLIENT->node_id_, *task);
