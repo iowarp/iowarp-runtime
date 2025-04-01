@@ -79,15 +79,15 @@ class Server : public Module {
         ssize_t ret;
 
         // Open file for read & write, no override
-        fd_ = open(url_.path_.c_str(), O_RDWR | O_CREAT, 0666);
-        ftruncate(fd_, dev_size);
+        fd_ = open64(url_.path_.c_str(), O_RDWR | O_CREAT, 0666);
+        ftruncate64(fd_, dev_size);
         hshm::Timer time;
         lat_cutoff_ = KILOBYTES(16);
         std::vector<char> data(MEGABYTES(1));
 
         // Write 16KB to the beginning with pwrite
         time.Resume();
-        ret = pwrite(fd_, data.data(), KILOBYTES(16), 0);
+        ret = pwrite64(fd_, data.data(), KILOBYTES(16), 0);
         fdatasync(fd_);
         time.Pause();
         io_perf_[kWrite].lat_.consts_[0] = 0;
@@ -96,7 +96,7 @@ class Server : public Module {
 
         // Write 1MB to the beginning with pwrite
         time.Resume();
-        ret = pwrite(fd_, data.data(), MEGABYTES(1), 0);
+        ret = pwrite64(fd_, data.data(), MEGABYTES(1), 0);
         fdatasync(fd_);
         time.Pause();
         io_perf_[kWrite].bw_.consts_[0] =
@@ -107,7 +107,7 @@ class Server : public Module {
         // Read 4KB from the beginning with pread
         time.Resume();
         fdatasync(fd_);
-        ret = pread(fd_, data.data(), KILOBYTES(16), 0);
+        ret = pread64(fd_, data.data(), KILOBYTES(16), 0);
         time.Pause();
         io_perf_[kRead].lat_.consts_[0] = 0;
         io_perf_[kRead].lat_.consts_[1] = (float)time.GetNsec();
@@ -116,7 +116,7 @@ class Server : public Module {
         // Read 1MB from the beginning with pread
         time.Resume();
         fdatasync(fd_);
-        ret = pread(fd_, data.data(), MEGABYTES(1), 0);
+        ret = pread64(fd_, data.data(), MEGABYTES(1), 0);
         time.Pause();
         io_perf_[kRead].bw_.consts_[0] =
             (float)MEGABYTES(1) / (float)time.GetNsec();
