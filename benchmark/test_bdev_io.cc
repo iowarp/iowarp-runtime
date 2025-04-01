@@ -39,10 +39,13 @@ class IoTest {
     }
     timer.Pause();
     timer.Collect();
-    float mb = net_size_ * 1.0 / hshm::Unit<size_t>::Megabytes(1);
     if (rank_ == 0) {
-      HILOG(kInfo, "{} MB / sec ({} mb in total {} sec) of data",
-            mb / timer.GetSec(), mb, timer.GetSec());
+      float mb = net_size_ * 1.0 / hshm::Unit<size_t>::Megabytes(1);
+      float sec = timer.GetSec();
+      float mbps = mb / sec;
+      HILOG(kInfo,
+            "{} MB / sec (total={} mb, total={} bytes, time={} sec) of data",
+            mbps, mb, net_size_, sec);
     }
   }
 
@@ -61,10 +64,13 @@ class IoTest {
     }
     timer.Pause();
     timer.Collect();
-    float mb = net_size_ * 1.0 / hshm::Unit<size_t>::Megabytes(1);
     if (rank_ == 0) {
-      HILOG(kInfo, "{} MB / sec ({} mb in total {} sec) of data",
-            mb / timer.GetSec(), mb, timer.GetSec());
+      float mb = net_size_ * 1.0 / hshm::Unit<size_t>::Megabytes(1);
+      float sec = timer.GetSec();
+      float mbps = mb / sec;
+      HILOG(kInfo,
+            "{} MB / sec (total={} mb, total={} bytes, time={} sec) of data",
+            mbps, mb, net_size_, sec);
     }
   }
 };
