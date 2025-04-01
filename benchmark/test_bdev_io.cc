@@ -86,8 +86,8 @@ class IoTest {
       if (!Verify(data.ptr_, node_id, block.size_)) {
         std::string xs[3];
         xs[0] = std::to_string((int)data.ptr_[0]);
-        xs[xfer_ / 2] = std::to_string((int)data.ptr_[xfer_ / 2]);
-        xs[xfer_ - 1] = std::to_string((int)data.ptr_[xfer_ - 1]);
+        xs[block.size_ / 2] = std::to_string((int)data.ptr_[block.size_ / 2]);
+        xs[block.size_ - 1] = std::to_string((int)data.ptr_[block.size_ - 1]);
         HELOG(kFatal, "Read did not get the written data properly: {} {} {}",
               xs[0], xs[1], xs[2]);
       }
