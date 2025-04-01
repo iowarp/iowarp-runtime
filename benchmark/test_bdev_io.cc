@@ -10,6 +10,7 @@ class IoTest {
   size_t xfer_;
   size_t block_;
   size_t net_size_;
+  size_t base_;
   bool read_;
   std::vector<chi::Block> blocks_;
   int rank_;
@@ -23,17 +24,20 @@ class IoTest {
       HILOG(kInfo, "(rank {}) writing at offset {}", rank_, io_done);
       chi::DomainQuery dom_query = chi::DomainQuery::GetDirectHash(
           chi::SubDomainId::kGlobalContainers, node_id);
-      std::vector<chi::Block> blocks =
-          client_.Allocate(HSHM_MCTX, dom_query, xfer_);
-      if (blocks.size() == 0) {
-        HELOG(kFatal, "Not enough space for this workload on {}", path_);
-      }
-      chi::Block &block = blocks[0];
+      // std::vector<chi::Block> blocks =
+      //     client_.Allocate(HSHM_MCTX, dom_query, xfer_);
+      // if (blocks.size() == 0) {
+      //   HELOG(kFatal, "Not enough space for this workload on {}", path_);
+      // }
+      // chi::Block &block = blocks[0];
+      chi::Block block;
+      block.off_ = base_ + io_done;
+      block.size_ = xfer_;
       hipc::FullPtr<char> data =
           CHI_CLIENT->AllocateBuffer(HSHM_MCTX, block.size_);
       memset(data.ptr_, node_id, block.size_);
       client_.Write(HSHM_MCTX, dom_query, data.shm_, block);
-      blocks_.emplace_back(blocks[0]);
+      blocks_.emplace_back(block);
       CHI_CLIENT->FreeBuffer(HSHM_MCTX, data);
       node_id++;
     }
@@ -69,7 +73,7 @@ class IoTest {
       hipc::FullPtr<char> data =
           CHI_CLIENT->AllocateBuffer(HSHM_MCTX, block.size_);
       client_.Read(HSHM_MCTX, dom_query, data.shm_, block);
-      client_.Free(HSHM_MCTX, dom_query, block);
+      // client_.Free(HSHM_MCTX, dom_query, block);
       if (!Verify(data.ptr_, node_id, block.size_)) {
         HELOG(kFatal, "Read did not get the written data properly");
       }
@@ -106,6 +110,7 @@ int main(int argc, char **argv) {
   test.rank_ = rank;
   test.xfer_ = hshm::ConfigParse::ParseSize(argv[2]);
   test.block_ = hshm::ConfigParse::ParseSize(argv[3]);
+  test.base_ = test.block_ * test.rank_;
   test.read_ = atoi(argv[4]);
   test.net_size_ = test.block_ * (size_t)nprocs * 2;
   if (rank == 0) {
