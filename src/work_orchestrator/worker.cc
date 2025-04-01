@@ -497,24 +497,20 @@ bool Worker::RunTask(FullPtr<Task> &task, bool flushing) {
     ExecTask(task, rctx, rctx.exec_, props);
   }
   // Cleanup allocations
-  bool pushback = true;
-  if (task->IsBlocked()) {
-    pushback = false;
+  if (task->IsTriggerComplete()) {
+    rctx.ref_count_ -= 1;
+    EndTask(rctx.exec_, task, rctx);
+    return false;
+  } else if (task->IsBlocked()) {
     rctx.ref_count_ -= 1;
     task->UnsetBlocked();
+    return false;
   } else if (task->IsYielded()) {
-    pushback = true;
     task->UnsetYielded();
-  } else if (task->IsLongRunning() && !task->IsTriggerComplete()) {
-    pushback = true;
+    return true;
   } else {
-    pushback = false;
-    EndTask(rctx.exec_, task, rctx);
+    return true;
   }
-  if (rctx.ref_count_ > 1) {
-    pushback = false;
-  }
-  return pushback;
 }
 
 /** Run an arbitrary task */
@@ -522,7 +518,6 @@ HSHM_INLINE
 void Worker::ExecTask(FullPtr<Task> &task, RunContext &rctx, Container *&exec,
                       ibitfield &props) {
   // Don't free duplicate
-  --rctx.ref_count_;
   if (rctx.ref_count_ > 0) {
     return;
   }
