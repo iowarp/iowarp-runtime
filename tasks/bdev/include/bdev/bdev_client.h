@@ -71,6 +71,11 @@ class Client : public ModuleClient {
   /** Write to the block device */
   HSHM_INLINE_CROSS_FUN
   void Write(const hipc::MemContext &mctx, const DomainQuery &dom_query,
+             const hipc::Pointer &data, Block block) {
+    Write(mctx, dom_query, data, block.off_, block.size_);
+  }
+  HSHM_INLINE_CROSS_FUN
+  void Write(const hipc::MemContext &mctx, const DomainQuery &dom_query,
              const hipc::Pointer &data, size_t off, size_t size) {
     FullPtr<WriteTask> task = AsyncWrite(mctx, dom_query, data, off, size);
     task.ptr_->Wait();
@@ -81,8 +86,16 @@ class Client : public ModuleClient {
   /** Read from the block device */
   HSHM_INLINE_CROSS_FUN
   void Read(const hipc::MemContext &mctx, const DomainQuery &dom_query,
-            const hipc::Pointer &data, size_t size, size_t off) {
-    FullPtr<ReadTask> task = AsyncRead(mctx, dom_query, data, size, off);
+            const hipc::Pointer &data, Block &block) {
+    FullPtr<ReadTask> task =
+        AsyncRead(mctx, dom_query, data, block.off_, block.size_);
+    task.ptr_->Wait();
+    CHI_CLIENT->DelTask(mctx, task);
+  }
+  HSHM_INLINE_CROSS_FUN
+  void Read(const hipc::MemContext &mctx, const DomainQuery &dom_query,
+            const hipc::Pointer &data, size_t off, size_t size) {
+    FullPtr<ReadTask> task = AsyncRead(mctx, dom_query, data, off, size);
     task.ptr_->Wait();
     CHI_CLIENT->DelTask(mctx, task);
   }

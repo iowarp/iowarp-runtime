@@ -34,8 +34,8 @@ add_dependencies(bench_chimaera_zlib chimaera::client_host)
 target_link_libraries(bench_chimaera_zlib ${TEST_LIBS})
 target_compile_definitions(bench_chimaera_zlib PUBLIC ${TEST_OPTS})
 
-add_executable(bench_chimaera_bdev test_bdev_io.cc)
-target_link_libraries(bench_chimaera_bdev ${TEST_LIBS})
+add_executable(chimaera_io_bench test_bdev_io.cc)
+target_link_libraries(chimaera_io_bench ${TEST_LIBS})
 
 # ------------------------------------------------------------------------------
 # Test Cases
