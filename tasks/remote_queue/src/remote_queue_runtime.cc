@@ -248,6 +248,7 @@ class Server : public Module {
     NodeId ret_node = task->rctx_.ret_node_;
     size_t node_hash = hshm::hash<NodeId>{}(ret_node);
     auto &complete = complete_;
+    HILOG(kInfo, "Pushing task {}", *task);
     complete[node_hash % complete.size()].emplace(
         (RemoteEntry){ret_node, task});
   }
@@ -294,7 +295,6 @@ class Server : public Module {
       for (FullPtr<Task> &task : done_tasks) {
         Container *exec = CHI_MOD_REGISTRY->GetStaticContainer(task->pool_);
         try {
-          HILOG(kInfo, "Freeing task {} ({})", *task, (void *)task.ptr_);
           CHI_CLIENT->DelTask(HSHM_MCTX, exec, task.ptr_);
         } catch (hshm::Error &e) {
           HELOG(kError, "(node {}) Worker {} caught an error: {}",
