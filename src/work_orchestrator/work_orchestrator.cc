@@ -252,10 +252,10 @@ void WorkOrchestrator::SignalUnblock(Task *task, RunContext &rctx) {
   if (count == 0) {
     HILOG(kInfo, "(node {}) Signaled unblock for {}", CHI_CLIENT->node_id_,
           *task);
-    if (task->IsBlockedOrYielded()) {
+    if (task->IsBlocked()) {
       HELOG(kWarning, "(node {}) Rescheduling a task still marked as blocked",
             CHI_CLIENT->node_id_);
-      while (task->IsBlockedOrYielded()) {
+      while (task->IsBlocked()) {
         std::atomic_thread_fence(std::memory_order_acquire);
         continue;
       }
