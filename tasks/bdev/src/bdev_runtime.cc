@@ -198,6 +198,9 @@ class Server : public Module {
     char *data = HSHM_MEMORY_MANAGER->Convert<char>(task->data_);
     switch (url_.scheme_) {
       case BlockUrl::kFs: {
+        HILOG(kInfo, "(node {}) Writing to FS, alloc={} off={} ptr={}",
+              CHI_CLIENT->node_id_, task->data_.alloc_id_,
+              task->data_.off_.load(), (size_t)data);
         ssize_t ret = pwrite(fd_, data, task->size_, task->off_);
         if (ret == task->size_) {
           task->success_ = true;
@@ -227,9 +230,9 @@ class Server : public Module {
     char *data = HSHM_MEMORY_MANAGER->Convert<char>(task->data_);
     switch (url_.scheme_) {
       case BlockUrl::kFs: {
-        // HILOG(kInfo, "(node {}) Reading from FS, alloc={} off={} ptr={}",
-        //       CHI_CLIENT->node_id_, task->data_.alloc_id_,
-        //       task->data_.off_.load(), (size_t)data);
+        HILOG(kInfo, "(node {}) Reading from FS, alloc={} off={} ptr={}",
+              CHI_CLIENT->node_id_, task->data_.alloc_id_,
+              task->data_.off_.load(), (size_t)data);
         ssize_t ret = pread(fd_, data, task->size_, task->off_);
         if (ret == task->size_) {
           task->success_ = true;
