@@ -127,4 +127,4 @@ class ChimaeraIoBench(Application):
         :return: None
         """
         path = os.path.expandvars(self.config['path'])
-        Rm(path)
+        Rm(path + '.*')
