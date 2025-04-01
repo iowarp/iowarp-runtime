@@ -183,6 +183,7 @@ class Server : public Module {
   /** Allocate a section of the block device */
   void Allocate(AllocateTask *task, RunContext &rctx) {
     alloc_.Allocate(0, task->size_, task->blocks_, task->total_size_);
+    HILOG(kInfo, "Return {} buffers", task->blocks_.size());
   }
   void MonitorAllocate(MonitorModeId mode, AllocateTask *task,
                        RunContext &rctx) {
