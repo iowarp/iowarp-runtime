@@ -106,7 +106,9 @@ bool PrivateTaskMultiQueue::PushLocalTask(const DomainQuery &res_query,
   if (!exec || !exec->is_created_) {
     // If the container doesn't exist, it's probably going to get created.
     // Put in the failed queue.
-    HILOG(kWarning, "(node {}) For task {}, either {} or {} does not exist ",
+    HELOG(kWarning,
+          "(node {}) For task {}, either {} or {} does not yet exist. If you "
+          "see this message repeatedly, then there is something wrong.",
           CHI_CLIENT->node_id_, task->task_node_, task->pool_, container_id);
     return !GetFail().push(task).IsNull();
   }
@@ -120,6 +122,7 @@ bool PrivateTaskMultiQueue::PushLocalTask(const DomainQuery &res_query,
   rctx.route_container_id_ = container_id;
   rctx.route_lane_ = chi_lane;
   rctx.worker_id_ = chi_lane->worker_id_;
+  rctx.pending_to_ = nullptr;
   task->SetRouted();
   chi_lane->push<false>(task);
   HLOG(kDebug, kWorkerDebug, "[TASK_CHECK] (node {}) Pushing task {}",
@@ -134,7 +137,13 @@ bool PrivateTaskMultiQueue::PushRemoteTask(RunContext &rctx,
   HLOG(kDebug, kWorkerDebug, "[TASK_CHECK] (node {}) Remoting task {}",
        CHI_CLIENT->node_id_, (void *)task.ptr_);
   // CASE 6: The task is remote to this machine, put in the remote queue.
+  rctx.pending_to_ = nullptr;
   rctx.exec_ = CHI_MOD_REGISTRY->GetStaticContainer(task->pool_);
+  if (!rctx.exec_) {
+    HELOG(kFatal,
+          "(node {}) Remote queue does not have static container "
+          "established");
+  }
   CHI_REMOTE_QUEUE->AsyncClientPushSubmitBase(
       HSHM_MCTX, nullptr, task->task_node_ + 1,
       DomainQuery::GetDirectId(SubDomainId::kGlobalContainers, 1), task.ptr_);
@@ -566,6 +575,9 @@ void Worker::EndTask(Container *exec, FullPtr<Task> task, RunContext &rctx) {
   // Unblock the task pending on this one's completion
   if (task->ShouldSignalUnblock()) {
     Task *pending_to = rctx.pending_to_;
+    if (!pending_to) {
+      HELOG(kFatal, "(node {}) Invalid pending to during signalling unblock");
+    }
     CHI_WORK_ORCHESTRATOR->SignalUnblock(pending_to, pending_to->rctx_);
   }
   // Signal back to the remote that spawned this task

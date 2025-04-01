@@ -240,6 +240,14 @@ std::vector<Load> WorkOrchestrator::CalculateLoad() {
 
 /** Unblock a task */
 void WorkOrchestrator::SignalUnblock(Task *task, RunContext &rctx) {
+  if (!task) {
+    HELOG(kFatal, "(node {}) Invalid pending to during signalling unblock",
+          CHI_CLIENT->node_id_);
+  }
+  if (!rctx.route_lane_) {
+    HELOG(kFatal, "(node {}) No route lane during unblock",
+          CHI_CLIENT->node_id_);
+  }
   ssize_t count = rctx.block_count_.fetch_sub(1) - 1;
   if (count == 0) {
     rctx.route_lane_->push<false>(FullPtr<Task>(task));
