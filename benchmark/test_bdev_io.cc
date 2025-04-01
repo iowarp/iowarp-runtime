@@ -94,8 +94,8 @@ int main(int argc, char **argv) {
   test.read_ = atoi(argv[4]);
   test.net_size_ = test.block_ * nprocs * 2;
   if (rank == 0) {
-    HILOG(kInfo, "TEST BEGIN: xfer={}, block={}, total={}", test.xfer_,
-          test.block_, test.net_size_);
+    HILOG(kInfo, "TEST BEGIN: nprocs={} xfer={}, block={}, total={}", nprocs,
+          test.xfer_, test.block_, test.net_size_);
   }
 
   test.client_.Create(
