@@ -208,10 +208,6 @@ class Server : public Module {
         // if (rctx.worker_props_.Any(CHI_WORKER_IS_FLUSHING)) {
         //   rctx.flush_->count_ += !task->IsLongRunning() && !task->IsFlush();
         // }
-        // Wait until the worker has descheduled the submitter task
-        while (rep_task->rctx_.remote_pending_->IsYielded()) {
-          task->Yield();
-        }
         // Serialize the task
         Container *exec = CHI_MOD_REGISTRY->GetStaticContainer(rep_task->pool_);
         if (exec == nullptr) {
