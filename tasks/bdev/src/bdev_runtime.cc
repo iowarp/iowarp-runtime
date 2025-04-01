@@ -200,9 +200,10 @@ class Server : public Module {
     char *data = HSHM_MEMORY_MANAGER->Convert<char>(task->data_);
     switch (url_.scheme_) {
       case BlockUrl::kFs: {
-        HILOG(kInfo, "(node {}) Writing to FS, alloc={} off={} size={} ptr={}",
-              CHI_CLIENT->node_id_, task->data_.alloc_id_, task->off_,
-              task->size_, (void *)data);
+        // HILOG(kInfo, "(node {}) Writing to FS, alloc={} off={} size={}
+        // ptr={}",
+        //       CHI_CLIENT->node_id_, task->data_.alloc_id_, task->off_,
+        //       task->size_, (void *)data);
         ssize_t ret = pwrite64(fd_, data, task->size_, task->off_);
         if (ret == task->size_) {
           task->success_ = true;
@@ -232,10 +233,10 @@ class Server : public Module {
     char *data = HSHM_MEMORY_MANAGER->Convert<char>(task->data_);
     switch (url_.scheme_) {
       case BlockUrl::kFs: {
-        HILOG(kInfo,
-              "(node {}) Reading from FS, alloc={} off={} size={} ptr={}",
-              CHI_CLIENT->node_id_, task->data_.alloc_id_, task->off_,
-              task->size_, (void *)data);
+        // HILOG(kInfo,
+        //       "(node {}) Reading from FS, alloc={} off={} size={} ptr={}",
+        //       CHI_CLIENT->node_id_, task->data_.alloc_id_, task->off_,
+        //       task->size_, (void *)data);
         ssize_t ret = pread64(fd_, data, task->size_, task->off_);
         if (ret == task->size_) {
           task->success_ = true;
