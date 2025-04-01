@@ -11,13 +11,6 @@
 namespace chi {
 
 HSHM_CROSS_FUN
-void Task::YieldArgo() {
-#if defined(CHIMAERA_RUNTIME) and defined(HSHM_IS_HOST)
-  ABT_thread_yield();
-#endif
-}
-
-HSHM_CROSS_FUN
 void Task::Wait(chi::IntFlag flags) {
 #if defined(CHIMAERA_RUNTIME) and defined(HSHM_IS_HOST)
   Task *parent_task = CHI_CUR_TASK;

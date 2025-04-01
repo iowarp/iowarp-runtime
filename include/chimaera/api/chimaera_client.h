@@ -39,13 +39,13 @@ HSHM_INLINE_CROSS_FUN FullPtr<char> Client::AllocateBufferSafe(
     }
 #ifdef CHIMAERA_RUNTIME
     if constexpr (FROM_REMOTE) {
-      Task::StaticYieldFactory<TASK_YIELD_ABT>();
+      HSHM_THREAD_MODEL->Yield();
     } else {
       Task *task = CHI_CUR_TASK;
       task->Yield();
     }
 #else
-    Task::StaticYieldFactory<TASK_YIELD_STD>();
+    HSHM_THREAD_MODEL->Yield();
 #endif
 
     // HILOG(kInfo, "(node {}) Trying {} from {}", CHI_CLIENT->node_id_, size,

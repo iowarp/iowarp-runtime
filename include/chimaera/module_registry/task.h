@@ -83,8 +83,7 @@ class Lane;
 /** Used to indicate Yield to use */
 #define TASK_YIELD_STD 0
 #define TASK_YIELD_CO 1
-#define TASK_YIELD_ABT 2
-#define TASK_YIELD_EMPTY 3
+#define TASK_YIELD_EMPTY 2
 
 /** The baseline set of tasks */
 struct TaskMethod {
@@ -607,31 +606,13 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
 #endif
   }
 
-  /** Yield (standard) */
-  HSHM_INLINE_CROSS_FUN
-  static void YieldStd() { HSHM_THREAD_MODEL->Yield(); }
-
-  /** Yield (argobots) */
-  HSHM_CROSS_FUN
-  static void YieldArgo();
-
-  /** Yield in general */
-  template <int THREAD_MODEL = 0>
-  HSHM_INLINE_CROSS_FUN static void StaticYieldFactory() {
-    if constexpr (THREAD_MODEL == TASK_YIELD_STD) {
-      YieldStd();
-    } else if constexpr (THREAD_MODEL == TASK_YIELD_ABT) {
-      YieldArgo();
-    }
-  }
-
   /** Yield the task */
   template <int THREAD_MODEL = 0>
   HSHM_INLINE_CROSS_FUN void YieldFactory() {
     if constexpr (THREAD_MODEL == TASK_YIELD_CO) {
       YieldCo();
     } else {
-      StaticYieldFactory<THREAD_MODEL>();
+      HSHM_THREAD_MODEL->Yield();
     }
     // NOTE(llogan): TASK_YIELD_NOCO is not here because it shouldn't
     // actually yield anything. Would longjmp be worthwhile here?
