@@ -180,6 +180,7 @@ hshm::qtok_t Lane::push(const FullPtr<Task> &task) {
            this, dup, task.ptr_);
     }
   }
+  task->rctx_.ref_count_ += 1;
   hshm::qtok_t ret = active_tasks_.push(task);
   return ret;
 }
@@ -193,6 +194,7 @@ hshm::qtok_t Lane::pop(FullPtr<Task> &task) {
   if (!ret.IsNull() && !task->IsLongRunning()) {
     HLOG(kDebug, kWorkerDebug, "Popping task {} from {}", task.ptr_, this);
   }
+  task->rctx_.ref_count_ -= 1;
   return ret;
 }
 
@@ -510,6 +512,9 @@ bool Worker::RunTask(FullPtr<Task> &task, bool flushing) {
   } else {
     pushback = false;
     EndTask(rctx.exec_, task, rctx);
+  }
+  if (rctx.ref_count_ > 0) {
+    pushback = false;
   }
   return pushback;
 }

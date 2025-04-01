@@ -293,6 +293,7 @@ struct RunContext {
   size_t ret_task_addr_;
   NodeId ret_node_;
   hipc::atomic<int> block_count_ = 0;
+  hipc::atomic<int> ref_count_ = 0;
   ContainerId route_container_id_;
   chi::Lane *route_lane_;
   Load load_;
@@ -511,22 +512,15 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
 
   /** Set blocked */
   HSHM_INLINE_CROSS_FUN
-  void SetBlocked(int count) {
-    if (count) {
-      rctx_.block_count_ += count;
-      task_flags_.SetBits(TASK_BLOCKED | TASK_YIELDED);
-    }
-  }
+  void SetBlocked(int count) { rctx_.block_count_ += count; }
 
   /** Check if task is blocked */
   HSHM_INLINE_CROSS_FUN
-  bool IsBlocked() const {
-    return task_flags_.Any(TASK_BLOCKED | TASK_YIELDED);
-  }
+  bool IsBlocked() const { return rctx_.block_count_ > 0; }
 
   /** Unset task as blocked */
   HSHM_INLINE_CROSS_FUN
-  void UnsetBlocked() { task_flags_.UnsetBits(TASK_BLOCKED | TASK_YIELDED); }
+  void UnsetBlocked() { task_flags_.UnsetBits(TASK_YIELDED); }
 
   /** Mark task as routed */
   HSHM_INLINE_CROSS_FUN
