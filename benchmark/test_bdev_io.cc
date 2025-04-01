@@ -16,7 +16,6 @@ class IoTest {
 
  public:
   void TestWrite() {
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank_);
     hshm::MpiTimer timer(MPI_COMM_WORLD);
     timer.Resume();
     int node_id = 1;
@@ -89,10 +88,15 @@ int main(int argc, char **argv) {
 
   IoTest test;
   test.path_ = argv[1];
+  test.rank_ = rank;
   test.xfer_ = hshm::ConfigParse::ParseSize(argv[2]);
   test.block_ = hshm::ConfigParse::ParseSize(argv[3]);
   test.read_ = atoi(argv[4]);
   test.net_size_ = test.block_ * nprocs * 2;
+  if (rank == 0) {
+    HILOG(kInfo, "TEST BEGIN: xfer={}, block={}, total={}", test.xfer_,
+          test.block_, test.net_size_);
+  }
 
   test.client_.Create(
       HSHM_MCTX,
