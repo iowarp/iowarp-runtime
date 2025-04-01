@@ -227,18 +227,18 @@ class Server : public Module {
         HILOG(kInfo, "(node {}) Reading from FS, alloc={} off={} ptr={}",
               CHI_CLIENT->node_id_, task->data_.alloc_id_,
               task->data_.off_.load(), (size_t)data);
-        // ssize_t ret = pread(fd_, data, task->size_, task->off_);
-        // if (ret == task->size_) {
-        //   task->success_ = true;
-        // } else {
-        //   task->success_ = false;
-        // }
+        ssize_t ret = pread(fd_, data, task->size_, task->off_);
+        if (ret == task->size_) {
+          task->success_ = true;
+        } else {
+          task->success_ = false;
+        }
         break;
       }
       case BlockUrl::kRam: {
         HILOG(kInfo, "(node {}) Reading from RAM", CHI_CLIENT->node_id_);
-        // memcpy(data, ram_ + task->off_, task->size_);
-        // task->success_ = true;
+        memcpy(data, ram_ + task->off_, task->size_);
+        task->success_ = true;
         break;
       }
       case BlockUrl::kSpdk: {
