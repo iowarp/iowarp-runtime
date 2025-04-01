@@ -38,6 +38,12 @@ class ChimaeraIoBench(Application):
                 'default': 1,
             },
             {
+                'name': 'path',
+                'msg': 'Path to load',
+                'type': str,
+                'default': '$HOME/test_chi/test.bin',
+            },
+            {
                 'name': 'xfer',
                 'msg': 'Transfer size',
                 'type': str,
@@ -77,8 +83,10 @@ class ChimaeraIoBench(Application):
         nprocs = self.config['nprocs']
         if self.config['nprocs'] is None:
             nprocs = len(self.jarvis.hostfile)
+        path = os.path.expandvars(self.config['path'])
         cmd = [
             'chimaera_io_bench',
+            path,
             self.config['xfer'],
             self.config['block'],
             str(int(self.config['do_read'])), 
