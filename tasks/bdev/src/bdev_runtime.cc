@@ -201,6 +201,8 @@ class Server : public Module {
         if (ret == task->size_) {
           task->success_ = true;
         } else {
+          HELOG(kWarning, "Failed to write to bdev (off={}, size={}): {}",
+                task->off_, task->size_, strerror(errno));
           task->success_ = false;
         }
         break;
@@ -231,6 +233,8 @@ class Server : public Module {
         if (ret == task->size_) {
           task->success_ = true;
         } else {
+          HELOG(kWarning, "Failed to read from bdev (off={}, size={}): {}",
+                task->off_, task->size_, strerror(errno));
           task->success_ = false;
         }
         break;
