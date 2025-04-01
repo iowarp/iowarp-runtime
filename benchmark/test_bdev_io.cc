@@ -23,15 +23,15 @@ class IoTest {
     for (size_t io_done = 0; io_done < block_; io_done += xfer_) {
       chi::DomainQuery dom_query = chi::DomainQuery::GetDirectHash(
           chi::SubDomainId::kGlobalContainers, node_id);
-      // std::vector<chi::Block> blocks =
-      //     client_.Allocate(HSHM_MCTX, dom_query, xfer_);
-      // if (blocks.size() == 0) {
-      //   HELOG(kFatal, "Not enough space for this workload on {}", path_);
-      // }
-      // chi::Block &block = blocks[0];
-      chi::Block block;
-      block.off_ = base_ + io_done;
-      block.size_ = xfer_;
+      std::vector<chi::Block> blocks =
+          client_.Allocate(HSHM_MCTX, dom_query, xfer_);
+      if (blocks.size() == 0) {
+        HELOG(kFatal, "Not enough space for this workload on {}", path_);
+      }
+      chi::Block &block = blocks[0];
+      // chi::Block block;
+      // block.off_ = base_ + io_done;
+      // block.size_ = xfer_;
       hipc::FullPtr<char> data =
           CHI_CLIENT->AllocateBuffer(HSHM_MCTX, block.size_);
       HILOG(kInfo, "(rank {}) writing at offset  {} ({}%) ptr={}", rank_,
@@ -82,16 +82,15 @@ class IoTest {
       if (data.IsNull()) {
         HELOG(kFatal, "Buffer allocated was null");
       }
-      // client_.Free(HSHM_MCTX, dom_query, block);
-      // if (!Verify(data.ptr_, node_id, block.size_)) {
-      //   std::string xs[3];
-      //   xs[0] = std::to_string((int)data.ptr_[0]);
-      //   xs[block.size_ / 2] = std::to_string((int)data.ptr_[block.size_ /
-      //   2]); xs[block.size_ - 1] = std::to_string((int)data.ptr_[block.size_
-      //   - 1]); HELOG(kFatal, "Read did not get the written data properly: {}
-      //   {} {}",
-      //         xs[0], xs[1], xs[2]);
-      // }
+      client_.Free(HSHM_MCTX, dom_query, block);
+      if (!Verify(data.ptr_, 0, block.size_)) {
+        std::string xs[3];
+        xs[0] = std::to_string((int)data.ptr_[0]);
+        xs[block.size_ / 2] = std::to_string((int)data.ptr_[block.size_ / 2]);
+        xs[block.size_ - 1] = std::to_string((int)data.ptr_[block.size_ - 1]);
+        HELOG(kFatal, "Read did not get the written data properly: {} {} {} ",
+              xs[0], xs[1], xs[2]);
+      }
       CHI_CLIENT->FreeBuffer(HSHM_MCTX, data);
       node_id++;
     }
