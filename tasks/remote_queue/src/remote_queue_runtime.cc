@@ -248,7 +248,7 @@ class Server : public Module {
     NodeId ret_node = task->rctx_.ret_node_;
     size_t node_hash = hshm::hash<NodeId>{}(ret_node);
     auto &complete = complete_;
-    HILOG(kInfo, "Pushing task {}", *task);
+    HILOG(kInfo, "(node {}) Pushing task {}", CHI_CLIENT->node_id_, *task);
     complete[node_hash % complete.size()].emplace(
         (RemoteEntry){ret_node, task});
   }
