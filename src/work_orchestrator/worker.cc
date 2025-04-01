@@ -576,8 +576,9 @@ void Worker::EndTask(Container *exec, FullPtr<Task> task, RunContext &rctx) {
   if (task->ShouldSignalUnblock()) {
     Task *pending_to = rctx.pending_to_;
     if (!pending_to) {
-      HELOG(kFatal, "(node {}) Invalid pending to during signalling unblock",
-            CHI_CLIENT->node_id_);
+      HELOG(kFatal,
+            "(node {}) Invalid pending to during signaling unblock for task {}",
+            CHI_CLIENT->node_id_, *task);
     }
     CHI_WORK_ORCHESTRATOR->SignalUnblock(pending_to, pending_to->rctx_);
   }
