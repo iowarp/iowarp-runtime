@@ -49,6 +49,10 @@ void SyncIoTest(int rank, int nprocs, size_t msg_size, size_t ops_pp) {
               chi::DomainQuery::GetDirectHash(
                   chi::SubDomainId::kGlobalContainers, container_id),
               msg_size, MD_IO_WRITE, write_size, read_size);
+    client.Io(HSHM_MCTX,
+              chi::DomainQuery::GetDirectHash(
+                  chi::SubDomainId::kGlobalContainers, container_id),
+              msg_size, MD_IO_READ, write_size, read_size);
   }
   t.Pause();
   t.Collect();
