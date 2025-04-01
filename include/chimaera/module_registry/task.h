@@ -514,25 +514,19 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
   void SetBlocked(int count) {
     if (count) {
       rctx_.block_count_ += count;
-      task_flags_.SetBits(TASK_BLOCKED);
+      task_flags_.SetBits(TASK_BLOCKED | TASK_YIELDED);
     }
   }
 
   /** Check if task is blocked */
   HSHM_INLINE_CROSS_FUN
-  bool IsBlocked() const { return task_flags_.Any(TASK_BLOCKED); }
-
-  /** Check if task is blocked or yielded */
-  HSHM_INLINE_CROSS_FUN
-  bool IsBlockedOrYielded() const {
+  bool IsBlocked() const {
     return task_flags_.Any(TASK_BLOCKED | TASK_YIELDED);
   }
 
   /** Unset task as blocked */
   HSHM_INLINE_CROSS_FUN
-  void UnsetBlockedAndYielded() {
-    task_flags_.UnsetBits(TASK_BLOCKED | TASK_YIELDED);
-  }
+  void UnsetBlocked() { task_flags_.UnsetBits(TASK_BLOCKED | TASK_YIELDED); }
 
   /** Mark task as routed */
   HSHM_INLINE_CROSS_FUN
