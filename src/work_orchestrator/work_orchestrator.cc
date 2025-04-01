@@ -255,7 +255,7 @@ void WorkOrchestrator::SignalUnblock(Task *task, RunContext &rctx) {
   while (task->IsBlocked()) {
     std::atomic_thread_fence(std::memory_order_acquire);
     if (!task->IsBlocked()) {
-      HILOG(kInfo, "(node {}) Task unblocked");
+      HILOG(kInfo, "(node {}) Task unblocked", CHI_CLIENT->node_id_);
     }
     continue;
   }
