@@ -21,7 +21,8 @@ class IoTest {
     timer.Resume();
     int node_id = 1;
     for (size_t io_done = 0; io_done < block_; io_done += xfer_) {
-      HILOG(kInfo, "(rank {}) writing at offset {}", rank_, io_done);
+      HILOG(kInfo, "(rank {}) writing at offset  {} ({}%)", rank_, io_done,
+            io_done * 1.0 / (block_));
       chi::DomainQuery dom_query = chi::DomainQuery::GetDirectHash(
           chi::SubDomainId::kGlobalContainers, node_id);
       // std::vector<chi::Block> blocks =
@@ -35,6 +36,9 @@ class IoTest {
       block.size_ = xfer_;
       hipc::FullPtr<char> data =
           CHI_CLIENT->AllocateBuffer(HSHM_MCTX, block.size_);
+      if (data.IsNull()) {
+        HELOG(kFatal, "Buffer allocated was null");
+      }
       memset(data.ptr_, node_id, block.size_);
       client_.Write(HSHM_MCTX, dom_query, data.shm_, block);
       blocks_.emplace_back(block);
@@ -67,12 +71,16 @@ class IoTest {
     timer.Resume();
     int node_id = 1;
     for (chi::Block &block : blocks_) {
-      HILOG(kInfo, "(rank {}) reading at offset {}", rank_, block.off_);
+      HILOG(kInfo, "(rank {}) reading at offset {} ({}%)", rank_, block.off_,
+            block.off_ * 1.0 / (base_ + block_));
       chi::DomainQuery dom_query = chi::DomainQuery::GetDirectHash(
           chi::SubDomainId::kGlobalContainers, node_id);
       hipc::FullPtr<char> data =
           CHI_CLIENT->AllocateBuffer(HSHM_MCTX, block.size_);
       client_.Read(HSHM_MCTX, dom_query, data.shm_, block);
+      if (data.IsNull()) {
+        HELOG(kFatal, "Buffer allocated was null");
+      }
       // client_.Free(HSHM_MCTX, dom_query, block);
       if (!Verify(data.ptr_, node_id, block.size_)) {
         std::string xs[3];
