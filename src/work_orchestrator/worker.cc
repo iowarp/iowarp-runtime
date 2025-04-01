@@ -502,7 +502,6 @@ bool Worker::RunTask(FullPtr<Task> &task, bool flushing) {
   bool pushback = true;
   if (task->IsBlocked()) {
     pushback = false;
-    HILOG(kInfo, "(node {}) Blocking task {}", CHI_CLIENT->node_id_, *task);
     task->UnsetBlocked();
   } else if (task->IsYielded()) {
     pushback = true;
