@@ -272,8 +272,9 @@ class Client : public ConfigurationManager {
       auto alloc = HSHM_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(p.alloc_id_);
       alloc->Free(mctx, p);
     } catch (hshm::Error &err) {
-      HELOG(kFatal, "(node {}) {}:\n{}", node_id_, err.what(),
+      HELOG(kError, "(node {}) {}:\n{}", node_id_, err.what(),
             boost::stacktrace::stacktrace());
+      throw err;
     }
     // HILOG(kInfo, "(node {}) Freeing to {}", node_id_, alloc->GetId());
   }
@@ -286,8 +287,9 @@ class Client : public ConfigurationManager {
           HSHM_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(p.shm_.alloc_id_);
       alloc->FreeLocalPtr(mctx, p);
     } catch (hshm::Error &err) {
-      HELOG(kFatal, "(node {}) {}:\n{}", node_id_, err.what(),
+      HELOG(kError, "(node {}) {}:\n{}", node_id_, err.what(),
             boost::stacktrace::stacktrace());
+      throw err;
     }
     // HILOG(kInfo, "(node {}) Freeing to {}", node_id_, alloc->GetId());
   }
