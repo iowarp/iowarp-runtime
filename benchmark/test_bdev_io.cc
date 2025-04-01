@@ -7,8 +7,8 @@ class IoTest {
  public:
   chi::bdev::Client client_;
   std::string path_;
-  int xfer_;
-  int block_;
+  size_t xfer_;
+  size_t block_;
   size_t net_size_;
   bool read_;
   std::vector<chi::Block> blocks_;
