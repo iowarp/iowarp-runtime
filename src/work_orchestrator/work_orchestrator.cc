@@ -240,8 +240,6 @@ std::vector<Load> WorkOrchestrator::CalculateLoad() {
 
 /** Unblock a task */
 void WorkOrchestrator::SignalUnblock(Task *task, RunContext &rctx) {
-  HILOG(kInfo, "(node {}) Signaled unblock for {}", CHI_CLIENT->node_id_,
-        *task);
   if (!task) {
     HELOG(kFatal, "(node {}) Invalid pending to during signalling unblock",
           CHI_CLIENT->node_id_);
@@ -252,6 +250,8 @@ void WorkOrchestrator::SignalUnblock(Task *task, RunContext &rctx) {
   }
   ssize_t count = rctx.block_count_.fetch_sub(1) - 1;
   if (count == 0) {
+    HILOG(kInfo, "(node {}) Signaled unblock for {}", CHI_CLIENT->node_id_,
+          *task);
     if (task->IsBlockedOrYielded()) {
       HELOG(kWarning, "(node {}) Rescheduling a task still marked as blocked",
             CHI_CLIENT->node_id_);
