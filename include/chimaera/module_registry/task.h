@@ -520,9 +520,17 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
   HSHM_INLINE_CROSS_FUN
   bool IsBlocked() const { return task_flags_.Any(TASK_BLOCKED); }
 
+  /** Check if task is blocked or yielded */
+  HSHM_INLINE_CROSS_FUN
+  bool IsBlockedOrYielded() const {
+    return task_flags_.Any(TASK_BLOCKED | TASK_YIELDED);
+  }
+
   /** Unset task as blocked */
   HSHM_INLINE_CROSS_FUN
-  void UnsetBlocked() { task_flags_.UnsetBits(TASK_BLOCKED); }
+  void UnsetBlockedAndYielded() {
+    task_flags_.UnsetBits(TASK_BLOCKED | TASK_YIELDED);
+  }
 
   /** Mark task as routed */
   HSHM_INLINE_CROSS_FUN

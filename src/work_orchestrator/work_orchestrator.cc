@@ -248,10 +248,10 @@ void WorkOrchestrator::SignalUnblock(Task *task, RunContext &rctx) {
     HELOG(kFatal, "(node {}) No route lane during unblock",
           CHI_CLIENT->node_id_);
   }
-  if (task->IsBlocked()) {
+  if (task->IsBlockedOrYielded()) {
     HELOG(kWarning, "(node {}) Rescheduling a task still marked as blocked",
           CHI_CLIENT->node_id_);
-    while (task->IsBlocked()) {
+    while (task->IsBlockedOrYielded()) {
       std::atomic_thread_fence(std::memory_order_acquire);
       continue;
     }
