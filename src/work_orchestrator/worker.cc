@@ -562,7 +562,18 @@ void Worker::CoroutineEntry(bctx::transfer_t t) {
     HELOG(kFatal, "Lane is null, should never happen");
   }
   rctx.jmp_ = t;
-  exec->Run(task->method_, task, rctx);
+  try {
+    exec->Run(task->method_, task, rctx);
+  } catch (hshm::Error &e) {
+    HELOG(kError, "(node {}) Worker {} caught an error: {}",
+          CHI_CLIENT->node_id_, rctx.worker_id_, e.what());
+  } catch (std::exception &e) {
+    HELOG(kError, "(node {}) Worker {} caught an exception: {}",
+          CHI_CLIENT->node_id_, rctx.worker_id_, e.what());
+  } catch (...) {
+    HELOG(kError, "(node {}) Worker {} caught an unknown exception",
+          CHI_CLIENT->node_id_, rctx.worker_id_);
+  }
   task->UnsetStarted();
   task->BaseYield();
 }
