@@ -60,7 +60,7 @@ class Server : public Module {
 
     // Create lanes
     CreateLaneGroup(kNodeRpcLanes, 1, QUEUE_HIGH_LATENCY);
-    CreateLaneGroup(kInitRpcLanes, 4, QUEUE_LOW_LATENCY);
+    CreateLaneGroup(kInitRpcLanes, 1, QUEUE_LOW_LATENCY);
 
     // Creating submitter and completer queues
     DomainQuery dom_query =
