@@ -138,7 +138,7 @@ int main(int argc, char **argv) {
       HSHM_MCTX,
       chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
       chi::DomainQuery::GetGlobalBcast(), "bdev_test", test.path_,
-      test.net_size_);
+      test.block_ * 2);
   test.TestWrite();
   MPI_Barrier(MPI_COMM_WORLD);
   if (test.read_) {
