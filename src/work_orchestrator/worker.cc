@@ -501,6 +501,7 @@ bool Worker::RunTask(FullPtr<Task> &task, bool flushing) {
   if (task->IsBlocked()) {
     pushback = false;
     task->UnsetYielded();
+    task->UnsetBlocked();
   } else if (task->IsYielded()) {
     pushback = true;
     task->UnsetYielded();
