@@ -29,17 +29,6 @@ namespace chi {
 
 typedef ABT_key TlsKey;
 
-struct BlockedTask {
-  Task *task_;
-  hipc::atomic<int> block_count_;
-
-  BlockedTask() = default;
-
-  BlockedTask(Task *task) : task_(task) {
-    block_count_ = task->rctx_.block_count_;
-  }
-};
-
 class WorkOrchestrator {
  public:
   ServerConfig *config_; /**< The server configuration */

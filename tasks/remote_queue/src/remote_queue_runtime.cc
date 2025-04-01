@@ -31,7 +31,6 @@ struct RemoteEntry {
 
 class Server : public Module {
  public:
-  hipc::Mutex lock_;
   std::vector<hshm::mpsc_queue<RemoteEntry>> submit_;
   std::vector<hshm::mpsc_queue<RemoteEntry>> complete_;
   std::vector<FullPtr<ClientSubmitTask>> submitters_;
@@ -209,6 +208,11 @@ class Server : public Module {
         // if (rctx.worker_props_.Any(CHI_WORKER_IS_FLUSHING)) {
         //   rctx.flush_->count_ += !task->IsLongRunning() && !task->IsFlush();
         // }
+        // Wait until the worker has descheduled the submitter task
+        while (rep_task->rctx_.remote_pending_->IsYielded()) {
+          task->Yield();
+        }
+        // Serialize the task
         Container *exec = CHI_MOD_REGISTRY->GetStaticContainer(rep_task->pool_);
         if (exec == nullptr) {
           HELOG(kFatal, "(node {}) Could not find the pool {}",
@@ -250,7 +254,6 @@ class Server : public Module {
     size_t node_hash = hshm::hash<NodeId>{}(ret_node);
     auto &complete = complete_;
     HILOG(kInfo, "(node {}) Pushing task {}", CHI_CLIENT->node_id_, *task);
-    ScopedMutex lock(lock_, 0);
     complete[node_hash % complete.size()].emplace(
         (RemoteEntry){ret_node, task});
   }
@@ -267,7 +270,6 @@ class Server : public Module {
       auto &complete = complete_;
       std::vector<FullPtr<Task>> done_tasks;
       done_tasks.reserve(complete[0].size());
-      ScopedMutex lock(lock_, 0);
       while (!complete[0].pop(entry).IsNull()) {
         if (entries.find(entry.res_domain_.node_) == entries.end()) {
           entries.emplace(entry.res_domain_.node_,
@@ -293,7 +295,6 @@ class Server : public Module {
           HELOG(kError, "Current XFER {}", xfer);
         }
       }
-      lock.Unlock();
 
       // Free tasks
       for (FullPtr<Task> &task : done_tasks) {
