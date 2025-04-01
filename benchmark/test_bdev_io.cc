@@ -117,7 +117,7 @@ int main(int argc, char **argv) {
   test.block_ = hshm::ConfigParse::ParseSize(argv[3]);
   test.base_ = test.block_ * test.rank_;
   test.read_ = atoi(argv[4]);
-  test.net_size_ = test.block_ * (size_t)nprocs * 2;
+  test.net_size_ = test.block_ * (size_t)nprocs;
   if (rank == 0) {
     HILOG(kInfo,
           "TEST BEGIN: nprocs={} xfer={}, block={} total={}, block * nprocs={}",
@@ -129,7 +129,7 @@ int main(int argc, char **argv) {
       HSHM_MCTX,
       chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
       chi::DomainQuery::GetGlobalBcast(), "bdev_test", test.path_,
-      test.net_size_);
+      test.block_ * 2);
   test.TestWrite();
   MPI_Barrier(MPI_COMM_WORLD);
   if (test.read_) {
