@@ -49,6 +49,15 @@ class IoTest {
     }
   }
 
+  bool Verify(char *ptr, int id, size_t size) {
+    for (int i = 0; i < size; ++i) {
+      if (ptr[i] != id) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   void TestRead() {
     hshm::MpiTimer timer(MPI_COMM_WORLD);
     timer.Resume();
@@ -60,6 +69,9 @@ class IoTest {
       hipc::FullPtr<char> data = CHI_CLIENT->AllocateBuffer(HSHM_MCTX, xfer_);
       client_.Read(HSHM_MCTX, dom_query, data.shm_, block);
       client_.Free(HSHM_MCTX, dom_query, block);
+      if (!Verify(data.ptr_, node_id, block.size_)) {
+        HELOG(kFatal, "Read did not get the written data properly");
+      }
       CHI_CLIENT->FreeBuffer(HSHM_MCTX, data);
       node_id++;
     }
