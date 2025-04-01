@@ -203,7 +203,9 @@ class Server : public Module {
         HILOG(kInfo, "(node {}) Writing to FS, alloc={} off={} size={} ptr={}",
               CHI_CLIENT->node_id_, task->data_.alloc_id_, task->off_,
               task->size_, (void *)data);
-        ssize_t ret = pwrite64(fd_, data, task->size_, task->off_);
+        // ssize_t ret = pwrite64(fd_, data, task->size_, task->off_);
+        lseek64(fd_, task->off_, SEEK_SET);
+        ssize_t ret = write(fd_, data, task->size_);
         if (ret == task->size_) {
           task->success_ = true;
         } else {
@@ -236,7 +238,9 @@ class Server : public Module {
               "(node {}) Reading from FS, alloc={} off={} size={} ptr={}",
               CHI_CLIENT->node_id_, task->data_.alloc_id_, task->off_,
               task->size_, (void *)data);
-        ssize_t ret = pread64(fd_, data, task->size_, task->off_);
+        // ssize_t ret = pread64(fd_, data, task->size_, task->off_);
+        lseek64(fd_, task->off_, SEEK_SET);
+        ssize_t ret = read(fd_, data, task->size_);
         if (ret == task->size_) {
           task->success_ = true;
         } else {
