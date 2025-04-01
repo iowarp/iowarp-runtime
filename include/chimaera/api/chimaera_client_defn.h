@@ -21,6 +21,8 @@
 #ifdef CHIMAERA_RUNTIME
 #include "chimaera/work_orchestrator/work_orchestrator.h"
 #endif
+#include <boost/stacktrace.hpp>
+
 #include "chimaera/module_registry/task.h"
 
 namespace chi {
@@ -270,7 +272,8 @@ class Client : public ConfigurationManager {
       auto alloc = HSHM_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(p.alloc_id_);
       alloc->Free(mctx, p);
     } catch (hshm::Error &err) {
-      HELOG(kFatal, "(node {}) {}", node_id_, err.what());
+      HELOG(kFatal, "(node {}) {}:\n{}", node_id_, err.what(),
+            boost::stacktrace::stacktrace());
     }
     // HILOG(kInfo, "(node {}) Freeing to {}", node_id_, alloc->GetId());
   }
@@ -283,7 +286,8 @@ class Client : public ConfigurationManager {
           HSHM_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(p.shm_.alloc_id_);
       alloc->FreeLocalPtr(mctx, p);
     } catch (hshm::Error &err) {
-      HELOG(kFatal, "(node {}) {}", node_id_, err.what());
+      HELOG(kFatal, "(node {}) {}:\n{}", node_id_, err.what(),
+            boost::stacktrace::stacktrace());
     }
     // HILOG(kInfo, "(node {}) Freeing to {}", node_id_, alloc->GetId());
   }
