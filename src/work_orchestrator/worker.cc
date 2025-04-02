@@ -264,9 +264,6 @@ void Worker::EndFlush(WorkOrchestrator *orch) {
   while (AnyFlushing(orch)) {
     HSHM_THREAD_MODEL->Yield();
   }
-  // Workers that are shutting down never stop flushing
-  // They only get this last chance before they get killed.
-  flush_.flushing_ = orch->IsBeginningShutdown();
   // On the root worker, detect if any work was done
   if (id_ == 0) {
     if (AnyFlushWorkDone(orch)) {
