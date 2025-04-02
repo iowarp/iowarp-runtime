@@ -346,9 +346,6 @@ void Worker::Loop() {
             CHI_CLIENT->node_id_, id_);
     }
   }
-  HILOG(kInfo, "(node {}) Worker {} wrapping up", CHI_CLIENT->node_id_, id_);
-  Run(true);
-  HILOG(kInfo, "(node {}) Worker {} has exited", CHI_CLIENT->node_id_, id_);
 }
 
 /** Run a single iteration over all queues */
