@@ -145,18 +145,12 @@ class Client : public ModuleClient {
 
   /** Flush the runtime */
   HSHM_INLINE_CROSS_FUN
-  void Flush(const hipc::MemContext &mctx, const DomainQuery &dom_query) {
+  size_t Flush(const hipc::MemContext &mctx, const DomainQuery &dom_query) {
     FullPtr<FlushTask> task = AsyncFlush(mctx, dom_query);
     task->Wait();
+    size_t work_done = task->work_done_;
     CHI_CLIENT->DelTask(mctx, task);
-
-    // size_t work_done = 0;
-    // do {
-    //   FullPtr<FlushTask> task = AsyncFlush(mctx, dom_query);
-    //   task->Wait();
-    //   work_done = task->work_done_;
-    //   CHI_CLIENT->DelTask(mctx, task);
-    // } while (work_done > 0);
+    return work_done;
   }
   CHI_TASK_METHODS(Flush);
 
