@@ -99,6 +99,12 @@ target_link_libraries(runtime INTERFACE chimaera_runtime)
 add_library(chimaera::runtime ALIAS chimaera_runtime)
 list(APPEND chimaera_runtime_exports chimaera_runtime runtime)
 
+# ------------------------------------------------------------------------------
+# Build Utilities
+# ------------------------------------------------------------------------------
+add_subdirectory(util)
+add_subdirectory(malloc)
+
 # -----------------------------------------------------------------------------
 # Add file(s) to CMake Install
 # -----------------------------------------------------------------------------

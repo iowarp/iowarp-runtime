@@ -26,13 +26,6 @@ add_executable(chimaera_stat_runtime chimaera_stat_runtime.cc)
 add_dependencies(chimaera_stat_runtime chimaera::client_host)
 target_link_libraries(chimaera_stat_runtime PUBLIC chimaera::client_host)
 
-# ------------------------------------------------------------------------------
-# Build Chimaera Malloc Interceptor
-# ------------------------------------------------------------------------------
-add_library(chimaera_malloc chimaera_malloc.cc)
-add_dependencies(chimaera_malloc chimaera::client_host)
-target_link_libraries(chimaera_malloc PUBLIC chimaera::client_host)
-
 # -----------------------------------------------------------------------------
 # Add file(s) to CMake Install
 # -----------------------------------------------------------------------------
