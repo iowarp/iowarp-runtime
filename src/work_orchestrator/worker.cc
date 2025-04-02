@@ -247,8 +247,10 @@ void Worker::WorkerEntryPoint(void *arg) {
  * in the first iteration.
  * */
 void Worker::BeginFlush(WorkOrchestrator *orch) {
-  if (flush_.flush_iter_ == 0 && id_ == 0) {
+  if (flush_.flush_iter_ == 0) {
     HILOG(kInfo, "(node {}) Beginning to flush", CHI_CLIENT->node_id_);
+  }
+  if (id_ == 0) {
     for (std::unique_ptr<Worker> &worker : orch->workers_) {
       worker->flush_.flushing_ = true;
     }
@@ -268,8 +270,6 @@ void Worker::EndFlush(WorkOrchestrator *orch) {
   // On the root worker, detect if any work was done
   if (id_ == 0) {
     if (AnyFlushWorkDone(orch)) {
-      // Ensure that workers are relabeled as flushing
-      flush_.flushing_ = true;
       ++flush_.flush_iter_;
     } else {
       // Reap all FlushTasks and end recurion
