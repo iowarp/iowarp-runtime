@@ -107,8 +107,10 @@ bool PrivateTaskMultiQueue::PushLocalTask(const DomainQuery &res_query,
     // If the container doesn't exist, it's probably going to get created.
     // Put in the failed queue.
     HELOG(kWarning,
-          "(node {}) For task {}, either {} or {} does not yet exist. If you "
-          "see this message repeatedly, then there is something wrong.",
+          "(node {}) For task {}, either pool={} or container={} does not yet "
+          "exist. If you "
+          "see this infinitely print, then the provided values were likely "
+          "erronous. Ctrl-C this to stop me from printing too much.",
           CHI_CLIENT->node_id_, task->task_node_, task->pool_, container_id);
     return !GetFail().push(task).IsNull();
   }
