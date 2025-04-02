@@ -229,8 +229,9 @@ void WorkOrchestrator::DedicateCores() {
 /** Finalize the runtime */
 void WorkOrchestrator::FinalizeRuntime() {
   HILOG(kInfo, "(node {}) Finalizing workers", CHI_RPC->node_id_);
-  CHI_THALLIUM->StopThisDaemon();
-  run_status_.store(kStatusDoDown);
+  run_status_ = kStatusDoDown;
+  exit(0);
+  // CHI_THALLIUM->StopThisDaemon();
 }
 
 std::vector<Load> WorkOrchestrator::CalculateLoad() {
