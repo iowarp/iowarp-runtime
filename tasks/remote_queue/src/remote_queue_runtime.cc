@@ -412,8 +412,6 @@ class Server : public Module {
         exec->LoadEnd(rep_task->method_, ar, rep_task);
         HLOG(kInfo, kRemoteQueue, "[TASK_CHECK] Completing replica {}",
              rep_task);
-        // Mark the number of tasks pending to complete
-        pending_ -= 1;
       }
       // Process bulk message
       try {
@@ -433,6 +431,8 @@ class Server : public Module {
           HELOG(kFatal, "This shouldn't happen ever");
         }
         CHI_WORK_ORCHESTRATOR->SignalUnblock(submit_task, submit_task->rctx_);
+        // Mark the number of tasks pending to complete
+        pending_ -= 1;
       }
     } catch (hshm::Error &e) {
       HELOG(kError, "(node {}) Worker {} caught an error: {}",

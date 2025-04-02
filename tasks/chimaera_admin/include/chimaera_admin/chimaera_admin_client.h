@@ -99,6 +99,7 @@ class Client : public ModuleClient {
         AsyncStopRuntime(mctx, DomainQuery::GetGlobalBcast());
     task->Wait();
     CHI_CLIENT->DelTask(mctx, task);
+    HILOG(kInfo, "Runtime finished stopping!");
   }
   CHI_TASK_METHODS(StopRuntime);
 
