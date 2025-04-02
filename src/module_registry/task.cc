@@ -17,14 +17,12 @@ void Task::SetBlocked(int count) {
   int ret = rctx_.block_count_.fetch_add(count) + count;
   if (ret != 0) {
     task_flags_.SetBits(TASK_BLOCKED | TASK_YIELDED);
-  } else {
-    // HELOG(kFatal, "(node {}) block count should never be negative here: {}",
-    //       CHI_CLIENT->node_id_, ret);
   }
-  if (ret < 0) {
-    HELOG(kWarning, "(node {}) I don't think block count be negative here: {}",
-          CHI_CLIENT->node_id_, ret);
-  }
+  // if (ret < 0) {
+  //   HELOG(kWarning, "(node {}) I don't think block count be negative here:
+  //   {}",
+  //         CHI_CLIENT->node_id_, ret);
+  // }
 }
 
 HSHM_CROSS_FUN
