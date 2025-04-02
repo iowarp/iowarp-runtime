@@ -105,6 +105,7 @@ class MonitorMode {
   TASK_METHOD_T kReplicaStart = 3;
   TASK_METHOD_T kReplicaAgg = 4;
   TASK_METHOD_T kSchedule = 5;
+  TASK_METHOD_T kFlushWork = 6;
 };
 
 /**

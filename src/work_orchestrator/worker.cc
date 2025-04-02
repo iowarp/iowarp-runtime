@@ -94,12 +94,12 @@ bool PrivateTaskMultiQueue::PushLocalTask(const DomainQuery &res_query,
                                           RunContext &rctx,
                                           const FullPtr<Task> &task) {
   // If the task is a flushing task. Place in the flush queue.
-  // if (task->IsFlush()) {
-  //   HLOG(kDebug, kWorkerDebug, "[TASK_CHECK] (node {}) Failing task {}",
-  //        CHI_CLIENT->node_id_, (void *)task.ptr_);
-  //   chi::Worker &flusher = CHI_WORK_ORCHESTRATOR->GetWorker(0);
-  //   return !flusher.active_.GetFlush().push(task).IsNull();
-  // }
+  if (task->IsFlush()) {
+    HLOG(kDebug, kWorkerDebug, "[TASK_CHECK] (node {}) Failing task {}",
+         CHI_CLIENT->node_id_, (void *)task.ptr_);
+    chi::Worker &flusher = CHI_WORK_ORCHESTRATOR->GetWorker(0);
+    return !flusher.active_.GetFlush().push(task).IsNull();
+  }
   // Determine the lane the task should map to within container
   ContainerId container_id = res_query.sel_.id_;
   Container *exec = CHI_MOD_REGISTRY->GetContainer(task->pool_, container_id);
@@ -509,23 +509,6 @@ bool Worker::RunTask(FullPtr<Task> &task, bool flushing) {
     EndTask(rctx.exec_, task, rctx);
     return false;
   }
-
-  // bool pushback = true;
-  // if (task->IsBlocked()) {
-  //   pushback = false;
-  //   HILOG(kInfo, "(node {}) Signaled unblock for {}", CHI_CLIENT->node_id_,
-  //         *task);
-  //   task->UnsetBlocked();
-  // } else if (task->IsYielded()) {
-  //   pushback = true;
-  //   task->UnsetYielded();
-  // } else if (task->IsLongRunning() && !task->IsTriggerComplete()) {
-  //   pushback = true;
-  // } else {
-  //   pushback = false;
-  //   EndTask(rctx.exec_, task, rctx);
-  // }
-  // return pushback;
 }
 
 /** Run an arbitrary task */
@@ -538,8 +521,10 @@ void Worker::ExecTask(FullPtr<Task> &task, RunContext &rctx, Container *&exec,
   }
   // Flush tasks
   if (props.Any(CHI_WORKER_IS_FLUSHING)) {
-    if (!task->IsLongRunning() && !task->ShouldSignalRemoteComplete()) {
-      // flush_.count_ += 1;
+    if (!task->IsLongRunning() || task->IsStarted()) {
+      flush_.count_ += 1;
+    } else if (!task->IsStarted()) {
+      exec->Monitor(MonitorMode::kFlushWork, task->method_, task.ptr_, rctx);
     }
   }
   // Execute + monitor the task
