@@ -274,7 +274,7 @@ void Worker::EndFlush(WorkOrchestrator *orch) {
     } else {
       // Reap all FlushTasks and end recurion
       PollTempQueue<true>(active_.GetFlush(), false);
-      HILOG(kInfo, "(node={}) ENDING FLUSH", CHI_CLIENT->node_id_);
+      HILOG(kInfo, "(node={}) Ending Flush", CHI_CLIENT->node_id_);
       // All work is done, so begin shutdown
       if (orch->IsBeginningShutdown()) {
         orch->FinalizeRuntime();
