@@ -21,6 +21,10 @@ void Task::SetBlocked(int count) {
     // HELOG(kFatal, "(node {}) block count should never be negative here: {}",
     //       CHI_CLIENT->node_id_, ret);
   }
+  if (ret < 0) {
+    HELOG(kWarning, "(node {}) I don't think block count be negative here: {}",
+          CHI_CLIENT->node_id_, ret);
+  }
 }
 
 HSHM_CROSS_FUN
