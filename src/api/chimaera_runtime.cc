@@ -186,6 +186,7 @@ void Runtime::Finalize() {}
 void Runtime::RunDaemon() {
   thallium_.RunDaemon();
   HILOG(kInfo, "(node {}) Daemon is exiting", CHI_CLIENT->node_id_);
+  exit(0);
 }
 
 }  // namespace chi
