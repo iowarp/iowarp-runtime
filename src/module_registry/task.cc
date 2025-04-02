@@ -18,8 +18,8 @@ void Task::SetBlocked(int count) {
   if (ret != 0) {
     task_flags_.SetBits(TASK_BLOCKED | TASK_YIELDED);
   } else {
-    HELOG(kFatal, "(node {}) block count should never be negative here: {}",
-          CHI_CLIENT->node_id_, ret);
+    // HELOG(kFatal, "(node {}) block count should never be negative here: {}",
+    //       CHI_CLIENT->node_id_, ret);
   }
 }
 
