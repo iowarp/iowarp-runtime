@@ -31,7 +31,7 @@ struct RemoteEntry {
 
 class Server : public Module {
  public:
-  std::atomic<int> pending_ = 0;
+  hipc::atomic<int> pending_ = 0;
   std::vector<hshm::mpsc_queue<RemoteEntry>> submit_;
   std::vector<hshm::mpsc_queue<RemoteEntry>> complete_;
   std::vector<FullPtr<ClientSubmitTask>> submitters_;
@@ -244,7 +244,7 @@ class Server : public Module {
                            RunContext &rctx) {
     switch (mode) {
       case MonitorMode::kFlushWork: {
-        rctx.flush_->count_ += submit_.size();
+        rctx.flush_->count_ += submit_.size() + pending_.load();
       }
     }
   }
