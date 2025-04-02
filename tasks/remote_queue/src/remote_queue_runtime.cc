@@ -220,7 +220,7 @@ class Server : public Module {
              "[TASK_CHECK] Serializing rep_task {}({} -> {}) ", rep_task,
              CHI_RPC->node_id_, entry.res_domain_.node_);
         // Mark the number of tasks pending to complete
-        pending_ += 1;
+        pending_ += !rep_task->IsFlush();
       }
 
       for (auto it = entries.begin(); it != entries.end(); ++it) {
@@ -437,7 +437,7 @@ class Server : public Module {
         }
         CHI_WORK_ORCHESTRATOR->SignalUnblock(submit_task, submit_task->rctx_);
         // Mark the number of tasks pending to complete
-        pending_ -= 1;
+        pending_ -= !rep_task->IsFlush();
       }
     } catch (hshm::Error &e) {
       HELOG(kError, "(node {}) Worker {} caught an error: {}",
