@@ -244,7 +244,10 @@ class Server : public Module {
                            RunContext &rctx) {
     switch (mode) {
       case MonitorMode::kFlushWork: {
-        rctx.flush_->count_ += submit_.size() + pending_.load();
+        for (auto &submit : submit_) {
+          rctx.flush_->count_ += submit.size();
+        }
+        rctx.flush_->count_ += pending_.load();
       }
     }
   }
@@ -325,7 +328,9 @@ class Server : public Module {
                              RunContext &rctx) {
     switch (mode) {
       case MonitorMode::kFlushWork: {
-        rctx.flush_->count_ += complete_.size();
+        for (auto &complete : complete_) {
+          rctx.flush_->count_ += complete.size();
+        }
       }
     }
   }
