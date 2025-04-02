@@ -96,11 +96,7 @@ class Client : public ModuleClient {
           "All unflushed data will be written to the PFS.");
     Flush(mctx, DomainQuery::GetGlobalBcast());
     HILOG(kInfo, "Stopping the runtime");
-    AsyncStopRuntime(
-        mctx, DomainQuery::GetDirectHash(SubDomainId::kLocalContainers, 0),
-        true);
-    HILOG(kInfo, "All done!");
-    exit(1);
+    AsyncStopRuntime(mctx, DomainQuery::GetLocalHash(0), true);
   }
   CHI_TASK_METHODS(StopRuntime);
 
