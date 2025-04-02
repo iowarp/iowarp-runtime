@@ -512,9 +512,11 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
   /** Set blocked */
   HSHM_INLINE_CROSS_FUN
   void SetBlocked(int count) {
-    if (count) {
-      rctx_.block_count_ += count;
+    int ret = rctx_.block_count_.fetch_add(count) + count;
+    if (ret > 0) {
       task_flags_.SetBits(TASK_BLOCKED | TASK_YIELDED);
+    } else {
+      HELOG(kFatal, "(node {}) block count should never be negative here");
     }
   }
 
