@@ -313,8 +313,7 @@ void Worker::Loop() {
       load_nsec_ = 0;
       bool flushing = flush_.flushing_ || active_.GetFlush().size();
       if (flushing) {
-        // TODO(llogan): Re-enable this
-        // BeginFlush(orch);
+        BeginFlush(orch);
       }
       Run(flushing);
       if (flushing) {
