@@ -296,7 +296,7 @@ class Server : public Module {
   void StopRuntime(StopRuntimeTask *task, RunContext &rctx) {
     HILOG(kInfo, "(node {}) Handling runtime stop (task_node={})",
           CHI_RPC->node_id_, task->task_node_);
-    CHI_WORK_ORCHESTRATOR->BeginShutdown();
+    // CHI_WORK_ORCHESTRATOR->BeginShutdown();
   }
   void MonitorStopRuntime(MonitorModeId mode, StopRuntimeTask *task,
                           RunContext &rctx) {
