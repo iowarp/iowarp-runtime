@@ -593,6 +593,8 @@ void Worker::CoroutineEntry(bctx::transfer_t t) {
 /** Free a task when it is no longer needed */
 HSHM_INLINE
 void Worker::EndTask(Container *exec, FullPtr<Task> task, RunContext &rctx) {
+  // Ensure flusher knows something is happening.
+  flush_.count_ += 1;
   // Unblock the task pending on this one's completion
   if (task->ShouldSignalUnblock()) {
     Task *pending_to = rctx.pending_to_;
