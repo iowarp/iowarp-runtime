@@ -95,11 +95,7 @@ class Client : public ModuleClient {
           "If you did async I/O, this may take some time.\n"
           "All unflushed data will be written to the PFS.");
     Flush(mctx, DomainQuery::GetGlobalBcast());
-    FullPtr<StopRuntimeTask> task =
-        AsyncStopRuntime(mctx, DomainQuery::GetGlobalBcast());
-    task->Wait();
-    CHI_CLIENT->DelTask(mctx, task);
-    HILOG(kInfo, "Runtime finished stopping!");
+    AsyncStopRuntime(mctx, DomainQuery::GetGlobalBcast());
   }
   CHI_TASK_METHODS(StopRuntime);
 
