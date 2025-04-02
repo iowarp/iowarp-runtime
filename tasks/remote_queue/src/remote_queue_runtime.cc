@@ -205,9 +205,6 @@ class Server : public Module {
           entries.emplace(entry.res_domain_.node_, BinaryOutputArchive<true>());
         }
         Task *rep_task = entry.task_;
-        // if (rctx.worker_props_.Any(CHI_WORKER_IS_FLUSHING)) {
-        //   rctx.flush_->count_ += !task->IsLongRunning() && !task->IsFlush();
-        // }
         // Serialize the task
         Container *exec = CHI_MOD_REGISTRY->GetStaticContainer(rep_task->pool_);
         if (exec == nullptr) {
@@ -241,7 +238,13 @@ class Server : public Module {
     }
   }
   void MonitorClientSubmit(MonitorModeId mode, ClientSubmitTask *task,
-                           RunContext &rctx) {}
+                           RunContext &rctx) {
+    switch (mode) {
+      case MonitorMode::kFlushWork: {
+        rctx.flush_->count_ += submit_.size();
+      }
+    }
+  }
 
   /** Complete the task (on the remote node) */
   void ServerPushComplete(ServerPushCompleteTask *task, RunContext &rctx) {
@@ -316,7 +319,13 @@ class Server : public Module {
     }
   }
   void MonitorServerComplete(MonitorModeId mode, ServerCompleteTask *task,
-                             RunContext &rctx) {}
+                             RunContext &rctx) {
+    switch (mode) {
+      case MonitorMode::kFlushWork: {
+        rctx.flush_->count_ += complete_.size();
+      }
+    }
+  }
 
  private:
   /** The RPC for processing a message with data */
