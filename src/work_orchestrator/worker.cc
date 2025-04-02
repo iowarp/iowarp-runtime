@@ -535,6 +535,8 @@ void Worker::ExecTask(FullPtr<Task> &task, RunContext &rctx, Container *&exec,
       flush_.count_ += 1;
     } else if (!task->IsStarted()) {
       exec->Monitor(MonitorMode::kFlushWork, task->method_, task.ptr_, rctx);
+    } else {
+      return;  // Do not begin this task.
     }
   }
   // Execute + monitor the task
