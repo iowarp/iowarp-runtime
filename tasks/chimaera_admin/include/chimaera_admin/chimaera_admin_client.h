@@ -94,6 +94,7 @@ class Client : public ModuleClient {
           "Beginning to flush the runtime.\n"
           "If you did async I/O, this may take some time.\n"
           "All unflushed data will be written to the PFS.");
+    Flush(mctx, DomainQuery::GetGlobalBcast());
     FullPtr<StopRuntimeTask> task =
         AsyncStopRuntime(mctx, DomainQuery::GetGlobalBcast());
     task->Wait();
