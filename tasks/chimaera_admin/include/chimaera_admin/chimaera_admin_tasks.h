@@ -357,30 +357,24 @@ struct StopRuntimeTask : public Task, TaskFlags<TF_SRL_SYM> {
   HSHM_INLINE_CROSS_FUN
   explicit StopRuntimeTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
                            const TaskNode &task_node, const PoolId &pool_id,
-                           const DomainQuery &dom_query, bool root)
+                           const DomainQuery &dom_query)
       : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
     prio_ = TaskPrioOpt::kLowLatency;
     pool_ = chi::ADMIN_POOL_ID;
     method_ = Method::kStopRuntime;
-    task_flags_.SetBits(TASK_FIRE_AND_FORGET);
+    task_flags_.SetBits(0);
     dom_query_ = dom_query;
-
-    root_ = root;
   }
 
   /** Duplicate message */
   HSHM_INLINE_CROSS_FUN
-  void CopyStart(const StopRuntimeTask &other, bool deep) {
-    root_ = other.root_;
-  }
+  void CopyStart(const StopRuntimeTask &other, bool deep) {}
 
   /** (De)serialize message call */
   template <typename Ar>
-  HSHM_INLINE_CROSS_FUN void SerializeStart(Ar &ar) {
-    ar(root_);
-  }
+  HSHM_INLINE_CROSS_FUN void SerializeStart(Ar &ar) {}
 
   /** (De)serialize message return */
   template <typename Ar>

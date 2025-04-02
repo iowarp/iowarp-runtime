@@ -6,7 +6,7 @@
 #define CHIMAERA_INCLUDE_CHIMAERA_WORK_ORCHESTRATOR_COMUTEX_H_
 
 #include "comutex_defn.h"
-#include "worker.h"
+#include "work_orchestrator.h"
 
 namespace chi {
 

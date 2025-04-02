@@ -20,7 +20,7 @@ namespace chi {
 
 void WorkOrchestrator::ServerInit(ServerConfig *config) {
   config_ = config;
-  // blocked_tasks_.Init(config->queue_manager_.queue_depth_);
+  run_status_ = kStatusAlive;
 
   // Initialize argobots
   ABT_init(0, nullptr);
@@ -156,7 +156,6 @@ void WorkOrchestrator::SpawnWorkers() {
 void WorkOrchestrator::SpawnReinforceThread() {
   reinforce_worker_ =
       std::make_unique<ReinforceWorker>(config_->wo_.reinforce_cpu_);
-  kill_requested_ = false;
   // Create RPC worker threads
   rpc_pool_ = tl::pool::create(tl::pool::access::mpmc);
   for (u32 cpu_id : config_->rpc_.cpus_) {
@@ -171,7 +170,7 @@ void WorkOrchestrator::SpawnReinforceThread() {
 
 /** Join the workers */
 void WorkOrchestrator::Join() {
-  kill_requested_.store(true);
+  run_status_ = kStatusDoDown;
   for (std::unique_ptr<Worker> &worker : workers_) {
     worker->Join();
   }
@@ -225,6 +224,13 @@ void WorkOrchestrator::DedicateCores() {
   affiner.SetCpus(cpu_ids);
   int count = affiner.AffineAll();
   // HILOG(kInfo, "Affining {} processes to {} cores", count, cpu_ids.size());
+}
+
+/** Finalize the runtime */
+void WorkOrchestrator::FinalizeRuntime() {
+  HILOG(kInfo, "(node {}) Finalizing workers", CHI_RPC->node_id_);
+  CHI_THALLIUM->StopThisDaemon();
+  run_status_.store(kStatusDoDown);
 }
 
 std::vector<Load> WorkOrchestrator::CalculateLoad() {

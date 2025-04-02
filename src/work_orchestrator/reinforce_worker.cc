@@ -3,13 +3,14 @@
 //
 
 #include "chimaera/work_orchestrator/reinforce_worker.h"
-#include "chimaera/work_orchestrator/work_orchestrator.h"
+
 #include "chimaera/work_orchestrator/corwlock.h"
+#include "chimaera/work_orchestrator/work_orchestrator.h"
 
 namespace chi {
 
 void ReinforceWorker::Run() {
-  while (!CHI_WORK_ORCHESTRATOR->kill_requested_) {
+  while (CHI_WORK_ORCHESTRATOR->IsAlive()) {
     Reinforce();
     std::this_thread::sleep_for(std::chrono::seconds(1));
   }
@@ -31,8 +32,8 @@ void ReinforceWorker::Reinforce() {
          cont_it != pool_it->second.containers_.end(); ++cont_it) {
       Container *container = cont_it->second;
       for (u32 method_i = 0; method_i < 100; ++method_i) {
-        container->Monitor(MonitorMode::kReinforceLoad, method_i,
-                           nullptr, rctx);
+        container->Monitor(MonitorMode::kReinforceLoad, method_i, nullptr,
+                           rctx);
       }
     }
   }

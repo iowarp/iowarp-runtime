@@ -6,7 +6,7 @@
 #define CHIMAERA_INCLUDE_CHIMAERA_WORK_ORCHESTRATOR_CORWLOCK_H_
 
 #include "corwlock_defn.h"
-#include "worker.h"
+#include "work_orchestrator.h"
 
 namespace chi {
 

@@ -245,7 +245,7 @@ void Worker::WorkerEntryPoint(void *arg) {
  * in the first iteration.
  * */
 void Worker::BeginFlush(WorkOrchestrator *orch) {
-  if (flush_.flush_iter_ == 0 && active_.GetFlush().size()) {
+  if (flush_.flush_iter_ == 0 && id_ == 0) {
     HILOG(kInfo, "(node {}) Beginning to flush", CHI_CLIENT->node_id_);
     for (std::unique_ptr<Worker> &worker : orch->workers_) {
       worker->flush_.flushing_ = true;
@@ -261,8 +261,11 @@ void Worker::EndFlush(WorkOrchestrator *orch) {
   while (AnyFlushing(orch)) {
     HSHM_THREAD_MODEL->Yield();
   }
+  // Workers that are shutting down never stop flushing
+  // They only get this last chance before they get killed.
+  flush_.flushing_ = orch->IsBeginningShutdown();
   // On the root worker, detect if any work was done
-  if (active_.GetFlush().size()) {
+  if (id_ == 0) {
     if (AnyFlushWorkDone(orch)) {
       // Ensure that workers are relabeled as flushing
       flush_.flushing_ = true;
@@ -270,6 +273,10 @@ void Worker::EndFlush(WorkOrchestrator *orch) {
       // Reap all FlushTasks and end recurion
       PollTempQueue<true>(active_.GetFlush(), false);
       HILOG(kInfo, "(node={}) ENDING FLUSH", CHI_CLIENT->node_id_);
+      // All work is done, so begin shutdown
+      if (orch->IsBeginningShutdown()) {
+        orch->FinalizeRuntime();
+      }
     }
   }
 }
@@ -312,7 +319,8 @@ void Worker::Loop() {
   while (orch->IsAlive()) {
     try {
       load_nsec_ = 0;
-      bool flushing = flush_.flushing_ || active_.GetFlush().size();
+      bool flushing = flush_.flushing_ || active_.GetFlush().size() ||
+                      orch->IsBeginningShutdown();
       if (flushing) {
         BeginFlush(orch);
       }

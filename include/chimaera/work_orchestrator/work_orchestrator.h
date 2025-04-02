@@ -31,20 +31,24 @@ typedef ABT_key TlsKey;
 
 class WorkOrchestrator {
  public:
+  CLS_CONST int kStatusAlive = 0;
+  CLS_CONST int kStatusBeginDown = 1;
+  CLS_CONST int kStatusDoDown = 2;
+
+ public:
   ServerConfig *config_; /**< The server configuration */
   std::vector<std::unique_ptr<Worker>> workers_; /**< Workers execute tasks */
   std::unique_ptr<Worker> null_worker_;          /**< Null worker */
   std::vector<Worker *> dworkers_;               /**< Core-dedicated workers */
   std::vector<Worker *> oworkers_;               /**< Undedicated workers */
   std::unique_ptr<ReinforceWorker>
-      reinforce_worker_;             /**< Reinforcement worker */
-  std::atomic<bool> kill_requested_; /**< Kill flushing threads eventually */
+      reinforce_worker_;        /**< Reinforcement worker */
+  std::atomic<int> run_status_; /**< The runtime status (kStatusAlive, etc.) */
   std::vector<tl::managed<tl::xstream>> rpc_xstreams_; /**< RPC streams */
   tl::managed<tl::pool> rpc_pool_;                     /**< RPC pool */
-  TlsKey worker_tls_key_;              /**< Thread-local storage key */
-  std::atomic<bool> flushing_ = false; /**< Flushing in progress */
-  size_t monitor_window_ = 0;          /**< Sampling window */
-  size_t monitor_gap_ = 0;             /**< Monitoring gap */
+  TlsKey worker_tls_key_;     /**< Thread-local storage key */
+  size_t monitor_window_ = 0; /**< Sampling window */
+  size_t monitor_gap_ = 0;    /**< Monitoring gap */
 
  public:
   /** Default constructor */
@@ -110,16 +114,20 @@ class WorkOrchestrator {
   /** Begin dedicating core s*/
   void DedicateCores();
 
-  /** Begin finalizing the runtime */
-  HSHM_INLINE
-  void FinalizeRuntime() {
-    HILOG(kInfo, "(node {}) Finalizing workers", CHI_RPC->node_id_);
-    kill_requested_.store(true);
-  }
+  /** Gracefully stop all workers */
+  void FinalizeRuntime();
 
-  /** Whether threads should still be executing */
+  /** Whether workers should still be executing */
   HSHM_INLINE
-  bool IsAlive() { return !kill_requested_.load(); }
+  bool IsAlive() { return run_status_.load() != kStatusDoDown; }
+
+  /** Begin shutdown process */
+  HSHM_INLINE
+  void BeginShutdown() { run_status_ = kStatusBeginDown; }
+
+  /** All workers should do a final flush */
+  HSHM_INLINE
+  bool IsBeginningShutdown() { return run_status_ == kStatusBeginDown; }
 
   /** Set the CPU affinity of this worker */
   int SetCpuAffinity(ABT_xstream &xstream, int cpu_id) {
@@ -199,22 +207,6 @@ class WorkOrchestrator {
       return nullptr;
     }
     return worker->cur_lane_;
-  }
-
-  /** Get the least-loaded ingress queue */
-  ingress::Lane *GetLeastLoadedIngressLane(u32 lane_group_id) {
-    ingress::MultiQueue *queue = CHI_QM->GetQueue(chi::ADMIN_QUEUE_ID);
-    ingress::LaneGroup &lane_group = queue->groups_[lane_group_id];
-    ingress::Lane *min_lane = nullptr;
-    float min_load = std::numeric_limits<float>::max();
-    for (ingress::Lane &lane : lane_group.lanes_) {
-      Worker &worker = GetWorker(lane.worker_id_);
-      if (worker.load_ < min_load) {
-        min_load = worker.load_;
-        min_lane = &lane;
-      }
-    }
-    return min_lane;
   }
 
   /** Calculate per-worker load */

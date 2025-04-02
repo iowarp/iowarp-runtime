@@ -294,20 +294,9 @@ class Server : public Module {
 
   /** Stop this runtime */
   void StopRuntime(StopRuntimeTask *task, RunContext &rctx) {
-    if (task->root_) {
-      HILOG(kInfo, "(node {}) Broadcasting runtime stop (task_node={})",
-            CHI_RPC->node_id_, task->task_node_);
-      CHI_ADMIN->AsyncStopRuntime(HSHM_MCTX, DomainQuery::GetGlobalBcast(),
-                                  false);
-    } else if (CHI_RPC->node_id_ == task->task_node_.root_.node_id_) {
-      HILOG(kInfo, "(node {}) Ignoring runtime stop (task_node={})",
-            CHI_RPC->node_id_, task->task_node_);
-      return;
-    }
     HILOG(kInfo, "(node {}) Handling runtime stop (task_node={})",
           CHI_RPC->node_id_, task->task_node_);
-    CHI_THALLIUM->StopThisDaemon();
-    CHI_WORK_ORCHESTRATOR->FinalizeRuntime();
+    CHI_WORK_ORCHESTRATOR->BeginShutdown();
   }
   void MonitorStopRuntime(MonitorModeId mode, StopRuntimeTask *task,
                           RunContext &rctx) {
