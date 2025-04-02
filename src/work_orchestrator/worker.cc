@@ -399,8 +399,6 @@ HSHM_INLINE void Worker::PollTempQueue(PrivateTaskQueue &priv_queue,
       continue;
     }
     if constexpr (FROM_FLUSH) {
-      FullPtr<Admin::FlushTask> &flush = task.Cast<Admin::FlushTask>();
-      flush->work_done_ = flush_.flush_iter_;
       if (task->IsFlush()) {
         task->UnsetFlush();
       }
