@@ -44,6 +44,7 @@ bool PrivateTaskMultiQueue::push(const FullPtr<Task> &task) {
   }
 #endif
   RunContext &rctx = task->rctx_;
+  rctx.flush_ = &worker_->flush_;
   if (task->IsTriggerComplete()) {
     return PushCompletedTask(rctx, task);
   }
@@ -144,6 +145,16 @@ bool PrivateTaskMultiQueue::PushRemoteTask(RunContext &rctx,
           "(node {}) Remote queue does not have static container "
           "established");
   }
+  // Don't schedule long-running remote task if flushing and useless
+  if (rctx.flush_->flushing_ && task->IsLongRunning()) {
+    int prior_count = rctx.flush_->count_;
+    rctx.exec_->Monitor(MonitorMode::kFlushWork, task->method_, task.ptr_,
+                        rctx);
+    if (prior_count == rctx.flush_->count_) {
+      return !GetFail().push(task).IsNull();
+    }
+  }
+  // Push client submit base
   CHI_REMOTE_QUEUE->AsyncClientPushSubmitBase(
       HSHM_MCTX, nullptr, task->task_node_ + 1,
       DomainQuery::GetDirectId(SubDomainId::kGlobalContainers, 1), task.ptr_);
@@ -214,7 +225,7 @@ Worker::Worker(WorkerId id, int cpu_id, ABT_xstream xstream) {
 
   // MAX_DEPTH * [LOW_LAT, LONG_LAT]
   config::QueueManagerInfo &qm = CHI_QM->config_->queue_manager_;
-  active_.Init(id_, qm.proc_queue_depth_, qm.queue_depth_,
+  active_.Init(this, id_, qm.proc_queue_depth_, qm.queue_depth_,
                qm.max_containers_pn_);
 
   // Monitoring phase
@@ -247,28 +258,35 @@ void Worker::WorkerEntryPoint(void *arg) {
  * in the first iteration.
  * */
 void Worker::BeginFlush(WorkOrchestrator *orch) {
-  if (flush_.flush_iter_ == 0) {
-    HILOG(kInfo, "(node {}) Beginning to flush", CHI_CLIENT->node_id_);
-  }
   if (id_ == 0) {
+    if (flush_.flush_iter_ == 0) {
+      HILOG(kInfo, "(node {}) Beginning to flush", CHI_CLIENT->node_id_);
+    }
     for (std::unique_ptr<Worker> &worker : orch->workers_) {
       worker->flush_.flushing_ = true;
+      worker->flush_.tmp_flushing_ = true;
     }
   }
 }
 
 /** Check if work has been done */
 void Worker::EndFlush(WorkOrchestrator *orch) {
-  // Barrier for all workers to complete
-  flush_.flushing_ = false;
-  while (AnyFlushing(orch)) {
-    HSHM_THREAD_MODEL->Yield();
-  }
+  flush_.tmp_flushing_ = false;
   // On the root worker, detect if any work was done
   if (id_ == 0) {
+    // Barrier for all workers to complete
+    while (AnyFlushing(orch)) {
+      HSHM_THREAD_MODEL->Yield();
+    }
+    // Verify amount of flush work done
     if (AnyFlushWorkDone(orch)) {
       ++flush_.flush_iter_;
     } else {
+      // Unset flushing
+      for (std::unique_ptr<Worker> &worker : orch->workers_) {
+        worker->flush_.flushing_ = false;
+        worker->flush_.tmp_flushing_ = false;
+      }
       // Reap all FlushTasks and end recurion
       PollTempQueue<true>(active_.GetFlush(), false);
       HILOG(kInfo, "(node={}) Ending Flush", CHI_CLIENT->node_id_);
@@ -285,7 +303,7 @@ void Worker::EndFlush(WorkOrchestrator *orch) {
 /** Check if any worker is still flushing */
 bool Worker::AnyFlushing(WorkOrchestrator *orch) {
   for (std::unique_ptr<Worker> &worker : orch->workers_) {
-    if (worker->flush_.flushing_) {
+    if (worker->flush_.tmp_flushing_) {
       return true;
     }
   }
@@ -485,7 +503,6 @@ bool Worker::RunTask(FullPtr<Task> &task, bool flushing) {
   // Pack runtime context
   RunContext &rctx = task->rctx_;
   rctx.worker_props_ = props;
-  rctx.flush_ = &flush_;
   // Run the task
   if (!task->IsTriggerComplete() && !task->IsBlocked()) {
     // Make this task current
@@ -530,7 +547,11 @@ void Worker::ExecTask(FullPtr<Task> &task, RunContext &rctx, Container *&exec,
     if (!task->IsLongRunning() || task->IsStarted()) {
       flush_.count_ += 1;
     } else if (!task->IsStarted()) {
+      int prior_count = flush_.count_;
       exec->Monitor(MonitorMode::kFlushWork, task->method_, task.ptr_, rctx);
+      if (prior_count == flush_.count_) {
+        return;
+      }
     } else {
       return;  // Do not begin this task.
     }

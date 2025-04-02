@@ -271,7 +271,8 @@ class TaskPrioOpt {
 struct WorkPending {
   size_t count_ = 0;
   size_t work_done_ = 0;
-  std::atomic<bool> flushing_ = false;
+  bool flushing_ = false;
+  std::atomic<bool> tmp_flushing_ = false;
   size_t flush_iter_ = 0;
 };
 

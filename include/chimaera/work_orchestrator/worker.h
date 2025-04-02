@@ -32,6 +32,8 @@ namespace chi {
 #define WORKER_LOW_LATENCY BIT_OPT(chi::IntFlag, 1)
 #define WORKER_HIGH_LATENCY BIT_OPT(chi::IntFlag, 2)
 
+class Worker;
+
 /** Uniquely identify a queue lane */
 struct IngressEntry {
   TaskPrio prio_;
@@ -206,12 +208,15 @@ class PrivateTaskMultiQueue {
   CLS_CONST int NUM_QUEUES = 4;
 
  public:
+  Worker *worker_;
   PrivateTaskQueue queues_[NUM_QUEUES];
   PrivateLaneMultiQueue active_lanes_;
   size_t id_;
 
  public:
-  void Init(size_t id, size_t pqdepth, size_t qdepth, size_t max_lanes) {
+  void Init(Worker *worker, size_t id, size_t pqdepth, size_t qdepth,
+            size_t max_lanes) {
+    worker_ = worker;
     id_ = id;
     queues_[FLUSH].resize(max_lanes * qdepth);
     queues_[FAIL].resize(max_lanes * qdepth);

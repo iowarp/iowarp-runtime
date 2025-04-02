@@ -46,9 +46,10 @@ class WorkOrchestrator {
   std::atomic<int> run_status_; /**< The runtime status (kStatusAlive, etc.) */
   std::vector<tl::managed<tl::xstream>> rpc_xstreams_; /**< RPC streams */
   tl::managed<tl::pool> rpc_pool_;                     /**< RPC pool */
-  TlsKey worker_tls_key_;     /**< Thread-local storage key */
-  size_t monitor_window_ = 0; /**< Sampling window */
-  size_t monitor_gap_ = 0;    /**< Monitoring gap */
+  TlsKey worker_tls_key_;           /**< Thread-local storage key */
+  size_t monitor_window_ = 0;       /**< Sampling window */
+  size_t monitor_gap_ = 0;          /**< Monitoring gap */
+  hipc::atomic<int> did_flush_ = 0; /**< Workers done with flushing */
 
  public:
   /** Default constructor */
