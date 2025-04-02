@@ -253,7 +253,6 @@ void Worker::BeginFlush(WorkOrchestrator *orch) {
       worker->flush_.flushing_ = true;
     }
   }
-  ++flush_.flush_iter_;
 }
 
 /** Check if work has been done */
@@ -279,8 +278,11 @@ void Worker::EndFlush(WorkOrchestrator *orch) {
       if (orch->IsBeginningShutdown()) {
         orch->FinalizeRuntime();
       }
+      // Reset flush iterator
+      flush_.flush_iter_ = 0;
     }
   }
+  ++flush_.flush_iter_;
 }
 
 /** Check if any worker is still flushing */
