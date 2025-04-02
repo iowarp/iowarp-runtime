@@ -246,6 +246,7 @@ void Worker::WorkerEntryPoint(void *arg) {
  * */
 void Worker::BeginFlush(WorkOrchestrator *orch) {
   if (flush_.flush_iter_ == 0 && active_.GetFlush().size()) {
+    HILOG(kInfo, "(node {}) Beginning to flush", CHI_CLIENT->node_id_);
     for (std::unique_ptr<Worker> &worker : orch->workers_) {
       worker->flush_.flushing_ = true;
     }
