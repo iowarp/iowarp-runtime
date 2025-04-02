@@ -322,9 +322,7 @@ class Server : public Module {
   }
 
   /** Flush the runtime */
-  void Flush(FlushTask *task, RunContext &rctx) {
-    task->work_done_ = rctx.flush_->flush_iter_;
-  }
+  void Flush(FlushTask *task, RunContext &rctx) {}
   void MonitorFlush(MonitorModeId mode, FlushTask *task, RunContext &rctx) {
     switch (mode) {
       case MonitorMode::kEstLoad: {
