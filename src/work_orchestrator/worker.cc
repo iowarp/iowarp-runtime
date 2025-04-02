@@ -270,6 +270,7 @@ void Worker::EndFlush(WorkOrchestrator *orch) {
     if (AnyFlushWorkDone(orch)) {
       // Ensure that workers are relabeled as flushing
       flush_.flushing_ = true;
+      ++flush_.flush_iter_;
     } else {
       // Reap all FlushTasks and end recurion
       PollTempQueue<true>(active_.GetFlush(), false);
@@ -282,7 +283,6 @@ void Worker::EndFlush(WorkOrchestrator *orch) {
       flush_.flush_iter_ = 0;
     }
   }
-  ++flush_.flush_iter_;
 }
 
 /** Check if any worker is still flushing */
