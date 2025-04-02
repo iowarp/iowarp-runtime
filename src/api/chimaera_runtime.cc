@@ -190,7 +190,4 @@ void Runtime::RunDaemon() {
   HILOG(kInfo, "(node {}) Daemon is exiting", CHI_CLIENT->node_id_);
 }
 
-/** Stop the Hermes core Daemon */
-void Runtime::StopDaemon() { CHI_WORK_ORCHESTRATOR->FinalizeRuntime(); }
-
 }  // namespace chi

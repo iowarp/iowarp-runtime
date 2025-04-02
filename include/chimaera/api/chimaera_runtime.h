@@ -62,9 +62,6 @@ class Runtime : public ConfigurationManager {
   /** Run the Hermes core Daemon */
   void RunDaemon();
 
-  /** Stop the Hermes core Daemon */
-  void StopDaemon();
-
   /** Get # of lanes from QueueManager */
   size_t GetMaxContainersPn() { return CHI_QM->max_containers_pn_; }
 };
