@@ -59,7 +59,7 @@ class MallocApi : public RealApi {
 
 // Singleton macros
 HSHM_DEFINE_GLOBAL_VAR_H(chi::MallocApi, chiMallocApi);
-#define CHI_MALLOC hshm::GetGlobalVar(chi::chiMallocApi)
+#define CHI_MALLOC HSHM_GET_GLOBAL_VAR(chi::MallocApi, chi::chiMallocApi)
 #define CHI_MALLOC_T chi::MallocApi*
 
 }  // namespace chi

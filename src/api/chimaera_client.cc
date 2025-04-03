@@ -138,8 +138,9 @@ void Client::CreateClientOnHostForGpu() {
   }
 }
 
-HSHM_DEFINE_GLOBAL_VAR_CC(Client, chiClient);
-HSHM_DEFINE_GLOBAL_VAR_CC(QueueManager, chiQueueManager);
-HSHM_DEFINE_GLOBAL_VAR_CC(chi::Admin::Client, chi::Admin::chiAdminClient);
+HSHM_DEFINE_GLOBAL_CROSS_PTR_VAR_CC(Client, chiClient);
+HSHM_DEFINE_GLOBAL_CROSS_PTR_VAR_CC(QueueManager, chiQueueManager);
+HSHM_DEFINE_GLOBAL_CROSS_PTR_VAR_CC(chi::Admin::Client,
+                                    chi::Admin::chiAdminClient);
 
 }  // namespace chi

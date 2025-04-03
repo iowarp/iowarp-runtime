@@ -111,19 +111,19 @@ struct UniqueId {
   }
 
   /** Default constructor */
-  HSHM_INLINE_CROSS_FUN
-  UniqueId() = default;
+  constexpr HSHM_INLINE_CROSS_FUN UniqueId() = default;
 
   /** Destructor */
   HSHM_INLINE_CROSS_FUN
   ~UniqueId() = default;
 
   /** Emplace constructor */
-  HSHM_INLINE_CROSS_FUN explicit UniqueId(NodeId node_id, u64 unique)
+  constexpr HSHM_INLINE_CROSS_FUN explicit UniqueId(NodeId node_id, u64 unique)
       : node_id_(node_id), hash_(0), unique_(unique) {}
 
   /** Emplace constructor (+hash) */
-  HSHM_INLINE_CROSS_FUN explicit UniqueId(NodeId node_id, u32 hash, u64 unique)
+  constexpr HSHM_INLINE_CROSS_FUN explicit UniqueId(NodeId node_id, u32 hash,
+                                                    u64 unique)
       : node_id_(node_id), hash_(hash), unique_(unique) {}
 
   /** Copy constructor */

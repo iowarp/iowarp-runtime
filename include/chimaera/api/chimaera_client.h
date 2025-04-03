@@ -54,6 +54,8 @@ HSHM_INLINE_CROSS_FUN FullPtr<char> Client::AllocateBufferSafe(
   // HILOG(kInfo, "(node {}) Allocated {} from {}", CHI_CLIENT->node_id_, size,
   //       alloc->GetId());
   return p;
+#else
+  return FullPtr<char>();
 #endif
 }
 

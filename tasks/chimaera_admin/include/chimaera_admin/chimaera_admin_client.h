@@ -180,8 +180,9 @@ class Client : public ModuleClient {
   CHI_TASK_METHODS(PollStats);
 };
 
-HSHM_DEFINE_GLOBAL_VAR_H(Client, chiAdminClient);
-#define CHI_ADMIN (&chi::Admin::chiAdminClient)
+HSHM_DEFINE_GLOBAL_CROSS_PTR_VAR_H(Client, chiAdminClient);
+#define CHI_ADMIN \
+  HSHM_GET_GLOBAL_CROSS_PTR_VAR(chi::Admin::Client, chi::Admin::chiAdminClient)
 
 }  // namespace chi::Admin
 

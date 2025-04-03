@@ -362,8 +362,8 @@ class Client : public ConfigurationManager {
   }
 
 // Singleton macros
-HSHM_DEFINE_GLOBAL_VAR_H(chi::Client, chiClient);
-#define CHI_CLIENT (&chi::chiClient)
+HSHM_DEFINE_GLOBAL_CROSS_PTR_VAR_H(Client, chiClient);
+#define CHI_CLIENT HSHM_GET_GLOBAL_CROSS_PTR_VAR(chi::Client, chi::chiClient)
 #define CHI_CLIENT_T chi::Client *
 
 /** Call duplicate if applicable */

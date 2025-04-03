@@ -19,9 +19,9 @@
 
 namespace chi {
 
-GLOBAL_CONST QueueId ADMIN_QUEUE_ID = QueueId(1, 0);
-GLOBAL_CONST PoolId ADMIN_POOL_ID = PoolId(1, 0);
-GLOBAL_CONST QueueId PROCESS_QUEUE_ID = QueueId(1, 1);
+GLOBAL_CROSS_CONST QueueId ADMIN_QUEUE_ID(1, 0);
+GLOBAL_CROSS_CONST PoolId ADMIN_POOL_ID(1, 0);
+GLOBAL_CROSS_CONST QueueId PROCESS_QUEUE_ID(1, 1);
 
 /** Shared-memory representation of the QueueManager */
 struct QueueManagerShm {
@@ -94,8 +94,9 @@ class QueueManager {
 };
 
 /** Singleton queue manager */
-HSHM_DEFINE_GLOBAL_VAR_H(QueueManager, chiQueueManager);
-#define CHI_QM (&chi::chiQueueManager)
+HSHM_DEFINE_GLOBAL_CROSS_PTR_VAR_H(QueueManager, chiQueueManager);
+#define CHI_QM \
+  HSHM_GET_GLOBAL_CROSS_PTR_VAR(chi::QueueManager, chi::chiQueueManager)
 
 }  // namespace chi
 
