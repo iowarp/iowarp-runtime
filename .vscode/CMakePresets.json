@@ -1,4 +1,3 @@
-// scspkg build profile m=cmake path=.env.cmake
 {
     "version": 3,
     "cmakeMinimumRequired": {
