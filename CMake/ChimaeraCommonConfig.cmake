@@ -89,7 +89,7 @@ macro(add_chimod_runtime_lib namespace target)
 
     # Create the ${namespace}_${target} library
     if(CHIMAERA_ENABLE_CUDA)
-        add_cuda_library(${namespace}_${target} STATIC TRUE ${ARGN})
+        add_cuda_library(${namespace}_${target} SHARED TRUE ${ARGN})
         target_link_libraries(${namespace}_${target} PUBLIC hshm::cudacxx)
         target_compile_definitions(${namespace}_${target} PUBLIC CHIMAERA_ENABLE_CUDA)
     elseif(CHIMAERA_ENABLE_ROCM)

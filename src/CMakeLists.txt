@@ -24,7 +24,7 @@ list(APPEND chimaera_client_exports chimaera_client_host client_host)
 
 # Create the CUDA gpu client library
 if(CHIMAERA_ENABLE_CUDA)
-  add_cuda_library(chimaera_client_gpu SHARED TRUE ${CLIENT_SOURCES})
+  add_cuda_library(chimaera_client_gpu STATIC TRUE ${CLIENT_SOURCES})
   target_link_libraries(chimaera_client_gpu PUBLIC hshm::cudacxx)
   target_include_directories(chimaera_client_gpu
     PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../include>
@@ -72,7 +72,7 @@ set(RUNTIME_SOURCES
 set(chimaera_runtime_exports)
 
 if(CHIMAERA_ENABLE_CUDA)
-  add_cuda_library(chimaera_runtime STATIC TRUE ${RUNTIME_SOURCES})
+  add_cuda_library(chimaera_runtime SHARED TRUE ${RUNTIME_SOURCES})
   add_dependencies(chimaera_runtime chimaera::chimaera_admin_client_gpu)
   target_link_libraries(chimaera_runtime PUBLIC hshm::cudacxx chimaera::chimaera_admin_client_gpu)
   target_compile_definitions(chimaera_runtime PUBLIC CHIMAERA_ENABLE_CUDA)
