@@ -34,7 +34,7 @@ void AllocFreeIpcTest(int rank, int nprocs, int depth, size_t ops) {
                             "chimaera_small_message");
   client.Create(
       HSHM_MCTX,
-      chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
+      chi::DomainQuery::GetDirectHash(chi::SubDomain::kGlobalContainers, 0),
       chi::DomainQuery::GetGlobalBcast(), "ipc_test");
   MPI_Barrier(MPI_COMM_WORLD);
   hshm::MpiTimer t(MPI_COMM_WORLD);
@@ -45,7 +45,7 @@ void AllocFreeIpcTest(int rank, int nprocs, int depth, size_t ops) {
     int container_id = i;
     auto x = client.AsyncMdAlloc(
         HSHM_MCTX, TaskNode{},
-        chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers,
+        chi::DomainQuery::GetDirectHash(chi::SubDomain::kGlobalContainers,
                                         container_id),
         depth, 0);
     CHI_CLIENT->DelTask(HSHM_MCTX, x);
@@ -62,7 +62,7 @@ void AllocNoFreeIpcTest(int rank, int nprocs, int depth, size_t ops) {
                             "chimaera_small_message");
   client.Create(
       HSHM_MCTX,
-      chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
+      chi::DomainQuery::GetDirectHash(chi::SubDomain::kGlobalContainers, 0),
       chi::DomainQuery::GetGlobalBcast(), "ipc_test");
   MPI_Barrier(MPI_COMM_WORLD);
   hshm::MpiTimer t(MPI_COMM_WORLD);
@@ -73,7 +73,7 @@ void AllocNoFreeIpcTest(int rank, int nprocs, int depth, size_t ops) {
     int container_id = i;
     auto x = client.AsyncMdAlloc(
         HSHM_MCTX, TaskNode{},
-        chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers,
+        chi::DomainQuery::GetDirectHash(chi::SubDomain::kGlobalContainers,
                                         container_id),
         depth, 0);
     CHI_CLIENT->DelTask(HSHM_MCTX, x);
@@ -95,7 +95,7 @@ void SyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
   HILOG(kInfo, "Finished registering module small_message", cpu_id);
   client.Create(
       HSHM_MCTX,
-      chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
+      chi::DomainQuery::GetDirectHash(chi::SubDomain::kGlobalContainers, 0),
       chi::DomainQuery::GetGlobalBcast(), "ipc_test");
   HILOG(kInfo, "Finished creating ipc_test", cpu_id);
   MPI_Barrier(MPI_COMM_WORLD);
@@ -106,8 +106,8 @@ void SyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
   for (size_t i = 0; i < ops; ++i) {
     int container_id = i;
     client.Md(HSHM_MCTX,
-              chi::DomainQuery::GetDirectHash(
-                  chi::SubDomainId::kGlobalContainers, container_id),
+              chi::DomainQuery::GetDirectHash(chi::SubDomain::kGlobalContainers,
+                                              container_id),
               depth, 0);
   }
   t.Pause();
@@ -122,7 +122,7 @@ void AsyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
                             "chimaera_small_message");
   client.Create(
       HSHM_MCTX,
-      chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
+      chi::DomainQuery::GetDirectHash(chi::SubDomain::kGlobalContainers, 0),
       chi::DomainQuery::GetGlobalBcast(), "ipc_test");
   MPI_Barrier(MPI_COMM_WORLD);
   hshm::MpiTimer t(MPI_COMM_WORLD);
@@ -132,7 +132,7 @@ void AsyncIpcTest(int rank, int nprocs, int depth, size_t ops) {
     int container_id = i;
     client.AsyncMd(HSHM_MCTX,
                    chi::DomainQuery::GetDirectHash(
-                       chi::SubDomainId::kGlobalContainers, container_id),
+                       chi::SubDomain::kGlobalContainers, container_id),
                    depth, TASK_FIRE_AND_FORGET);
   }
   CHI_ADMIN->Flush(HSHM_MCTX, DomainQuery::GetGlobalBcast());

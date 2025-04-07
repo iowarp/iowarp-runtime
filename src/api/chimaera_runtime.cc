@@ -63,7 +63,7 @@ void Runtime::ServerInit(std::string server_config_path) {
       CHI_CLIENT->AllocateTask<Admin::CreateTask>(HSHM_MCTX).ptr_;
   ops = CHI_RPC->CreateDefaultDomains(
       chi::ADMIN_POOL_ID, chi::ADMIN_POOL_ID,
-      DomainQuery::GetGlobal(chi::SubDomainId::kContainerSet, 0),
+      DomainQuery::GetGlobal(chi::SubDomain::kContainerSet, 0),
       CHI_RPC->hosts_.size(), 1);
   CHI_RPC->UpdateDomains(ops);
   containers = CHI_RPC->GetLocalContainers(chi::ADMIN_POOL_ID);
@@ -165,8 +165,8 @@ void Runtime::InitSharedMemoryGpu() {
     hipc::chararr name = "cuda_data_" + std::to_string(gpu_id);
     mem_mngr->CreateBackend<hipc::CudaMalloc>(backend_id, MEGABYTES(100), name,
                                               gpu_id);
-    gpu_data_alloc_[gpu_id] =
-        mem_mngr->CreateAllocator<CHI_ALLOC_T>(backend_id, alloc_id, 0);
+    gpu_data_alloc_[gpu_id] = mem_mngr->CreateAllocator<CHI_DATA_GPU_ALLOC_T>(
+        backend_id, alloc_id, 0);
   }
 #endif
 

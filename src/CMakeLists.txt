@@ -72,7 +72,7 @@ set(RUNTIME_SOURCES
 set(chimaera_runtime_exports)
 
 if(CHIMAERA_ENABLE_CUDA)
-  add_cuda_library(chimaera_runtime SHARED TRUE ${RUNTIME_SOURCES})
+  add_cuda_library(chimaera_runtime STATIC TRUE ${RUNTIME_SOURCES})
   add_dependencies(chimaera_runtime chimaera::chimaera_admin_client_gpu)
   target_link_libraries(chimaera_runtime PUBLIC hshm::cudacxx chimaera::chimaera_admin_client_gpu)
   target_compile_definitions(chimaera_runtime PUBLIC CHIMAERA_ENABLE_CUDA)

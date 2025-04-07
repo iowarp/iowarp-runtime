@@ -213,7 +213,7 @@ class Server : public Module {
         CHI_RPC->GetLocalContainers(task->ctx_.id_);
     // Print the created domain
     //    CHI_RPC->PrintDomain(DomainId{task->ctx_.id_,
-    //    SubDomainId::kContainerSet}); CHI_RPC->PrintSubdomainSet(containers);
+    //    SubDomain::kContainerSet}); CHI_RPC->PrintSubdomainSet(containers);
     // Create the pool
     bool did_create = CHI_MOD_REGISTRY->CreatePool(
         lib_name.c_str(), pool_name.c_str(), task->ctx_.id_, task, containers);

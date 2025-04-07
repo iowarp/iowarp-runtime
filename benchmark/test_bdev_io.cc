@@ -23,7 +23,7 @@ class IoTest {
     int node_id = 1;
     for (size_t io_done = 0; io_done < block_; io_done += xfer_) {
       chi::DomainQuery dom_query = chi::DomainQuery::GetDirectHash(
-          chi::SubDomainId::kGlobalContainers, node_id);
+          chi::SubDomain::kGlobalContainers, node_id);
       std::vector<chi::Block> blocks =
           client_.Allocate(HSHM_MCTX, dom_query, xfer_);
       if (blocks.size() == 0) {
@@ -81,7 +81,7 @@ class IoTest {
     int node_id = 1;
     for (chi::Block &block : blocks_) {
       chi::DomainQuery dom_query = chi::DomainQuery::GetDirectHash(
-          chi::SubDomainId::kGlobalContainers, node_id);
+          chi::SubDomain::kGlobalContainers, node_id);
       hipc::FullPtr<char> data =
           CHI_CLIENT->AllocateBuffer(HSHM_MCTX, block.size_);
       HILOG(kInfo, "(rank {}) reading at offset {} ({}%) ptr={}", rank_,
@@ -142,7 +142,7 @@ int main(int argc, char **argv) {
 
   test.client_.Create(
       HSHM_MCTX,
-      chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
+      chi::DomainQuery::GetDirectHash(chi::SubDomain::kGlobalContainers, 0),
       chi::DomainQuery::GetGlobalBcast(), "bdev_test", test.path_,
       test.net_size_);
   test.TestWrite();

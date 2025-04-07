@@ -157,7 +157,7 @@ bool PrivateTaskMultiQueue::PushRemoteTask(RunContext &rctx,
   // Push client submit base
   CHI_REMOTE_QUEUE->AsyncClientPushSubmitBase(
       HSHM_MCTX, nullptr, task->task_node_ + 1,
-      DomainQuery::GetDirectId(SubDomainId::kGlobalContainers, 1), task.ptr_);
+      DomainQuery::GetDirectId(SubDomain::kGlobalContainers, 1), task.ptr_);
   return true;
 }
 

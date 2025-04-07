@@ -40,13 +40,13 @@ HSHM_GPU_KERNEL void test_kernel() {
                             "chimaera_small_message");
   // client.Create(
   //     HSHM_MCTX,
-  //     chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers,
+  //     chi::DomainQuery::GetDirectHash(chi::SubDomain::kGlobalContainers,
   //     0), chi::DomainQuery::GetGlobalBcast(), "ipc_test");
   // hshm::Timer t;
   // size_t domain_size = CHI_ADMIN->GetDomainSize(
   //     HSHM_MCTX,
   //     chi::DomainQuery::GetLocalHash(0),
-  //     chi::DomainId(client.id_, chi::SubDomainId::kGlobalContainers));
+  //     chi::DomainId(client.id_, chi::SubDomain::kGlobalContainers));
 
   // size_t ops = 256;
   // HILOG(kInfo, "OPS: {}", ops);
@@ -55,7 +55,7 @@ HSHM_GPU_KERNEL void test_kernel() {
   //   int cont_id = i;
   //   int ret = client.Md(HSHM_MCTX,
   //                       chi::DomainQuery::GetDirectHash(
-  //                           chi::SubDomainId::kGlobalContainers, cont_id),
+  //                           chi::SubDomain::kGlobalContainers, cont_id),
   //                       depth, 0);
   //   REQUIRE(ret == 1);
 

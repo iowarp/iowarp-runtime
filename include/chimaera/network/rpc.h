@@ -187,7 +187,7 @@ class RpcContext {
     for (const SubDomainId &id : entry.ids_) {
       if (id.IsPhysical()) {
         ResolvedDomainQuery sub_query;
-        sub_query.dom_ = DomainQuery::GetLocalId(SubDomainId::kContainerSet,
+        sub_query.dom_ = DomainQuery::GetLocalId(SubDomain::kContainerSet,
                                                  dom_id.sub_id_.minor_);
         sub_query.node_ = id.minor_;
         res.emplace_back(sub_query);
@@ -300,15 +300,15 @@ class RpcContext {
     {
       // Create the major LaneSet domain
       size_t total_dom_size = dom.size();
-      DomainId dom_id(task_state, SubDomainId::kContainerSet);
-      SubDomainIdRange range(SubDomainId::kContainerSet, 1, total_dom_size);
+      DomainId dom_id(task_state, SubDomain::kContainerSet);
+      SubDomainIdRange range(SubDomain::kContainerSet, 1, total_dom_size);
       ops.emplace_back(
           UpdateDomainInfo{dom_id, UpdateDomainOp::kExpand, range});
     }
     {
       // Create the major LocalContainer domain
-      DomainId dom_id(task_state, SubDomainId::kLocalContainers);
-      SubDomainIdRange range(SubDomainId::kLocalContainers, 1, 1);
+      DomainId dom_id(task_state, SubDomain::kLocalContainers);
+      SubDomainIdRange range(SubDomain::kLocalContainers, 1, 1);
       ops.emplace_back(
           UpdateDomainInfo{dom_id, UpdateDomainOp::kExpand, range});
     }
@@ -317,15 +317,15 @@ class RpcContext {
       for (size_t i = 1; i <= global_containers; ++i) {
         // Update GlobalContainers
         NodeId node_id = dom[(i - 1) % dom.size()].node_;
-        SubDomainIdRange res_set(SubDomainId::kPhysicalNode, node_id, 1);
-        ops.emplace_back(UpdateDomainInfo{
-            DomainId(task_state, SubDomainId::kContainerSet, i),
-            UpdateDomainOp::kExpand, res_set});
+        SubDomainIdRange res_set(SubDomain::kPhysicalNode, node_id, 1);
+        ops.emplace_back(
+            UpdateDomainInfo{DomainId(task_state, SubDomain::kContainerSet, i),
+                             UpdateDomainOp::kExpand, res_set});
         if (node_id == node_id_) {
           // Update LocalContainers
-          SubDomainIdRange res_loc(SubDomainId::kContainerSet, i, 1);
+          SubDomainIdRange res_loc(SubDomain::kContainerSet, i, 1);
           ops.emplace_back(UpdateDomainInfo{
-              DomainId(task_state, SubDomainId::kLocalContainers, 1),
+              DomainId(task_state, SubDomain::kLocalContainers, 1),
               UpdateDomainOp::kExpand, res_loc});
         }
       }
@@ -366,16 +366,13 @@ class RpcContext {
   /** Get the set of lanes on this node */
   std::vector<SubDomainId> GetLocalContainers(const PoolId &scope) {
     std::vector<SubDomainId> res;
-    size_t dom_size =
-        GetDomainSize(DomainId(scope, SubDomainId::kContainerSet));
+    size_t dom_size = GetDomainSize(DomainId(scope, SubDomain::kContainerSet));
     ScopedRwReadLock lock(domain_map_lock_, 0);
     for (u32 i = 0; i < dom_size; ++i) {
       std::vector<ResolvedDomainQuery> res_query = ResolveDomainQuery(
-          scope, DomainQuery::GetDirectHash(SubDomainId::kContainerSet, i),
-          true);
+          scope, DomainQuery::GetDirectHash(SubDomain::kContainerSet, i), true);
       if (res_query.size() == 1 && res_query[0].node_ == node_id_) {
-        res.emplace_back(SubDomainId::kContainerSet,
-                         res_query[0].dom_.sel_.id_);
+        res.emplace_back(SubDomain::kContainerSet, res_query[0].dom_.sel_.id_);
       }
     }
     return res;

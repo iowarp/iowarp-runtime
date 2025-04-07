@@ -35,12 +35,12 @@ TEST_CASE("TestIpc") {
                             "chimaera_small_message");
   client.Create(
       HSHM_MCTX,
-      chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
+      chi::DomainQuery::GetDirectHash(chi::SubDomain::kGlobalContainers, 0),
       chi::DomainQuery::GetGlobalBcast(), "ipc_test");
   hshm::Timer t;
   size_t domain_size = CHI_ADMIN->GetDomainSize(
       HSHM_MCTX, chi::DomainQuery::GetLocalHash(0),
-      chi::DomainId(client.id_, chi::SubDomainId::kGlobalContainers));
+      chi::DomainId(client.id_, chi::SubDomain::kGlobalContainers));
 
   size_t ops = 256;
   HILOG(kInfo, "OPS: {}", ops);
@@ -50,7 +50,7 @@ TEST_CASE("TestIpc") {
     int cont_id = i;
     int ret = client.Md(HSHM_MCTX,
                         chi::DomainQuery::GetDirectHash(
-                            chi::SubDomainId::kGlobalContainers, cont_id),
+                            chi::SubDomain::kGlobalContainers, cont_id),
                         depth, 0);
     REQUIRE(ret == 1);
   }
@@ -72,13 +72,13 @@ TEST_CASE("TestAsyncIpc") {
                             "chimaera_small_message");
   client.Create(
       HSHM_MCTX,
-      chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
+      chi::DomainQuery::GetDirectHash(chi::SubDomain::kGlobalContainers, 0),
       chi::DomainQuery::GetGlobalBcast(), "ipc_test");
   MPI_Barrier(MPI_COMM_WORLD);
   hshm::Timer t;
   size_t domain_size = CHI_ADMIN->GetDomainSize(
       HSHM_MCTX, chi::DomainQuery::GetLocalHash(0),
-      chi::DomainId(client.id_, chi::SubDomainId::kGlobalContainers));
+      chi::DomainId(client.id_, chi::SubDomain::kGlobalContainers));
 
   int pid = HSHM_SYSTEM_INFO->pid_;
   hshm::ProcessAffiner::SetCpuAffinity(pid, 8);
@@ -92,7 +92,7 @@ TEST_CASE("TestAsyncIpc") {
     int cont_id = i;
     client.AsyncMd(HSHM_MCTX,
                    chi::DomainQuery::GetDirectHash(
-                       chi::SubDomainId::kGlobalContainers, cont_id),
+                       chi::SubDomain::kGlobalContainers, cont_id),
                    depth, TASK_FIRE_AND_FORGET);
   }
   CHI_ADMIN->Flush(HSHM_MCTX, DomainQuery::GetLocalHash(0));
@@ -114,7 +114,7 @@ TEST_CASE("TestFlush") {
                             "chimaera_small_message");
   client.Create(
       HSHM_MCTX,
-      chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
+      chi::DomainQuery::GetDirectHash(chi::SubDomain::kGlobalContainers, 0),
       chi::DomainQuery::GetGlobalBcast(), "ipc_test");
   MPI_Barrier(MPI_COMM_WORLD);
   hshm::Timer t;
@@ -131,7 +131,7 @@ TEST_CASE("TestFlush") {
     FullPtr<chi::small_message::MdTask> task =
         client.AsyncMd(HSHM_MCTX,
                        chi::DomainQuery::GetDirectHash(
-                           chi::SubDomainId::kGlobalContainers, cont_id),
+                           chi::SubDomain::kGlobalContainers, cont_id),
                        0, 0);
   }
   CHI_ADMIN->Flush(HSHM_MCTX, DomainQuery::GetGlobalBcast());
@@ -148,7 +148,7 @@ void TestIpcMultithread(int nprocs) {
                             "chimaera_small_message");
   client.Create(
       HSHM_MCTX,
-      chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
+      chi::DomainQuery::GetDirectHash(chi::SubDomain::kGlobalContainers, 0),
       chi::DomainQuery::GetGlobalBcast(), "ipc_test");
 
 #pragma omp parallel shared(client, nprocs) num_threads(nprocs)
@@ -162,7 +162,7 @@ void TestIpcMultithread(int nprocs) {
       int cont_id = 1 + ((i + 1) % nprocs);
       ret = client.Md(HSHM_MCTX,
                       chi::DomainQuery::GetDirectHash(
-                          chi::SubDomainId::kGlobalContainers, cont_id),
+                          chi::SubDomain::kGlobalContainers, cont_id),
                       0, 0);
       REQUIRE(ret == 1);
     }
@@ -193,7 +193,7 @@ void TestBulk(chi::IntFlag flags) {
                             "chimaera_small_message");
   client.Create(
       HSHM_MCTX,
-      chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
+      chi::DomainQuery::GetDirectHash(chi::SubDomain::kGlobalContainers, 0),
       chi::DomainQuery::GetGlobalBcast(), "ipc_test");
   hshm::Timer t;
 
@@ -209,8 +209,8 @@ void TestBulk(chi::IntFlag flags) {
     HILOG(kInfo, "Sending message {}", i);
     int cont_id = i;
     client.Io(HSHM_MCTX,
-              chi::DomainQuery::GetDirectHash(
-                  chi::SubDomainId::kGlobalContainers, cont_id),
+              chi::DomainQuery::GetDirectHash(chi::SubDomain::kGlobalContainers,
+                                              cont_id),
               KILOBYTES(4), flags, write_ret, read_ret);
     if (flags & MD_IO_WRITE) {
       REQUIRE(write_ret == KILOBYTES(4) * 10);
@@ -242,13 +242,13 @@ TEST_CASE("TestUpgrade") {
                             "chimaera_small_message");
   client.Create(
       HSHM_MCTX,
-      chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
+      chi::DomainQuery::GetDirectHash(chi::SubDomain::kGlobalContainers, 0),
       chi::DomainQuery::GetGlobalBcast(), "ipc_test");
   MPI_Barrier(MPI_COMM_WORLD);
   hshm::Timer t;
   size_t domain_size = CHI_ADMIN->GetDomainSize(
       HSHM_MCTX, chi::DomainQuery::GetLocalHash(0),
-      chi::DomainId(client.id_, chi::SubDomainId::kGlobalContainers));
+      chi::DomainId(client.id_, chi::SubDomain::kGlobalContainers));
 
   int pid = getpid();
   hshm::ProcessAffiner::SetCpuAffinity(pid, 8);
@@ -262,7 +262,7 @@ TEST_CASE("TestUpgrade") {
     int cont_id = i;
     client.AsyncMd(HSHM_MCTX,
                    chi::DomainQuery::GetDirectHash(
-                       chi::SubDomainId::kGlobalContainers, cont_id),
+                       chi::SubDomain::kGlobalContainers, cont_id),
                    depth, TASK_FIRE_AND_FORGET);
   }
   CHI_ADMIN->AsyncUpgradeModule(HSHM_MCTX, chi::DomainQuery::GetGlobalBcast(),
@@ -273,7 +273,7 @@ TEST_CASE("TestUpgrade") {
     int cont_id = i;
     client.AsyncMd(HSHM_MCTX,
                    chi::DomainQuery::GetDirectHash(
-                       chi::SubDomainId::kGlobalContainers, cont_id),
+                       chi::SubDomain::kGlobalContainers, cont_id),
                    depth, TASK_FIRE_AND_FORGET);
   }
 
@@ -296,7 +296,7 @@ void TestBdevIo(const std::string &path) {
                             "chimaera_bdev");
   client.Create(
       HSHM_MCTX,
-      chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
+      chi::DomainQuery::GetDirectHash(chi::SubDomain::kGlobalContainers, 0),
       chi::DomainQuery::GetGlobalBcast(), "tempdir",
       "fs::///tmp/chi_test_bdev.bin", GIGABYTES(1));
   MPI_Barrier(MPI_COMM_WORLD);
@@ -316,32 +316,32 @@ void TestBdevIo(const std::string &path) {
     std::vector<chi::Block> blocks =
         client.Allocate(HSHM_MCTX,
                         chi::DomainQuery::GetDirectHash(
-                            chi::SubDomainId::kGlobalContainers, cont_id),
+                            chi::SubDomain::kGlobalContainers, cont_id),
                         MEGABYTES(1));
     chi::Block block = blocks[0];
     // Write the data that was allocated
     memset(io_write.ptr_, 10, MEGABYTES(1));
     client.Write(HSHM_MCTX,
                  chi::DomainQuery::GetDirectHash(
-                     chi::SubDomainId::kGlobalContainers, cont_id),
+                     chi::SubDomain::kGlobalContainers, cont_id),
                  io_write.shm_, block.off_, MEGABYTES(1));
     // Read the data that was written
     memset(io_read.ptr_, 0, MEGABYTES(1));
     client.Read(HSHM_MCTX,
                 chi::DomainQuery::GetDirectHash(
-                    chi::SubDomainId::kGlobalContainers, cont_id),
+                    chi::SubDomain::kGlobalContainers, cont_id),
                 io_read.shm_, block.off_, MEGABYTES(1));
     // Verify the correctness of data
     REQUIRE(memcmp(io_write.ptr_, io_read.ptr_, MEGABYTES(1)) == 0);
     // Free the buffer
     client.Free(HSHM_MCTX,
                 chi::DomainQuery::GetDirectHash(
-                    chi::SubDomainId::kGlobalContainers, cont_id),
+                    chi::SubDomain::kGlobalContainers, cont_id),
                 block);
     // Poll the stats
     chi::BdevStats stats = client.PollStats(
         HSHM_MCTX, chi::DomainQuery::GetDirectHash(
-                       chi::SubDomainId::kGlobalContainers, cont_id));
+                       chi::SubDomain::kGlobalContainers, cont_id));
     HILOG(kInfo, "Stats: {}", stats);
   }
   t.Pause();

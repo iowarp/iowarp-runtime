@@ -17,6 +17,11 @@
 #include "chimaera/monitor/monitor.h"
 #include "chimaera_admin/chimaera_admin_client.h"
 
+#ifdef CHIMAERA_ENABLE_CUDA
+#include <cuda_runtime.h>
+#include <cufile.h>
+#endif
+
 namespace chi::bdev {
 
 struct IoPerf {
@@ -79,6 +84,16 @@ class Server : public Module {
     InitialStats(dev_size);
   }
 
+  /** Open a memory segment */
+  void OpenMemory(size_t dev_size) {
+    // Allocate memory for ram disk
+    ram_ = (char *)malloc(dev_size);
+    if (ram_ == nullptr) {
+      HELOG(kError, "Failed to allocate memory for bdev");
+      return;
+    }
+  }
+
   /** Open a POSIX file */
   void OpenPosix(size_t dev_size) {
     // Open file for read & write, no override
@@ -94,7 +109,7 @@ class Server : public Module {
       return;
     }
     memset((void *)&cf_descr_, 0, sizeof(CUfileDescr_t));
-    cf_descr_.handle.fd = fd;
+    cf_descr_.handle.fd = fd_;
     cf_descr_.type = CU_FILE_HANDLE_TYPE_OPAQUE_FD;
     cf_status_ = cuFileHandleRegister(&cf_handle_, &cf_descr_);
     if (cf_status_.err != CU_FILE_SUCCESS) {
@@ -106,7 +121,8 @@ class Server : public Module {
   void InitialStats(size_t dev_size) {
     switch (url_.scheme_) {
       case BlockUrl::kFs: {
-        ssize_t ret;
+        OpenPosix(dev_size);
+        OpenCufile(dev_size);
 
         // Set tuning parameters
         hshm::Timer time;
@@ -154,11 +170,7 @@ class Server : public Module {
         break;
       }
       case BlockUrl::kRam: {
-        // Malloc memory for ram disk
-        ram_ = (char *)malloc(dev_size);
-        hshm::Timer time;
-        lat_cutoff_ = 0;
-        std::vector<char> data(MEGABYTES(1));
+        OpenMemory(dev_size);
 
         // Write 1MB to the beginning with pwrite
         time.Resume();
@@ -246,7 +258,7 @@ class Server : public Module {
   /** Write data with GPU memory */
   void WriteGpu(WriteTask *task, RunContext &rctx) {
 #if defined(CHIMAERA_ENABLE_CUDA)
-    if (status_.err_ == CU_FILE_SUCCESS) {
+    if (cf_status_.err == CU_FILE_SUCCESS) {
       WriteCufile(task, rctx);
     } else {
       WriteCudaCopy(task, rctx);
@@ -316,16 +328,16 @@ class Server : public Module {
     if (status.err != CU_FILE_SUCCESS) {
       HELOG(kWarning,
             "cuFileBufRegister failed. ERROR: {}. resorting to bounce-buffer.",
-            cudaGetErrorString(status));
+            cufileop_status_error(status.err));
       WriteCudaCopy(task, rctx);
       return;
     }
 
-    ret = cuFileWrite(cf_handle_, gpu_data, task->size_, 0, 0);
+    ssize_t ret = cuFileWrite(cf_handle_, gpu_data, task->size_, 0, 0);
     if (ret < 0) {
       HELOG(kWarning,
             "cuFileWrite failed. ERROR: {}. resorting to bounce-buffer.",
-            cudaGetErrorString(status));
+            cufileop_status_error(status.err));
       WriteCudaCopy(task, rctx);
       return;
     }
@@ -333,7 +345,7 @@ class Server : public Module {
     status = cuFileBufDeregister(gpu_data);
     if (status.err != CU_FILE_SUCCESS) {
       HELOG(kWarning, "cuFileBufDeregister failed. ERROR: {}. Ignoring.",
-            cudaGetErrorString(status));
+            cufileop_status_error(status.err));
     }
 #endif
   }
@@ -385,7 +397,7 @@ class Server : public Module {
   /** Read from a GPU memory */
   void ReadGpu(ReadTask *task, RunContext &rctx) {
 #if defined(CHIMAERA_ENABLE_CUDA)
-    if (status_.err_ == CU_FILE_SUCCESS) {
+    if (cf_status_.err == CU_FILE_SUCCESS) {
       ReadCufile(task, rctx);
     } else {
       ReadCudaCopy(task, rctx);
@@ -407,16 +419,16 @@ class Server : public Module {
     if (status.err != CU_FILE_SUCCESS) {
       HELOG(kWarning,
             "cuFileBufRegister failed. ERROR: {}. resorting to bounce-buffer.",
-            cudaGetErrorString(status));
+            cufileop_status_error(status.err));
       ReadCudaCopy(task, rctx);
       return;
     }
 
-    ret = cuFileRead(cf_handle_, gpu_data, task->size_, 0, 0);
+    ssize_t ret = cuFileRead(cf_handle_, gpu_data, task->size_, 0, 0);
     if (ret < 0) {
       HELOG(kWarning,
             "cuFileRead failed. ERROR: {}. resorting to bounce-buffer.",
-            cudaGetErrorString(status));
+            cufileop_status_error(status.err));
       ReadCudaCopy(task, rctx);
       return;
     }
@@ -424,7 +436,7 @@ class Server : public Module {
     status = cuFileBufDeregister(gpu_data);
     if (status.err != CU_FILE_SUCCESS) {
       HELOG(kWarning, "cuFileBufDeregister failed. ERROR: {}. Ignoring.",
-            cudaGetErrorString(status));
+            cufileop_status_error(status.err));
     }
 #endif
   }

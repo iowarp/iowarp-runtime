@@ -430,7 +430,7 @@ class ModuleRegistry {
     Container *exec = pool.containers_[container_id];
     if (!exec) {
       //      CHI_RPC->PrintDomain(DomainId{pool_id,
-      //      SubDomainId::kContainerSet}); for (auto &kv :
+      //      SubDomain::kContainerSet}); for (auto &kv :
       //      pool_it->second.containers_) {
       //        HILOG(kInfo, "Container ID: {} {}", kv.first, kv.second)
       //      }

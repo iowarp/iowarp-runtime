@@ -34,11 +34,11 @@ void SyncIoTest(int rank, int nprocs, size_t msg_size, size_t ops_pp) {
                             "chimaera_small_message");
   client.Create(
       HSHM_MCTX,
-      chi::DomainQuery::GetDirectHash(chi::SubDomainId::kGlobalContainers, 0),
+      chi::DomainQuery::GetDirectHash(chi::SubDomain::kGlobalContainers, 0),
       chi::DomainQuery::GetGlobalBcast(), "ipc_test");
   size_t domain_size = CHI_ADMIN->GetDomainSize(
       HSHM_MCTX, chi::DomainQuery::GetLocalHash(0),
-      chi::DomainId(client.id_, chi::SubDomainId::kGlobalContainers));
+      chi::DomainId(client.id_, chi::SubDomain::kGlobalContainers));
 
   hshm::MpiTimer t(MPI_COMM_WORLD);
   t.Resume();
@@ -46,12 +46,12 @@ void SyncIoTest(int rank, int nprocs, size_t msg_size, size_t ops_pp) {
     int container_id = i;
     size_t read_size, write_size;
     client.Io(HSHM_MCTX,
-              chi::DomainQuery::GetDirectHash(
-                  chi::SubDomainId::kGlobalContainers, container_id),
+              chi::DomainQuery::GetDirectHash(chi::SubDomain::kGlobalContainers,
+                                              container_id),
               msg_size, MD_IO_WRITE, write_size, read_size);
     client.Io(HSHM_MCTX,
-              chi::DomainQuery::GetDirectHash(
-                  chi::SubDomainId::kGlobalContainers, container_id),
+              chi::DomainQuery::GetDirectHash(chi::SubDomain::kGlobalContainers,
+                                              container_id),
               msg_size, MD_IO_READ, write_size, read_size);
   }
   t.Pause();

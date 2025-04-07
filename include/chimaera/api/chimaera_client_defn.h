@@ -269,29 +269,17 @@ class Client : public ConfigurationManager {
   /** Free a buffer */
   HSHM_INLINE_CROSS_FUN
   void FreeBuffer(const hipc::MemContext &mctx, hipc::Pointer &p) {
-    try {
-      auto alloc = HSHM_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(p.alloc_id_);
-      alloc->Free(mctx, p);
-    } catch (hshm::Error &err) {
-      HELOG(kError, "(node {}) {}:\n{}", node_id_, err.what(),
-            boost::stacktrace::stacktrace());
-      throw err;
-    }
+    auto alloc = HSHM_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(p.alloc_id_);
+    alloc->Free(mctx, p);
     // HILOG(kInfo, "(node {}) Freeing to {}", node_id_, alloc->GetId());
   }
 
   /** Free a buffer */
   HSHM_INLINE_CROSS_FUN
   void FreeBuffer(const hipc::MemContext &mctx, FullPtr<char> &p) {
-    try {
-      auto alloc =
-          HSHM_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(p.shm_.alloc_id_);
-      alloc->FreeLocalPtr(mctx, p);
-    } catch (hshm::Error &err) {
-      HELOG(kError, "(node {}) {}:\n{}", node_id_, err.what(),
-            boost::stacktrace::stacktrace());
-      throw err;
-    }
+    auto alloc =
+        HSHM_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(p.shm_.alloc_id_);
+    alloc->FreeLocalPtr(mctx, p);
     // HILOG(kInfo, "(node {}) Freeing to {}", node_id_, alloc->GetId());
   }
 

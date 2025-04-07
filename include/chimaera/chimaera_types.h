@@ -254,6 +254,16 @@ typedef u32 SubDomainGroup;
 /** Minor identifier of subdomain */
 typedef u32 SubDomainMinor;
 
+/** Various subdomain constants */
+namespace SubDomain {
+GLOBAL_CROSS_CONST SubDomainGroup kPhysicalNode = 0;
+GLOBAL_CROSS_CONST SubDomainGroup kContainerSet = 1;
+GLOBAL_CROSS_CONST SubDomainGroup kGlobalContainers =
+    1;  // Alias for kContainerSet
+GLOBAL_CROSS_CONST SubDomainGroup kLocalContainers = 3;
+GLOBAL_CROSS_CONST SubDomainGroup kLast = 4;
+}  // namespace SubDomain
+
 /** An unscoped subdomain of nodes or lanes */
 struct SubDomainId {
   SubDomainGroup major_; /**< NodeSet, ContainerSet, ... */
@@ -679,7 +689,7 @@ struct DomainQuery {
    */
   HSHM_INLINE_CROSS_FUN
   static DomainQuery GetDynamic() {
-    DomainQuery query = GetDirectHash(SubDomainId::kLocalContainers, 0);
+    DomainQuery query = GetDirectHash(SubDomain::kLocalContainers, 0);
     query.flags_.SetBits(kSchedule);
     return query;
   }
@@ -722,7 +732,7 @@ struct DomainQuery {
    */
   HSHM_INLINE_CROSS_FUN
   static DomainQuery GetLocalHash(u32 hash) {
-    return GetDirectHash(SubDomainId::kLocalContainers, hash);
+    return GetDirectHash(SubDomain::kLocalContainers, hash);
   }
 
   /**
@@ -732,7 +742,7 @@ struct DomainQuery {
   static DomainQuery GetGlobalBcast() {
     DomainQuery query;
     query.flags_.SetBits(kGlobal | kBroadcast);
-    query.sub_id_ = SubDomainId::kGlobalContainers;
+    query.sub_id_ = SubDomain::kGlobalContainers;
     return query;
   }
 

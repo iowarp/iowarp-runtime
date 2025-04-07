@@ -65,7 +65,7 @@ class Server : public Module {
 
     // Creating submitter and completer queues
     DomainQuery dom_query =
-        DomainQuery::GetDirectId(SubDomainId::kContainerSet, container_id_);
+        DomainQuery::GetDirectId(SubDomain::kContainerSet, container_id_);
     QueueManagerInfo &qm = CHI_QM->config_->queue_manager_;
     submit_.emplace_back(qm.queue_depth_);
     complete_.emplace_back(qm.queue_depth_);
