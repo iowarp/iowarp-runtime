@@ -100,25 +100,39 @@ void Client::LoadSharedMemory(bool server) {
   // Create per-gpu allocator
   if (!server) {
 #ifdef CHIMAERA_ENABLE_ROCM
-    LoadSharedMemoryGpu("rocm_shm_", hipc::MemoryBackendType::kRocmShmMmap);
+    LoadSharedMemoryGpu("rocm_shm_", hipc::MemoryBackendType::kRocmShmMmap,
+                        hipc::MemoryBackendType::kRocmMalloc);
 #endif
 #ifdef CHIMAERA_ENABLE_CUDA
-    LoadSharedMemoryGpu("cuda_shm_", hipc::MemoryBackendType::kCudaShmMmap);
+    LoadSharedMemoryGpu("cuda_shm_", hipc::MemoryBackendType::kCudaShmMmap,
+                        hipc::MemoryBackendType::kCudaMalloc);
 #endif
   }
 }
 
 /** Load the shared memory for GPUs */
 void Client::LoadSharedMemoryGpu(const std::string &prefix,
-                                 hipc::MemoryBackendType backend_type) {
+                                 hipc::MemoryBackendType pinned,
+                                 hipc::MemoryBackendType dev) {
   for (int gpu_id = 0; gpu_id < ngpu_; ++gpu_id) {
     hipc::MemoryBackendId backend_id = GetGpuMemBackendId(gpu_id);
     hipc::AllocatorId alloc_id = GetGpuAllocId(gpu_id);
     // TODO(llogan): Make parameter for gpu_shm_name_ and gpu_shm_size_
     hipc::chararr name = prefix + std::to_string(gpu_id);
-    HSHM_MEMORY_MANAGER->AttachBackend(backend_type, name);
-    gpu_alloc_[gpu_id] =
-        HSHM_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(GetGpuAllocId(gpu_id));
+    HSHM_MEMORY_MANAGER->AttachBackend(pinned, name);
+    gpu_alloc_[gpu_id] = HSHM_MEMORY_MANAGER->GetAllocator<CHI_SHM_GPU_ALLOC_T>(
+        GetGpuAllocId(gpu_id));
+  }
+
+  for (int gpu_id = 0; gpu_id < ngpu_; ++gpu_id) {
+    hipc::MemoryBackendId backend_id = GetGpuDataBackendId(gpu_id);
+    hipc::AllocatorId alloc_id = GetGpuDataAllocId(gpu_id);
+    // TODO(llogan): Make parameter for gpu_shm_name_ and gpu_shm_size_
+    hipc::chararr name = prefix + std::to_string(gpu_id);
+    HSHM_MEMORY_MANAGER->AttachBackend(dev, name);
+    gpu_data_alloc_[gpu_id] =
+        HSHM_MEMORY_MANAGER->GetAllocator<CHI_DATA_GPU_ALLOC_T>(
+            GetGpuDataAllocId(gpu_id));
   }
 }
 

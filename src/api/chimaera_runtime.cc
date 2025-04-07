@@ -158,6 +158,16 @@ void Runtime::InitSharedMemoryGpu() {
         (((u64)1) << 32);  // TODO(llogan): Make a separate unique for gpus
     header->num_nodes_ = server_config_->rpc_.host_names_.size();
   }
+
+  for (int gpu_id = 0; gpu_id < ngpu_; ++gpu_id) {
+    hipc::MemoryBackendId backend_id = GetGpuDataBackendId(gpu_id);
+    hipc::AllocatorId alloc_id = GetGpuDataAllocId(gpu_id);
+    hipc::chararr name = "cuda_data_" + std::to_string(gpu_id);
+    mem_mngr->CreateBackend<hipc::CudaMalloc>(backend_id, MEGABYTES(100), name,
+                                              gpu_id);
+    gpu_data_alloc_[gpu_id] =
+        mem_mngr->CreateAllocator<CHI_ALLOC_T>(backend_id, alloc_id, 0);
+  }
 #endif
 
 #ifdef CHIMAERA_ENABLE_ROCM
@@ -175,6 +185,17 @@ void Runtime::InitSharedMemoryGpu() {
     header->unique_ =
         (((u64)1) << 32);  // TODO(llogan): Make a separate unique for gpus
     header->num_nodes_ = server_config_->rpc_.host_names_.size();
+  }
+
+  for (int gpu_id = 0; gpu_id < ngpu_; ++gpu_id) {
+    hipc::MemoryBackendId backend_id = GetGpuDataBackendId(gpu_id);
+    hipc::AllocatorId alloc_id = GetGpuDataAllocId(gpu_id);
+    // TODO(llogan): Make parameter for gpu_data_name_ and gpu_data_size_
+    hipc::chararr name = "rocm_data_" + std::to_string(gpu_id);
+    mem_mngr->CreateBackend<hipc::RocmMalloc>(backend_id, MEGABYTES(100), name,
+                                              gpu_id);
+    gpu_data_alloc_[gpu_id] = mem_mngr->CreateAllocator<CHI_DATA_GPU_ALLOC_T>(
+        backend_id, alloc_id, 0);
   }
 #endif
 }

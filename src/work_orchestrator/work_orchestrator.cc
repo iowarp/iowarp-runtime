@@ -85,7 +85,7 @@ void WorkOrchestrator::AssignAllQueues() {
   AssignQueueMap(*CHI_QM->queue_map_);
   int ngpu = CHI_RUNTIME->ngpu_;
   for (int gpu_id = 0; gpu_id < ngpu; ++gpu_id) {
-    CHI_ALLOC_T *gpu_alloc = CHI_RUNTIME->GetGpuAlloc(gpu_id);
+    CHI_SHM_GPU_ALLOC_T *gpu_alloc = CHI_RUNTIME->GetGpuAlloc(gpu_id);
     QueueManagerShm &gpu_shm =
         gpu_alloc->GetCustomHeader<ChiShm>()->queue_manager_;
     AssignQueueMap(*gpu_shm.queue_map_);

@@ -31,6 +31,8 @@
 // #define HSHM_DEFAULT_ALLOC_T hipc::ScalablePageAllocator
 #define HSHM_DEFAULT_ALLOC_T hipc::ThreadLocalAllocator
 #define CHI_ALLOC_T HSHM_DEFAULT_ALLOC_T
+#define CHI_SHM_GPU_ALLOC_T CHI_ALLOC_T
+#define CHI_DATA_GPU_ALLOC_T hipc::GpuStackAllocator
 
 #include <hermes_shm/data_structures/all.h>
 #include <hermes_shm/memory/allocator/allocator_factory_.h>

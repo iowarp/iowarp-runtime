@@ -29,7 +29,7 @@ struct ChiShm {
   u64 num_nodes_;
 };
 
-#define MAX_GPU 16
+#define MAX_GPU 4
 
 /** The configuration used inherited by runtime + client */
 class ConfigurationManager {
@@ -46,7 +46,8 @@ class ConfigurationManager {
   CHI_ALLOC_T *main_alloc_;
   CHI_ALLOC_T *data_alloc_;
   CHI_ALLOC_T *rdata_alloc_;
-  CHI_ALLOC_T *gpu_alloc_[MAX_GPU];
+  CHI_SHM_GPU_ALLOC_T *gpu_alloc_[MAX_GPU];
+  CHI_DATA_GPU_ALLOC_T *gpu_data_alloc_[MAX_GPU];
   int ngpu_ = 0;
   bool is_being_initialized_;
   bool is_initialized_;
@@ -68,17 +69,44 @@ class ConfigurationManager {
   /** Get GPU mem backend id */
   HSHM_INLINE_CROSS_FUN static hipc::MemoryBackendId GetGpuMemBackendId(
       int gpu_id) {
-    return hipc::MemoryBackendId(3 + gpu_id);
+    return hipc::MemoryBackendId(3 + gpu_id * 2);
+  }
+
+  /** Get GPU mem backend id */
+  HSHM_INLINE_CROSS_FUN static hipc::MemoryBackendId GetGpuDataBackendId(
+      int gpu_id) {
+    return hipc::MemoryBackendId(3 + gpu_id * 2 + 1);
   }
 
   /** Get GPU allocator id */
   HSHM_INLINE_CROSS_FUN static hipc::AllocatorId GetGpuAllocId(int gpu_id) {
-    return hipc::AllocatorId(3 + gpu_id, 0);
+    return hipc::AllocatorId(3 + gpu_id * 2, 0);
+  }
+
+  /** Get GPU allocator id */
+  HSHM_INLINE_CROSS_FUN static hipc::AllocatorId GetGpuDataAllocId(int gpu_id) {
+    return hipc::AllocatorId(3 + gpu_id * 2 + 1, 0);
+  }
+
+  /** Is the pointer a GPU data pointer? */
+  bool IsGpuDataPointer(const hipc::Pointer &ptr) {
+    if (ptr.IsNull()) return false;
+    for (int i = 0; i < ngpu_; ++i) {
+      if (ptr.alloc_id_ == GetGpuDataAllocId(i)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /** Get GPU allocator */
-  HSHM_INLINE_CROSS_FUN CHI_ALLOC_T *GetGpuAlloc(int gpu_id) {
+  HSHM_INLINE_CROSS_FUN CHI_SHM_GPU_ALLOC_T *GetGpuAlloc(int gpu_id) {
     return gpu_alloc_[gpu_id];
+  }
+
+  /** Get GPU allocator */
+  HSHM_INLINE_CROSS_FUN CHI_DATA_GPU_ALLOC_T *GetGpuDataAlloc(int gpu_id) {
+    return gpu_data_alloc_[gpu_id];
   }
 
   /** Default constructor */

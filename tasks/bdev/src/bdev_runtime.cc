@@ -29,6 +29,11 @@ class Server : public Module {
   BlockAllocator alloc_;
   BlockUrl url_;
   int fd_;
+#ifdef CHIMAERA_ENABLE_CUDA
+  CUfileError_t cf_status_;
+  CUfileDescr_t cf_descr_;
+  CUfileHandle_t cf_handle_;
+#endif
   char *ram_;
   RollingAverage monitor_[Method::kCount];
   CLS_CONST int kRead = 0;
@@ -73,14 +78,37 @@ class Server : public Module {
     // Allocate data
     InitialStats(dev_size);
   }
+
+  /** Open a POSIX file */
+  void OpenPosix(size_t dev_size) {
+    // Open file for read & write, no override
+    fd_ = open64(url_.path_.c_str(), O_RDWR | O_CREAT, 0666);
+    ftruncate64(fd_, dev_size);
+  }
+
+  /** Open a CUDA file */
+  void OpenCufile(size_t dev_size) {
+#ifdef CHIMAERA_ENABLE_CUDA
+    cf_status_ = cuFileDriverOpen();
+    if (cf_status_.err != CU_FILE_SUCCESS) {
+      return;
+    }
+    memset((void *)&cf_descr_, 0, sizeof(CUfileDescr_t));
+    cf_descr_.handle.fd = fd;
+    cf_descr_.type = CU_FILE_HANDLE_TYPE_OPAQUE_FD;
+    cf_status_ = cuFileHandleRegister(&cf_handle_, &cf_descr_);
+    if (cf_status_.err != CU_FILE_SUCCESS) {
+      return;
+    }
+#endif
+  }
+
   void InitialStats(size_t dev_size) {
     switch (url_.scheme_) {
       case BlockUrl::kFs: {
         ssize_t ret;
 
-        // Open file for read & write, no override
-        fd_ = open64(url_.path_.c_str(), O_RDWR | O_CREAT, 0666);
-        ftruncate64(fd_, dev_size);
+        // Set tuning parameters
         hshm::Timer time;
         lat_cutoff_ = KILOBYTES(16);
         std::vector<char> data(MEGABYTES(1));
@@ -104,7 +132,7 @@ class Server : public Module {
         io_perf_[kWrite].bw_.consts_[1] = 0;
         time.Reset();
 
-        // Read 4KB from the beginning with pread
+        // Read 16KB from the beginning with pread
         time.Resume();
         fdatasync(fd_);
         ret = pread64(fd_, data.data(), KILOBYTES(16), 0);
@@ -195,29 +223,135 @@ class Server : public Module {
   void Free(FreeTask *task, RunContext &rctx) { alloc_.Free(0, task->block_); }
   void MonitorFree(MonitorModeId mode, FreeTask *task, RunContext &rctx) {}
 
+  /** Write to a block device with POSIX */
+  void WritePosix(WriteTask *task, RunContext &rctx) {
+    char *data = HSHM_MEMORY_MANAGER->Convert<char>(task->data_);
+    ssize_t ret = pwrite64(fd_, data, task->size_, task->off_);
+    if (ret == task->size_) {
+      task->success_ = true;
+    } else {
+      HELOG(kWarning, "Failed to write to bdev (off={}, size={}): {}",
+            task->off_, task->size_, strerror(errno));
+      task->success_ = false;
+    }
+  }
+
+  /** Write to a block device with memory */
+  void WriteMemory(WriteTask *task, RunContext &rctx) {
+    char *data = HSHM_MEMORY_MANAGER->Convert<char>(task->data_);
+    memcpy(ram_ + task->off_, data, task->size_);
+    task->success_ = true;
+  }
+
+  /** Write data with GPU memory */
+  void WriteGpu(WriteTask *task, RunContext &rctx) {
+#if defined(CHIMAERA_ENABLE_CUDA)
+    if (status_.err_ == CU_FILE_SUCCESS) {
+      WriteCufile(task, rctx);
+    } else {
+      WriteCudaCopy(task, rctx);
+    }
+#elif defined(CHIMAERA_ENABLE_ROCM)
+    WriteRocmCopy(task, rctx);
+#else
+    HELOG(kWarning, "GPU write not supported");
+    task->success_ = false;
+#endif
+  }
+
+  /** Write by copying from GPU memory (ROCm) */
+  void WriteRocmCopy(WriteTask *task, RunContext &rctx) {
+#ifdef CHIMAERA_ENABLE_ROCM
+    char *gpu_data = HSHM_MEMORY_MANAGER->Convert<char>(task->data_);
+    std::vector<char> cpu_data(task->size_);
+    hipError_t hip_status = hipMemcpy(cpu_data.data(), gpu_data, task->size_,
+                                      hipMemcpyDeviceToHost);
+    if (hip_status != hipSuccess) {
+      HELOG(kWarning, "hipMemcpy failed. ERROR: {}",
+            hipGetErrorString(hip_status));
+      task->success_ = false;
+      return;
+    }
+    ssize_t ret = pwrite64(fd_, cpu_data.data(), task->size_, task->off_);
+    if (ret == task->size_) {
+      task->success_ = true;
+    } else {
+      HELOG(kWarning, "Failed to write to bdev (off={}, size={}): {}",
+            task->off_, task->size_, strerror(errno));
+      task->success_ = false;
+    }
+#endif
+  }
+
+  /** Write by copying from GPU memory */
+  void WriteCudaCopy(WriteTask *task, RunContext &rctx) {
+#ifdef CHIMAERA_ENABLE_CUDA
+    char *gpu_data = HSHM_MEMORY_MANAGER->Convert<char>(task->data_);
+    std::vector<char> cpu_data(task->size_);
+    cudaError_t cuda_status = cudaMemcpy(cpu_data.data(), gpu_data, task->size_,
+                                         cudaMemcpyDeviceToHost);
+    if (cuda_status != cudaSuccess) {
+      HELOG(kWarning, "cudaMemcpy failed. ERROR: {}",
+            cudaGetErrorString(cuda_status));
+      task->success_ = false;
+      return;
+    }
+    ssize_t ret = pwrite64(fd_, cpu_data.data(), task->size_, task->off_);
+    if (ret == task->size_) {
+      task->success_ = true;
+    } else {
+      HELOG(kWarning, "Failed to write to bdev (off={}, size={}): {}",
+            task->off_, task->size_, strerror(errno));
+      task->success_ = false;
+    }
+#endif
+  }
+
+  /** Write to a CUDA file */
+  void WriteCufile(WriteTask *task, RunContext &rctx) {
+#ifdef CHIMAERA_ENABLE_CUDA
+    CUfileError_t status;
+    char *gpu_data = HSHM_MEMORY_MANAGER->Convert<char>(task->data_);
+    status = cuFileBufRegister(gpu_data, task->size_, 0);
+    if (status.err != CU_FILE_SUCCESS) {
+      HELOG(kWarning,
+            "cuFileBufRegister failed. ERROR: {}. resorting to bounce-buffer.",
+            cudaGetErrorString(status));
+      WriteCudaCopy(task, rctx);
+      return;
+    }
+
+    ret = cuFileWrite(cf_handle_, gpu_data, task->size_, 0, 0);
+    if (ret < 0) {
+      HELOG(kWarning,
+            "cuFileWrite failed. ERROR: {}. resorting to bounce-buffer.",
+            cudaGetErrorString(status));
+      WriteCudaCopy(task, rctx);
+      return;
+    }
+
+    status = cuFileBufDeregister(gpu_data);
+    if (status.err != CU_FILE_SUCCESS) {
+      HELOG(kWarning, "cuFileBufDeregister failed. ERROR: {}. Ignoring.",
+            cudaGetErrorString(status));
+    }
+#endif
+  }
+
   /** Write to the block device */
   void Write(WriteTask *task, RunContext &rctx) {
     char *data = HSHM_MEMORY_MANAGER->Convert<char>(task->data_);
     switch (url_.scheme_) {
       case BlockUrl::kFs: {
-        // HILOG(kInfo, "(node {}) Writing to FS, alloc={} off={} size={}
-        // ptr={}",
-        //       CHI_CLIENT->node_id_, task->data_.alloc_id_, task->off_,
-        //       task->size_, (void *)data);
-        ssize_t ret = pwrite64(fd_, data, task->size_, task->off_);
-        if (ret == task->size_) {
-          task->success_ = true;
+        if (CHI_CLIENT->IsGpuDataPointer(task->data_)) {
+          WriteGpu(task, rctx);
         } else {
-          HELOG(kWarning, "Failed to write to bdev (off={}, size={}): {}",
-                task->off_, task->size_, strerror(errno));
-          task->success_ = false;
+          WritePosix(task, rctx);
         }
         break;
       }
       case BlockUrl::kRam: {
-        memcpy(ram_ + task->off_, data, task->size_);
-        task->success_ = true;
-        break;
+        WriteMemory(task, rctx);
       }
       case BlockUrl::kSpdk: {
         break;
@@ -228,29 +362,134 @@ class Server : public Module {
     IoMonitor(mode, task->size_, io_perf_[kWrite], rctx);
   }
 
+  /** Read from a block device with POSIX */
+  void ReadPosix(ReadTask *task, RunContext &rctx) {
+    char *data = HSHM_MEMORY_MANAGER->Convert<char>(task->data_);
+    ssize_t ret = pread64(fd_, data, task->size_, task->off_);
+    if (ret == task->size_) {
+      task->success_ = true;
+    } else {
+      HELOG(kWarning, "Failed to read from bdev (off={}, size={}): {}",
+            task->off_, task->size_, strerror(errno));
+      task->success_ = false;
+    }
+  }
+
+  /** Read from a block device with memory */
+  void ReadMemory(ReadTask *task, RunContext &rctx) {
+    char *data = HSHM_MEMORY_MANAGER->Convert<char>(task->data_);
+    memcpy(data, ram_ + task->off_, task->size_);
+    task->success_ = true;
+  }
+
+  /** Read from a GPU memory */
+  void ReadGpu(ReadTask *task, RunContext &rctx) {
+#if defined(CHIMAERA_ENABLE_CUDA)
+    if (status_.err_ == CU_FILE_SUCCESS) {
+      ReadCufile(task, rctx);
+    } else {
+      ReadCudaCopy(task, rctx);
+    }
+#elif defined(CHIMAERA_ENABLE_ROCM)
+    ReadRocmCopy(task, rctx);
+#else
+    HELOG(kWarning, "GPU read not supported");
+    task->success_ = false;
+#endif
+  }
+
+  /** Read from a CUDA file */
+  void ReadCufile(ReadTask *task, RunContext &rctx) {
+#ifdef CHIMAERA_ENABLE_CUDA
+    CUfileError_t status;
+    char *gpu_data = HSHM_MEMORY_MANAGER->Convert<char>(task->data_);
+    status = cuFileBufRegister(gpu_data, task->size_, 0);
+    if (status.err != CU_FILE_SUCCESS) {
+      HELOG(kWarning,
+            "cuFileBufRegister failed. ERROR: {}. resorting to bounce-buffer.",
+            cudaGetErrorString(status));
+      ReadCudaCopy(task, rctx);
+      return;
+    }
+
+    ret = cuFileRead(cf_handle_, gpu_data, task->size_, 0, 0);
+    if (ret < 0) {
+      HELOG(kWarning,
+            "cuFileRead failed. ERROR: {}. resorting to bounce-buffer.",
+            cudaGetErrorString(status));
+      ReadCudaCopy(task, rctx);
+      return;
+    }
+
+    status = cuFileBufDeregister(gpu_data);
+    if (status.err != CU_FILE_SUCCESS) {
+      HELOG(kWarning, "cuFileBufDeregister failed. ERROR: {}. Ignoring.",
+            cudaGetErrorString(status));
+    }
+#endif
+  }
+
+  /** Read by copying from GPU memory (ROCm) */
+  void ReadRocmCopy(ReadTask *task, RunContext &rctx) {
+#ifdef CHIMAERA_ENABLE_ROCM
+    char *gpu_data = HSHM_MEMORY_MANAGER->Convert<char>(task->data_);
+    std::vector<char> cpu_data(task->size_);
+    hipError_t hip_status = hipMemcpy(cpu_data.data(), gpu_data, task->size_,
+                                      hipMemcpyDeviceToHost);
+    if (hip_status != hipSuccess) {
+      HELOG(kWarning, "hipMemcpy failed. ERROR: {}",
+            hipGetErrorString(hip_status));
+      task->success_ = false;
+      return;
+    }
+    ssize_t ret = pread64(fd_, cpu_data.data(), task->size_, task->off_);
+    if (ret == task->size_) {
+      task->success_ = true;
+    } else {
+      HELOG(kWarning, "Failed to read from bdev (off={}, size={}): {}",
+            task->off_, task->size_, strerror(errno));
+      task->success_ = false;
+    }
+#endif
+  }
+
+  /** Read by copying from GPU memory */
+  void ReadCudaCopy(ReadTask *task, RunContext &rctx) {
+#ifdef CHIMAERA_ENABLE_CUDA
+    char *gpu_data = HSHM_MEMORY_MANAGER->Convert<char>(task->data_);
+    std::vector<char> cpu_data(task->size_);
+    cudaError_t cuda_status = cudaMemcpy(cpu_data.data(), gpu_data, task->size_,
+                                         cudaMemcpyDeviceToHost);
+    if (cuda_status != cudaSuccess) {
+      HELOG(kWarning, "cudaMemcpy failed. ERROR: {}",
+            cudaGetErrorString(cuda_status));
+      task->success_ = false;
+      return;
+    }
+    ssize_t ret = pread64(fd_, cpu_data.data(), task->size_, task->off_);
+    if (ret == task->size_) {
+      task->success_ = true;
+    } else {
+      HELOG(kWarning, "Failed to read from bdev (off={}, size={}): {}",
+            task->off_, task->size_, strerror(errno));
+      task->success_ = false;
+    }
+#endif
+  }
+
   /** Read from the block device */
   void Read(ReadTask *task, RunContext &rctx) {
     char *data = HSHM_MEMORY_MANAGER->Convert<char>(task->data_);
     switch (url_.scheme_) {
       case BlockUrl::kFs: {
-        // HILOG(kInfo,
-        //       "(node {}) Reading from FS, alloc={} off={} size={} ptr={}",
-        //       CHI_CLIENT->node_id_, task->data_.alloc_id_, task->off_,
-        //       task->size_, (void *)data);
-        ssize_t ret = pread64(fd_, data, task->size_, task->off_);
-        if (ret == task->size_) {
-          task->success_ = true;
+        if (CHI_CLIENT->IsGpuDataPointer(task->data_)) {
+          ReadGpu(task, rctx);
         } else {
-          HELOG(kWarning, "Failed to read from bdev (off={}, size={}): {}",
-                task->off_, task->size_, strerror(errno));
-          task->success_ = false;
+          ReadPosix(task, rctx);
         }
         break;
       }
       case BlockUrl::kRam: {
-        // HILOG(kInfo, "(node {}) Reading from RAM", CHI_CLIENT->node_id_);
-        memcpy(data, ram_ + task->off_, task->size_);
-        task->success_ = true;
         break;
       }
       case BlockUrl::kSpdk: {
