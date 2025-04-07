@@ -121,6 +121,7 @@ class Server : public Module {
   void InitialStats(size_t dev_size) {
     switch (url_.scheme_) {
       case BlockUrl::kFs: {
+        ssize_t ret;
         OpenPosix(dev_size);
         OpenCufile(dev_size);
 
@@ -171,6 +172,10 @@ class Server : public Module {
       }
       case BlockUrl::kRam: {
         OpenMemory(dev_size);
+
+        // Tuning parameters
+        hshm::Timer time;
+        std::vector<char> data(MEGABYTES(1));
 
         // Write 1MB to the beginning with pwrite
         time.Resume();
