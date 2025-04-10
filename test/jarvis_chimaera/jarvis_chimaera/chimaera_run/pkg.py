@@ -277,7 +277,7 @@ class ChimaeraRun(Service):
         if len(net_info) == 0:
             self.log(net_info_save)
             self.log('Failed to find provider for the runtime', Color.RED)
-            self.exit(1)
+            exit(1)
         net_info = net_info.rows[0]
 
         # Compile hostfile
