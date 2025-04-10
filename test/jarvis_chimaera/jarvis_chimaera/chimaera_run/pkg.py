@@ -266,14 +266,16 @@ class ChimaeraRun(Service):
             suffixes = ['', ';ofi_rxm']
             for base in bases:
                 for suffix in suffixes:
-                    provider = f'{base}{suffix}'
-                    if provider in providers:
+                    test_provider = f'{base}{suffix}'
+                    if test_provider in providers:
+                        provider = test_provider
                         break
         
         # Get first matching net info
         self.log(f'Provider: {provider}')
         net_info_save = net_info
-        net_info = net_info[lambda r: str(r['provider']) == provider]
+        if provider is not None:
+            net_info = net_info[lambda r: str(r['provider']) == provider]
         if len(net_info) == 0:
             self.log(net_info_save)
             self.log('Failed to find provider for the runtime', Color.RED)
