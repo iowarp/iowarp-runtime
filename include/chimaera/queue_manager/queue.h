@@ -254,7 +254,7 @@ class Lane : public hipc::ShmContainer {
 
   /** Consumer peeks an object */
   HSHM_INLINE_CROSS_FUN
-  qtok_t peek(chi::ipc::pair<ibitfield, LaneData> *&val, int off = 0) {
+  qtok_t peek(chi::ipc::pair<bitfield64_t, LaneData> *&val, int off = 0) {
     return queue_.peek(val, off);
   }
 
@@ -273,9 +273,9 @@ class Lane : public hipc::ShmContainer {
 
 /** Prioritization of different lanes in the queue */
 struct LaneGroup : public PriorityInfo, public hipc::ShmContainer {
+  chi::ipc::vector<Lane> lanes_; /**< The lanes of the queue */
   u32 prio_;          /**< The priority of the lane group */
   u32 num_scheduled_; /**< The number of lanes currently scheduled on workers */
-  chi::ipc::vector<Lane> lanes_; /**< The lanes of the queue */
   u32 tether_; /**< Lanes should be pinned to the same workers as the tether's
                   prio group */
 
@@ -404,8 +404,8 @@ struct LaneGroup : public PriorityInfo, public hipc::ShmContainer {
  * The shared-memory representation of a Queue
  * */
 struct MultiQueue : public hipc::ShmContainer {
-  QueueId id_;                         /**< Globally unique ID of this queue */
   chi::ipc::vector<LaneGroup> groups_; /**< Divide the lanes into groups */
+  QueueId id_;                         /**< Globally unique ID of this queue */
   ibitfield flags_;                    /**< Flags for the queue */
 
  public:

@@ -61,8 +61,9 @@ class Client : public ConfigurationManager {
   void LoadSharedMemory(bool server);
 
   /** Load the shared memory for GPUs */
-  void LoadSharedMemoryGpu(const std::string &prefix,
+  void LoadSharedMemoryGpu(const std::string &pinned_prefix,
                            hipc::MemoryBackendType pinned,
+                           const std::string &dev_prefix,
                            hipc::MemoryBackendType dev);
 
   /** Creates the CHI_CLIENT on the GPU */

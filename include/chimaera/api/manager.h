@@ -23,10 +23,10 @@ namespace chi {
 
 /** Shared-memory header for CHI */
 struct ChiShm {
-  NodeId node_id_;
   QueueManagerShm queue_manager_;
   hipc::atomic<hshm::min_u64> unique_;
   u64 num_nodes_;
+  NodeId node_id_;
 };
 
 #define MAX_GPU 4

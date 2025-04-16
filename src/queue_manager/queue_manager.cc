@@ -41,12 +41,8 @@ void QueueManager::ServerInit(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
   queue->flags_.SetBits(QUEUE_READY);
 
   int num_gpus = CHI_RUNTIME->ngpu_;
-  // Create the CUDA queues
-#ifdef CHIMAERA_ENABLE_CUDA
-#endif
-
   // Create the ROCm queues
-#ifdef CHIMAERA_ENABLE_ROCM
+#if defined(CHIMAERA_ENABLE_ROCM) || defined(CHIMAERA_ENABLE_CUDA)
   for (int gpu_id = 0; gpu_id < num_gpus; ++gpu_id) {
     hipc::AllocatorId alloc_id = CHI_RUNTIME->GetGpuAllocId(gpu_id);
     auto *gpu_alloc = HSHM_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(alloc_id);

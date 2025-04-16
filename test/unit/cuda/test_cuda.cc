@@ -21,22 +21,27 @@
 #include "small_message/small_message_client.h"
 
 HSHM_GPU_KERNEL void test_kernel() {
+  hipc::ScopedTlsAllocator<CHI_SHM_GPU_ALLOC_T> main_alloc(
+      HSHM_MCTX, CHI_CLIENT->main_alloc_);
+  hipc::MemContext mctx = main_alloc.alloc_.ctx_;
   // chi::TaskNode task_node = CHI_CLIENT->MakeTaskNodeId();
   // hipc::FullPtr<chi::Admin::RegisterModuleTask> task =
-  //     CHI_ADMIN->AsyncRegisterModuleAlloc(HSHM_MCTX, task_node,
+  //     CHI_ADMIN->AsyncRegisterModuleAlloc(main_alloc.alloc_.ctx_, task_node,
   //                                         chi::DomainQuery::GetGlobalBcast(),
   //                                         "chimaera_small_message");
-  // printf("H3: %p %p %p %p\n", task.ptr_, CHI_CLIENT, CHI_QM,
-  //        CHI_QM->queue_map_);
+  // printf("H3: %p %lu %p %p %p\n", task.ptr_, task.shm_.off_.load(), CHI_CLIENT,
+  //        CHI_QM, CHI_QM->queue_map_);
+  // hipc::AllocatorId id = CHI_QM->queue_map_->GetAllocatorId();
+  // printf("H4: %d.%d\n", id.bits_.major_, id.bits_.minor_);
   // chi::ingress::MultiQueue *queue =
   //     CHI_CLIENT->GetQueue(chi::PROCESS_QUEUE_ID);
-  // printf("H4: (queue major, minor) %d.%d\n", queue->id_.group_id_,
+  // printf("H5: (queue major, minor) %d.%d\n", queue->id_.group_id_,
   //        (int)queue->id_.unique_);
   // queue->Emplace(chi::TaskPrioOpt::kLowLatency,
   //                hshm::hash<chi::DomainQuery>{}(task->dom_query_),
   //                task.shm_);
   // printf("H5\n");
-  CHI_ADMIN->RegisterModule(HSHM_MCTX, chi::DomainQuery::GetGlobalBcast(),
+  CHI_ADMIN->RegisterModule(mctx, chi::DomainQuery::GetGlobalBcast(),
                             "chimaera_small_message");
   // client.Create(
   //     HSHM_MCTX,
