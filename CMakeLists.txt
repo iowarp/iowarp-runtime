@@ -22,7 +22,7 @@ option(CHIMAERA_ENABLE_MIMALLOC "Use mimalloc as the allocator" OFF)
 option(CHIMAERA_ENABLE_PYTHON "Use pybind11" ON)
 option(CHIMAERA_ENABLE_ROCM "Enable ROCm support" OFF)
 option(CHIMAERA_ENABLE_CUDA "Enable CUDA support" OFF)
-option(CHIMAERA_ENABLE_DOTENV "Use cmake dotenv" OFF)
+option(CHIMAERA_ENABLE_CMAKE_DOTENV "Use cmake dotenv" OFF)
 
 # A hack for spack to get dependencies
 option(CHIMAERA_NO_COMPILE "Don't compile the code" OFF)
@@ -44,7 +44,7 @@ endif()
 # ------------------------------------------------------------------------------
 # DOTENV
 # ------------------------------------------------------------------------------
-if(CHIMAERA_ENABLE_DOTENV)
+if(CHIMAERA_ENABLE_CMAKE_DOTENV)
     if(EXISTS ${CMAKE_SOURCE_DIR}/.env.cmake)
         include(.env.cmake)
     endif()

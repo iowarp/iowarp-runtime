@@ -9,6 +9,10 @@ set(MOD_EXPORTS ${REPO_NAMESPACE}_bdev_exports)
 add_chimod_runtime_lib(${REPO_NAMESPACE} bdev bdev_runtime.cc)
 add_chimod_client_lib(${REPO_NAMESPACE} bdev bdev_client.cc)
 
+foreach(target IN LISTS ${REPO_NAMESPACE}_bdev_runtime_iter)
+        target_link_libraries(${target} PUBLIC cufile)
+endforeach()
+
 # ------------------------------------------------------------------------------
 # Install BDEV Task Library
 # ------------------------------------------------------------------------------
