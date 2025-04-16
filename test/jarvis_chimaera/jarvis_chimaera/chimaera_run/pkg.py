@@ -283,6 +283,7 @@ class ChimaeraRun(Service):
         net_info = net_info.rows[0]
 
         # Compile hostfile
+        print(self.jarvis.hostfile)
         compile = CompileHostfile(self.hostfile, 
                         net_info['provider'],
                         net_info['domain'],
@@ -290,6 +291,7 @@ class ChimaeraRun(Service):
                         self.hostfile_path,
                         env=self.env)
         self.hostfile = compile.hostfile
+        print(self.hostfile)
 
         # Create network info config
         protocol = net_info['provider']

@@ -102,6 +102,14 @@ class ChimaeraUnitTests(Application):
                              env=self.mod_env,
                              do_dbg=self.config['do_dbg'],
                              dbg_port=self.config['dbg_port']))
+        elif self.config['TEST_CASE'] in self.test_cuda_execs:
+            Exec(f'test_cuda_exec {self.config["TEST_CASE"]}',
+                 MpiExecInfo(hostfile=self.jarvis.hostfile,
+                             nprocs=nprocs,
+                             ppn=self.config['ppn'],
+                             env=self.mod_env,
+                             do_dbg=self.config['do_dbg'],
+                             dbg_port=self.config['dbg_port']))
         
 
     def stop(self):
