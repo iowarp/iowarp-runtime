@@ -57,35 +57,40 @@ class ConfigurationManager {
   hshm::ThreadType thread_type_;
 
   /** Refresh the number of GPUs */
-  void RefreshNumGpus() {
-#ifdef CHIMAERA_ENABLE_ROCM
-    HIP_ERROR_CHECK(hipGetDeviceCount(&ngpu_));
-#endif
-#ifdef CHIMAERA_ENABLE_CUDA
-    cudaGetDeviceCount(&ngpu_);
-#endif
-  }
+  void RefreshNumGpus() { ngpu_ = hshm::GpuApi::GetDeviceCount(); }
 
   /** Get GPU mem backend id */
-  HSHM_INLINE_CROSS_FUN static hipc::MemoryBackendId GetGpuMemBackendId(
+  HSHM_INLINE_CROSS_FUN static hipc::MemoryBackendId GetGpuCpuBackendId(
       int gpu_id) {
-    return hipc::MemoryBackendId(3 + gpu_id * 2);
+    return hipc::MemoryBackendId::Get(3 + gpu_id * 2);
   }
 
   /** Get GPU mem backend id */
   HSHM_INLINE_CROSS_FUN static hipc::MemoryBackendId GetGpuDataBackendId(
       int gpu_id) {
-    return hipc::MemoryBackendId(3 + gpu_id * 2 + 1);
+    return hipc::MemoryBackendId::Get(3 + gpu_id * 2 + 1);
   }
 
   /** Get GPU allocator id */
-  HSHM_INLINE_CROSS_FUN static hipc::AllocatorId GetGpuAllocId(int gpu_id) {
+  HSHM_INLINE_CROSS_FUN static hipc::AllocatorId GetGpuCpuAllocId(int gpu_id) {
     return hipc::AllocatorId(3 + gpu_id * 2, 0);
   }
 
   /** Get GPU allocator id */
   HSHM_INLINE_CROSS_FUN static hipc::AllocatorId GetGpuDataAllocId(int gpu_id) {
     return hipc::AllocatorId(3 + gpu_id * 2 + 1, 0);
+  }
+
+  /** Get GPU mem backend name */
+  std::string GetGpuCpuAllocName(int gpu_id) {
+    return server_config_->queue_manager_.base_gpu_cpu_name_ +
+           std::to_string(gpu_id);
+  }
+
+  /** Get GPU data laloc name */
+  std::string GetGpuDataAllocName(int gpu_id) {
+    return server_config_->queue_manager_.base_gpu_data_name_ +
+           std::to_string(gpu_id);
   }
 
   /** Is the pointer a GPU data pointer? */

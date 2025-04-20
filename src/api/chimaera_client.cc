@@ -23,7 +23,6 @@ void Client::CreateOnGpu(hipc::AllocatorId alloc_id) {
   auto *p1 = header_->queue_manager_.queue_map_.get();
   CHI_QM->ClientInit(main_alloc_, header_->queue_manager_, header_->node_id_);
   auto *p2 = CHI_QM->queue_map_;
-  printf("Created client on GPU: %p %p %d\n", (void *)p1,  (void *)p2, (size_t)p1 % 8);
   is_initialized_ = true;
   is_being_initialized_ = false;
 }
@@ -102,41 +101,32 @@ void Client::LoadSharedMemory(bool server) {
 
   // Create per-gpu allocator
   if (!server) {
-#ifdef CHIMAERA_ENABLE_ROCM
-    LoadSharedMemoryGpu("rocm_shm_", hipc::MemoryBackendType::kRocmShmMmap,
-                        "rocm_data_", hipc::MemoryBackendType::kRocmMalloc);
-#endif
-#ifdef CHIMAERA_ENABLE_CUDA
-    LoadSharedMemoryGpu("cuda_shm_", hipc::MemoryBackendType::kCudaShmMmap,
-                        "cuda_data_", hipc::MemoryBackendType::kCudaMalloc);
+#if defined(CHIMAERA_ENABLE_ROCM) || defined(CHIMAERA_ENABLE_CUDA)
+    LoadSharedMemoryGpu();
 #endif
   }
 }
 
 /** Load the shared memory for GPUs */
-void Client::LoadSharedMemoryGpu(const std::string &pinned_prefix,
-                                 hipc::MemoryBackendType pinned,
-                                 const std::string &dev_prefix,
-                                 hipc::MemoryBackendType dev) {
+void Client::LoadSharedMemoryGpu() {
+  auto *mem_mngr = HSHM_MEMORY_MANAGER;
   for (int gpu_id = 0; gpu_id < ngpu_; ++gpu_id) {
-    hipc::MemoryBackendId backend_id = GetGpuMemBackendId(gpu_id);
-    hipc::AllocatorId alloc_id = GetGpuAllocId(gpu_id);
-    // TODO(llogan): Make parameter for gpu_shm_name_ and gpu_shm_size_
-    hipc::chararr name = pinned_prefix + std::to_string(gpu_id);
-    HSHM_MEMORY_MANAGER->AttachBackend(pinned, name);
-    gpu_alloc_[gpu_id] = HSHM_MEMORY_MANAGER->GetAllocator<CHI_SHM_GPU_ALLOC_T>(
-        GetGpuAllocId(gpu_id));
+    hipc::MemoryBackendId backend_id = GetGpuCpuBackendId(gpu_id);
+    hipc::AllocatorId alloc_id = GetGpuCpuAllocId(gpu_id);
+    hipc::chararr name = GetGpuCpuAllocName(gpu_id);
+    mem_mngr->AttachBackend(hipc::MemoryBackendType::kGpuShmMmap, name);
+    gpu_alloc_[gpu_id] =
+        HSHM_MEMORY_MANAGER->GetAllocator<CHI_SHM_GPU_ALLOC_T>(alloc_id);
   }
 
   for (int gpu_id = 0; gpu_id < ngpu_; ++gpu_id) {
     hipc::MemoryBackendId backend_id = GetGpuDataBackendId(gpu_id);
     hipc::AllocatorId alloc_id = GetGpuDataAllocId(gpu_id);
-    // TODO(llogan): Make parameter for gpu_shm_name_ and gpu_shm_size_
-    hipc::chararr name = dev_prefix + std::to_string(gpu_id);
-    HSHM_MEMORY_MANAGER->AttachBackend(dev, name);
+    hipc::chararr name = GetGpuDataAllocName(gpu_id);
+    HSHM_MEMORY_MANAGER->AttachBackend(hipc::MemoryBackendType::kGpuMalloc,
+                                       name);
     gpu_data_alloc_[gpu_id] =
-        HSHM_MEMORY_MANAGER->GetAllocator<CHI_DATA_GPU_ALLOC_T>(
-            GetGpuDataAllocId(gpu_id));
+        HSHM_MEMORY_MANAGER->GetAllocator<CHI_DATA_GPU_ALLOC_T>(alloc_id);
   }
 }
 
@@ -146,13 +136,13 @@ void Client::CreateClientOnHostForGpu() {
   for (int gpu_id = 0; gpu_id < ngpu_; ++gpu_id) {
 #ifdef CHIMAERA_ENABLE_ROCM
     HIP_ERROR_CHECK(hipSetDevice(gpu_id));
-    CreateClientKernel<<<1, 1>>>(GetGpuAllocId(gpu_id));
+    CreateClientKernel<<<1, 1>>>(GetGpuCpuAllocId(gpu_id));
     HIP_ERROR_CHECK(hipDeviceSynchronize());
 #endif
-    
+
 #ifdef CHIMAERA_ENABLE_CUDA
     cudaSetDevice(gpu_id);
-    CreateClientKernel<<<1, 1>>>(GetGpuAllocId(gpu_id));
+    CreateClientKernel<<<1, 1>>>(GetGpuCpuAllocId(gpu_id));
     CUDA_ERROR_CHECK(cudaDeviceSynchronize());
 #endif
   }

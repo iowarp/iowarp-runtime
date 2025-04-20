@@ -52,11 +52,16 @@ struct QueueManagerInfo {
   std::string data_shm_name_;
   /** Shared memory runtime data region name */
   std::string rdata_shm_name_;
+  /** Shared memory for GPU - CPU shared memory */
+  std::string base_gpu_cpu_name_;
+  /** Shared memory for GPU device memory */
+  std::string base_gpu_data_name_;
   /** Client data shared memory region size */
   size_t data_shm_size_;
   /** Runtime data shared memory region size */
   size_t rdata_shm_size_;
-
+  /** GPU data shm size */
+  size_t gpu_data_shm_size_;
   HSHM_HOST_FUN
   QueueManagerInfo() = default;
 
