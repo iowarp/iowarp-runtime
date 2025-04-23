@@ -43,7 +43,7 @@ class Runtime : public ConfigurationManager {
   Runtime() = default;
 
   /** Create the server-side API */
-  void Create(std::string server_config_path = "");
+  HSHM_DLL void Create(std::string server_config_path = "");
 
  private:
   /** Initialize */
@@ -57,10 +57,10 @@ class Runtime : public ConfigurationManager {
 
  public:
   /** Finalize Hermes explicitly */
-  void Finalize();
+  HSHM_DLL void Finalize();
 
   /** Run the Hermes core Daemon */
-  void RunDaemon();
+  HSHM_DLL void RunDaemon();
 
   /** Get # of lanes from QueueManager */
   size_t GetMaxContainersPn() { return CHI_QM->max_containers_pn_; }

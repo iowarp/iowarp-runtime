@@ -90,15 +90,13 @@ macro(add_chimod_runtime_lib namespace target)
     # Create the ${namespace}_${target} library
     if(CHIMAERA_ENABLE_CUDA)
         add_cuda_library(${namespace}_${target} SHARED TRUE ${ARGN})
-        target_link_libraries(${namespace}_${target} PUBLIC hshm::cudacxx cufile)
+        target_link_libraries(${namespace}_${target} PUBLIC cufile)
         target_compile_definitions(${namespace}_${target} PUBLIC CHIMAERA_ENABLE_CUDA)
     elseif(CHIMAERA_ENABLE_ROCM)
         add_rocm_gpu_library(${namespace}_${target} SHARED TRUE ${ARGN})
-        target_link_libraries(${namespace}_${target} PUBLIC hshm::rocmcxx_gpu)
         target_compile_definitions(${namespace}_${target} PUBLIC CHIMAERA_ENABLE_ROCM)
     else()
         add_library(${namespace}_${target} ${ARGN})
-        target_link_libraries(${namespace}_${target} PUBLIC hshm::cxx)
     endif()
 
     # Link the runtime library to the chimaera runtime
@@ -147,7 +145,7 @@ macro(add_chimod_client_lib namespace target)
     if(CHIMAERA_ENABLE_CUDA)
         # Create the ${namespace}_${target}_client_gpu library
         add_cuda_library(${namespace}_${target}_client_gpu STATIC TRUE ${ARGN})
-        target_link_libraries(${namespace}_${target}_client_gpu PUBLIC hshm::cudacxx chimaera::client_gpu)
+        target_link_libraries(${namespace}_${target}_client_gpu PUBLIC chimaera::client_gpu)
         target_include_directories(${namespace}_${target}_client_gpu
             PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../include>
             PUBLIC $<INSTALL_INTERFACE:include>
@@ -170,7 +168,7 @@ macro(add_chimod_client_lib namespace target)
     if(CHIMAERA_ENABLE_ROCM)
         # Create the ${namespace}_${target}_client_gpu library
         add_rocm_gpu_library(${namespace}_${target}_client_gpu STATIC TRUE ${ARGN})
-        target_link_libraries(${namespace}_${target}_client_gpu PUBLIC hshm::rocmcxx_gpu chimaera::client_gpu)
+        target_link_libraries(${namespace}_${target}_client_gpu PUBLIC chimaera::client_gpu)
         target_include_directories(${namespace}_${target}_client_gpu
             PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../include>
             PUBLIC $<INSTALL_INTERFACE:include>

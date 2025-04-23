@@ -19,9 +19,9 @@
 
 namespace chi {
 
-GLOBAL_CROSS_CONST QueueId ADMIN_QUEUE_ID(1, 0);
-GLOBAL_CROSS_CONST PoolId ADMIN_POOL_ID(1, 0);
-GLOBAL_CROSS_CONST QueueId PROCESS_QUEUE_ID(1, 1);
+static GLOBAL_CROSS_CONST QueueId ADMIN_QUEUE_ID(1, 0);
+static GLOBAL_CROSS_CONST PoolId ADMIN_POOL_ID(1, 0);
+static GLOBAL_CROSS_CONST QueueId PROCESS_QUEUE_ID(1, 1);
 
 /** Shared-memory representation of the QueueManager */
 struct QueueManagerShm {

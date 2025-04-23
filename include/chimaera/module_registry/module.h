@@ -203,43 +203,45 @@ class Module {
   }
 
   /** Virtual destructor */
-  virtual ~Module() = default;
+  HSHM_DLL virtual ~Module() = default;
 
   /** Route to a virtual lane */
-  virtual Lane *MapTaskToLane(const Task *task) = 0;
+  HSHM_DLL virtual Lane *MapTaskToLane(const Task *task) = 0;
 
   /** Run a method of the task */
-  virtual void Run(u32 method, Task *task, RunContext &rctx) = 0;
+  HSHM_DLL virtual void Run(u32 method, Task *task, RunContext &rctx) = 0;
 
   /** Monitor a method of the task */
-  virtual void Monitor(MonitorModeId mode, u32 method, Task *task,
-                       RunContext &rctx) = 0;
+  HSHM_DLL virtual void Monitor(MonitorModeId mode, u32 method, Task *task,
+                                RunContext &rctx) = 0;
 
   /** Delete a task */
-  virtual void Del(const hipc::MemContext &ctx, u32 method, Task *task) = 0;
+  HSHM_DLL virtual void Del(const hipc::MemContext &ctx, u32 method,
+                            Task *task) = 0;
 
   /** Duplicate a task into an existing task */
-  virtual void CopyStart(u32 method, const Task *orig_task, Task *dup_task,
-                         bool deep) = 0;
+  HSHM_DLL virtual void CopyStart(u32 method, const Task *orig_task,
+                                  Task *dup_task, bool deep) = 0;
 
   /** Duplicate a task into a new task */
-  virtual void NewCopyStart(u32 method, const Task *orig_task,
-                            FullPtr<Task> &dup_task, bool deep) = 0;
+  HSHM_DLL virtual void NewCopyStart(u32 method, const Task *orig_task,
+                                     FullPtr<Task> &dup_task, bool deep) = 0;
 
   /** Serialize a task when initially pushing into remote */
-  virtual void SaveStart(u32 method, BinaryOutputArchive<true> &ar,
-                         Task *task) = 0;
+  HSHM_DLL virtual void SaveStart(u32 method, BinaryOutputArchive<true> &ar,
+                                  Task *task) = 0;
 
   /** Deserialize a task when popping from remote queue */
-  virtual TaskPointer LoadStart(u32 method, BinaryInputArchive<true> &ar) = 0;
+  HSHM_DLL virtual TaskPointer LoadStart(u32 method,
+                                         BinaryInputArchive<true> &ar) = 0;
 
   /** Serialize a task when returning from remote queue */
-  virtual void SaveEnd(u32 method, BinaryOutputArchive<false> &ar,
-                       Task *task) = 0;
+  HSHM_DLL virtual void SaveEnd(u32 method, BinaryOutputArchive<false> &ar,
+                                Task *task) = 0;
 
   /** Deserialize a task when returning from remote queue */
-  virtual void LoadEnd(u32 method, BinaryInputArchive<false> &ar,
-                       Task *task) = 0;
+  HSHM_DLL virtual void LoadEnd(u32 method, BinaryInputArchive<false> &ar,
+                                Task *task) = 0;
 };
 
 /** Represents a Module in action */
@@ -286,19 +288,21 @@ typedef const char *(*get_module_name_t)(void);
 /** Used internally by task source file */
 #define CHI_TASK_CC(TRAIT_CLASS, MOD_NAME)                                  \
   extern "C" {                                                              \
-  void *alloc_state(const chi::PoolId *pool_id, const char *pool_name) {    \
+  HSHM_DLL void *alloc_state(const chi::PoolId *pool_id,                    \
+                             const char *pool_name) {                       \
     chi::Container *exec =                                                  \
         reinterpret_cast<chi::Container *>(new TYPE_UNWRAP(TRAIT_CLASS)()); \
     return exec;                                                            \
   }                                                                         \
-  void *new_state(const chi::PoolId *pool_id, const char *pool_name) {      \
+  HSHM_DLL void *new_state(const chi::PoolId *pool_id,                      \
+                           const char *pool_name) {                         \
     chi::Container *exec =                                                  \
         reinterpret_cast<chi::Container *>(new TYPE_UNWRAP(TRAIT_CLASS)()); \
     exec->Init(*pool_id, CHI_CLIENT->GetQueueId(*pool_id), pool_name);      \
     return exec;                                                            \
   }                                                                         \
-  const char *get_module_name(void) { return MOD_NAME; }                    \
-  bool is_chimaera_task_ = true;                                            \
+  HSHM_DLL const char *get_module_name(void) { return MOD_NAME; }           \
+  HSHM_DLL bool is_chimaera_task_ = true;                                   \
   }
 
 }  // namespace chi

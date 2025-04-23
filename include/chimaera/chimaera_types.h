@@ -256,12 +256,12 @@ typedef u32 SubDomainMinor;
 
 /** Various subdomain constants */
 namespace SubDomain {
-GLOBAL_CROSS_CONST SubDomainGroup kPhysicalNode = 0;
-GLOBAL_CROSS_CONST SubDomainGroup kContainerSet = 1;
-GLOBAL_CROSS_CONST SubDomainGroup kGlobalContainers =
+static GLOBAL_CROSS_CONST SubDomainGroup kPhysicalNode = 0;
+static GLOBAL_CROSS_CONST SubDomainGroup kContainerSet = 1;
+static GLOBAL_CROSS_CONST SubDomainGroup kGlobalContainers =
     1;  // Alias for kContainerSet
-GLOBAL_CROSS_CONST SubDomainGroup kLocalContainers = 3;
-GLOBAL_CROSS_CONST SubDomainGroup kLast = 4;
+static GLOBAL_CROSS_CONST SubDomainGroup kLocalContainers = 3;
+static GLOBAL_CROSS_CONST SubDomainGroup kLast = 4;
 }  // namespace SubDomain
 
 /** An unscoped subdomain of nodes or lanes */

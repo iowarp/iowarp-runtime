@@ -67,8 +67,7 @@ else()
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -O3")
 endif()
 
-add_compile_options(-march=native -fomit-frame-pointer)
-
+# add_compile_options(-march=native -fomit-frame-pointer)
 if(CHIMAERA_REMOTE_DEBUG)
     message("Adding the chimaera remote debug option")
     add_compile_definitions(CHIMAERA_REMOTE_DEBUG)
