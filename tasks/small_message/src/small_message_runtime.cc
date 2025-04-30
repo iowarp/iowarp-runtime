@@ -140,12 +140,12 @@ class Server : public Module {
 
   /** An I/O task */
   void Io(IoTask *task, RunContext &rctx) {
-    char *data = CHI_CLIENT->GetDataPointer(task->data_);
+    FullPtr data(task->data_);
     task->ret_ = 0;
     for (size_t i = 0; i < task->size_; ++i) {
-      task->ret_ += data[i];
+      task->ret_ += data.ptr_[i];
     }
-    memset(data, 15, task->size_);
+    memset(data.ptr_, 15, task->size_);
   }
   void MonitorIo(MonitorModeId mode, IoTask *task, RunContext &rctx) {
     switch (mode) {

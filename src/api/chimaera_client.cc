@@ -6,15 +6,20 @@ namespace chi {
 
 /** Initialize the client (GPU) */
 #if defined(CHIMAERA_ENABLE_ROCM) || defined(CHIMAERA_ENABLE_CUDA)
-HSHM_GPU_KERNEL static void CreateClientKernel(hipc::AllocatorId alloc_id) {
-  auto *p = HSHM_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(alloc_id);
-  CHI_CLIENT->CreateOnGpu(alloc_id);
+HSHM_GPU_KERNEL static void CreateClientKernel(hipc::AllocatorId cpu_alloc,
+                                               hipc::AllocatorId data_alloc) {
+  CHI_CLIENT->CreateOnGpu(cpu_alloc, data_alloc);
 }
 
 HSHM_GPU_FUN
-void Client::CreateOnGpu(hipc::AllocatorId alloc_id) {
-  main_alloc_ = HSHM_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(alloc_id);
-  data_alloc_ = nullptr;
+void Client::CreateOnGpu(hipc::AllocatorId cpu_alloc,
+                         hipc::AllocatorId data_alloc) {
+#ifdef HSHM_IS_GPU
+  main_alloc_ = HSHM_MEMORY_MANAGER->GetAllocator<CHI_MAIN_ALLOC_T>(cpu_alloc);
+  printf("Here2: %p\n", main_alloc_);
+  data_alloc_ = HSHM_MEMORY_MANAGER->GetAllocator<CHI_DATA_ALLOC_T>(data_alloc);
+  printf("Here3: %p (%d.%d)\n", data_alloc_, data_alloc.bits_.major_,
+         data_alloc.bits_.minor_);
   rdata_alloc_ = nullptr;
   HSHM_MEMORY_MANAGER->SetDefaultAllocator(main_alloc_);
   header_ = main_alloc_->GetCustomHeader<ChiShm>();
@@ -25,6 +30,7 @@ void Client::CreateOnGpu(hipc::AllocatorId alloc_id) {
   auto *p2 = CHI_QM->queue_map_;
   is_initialized_ = true;
   is_being_initialized_ = false;
+#endif
 }
 #endif
 
@@ -90,9 +96,9 @@ void Client::LoadSharedMemory(bool server) {
     mem_mngr->AttachBackend(hipc::MemoryBackendType::kPosixShmMmap,
                             qm.rdata_shm_name_);
   }
-  main_alloc_ = mem_mngr->GetAllocator<CHI_ALLOC_T>(main_alloc_id_);
-  data_alloc_ = mem_mngr->GetAllocator<CHI_ALLOC_T>(data_alloc_id_);
-  rdata_alloc_ = mem_mngr->GetAllocator<CHI_ALLOC_T>(rdata_alloc_id_);
+  main_alloc_ = mem_mngr->GetAllocator<CHI_MAIN_ALLOC_T>(main_alloc_id_);
+  data_alloc_ = mem_mngr->GetAllocator<CHI_DATA_ALLOC_T>(data_alloc_id_);
+  rdata_alloc_ = mem_mngr->GetAllocator<CHI_RDATA_ALLOC_T>(rdata_alloc_id_);
   mem_mngr->SetDefaultAllocator(main_alloc_);
   header_ = main_alloc_->GetCustomHeader<ChiShm>();
   unique_ = &header_->unique_;
@@ -125,27 +131,19 @@ void Client::LoadSharedMemoryGpu() {
     hipc::chararr name = GetGpuDataAllocName(gpu_id);
     HSHM_MEMORY_MANAGER->AttachBackend(hipc::MemoryBackendType::kGpuMalloc,
                                        name);
-    gpu_data_alloc_[gpu_id] =
-        HSHM_MEMORY_MANAGER->GetAllocator<CHI_DATA_GPU_ALLOC_T>(alloc_id);
   }
 }
 
 /** Creates the CHI_CLIENT on the GPU */
 void Client::CreateClientOnHostForGpu() {
-  // Get the allocators for the GPUs
+#if defined(CHIMAERA_ENABLE_ROCM) || defined(CHIMAERA_ENABLE_CUDA)
   for (int gpu_id = 0; gpu_id < ngpu_; ++gpu_id) {
-#ifdef CHIMAERA_ENABLE_ROCM
-    HIP_ERROR_CHECK(hipSetDevice(gpu_id));
-    CreateClientKernel<<<1, 1>>>(GetGpuCpuAllocId(gpu_id));
-    HIP_ERROR_CHECK(hipDeviceSynchronize());
-#endif
-
-#ifdef CHIMAERA_ENABLE_CUDA
-    cudaSetDevice(gpu_id);
-    CreateClientKernel<<<1, 1>>>(GetGpuCpuAllocId(gpu_id));
-    CUDA_ERROR_CHECK(cudaDeviceSynchronize());
-#endif
+    hshm::GpuApi::SetDevice(gpu_id);
+    CreateClientKernel<<<1, 1>>>(GetGpuCpuAllocId(gpu_id),
+                                 GetGpuDataAllocId(gpu_id));
+    hshm::GpuApi::Synchronize();
   }
+#endif
 }
 
 HSHM_DEFINE_GLOBAL_CROSS_PTR_VAR_CC(Client, chiClient);

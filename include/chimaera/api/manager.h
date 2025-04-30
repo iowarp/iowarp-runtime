@@ -43,11 +43,10 @@ class ConfigurationManager {
       hipc::AllocatorId(2, 0);
   static inline const hipc::AllocatorId rdata_alloc_id_ =
       hipc::AllocatorId(3, 0);
-  CHI_ALLOC_T *main_alloc_;
-  CHI_ALLOC_T *data_alloc_;
-  CHI_ALLOC_T *rdata_alloc_;
+  CHI_MAIN_ALLOC_T *main_alloc_;
+  CHI_DATA_ALLOC_T *data_alloc_;
+  CHI_RDATA_ALLOC_T *rdata_alloc_;
   CHI_SHM_GPU_ALLOC_T *gpu_alloc_[MAX_GPU];
-  CHI_DATA_GPU_ALLOC_T *gpu_data_alloc_[MAX_GPU];
   int ngpu_ = 0;
   bool is_being_initialized_;
   bool is_initialized_;
@@ -111,7 +110,8 @@ class ConfigurationManager {
 
   /** Get GPU allocator */
   HSHM_INLINE_CROSS_FUN CHI_DATA_GPU_ALLOC_T *GetGpuDataAlloc(int gpu_id) {
-    return gpu_data_alloc_[gpu_id];
+    return HSHM_MEMORY_MANAGER->GetAllocator<CHI_DATA_GPU_ALLOC_T>(
+        GetGpuDataAllocId(gpu_id));
   }
 
   /** Default constructor */

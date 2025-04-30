@@ -32,7 +32,16 @@
 #define HSHM_DEFAULT_ALLOC_T hipc::ThreadLocalAllocator
 #define CHI_ALLOC_T HSHM_DEFAULT_ALLOC_T
 #define CHI_SHM_GPU_ALLOC_T CHI_ALLOC_T
-#define CHI_DATA_GPU_ALLOC_T hipc::GpuStackAllocator
+// #define CHI_DATA_GPU_ALLOC_T hipc::GpuStackAllocator
+#define CHI_DATA_GPU_ALLOC_T hipc::StackAllocator
+
+#define CHI_MAIN_ALLOC_T CHI_ALLOC_T
+#ifdef HSHM_IS_HOST
+#define CHI_DATA_ALLOC_T CHI_ALLOC_T
+#else
+#define CHI_DATA_ALLOC_T CHI_DATA_GPU_ALLOC_T
+#endif
+#define CHI_RDATA_ALLOC_T CHI_DATA_ALLOC_T
 
 #include <hermes_shm/data_structures/all.h>
 #include <hermes_shm/memory/allocator/allocator_factory_.h>

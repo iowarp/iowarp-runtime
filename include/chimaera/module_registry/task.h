@@ -639,8 +639,10 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
   /*** Yield task (called in modules) */
   HSHM_INLINE_CROSS_FUN
   void Yield() {
+#ifdef HSHM_IS_HOST
     SetYielded();
     BaseYield();
+#endif
   }
 
   /** Yield a task to a different task (runtime-only) */

@@ -118,19 +118,19 @@ void Runtime::InitSharedMemory() {
   // Create general allocator
   mem_mngr->CreateBackend<hipc::PosixShmMmap>(hipc::MemoryBackendId::Get(0),
                                               qm.shm_size_, qm.shm_name_);
-  main_alloc_ = mem_mngr->CreateAllocator<CHI_ALLOC_T>(
+  main_alloc_ = mem_mngr->CreateAllocator<CHI_MAIN_ALLOC_T>(
       hipc::MemoryBackendId::Get(0), main_alloc_id_, sizeof(ChiShm));
   header_ = main_alloc_->GetCustomHeader<ChiShm>();
   mem_mngr->SetDefaultAllocator(main_alloc_);
   // Create separate data allocator
   mem_mngr->CreateBackend<hipc::PosixShmMmap>(
       hipc::MemoryBackendId::Get(1), qm.data_shm_size_, qm.data_shm_name_);
-  data_alloc_ = mem_mngr->CreateAllocator<CHI_ALLOC_T>(
+  data_alloc_ = mem_mngr->CreateAllocator<CHI_DATA_ALLOC_T>(
       hipc::MemoryBackendId::Get(1), data_alloc_id_, 0);
   // Create separate runtime data allocator
   mem_mngr->CreateBackend<hipc::PosixShmMmap>(
       hipc::MemoryBackendId::Get(2), qm.rdata_shm_size_, qm.rdata_shm_name_);
-  rdata_alloc_ = mem_mngr->CreateAllocator<CHI_ALLOC_T>(
+  rdata_alloc_ = mem_mngr->CreateAllocator<CHI_RDATA_ALLOC_T>(
       hipc::MemoryBackendId::Get(2), rdata_alloc_id_, 0);
 }
 
@@ -166,8 +166,11 @@ void Runtime::InitSharedMemoryGpu() {
     mem_mngr->CreateBackend<hipc::GpuMalloc>(
         backend_id, server_config_->queue_manager_.gpu_data_shm_size_, name,
         gpu_id);
-    gpu_data_alloc_[gpu_id] = mem_mngr->CreateAllocator<CHI_DATA_GPU_ALLOC_T>(
-        backend_id, alloc_id, 0);
+    // gpu_data_alloc_[gpu_id] =
+    // mem_mngr->CreateAllocator<CHI_DATA_GPU_ALLOC_T>(
+    //     backend_id, alloc_id, 0);
+    mem_mngr->CreateAllocatorGpu<CHI_DATA_GPU_ALLOC_T>(gpu_id, backend_id,
+                                                       alloc_id, 0);
   }
 #endif
 }

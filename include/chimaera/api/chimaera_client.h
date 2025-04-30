@@ -20,8 +20,7 @@ namespace chi {
 /** Allocate a buffer */
 template <bool FROM_REMOTE>
 HSHM_INLINE_CROSS_FUN FullPtr<char> Client::AllocateBufferSafe(
-    const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, size_t size) {
-#ifdef HSHM_IS_HOST
+    const hipc::CtxAllocator<CHI_DATA_ALLOC_T> &alloc, size_t size) {
   FullPtr<char> p(FullPtr<char>::GetNull());
   // HILOG(kInfo, "(node {}) Beginning to allocate {} from {}",
   //       CHI_CLIENT->node_id_, size, alloc->GetId());
@@ -29,11 +28,15 @@ HSHM_INLINE_CROSS_FUN FullPtr<char> Client::AllocateBufferSafe(
     return FullPtr<char>::GetNull();
   }
   while (true) {
+#ifdef HSHM_IS_HOST
     try {
       p = alloc->AllocateLocalPtr<char>(alloc.ctx_, size);
     } catch (hshm::Error &e) {
       p.shm_.SetNull();
     }
+#else
+    p = alloc->AllocateLocalPtr<char>(alloc.ctx_, size);
+#endif
     if (!p.shm_.IsNull()) {
       break;
     }
@@ -54,9 +57,6 @@ HSHM_INLINE_CROSS_FUN FullPtr<char> Client::AllocateBufferSafe(
   // HILOG(kInfo, "(node {}) Allocated {} from {}", CHI_CLIENT->node_id_, size,
   //       alloc->GetId());
   return p;
-#else
-  return FullPtr<char>();
-#endif
 }
 
 /** Send a task to the runtime */

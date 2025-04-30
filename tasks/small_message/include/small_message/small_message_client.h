@@ -58,10 +58,10 @@ class Client : public ModuleClient {
     FullPtr<IoTask> task = AsyncIo(mctx, dom_query, io_size, io_flags);
     task->Wait();
     write_ret = task->ret_;
-    char *data = CHI_CLIENT->GetDataPointer(task->data_);
+    FullPtr data(task->data_);
     read_ret = 0;
     for (size_t i = 0; i < io_size; ++i) {
-      read_ret += data[i];
+      read_ret += data.ptr_[i];
     }
     CHI_CLIENT->DelTask(mctx, task);
   }

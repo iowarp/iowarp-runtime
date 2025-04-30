@@ -49,7 +49,7 @@ class Client : public ConfigurationManager {
   /** Initialize the client (GPU) */
 #if defined(CHIMAERA_ENABLE_ROCM) || defined(CHIMAERA_ENABLE_CUDA)
   HSHM_GPU_FUN
-  void CreateOnGpu(hipc::AllocatorId alloc_id);
+  void CreateOnGpu(hipc::AllocatorId cpu_alloc, hipc::AllocatorId data_alloc);
 #endif
 
  private:
@@ -261,13 +261,14 @@ class Client : public ConfigurationManager {
   /** Allocate a buffer */
   template <bool FROM_REMOTE = false>
   HSHM_INLINE_CROSS_FUN FullPtr<char> AllocateBufferSafe(
-      const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, size_t size);
+      const hipc::CtxAllocator<CHI_DATA_ALLOC_T> &alloc, size_t size);
 
  public:
   /** Free a buffer */
   HSHM_INLINE_CROSS_FUN
   void FreeBuffer(const hipc::MemContext &mctx, hipc::Pointer &p) {
-    auto alloc = HSHM_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(p.alloc_id_);
+    auto alloc =
+        HSHM_MEMORY_MANAGER->GetAllocator<CHI_DATA_ALLOC_T>(p.alloc_id_);
     alloc->Free(mctx, p);
     // HILOG(kInfo, "(node {}) Freeing to {}", node_id_, alloc->GetId());
   }
@@ -276,16 +277,9 @@ class Client : public ConfigurationManager {
   HSHM_INLINE_CROSS_FUN
   void FreeBuffer(const hipc::MemContext &mctx, FullPtr<char> &p) {
     auto alloc =
-        HSHM_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(p.shm_.alloc_id_);
+        HSHM_MEMORY_MANAGER->GetAllocator<CHI_DATA_ALLOC_T>(p.shm_.alloc_id_);
     alloc->FreeLocalPtr(mctx, p);
     // HILOG(kInfo, "(node {}) Freeing to {}", node_id_, alloc->GetId());
-  }
-
-  /** Convert pointer to char* */
-  template <typename T = char>
-  HSHM_INLINE_CROSS_FUN T *GetDataPointer(const hipc::Pointer &p) {
-    auto alloc = HSHM_MEMORY_MANAGER->GetAllocator<CHI_ALLOC_T>(p.alloc_id_);
-    return alloc->Convert<T, hipc::Pointer>(p);
   }
 
   /** Get the queue ID */
