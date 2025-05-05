@@ -170,10 +170,8 @@ struct CreatePoolBaseTask : public Task, TaskFlags<TF_SRL_SYM> {
     affinity_ = affinity;
     ctx_ = ctx;
 
-    std::stringstream ss;
-    cereal::BinaryOutputArchive ar(ss);
-    ar(TaskParamsT{alloc, std::forward<Args>(args)...});
-    params_ = ss.str();
+    TaskParamsT params{alloc, std::forward<Args>(args)...};
+    SetParams(params);
   }
 
   /** Broadcast constructor */
@@ -235,6 +233,13 @@ struct CreatePoolBaseTask : public Task, TaskFlags<TF_SRL_SYM> {
     TaskParamsT params;
     ar(params);
     return params;
+  }
+
+  HSHM_INLINE_CROSS_FUN void SetParams(const TaskParamsT &params) {
+    std::stringstream ss;
+    cereal::BinaryOutputArchive ar(ss);
+    ar(params);
+    params_ = ss.str();
   }
 };
 typedef CreatePoolBaseTask<CreateTaskParams> CreatePoolTask;
