@@ -67,7 +67,8 @@ typedef int64_t i64;  /**< 64-bit signed integer */
 typedef float f32;    /**< 32-bit float */
 typedef double f64;   /**< 64-bit float */
 
-HSHM_DATA_STRUCTURES_TEMPLATE(chi, CHI_ALLOC_T);
+HSHM_DATA_STRUCTURES_TEMPLATE(chi, CHI_MAIN_ALLOC_T);
+HSHM_DATA_STRUCTURES_TEMPLATE(chi::data, CHI_DATA_ALLOC_T);
 
 namespace chi {
 
