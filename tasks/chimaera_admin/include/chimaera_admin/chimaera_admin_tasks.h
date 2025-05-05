@@ -139,7 +139,7 @@ struct CreatePoolBaseTask : public Task, TaskFlags<TF_SRL_SYM> {
   IN chi::ipc::string pool_name_;
   IN DomainQuery affinity_;
   IN bool root_ = true;
-  IN chi::ipc::string params_;
+  INOUT chi::ipc::string params_;
   INOUT CreateContext ctx_;
 
   /** SHM default constructor */
@@ -222,7 +222,7 @@ struct CreatePoolBaseTask : public Task, TaskFlags<TF_SRL_SYM> {
   /** (De)serialize message return */
   template <typename Ar>
   HSHM_INLINE_CROSS_FUN void SerializeEnd(Ar &ar) {
-    ar(ctx_.id_);
+    ar(ctx_.id_, params_);
   }
 
   /** Get the parameters */
