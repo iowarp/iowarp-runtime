@@ -2,7 +2,7 @@
 #define CHI_MOD_NAME_METHODS_H_
 
 /** The set of methods in the admin task */
-struct Method : public TaskMethod {
+struct Method : public chi::TaskMethod {
   TASK_METHOD_T kCount = 2;
 };
 
