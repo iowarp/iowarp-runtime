@@ -277,6 +277,35 @@ class ModuleClient {
     queue_id_ = id;
   }
 
+  /** Default constructor */
+  ModuleClient() : id_(PoolId::GetNull()), queue_id_(QueueId::GetNull()) {}
+
+  /** Copy constructor */
+  ModuleClient(const ModuleClient &other)
+      : id_(other.id_), queue_id_(other.queue_id_) {}
+
+  /** Move constructor */
+  ModuleClient(ModuleClient &&other) noexcept
+      : id_(std::move(other.id_)), queue_id_(std::move(other.queue_id_)) {}
+
+  /** Copy assignment operator */
+  ModuleClient &operator=(const ModuleClient &other) {
+    if (this != &other) {
+      id_ = other.id_;
+      queue_id_ = other.queue_id_;
+    }
+    return *this;
+  }
+
+  /** Move assignment operator */
+  ModuleClient &operator=(ModuleClient &&other) noexcept {
+    if (this != &other) {
+      id_ = std::move(other.id_);
+      queue_id_ = std::move(other.queue_id_);
+    }
+    return *this;
+  }
+
   template <typename Ar>
   void serialize(Ar &ar) {
     ar(id_);
