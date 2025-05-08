@@ -250,7 +250,10 @@ typedef Module Container;
 /** Represents the Module client-side */
 class ModuleClient {
  public:
-  PoolId id_;
+  union {
+    PoolId id_;  // NOTE(llogan): Deprecated, please use pool_id_ instead
+    PoolId pool_id_;
+  };
   QueueId queue_id_;
 
  public:
@@ -272,6 +275,12 @@ class ModuleClient {
     id_ = id;
     // queue_id_ = QueueId(id_);
     queue_id_ = id;
+  }
+
+  template <typename Ar>
+  void serialize(Ar &ar) {
+    ar(id_);
+    ar(queue_id_);
   }
 };
 
