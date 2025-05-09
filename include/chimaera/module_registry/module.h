@@ -258,6 +258,7 @@ class ModuleClient {
 
  public:
   /** Init from existing ID */
+  HSHM_CROSS_FUN
   void Init(const PoolId &id, const QueueId &queue_id) {
     if (id.IsNull()) {
       HELOG(kWarning, "Failed to create pool");
@@ -268,6 +269,7 @@ class ModuleClient {
   }
 
   /** Init from existing ID */
+  HSHM_CROSS_FUN
   void Init(const PoolId &id) {
     if (id.IsNull()) {
       HELOG(kWarning, "Failed to create pool");
@@ -278,17 +280,21 @@ class ModuleClient {
   }
 
   /** Default constructor */
+  HSHM_CROSS_FUN
   ModuleClient() : id_(PoolId::GetNull()), queue_id_(QueueId::GetNull()) {}
 
   /** Copy constructor */
+  HSHM_CROSS_FUN
   ModuleClient(const ModuleClient &other)
       : id_(other.id_), queue_id_(other.queue_id_) {}
 
   /** Move constructor */
+  HSHM_CROSS_FUN
   ModuleClient(ModuleClient &&other) noexcept
       : id_(std::move(other.id_)), queue_id_(std::move(other.queue_id_)) {}
 
   /** Copy assignment operator */
+  HSHM_CROSS_FUN
   ModuleClient &operator=(const ModuleClient &other) {
     if (this != &other) {
       id_ = other.id_;
@@ -298,6 +304,7 @@ class ModuleClient {
   }
 
   /** Move assignment operator */
+  HSHM_CROSS_FUN
   ModuleClient &operator=(ModuleClient &&other) noexcept {
     if (this != &other) {
       id_ = std::move(other.id_);
