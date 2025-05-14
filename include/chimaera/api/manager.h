@@ -29,8 +29,6 @@ struct ChiShm {
   NodeId node_id_;
 };
 
-#define MAX_GPU 4
-
 /** The configuration used inherited by runtime + client */
 class ConfigurationManager {
  public:
@@ -46,7 +44,7 @@ class ConfigurationManager {
   CHI_MAIN_ALLOC_T *main_alloc_;
   CHI_DATA_ALLOC_T *data_alloc_;
   CHI_RDATA_ALLOC_T *rdata_alloc_;
-  CHI_SHM_GPU_ALLOC_T *gpu_alloc_[MAX_GPU];
+  CHI_SHM_GPU_ALLOC_T *gpu_alloc_[HSHM_MAX_GPUS];
   int ngpu_ = 0;
   bool is_being_initialized_;
   bool is_initialized_;

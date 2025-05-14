@@ -17,6 +17,56 @@
 
 namespace chi {
 
+/** Initialize the client (GPU) */
+#if defined(CHIMAERA_ENABLE_ROCM) || defined(CHIMAERA_ENABLE_CUDA)
+HSHM_GPU_KERNEL static void CreateClientKernel(hipc::AllocatorId cpu_alloc,
+                                               hipc::AllocatorId data_alloc) {
+  CHI_CLIENT->CreateOnGpu(cpu_alloc, data_alloc);
+}
+
+template <int NOTHING>
+HSHM_GPU_FUN void Client::CreateOnGpu(hipc::AllocatorId cpu_alloc,
+                                      hipc::AllocatorId data_alloc) {
+#ifdef HSHM_IS_GPU
+  main_alloc_ = HSHM_MEMORY_MANAGER->GetAllocator<CHI_MAIN_ALLOC_T>(cpu_alloc);
+  printf("Chimaera GPU Client: %p\n", this);
+  printf("Memory Manager: %p\n", HSHM_MEMORY_MANAGER);
+  printf("Main Alloc: %p\n", main_alloc_);
+  data_alloc_ = HSHM_MEMORY_MANAGER->GetAllocator<CHI_DATA_ALLOC_T>(data_alloc);
+  printf("Data Alloc: %p (%d.%d)\n", data_alloc_, data_alloc.bits_.major_,
+         data_alloc.bits_.minor_);
+  rdata_alloc_ = nullptr;
+  HSHM_MEMORY_MANAGER->SetDefaultAllocator(main_alloc_);
+  header_ = main_alloc_->GetCustomHeader<ChiShm>();
+  unique_ = &header_->unique_;
+  node_id_ = header_->node_id_;
+  auto *p1 = header_->queue_manager_.queue_map_.get();
+  CHI_QM->ClientInit(main_alloc_, header_->queue_manager_, header_->node_id_);
+  auto *p2 = CHI_QM->queue_map_;
+  is_initialized_ = true;
+  is_being_initialized_ = false;
+#endif
+}
+#endif
+
+/**
+ * Creates the CHI_CLIENT on the GPU
+ * This needs to be templated because each module using GPU
+ * must call it to initialize singleton. The singleton is not
+ * propogated across shared objects. CUDA and ROCm are very picky.
+ */
+template <int NOTHING>
+void Client::CreateClientOnHostForGpu() {
+#if defined(CHIMAERA_ENABLE_ROCM) || defined(CHIMAERA_ENABLE_CUDA)
+  for (int gpu_id = 0; gpu_id < ngpu_; ++gpu_id) {
+    hshm::GpuApi::SetDevice(gpu_id);
+    CreateClientKernel<<<1, 1>>>(GetGpuCpuAllocId(gpu_id),
+                                 GetGpuDataAllocId(gpu_id));
+    hshm::GpuApi::Synchronize();
+  }
+#endif
+}
+
 /** Allocate a buffer */
 template <bool FROM_REMOTE>
 HSHM_INLINE_CROSS_FUN FullPtr<char> Client::AllocateBufferSafe(

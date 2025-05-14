@@ -17,6 +17,12 @@
 
 namespace chi::small_message {
 
+#if defined(CHIMAERA_ENABLE_CUDA) or defined(CHIMAERA_ENABLE_ROCM)
+HSHM_GPU_KERNEL static void TestGpuDlsym() {
+  printf("I launched on GPU successfully!\n");
+}
+#endif
+
 class Server : public Module {
  public:
   CLS_CONST LaneGroupId kDefaultGroup = 0;
@@ -31,6 +37,13 @@ class Server : public Module {
   void Create(CreateTask *task, RunContext &rctx) {
     client_.Init(id_, CHI_ADMIN->queue_id_);
     CreateLaneGroup(kDefaultGroup, 4, QUEUE_LOW_LATENCY);
+
+#if defined(CHIMAERA_ENABLE_CUDA) or defined(CHIMAERA_ENABLE_ROCM)
+    printf("TESTING CUDA!!!\n");
+    hshm::GpuApi::SetDevice(0);
+    TestGpuDlsym<<<1, 1>>>();
+    hshm::GpuApi::Synchronize();
+#endif
 
     // Create monitoring functions
     for (int i = 0; i < Method::kCount; ++i) {

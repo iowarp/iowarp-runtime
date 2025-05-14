@@ -48,8 +48,9 @@ class Client : public ConfigurationManager {
 
   /** Initialize the client (GPU) */
 #if defined(CHIMAERA_ENABLE_ROCM) || defined(CHIMAERA_ENABLE_CUDA)
-  HSHM_GPU_FUN
-  void CreateOnGpu(hipc::AllocatorId cpu_alloc, hipc::AllocatorId data_alloc);
+  template <int NOTHING = 0>
+  HSHM_GPU_FUN void CreateOnGpu(hipc::AllocatorId cpu_alloc,
+                                hipc::AllocatorId data_alloc);
 #endif
 
  private:
@@ -63,10 +64,11 @@ class Client : public ConfigurationManager {
   /** Load the shared memory for GPUs */
   void LoadSharedMemoryGpu();
 
+ public:
   /** Creates the CHI_CLIENT on the GPU */
+  template <int NOTHING = 0>
   void CreateClientOnHostForGpu();
 
- public:
   /** Finalize Hermes explicitly */
   HSHM_INLINE_CROSS_FUN
   void Finalize() {}
