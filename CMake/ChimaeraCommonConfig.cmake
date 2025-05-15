@@ -120,6 +120,35 @@ macro(add_chimod_runtime_lib namespace target)
     add_chimod_runtime_lib_body(${namespace} ${target} "" ${ARGN})
 endmacro()
 
+# Create chimod client lib header-only
+macro(add_chimod_client_lib_interface namespace target ext chi_lib)
+    # Scoped names
+    set(scoped_target ${namespace}_${target}${ext})
+    set(unscoped_target ${target}${ext})
+    set(alias_target ${namespace}::${target}${ext})
+
+    # Add scoped target
+    add_library(${scoped_target} ${libtype} INTERFACE)
+
+    if(NOT ${chi_lib} STREQUAL "")
+        target_link_libraries(${scoped_target} INTERFACE ${chi_lib})
+    endif()
+
+    target_include_directories(${scoped_target}
+        INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../include>
+        INTERFACE $<INSTALL_INTERFACE:include>
+    )
+    list(APPEND ${namespace}_${target}_exports ${scoped_target})
+
+    # Create the ${unscoped_target} interface
+    add_library(${unscoped_target} INTERFACE)
+    target_link_libraries(${unscoped_target} INTERFACE ${namespace}_${target}_client)
+    list(APPEND ${namespace}_${target}_exports ${unscoped_target})
+
+    # Create the ${alias_target} alias
+    add_library(${alias_target} ALIAS ${scoped_target})
+endmacro()
+
 # Create chimod client lib for host
 macro(add_chimod_client_lib_host namespace target libtype ext chi_lib)
     # Scoped names
@@ -199,19 +228,34 @@ endmacro()
 # Client Libraries: namespace_target_client, target_client
 # GPU Client Libraries: namespace_target_client_gpu, target_client_gpu
 macro(add_chimod_client_lib namespace target)
-    # Create the ${namespace}_${target}_client library
-    add_chimod_client_lib_host(${namespace} ${target} STATIC _client chimaera::client_host ${ARGN})
-    add_chimod_runtime_lib_body(${namespace} ${target} _client_run ${ARGN})
+    add_chimod_client_lib_interface(${namespace} ${target} _client chimaera::client_host)
+    add_chimod_client_lib_interface(${namespace} ${target} _client_run "")
 
     if(CHIMAERA_ENABLE_CUDA)
         # Add chimod library with cuda support
-        add_chimod_client_lib_cuda(${namespace} ${target} STATIC _client_gpu chimaera::client_gpu ${ARGN})
-        add_chimod_runtime_lib_body(${namespace} ${target} _client_gpu_run ${ARGN})
+        add_chimod_client_lib_interface(${namespace} ${target} _client_gpu chimaera::client_gpu)
+        add_chimod_client_lib_interface(${namespace} ${target} _client_gpu_run "")
     endif()
 
     if(CHIMAERA_ENABLE_ROCM)
         # Add chimod library with rocm support
-        add_chimod_client_lib_rocm(${namespace} ${target} STATIC _client_gpu chimaera::client_gpu ${ARGN})
-        add_chimod_runtime_lib_body(${namespace} ${target} _client_gpu_run ${ARGN})
+        add_chimod_client_lib_interface(${namespace} ${target} _client_gpu chimaera::client_gpu)
+        add_chimod_client_lib_interface(${namespace} ${target} _client_gpu_run "")
     endif()
+
+    # # Create the ${namespace}_${target}_client library
+    # add_chimod_client_lib_host(${namespace} ${target} STATIC _client chimaera::client_host ${ARGN})
+    # add_chimod_runtime_lib_body(${namespace} ${target} _client_run ${ARGN})
+
+    # if(CHIMAERA_ENABLE_CUDA)
+    # # Add chimod library with cuda support
+    # add_chimod_client_lib_cuda(${namespace} ${target} STATIC _client_gpu chimaera::client_gpu ${ARGN})
+    # add_chimod_runtime_lib_body(${namespace} ${target} _client_gpu_run ${ARGN})
+    # endif()
+
+    # if(CHIMAERA_ENABLE_ROCM)
+    # # Add chimod library with rocm support
+    # add_chimod_client_lib_rocm(${namespace} ${target} STATIC _client_gpu chimaera::client_gpu ${ARGN})
+    # add_chimod_runtime_lib_body(${namespace} ${target} _client_gpu_run ${ARGN})
+    # endif()
 endmacro()
