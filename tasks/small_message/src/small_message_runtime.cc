@@ -61,7 +61,7 @@ class Server : public Module {
         break;
       }
       case MonitorMode::kSampleLoad: {
-        monitor_[Method::kCreate].Add(rctx.timer_.GetNsec(), rctx.load_);
+        monitor_[Method::kCreate].Add(rctx.timer_->GetNsec(), rctx.load_);
         break;
       }
       case MonitorMode::kReinforceLoad: {
@@ -86,7 +86,7 @@ class Server : public Module {
         break;
       }
       case MonitorMode::kSampleLoad: {
-        monitor_[Method::kDestroy].Add(rctx.timer_.GetNsec(), rctx.load_);
+        monitor_[Method::kDestroy].Add(rctx.timer_->GetNsec(), rctx.load_);
         break;
       }
       case MonitorMode::kReinforceLoad: {
@@ -108,7 +108,7 @@ class Server : public Module {
         break;
       }
       case MonitorMode::kSampleLoad: {
-        monitor_[Method::kUpgrade].Add(rctx.timer_.GetNsec(), rctx.load_);
+        monitor_[Method::kUpgrade].Add(rctx.timer_->GetNsec(), rctx.load_);
         break;
       }
       case MonitorMode::kReinforceLoad: {
@@ -134,7 +134,7 @@ class Server : public Module {
         break;
       }
       case MonitorMode::kSampleLoad: {
-        monitor_[Method::kMd].Add(rctx.timer_.GetNsec(), rctx.load_);
+        monitor_[Method::kMd].Add(rctx.timer_->GetNsec(), rctx.load_);
         break;
       }
       case MonitorMode::kReinforceLoad: {
@@ -169,7 +169,7 @@ class Server : public Module {
       case MonitorMode::kSampleLoad: {
         monitor_io_.Add({(float)task->size_,
                          // (float)rctx.load_.cpu_load_,
-                         (float)rctx.timer_.GetNsec()},
+                         (float)rctx.timer_->GetNsec()},
                         rctx.load_);
         break;
       }

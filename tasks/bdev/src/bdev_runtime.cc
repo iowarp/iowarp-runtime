@@ -540,7 +540,7 @@ class Server : public Module {
         break;
       }
       case MonitorMode::kSampleLoad: {
-        monitor_[Method::kFree].Add(rctx.timer_.GetNsec(), rctx.load_);
+        monitor_[Method::kFree].Add(rctx.timer_->GetNsec(), rctx.load_);
         break;
       }
       case MonitorMode::kReinforceLoad: {
@@ -565,7 +565,7 @@ class Server : public Module {
       case MonitorMode::kSampleLoad: {
         io_perf.bw_.Add({(float)io_size,
                          // (float)rctx.load_.cpu_load_,
-                         (float)rctx.timer_.GetNsec()},
+                         (float)rctx.timer_->GetNsec()},
                         rctx.load_);
         break;
       }

@@ -39,7 +39,7 @@ class Server : public Module {
         break;
       }
       case MonitorMode::kSampleLoad: {
-        monitor_[method].Add(rctx.timer_.GetNsec(), rctx.load_);
+        monitor_[method].Add(rctx.timer_->GetNsec(), rctx.load_);
         break;
       }
       case MonitorMode::kReinforceLoad: {
@@ -239,7 +239,7 @@ class Server : public Module {
         break;
       }
       case MonitorMode::kSampleLoad: {
-        monitor_[Method::kCreatePool].Add(rctx.timer_.GetNsec(), rctx.load_);
+        monitor_[Method::kCreatePool].Add(rctx.timer_->GetNsec(), rctx.load_);
         break;
       }
       case MonitorMode::kReinforceLoad: {
@@ -268,7 +268,7 @@ class Server : public Module {
         break;
       }
       case MonitorMode::kSampleLoad: {
-        monitor_[Method::kGetPoolId].Add(rctx.timer_.GetNsec(), rctx.load_);
+        monitor_[Method::kGetPoolId].Add(rctx.timer_->GetNsec(), rctx.load_);
         break;
       }
       case MonitorMode::kReinforceLoad: {
@@ -330,7 +330,7 @@ class Server : public Module {
         break;
       }
       case MonitorMode::kSampleLoad: {
-        monitor_[Method::kFlush].Add(rctx.timer_.GetNsec(), rctx.load_);
+        monitor_[Method::kFlush].Add(rctx.timer_->GetNsec(), rctx.load_);
         break;
       }
       case MonitorMode::kReinforceLoad: {

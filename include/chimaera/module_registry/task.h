@@ -287,7 +287,7 @@ struct RunContext {
   void *stack_ptr_;        /**< Stack pointer (coroutine) */
   Module *exec_;
   WorkPending *flush_;
-  hshm::Timer timer_;
+  hipc::delay_ar<hshm::Timer> timer_;
   Task *co_task_;
   Task *pending_to_ = nullptr;
   Task *remote_pending_ = nullptr;
@@ -298,6 +298,13 @@ struct RunContext {
   ContainerId route_container_id_;
   chi::Lane *route_lane_;
   Load load_;
+
+  HSHM_INLINE_CROSS_FUN
+  RunContext() {
+#ifdef HSHM_IS_HOST
+    timer_.shm_init();
+#endif
+  }
 };
 
 /** A generic task base class */
