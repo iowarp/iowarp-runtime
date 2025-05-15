@@ -513,7 +513,17 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
 
   /** Set blocked */
   HSHM_CROSS_FUN
-  void SetBlocked(int count);
+  void SetBlocked(int count) {
+    int ret = rctx_.block_count_.fetch_add(count) + count;
+    if (ret != 0) {
+      task_flags_.SetBits(TASK_BLOCKED | TASK_YIELDED);
+    }
+    // if (ret < 0) {
+    //   HELOG(kWarning, "(node {}) I don't think block count be negative here:
+    //   {}",
+    //         CHI_CLIENT->node_id_, ret);
+    // }
+  }
 
   /** Check if task is blocked */
   HSHM_INLINE_CROSS_FUN
@@ -657,11 +667,19 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
 
   /** Wait for task to complete */
   HSHM_CROSS_FUN
-  void Wait(chi::IntFlag flags = TASK_COMPLETE);
+  void Wait(chi::IntFlag flags = TASK_COMPLETE) {
+#ifdef HSHM_IS_HOST
+    WaitHost(flags);
+#else
+    SpinWait(flags);
+#endif
+  }
+
+  /** Wait for tasks to complete (host) */
+  void WaitHost(chi::IntFlag flags = TASK_COMPLETE);
 
   /** Spin wait */
-  HSHM_INLINE_CROSS_FUN
-  void SpinWait(chi::IntFlag flags = TASK_COMPLETE) {
+  HSHM_INLINE_CROSS_FUN void SpinWait(chi::IntFlag flags = TASK_COMPLETE) {
     for (;;) {
 #ifdef HSHM_IS_HOST
       std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);
