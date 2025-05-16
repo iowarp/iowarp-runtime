@@ -148,14 +148,6 @@ class ChimaeraRun(Service):
                 'rank': 1,
             },
             {
-                'name': 'qlanes',
-                'msg': 'The number of lanes per queue',
-                'type': int,
-                'default': 4,
-                'class': 'queuing',
-                'rank': 1,
-            },
-            {
                 'name': 'worker_cpus',
                 'msg': 'the mapping of workers to cpu cores',
                 'type': list,
@@ -249,8 +241,6 @@ class ChimaeraRun(Service):
             'queue_manager': {
                 'queue_depth': self.config['qdepth'],
                 'proc_queue_depth': self.config['pqdepth'],
-                'max_lanes': self.config['qlanes'],
-                'max_queues': 1024,
                 'shm_name': self.config['shm_name'],
                 'shm_size': self.config['task_shm'],
                 'data_shm_size': self.config['data_shm'],
