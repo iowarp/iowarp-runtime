@@ -696,6 +696,9 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
       if (task_flags_.All(flags)) {
         return;
       }
+#ifdef HSHM_IS_GPU
+      HSHM_THREAD_MODEL->Yield();
+#endif
     }
   }
 
