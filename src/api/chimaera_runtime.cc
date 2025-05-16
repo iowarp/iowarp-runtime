@@ -148,8 +148,9 @@ void Runtime::InitSharedMemoryGpu() {
     hipc::MemoryBackendId backend_id = GetGpuCpuBackendId(gpu_id);
     hipc::AllocatorId alloc_id = GetGpuCpuAllocId(gpu_id);
     hipc::chararr name = GetGpuCpuAllocName(gpu_id);
-    mem_mngr->CreateBackend<hipc::GpuShmMmap>(backend_id, MEGABYTES(10), name,
-                                              gpu_id);
+    mem_mngr->CreateBackend<hipc::GpuShmMmap>(
+        backend_id, server_config_->queue_manager_.gpu_md_shm_size_, name,
+        gpu_id);
     gpu_alloc_[gpu_id] = mem_mngr->CreateAllocator<CHI_ALLOC_T>(
         backend_id, alloc_id, sizeof(ChiShm));
     ChiShm *header = main_alloc_->GetCustomHeader<ChiShm>();

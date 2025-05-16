@@ -75,6 +75,10 @@ void ServerConfig::ParseQueueManager(YAML::Node yaml_conf) {
     queue_manager_.rdata_shm_size_ = hshm::ConfigParse::ParseSize(
         yaml_conf["rdata_shm_size"].as<std::string>());
   }
+  if (yaml_conf["gpu_md_shm_size"]) {
+    queue_manager_.gpu_md_shm_size_ = hshm::ConfigParse::ParseSize(
+        yaml_conf["gpu_md_shm_size"].as<std::string>());
+  }
   if (yaml_conf["gpu_data_shm_size"]) {
     queue_manager_.gpu_data_shm_size_ = hshm::ConfigParse::ParseSize(
         yaml_conf["gpu_data_shm_size"].as<std::string>());

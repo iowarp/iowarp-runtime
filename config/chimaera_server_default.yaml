@@ -27,7 +27,9 @@ queue_manager:
   data_shm_size: 4g
   # The size of the shared memory to allocate for runtime data buffers
   rdata_shm_size: 4g
-  # The size of shared memory to allocate from GPUs
+  # The size of shared memory to allocate from GPUs for metadata
+  gpu_md_shm_size: 10m
+  # The size of shared memory to allocate from GPUs for data
   gpu_data_shm_size: 100m
 
 ### Define properties of RPCs

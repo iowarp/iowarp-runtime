@@ -61,6 +61,22 @@ class ChimaeraRun(Service):
                 'rank': 1,
             },
             {
+                'name': 'gpu_md_shm',
+                'msg': 'GPU buffering space',
+                'type': str,
+                'default': '10m',
+                'class': 'communication',
+                'rank': 1,
+            },
+            {
+                'name': 'gpu_data_shm',
+                'msg': 'GPU buffering space',
+                'type': str,
+                'default': '1g',
+                'class': 'communication',
+                'rank': 1,
+            },
+            {
                 'name': 'shm_name',
                 'msg': 'The base shared-memory name',
                 'type': str,
@@ -239,6 +255,8 @@ class ChimaeraRun(Service):
                 'shm_size': self.config['task_shm'],
                 'data_shm_size': self.config['data_shm'],
                 'rdata_shm_size': self.config['rdata_shm'],
+                'gpu_md_shm_size': self.config['gpu_md_shm'],
+                'gpu_data_shm_size': self.config['gpu_data_shm'],
             }
         }
         if self.config['worker_cpus'] is not None:

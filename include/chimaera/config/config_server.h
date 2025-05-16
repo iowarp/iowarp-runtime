@@ -61,6 +61,8 @@ struct QueueManagerInfo {
   /** Runtime data shared memory region size */
   size_t rdata_shm_size_;
   /** GPU data shm size */
+  size_t gpu_md_shm_size_;
+  /** GPU data shm size */
   size_t gpu_data_shm_size_;
   HSHM_HOST_FUN
   QueueManagerInfo() = default;
