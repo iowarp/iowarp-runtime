@@ -338,7 +338,7 @@ class ChimaeraRun(Service):
         """
         self.log(self.env['CHIMAERA_CONF'])
         self.get_hostfile()
-        self.daemon_pkg = Exec('compute-sanitizer chimaera_start_runtime',
+        self.daemon_pkg = Exec('chimaera_start_runtime',
                                 PsshExecInfo(hostfile=self.hostfile,
                                              env=self.mod_env,
                                              exec_async=True,
