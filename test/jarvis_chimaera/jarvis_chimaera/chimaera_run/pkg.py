@@ -29,6 +29,14 @@ class ChimaeraRun(Service):
         """
         return [
             {
+                'name': 'compile',
+                'msg': 'Whether or not to compile hostfile.',
+                'type': bool,
+                'default': False,
+                'class': 'communication',
+                'rank': 1,
+            },
+            {
                 'name': 'num_nodes',
                 'msg': 'Number of nodes to run chimaera_codegen on. 0 means all',
                 'type': int,
@@ -291,15 +299,19 @@ class ChimaeraRun(Service):
         net_info = net_info.rows[0]
 
         # Compile hostfile
-        print(self.jarvis.hostfile)
-        compile = CompileHostfile(self.hostfile, 
-                        net_info['provider'],
-                        net_info['domain'],
-                        net_info['fabric'],
-                        self.hostfile_path,
-                        env=self.env)
-        self.hostfile = compile.hostfile
-        print(self.hostfile)
+        self.log(f'Original hostfile:\n{self.jarvis.hostfile}', Color.YELLOW)
+        if self.config['compile']:
+            compile = CompileHostfile(self.hostfile, 
+                            net_info['provider'],
+                            net_info['domain'],
+                            net_info['fabric'],
+                            self.hostfile_path,
+                            env=self.env)
+            self.hostfile = compile.hostfile
+            self.log(f'Compiled hostfile:\n{self.jarvis.hostfile}', Color.YELLOW)
+        else:
+            self.hostfile.save(self.hostfile_path)
+            self.log(f'Saved hostfile to:\n{self.jarvis.hostfile}', Color.YELLOW)
 
         # Create network info config
         protocol = net_info['provider']
