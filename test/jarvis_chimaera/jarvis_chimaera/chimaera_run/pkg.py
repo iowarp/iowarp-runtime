@@ -17,6 +17,7 @@ class ChimaeraRun(Service):
         """
         self.daemon_pkg = None
         self.hostfile_path = f'{self.shared_dir}/hostfile'
+        self.hostfile_tcp_path = f'{self.shared_dir}/hostfile_tcp'
         pass
 
     def _configure_menu(self):
@@ -27,15 +28,7 @@ class ChimaeraRun(Service):
 
         :return: List(dict)
         """
-        return [
-            {
-                'name': 'compile',
-                'msg': 'Whether or not to compile hostfile.',
-                'type': bool,
-                'default': False,
-                'class': 'communication',
-                'rank': 1,
-            },
+        return [ 
             {
                 'name': 'num_nodes',
                 'msg': 'Number of nodes to run chimaera_codegen on. 0 means all',
@@ -220,7 +213,8 @@ class ChimaeraRun(Service):
         ]
 
     def get_hostfile(self):
-        self.hostfile = Hostfile(hostfile=self.hostfile_path)
+        self.hostfile = Hostfile(path=self.hostfile_path)
+        self.hostfile_tcp = Hostfile(path=self.hostfile_tcp_path)
 
     def _configure(self, **kwargs):
         """
@@ -233,11 +227,15 @@ class ChimaeraRun(Service):
         """
         rg = self.jarvis.resource_graph
 
-        # Get node subset
-        self.hostfile = self.jarvis.hostfile
+        # Copy (or subset) hostfile
+        self.hostfile_tcp = self.jarvis.hostfile
+        self.log(f'Original hostfile:\n{self.hostfile_tcp}', Color.YELLOW) 
         if self.config['num_nodes'] > 0:
-            self.hostfile = self.jarvis.hostfile.subset(self.config['num_nodes'])
-            self.hostfile.save(self.hostfile_path)
+            self.hostfile_tcp = self.jarvis.hostfile.subset(self.config['num_nodes'])
+            self.hostfile_tcp.save(self.hostfile_tcp_path)
+        else:
+            self.hostfile_tcp.save(self.hostfile_tcp_path)
+        self.log(f'Storing subset (or copy) of original {self.hostfile_tcp.path}:\n{self.hostfile_tcp}', Color.YELLOW) 
 
         # Begin making chimaera_run config
         chimaera_server = {
@@ -264,7 +262,7 @@ class ChimaeraRun(Service):
             os.makedirs(self.env['CHIMAERA_MONITOR_OUT'], exist_ok=True)
 
         # Get all network info 
-        net_info = rg.find_net_info(local=len(self.hostfile) == 1, env=self.env)
+        net_info = rg.find_net_info(local=len(self.hostfile_tcp) == 1, env=self.env)
         provider = self.config['provider']
         domain = self.config['domain']
         fabric = self.config['fabric']
@@ -299,19 +297,14 @@ class ChimaeraRun(Service):
         net_info = net_info.rows[0]
 
         # Compile hostfile
-        self.log(f'Original hostfile:\n{self.jarvis.hostfile}', Color.YELLOW)
-        if self.config['compile']:
-            compile = CompileHostfile(self.hostfile, 
-                            net_info['provider'],
-                            net_info['domain'],
-                            net_info['fabric'],
-                            self.hostfile_path,
-                            env=self.env)
-            self.hostfile = compile.hostfile
-            self.log(f'Compiled hostfile:\n{self.jarvis.hostfile}', Color.YELLOW)
-        else:
-            self.hostfile.save(self.hostfile_path)
-            self.log(f'Saved hostfile to:\n{self.jarvis.hostfile}', Color.YELLOW)
+        compile = CompileHostfile(self.hostfile_tcp, 
+                        net_info['provider'],
+                        net_info['domain'],
+                        net_info['fabric'],
+                        self.hostfile_path,
+                        env=self.env)
+        self.hostfile = compile.hostfile
+        self.log(f'Storing compiled hostfile at {self.hostfile.path}:\n{self.hostfile}', Color.YELLOW)
 
         # Create network info config
         protocol = net_info['provider']
@@ -329,9 +322,10 @@ class ChimaeraRun(Service):
             'port': self.config['port'],
         }
         if self.config['rpc_cpus'] is not None:
-            chimaera_server['rpc']['cpus'] = self.config['rpc_cpus']
+            chimaera_server['rpc']['cpus'] = self.config['rpc_cpus'] 
         if self.hostfile.path is None:
-            chimaera_server['rpc']['host_names'] = self.hostfile.hosts
+            chimaera_server['rpc']['host_names'] = self.hostfile.hosts 
+        self.log(f'HOSTS: {self.hostfile.hosts}')
 
         # Add some initial modules to the registry
         chimaera_server['module_registry'] = self.config['modules']
@@ -351,7 +345,7 @@ class ChimaeraRun(Service):
         self.log(self.env['CHIMAERA_CONF'])
         self.get_hostfile()
         self.daemon_pkg = Exec('chimaera_start_runtime',
-                                PsshExecInfo(hostfile=self.hostfile,
+                                PsshExecInfo(hostfile=self.hostfile_tcp,
                                              env=self.mod_env,
                                              exec_async=True,
                                              do_dbg=self.config['do_dbg'],
