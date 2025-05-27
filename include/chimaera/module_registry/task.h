@@ -54,6 +54,8 @@ class Lane;
 #define TASK_YIELDED BIT_OPT(chi::IntFlag, 10)
 /** This task is long-running */
 #define TASK_LONG_RUNNING BIT_OPT(chi::IntFlag, 11)
+/** This task is rescheduled periodic */
+#define TASK_PERIODIC TASK_LONG_RUNNING
 /** This task is fire and forget. Free when completed */
 #define TASK_FIRE_AND_FORGET BIT_OPT(chi::IntFlag, 12)
 /** This task should be processed directly on this node */
