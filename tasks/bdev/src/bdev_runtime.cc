@@ -104,7 +104,7 @@ class Server : public Module {
   /** Open a POSIX file */
   void OpenPosix(size_t dev_size) {
     // Open file for read & write, no override
-    fd_ = open64(url_.path_.c_str(), O_RDWR | O_CREAT | O_DIRECT, 0666);
+    fd_ = open64(url_.path_.c_str(), O_RDWR | O_CREAT, 0666);
     ftruncate64(fd_, dev_size);
   }
 
