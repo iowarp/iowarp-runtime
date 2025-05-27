@@ -135,11 +135,12 @@ class Server : public Module {
         // Set tuning parameters
         hshm::Timer time;
         lat_cutoff_ = KILOBYTES(16);
-        std::vector<char> data(MEGABYTES(64));
+        size_t bw_cutoff = GIGABYTES(1);
+        std::vector<char> data(bw_cutoff);
 
         // Write 16KB to the beginning with pwrite
         time.Resume();
-        ret = pwrite64(fd_, data.data(), KILOBYTES(16), 0);
+        ret = pwrite64(fd_, data.data(), lat_cutoff_, 0);
         fsync(fd_);
         time.Pause();
         io_perf_[kWrite].lat_.consts_[0] = 0;
@@ -148,17 +149,17 @@ class Server : public Module {
 
         // Write 64MB to the beginning with pwrite
         time.Resume();
-        ret = pwrite64(fd_, data.data(), MEGABYTES(64), 0);
+        ret = pwrite64(fd_, data.data(), bw_cutoff, 0);
         fsync(fd_);
         time.Pause();
         io_perf_[kWrite].bw_.consts_[0] =
-            (float) (MEGABYTES(64) / time.GetNsec());
+            (float) (bw_cutoff / time.GetNsec());
         io_perf_[kWrite].bw_.consts_[1] = 0;
         time.Reset();
 
         // Read 16KB from the beginning with pread
         time.Resume();
-        ret = pread64(fd_, data.data(), KILOBYTES(16), 0);
+        ret = pread64(fd_, data.data(), lat_cutoff_, 0);
         fsync(fd_);
         time.Pause();
         io_perf_[kRead].lat_.consts_[0] = 0;
@@ -167,11 +168,11 @@ class Server : public Module {
 
         // Read 64MB from the beginning with pread
         time.Resume();
-        ret = pread64(fd_, data.data(), MEGABYTES(64), 0);
+        ret = pread64(fd_, data.data(), bw_cutoff, 0);
         fsync(fd_);
         time.Pause();
         io_perf_[kRead].bw_.consts_[0] =
-            (float) (MEGABYTES(64) / time.GetNsec());
+            (float) (bw_cutoff / time.GetNsec());
         io_perf_[kRead].bw_.consts_[1] = 0;
         time.Reset();
         break;
@@ -181,23 +182,24 @@ class Server : public Module {
 
         // Tuning parameters
         hshm::Timer time;
-        std::vector<char> data(MEGABYTES(64));
+        size_t bw_cutoff = GIGABYTES(1);
+        std::vector<char> data(bw_cutoff);
 
         // Write 1MB to the beginning with pwrite
         time.Resume();
-        memcpy(ram_, data.data(), MEGABYTES(64));
+        memcpy(ram_, data.data(), bw_cutoff);
         time.Pause();
         io_perf_[kWrite].bw_.consts_[0] =
-            (float)(MEGABYTES(64) / time.GetNsec());
+            (float)(bw_cutoff / time.GetNsec());
         io_perf_[kWrite].bw_.consts_[1] = 0;
         time.Reset();
 
         // Read 1MB from the beginning with pread
         time.Resume();
-        memcpy(data.data(), ram_, MEGABYTES(64));
+        memcpy(data.data(), ram_, bw_cutoff);
         time.Pause();
         io_perf_[kRead].bw_.consts_[0] =
-        (float)(MEGABYTES(64) / time.GetNsec());
+        (float)(bw_cutoff / time.GetNsec());
         io_perf_[kRead].bw_.consts_[1] = 0;
         time.Reset();
         break;
