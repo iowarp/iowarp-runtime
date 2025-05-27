@@ -84,7 +84,7 @@ class Server : public Module {
     InitialStats(dev_size);
 
     HILOG(kInfo,
-          "\033[32mBdev {} created. Read BW {} ns/B, Write BW {} ns/B, Read "
+          "\033[32mBdev {} created. Read BW {} GB/sec, Write BW {} GB/sec, Read "
           "Latency {} ns, Write Latency {} ns\033[0m",
           url_.path_, io_perf_[kRead].bw_.consts_[0],
           io_perf_[kWrite].bw_.consts_[0], io_perf_[kRead].lat_.consts_[1],
@@ -140,38 +140,38 @@ class Server : public Module {
         // Write 16KB to the beginning with pwrite
         time.Resume();
         ret = pwrite64(fd_, data.data(), KILOBYTES(16), 0);
-        fdatasync(fd_);
+        fsync(fd_);
         time.Pause();
         io_perf_[kWrite].lat_.consts_[0] = 0;
         io_perf_[kWrite].lat_.consts_[1] = (float)time.GetNsec();
         time.Reset();
 
-        // Write 1MB to the beginning with pwrite
+        // Write 64MB to the beginning with pwrite
         time.Resume();
-        ret = pwrite64(fd_, data.data(), MEGABYTES(1), 0);
-        fdatasync(fd_);
+        ret = pwrite64(fd_, data.data(), MEGABYTES(64), 0);
+        fsync(fd_);
         time.Pause();
         io_perf_[kWrite].bw_.consts_[0] =
-            (float)MEGABYTES(1) / (float)time.GetNsec();
+            (float)MEGABYTES(64) / (float)time.GetNsec();
         io_perf_[kWrite].bw_.consts_[1] = 0;
         time.Reset();
 
         // Read 16KB from the beginning with pread
         time.Resume();
-        fdatasync(fd_);
+        fsync(fd_);
         ret = pread64(fd_, data.data(), KILOBYTES(16), 0);
         time.Pause();
         io_perf_[kRead].lat_.consts_[0] = 0;
         io_perf_[kRead].lat_.consts_[1] = (float)time.GetNsec();
         time.Reset();
 
-        // Read 1MB from the beginning with pread
+        // Read 64MB from the beginning with pread
         time.Resume();
-        fdatasync(fd_);
-        ret = pread64(fd_, data.data(), MEGABYTES(1), 0);
+        fsync(fd_);
+        ret = pread64(fd_, data.data(), MEGABYTES(64), 0);
         time.Pause();
         io_perf_[kRead].bw_.consts_[0] =
-            (float)MEGABYTES(1) / (float)time.GetNsec();
+            (float)MEGABYTES(64) / (float)time.GetNsec();
         ;
         io_perf_[kRead].bw_.consts_[1] = 0;
         time.Reset();
