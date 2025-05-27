@@ -181,23 +181,23 @@ class Server : public Module {
 
         // Tuning parameters
         hshm::Timer time;
-        std::vector<char> data(MEGABYTES(1));
+        std::vector<char> data(MEGABYTES(64));
 
         // Write 1MB to the beginning with pwrite
         time.Resume();
-        memcpy(ram_, data.data(), MEGABYTES(1));
+        memcpy(ram_, data.data(), MEGABYTES(64));
         time.Pause();
         io_perf_[kWrite].bw_.consts_[0] =
-            (float)time.GetNsec() / (float)MEGABYTES(1);
+            (float)(MEGABYTES(64) / time.GetNsec());
         io_perf_[kWrite].bw_.consts_[1] = 0;
         time.Reset();
 
         // Read 1MB from the beginning with pread
         time.Resume();
-        memcpy(data.data(), ram_, MEGABYTES(1));
+        memcpy(data.data(), ram_, MEGABYTES(64));
         time.Pause();
         io_perf_[kRead].bw_.consts_[0] =
-            (float)time.GetNsec() / (float)MEGABYTES(1);
+        (float)(MEGABYTES(64) / time.GetNsec());
         io_perf_[kRead].bw_.consts_[1] = 0;
         time.Reset();
         break;
