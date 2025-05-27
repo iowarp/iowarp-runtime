@@ -152,7 +152,7 @@ class Server : public Module {
         fsync(fd_);
         time.Pause();
         io_perf_[kWrite].bw_.consts_[0] =
-            (float)MEGABYTES(64) / (float)time.GetNsec();
+            (float) (MEGABYTES(64) / time.GetNsec());
         io_perf_[kWrite].bw_.consts_[1] = 0;
         time.Reset();
 
@@ -171,8 +171,7 @@ class Server : public Module {
         ret = pread64(fd_, data.data(), MEGABYTES(64), 0);
         time.Pause();
         io_perf_[kRead].bw_.consts_[0] =
-            (float)MEGABYTES(64) / (float)time.GetNsec();
-        ;
+            (float) (MEGABYTES(64) / time.GetNsec());
         io_perf_[kRead].bw_.consts_[1] = 0;
         time.Reset();
         break;
