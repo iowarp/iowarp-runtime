@@ -135,7 +135,7 @@ class Server : public Module {
         // Set tuning parameters
         hshm::Timer time;
         lat_cutoff_ = KILOBYTES(16);
-        size_t bw_cutoff = GIGABYTES(1);
+        size_t bw_cutoff = MEGABYTES(16);
         std::vector<char> data(bw_cutoff);
 
         // Write 16KB to the beginning with pwrite
@@ -182,7 +182,7 @@ class Server : public Module {
 
         // Tuning parameters
         hshm::Timer time;
-        size_t bw_cutoff = GIGABYTES(1);
+        size_t bw_cutoff = MEGABYTES(16);
         std::vector<char> data(bw_cutoff);
 
         // Write 1MB to the beginning with pwrite
