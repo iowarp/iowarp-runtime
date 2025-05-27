@@ -228,7 +228,7 @@ class ChimaeraRun(Service):
         rg = self.jarvis.resource_graph
 
         # Copy (or subset) hostfile
-        self.hostfile_tcp = self.jarvis.hostfile
+        self.hostfile_tcp = self.jarvis.hostfile.copy()
         self.log(f'Original hostfile:\n{self.hostfile_tcp}', Color.YELLOW) 
         if self.config['num_nodes'] > 0:
             self.hostfile_tcp = self.jarvis.hostfile.subset(self.config['num_nodes'])
