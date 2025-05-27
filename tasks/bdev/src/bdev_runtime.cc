@@ -158,8 +158,8 @@ class Server : public Module {
 
         // Read 16KB from the beginning with pread
         time.Resume();
-        fsync(fd_);
         ret = pread64(fd_, data.data(), KILOBYTES(16), 0);
+        fsync(fd_);
         time.Pause();
         io_perf_[kRead].lat_.consts_[0] = 0;
         io_perf_[kRead].lat_.consts_[1] = (float)time.GetNsec();
@@ -167,8 +167,8 @@ class Server : public Module {
 
         // Read 64MB from the beginning with pread
         time.Resume();
-        fsync(fd_);
         ret = pread64(fd_, data.data(), MEGABYTES(64), 0);
+        fsync(fd_);
         time.Pause();
         io_perf_[kRead].bw_.consts_[0] =
             (float) (MEGABYTES(64) / time.GetNsec());
