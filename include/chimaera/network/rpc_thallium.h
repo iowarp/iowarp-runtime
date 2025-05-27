@@ -45,10 +45,10 @@ class ThalliumRpc {
     try {
       server_engine_ = std::make_unique<tl::engine>(addr, THALLIUM_SERVER_MODE);
     } catch (std::exception &e) {
-      HELOG(kFatal, "RPC init failed for host: {}\n{}", addr, e.what());
+    HELOG(kFatal, "\033[31mRPC init failed for host: {}\n{}\033[0m", addr, e.what());
     }
     std::string rpc_server_name = server_engine_->self();
-    HILOG(kInfo, "(node {}) Serving {} (i.e., {}) with {} RPC threads",
+    HILOG(kInfo, "(node {}) \033[32mServing {} (i.e., {}) with {} RPC threads\033[0m",
           rpc->node_id_, rpc_server_name, addr, rpc->num_threads_);
     ClientInit(rpc);
   }
