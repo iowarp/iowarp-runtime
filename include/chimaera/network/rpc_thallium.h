@@ -48,7 +48,7 @@ class ThalliumRpc {
     HELOG(kFatal, "\033[31mRPC init failed for host: {}\n{}\033[0m", addr, e.what());
     }
     std::string rpc_server_name = server_engine_->self();
-    HILOG(kInfo, "(node {}) \033[32mServing {} (i.e., {}) with {} RPC threads\033[0m",
+    HILOG(kInfo, "(node {}) Serving {} (i.e., {}) with {} RPC threads",
           rpc->node_id_, rpc_server_name, addr, rpc->num_threads_);
     ClientInit(rpc);
   }
@@ -66,9 +66,9 @@ class ThalliumRpc {
 
   /** Run the daemon */
   void RunDaemon() {
-    HILOG(kInfo, "(node {}) Daemon has started", rpc_->node_id_);
+    HILOG(kInfo, "\033[32m(node {}) Daemon has started\033[0m", rpc_->node_id_);
     server_engine_->wait_for_finalize();
-    HILOG(kInfo, "(node {}) Daemon has stopped", rpc_->node_id_);
+    HILOG(kInfo, "\033[32m(node {}) Daemon has stopped\033[0m", rpc_->node_id_);
   }
 
   /** Stop this daemon */
