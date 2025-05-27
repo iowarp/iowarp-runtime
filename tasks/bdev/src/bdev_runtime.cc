@@ -80,12 +80,15 @@ class Server : public Module {
         hshm::Formatter::format("{}-method-{}-lat", name_, Method::kRead), 1, 2,
         1, "Bdev.monitor_io");
 
-    HILOG(kInfo, "Bdev {} created. Read BW {} ns/B, Write BW {} ns/B, Read Latency {} ns, Write Latency {} ns",
-          url_.path_, io_perf_[kRead].bw_.consts_[0], io_perf_[kWrite].bw_.consts_[0],
-          io_perf_[kRead].lat_.consts_[1], io_perf_[kWrite].lat_.consts_[1]);
-    
     // Allocate data
     InitialStats(dev_size);
+
+    HILOG(kInfo,
+          "\033[32mBdev {} created. Read BW {} ns/B, Write BW {} ns/B, Read "
+          "Latency {} ns, Write Latency {} ns\033[0m",
+          url_.path_, io_perf_[kRead].bw_.consts_[0],
+          io_perf_[kWrite].bw_.consts_[0], io_perf_[kRead].lat_.consts_[1],
+          io_perf_[kWrite].lat_.consts_[1]);
   }
 
   /** Open a memory segment */
