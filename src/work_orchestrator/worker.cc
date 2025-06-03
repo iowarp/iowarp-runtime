@@ -141,9 +141,8 @@ bool PrivateTaskMultiQueue::PushRemoteTask(RunContext &rctx,
   // CASE 6: The task is remote to this machine, put in the remote queue.
   rctx.exec_ = CHI_MOD_REGISTRY->GetStaticContainer(task->pool_);
   if (!rctx.exec_) {
-    HELOG(kFatal,
-          "(node {}) Remote queue does not have static container "
-          "established");
+    HELOG(kFatal, "(node {}) Remote queue does not have static container "
+                  "established");
   }
   // Don't schedule long-running remote task if flushing and useless
   if (rctx.flush_->flushing_ && task->IsLongRunning()) {
@@ -173,8 +172,7 @@ template hshm::qtok_t Lane::push<false>(const FullPtr<Task> &task);
 template hshm::qtok_t Lane::push<true>(const FullPtr<Task> &task);
 
 /** Push a task  */
-template <bool NO_COUNT>
-hshm::qtok_t Lane::push(const FullPtr<Task> &task) {
+template <bool NO_COUNT> hshm::qtok_t Lane::push(const FullPtr<Task> &task) {
   Worker &worker = CHI_WORK_ORCHESTRATOR->GetWorker(worker_id_);
   Worker *cur_worker = CHI_CUR_WORKER;
   if (!cur_worker || worker.id_ != cur_worker->id_) {
@@ -548,21 +546,21 @@ void Worker::ExecTask(FullPtr<Task> &task, RunContext &rctx, Container *&exec,
       flush_.count_ += 1;
     } else if (!task->IsStarted()) {
       int prior_count = flush_.count_;
-      exec->Monitor(MonitorMode::kFlushWork, task->method_, task.ptr_, rctx);
+      ExecCoroutine(task.ptr_, rctx, &Worker::MonitorCoroutineEntry);
       if (prior_count == flush_.count_) {
         return;
       }
     } else {
-      return;  // Do not begin this task.
+      return; // Do not begin this task.
     }
   }
   // Execute + monitor the task
-  ExecCoroutine(task.ptr_, rctx);
+  ExecCoroutine(task.ptr_, rctx, &Worker::CoroutineEntry);
 }
 
 /** Run a task */
-HSHM_INLINE
-void Worker::ExecCoroutine(Task *&task, RunContext &rctx) {
+template <typename FN>
+HSHM_INLINE void Worker::ExecCoroutine(Task *&task, RunContext &rctx, FN *fn) {
   // If task isn't started, allocate stack pointer
   if (!task->IsStarted()) {
     rctx.co_task_ = task;
@@ -571,7 +569,7 @@ void Worker::ExecCoroutine(Task *&task, RunContext &rctx) {
       HELOG(kFatal, "The stack pointer of size {} is NULL", stack_size_);
     }
     rctx.jmp_.fctx = bctx::make_fcontext((char *)rctx.stack_ptr_ + stack_size_,
-                                         stack_size_, &Worker::CoroutineEntry);
+                                         stack_size_, fn);
     task->SetStarted();
   }
   // Jump to CoroutineEntry
@@ -593,6 +591,32 @@ void Worker::CoroutineEntry(bctx::transfer_t t) {
   rctx.jmp_ = t;
   try {
     exec->Run(task->method_, task, rctx);
+  } catch (hshm::Error &e) {
+    HELOG(kError, "(node {}) Worker {} caught an error: {}",
+          CHI_CLIENT->node_id_, rctx.worker_id_, e.what());
+  } catch (std::exception &e) {
+    HELOG(kError, "(node {}) Worker {} caught an exception: {}",
+          CHI_CLIENT->node_id_, rctx.worker_id_, e.what());
+  } catch (...) {
+    HELOG(kError, "(node {}) Worker {} caught an unknown exception",
+          CHI_CLIENT->node_id_, rctx.worker_id_);
+  }
+  task->UnsetStarted();
+  task->BaseYield();
+}
+
+/** Run a mointor coroutine */
+void Worker::MonitorCoroutineEntry(bctx::transfer_t t) {
+  RunContext &rctx = *reinterpret_cast<RunContext *>(t.data);
+  Task *task = rctx.co_task_;
+  Container *&exec = rctx.exec_;
+  chi::Lane *chi_lane = CHI_CUR_LANE;
+  if (chi_lane == nullptr) {
+    HELOG(kFatal, "Lane is null, should never happen");
+  }
+  rctx.jmp_ = t;
+  try {
+    exec->Monitor(MonitorMode::kFlushWork, task->method_, task, rctx);
   } catch (hshm::Error &e) {
     HELOG(kError, "(node {}) Worker {} caught an error: {}",
           CHI_CLIENT->node_id_, rctx.worker_id_, e.what());
@@ -734,4 +758,4 @@ void Worker::FreeStack(void *stack) {
   stacks_.push((hipc::list_queue_entry *)stack);
 }
 
-}  // namespace chi
+} // namespace chi

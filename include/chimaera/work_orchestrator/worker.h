@@ -114,31 +114,29 @@ struct IngressEntry {
   }
 };
 
-}  // namespace chi
+} // namespace chi
 
 namespace std {
 /** Hash function for IngressEntry */
-template <>
-struct hash<chi::IngressEntry> {
+template <> struct hash<chi::IngressEntry> {
   HSHM_INLINE
   std::size_t operator()(const chi::IngressEntry &key) const {
     return hshm::hash<chi::ingress::MultiQueue *>{}(key.queue_) +
            hshm::hash<u32>{}(key.container_id_) + hshm::hash<u64>{}(key.prio_);
   }
 };
-}  // namespace std
+} // namespace std
 
 namespace hshm {
 /** Hash function for IngressEntry */
-template <>
-struct hash<chi::IngressEntry> {
+template <> struct hash<chi::IngressEntry> {
   HSHM_INLINE
   std::size_t operator()(const chi::IngressEntry &key) const {
     return hshm::hash<chi::ingress::MultiQueue *>{}(key.queue_) +
            hshm::hash<u32>{}(key.container_id_) + hshm::hash<u64>{}(key.prio_);
   }
 };
-}  // namespace hshm
+} // namespace hshm
 
 namespace chi {
 
@@ -148,10 +146,10 @@ typedef chi::mpsc_queue<TaskPointer> PrivateTaskQueue;
 typedef chi::mpsc_queue<chi::Lane *> PrivateLaneQueue;
 
 class PrivateLaneMultiQueue {
- public:
+public:
   PrivateLaneQueue active_[2];
 
- public:
+public:
   void request(chi::Lane *lane) { active_[lane->prio_].push(lane); }
 
   void resize(size_t new_depth) {
@@ -201,19 +199,19 @@ class PrivateLaneMultiQueue {
 };
 
 class PrivateTaskMultiQueue {
- public:
+public:
   CLS_CONST int FLUSH = 1;
   CLS_CONST int FAIL = 2;
   CLS_CONST int REMAP = 3;
   CLS_CONST int NUM_QUEUES = 4;
 
- public:
+public:
   Worker *worker_;
   PrivateTaskQueue queues_[NUM_QUEUES];
   PrivateLaneMultiQueue active_lanes_;
   size_t id_;
 
- public:
+public:
   void Init(Worker *worker, size_t id, size_t pqdepth, size_t qdepth,
             size_t max_lanes) {
     worker_ = worker;
@@ -239,12 +237,11 @@ class PrivateTaskMultiQueue {
 
   bool push(const TaskPointer &entry);
 
-  template <typename TaskT>
-  bool push(const FullPtr<TaskT> &task) {
+  template <typename TaskT> bool push(const FullPtr<TaskT> &task) {
     return push(task.template Cast<Task>());
   }
 
- private:
+private:
   // PushCompletedTask
   HSHM_INLINE
   bool PushCompletedTask(RunContext &rctx, const FullPtr<Task> &task);
@@ -263,7 +260,7 @@ class PrivateTaskMultiQueue {
 };
 
 class Worker {
- public:
+public:
   CLS_CONST WorkerId kNullWorkerId = (WorkerId)-1; /**< Null worker id */
   WorkerId id_; /**< Unique identifier of this worker */
   // std::unique_ptr<std::thread> thread_;  /**< The worker thread handle */
@@ -294,7 +291,7 @@ class Worker {
   size_t monitor_gap_;       /**< Distance between sampling phases */
   size_t monitor_window_;    /** Length of sampling phase */
 
- public:
+public:
   /**===============================================================
    * Initialize Worker
    * =============================================================== */
@@ -386,11 +383,14 @@ class Worker {
                 ibitfield &props);
 
   /** Run a task */
-  HSHM_INLINE
-  void ExecCoroutine(Task *&task, RunContext &rctx);
+  template <typename FN>
+  HSHM_INLINE void ExecCoroutine(Task *&task, RunContext &rctx, FN *fn);
 
   /** Run a coroutine */
   static void CoroutineEntry(bctx::transfer_t t);
+
+  /** Run a monitor coroutine */
+  static void MonitorCoroutineEntry(bctx::transfer_t t);
 
   /** Free a task when it is no longer needed */
   HSHM_INLINE
@@ -447,6 +447,6 @@ class Worker {
   void FreeStack(void *stack);
 };
 
-}  // namespace chi
+} // namespace chi
 
-#endif  // CHI_INCLUDE_CHI_WORK_ORCHESTRATOR_WORKER_H
+#endif // CHI_INCLUDE_CHI_WORK_ORCHESTRATOR_WORKER_H

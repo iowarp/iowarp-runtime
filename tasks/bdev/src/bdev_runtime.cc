@@ -25,12 +25,12 @@
 namespace chi::bdev {
 
 struct IoPerf {
-  LeastSquares bw_;   // bytes / nsec -> GB / sec
-  LeastSquares lat_;  // nsec
+  LeastSquares bw_;  // bytes / nsec -> GB / sec
+  LeastSquares lat_; // nsec
 };
 
 class Server : public Module {
- public:
+public:
   BlockAllocator alloc_;
   BlockUrl url_;
   int fd_;
@@ -48,7 +48,7 @@ class Server : public Module {
   CLS_CONST LaneGroupId kMdGroup = 0;
   CLS_CONST LaneGroupId kDataGroup = 1;
 
- public:
+public:
   Server() = default;
 
   /** Construct bdev */
@@ -64,7 +64,8 @@ class Server : public Module {
 
     // Create monitoring functions
     for (int i = 0; i < Method::kCount; ++i) {
-      if (i == Method::kRead || i == Method::kWrite) continue;
+      if (i == Method::kRead || i == Method::kWrite)
+        continue;
       monitor_[i].Shape(hshm::Formatter::format("{}-method-{}", name_, i));
     }
     io_perf_[kRead].bw_.Shape(
@@ -83,12 +84,13 @@ class Server : public Module {
     // Allocate data
     InitialStats(dev_size);
 
-    HILOG(kInfo,
-          "\033[32mBdev {} created. Read BW {} GB/sec, Write BW {} GB/sec, Read "
-          "Latency {} ns, Write Latency {} ns\033[0m",
-          url_.path_, io_perf_[kRead].bw_.consts_[0],
-          io_perf_[kWrite].bw_.consts_[0], io_perf_[kRead].lat_.consts_[1],
-          io_perf_[kWrite].lat_.consts_[1]);
+    HILOG(
+        kInfo,
+        "\033[32mBdev {} created. Read BW {} GB/sec, Write BW {} GB/sec, Read "
+        "Latency {} ns, Write Latency {} ns\033[0m",
+        url_.path_, io_perf_[kRead].bw_.consts_[0],
+        io_perf_[kWrite].bw_.consts_[0], io_perf_[kRead].lat_.consts_[1],
+        io_perf_[kWrite].lat_.consts_[1]);
   }
 
   /** Open a memory segment */
@@ -127,87 +129,84 @@ class Server : public Module {
 
   void InitialStats(size_t dev_size) {
     switch (url_.scheme_) {
-      case BlockUrl::kFs: {
-        ssize_t ret;
-        OpenPosix(dev_size);
-        OpenCufile(dev_size);
+    case BlockUrl::kFs: {
+      ssize_t ret;
+      OpenPosix(dev_size);
+      OpenCufile(dev_size);
 
-        // Set tuning parameters
-        hshm::Timer time;
-        lat_cutoff_ = KILOBYTES(16);
-        size_t bw_cutoff = MEGABYTES(16);
-        std::vector<char> data(bw_cutoff);
+      // Set tuning parameters
+      hshm::Timer time;
+      lat_cutoff_ = KILOBYTES(16);
+      size_t bw_cutoff = MEGABYTES(16);
+      std::vector<char> data(bw_cutoff);
 
-        // Write 16KB to the beginning with pwrite
-        time.Resume();
-        ret = pwrite64(fd_, data.data(), lat_cutoff_, 0);
-        fsync(fd_);
-        time.Pause();
-        io_perf_[kWrite].lat_.consts_[0] = 0;
-        io_perf_[kWrite].lat_.consts_[1] = (float)time.GetNsec();
-        time.Reset();
+      // Write 16KB to the beginning with pwrite
+      time.Resume();
+      ret = pwrite64(fd_, data.data(), lat_cutoff_, 0);
+      fsync(fd_);
+      time.Pause();
+      io_perf_[kWrite].lat_.consts_[0] = 0;
+      io_perf_[kWrite].lat_.consts_[1] = (float)time.GetNsec();
+      time.Reset();
 
-        // Write 64MB to the beginning with pwrite
-        time.Resume();
-        ret = pwrite64(fd_, data.data(), bw_cutoff, 0);
-        fsync(fd_);
-        time.Pause();
-        io_perf_[kWrite].bw_.consts_[0] =
-            (float) (bw_cutoff / time.GetNsec());
-        io_perf_[kWrite].bw_.consts_[1] = 0;
-        time.Reset();
+      // Write 64MB to the beginning with pwrite
+      time.Resume();
+      ret = pwrite64(fd_, data.data(), bw_cutoff, 0);
+      fsync(fd_);
+      time.Pause();
+      io_perf_[kWrite].bw_.consts_[0] = (float)(bw_cutoff / time.GetNsec());
+      io_perf_[kWrite].bw_.consts_[1] = 0;
+      time.Reset();
 
-        // Read 16KB from the beginning with pread
-        time.Resume();
-        ret = pread64(fd_, data.data(), lat_cutoff_, 0);
-        fsync(fd_);
-        time.Pause();
-        io_perf_[kRead].lat_.consts_[0] = 0;
-        io_perf_[kRead].lat_.consts_[1] = (float)time.GetNsec();
-        time.Reset();
+      // Read 16KB from the beginning with pread
+      time.Resume();
+      ret = pread64(fd_, data.data(), lat_cutoff_, 0);
+      fsync(fd_);
+      time.Pause();
+      io_perf_[kRead].lat_.consts_[0] = 0;
+      io_perf_[kRead].lat_.consts_[1] = (float)time.GetNsec();
+      time.Reset();
 
-        // Read 64MB from the beginning with pread
-        time.Resume();
-        ret = pread64(fd_, data.data(), bw_cutoff, 0);
-        fsync(fd_);
-        time.Pause();
-        io_perf_[kRead].bw_.consts_[0] =
-            (float) (bw_cutoff / time.GetNsec());
-        io_perf_[kRead].bw_.consts_[1] = 0;
-        time.Reset();
-        break;
-      }
-      case BlockUrl::kRam: {
-        OpenMemory(dev_size);
+      // Read 64MB from the beginning with pread
+      time.Resume();
+      ret = pread64(fd_, data.data(), bw_cutoff, 0);
+      fsync(fd_);
+      time.Pause();
+      io_perf_[kRead].bw_.consts_[0] = (float)(bw_cutoff / time.GetNsec());
+      io_perf_[kRead].bw_.consts_[1] = 0;
+      time.Reset();
+      break;
+    }
+    case BlockUrl::kRam: {
+      OpenMemory(dev_size);
 
-        // Tuning parameters
-        hshm::Timer time;
-        size_t bw_cutoff = MEGABYTES(16);
-        std::vector<char> data(bw_cutoff);
+      // Tuning parameters
+      hshm::Timer time;
+      size_t bw_cutoff = MEGABYTES(16);
+      std::vector<char> data(bw_cutoff);
 
-        // Write 1MB to the beginning with pwrite
-        time.Resume();
-        memcpy(ram_, data.data(), bw_cutoff);
-        time.Pause();
-        io_perf_[kWrite].bw_.consts_[0] =
-            (float)(bw_cutoff / time.GetNsec());
-        io_perf_[kWrite].bw_.consts_[1] = 0;
-        time.Reset();
+      // Write 1MB to the beginning with pw
+      // rite
+      time.Resume();
+      memcpy(ram_, data.data(), bw_cutoff);
+      time.Pause();
+      io_perf_[kWrite].bw_.consts_[0] = (float)(bw_cutoff / time.GetNsec());
+      io_perf_[kWrite].bw_.consts_[1] = 0;
+      time.Reset();
 
-        // Read 1MB from the beginning with pread
-        time.Resume();
-        memcpy(data.data(), ram_, bw_cutoff);
-        time.Pause();
-        io_perf_[kRead].bw_.consts_[0] =
-        (float)(bw_cutoff / time.GetNsec());
-        io_perf_[kRead].bw_.consts_[1] = 0;
-        time.Reset();
-        break;
-      }
-      case BlockUrl::kSpdk: {
-        // TODO
-        break;
-      }
+      // Read 1MB from the beginning with pread
+      time.Resume();
+      memcpy(data.data(), ram_, bw_cutoff);
+      time.Pause();
+      io_perf_[kRead].bw_.consts_[0] = (float)(bw_cutoff / time.GetNsec());
+      io_perf_[kRead].bw_.consts_[1] = 0;
+      time.Reset();
+      break;
+    }
+    case BlockUrl::kSpdk: {
+      // TODO
+      break;
+    }
     }
   }
   void MonitorCreate(MonitorModeId mode, CreateTask *task, RunContext &rctx) {
@@ -217,15 +216,15 @@ class Server : public Module {
   /** Route a task to a bdev lane */
   Lane *MapTaskToLane(const Task *task) override {
     switch (task->method_) {
-      case Method::kRead:
-      case Method::kWrite: {
-        return GetLeastLoadedLane(
-            kDataGroup, task->prio_,
-            [](Load &lhs, Load &rhs) { return lhs.cpu_load_ < rhs.cpu_load_; });
-      }
-      default: {
-        return GetLaneByHash(kMdGroup, task->prio_, 0);
-      }
+    case Method::kRead:
+    case Method::kWrite: {
+      return GetLeastLoadedLane(
+          kDataGroup, task->prio_,
+          [](Load &lhs, Load &rhs) { return lhs.cpu_load_ < rhs.cpu_load_; });
+    }
+    default: {
+      return GetLaneByHash(kMdGroup, task->prio_, 0);
+    }
     }
   }
 
@@ -367,20 +366,20 @@ class Server : public Module {
   void Write(WriteTask *task, RunContext &rctx) {
     char *data = HSHM_MEMORY_MANAGER->Convert<char>(task->data_);
     switch (url_.scheme_) {
-      case BlockUrl::kFs: {
-        if (CHI_CLIENT->IsGpuDataPointer(task->data_)) {
-          WriteGpu(task, rctx);
-        } else {
-          WritePosix(task, rctx);
-        }
-        break;
+    case BlockUrl::kFs: {
+      if (CHI_CLIENT->IsGpuDataPointer(task->data_)) {
+        WriteGpu(task, rctx);
+      } else {
+        WritePosix(task, rctx);
       }
-      case BlockUrl::kRam: {
-        WriteMemory(task, rctx);
-      }
-      case BlockUrl::kSpdk: {
-        break;
-      }
+      break;
+    }
+    case BlockUrl::kRam: {
+      WriteMemory(task, rctx);
+    }
+    case BlockUrl::kSpdk: {
+      break;
+    }
     }
   }
   void MonitorWrite(MonitorModeId mode, WriteTask *task, RunContext &rctx) {
@@ -506,20 +505,20 @@ class Server : public Module {
   void Read(ReadTask *task, RunContext &rctx) {
     char *data = HSHM_MEMORY_MANAGER->Convert<char>(task->data_);
     switch (url_.scheme_) {
-      case BlockUrl::kFs: {
-        if (CHI_CLIENT->IsGpuDataPointer(task->data_)) {
-          ReadGpu(task, rctx);
-        } else {
-          ReadPosix(task, rctx);
-        }
-        break;
+    case BlockUrl::kFs: {
+      if (CHI_CLIENT->IsGpuDataPointer(task->data_)) {
+        ReadGpu(task, rctx);
+      } else {
+        ReadPosix(task, rctx);
       }
-      case BlockUrl::kRam: {
-        break;
-      }
-      case BlockUrl::kSpdk: {
-        break;
-      }
+      break;
+    }
+    case BlockUrl::kRam: {
+      break;
+    }
+    case BlockUrl::kSpdk: {
+      break;
+    }
     }
   }
   void MonitorRead(MonitorModeId mode, ReadTask *task, RunContext &rctx) {
@@ -543,18 +542,18 @@ class Server : public Module {
   /** Rolling average for most tasks */
   void AverageMonitor(MethodId method, MonitorModeId mode, RunContext &rctx) {
     switch (mode) {
-      case MonitorMode::kEstLoad: {
-        rctx.load_.cpu_load_ = monitor_[Method::kFree].Predict();
-        break;
-      }
-      case MonitorMode::kSampleLoad: {
-        monitor_[Method::kFree].Add(rctx.timer_->GetNsec(), rctx.load_);
-        break;
-      }
-      case MonitorMode::kReinforceLoad: {
-        monitor_[Method::kFree].DoTrain();
-        break;
-      }
+    case MonitorMode::kEstLoad: {
+      rctx.load_.cpu_load_ = monitor_[Method::kFree].Predict();
+      break;
+    }
+    case MonitorMode::kSampleLoad: {
+      monitor_[Method::kFree].Add(rctx.timer_->GetNsec(), rctx.load_);
+      break;
+    }
+    case MonitorMode::kReinforceLoad: {
+      monitor_[Method::kFree].DoTrain();
+      break;
+    }
     }
   }
 
@@ -562,36 +561,36 @@ class Server : public Module {
   void IoMonitor(MonitorModeId mode, size_t io_size, IoPerf &io_perf,
                  RunContext &rctx) {
     switch (mode) {
-      case MonitorMode::kEstLoad: {
-        if (io_size < lat_cutoff_) {
-          rctx.load_.cpu_load_ = io_perf.lat_.consts_[1];
-        } else {
-          rctx.load_.cpu_load_ = io_perf.bw_.consts_[0] * io_size;
-        }
-        break;
+    case MonitorMode::kEstLoad: {
+      if (io_size < lat_cutoff_) {
+        rctx.load_.cpu_load_ = io_perf.lat_.consts_[1];
+      } else {
+        rctx.load_.cpu_load_ = io_perf.bw_.consts_[0] * io_size;
       }
-      case MonitorMode::kSampleLoad: {
-        io_perf.bw_.Add({(float)io_size,
-                         // (float)rctx.load_.cpu_load_,
-                         (float)rctx.timer_->GetNsec()},
-                        rctx.load_);
-        break;
+      break;
+    }
+    case MonitorMode::kSampleLoad: {
+      io_perf.bw_.Add({(float)io_size,
+                       // (float)rctx.load_.cpu_load_,
+                       (float)rctx.timer_->GetNsec()},
+                      rctx.load_);
+      break;
+    }
+    case MonitorMode::kReinforceLoad: {
+      if (io_perf.bw_.DoTrain()) {
+        CHI_WORK_ORCHESTRATOR->ImportModule("bdev_monitor");
+        CHI_WORK_ORCHESTRATOR->RunMethod("ChimaeraMonitor", "least_squares_fit",
+                                         io_perf.bw_);
       }
-      case MonitorMode::kReinforceLoad: {
-        if (io_perf.bw_.DoTrain()) {
-          CHI_WORK_ORCHESTRATOR->ImportModule("bdev_monitor");
-          CHI_WORK_ORCHESTRATOR->RunMethod("ChimaeraMonitor",
-                                           "least_squares_fit", io_perf.bw_);
-        }
-        break;
-      }
+      break;
+    }
     }
   }
 
- public:
+public:
 #include "bdev/bdev_lib_exec.h"
 };
 
-}  // namespace chi::bdev
+} // namespace chi::bdev
 
 CHI_TASK_CC(chi::bdev::Server, "bdev");
