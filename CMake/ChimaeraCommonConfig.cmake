@@ -118,6 +118,13 @@ endmacro()
 # Runtime Library Names: namespace_target
 macro(add_chimod_runtime_lib namespace target)
     add_chimod_runtime_lib_body(${namespace} ${target} "" ${ARGN})
+    if(CHIMAERA_ENABLE_CUDA)
+        target_link_libraries(${scoped_target} PUBLIC ${namespace}_${target}_client_gpu_run)
+    elseif(CHIMAERA_ENABLE_ROCM)
+        target_link_libraries(${scoped_target} PUBLIC ${namespace}_${target}_client_gpu_run)
+    else()
+        target_link_libraries(${scoped_target} PUBLIC ${namespace}_${target}_client_run)
+    endif()
 endmacro()
 
 # Create chimod client lib header-only
