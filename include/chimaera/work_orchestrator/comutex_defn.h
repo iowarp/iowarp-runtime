@@ -17,19 +17,19 @@ struct CoMutexEntry {
 
 /** A mutex for yielding coroutines */
 class CoMutex {
- public:
+public:
   typedef std::vector<CoMutexEntry> COMUTEX_QUEUE_T;
 
- public:
+public:
   TaskId root_;
   size_t rep_;
   chi::ext_ring_buffer<TaskId> order_;
   std::unordered_map<TaskId, COMUTEX_QUEUE_T> blocked_map_;
   hshm::Mutex mux_;
 
- public:
+public:
   /** Default constructor */
-  CoMutex() : order_(CHI_LANE_SIZE) {
+  CoMutex() : order_(CHI_COMUX_SIZE) {
     root_.SetNull();
     rep_ = 0;
     mux_.Init();
@@ -43,21 +43,21 @@ class CoMutex {
 };
 
 class ScopedCoMutex {
- public:
+public:
   CoMutex &mutex_;
 
- public:
+public:
   ScopedCoMutex(CoMutex &mutex) : mutex_(mutex) { mutex_.Lock(); }
 
   ~ScopedCoMutex() { mutex_.Unlock(); }
 };
 
 class ScopedTryCoMutex {
- public:
+public:
   CoMutex &mutex_;
   bool is_locked_;
 
- public:
+public:
   ScopedTryCoMutex(CoMutex &mutex) : mutex_(mutex) {
     is_locked_ = mutex_.TryLock();
   }
@@ -69,6 +69,6 @@ class ScopedTryCoMutex {
   }
 };
 
-}  // namespace chi
+} // namespace chi
 
-#endif  // CHIMAERA_INCLUDE_CHIMAERA_WORK_ORCHESTRATOR_COMUTEX_DEFN_H_
+#endif // CHIMAERA_INCLUDE_CHIMAERA_WORK_ORCHESTRATOR_COMUTEX_DEFN_H_

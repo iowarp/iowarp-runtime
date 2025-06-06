@@ -15,10 +15,10 @@ struct CoRwLockEntry {
 
 /** A mutex for yielding coroutines */
 class CoRwLock {
- public:
+public:
   typedef std::vector<CoRwLockEntry> COMUTEX_QUEUE_T;
 
- public:
+public:
   TaskId root_;
   size_t rep_;
   chi::ext_ring_buffer<TaskId> order_;
@@ -27,9 +27,9 @@ class CoRwLock {
   bool is_read_;
   hshm::Mutex mux_;
 
- public:
+public:
   /** Default constructor */
-  CoRwLock() : order_(CHI_LANE_SIZE) {
+  CoRwLock() : order_(CHI_COMUX_SIZE) {
     root_.SetNull();
     rep_ = 0;
     mux_.Init();
@@ -48,21 +48,21 @@ class CoRwLock {
 };
 
 class ScopedCoRwReadLock {
- public:
+public:
   CoRwLock &mutex_;
 
- public:
+public:
   ScopedCoRwReadLock(CoRwLock &mutex) : mutex_(mutex) { mutex_.ReadLock(); }
 
   ~ScopedCoRwReadLock() { mutex_.ReadUnlock(); }
 };
 
 class ScopedCoRwTryReadLock {
- public:
+public:
   CoRwLock &mutex_;
   bool locked_;
 
- public:
+public:
   ScopedCoRwTryReadLock(CoRwLock &mutex) : mutex_(mutex) {
     locked_ = mutex_.TryReadLock();
   }
@@ -75,15 +75,15 @@ class ScopedCoRwTryReadLock {
 };
 
 class ScopedCoRwWriteLock {
- public:
+public:
   CoRwLock &mutex_;
 
- public:
+public:
   ScopedCoRwWriteLock(CoRwLock &mutex) : mutex_(mutex) { mutex_.WriteLock(); }
 
   ~ScopedCoRwWriteLock() { mutex_.WriteUnlock(); }
 };
 
-}  // namespace chi
+} // namespace chi
 
-#endif  // CHIMAERA_INCLUDE_CHIMAERA_WORK_ORCHESTRATOR_CORWLOCK_DEFN_H_
+#endif // CHIMAERA_INCLUDE_CHIMAERA_WORK_ORCHESTRATOR_CORWLOCK_DEFN_H_

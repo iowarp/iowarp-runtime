@@ -251,7 +251,7 @@ macro(add_chimod_client_lib namespace target)
     # endif()
 
     # Create the ${namespace}_${target}_client library
-    add_chimod_client_lib_host(${namespace} ${target} STATIC _client chimaera::client_host ${ARGN})
+    add_chimod_client_lib_host(${namespace} ${target} SHARED _client chimaera::client_host ${ARGN})
     add_chimod_runtime_lib_body(${namespace} ${target} _client_run ${ARGN})
 
     if(CHIMAERA_ENABLE_CUDA)

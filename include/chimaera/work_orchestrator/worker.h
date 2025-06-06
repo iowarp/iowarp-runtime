@@ -216,6 +216,9 @@ public:
             size_t max_lanes) {
     worker_ = worker;
     id_ = id;
+    HILOG(kInfo,
+          "Initializing private task multi queue with {} lanes and depth {}",
+          max_lanes, qdepth);
     queues_[FLUSH].resize(max_lanes * qdepth);
     queues_[FAIL].resize(max_lanes * qdepth);
     queues_[REMAP].resize(max_lanes * qdepth);

@@ -73,6 +73,7 @@ HSHM_DATA_STRUCTURES_TEMPLATE(chi::data, CHI_DATA_ALLOC_T);
 namespace chi {
 
 #define CHI_LANE_SIZE 8192
+#define CHI_COMUX_SIZE 256
 
 using hshm::bitfield;
 using hshm::bitfield16_t;
@@ -104,8 +105,7 @@ typedef u32 MonitorModeId; /**< The ID of a container monitor mode */
 typedef u32 TaskPrio;      /**< The priority of a task */
 
 /** Represents unique ID for states + queues */
-template <int TYPE>
-struct UniqueId {
+template <int TYPE> struct UniqueId {
   union {
     NodeId node_id_;       /**< The node the content is on */
     LaneGroupId group_id_; /**< The group the content is on */
@@ -115,8 +115,7 @@ struct UniqueId {
   u64 unique_; /**< A unique id within the node */
 
   /** Serialization */
-  template <typename Ar>
-  HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
+  template <typename Ar> HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
     ar & node_id_;
     ar & hash_;
     ar & unique_;
@@ -252,8 +251,7 @@ struct CreateContext {
   u32 lanes_per_container_ = 0;
 
   /** Serialization */
-  template <typename Ar>
-  HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
+  template <typename Ar> HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
     ar(id_, global_containers_, local_containers_pn_, lanes_per_container_);
   }
 };
@@ -269,10 +267,10 @@ namespace SubDomain {
 static GLOBAL_CROSS_CONST SubDomainGroup kPhysicalNode = 0;
 static GLOBAL_CROSS_CONST SubDomainGroup kContainerSet = 1;
 static GLOBAL_CROSS_CONST SubDomainGroup kGlobalContainers =
-    1;  // Alias for kContainerSet
+    1; // Alias for kContainerSet
 static GLOBAL_CROSS_CONST SubDomainGroup kLocalContainers = 3;
 static GLOBAL_CROSS_CONST SubDomainGroup kLast = 4;
-}  // namespace SubDomain
+} // namespace SubDomain
 
 /** An unscoped subdomain of nodes or lanes */
 struct SubDomainId {
@@ -282,7 +280,7 @@ struct SubDomainId {
   /** Subdomain major groups */
   CLS_CONST SubDomainGroup kPhysicalNode = 0;
   CLS_CONST SubDomainGroup kContainerSet = 1;
-  CLS_CONST SubDomainGroup kGlobalContainers = 1;  // Alias for kContainerSet
+  CLS_CONST SubDomainGroup kGlobalContainers = 1; // Alias for kContainerSet
   CLS_CONST SubDomainGroup kLocalContainers = 3;
   CLS_CONST SubDomainGroup kLast = 4;
 
@@ -361,8 +359,7 @@ struct SubDomainId {
   }
 
   /** Serialization */
-  template <typename Ar>
-  HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
+  template <typename Ar> HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
     ar(major_, minor_);
   }
 
@@ -447,8 +444,7 @@ struct DomainId {
   }
 
   /** Serialization */
-  template <typename Ar>
-  HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
+  template <typename Ar> HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
     ar(scope_, sub_id_);
   }
 
@@ -487,8 +483,7 @@ union DomainSelection {
   ~DomainSelection() = default;
 
   /** Serialization */
-  template <typename Ar>
-  HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
+  template <typename Ar> HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
     ar(int_);
   }
 
@@ -562,8 +557,7 @@ struct SubDomainIdRange {
   }
 
   /** Serialization */
-  template <typename Ar>
-  HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
+  template <typename Ar> HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
     ar(group_, off_, count_);
   }
 };
@@ -583,8 +577,7 @@ struct UpdateDomainInfo {
   ~UpdateDomainInfo() = default;
 
   /** serialization */
-  template <typename Ar>
-  HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
+  template <typename Ar> HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
     ar(domain_id_, op_, range_);
   }
 };
@@ -618,8 +611,7 @@ struct DomainQuery {
   CLS_CONST DomainFlag kForwardToLeader = BIT_OPT(DomainFlag, 17);
 
   /** Serialize domain id */
-  template <typename Ar>
-  HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
+  template <typename Ar> HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
     ar(flags_, sub_id_, sel_);
   }
 
@@ -909,20 +901,19 @@ struct ResolvedDomainQuery {
   }
 
   /** Serialize */
-  template <typename Ar>
-  HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
+  template <typename Ar> HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
     ar(node_, dom_);
   }
 };
 
 class CacheTimer {
- public:
+public:
   hshm::Timer timer_;
   size_t cur_ns_ = 0;
   size_t start_ns_ = 0;
   size_t net_ns_ = 0;
 
- public:
+public:
   CacheTimer() { timer_.Now(); }
 
   void Wrap(CacheTimer &other) { cur_ns_ = other.cur_ns_; }
@@ -1014,8 +1005,7 @@ struct Load {
   }
 
   /** Serialization */
-  template <typename Ar>
-  HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
+  template <typename Ar> HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
     ar(cpu_load_, mem_load_, io_load_);
   }
 };
@@ -1026,8 +1016,7 @@ struct LaneStats {
   size_t lane_depth_;
   LaneId lane_id_;
 
-  template <typename Ar>
-  void serialize(Ar &ar) {
+  template <typename Ar> void serialize(Ar &ar) {
     ar(load_, num_tasks_, lane_depth_, lane_id_);
   }
 
@@ -1050,8 +1039,7 @@ struct WorkerStats {
   WorkerStats() = default;
   WorkerStats(hipc::CtxAllocator<CHI_ALLOC_T> &alloc) : lanes_(alloc) {}
 
-  template <typename Ar>
-  void serialize(Ar &ar) {
+  template <typename Ar> void serialize(Ar &ar) {
     ar(worker_id_, num_tasks_, lanes_);
   }
 
@@ -1060,20 +1048,20 @@ struct WorkerStats {
     os << "WorkerStats(worker_id=" << stats.worker_id_
        << ", num_tasks=" << stats.num_tasks_ << ", lanes=[";
     for (size_t i = 0; i < stats.lanes_.size(); ++i) {
-      if (i > 0) os << ", ";
+      if (i > 0)
+        os << ", ";
       os << stats.lanes_[i];
     }
     return os << "])";
   }
 };
 
-}  // namespace chi
+} // namespace chi
 
 namespace hshm {
 
 /** Hash function for UniqueId */
-template <int TYPE>
-struct hash<chi::UniqueId<TYPE>> {
+template <int TYPE> struct hash<chi::UniqueId<TYPE>> {
   HSHM_INLINE
   std::size_t operator()(const chi::UniqueId<TYPE> &key) const {
     return key.Hash();
@@ -1081,8 +1069,7 @@ struct hash<chi::UniqueId<TYPE>> {
 };
 
 /** Hash function for SubDomainId */
-template <>
-struct hash<chi::SubDomainId> {
+template <> struct hash<chi::SubDomainId> {
   HSHM_INLINE_CROSS_FUN
   std::size_t operator()(const chi::SubDomainId &key) const {
     return key.Hash();
@@ -1090,28 +1077,25 @@ struct hash<chi::SubDomainId> {
 };
 
 /** Hash function for DomainId */
-template <>
-struct hash<chi::DomainId> {
+template <> struct hash<chi::DomainId> {
   HSHM_INLINE_CROSS_FUN
   std::size_t operator()(const chi::DomainId &key) const { return key.Hash(); }
 };
 
 /** Hash function for DomainQuery */
-template <>
-struct hash<chi::DomainQuery> {
+template <> struct hash<chi::DomainQuery> {
   HSHM_INLINE_CROSS_FUN
   std::size_t operator()(const chi::DomainQuery &key) const {
     return key.Hash();
   }
 };
 
-}  // namespace hshm
+} // namespace hshm
 
 namespace std {
 
 /** Hash function for UniqueId */
-template <int TYPE>
-struct hash<chi::UniqueId<TYPE>> {
+template <int TYPE> struct hash<chi::UniqueId<TYPE>> {
   HSHM_INLINE
   std::size_t operator()(const chi::UniqueId<TYPE> &key) const {
     return key.Hash();
@@ -1119,8 +1103,7 @@ struct hash<chi::UniqueId<TYPE>> {
 };
 
 /** Hash function for SubDomainId */
-template <>
-struct hash<chi::SubDomainId> {
+template <> struct hash<chi::SubDomainId> {
   HSHM_INLINE_CROSS_FUN
   std::size_t operator()(const chi::SubDomainId &key) const {
     return key.Hash();
@@ -1128,21 +1111,19 @@ struct hash<chi::SubDomainId> {
 };
 
 /** Hash function for DomainId */
-template <>
-struct hash<chi::DomainId> {
+template <> struct hash<chi::DomainId> {
   HSHM_INLINE_CROSS_FUN
   std::size_t operator()(const chi::DomainId &key) const { return key.Hash(); }
 };
 
 /** Hash function for DomainQuery */
-template <>
-struct hash<chi::DomainQuery> {
+template <> struct hash<chi::DomainQuery> {
   HSHM_INLINE_CROSS_FUN
   std::size_t operator()(const chi::DomainQuery &key) const {
     return key.Hash();
   }
 };
 
-}  // namespace std
+} // namespace std
 
-#endif  // CHI_INCLUDE_CHI_CHI_TYPES_H_
+#endif // CHI_INCLUDE_CHI_CHI_TYPES_H_
