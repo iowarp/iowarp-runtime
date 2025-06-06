@@ -295,7 +295,7 @@ public:
   /** Replace a container */
   void ReplaceContainer(Container *new_container) {
     ScopedMutex lock(lock_, 0);
-    PoolId pool_id = new_container->id_;
+    PoolId pool_id = new_container->pool_id_;
     auto it = pools_.find(pool_id);
     if (it == pools_.end()) {
       HELOG(kError, "Could not find the pool: {}", pool_id);

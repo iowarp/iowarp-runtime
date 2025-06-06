@@ -19,7 +19,7 @@ namespace chi::bdev {
 
 /** Create bdev requests */
 class Client : public ModuleClient {
- public:
+public:
   /** Default constructor */
   Client() = default;
 
@@ -43,7 +43,7 @@ class Client : public ModuleClient {
   /** Destroy pool + queue */
   HSHM_INLINE_CROSS_FUN
   void Destroy(const hipc::MemContext &mctx, const DomainQuery &dom_query) {
-    CHI_ADMIN->DestroyContainer(mctx, dom_query, id_);
+    CHI_ADMIN->DestroyContainer(mctx, dom_query, pool_id_);
   }
 
   /** Allocate a section of the block device */
@@ -113,9 +113,9 @@ class Client : public ModuleClient {
   }
   CHI_TASK_METHODS(PollStats);
 
-  CHI_AUTOGEN_METHODS  // keep at class bottom
+  CHI_AUTOGEN_METHODS // keep at class bottom
 };
 
-}  // namespace chi::bdev
+} // namespace chi::bdev
 
-#endif  // CHI_bdev_H_
+#endif // CHI_bdev_H_

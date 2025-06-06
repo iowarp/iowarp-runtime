@@ -29,7 +29,8 @@ HSHM_GPU_KERNEL void test_kernel() {
   //     CHI_ADMIN->AsyncRegisterModuleAlloc(main_alloc.alloc_.ctx_, task_node,
   //                                         chi::DomainQuery::GetGlobalBcast(),
   //                                         "chimaera_small_message");
-  // printf("H3: %p %lu %p %p %p\n", task.ptr_, task.shm_.off_.load(), CHI_CLIENT,
+  // printf("H3: %p %lu %p %p %p\n", task.ptr_, task.shm_.off_.load(),
+  // CHI_CLIENT,
   //        CHI_QM, CHI_QM->queue_map_);
   // hipc::AllocatorId id = CHI_QM->queue_map_->GetAllocatorId();
   // printf("H4: %d.%d\n", id.bits_.major_, id.bits_.minor_);
@@ -51,7 +52,7 @@ HSHM_GPU_KERNEL void test_kernel() {
   // size_t domain_size = CHI_ADMIN->GetDomainSize(
   //     HSHM_MCTX,
   //     chi::DomainQuery::GetLocalHash(0),
-  //     chi::DomainId(client.id_, chi::SubDomain::kGlobalContainers));
+  //     chi::DomainId(client.pool_id_, chi::SubDomain::kGlobalContainers));
 
   // size_t ops = 256;
   // HILOG(kInfo, "OPS: {}", ops);

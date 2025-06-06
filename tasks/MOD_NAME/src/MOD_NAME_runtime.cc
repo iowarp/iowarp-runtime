@@ -18,10 +18,11 @@
 namespace chi::MOD_NAME {
 
 class Server : public Module {
- public:
+public:
   CLS_CONST LaneGroupId kDefaultGroup = 0;
+  Client client_;
 
- public:
+public:
   Server() = default;
 
   CHI_BEGIN(Create)
@@ -29,6 +30,7 @@ class Server : public Module {
   void Create(CreateTask *task, RunContext &rctx) {
     // Create a set of lanes for holding tasks
     CreateLaneGroup(kDefaultGroup, 1, QUEUE_LOW_LATENCY);
+    client_.Init(pool_id_);
   }
   void MonitorCreate(MonitorModeId mode, CreateTask *task, RunContext &rctx) {}
   CHI_END(Create)
@@ -48,11 +50,11 @@ class Server : public Module {
   }
   CHI_END(Destroy)
 
-  CHI_AUTOGEN_METHODS  // keep at class bottom
+  CHI_AUTOGEN_METHODS // keep at class bottom
       public:
 #include "MOD_NAME/MOD_NAME_lib_exec.h"
 };
 
-}  // namespace chi::MOD_NAME
+} // namespace chi::MOD_NAME
 
 CHI_TASK_CC(chi::MOD_NAME::Server, "MOD_NAME");

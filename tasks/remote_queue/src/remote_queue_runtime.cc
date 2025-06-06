@@ -30,7 +30,7 @@ struct RemoteEntry {
 };
 
 class Server : public Module {
- public:
+public:
   hipc::atomic<int> pending_ = 0;
   std::vector<hshm::mpsc_queue<RemoteEntry>> submit_;
   std::vector<hshm::mpsc_queue<RemoteEntry>> complete_;
@@ -39,7 +39,7 @@ class Server : public Module {
   CLS_CONST int kNodeRpcLanes = 0;
   CLS_CONST int kInitRpcLanes = 1;
 
- public:
+public:
   Server() = default;
 
   /** Construct remote queue */
@@ -57,7 +57,7 @@ class Server : public Module {
                                      SegmentedTransfer &xfer) {
                                 this->RpcTaskComplete(req, bulk, xfer);
                               });
-    CHI_REMOTE_QUEUE->Init(id_);
+    CHI_REMOTE_QUEUE->Init(pool_id_);
 
     // Create lanes
     CreateLaneGroup(kNodeRpcLanes, 1, QUEUE_HIGH_LATENCY);
@@ -231,24 +231,24 @@ class Server : public Module {
       }
     } catch (hshm::Error &e) {
       HELOG(kError, "(node {}) Worker {} caught an error: {}",
-            CHI_CLIENT->node_id_, id_, e.what());
+            CHI_CLIENT->node_id_, pool_id_, e.what());
     } catch (std::exception &e) {
       HELOG(kError, "(node {}) Worker {} caught an exception: {}",
-            CHI_CLIENT->node_id_, id_, e.what());
+            CHI_CLIENT->node_id_, pool_id_, e.what());
     } catch (...) {
       HELOG(kError, "(node {}) Worker {} caught an unknown exception",
-            CHI_CLIENT->node_id_, id_);
+            CHI_CLIENT->node_id_, pool_id_);
     }
   }
   void MonitorClientSubmit(MonitorModeId mode, ClientSubmitTask *task,
                            RunContext &rctx) {
     switch (mode) {
-      case MonitorMode::kFlushWork: {
-        for (auto &submit : submit_) {
-          rctx.flush_->count_ += submit.size();
-        }
-        rctx.flush_->count_ += pending_.load();
+    case MonitorMode::kFlushWork: {
+      for (auto &submit : submit_) {
+        rctx.flush_->count_ += submit.size();
       }
+      rctx.flush_->count_ += pending_.load();
+    }
     }
   }
 
@@ -296,7 +296,7 @@ class Server : public Module {
                                         DT_WRITE);
         } catch (std::exception &e) {
           HELOG(kError, "(node {}) Worker {} caught an exception: {}",
-                CHI_CLIENT->node_id_, id_, e.what());
+                CHI_CLIENT->node_id_, pool_id_, e.what());
           HELOG(kError, "Current XFER {}", xfer);
         }
       }
@@ -308,34 +308,34 @@ class Server : public Module {
           CHI_CLIENT->DelTask(HSHM_MCTX, exec, task.ptr_);
         } catch (hshm::Error &e) {
           HELOG(kError, "(node {}) Worker {} caught an error: {}",
-                CHI_CLIENT->node_id_, id_, e.what());
+                CHI_CLIENT->node_id_, pool_id_, e.what());
           HELOG(kError, "(node {}) Was deleting task {} ({})",
                 CHI_CLIENT->node_id_, *task.ptr_, task.ptr_);
         }
       }
     } catch (hshm::Error &e) {
       HELOG(kError, "(node {}) Worker {} caught an error: {}",
-            CHI_CLIENT->node_id_, id_, e.what());
+            CHI_CLIENT->node_id_, pool_id_, e.what());
     } catch (std::exception &e) {
       HELOG(kError, "(node {}) Worker {} caught an exception: {}",
-            CHI_CLIENT->node_id_, id_, e.what());
+            CHI_CLIENT->node_id_, pool_id_, e.what());
     } catch (...) {
       HELOG(kError, "(node {}) Worker {} caught an unknown exception",
-            CHI_CLIENT->node_id_, id_);
+            CHI_CLIENT->node_id_, pool_id_);
     }
   }
   void MonitorServerComplete(MonitorModeId mode, ServerCompleteTask *task,
                              RunContext &rctx) {
     switch (mode) {
-      case MonitorMode::kFlushWork: {
-        for (auto &complete : complete_) {
-          rctx.flush_->count_ += complete.size();
-        }
+    case MonitorMode::kFlushWork: {
+      for (auto &complete : complete_) {
+        rctx.flush_->count_ += complete.size();
       }
+    }
     }
   }
 
- private:
+private:
   /** The RPC for processing a message with data */
   void RpcTaskSubmit(const tl::request &req, tl::bulk &bulk,
                      SegmentedTransfer &xfer) {
@@ -349,13 +349,13 @@ class Server : public Module {
       }
     } catch (hshm::Error &e) {
       HELOG(kError, "(node {}) Worker {} caught an error: {}",
-            CHI_CLIENT->node_id_, id_, e.what());
+            CHI_CLIENT->node_id_, pool_id_, e.what());
     } catch (std::exception &e) {
       HELOG(kError, "(node {}) Worker {} caught an exception: {}",
-            CHI_CLIENT->node_id_, id_, e.what());
+            CHI_CLIENT->node_id_, pool_id_, e.what());
     } catch (...) {
       HELOG(kError, "(node {}) Worker {} caught an unknown exception",
-            CHI_CLIENT->node_id_, id_);
+            CHI_CLIENT->node_id_, pool_id_);
     }
     req.respond(0);
   }
@@ -423,7 +423,7 @@ class Server : public Module {
         CHI_THALLIUM->IoCallServerWrite(req, bulk, xfer);
       } catch (std::exception &e) {
         HELOG(kError, "(node {}) Worker {} caught an exception: {}",
-              CHI_CLIENT->node_id_, id_, e.what());
+              CHI_CLIENT->node_id_, pool_id_, e.what());
         HELOG(kError, "Current XFER {}", xfer);
       }
       // Unblock completed tasks
@@ -432,7 +432,7 @@ class Server : public Module {
         Task *submit_task = (Task *)rep_task->rctx_.remote_pending_;
         HLOG(kInfo, kRemoteQueue, "[TASK_CHECK] Unblocking the submit_task {}",
              submit_task);
-        if (submit_task->pool_ != id_) {
+        if (submit_task->pool_ != pool_id_) {
           HELOG(kFatal, "This shouldn't happen ever");
         }
         CHI_WORK_ORCHESTRATOR->SignalUnblock(submit_task, submit_task->rctx_);
@@ -441,22 +441,22 @@ class Server : public Module {
       }
     } catch (hshm::Error &e) {
       HELOG(kError, "(node {}) Worker {} caught an error: {}",
-            CHI_CLIENT->node_id_, id_, e.what());
+            CHI_CLIENT->node_id_, pool_id_, e.what());
     } catch (std::exception &e) {
       HELOG(kError, "(node {}) Worker {} caught an exception: {}",
-            CHI_CLIENT->node_id_, id_, e.what());
+            CHI_CLIENT->node_id_, pool_id_, e.what());
     } catch (...) {
       HELOG(kError, "(node {}) Worker {} caught an unknown exception",
-            CHI_CLIENT->node_id_, id_);
+            CHI_CLIENT->node_id_, pool_id_);
     }
     req.respond(0);
   }
 
-  CHI_AUTOGEN_METHODS  // keep at class bottom
+  CHI_AUTOGEN_METHODS // keep at class bottom
 
       public:
 #include "remote_queue/remote_queue_lib_exec.h"
 };
-}  // namespace chi::remote_queue
+} // namespace chi::remote_queue
 
 CHI_TASK_CC(chi::remote_queue::Server, "remote_queue");

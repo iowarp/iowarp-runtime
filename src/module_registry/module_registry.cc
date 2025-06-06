@@ -47,14 +47,14 @@ bool ModuleRegistry::CreatePool(
     }
 
     // Add the state to the registry
-    exec->id_ = pool_id;
+    exec->pool_id_ = pool_id;
     exec->name_ = pool_name;
     exec->container_id_ = container_id.minor_;
     pools_[pool_id].containers_[exec->container_id_] = exec;
 
     // Construct the state
     task->ctx_.id_ = pool_id;
-    lock.Unlock();  // May spawn subtask that needs the lock
+    lock.Unlock(); // May spawn subtask that needs the lock
     exec->Run(TaskMethod::kCreate, task, task->rctx_);
     lock.Lock(0);
     exec->is_created_ = true;
@@ -66,4 +66,4 @@ bool ModuleRegistry::CreatePool(
   return true;
 }
 
-}  // namespace chi
+} // namespace chi

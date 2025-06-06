@@ -11,7 +11,7 @@ namespace chi::worch_proc_round_robin {
 
 /** Create admin requests */
 class Client : public ModuleClient {
- public:
+public:
   /** Default constructor */
   HSHM_INLINE_CROSS_FUN
   Client() = default;
@@ -36,12 +36,12 @@ class Client : public ModuleClient {
   /** Destroy state */
   HSHM_INLINE_CROSS_FUN
   void Destroy(const hipc::MemContext &mctx, const DomainQuery &dom_query) {
-    CHI_ADMIN->DestroyContainer(mctx, dom_query, id_);
+    CHI_ADMIN->DestroyContainer(mctx, dom_query, pool_id_);
   }
 };
 
-CHI_AUTOGEN_METHODS  // keep at class bottom
+CHI_AUTOGEN_METHODS // keep at class bottom
 
-}  // namespace chi::worch_proc_round_robin
+} // namespace chi::worch_proc_round_robin
 
-#endif  // CHI_worch_proc_round_robin_H_
+#endif // CHI_worch_proc_round_robin_H_

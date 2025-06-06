@@ -11,7 +11,7 @@ namespace chi::small_message {
 
 /** Create admin requests */
 class Client : public ModuleClient {
- public:
+public:
   /** Default constructor */
   HSHM_INLINE_CROSS_FUN
   Client() = default;
@@ -36,7 +36,7 @@ class Client : public ModuleClient {
   /** Destroy state + queue */
   HSHM_INLINE_CROSS_FUN
   void Destroy(const hipc::MemContext &mctx, const DomainQuery &dom_query) {
-    CHI_ADMIN->DestroyContainer(mctx, dom_query, id_);
+    CHI_ADMIN->DestroyContainer(mctx, dom_query, pool_id_);
   }
 
   /** Metadata task */
@@ -67,9 +67,9 @@ class Client : public ModuleClient {
   }
   CHI_TASK_METHODS(Io)
 
-  CHI_AUTOGEN_METHODS  // keep at class bottom
+  CHI_AUTOGEN_METHODS // keep at class bottom
 };
 
-}  // namespace chi::small_message
+} // namespace chi::small_message
 
-#endif  // CHI_small_message_H_
+#endif // CHI_small_message_H_

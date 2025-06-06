@@ -40,7 +40,7 @@ TEST_CASE("TestIpc") {
   hshm::Timer t;
   size_t domain_size = CHI_ADMIN->GetDomainSize(
       HSHM_MCTX, chi::DomainQuery::GetLocalHash(0),
-      chi::DomainId(client.id_, chi::SubDomain::kGlobalContainers));
+      chi::DomainId(client.pool_id_, chi::SubDomain::kGlobalContainers));
 
   size_t ops = 256;
   HILOG(kInfo, "OPS: {}", ops);
@@ -78,7 +78,7 @@ TEST_CASE("TestAsyncIpc") {
   hshm::Timer t;
   size_t domain_size = CHI_ADMIN->GetDomainSize(
       HSHM_MCTX, chi::DomainQuery::GetLocalHash(0),
-      chi::DomainId(client.id_, chi::SubDomain::kGlobalContainers));
+      chi::DomainId(client.pool_id_, chi::SubDomain::kGlobalContainers));
 
   int pid = HSHM_SYSTEM_INFO->pid_;
   hshm::ProcessAffiner::SetCpuAffinity(pid, 8);
@@ -248,7 +248,7 @@ TEST_CASE("TestUpgrade") {
   hshm::Timer t;
   size_t domain_size = CHI_ADMIN->GetDomainSize(
       HSHM_MCTX, chi::DomainQuery::GetLocalHash(0),
-      chi::DomainId(client.id_, chi::SubDomain::kGlobalContainers));
+      chi::DomainId(client.pool_id_, chi::SubDomain::kGlobalContainers));
 
   int pid = getpid();
   hshm::ProcessAffiner::SetCpuAffinity(pid, 8);

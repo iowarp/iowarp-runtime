@@ -612,7 +612,7 @@ void Worker::EndTask(Container *exec, FullPtr<Task> task, RunContext &rctx) {
   // Signal back to the remote that spawned this task
   if (task->ShouldSignalRemoteComplete()) {
     Container *remote_exec =
-        CHI_MOD_REGISTRY->GetContainer(CHI_REMOTE_QUEUE->id_, 1);
+        CHI_MOD_REGISTRY->GetContainer(CHI_REMOTE_QUEUE->pool_id_, 1);
     remote_exec->Run(chi::remote_queue::Method::kServerPushComplete, task.ptr_,
                      rctx);
     return;

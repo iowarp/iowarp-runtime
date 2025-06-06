@@ -19,7 +19,7 @@ namespace chi::MOD_NAME {
 
 /** Create MOD_NAME requests */
 class Client : public ModuleClient {
- public:
+public:
   /** Default constructor */
   HSHM_INLINE_CROSS_FUN
   Client() = default;
@@ -47,16 +47,16 @@ class Client : public ModuleClient {
   /** Destroy pool + queue */
   HSHM_INLINE_CROSS_FUN
   void Destroy(const hipc::MemContext &mctx, const DomainQuery &dom_query) {
-    FullPtr<DestroyTask> task = AsyncDestroy(mctx, dom_query, id_);
+    FullPtr<DestroyTask> task = AsyncDestroy(mctx, dom_query, pool_id_);
     task->Wait();
     CHI_CLIENT->DelTask(mctx, task);
   }
   CHI_TASK_METHODS(Destroy)
   CHI_END(Destroy)
 
-  CHI_AUTOGEN_METHODS  // keep at class bottom
+  CHI_AUTOGEN_METHODS // keep at class bottom
 };
 
-}  // namespace chi::MOD_NAME
+} // namespace chi::MOD_NAME
 
-#endif  // CHI_MOD_NAME_H_
+#endif // CHI_MOD_NAME_H_

@@ -33,10 +33,7 @@ typedef Module Container;
 #ifdef CHIMAERA_RUNTIME
 class Module {
 public:
-  union {
-    PoolId id_; /**< The unique name of a pool */
-    PoolId pool_id_;
-  };
+  PoolId pool_id_;           /**< The unique name of a pool */
   std::string name_;         /**< The unique semantic name of a pool */
   ContainerId container_id_; /**< The logical id of a container */
   std::vector<std::shared_ptr<LaneGroup>>
@@ -195,10 +192,7 @@ public:
 /** Represents the Module client-side */
 class ModuleClient {
 public:
-  union {
-    PoolId id_; // NOTE(llogan): Deprecated, please use pool_id_ instead
-    PoolId pool_id_;
-  };
+  PoolId pool_id_;
 
 public:
   /** Init from existing ID */

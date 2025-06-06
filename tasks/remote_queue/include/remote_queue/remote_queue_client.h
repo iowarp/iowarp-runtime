@@ -16,7 +16,7 @@ namespace chi::remote_queue {
  * should never be called in client programs!!!
  * */
 class Client : public ModuleClient {
- public:
+public:
   /** Default constructor */
   Client() = default;
 
@@ -39,7 +39,7 @@ class Client : public ModuleClient {
   /** Destroy pool + queue */
   HSHM_INLINE_CROSS_FUN
   void Destroy(const hipc::MemContext &mctx, const DomainQuery &dom_query) {
-    CHI_ADMIN->DestroyContainer(mctx, dom_query, id_);
+    CHI_ADMIN->DestroyContainer(mctx, dom_query, pool_id_);
   }
 
   /** Construct submit aggregator */
@@ -51,9 +51,9 @@ class Client : public ModuleClient {
   /** Construct complete aggregator */
   CHI_TASK_METHODS(ServerComplete)
 
-  CHI_AUTOGEN_METHODS  // keep at class bottom
+  CHI_AUTOGEN_METHODS // keep at class bottom
 };
 
-}  // namespace chi::remote_queue
+} // namespace chi::remote_queue
 
-#endif  // CHI_REMOTE_QUEUE_H_
+#endif // CHI_REMOTE_QUEUE_H_

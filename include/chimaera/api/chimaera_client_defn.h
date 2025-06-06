@@ -28,12 +28,12 @@
 namespace chi {
 
 class Client : public ConfigurationManager {
- public:
+public:
   int data_;
   hipc::atomic<hshm::min_u64> *unique_;
   NodeId node_id_;
 
- public:
+public:
   /** Default constructor */
   HSHM_INLINE_CROSS_FUN
   Client() = default;
@@ -53,7 +53,7 @@ class Client : public ConfigurationManager {
                                 hipc::AllocatorId data_alloc);
 #endif
 
- private:
+private:
   /** Initialize client */
   void ClientInit(const char *server_config_path,
                   const char *client_config_path, bool server);
@@ -64,10 +64,9 @@ class Client : public ConfigurationManager {
   /** Load the shared memory for GPUs */
   void LoadSharedMemoryGpu();
 
- public:
+public:
   /** Creates the CHI_CLIENT on the GPU */
-  template <int NOTHING = 0>
-  void CreateClientOnHostForGpu();
+  template <int NOTHING = 0> void CreateClientOnHostForGpu();
 
   /** Finalize Hermes explicitly */
   HSHM_INLINE_CROSS_FUN
@@ -99,8 +98,8 @@ class Client : public ConfigurationManager {
 
   /** Create a default-constructed task */
   template <typename TaskT, typename... Args>
-  HSHM_INLINE_CROSS_FUN FullPtr<TaskT> NewEmptyTask(
-      const hipc::MemContext &mctx) {
+  HSHM_INLINE_CROSS_FUN FullPtr<TaskT>
+  NewEmptyTask(const hipc::MemContext &mctx) {
     FullPtr<TaskT> task = main_alloc_->NewObjLocal<TaskT>(mctx, main_alloc_);
     if (task.shm_.IsNull()) {
       // throw std::runtime_error("Could not allocate buffer");
@@ -120,8 +119,8 @@ class Client : public ConfigurationManager {
 
   /** Allocate task */
   template <typename TaskT, typename... Args>
-  HSHM_INLINE_CROSS_FUN hipc::FullPtr<TaskT> AllocateTask(
-      const hipc::MemContext &mctx) {
+  HSHM_INLINE_CROSS_FUN hipc::FullPtr<TaskT>
+  AllocateTask(const hipc::MemContext &mctx) {
     hipc::FullPtr<TaskT> task =
         main_alloc_->AllocateLocalPtr<TaskT>(mctx, sizeof(TaskT));
     if (task.shm_.IsNull()) {
@@ -259,13 +258,14 @@ class Client : public ConfigurationManager {
   }
 #endif
 
- private:
+private:
   /** Allocate a buffer */
   template <bool FROM_REMOTE = false>
-  HSHM_INLINE_CROSS_FUN FullPtr<char> AllocateBufferSafe(
-      const hipc::CtxAllocator<CHI_DATA_ALLOC_T> &alloc, size_t size);
+  HSHM_INLINE_CROSS_FUN FullPtr<char>
+  AllocateBufferSafe(const hipc::CtxAllocator<CHI_DATA_ALLOC_T> &alloc,
+                     size_t size);
 
- public:
+public:
   /** Free a buffer */
   HSHM_INLINE_CROSS_FUN
   void FreeBuffer(const hipc::MemContext &mctx, hipc::Pointer &p) {
@@ -308,40 +308,42 @@ class Client : public ConfigurationManager {
 
   /** Allocate + send a task to the runtime */
   template <typename TaskT, typename... Args>
-  HSHM_INLINE_CROSS_FUN hipc::FullPtr<TaskT> ScheduleNewTask(
-      const hipc::MemContext &mctx, const PoolId &pool_id, Args &&...args);
+  HSHM_INLINE_CROSS_FUN hipc::FullPtr<TaskT>
+  ScheduleNewTask(const hipc::MemContext &mctx, const PoolId &pool_id,
+                  Args &&...args);
 
   /** Allocate + send a task to the runtime */
   template <typename TaskT, typename... Args>
-  HSHM_INLINE_CROSS_FUN hipc::FullPtr<TaskT> ScheduleNewTask(
-      const hipc::MemContext &mctx, chi::Task *parent_task,
-      const TaskNode &task_node, const PoolId &pool_id, Args &&...args);
+  HSHM_INLINE_CROSS_FUN hipc::FullPtr<TaskT>
+  ScheduleNewTask(const hipc::MemContext &mctx, chi::Task *parent_task,
+                  const TaskNode &task_node, const PoolId &pool_id,
+                  Args &&...args);
 };
 
 /** The default asynchronous method behavior */
-#define CHI_TASK_METHODS(CUSTOM)                                          \
-  template <typename... Args>                                             \
-  HSHM_CROSS_FUN hipc::FullPtr<CUSTOM##Task> Async##CUSTOM##Alloc(        \
-      const hipc::MemContext &mctx, const TaskNode &task_node,            \
-      const DomainQuery &dom_query, Args &&...args) {                     \
-    hipc::FullPtr<CUSTOM##Task> task = CHI_CLIENT->NewTask<CUSTOM##Task>( \
-        mctx, task_node, id_, dom_query, std::forward<Args>(args)...);    \
-    return task;                                                          \
-  }                                                                       \
-                                                                          \
-  template <typename... Args>                                             \
-  HSHM_CROSS_FUN hipc::FullPtr<CUSTOM##Task> Async##CUSTOM(               \
-      const hipc::MemContext &mctx, Args &&...args) {                     \
-    return CHI_CLIENT->ScheduleNewTask<CUSTOM##Task>(                     \
-        mctx, id_, std::forward<Args>(args)...);                          \
-  }                                                                       \
-                                                                          \
-  template <typename... Args>                                             \
-  HSHM_CROSS_FUN hipc::FullPtr<CUSTOM##Task> Async##CUSTOM##Base(         \
-      const hipc::MemContext &mctx, chi::Task *parent,                    \
-      const chi::TaskNode &task_node, Args &&...args) {                   \
-    return CHI_CLIENT->ScheduleNewTask<CUSTOM##Task>(                     \
-        mctx, parent, task_node, id_, std::forward<Args>(args)...);       \
+#define CHI_TASK_METHODS(CUSTOM)                                               \
+  template <typename... Args>                                                  \
+  HSHM_CROSS_FUN hipc::FullPtr<CUSTOM##Task> Async##CUSTOM##Alloc(             \
+      const hipc::MemContext &mctx, const TaskNode &task_node,                 \
+      const DomainQuery &dom_query, Args &&...args) {                          \
+    hipc::FullPtr<CUSTOM##Task> task = CHI_CLIENT->NewTask<CUSTOM##Task>(      \
+        mctx, task_node, pool_id_, dom_query, std::forward<Args>(args)...);    \
+    return task;                                                               \
+  }                                                                            \
+                                                                               \
+  template <typename... Args>                                                  \
+  HSHM_CROSS_FUN hipc::FullPtr<CUSTOM##Task> Async##CUSTOM(                    \
+      const hipc::MemContext &mctx, Args &&...args) {                          \
+    return CHI_CLIENT->ScheduleNewTask<CUSTOM##Task>(                          \
+        mctx, pool_id_, std::forward<Args>(args)...);                          \
+  }                                                                            \
+                                                                               \
+  template <typename... Args>                                                  \
+  HSHM_CROSS_FUN hipc::FullPtr<CUSTOM##Task> Async##CUSTOM##Base(              \
+      const hipc::MemContext &mctx, chi::Task *parent,                         \
+      const chi::TaskNode &task_node, Args &&...args) {                        \
+    return CHI_CLIENT->ScheduleNewTask<CUSTOM##Task>(                          \
+        mctx, parent, task_node, pool_id_, std::forward<Args>(args)...);       \
   }
 
 // Singleton macros
@@ -363,7 +365,7 @@ constexpr inline void CALL_NEW_COPY_START(const TaskT *orig_task,
   return CHI_CLIENT->NewCopyTask(orig_task, dup_task, deep);
 }
 
-}  // namespace chi
+} // namespace chi
 
 static HSHM_INLINE_CROSS_FUN bool CHIMAERA_CLIENT_INIT() {
 #if defined(HSHM_IS_HOST)
@@ -382,4 +384,4 @@ static HSHM_INLINE_CROSS_FUN bool CHIMAERA_CLIENT_INIT() {
 
 #define HASH_TO_NODE_ID(hash) (1 + ((hash) % CHI_CLIENT->GetNumNodes()))
 
-#endif  // CHI_INCLUDE_CHI_CLIENT_CHI_CLIENT_DEFN_H_
+#endif // CHI_INCLUDE_CHI_CLIENT_CHI_CLIENT_DEFN_H_

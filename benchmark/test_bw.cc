@@ -38,7 +38,7 @@ void SyncIoTest(int rank, int nprocs, size_t msg_size, size_t ops_pp) {
       chi::DomainQuery::GetGlobalBcast(), "ipc_test");
   size_t domain_size = CHI_ADMIN->GetDomainSize(
       HSHM_MCTX, chi::DomainQuery::GetLocalHash(0),
-      chi::DomainId(client.id_, chi::SubDomain::kGlobalContainers));
+      chi::DomainId(client.pool_id_, chi::SubDomain::kGlobalContainers));
 
   hshm::MpiTimer t(MPI_COMM_WORLD);
   t.Resume();
