@@ -125,8 +125,7 @@ struct PriorityInfo {
   }
 
   /** Serialize Priority Info */
-  template <typename Ar>
-  HSHM_CROSS_FUN void serialize(Ar &ar) {
+  template <typename Ar> HSHM_CROSS_FUN void serialize(Ar &ar) {
     ar & prio_;
     ar & max_lanes_;
     ar & num_lanes_;
@@ -142,14 +141,14 @@ typedef hipc::Pointer LaneData;
 /** Queue token*/
 using hshm::qtok_t;
 
-/** Represents a lane tasks can be stored */
+/** Interprocess communication lane */
 class Lane : public hipc::ShmContainer {
- public:
+public:
   hipc::mpsc_queue<LaneData, CHI_ALLOC_T> queue_;
   QueueId id_;
   i32 worker_id_ = -1;
 
- public:
+public:
   /**====================================
    * Default Constructor
    * ===================================*/
@@ -243,7 +242,7 @@ class Lane : public hipc::ShmContainer {
     return queue_.emplace(std::forward<Args>(args)...);
   }
 
- public:
+public:
   /** Consumer pops the head object */
   HSHM_INLINE_CROSS_FUN
   qtok_t pop(LaneData &val) { return queue_.pop(val); }
@@ -274,7 +273,7 @@ class Lane : public hipc::ShmContainer {
 /** Prioritization of different lanes in the queue */
 struct LaneGroup : public PriorityInfo, public hipc::ShmContainer {
   chi::ipc::vector<Lane> lanes_; /**< The lanes of the queue */
-  u32 prio_;          /**< The priority of the lane group */
+  u32 prio_;                     /**< The priority of the lane group */
   u32 num_scheduled_; /**< The number of lanes currently scheduled on workers */
   u32 tether_; /**< Lanes should be pinned to the same workers as the tether's
                   prio group */
@@ -408,7 +407,7 @@ struct MultiQueue : public hipc::ShmContainer {
   QueueId id_;                         /**< Globally unique ID of this queue */
   ibitfield flags_;                    /**< Flags for the queue */
 
- public:
+public:
   /**====================================
    * Constructor
    * ===================================*/
@@ -580,6 +579,6 @@ struct MultiQueue : public hipc::ShmContainer {
   HSHM_INLINE void UnplugForUpdateTask() { flags_.UnsetBits(QUEUE_UPDATE); }
 };
 
-}  // namespace chi::ingress
+} // namespace chi::ingress
 
-#endif  // CHI_INCLUDE_CHI_QUEUE_MANAGER_QUEUE_H_
+#endif // CHI_INCLUDE_CHI_QUEUE_MANAGER_QUEUE_H_

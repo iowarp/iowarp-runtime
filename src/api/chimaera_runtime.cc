@@ -53,7 +53,6 @@ void Runtime::ServerInit(std::string server_config_path) {
   CHI_WORK_ORCHESTRATOR->ServerInit(server_config_);
   Admin::CreateTask *admin_create_task;
   Admin::CreatePoolTask *create_task;
-  u32 max_containers_pn = CHI_QM->max_containers_pn_;
   std::vector<UpdateDomainInfo> ops;
   std::vector<SubDomainId> containers;
 
@@ -100,10 +99,9 @@ void Runtime::ServerInit(std::string server_config_path) {
                                      proc_sched_id);
 
   // Create the remote queue library
-  remote_queue_.Create(
-      HSHM_MCTX, DomainQuery::GetLocalHash(0), DomainQuery::GetLocalHash(0),
-      "remote_queue",
-      CreateContext{CHI_CLIENT->MakePoolId(), 1, max_containers_pn});
+  remote_queue_.Create(HSHM_MCTX, DomainQuery::GetLocalHash(0),
+                       DomainQuery::GetLocalHash(0), "remote_queue",
+                       CreateContext{CHI_CLIENT->MakePoolId(), 1, 1});
   remote_created_ = true;
 }
 
@@ -156,7 +154,7 @@ void Runtime::InitSharedMemoryGpu() {
     ChiShm *header = main_alloc_->GetCustomHeader<ChiShm>();
     header->node_id_ = CHI_RPC->node_id_;
     header->unique_ =
-        (((u64)1) << 32);  // TODO(llogan): Make a separate unique for gpus
+        (((u64)1) << 32); // TODO(llogan): Make a separate unique for gpus
     header->num_nodes_ = server_config_->rpc_.host_names_.size();
   }
 
@@ -186,4 +184,4 @@ void Runtime::RunDaemon() {
   exit(0);
 }
 
-}  // namespace chi
+} // namespace chi

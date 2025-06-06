@@ -11,33 +11,30 @@ void QueueManager::ServerInit(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
   config_ = config;
   Init(node_id);
   config::QueueManagerInfo &qm = config_->queue_manager_;
-  // Initialize ticket queue (ticket 0 is for admin queue)
-  max_queues_ = qm.max_queues_;
-  max_containers_pn_ = qm.max_containers_pn_;
+  config::WorkOrchestratorInfo &wo = config_->wo_;
   // Initialize queue map
+  u32 num_queues = wo.cpus_.size();
   shm.queue_map_.shm_init(alloc);
   queue_map_ = shm.queue_map_.get();
   queue_map_->resize(2);
   // Create the admin queue (used internally by runtime)
   ingress::MultiQueue *queue;
-  queue = CreateQueue(
-      shm, admin_queue_id_,
-      {
-          {TaskPrioOpt::kLowLatency, qm.max_containers_pn_,
-           qm.max_containers_pn_, qm.queue_depth_, QUEUE_LOW_LATENCY},
-          {TaskPrioOpt::kHighLatency, qm.max_containers_pn_,
-           qm.max_containers_pn_, qm.queue_depth_, 0},
-      });
+  queue = CreateQueue(shm, admin_queue_id_,
+                      {
+                          {TaskPrioOpt::kLowLatency, num_queues, num_queues,
+                           qm.queue_depth_, QUEUE_LOW_LATENCY},
+                          {TaskPrioOpt::kHighLatency, num_queues, num_queues,
+                           qm.queue_depth_, 0},
+                      });
   queue->flags_.SetBits(QUEUE_READY);
   // Create the process (ingress) queue
-  queue = CreateQueue(
-      shm, process_queue_id_,
-      {
-          {TaskPrioOpt::kLowLatency, qm.max_containers_pn_,
-           qm.max_containers_pn_, qm.proc_queue_depth_, QUEUE_LOW_LATENCY},
-          {TaskPrioOpt::kHighLatency, qm.max_containers_pn_,
-           qm.max_containers_pn_, qm.proc_queue_depth_, 0},
-      });
+  queue = CreateQueue(shm, process_queue_id_,
+                      {
+                          {TaskPrioOpt::kLowLatency, num_queues, num_queues,
+                           qm.proc_queue_depth_, QUEUE_LOW_LATENCY},
+                          {TaskPrioOpt::kHighLatency, num_queues, num_queues,
+                           qm.proc_queue_depth_, 0},
+                      });
   queue->flags_.SetBits(QUEUE_READY);
 
   int num_gpus = CHI_RUNTIME->ngpu_;
@@ -52,14 +49,13 @@ void QueueManager::ServerInit(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
     gpu_shm.queue_map_.get()->resize(2);
     QueueId gpu_queue_id = process_queue_id_;
     gpu_queue_id.group_id_ = gpu_id + 3;
-    queue = CreateQueue(
-        gpu_shm, gpu_queue_id,
-        {
-            {TaskPrioOpt::kLowLatency, qm.max_containers_pn_,
-             qm.max_containers_pn_, qm.proc_queue_depth_, QUEUE_LOW_LATENCY},
-            {TaskPrioOpt::kHighLatency, qm.max_containers_pn_,
-             qm.max_containers_pn_, qm.proc_queue_depth_, 0},
-        });
+    queue = CreateQueue(gpu_shm, gpu_queue_id,
+                        {
+                            {TaskPrioOpt::kLowLatency, num_queues, num_queues,
+                             qm.proc_queue_depth_, QUEUE_LOW_LATENCY},
+                            {TaskPrioOpt::kHighLatency, num_queues, num_queues,
+                             qm.proc_queue_depth_, 0},
+                        });
     queue->flags_.SetBits(QUEUE_READY);
   }
 #endif
@@ -83,4 +79,4 @@ ingress::MultiQueue *QueueManager::CreateQueue(
 }
 #endif
 
-}  // namespace chi
+} // namespace chi

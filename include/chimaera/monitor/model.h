@@ -12,17 +12,17 @@
 namespace chi {
 
 class Model {
- public:
+public:
   std::vector<std::vector<float>> table_;
   std::vector<Load> predicted_;
   std::atomic<size_t> tail_ = 0;
   std::atomic<size_t> head_ = 0;
   size_t ncol_ = 0;
   size_t max_samples_ = 0;
-  CoMutex lock_;
+  // CoMutex lock_;
   std::ofstream log_;
 
- public:
+public:
   void TableShape(const std::string &name, size_t ncol, size_t max_samples) {
     ncol_ = ncol;
     max_samples_ = max_samples;
@@ -42,7 +42,7 @@ class Model {
     size_t head = head_.load();
     size_t pos = tail - head;
     if (pos >= max_samples_) {
-      return;  // Drop the sample
+      return; // Drop the sample
     }
     for (int i = 0; i < x.size(); i++) {
       table_[i][pos] = x[i];
@@ -85,6 +85,6 @@ class Model {
   }
 };
 
-}  // namespace chi
+} // namespace chi
 
-#endif  // CHIMAERA_INCLUDE_CHIMAERA_MONITOR_MODEL_H_
+#endif // CHIMAERA_INCLUDE_CHIMAERA_MONITOR_MODEL_H_

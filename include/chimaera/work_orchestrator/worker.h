@@ -212,19 +212,7 @@ public:
   size_t id_;
 
 public:
-  void Init(Worker *worker, size_t id, size_t pqdepth, size_t qdepth,
-            size_t max_lanes) {
-    worker_ = worker;
-    id_ = id;
-    HILOG(kInfo,
-          "Initializing private task multi queue with {} lanes and depth {}",
-          max_lanes, qdepth);
-    queues_[FLUSH].resize(max_lanes * qdepth);
-    queues_[FAIL].resize(max_lanes * qdepth);
-    queues_[REMAP].resize(max_lanes * qdepth);
-    // TODO(llogan): Don't hardcode lane queue depth
-    active_lanes_.resize(CHI_LANE_SIZE);
-  }
+  void Init(Worker *worker, size_t id, size_t pqdepth, size_t qdepth);
 
   PrivateLaneQueue &GetLowLatency() { return active_lanes_.GetLowLatency(); }
 

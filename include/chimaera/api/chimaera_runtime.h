@@ -25,27 +25,27 @@
 
 // Singleton macros
 #define CHI_RUNTIME hshm::Singleton<chi::Runtime>::GetInstance()
-#define CHI_RUNTIME_T chi::Runtime*
+#define CHI_RUNTIME_T chi::Runtime *
 #define CHI_REMOTE_QUEUE (&CHI_RUNTIME->remote_queue_)
 #define CHI_THALLIUM (&CHI_RUNTIME->thallium_)
 
 namespace chi {
 
 class Runtime : public ConfigurationManager {
- public:
+public:
   int data_;
   remote_queue::Client remote_queue_;
   ThalliumRpc thallium_;
   bool remote_created_ = false;
 
- public:
+public:
   /** Default constructor */
   Runtime() = default;
 
   /** Create the server-side API */
   HSHM_DLL void Create(std::string server_config_path = "");
 
- private:
+private:
   /** Initialize */
   void ServerInit(std::string server_config_path);
 
@@ -55,17 +55,14 @@ class Runtime : public ConfigurationManager {
   /** Initialize shared-memory between daemon and GPUs */
   void InitSharedMemoryGpu();
 
- public:
+public:
   /** Finalize Hermes explicitly */
   HSHM_DLL void Finalize();
 
   /** Run the Hermes core Daemon */
   HSHM_DLL void RunDaemon();
-
-  /** Get # of lanes from QueueManager */
-  size_t GetMaxContainersPn() { return CHI_QM->max_containers_pn_; }
 };
 
-}  // namespace chi
+} // namespace chi
 
-#endif  // CHI_INCLUDE_CHI_CLIENT_CHI_SERVER_H_
+#endif // CHI_INCLUDE_CHI_CLIENT_CHI_SERVER_H_

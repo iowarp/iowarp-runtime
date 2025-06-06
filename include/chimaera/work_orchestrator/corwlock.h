@@ -2,114 +2,83 @@
 // Created by llogan on 4/8/24.
 //
 
-#ifndef CHIMAERA_INCLUDE_CHIMAERA_WORK_ORCHESTRATOR_CORWLOCK_H_
-#define CHIMAERA_INCLUDE_CHIMAERA_WORK_ORCHESTRATOR_CORWLOCK_H_
+#ifndef CHIMAERA_INCLUDE_CHIMAERA_WORK_ORCHESTRATOR_CORWLOCK_DEFN_H_
+#define CHIMAERA_INCLUDE_CHIMAERA_WORK_ORCHESTRATOR_CORWLOCK_DEFN_H_
 
-#include "corwlock_defn.h"
-#include "work_orchestrator.h"
+#include "chimaera/module_registry/task.h"
 
 namespace chi {
 
-bool CoRwLock::TryReadLock() {
-  hshm::ScopedMutex scoped(mux_, 0);
-  if (rep_ == 0 || is_read_) {
-    is_read_ = true;
-    ++rep_;
-    return true;
-  }
-  return false;
-}
+struct CoRwLockEntry {
+  Task *task_;
+};
 
-void CoRwLock::ReadLock() {
-  hshm::ScopedMutex scoped(mux_, 0);
-  if (rep_ == 0 || is_read_) {
-    is_read_ = true;
-    ++rep_;
-    return;
-  }
-  Task *task = CHI_CUR_TASK;
-  TaskId task_root = task->task_node_.root_;
-  if (!is_read_ && root_ == task_root) {
-    HELOG(kFatal, "Recursively acquiring read lock during write!");
-  }
-  task->SetBlocked(1);
-  reader_set_.emplace_back((CoRwLockEntry){task});
-  scoped.Unlock();
-  task->Yield();
-}
+/** A mutex for yielding coroutines */
+class CoRwLock {
+public:
+  typedef std::vector<CoRwLockEntry> COMUTEX_QUEUE_T;
 
-void CoRwLock::ReadUnlock() {
-  hshm::ScopedMutex scoped(mux_, 0);
-  if (--rep_ == 0) {
-    is_read_ = false;
-    root_.SetNull();
-  } else {
-    return;
-  }
-  if (writer_map_.empty()) {
-    return;
-  }
-  order_.pop(root_);
-  COMUTEX_QUEUE_T &blocked = writer_map_[root_];
-  for (size_t i = 0; i < blocked.size(); ++i) {
-    Task *task = blocked[i].task_;
-    CHI_WORK_ORCHESTRATOR->SignalUnblock(task, task->rctx_);
-    ++rep_;
-  }
-  writer_map_.erase(root_);
-}
+public:
+  TaskId root_;
+  size_t rep_;
+  chi::ext_ring_buffer<TaskId> order_;
+  std::unordered_map<TaskId, COMUTEX_QUEUE_T> writer_map_;
+  COMUTEX_QUEUE_T reader_set_;
+  bool is_read_;
+  hshm::Mutex mux_;
 
-void CoRwLock::WriteLock() {
-  hshm::ScopedMutex scoped(mux_, 0);
-  Task *task = CHI_CUR_TASK;
-  TaskId task_root = task->task_node_.root_;
-  if (!is_read_) {
-    if (rep_ == 0 || root_ == task_root) {
-      root_ = task_root;
-      ++rep_;
-      return;
+public:
+  /** Default constructor */
+  CoRwLock();
+
+  bool TryReadLock();
+
+  void ReadLock();
+
+  void ReadUnlock();
+
+  void WriteLock();
+
+  void WriteUnlock();
+};
+
+class ScopedCoRwReadLock {
+public:
+  CoRwLock &mutex_;
+
+public:
+  ScopedCoRwReadLock(CoRwLock &mutex) : mutex_(mutex) { mutex_.ReadLock(); }
+
+  ~ScopedCoRwReadLock() { mutex_.ReadUnlock(); }
+};
+
+class ScopedCoRwTryReadLock {
+public:
+  CoRwLock &mutex_;
+  bool locked_;
+
+public:
+  ScopedCoRwTryReadLock(CoRwLock &mutex) : mutex_(mutex) {
+    locked_ = mutex_.TryReadLock();
+  }
+
+  ~ScopedCoRwTryReadLock() {
+    if (locked_) {
+      mutex_.ReadUnlock();
     }
-  } else if (is_read_ && root_ == task_root) {
-    HELOG(kFatal, "Recursively acquiring write lock during read!");
   }
-  task->SetBlocked(1);
-  if (writer_map_.find(task_root) == writer_map_.end()) {
-    writer_map_[task_root] = COMUTEX_QUEUE_T();
-    order_.push(task_root);
-  }
-  COMUTEX_QUEUE_T &blocked = writer_map_[task_root];
-  blocked.emplace_back((CoRwLockEntry){task});
-  scoped.Unlock();
-  task->Yield();
-}
+};
 
-void CoRwLock::WriteUnlock() {
-  hshm::ScopedMutex scoped(mux_, 0);
-  if (--rep_ == 0) {
-    root_.SetNull();
-  } else {
-    return;
-  }
-  if (!writer_map_.empty()) {
-    order_.pop(root_);
-    COMUTEX_QUEUE_T &blocked = writer_map_[root_];
-    for (size_t i = 0; i < blocked.size(); ++i) {
-      Task *task = blocked[i].task_;
-      CHI_WORK_ORCHESTRATOR->SignalUnblock(task, task->rctx_);
-      ++rep_;
-    }
-    writer_map_.erase(root_);
-  } else if (!reader_set_.empty()) {
-    is_read_ = true;
-    for (size_t i = 0; i < reader_set_.size(); ++i) {
-      Task *task = reader_set_[i].task_;
-      CHI_WORK_ORCHESTRATOR->SignalUnblock(task, task->rctx_);
-      ++rep_;
-    }
-    reader_set_.clear();
-  }
-}
+class ScopedCoRwWriteLock {
+public:
+  CoRwLock &mutex_;
 
-}  // namespace chi
+public:
+  ScopedCoRwWriteLock(CoRwLock &mutex) : mutex_(mutex) { mutex_.WriteLock(); }
 
-#endif  // CHIMAERA_INCLUDE_CHIMAERA_WORK_ORCHESTRATOR_CORWLOCK_H_
+  ~ScopedCoRwWriteLock() { mutex_.WriteUnlock(); }
+};
+
+} // namespace chi
+
+#endif // CHIMAERA_INCLUDE_CHIMAERA_WORK_ORCHESTRATOR_CORWLOCK_DEFN_H_

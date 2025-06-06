@@ -30,6 +30,17 @@ namespace chi {
 /**===============================================================
  * Private Task Multi Queue
  * =============================================================== */
+void PrivateTaskMultiQueue::Init(Worker *worker, size_t id, size_t pqdepth,
+                                 size_t qdepth) {
+  worker_ = worker;
+  id_ = id;
+  HILOG(kInfo, "Initializing private task multi queue with depth {}", qdepth);
+  queues_[FLUSH].resize(qdepth);
+  queues_[FAIL].resize(qdepth);
+  queues_[REMAP].resize(qdepth);
+  active_lanes_.resize(CHI_LANE_SIZE);
+}
+
 // Schedule the task to another node or to a local lane
 bool PrivateTaskMultiQueue::push(const FullPtr<Task> &task) {
 #ifdef CHIMAERA_REMOTE_DEBUG
@@ -161,53 +172,6 @@ bool PrivateTaskMultiQueue::PushRemoteTask(RunContext &rctx,
 }
 
 /**===============================================================
- * Lanes
- * =============================================================== */
-/**
- * Forward declaration of Lane:push templates
- * This was because ROCM compiler was not able to resolve the template
- * without this.
- */
-template hshm::qtok_t Lane::push<false>(const FullPtr<Task> &task);
-template hshm::qtok_t Lane::push<true>(const FullPtr<Task> &task);
-
-/** Push a task  */
-template <bool NO_COUNT> hshm::qtok_t Lane::push(const FullPtr<Task> &task) {
-  Worker &worker = CHI_WORK_ORCHESTRATOR->GetWorker(worker_id_);
-  Worker *cur_worker = CHI_CUR_WORKER;
-  if (!cur_worker || worker.id_ != cur_worker->id_) {
-    worker.active_.GetFail().push(task);
-    return hshm::qtok_t();
-  }
-  if constexpr (!NO_COUNT) {
-    size_t dup = count_.fetch_add(1);
-    if (dup == 0) {
-      HLOG(kDebug, kWorkerDebug,
-           "Requesting lane {} with count {} with task {}", this, dup,
-           task.ptr_);
-      worker.RequestLane(this);
-    } else {
-      HLOG(kDebug, kWorkerDebug, "Skipping lane {} with count {} with task {}",
-           this, dup, task.ptr_);
-    }
-  }
-  hshm::qtok_t ret = active_tasks_.push(task);
-  return ret;
-}
-
-/** Pop a set of tasks in sequence */
-size_t Lane::pop_prep(size_t count) { return count_.fetch_sub(count) - count; }
-
-/** Pop a task */
-hshm::qtok_t Lane::pop(FullPtr<Task> &task) {
-  hshm::qtok_t ret = active_tasks_.pop(task);
-  if (!ret.IsNull() && !task->IsLongRunning()) {
-    HLOG(kDebug, kWorkerDebug, "Popping task {} from {}", task.ptr_, this);
-  }
-  return ret;
-}
-
-/**===============================================================
  * Initialize Worker
  * =============================================================== */
 
@@ -221,10 +185,9 @@ Worker::Worker(WorkerId id, int cpu_id, ABT_xstream xstream) {
     AllocateStack();
   }
 
-  // MAX_DEPTH * [LOW_LAT, LONG_LAT]
+  // MAX_DEPTH * [LOW_LAT, HIGH_LAT]
   config::QueueManagerInfo &qm = CHI_QM->config_->queue_manager_;
-  active_.Init(this, id_, qm.proc_queue_depth_, qm.queue_depth_,
-               qm.max_containers_pn_);
+  active_.Init(this, id_, qm.proc_queue_depth_, qm.queue_depth_);
 
   // Monitoring phase
   monitor_gap_ = CHI_WORK_ORCHESTRATOR->monitor_gap_;

@@ -40,10 +40,10 @@ struct QueueManagerInfo {
   u32 queue_depth_;
   /** Maximum depth of process queue */
   u32 proc_queue_depth_;
-  /** Maximum number of lanes per IPC queue */
-  u32 max_containers_pn_;
-  /** Maximum number of allocatable IPC queues */
-  u32 max_queues_;
+  /** Maximum depth of comux */
+  u32 comux_depth_;
+  /** Maximum depth of lanes */
+  u32 lane_depth_;
   /** Shared memory region name */
   std::string shm_name_;
   /** Shared memory region size */
@@ -95,7 +95,7 @@ struct RpcInfo {
  * System configuration for Hermes
  */
 class ServerConfig : public BaseConfig {
- public:
+public:
   /** Work orchestrator info */
   WorkOrchestratorInfo wo_;
   /** Queue manager info */
@@ -105,21 +105,21 @@ class ServerConfig : public BaseConfig {
   /** Bootstrap task registry */
   std::vector<std::string> modules_;
 
- public:
+public:
   ServerConfig() = default;
   void LoadDefault();
 
- private:
+private:
   void ParseYAML(YAML::Node &yaml_conf);
   void ParseWorkOrchestrator(YAML::Node yaml_conf);
   void ParseQueueManager(YAML::Node yaml_conf);
   void ParseRpcInfo(YAML::Node yaml_conf);
 };
 
-}  // namespace chi::config
+} // namespace chi::config
 
 namespace chi {
 using ServerConfig = config::ServerConfig;
-}  // namespace chi
+} // namespace chi
 
-#endif  // CHI_SRC_CONFIG_SERVER_H_
+#endif // CHI_SRC_CONFIG_SERVER_H_

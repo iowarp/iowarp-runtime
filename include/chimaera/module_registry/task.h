@@ -29,6 +29,9 @@ using LocalSerialize = hipc::LocalSerialize<DataT>;
 
 class Module;
 class Lane;
+class Task;
+
+typedef FullPtr<Task> TaskPointer;
 
 /** This task reads a state */
 #define TASK_READ BIT_OPT(chi::IntFlag, 0)
@@ -100,7 +103,7 @@ struct TaskMethod {
 
 /** Monitoring modes */
 class MonitorMode {
- public:
+public:
   TASK_METHOD_T kEstLoad = 0;
   TASK_METHOD_T kSampleLoad = 1;
   TASK_METHOD_T kReinforceLoad = 2;
@@ -203,8 +206,7 @@ struct TaskNode {
   bool IsRoot() const { return node_depth_ == 0; }
 
   /** Serialization*/
-  template <typename Ar>
-  HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
+  template <typename Ar> HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {
     ar(root_, node_depth_);
   }
 
@@ -249,9 +251,8 @@ class IsTask {};
 #define USES_SRL_END(T) T::SRL_SYM_END
 
 /** Compile-time flags indicating task methods and operation support */
-template <chi::IntFlag FLAGS>
-struct TaskFlags : public IsTask {
- public:
+template <chi::IntFlag FLAGS> struct TaskFlags : public IsTask {
+public:
   TASK_FLAG_T IS_LOCAL = FLAGS & TF_LOCAL;
   TASK_FLAG_T REPLICA = FLAGS & TF_REPLICA;
   TASK_FLAG_T SUPPORTS_SRL = FLAGS & (TF_SRL_SYM | TF_SRL_ASYM);
@@ -263,7 +264,7 @@ struct TaskFlags : public IsTask {
 
 /** Prioritization of tasks */
 class TaskPrioOpt {
- public:
+public:
   CLS_CONST TaskPrio kLowLatency = 0;  /**< Low latency task lane */
   CLS_CONST TaskPrio kHighLatency = 1; /**< High latency task lane */
   CLS_CONST TaskPrio kNumPrio = 2;     /**< Number of priorities */
@@ -311,7 +312,7 @@ struct RunContext {
 
 /** A generic task base class */
 struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
- public:
+public:
   PoolId pool_;           /**< The unique name of a pool */
   TaskNode task_node_;    /**< The unique ID of this task in the graph */
   DomainQuery dom_query_; /**< The nodes that the task should run on */
@@ -634,8 +635,7 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
   }
 
   /** Yield the task */
-  template <int THREAD_MODEL = 0>
-  HSHM_INLINE_CROSS_FUN void YieldFactory() {
+  template <int THREAD_MODEL = 0> HSHM_INLINE_CROSS_FUN void YieldFactory() {
     if constexpr (THREAD_MODEL == TASK_YIELD_CO) {
       YieldCo();
     } else {
@@ -845,14 +845,12 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
   /**====================================
    * Serialization
    * ===================================*/
-  template <typename Ar>
-  HSHM_INLINE_CROSS_FUN void task_serialize(Ar &ar) {
+  template <typename Ar> HSHM_INLINE_CROSS_FUN void task_serialize(Ar &ar) {
     // NOTE(llogan): don't serialize start_ because of clock drift
     ar(pool_, task_node_, dom_query_, prio_, method_, task_flags_, period_ns_);
   }
 
-  template <typename TaskT>
-  HSHM_INLINE_CROSS_FUN void task_dup(TaskT &other) {
+  template <typename TaskT> HSHM_INLINE_CROSS_FUN void task_dup(TaskT &other) {
     pool_ = other.pool_;
     task_node_ = other.task_node_;
     dom_query_ = other.dom_query_;
@@ -871,6 +869,6 @@ struct Task : public hipc::ShmContainer, public hipc::list_queue_entry {
 #define INOUT
 #define TEMP
 
-}  // namespace chi
+} // namespace chi
 
-#endif  // CHI_TASK_DEFN_H
+#endif // CHI_TASK_DEFN_H

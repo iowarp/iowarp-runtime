@@ -49,11 +49,11 @@ void ServerConfig::ParseQueueManager(YAML::Node yaml_conf) {
     queue_manager_.proc_queue_depth_ =
         yaml_conf["proc_queue_depth"].as<size_t>();
   }
-  if (yaml_conf["max_lanes"]) {
-    queue_manager_.max_containers_pn_ = yaml_conf["max_lanes"].as<size_t>();
+  if (yaml_conf["comux_depth"]) {
+    queue_manager_.comux_depth_ = yaml_conf["comux_depth"].as<size_t>();
   }
-  if (yaml_conf["max_queues"]) {
-    queue_manager_.max_queues_ = yaml_conf["max_queues"].as<size_t>();
+  if (yaml_conf["lane_depth"]) {
+    queue_manager_.lane_depth_ = yaml_conf["lane_depth"].as<size_t>();
   }
   if (yaml_conf["shm_name"]) {
     queue_manager_.shm_name_ =
@@ -138,4 +138,4 @@ void ServerConfig::LoadDefault() {
   LoadText(kChiServerDefaultConfigStr, false);
 }
 
-}  // namespace chi::config
+} // namespace chi::config

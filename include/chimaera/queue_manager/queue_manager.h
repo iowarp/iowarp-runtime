@@ -35,19 +35,18 @@ struct QueueManagerShm {
 
 /** A base class inherited by Client & Server QueueManagers */
 class QueueManager {
- public:
+public:
   chi::ipc::vector<ingress::MultiQueue>
       *queue_map_; /**< Queues which directly interact with tasks states */
   NodeId node_id_; /**< The ID of the node this QueueManager is on */
   QueueId admin_queue_id_ = ADMIN_QUEUE_ID;     /**< Admin queue ID */
   QueueId process_queue_id_ = PROCESS_QUEUE_ID; /**< Process queue ID */
   PoolId admin_pool_id_ = ADMIN_POOL_ID;        /**< Admin pool ID */
+  size_t lane_size_;
   ServerConfig *config_;
-  size_t max_queues_;
-  size_t max_containers_pn_;
   hipc::CtxAllocator<CHI_ALLOC_T> alloc_;
 
- public:
+public:
   /**
    * Get a queue by ID
    * */
@@ -73,9 +72,9 @@ class QueueManager {
                   ServerConfig *config, QueueManagerShm &shm);
 
   /** Create a new queue (with pre-allocated ID) in the map */
-  ingress::MultiQueue *CreateQueue(
-      QueueManagerShm &shm, const QueueId &id,
-      const std::vector<ingress::PriorityInfo> &queue_info);
+  ingress::MultiQueue *
+  CreateQueue(QueueManagerShm &shm, const QueueId &id,
+              const std::vector<ingress::PriorityInfo> &queue_info);
 
   /**
    * Remove a queue
@@ -88,16 +87,16 @@ class QueueManager {
   }
 #endif
 
- private:
+private:
   HSHM_INLINE_CROSS_FUN
   void Init(NodeId node_id) { node_id_ = node_id; }
 };
 
 /** Singleton queue manager */
 HSHM_DEFINE_GLOBAL_CROSS_PTR_VAR_H(QueueManager, chiQueueManager);
-#define CHI_QM \
+#define CHI_QM                                                                 \
   HSHM_GET_GLOBAL_CROSS_PTR_VAR(chi::QueueManager, chi::chiQueueManager)
 
-}  // namespace chi
+} // namespace chi
 
-#endif  // CHI_INCLUDE_CHI_QUEUE_MANAGER_QUEUE_MANAGER_H_
+#endif // CHI_INCLUDE_CHI_QUEUE_MANAGER_QUEUE_MANAGER_H_

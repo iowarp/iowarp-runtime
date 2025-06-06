@@ -13,120 +13,30 @@
 #ifndef CHI_INCLUDE_CHI_TASK_TASK_H_
 #define CHI_INCLUDE_CHI_TASK_TASK_H_
 
-#ifdef _WIN32
-#include <windows.h>
-#else
-#include <dlfcn.h>
-#endif
-
 #include "chimaera/chimaera_types.h"
 #include "chimaera/network/serialize_defn.h"
-#include "chimaera/queue_manager/queue.h"
-#include "chimaera/work_orchestrator/comutex_defn.h"
-#include "chimaera/work_orchestrator/corwlock_defn.h"
+#include "module_queue.h"
 #include "task.h"
 
 namespace chi {
 
-typedef FullPtr<Task> TaskPointer;
+/** Forward declaration of Module */
+class Module;
 
-/** The information of a lane */
-class Lane {
- public:
-  LaneId lane_id_;
-  TaskPrio prio_;
-  LaneGroupId group_id_;
-  WorkerId worker_id_;
-  Load load_;
-  CoMutex comux_;
-  hipc::atomic<hshm::min_u64> plug_count_;
-  size_t lane_req_;
-  chi::ext_ring_buffer<TaskPointer> active_tasks_;
-  // chi::mpsc_queue<TaskPointer> active_tasks_;
-  hipc::atomic<hshm::min_u64> count_;
-
- public:
-  /** Default constructor */
-  Lane() = default;
-
-  /** Emplace constructor */
-  explicit Lane(LaneId lane_id, TaskPrio prio, LaneGroupId group_id,
-                WorkerId worker_id)
-      : lane_id_(lane_id),
-        prio_(prio),
-        group_id_(group_id),
-        worker_id_(worker_id) {
-    plug_count_ = 0;
-    count_ = (hshm::min_u64)0;
-    // TODO(llogan): Don't hardcode size
-    active_tasks_.resize(CHI_LANE_SIZE);
-  }
-
-  /** Copy constructor */
-  Lane(const Lane &lane) {
-    lane_id_ = lane.lane_id_;
-    worker_id_ = lane.worker_id_;
-    load_ = lane.load_;
-    plug_count_ = lane.plug_count_.load();
-    prio_ = lane.prio_;
-    // TODO(llogan): Don't hardcode size
-    active_tasks_.resize(CHI_LANE_SIZE);
-  }
-
-#ifdef CHIMAERA_RUNTIME
-  /** Push a task  */
-  template <bool NO_COUNT>
-  hshm::qtok_t push(const FullPtr<Task> &task);
-
-  /** Say we are about to pop a set of tasks */
-  size_t pop_prep(size_t count);
-
-  /** Pop a task */
-  hshm::qtok_t pop(FullPtr<Task> &task);
-#endif
-
-  size_t size() { return count_.load(); }
-
-  bool IsPlugged() { return plug_count_.load() > 0; }
-
-  void SetPlugged() { plug_count_ += 1; }
-
-  void UnsetPlugged() { plug_count_ -= 1; }
-};
-
-/** A group of lanes */
-struct LaneGroup {
-  chi::IntFlag flags_;
-  std::vector<Lane> all_lanes_;
-  std::vector<Lane *> lanes_[TaskPrioOpt::kNumPrio];
-
-  LaneGroup(chi::IntFlag flags) : flags_(flags) {}
-
-  Lane *get(TaskPrio prio, u32 idx) { return lanes_[prio][idx]; }
-
-  void reserve(u32 count) {
-    all_lanes_.reserve(2 * count);
-    for (u32 i = 0; i < TaskPrioOpt::kNumPrio; ++i) {
-      lanes_[i].reserve(count);
-    }
-  }
-
-  void emplace_back(LaneId lane_id, TaskPrio prio, LaneGroupId group_id,
-                    WorkerId worker_id) {
-    all_lanes_.emplace_back(lane_id, prio, group_id, worker_id);
-    lanes_[prio].emplace_back(&all_lanes_.back());
-  }
-
-  size_t size() { return lanes_[0].size(); }
-};
+/** Represents a Module in action */
+typedef Module Container;
 
 /**
  * Represents a custom operation to perform.
  * Tasks are independent of Hermes.
  * */
+#ifdef CHIMAERA_RUNTIME
 class Module {
- public:
-  PoolId id_;                /**< The unique name of a pool */
+public:
+  union {
+    PoolId id_; /**< The unique name of a pool */
+    PoolId pool_id_;
+  };
   QueueId queue_id_;         /**< The queue id of a pool */
   std::string name_;         /**< The unique semantic name of a pool */
   ContainerId container_id_; /**< The logical id of a container */
@@ -135,7 +45,51 @@ class Module {
   bool is_created_ = false;
 
   /** Default constructor */
-  Module() : id_(PoolId::GetNull()) {}
+  Module() : pool_id_(PoolId::GetNull()) {}
+
+  /** Copy constructor */
+  Module(const Module &other) : pool_id_(other.pool_id_) {
+    queue_id_ = other.queue_id_;
+    name_ = other.name_;
+    container_id_ = other.container_id_;
+    is_created_ = other.is_created_;
+    lane_groups_ = other.lane_groups_;
+  }
+
+  /** Move constructor */
+  Module(Module &&other) noexcept : pool_id_(std::move(other.pool_id_)) {
+    queue_id_ = other.queue_id_;
+    name_ = other.name_;
+    container_id_ = other.container_id_;
+    is_created_ = other.is_created_;
+    lane_groups_ = other.lane_groups_;
+  }
+
+  /** Copy assignment operator */
+  Module &operator=(const Module &other) {
+    if (this != &other) {
+      pool_id_ = other.pool_id_;
+      queue_id_ = other.queue_id_;
+      name_ = other.name_;
+      container_id_ = other.container_id_;
+      is_created_ = other.is_created_;
+      lane_groups_ = other.lane_groups_;
+    }
+    return *this;
+  }
+
+  /** Move assignment operator */
+  Module &operator=(Module &&other) noexcept {
+    if (this != &other) {
+      pool_id_ = std::move(other.pool_id_);
+      queue_id_ = other.queue_id_;
+      name_ = other.name_;
+      container_id_ = other.container_id_;
+      is_created_ = other.is_created_;
+      lane_groups_ = other.lane_groups_;
+    }
+    return *this;
+  }
 
   /** Emplace Constructor */
   void Init(const PoolId &id, const QueueId &queue_id,
@@ -243,27 +197,25 @@ class Module {
   HSHM_DLL virtual void LoadEnd(u32 method, BinaryInputArchive<false> &ar,
                                 Task *task) = 0;
 };
-
-/** Represents a Module in action */
-typedef Module Container;
+#endif // CHIMAERA_RUNTIME
 
 /** Represents the Module client-side */
 class ModuleClient {
- public:
+public:
   union {
-    PoolId id_;  // NOTE(llogan): Deprecated, please use pool_id_ instead
+    PoolId id_; // NOTE(llogan): Deprecated, please use pool_id_ instead
     PoolId pool_id_;
   };
   QueueId queue_id_;
 
- public:
+public:
   /** Init from existing ID */
   HSHM_CROSS_FUN
   void Init(const PoolId &id, const QueueId &queue_id) {
     if (id.IsNull()) {
       HELOG(kWarning, "Failed to create pool");
     }
-    id_ = id;
+    pool_id_ = id;
     // queue_id_ = QueueId(id_);
     queue_id_ = queue_id;
   }
@@ -313,8 +265,7 @@ class ModuleClient {
     return *this;
   }
 
-  template <typename Ar>
-  void serialize(Ar &ar) {
+  template <typename Ar> void serialize(Ar &ar) {
     ar(id_);
     ar(queue_id_);
   }
@@ -328,28 +279,28 @@ typedef Container *(*new_state_t)(const chi::PoolId *pool_id,
                                   const char *pool_name);
 /** Get the name of a task */
 typedef const char *(*get_module_name_t)(void);
-}  // extern c
+} // extern c
 
 /** Used internally by task source file */
-#define CHI_TASK_CC(TRAIT_CLASS, MOD_NAME)                                  \
-  extern "C" {                                                              \
-  HSHM_DLL void *alloc_state(const chi::PoolId *pool_id,                    \
-                             const char *pool_name) {                       \
-    chi::Container *exec =                                                  \
-        reinterpret_cast<chi::Container *>(new TYPE_UNWRAP(TRAIT_CLASS)()); \
-    return exec;                                                            \
-  }                                                                         \
-  HSHM_DLL void *new_state(const chi::PoolId *pool_id,                      \
-                           const char *pool_name) {                         \
-    chi::Container *exec =                                                  \
-        reinterpret_cast<chi::Container *>(new TYPE_UNWRAP(TRAIT_CLASS)()); \
-    exec->Init(*pool_id, CHI_CLIENT->GetQueueId(*pool_id), pool_name);      \
-    return exec;                                                            \
-  }                                                                         \
-  HSHM_DLL const char *get_module_name(void) { return MOD_NAME; }           \
-  HSHM_DLL bool is_chimaera_task_ = true;                                   \
+#define CHI_TASK_CC(TRAIT_CLASS, MOD_NAME)                                     \
+  extern "C" {                                                                 \
+  HSHM_DLL void *alloc_state(const chi::PoolId *pool_id,                       \
+                             const char *pool_name) {                          \
+    chi::Container *exec =                                                     \
+        reinterpret_cast<chi::Container *>(new TYPE_UNWRAP(TRAIT_CLASS)());    \
+    return exec;                                                               \
+  }                                                                            \
+  HSHM_DLL void *new_state(const chi::PoolId *pool_id,                         \
+                           const char *pool_name) {                            \
+    chi::Container *exec =                                                     \
+        reinterpret_cast<chi::Container *>(new TYPE_UNWRAP(TRAIT_CLASS)());    \
+    exec->Init(*pool_id, CHI_CLIENT->GetQueueId(*pool_id), pool_name);         \
+    return exec;                                                               \
+  }                                                                            \
+  HSHM_DLL const char *get_module_name(void) { return MOD_NAME; }              \
+  HSHM_DLL bool is_chimaera_task_ = true;                                      \
   }
 
-}  // namespace chi
+} // namespace chi
 
-#endif  // CHI_INCLUDE_CHI_TASK_TASK_H_
+#endif // CHI_INCLUDE_CHI_TASK_TASK_H_

@@ -21,35 +21,35 @@
 namespace chi::Admin {
 
 class Server : public Module {
- public:
+public:
   CLS_CONST LaneGroupId kDefaultGroup = 0;
   Task *queue_sched_;
   Task *proc_sched_;
   RollingAverage monitor_[Method::kCount];
 
- public:
+public:
   Server() : queue_sched_(nullptr), proc_sched_(nullptr) {}
 
   /** Basic monitoring function */
   void MonitorBase(MonitorModeId mode, MethodId method, Task *task,
                    RunContext &rctx) {
     switch (mode) {
-      case MonitorMode::kEstLoad: {
-        rctx.load_.cpu_load_ = monitor_[method].Predict();
-        break;
-      }
-      case MonitorMode::kSampleLoad: {
-        monitor_[method].Add(rctx.timer_->GetNsec(), rctx.load_);
-        break;
-      }
-      case MonitorMode::kReinforceLoad: {
-        monitor_[method].DoTrain();
-        break;
-      }
-      case MonitorMode::kReplicaAgg: {
-        std::vector<FullPtr<Task>> &replicas = *rctx.replicas_;
-        break;
-      }
+    case MonitorMode::kEstLoad: {
+      rctx.load_.cpu_load_ = monitor_[method].Predict();
+      break;
+    }
+    case MonitorMode::kSampleLoad: {
+      monitor_[method].Add(rctx.timer_->GetNsec(), rctx.load_);
+      break;
+    }
+    case MonitorMode::kReinforceLoad: {
+      monitor_[method].DoTrain();
+      break;
+    }
+    case MonitorMode::kReplicaAgg: {
+      std::vector<FullPtr<Task>> &replicas = *rctx.replicas_;
+      break;
+    }
     }
   }
 
@@ -202,7 +202,7 @@ class Server : public Module {
       global_containers = CHI_RPC->hosts_.size();
     }
     if (local_containers_pn == 0) {
-      local_containers_pn = CHI_RUNTIME->GetMaxContainersPn();
+      local_containers_pn = 1;
     }
     // Update the default domains for the state
     std::vector<UpdateDomainInfo> ops = CHI_RPC->CreateDefaultDomains(
@@ -234,24 +234,24 @@ class Server : public Module {
   void MonitorCreatePool(MonitorModeId mode, CreatePoolTask *task,
                          RunContext &rctx) {
     switch (mode) {
-      case MonitorMode::kEstLoad: {
-        rctx.load_.cpu_load_ = monitor_[Method::kCreatePool].Predict();
-        break;
-      }
-      case MonitorMode::kSampleLoad: {
-        monitor_[Method::kCreatePool].Add(rctx.timer_->GetNsec(), rctx.load_);
-        break;
-      }
-      case MonitorMode::kReinforceLoad: {
-        monitor_[Method::kCreatePool].DoTrain();
-        break;
-      }
-      case MonitorMode::kReplicaAgg: {
-        std::vector<FullPtr<Task>> &replicas = *rctx.replicas_;
-        auto replica = reinterpret_cast<CreatePoolTask *>(replicas[0].ptr_);
-        task->ctx_ = replica->ctx_;
-        break;
-      }
+    case MonitorMode::kEstLoad: {
+      rctx.load_.cpu_load_ = monitor_[Method::kCreatePool].Predict();
+      break;
+    }
+    case MonitorMode::kSampleLoad: {
+      monitor_[Method::kCreatePool].Add(rctx.timer_->GetNsec(), rctx.load_);
+      break;
+    }
+    case MonitorMode::kReinforceLoad: {
+      monitor_[Method::kCreatePool].DoTrain();
+      break;
+    }
+    case MonitorMode::kReplicaAgg: {
+      std::vector<FullPtr<Task>> &replicas = *rctx.replicas_;
+      auto replica = reinterpret_cast<CreatePoolTask *>(replicas[0].ptr_);
+      task->ctx_ = replica->ctx_;
+      break;
+    }
     }
   }
 
@@ -263,23 +263,23 @@ class Server : public Module {
   void MonitorGetPoolId(MonitorModeId mode, GetPoolIdTask *task,
                         RunContext &rctx) {
     switch (mode) {
-      case MonitorMode::kEstLoad: {
-        rctx.load_.cpu_load_ = monitor_[Method::kGetPoolId].Predict();
-        break;
-      }
-      case MonitorMode::kSampleLoad: {
-        monitor_[Method::kGetPoolId].Add(rctx.timer_->GetNsec(), rctx.load_);
-        break;
-      }
-      case MonitorMode::kReinforceLoad: {
-        monitor_[Method::kGetPoolId].DoTrain();
-        break;
-      }
-      case MonitorMode::kReplicaAgg: {
-        std::vector<FullPtr<Task>> &replicas = *rctx.replicas_;
-        auto replica = reinterpret_cast<GetPoolIdTask *>(replicas[0].ptr_);
-        task->id_ = replica->id_;
-      }
+    case MonitorMode::kEstLoad: {
+      rctx.load_.cpu_load_ = monitor_[Method::kGetPoolId].Predict();
+      break;
+    }
+    case MonitorMode::kSampleLoad: {
+      monitor_[Method::kGetPoolId].Add(rctx.timer_->GetNsec(), rctx.load_);
+      break;
+    }
+    case MonitorMode::kReinforceLoad: {
+      monitor_[Method::kGetPoolId].DoTrain();
+      break;
+    }
+    case MonitorMode::kReplicaAgg: {
+      std::vector<FullPtr<Task>> &replicas = *rctx.replicas_;
+      auto replica = reinterpret_cast<GetPoolIdTask *>(replicas[0].ptr_);
+      task->id_ = replica->id_;
+    }
     }
   }
 
@@ -325,23 +325,23 @@ class Server : public Module {
   void Flush(FlushTask *task, RunContext &rctx) {}
   void MonitorFlush(MonitorModeId mode, FlushTask *task, RunContext &rctx) {
     switch (mode) {
-      case MonitorMode::kEstLoad: {
-        rctx.load_.cpu_load_ = monitor_[Method::kFlush].Predict();
-        break;
-      }
-      case MonitorMode::kSampleLoad: {
-        monitor_[Method::kFlush].Add(rctx.timer_->GetNsec(), rctx.load_);
-        break;
-      }
-      case MonitorMode::kReinforceLoad: {
-        monitor_[Method::kFlush].DoTrain();
-        break;
-      }
-      case MonitorMode::kReplicaAgg: {
-        std::vector<FullPtr<Task>> &replicas = *rctx.replicas_;
-        auto replica = reinterpret_cast<FlushTask *>(replicas[0].ptr_);
-        task->work_done_ += replica->work_done_;
-      }
+    case MonitorMode::kEstLoad: {
+      rctx.load_.cpu_load_ = monitor_[Method::kFlush].Predict();
+      break;
+    }
+    case MonitorMode::kSampleLoad: {
+      monitor_[Method::kFlush].Add(rctx.timer_->GetNsec(), rctx.load_);
+      break;
+    }
+    case MonitorMode::kReinforceLoad: {
+      monitor_[Method::kFlush].DoTrain();
+      break;
+    }
+    case MonitorMode::kReplicaAgg: {
+      std::vector<FullPtr<Task>> &replicas = *rctx.replicas_;
+      auto replica = reinterpret_cast<FlushTask *>(replicas[0].ptr_);
+      task->work_done_ += replica->work_done_;
+    }
     }
   }
 
@@ -367,16 +367,16 @@ class Server : public Module {
   void MonitorPollStats(MonitorModeId mode, PollStatsTask *task,
                         RunContext &rctx) {
     switch (mode) {
-      case MonitorMode::kReplicaAgg: {
-        std::vector<FullPtr<Task>> &replicas = *rctx.replicas_;
-      }
+    case MonitorMode::kReplicaAgg: {
+      std::vector<FullPtr<Task>> &replicas = *rctx.replicas_;
+    }
     }
   }
 
- public:
+public:
 #include "chimaera_admin/chimaera_admin_lib_exec.h"
 };
 
-}  // namespace chi::Admin
+} // namespace chi::Admin
 
 CHI_TASK_CC(chi::Admin::Server, "chimaera_admin");

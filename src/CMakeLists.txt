@@ -5,7 +5,7 @@ set(CLIENT_SOURCES
   api/chimaera_client.cc
   config/config_client.cc
   config/config_server.cc
-  module_registry/module.cc
+  # module_registry/module.cc
   module_registry/task.cc
 )
 set(chimaera_client_exports)
@@ -61,12 +61,15 @@ set(RUNTIME_SOURCES
   config/config_client.cc
   config/config_server.cc
   module_registry/module.cc
+  module_registry/module_queue.cc
   module_registry/task.cc
   module_registry/module_registry.cc
   work_orchestrator/work_orchestrator.cc
   work_orchestrator/python_wrapper.cc
   work_orchestrator/reinforce_worker.cc
   work_orchestrator/worker.cc
+  work_orchestrator/comutex.cc
+  work_orchestrator/corwlock.cc
   queue_manager/queue_manager.cc
 )
 set(chimaera_runtime_exports)

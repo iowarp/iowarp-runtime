@@ -13,6 +13,8 @@
 #ifndef CHI_INCLUDE_CHI_TASK_TASK_REGISTRY_H_
 #define CHI_INCLUDE_CHI_TASK_TASK_REGISTRY_H_
 
+#ifdef CHIMAERA_RUNTIME
+
 #include <cstdlib>
 #include <filesystem>
 #include <sstream>
@@ -31,13 +33,12 @@ namespace chi {
 /** Forward declaration of CreatePoolTask */
 namespace Admin {
 class CreateTaskParams;
-template <typename TaskParamsT>
-class CreatePoolBaseTask;
-}  // namespace Admin
+template <typename TaskParamsT> class CreatePoolBaseTask;
+} // namespace Admin
 
 /** All information needed to create a trait */
 struct ModuleInfo {
-  void *lib_ = nullptr;              /**< The dlfcn library */
+  hshm::SharedLibrary lib_;          /**< The dlfcn library */
   alloc_state_t alloc_state_;        /**< The static create function */
   new_state_t new_state_;            /**< The non-static create function */
   get_module_name_t get_module_name; /**< The get task name function */
@@ -54,48 +55,19 @@ struct ModuleInfo {
   /** Default constructor */
   ModuleInfo() = default;
 
-  /** Destructor */
-  ~ModuleInfo() {
-    if (lib_) {
-      dlclose(lib_);
-    }
-  }
-
-  /** Copy constructor */
-  ModuleInfo(const ModuleInfo &other) {
-    lib_ = other.lib_;
-    alloc_state_ = other.alloc_state_;
-    new_state_ = other.new_state_;
-    get_module_name = other.get_module_name;
-    static_state_ = other.static_state_;
-  }
-
   /** Move constructor */
   ModuleInfo(ModuleInfo &&other) noexcept {
-    lib_ = other.lib_;
-    other.lib_ = nullptr;
+    lib_ = std::move(other.lib_);
     alloc_state_ = other.alloc_state_;
     new_state_ = other.new_state_;
     get_module_name = other.get_module_name;
     static_state_ = other.static_state_;
-  }
-
-  /** Copy assignment operator */
-  ModuleInfo &operator=(const ModuleInfo &other) {
-    if (this != &other) {
-      lib_ = other.lib_;
-      alloc_state_ = other.alloc_state_;
-      new_state_ = other.new_state_;
-      get_module_name = other.get_module_name;
-      static_state_ = other.static_state_;
-    }
-    return *this;
   }
 
   /** Move assignment operator */
   ModuleInfo &operator=(ModuleInfo &&other) noexcept {
     if (this != &other) {
-      lib_ = other.lib_;
+      lib_ = std::move(other.lib_);
       alloc_state_ = other.alloc_state_;
       new_state_ = other.new_state_;
       get_module_name = other.get_module_name;
@@ -115,7 +87,7 @@ struct PoolInfo {
  * Stores the registered set of Modules and Containers
  * */
 class ModuleRegistry {
- public:
+public:
   /** The node the registry is on */
   NodeId node_id_;
   /** The dirs to search for modules */
@@ -131,7 +103,7 @@ class ModuleRegistry {
   Mutex lock_;
   CoRwLock upgrade_lock_;
 
- public:
+public:
   /** Default constructor */
   ModuleRegistry() { lock_.Init(); }
 
@@ -217,22 +189,22 @@ class ModuleRegistry {
   bool LoadModuleAtPath(const std::string &lib_name,
                         const std::string &lib_path, ModuleInfo &info) {
     // Load the library
-    info.lib_ = dlopen(lib_path.c_str(), RTLD_GLOBAL | RTLD_NOW);
-    if (!info.lib_) {
+    info.lib_.Load(lib_path);
+    if (info.lib_.IsNull()) {
       HELOG(kError, "Could not open the lib library: {}. Reason: {}", lib_path,
-            dlerror());
+            info.lib_.GetError());
       return false;
     }
 
     // Get the allocate state function
-    info.alloc_state_ = (alloc_state_t)dlsym(info.lib_, "alloc_state");
+    info.alloc_state_ = (alloc_state_t)info.lib_.GetSymbol("alloc_state");
     if (!info.alloc_state_) {
       HELOG(kError, "The lib {} does not have alloc_state symbol", lib_path);
       return false;
     }
 
     // Get the new state function
-    info.new_state_ = (new_state_t)dlsym(info.lib_, "new_state");
+    info.new_state_ = (new_state_t)info.lib_.GetSymbol("new_state");
     if (!info.new_state_) {
       HELOG(kError, "The lib {} does not have new_state symbol", lib_path);
       return false;
@@ -240,7 +212,7 @@ class ModuleRegistry {
 
     // Get the module name function
     info.get_module_name =
-        (get_module_name_t)dlsym(info.lib_, "get_module_name");
+        (get_module_name_t)info.lib_.GetSymbol("get_module_name");
     if (!info.get_module_name) {
       HELOG(kError, "The lib {} does not have get_module_name symbol",
             lib_path);
@@ -497,6 +469,8 @@ class ModuleRegistry {
 
 /** Singleton macro for task registry */
 #define CHI_MOD_REGISTRY hshm::Singleton<chi::ModuleRegistry>::GetInstance()
-}  // namespace chi
+} // namespace chi
 
-#endif  // CHI_INCLUDE_CHI_TASK_TASK_REGISTRY_H_
+#endif // CHIMAERA_RUNTIME
+
+#endif // CHI_INCLUDE_CHI_TASK_TASK_REGISTRY_H_
