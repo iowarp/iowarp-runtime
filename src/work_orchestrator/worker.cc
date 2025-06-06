@@ -10,6 +10,7 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
+#include <hermes_shm/thread/thread_model_manager.h>
 #include <hermes_shm/util/affinity.h>
 #include <hermes_shm/util/logging.h>
 #include <hermes_shm/util/timer.h>
@@ -176,7 +177,7 @@ bool PrivateTaskMultiQueue::PushRemoteTask(RunContext &rctx,
  * =============================================================== */
 
 /** Constructor */
-Worker::Worker(WorkerId id, int cpu_id, ABT_xstream xstream) {
+Worker::Worker(WorkerId id, int cpu_id, const hshm::ThreadGroup &xstream) {
   id_ = id;
   sleep_us_ = 0;
   pid_ = 0;
@@ -199,8 +200,7 @@ Worker::Worker(WorkerId id, int cpu_id, ABT_xstream xstream) {
 
 /** Spawn worker thread */
 void Worker::Spawn() {
-  tl_thread_ = CHI_WORK_ORCHESTRATOR->SpawnAsyncThread(
-      xstream_, &Worker::WorkerEntryPoint, this);
+  thread_ = HSHM_THREAD_MODEL->Spawn(xstream_, &Worker::WorkerEntryPoint, this);
 }
 
 /**===============================================================
@@ -656,10 +656,7 @@ ibitfield Worker::GetTaskProperties(Task *&task, bool flushing) {
 }
 
 /** Join worker */
-void Worker::Join() {
-  // thread_->join();
-  ABT_xstream_join(xstream_);
-}
+void Worker::Join() { HSHM_THREAD_MODEL->Join(thread_); }
 
 /** Set the sleep cycle */
 void Worker::SetPollingFrequency(size_t sleep_us) {
@@ -697,7 +694,7 @@ bool Worker::IsLowLatency() { return flags_.Any(WORKER_LOW_LATENCY); }
 /** Set the CPU affinity of this worker */
 void Worker::SetCpuAffinity(int cpu_id) {
   affinity_ = cpu_id;
-  ABT_xstream_set_affinity(xstream_, 1, &cpu_id);
+  HSHM_THREAD_MODEL->SetAffinity(thread_, cpu_id);
 }
 
 /** Make maximum priority process */

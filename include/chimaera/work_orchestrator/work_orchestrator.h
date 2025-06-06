@@ -13,8 +13,6 @@
 #ifndef CHI_INCLUDE_CHI_WORK_ORCHESTRATOR_WORK_ORCHESTRATOR_H_
 #define CHI_INCLUDE_CHI_WORK_ORCHESTRATOR_WORK_ORCHESTRATOR_H_
 
-#include <thread>
-
 #include "chimaera/chimaera_types.h"
 #include "chimaera/network/rpc_thallium.h"
 #include "chimaera/queue_manager/queue_manager.h"
@@ -27,15 +25,15 @@
 
 namespace chi {
 
-typedef ABT_key TlsKey;
+typedef hshm::ThreadLocalKey TlsKey;
 
 class WorkOrchestrator {
- public:
+public:
   CLS_CONST int kStatusAlive = 0;
   CLS_CONST int kStatusBeginDown = 1;
   CLS_CONST int kStatusDoDown = 2;
 
- public:
+public:
   ServerConfig *config_; /**< The server configuration */
   std::vector<std::unique_ptr<Worker>> workers_; /**< Workers execute tasks */
   std::unique_ptr<Worker> null_worker_;          /**< Null worker */
@@ -51,7 +49,7 @@ class WorkOrchestrator {
   size_t monitor_gap_ = 0;          /**< Monitoring gap */
   hipc::atomic<int> did_flush_ = 0; /**< Workers done with flushing */
 
- public:
+public:
   /** Default constructor */
   WorkOrchestrator() = default;
 
@@ -130,42 +128,9 @@ class WorkOrchestrator {
   HSHM_INLINE
   bool IsBeginningShutdown() { return run_status_ == kStatusBeginDown; }
 
-  /** Set the CPU affinity of this worker */
-  int SetCpuAffinity(ABT_xstream &xstream, int cpu_id) {
-    return ABT_xstream_set_affinity(xstream, 1, &cpu_id);
-  }
-
-  /** Make an xstream */
-  ABT_xstream MakeXstream() {
-    ABT_xstream xstream;
-    int ret = ABT_xstream_create(ABT_SCHED_NULL, &xstream);
-    if (ret != ABT_SUCCESS) {
-      HELOG(kFatal, "Could not create argobots xstream");
-    }
-    return xstream;
-  }
-
-  /** Spawn an argobots thread */
-  template <typename FUNC, typename TaskT>
-  ABT_thread SpawnAsyncThread(ABT_xstream xstream, FUNC &&func, TaskT *data) {
-    ABT_thread tl_thread;
-    int ret = ABT_thread_create_on_xstream(xstream, func, (void *)data,
-                                           ABT_THREAD_ATTR_NULL, &tl_thread);
-    if (ret != ABT_SUCCESS) {
-      HELOG(kFatal, "Couldn't spawn worker");
-    }
-    return tl_thread;
-  }
-
-  /** Wait for argobots thread */
-  void JoinAsyncThread(ABT_thread tl_thread) { ABT_thread_join(tl_thread); }
-
   /** Create thread-local storage */
   void CreateThreadLocalBlock() {
-    int ret = ABT_key_create(NULL, &worker_tls_key_);
-    if (ret != ABT_SUCCESS) {
-      HELOG(kFatal, "Could not create thread-local storage");
-    }
+    HSHM_THREAD_MODEL->CreateTls<Worker>(worker_tls_key_, nullptr);
   }
 
   /** Set thread-local storage to worker (from id) */
@@ -175,17 +140,13 @@ class WorkOrchestrator {
 
   /** Set thread-local storage to worker (from ptr) */
   void SetCurrentWorker(Worker *worker) {
-    int ret = ABT_key_set(worker_tls_key_, worker);
-    if (ret != ABT_SUCCESS) {
-      HELOG(kFatal, "Could not set thread-local storage");
-    }
+    HSHM_THREAD_MODEL->SetTls<Worker>(worker_tls_key_, worker);
   }
 
   /** Get currently-executing worker */
   Worker *GetCurrentWorker() {
-    Worker *worker;
-    int ret = ABT_key_get(worker_tls_key_, (void **)&worker);
-    if (ret != ABT_SUCCESS || worker == nullptr) {
+    Worker *worker = HSHM_THREAD_MODEL->GetTls<Worker>(worker_tls_key_);
+    if (worker == nullptr) {
       worker = null_worker_.get();
       SetCurrentWorker(worker);
     }
@@ -254,7 +215,7 @@ class WorkOrchestrator {
                  PyDataWrapper &data);
 #endif
 
- private:
+private:
   void PrepareWorkers();
   void MarkWorkers(std::unordered_map<u32, std::vector<Worker *>> cpu_workers);
   void SpawnReinforceThread();
@@ -263,12 +224,12 @@ class WorkOrchestrator {
   void SpawnWorkers();
 };
 
-}  // namespace chi
+} // namespace chi
 
-#define CHI_WORK_ORCHESTRATOR \
+#define CHI_WORK_ORCHESTRATOR                                                  \
   hshm::Singleton<chi::WorkOrchestrator>::GetInstance()
 #define CHI_CUR_TASK CHI_WORK_ORCHESTRATOR->GetCurrentTask()
 #define CHI_CUR_LANE CHI_WORK_ORCHESTRATOR->GetCurrentLane()
 #define CHI_CUR_WORKER CHI_WORK_ORCHESTRATOR->GetCurrentWorker()
 
-#endif  // CHI_INCLUDE_CHI_WORK_ORCHESTRATOR_WORK_ORCHESTRATOR_H_
+#endif // CHI_INCLUDE_CHI_WORK_ORCHESTRATOR_WORK_ORCHESTRATOR_H_

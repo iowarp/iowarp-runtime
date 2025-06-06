@@ -253,14 +253,12 @@ private:
 class Worker {
 public:
   CLS_CONST WorkerId kNullWorkerId = (WorkerId)-1; /**< Null worker id */
-  WorkerId id_; /**< Unique identifier of this worker */
-  // std::unique_ptr<std::thread> thread_;  /**< The worker thread handle */
-  // int pthread_id_;      /**< The worker pthread handle */
-  ABT_thread tl_thread_; /**< The worker argobots thread handle */
-  std::atomic<int> pid_; /**< The worker process id */
-  int affinity_;         /**< The worker CPU affinity */
-  u32 numa_node_;        // TODO(llogan): track NUMA affinity
-  ABT_xstream xstream_;
+  WorkerId id_;               /**< Unique identifier of this worker */
+  hshm::ThreadGroup xstream_; /**< The worker thread group */
+  hshm::Thread thread_;       /**< The worker thread handle */
+  std::atomic<int> pid_;      /**< The worker process id */
+  int affinity_;              /**< The worker CPU affinity */
+  u32 numa_node_;             // TODO(llogan): track NUMA affinity
   std::vector<IngressEntry> work_proc_queue_; /**< The set of queues to poll */
   size_t sleep_us_; /**< Time the worker should sleep after a run */
   ibitfield flags_; /**< Worker metadata flags */
@@ -291,7 +289,7 @@ public:
   bool IsNull() { return id_ == kNullWorkerId; }
 
   /** Constructor */
-  Worker(WorkerId id, int cpu_id, ABT_xstream xstream);
+  Worker(WorkerId id, int cpu_id, const hshm::ThreadGroup &xstream);
 
   /** Spawn */
   void Spawn();

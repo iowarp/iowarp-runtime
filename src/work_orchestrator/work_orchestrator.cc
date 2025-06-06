@@ -23,7 +23,7 @@ void WorkOrchestrator::ServerInit(ServerConfig *config) {
   run_status_ = kStatusAlive;
 
   // Initialize argobots
-  ABT_init(0, nullptr);
+  HSHM_THREAD_MODEL->Init();
 
   // Create thread-local storage key
   CreateThreadLocalBlock();
@@ -50,14 +50,15 @@ void WorkOrchestrator::PrepareWorkers() {
   std::unordered_map<u32, std::vector<Worker *>> cpu_workers;
   for (u32 cpu_id : config_->wo_.cpus_) {
     HILOG(kInfo, "Creating worker {}", worker_id);
-    ABT_xstream xstream = MakeXstream();
+    hshm::ThreadGroup xstream = HSHM_THREAD_MODEL->CreateThreadGroup({});
     workers_.emplace_back(std::make_unique<Worker>(worker_id, cpu_id, xstream));
     Worker &worker = *workers_.back();
     worker.EnableContinuousPolling();
     cpu_workers[cpu_id].push_back(&worker);
     ++worker_id;
   }
-  null_worker_ = std::make_unique<Worker>(Worker::kNullWorkerId, 0, nullptr);
+  null_worker_ =
+      std::make_unique<Worker>(Worker::kNullWorkerId, 0, hshm::ThreadGroup());
   MarkWorkers(cpu_workers);
 }
 
@@ -285,4 +286,4 @@ void WorkOrchestrator::RunMethod(const std::string &class_name,
 }
 #endif
 
-}  // namespace chi
+} // namespace chi
