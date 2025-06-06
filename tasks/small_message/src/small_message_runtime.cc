@@ -24,7 +24,7 @@ HSHM_GPU_KERNEL static void TestGpuDlsym() {
 #endif
 
 class Server : public Module {
- public:
+public:
   CLS_CONST LaneGroupId kDefaultGroup = 0;
   int count_ = 0;
   Client client_;
@@ -32,10 +32,10 @@ class Server : public Module {
   RollingAverage monitor_[Method::kCount];
   LeastSquares monitor_io_;
 
- public:
+public:
   /** Construct small_message */
   void Create(CreateTask *task, RunContext &rctx) {
-    client_.Init(id_, CHI_ADMIN->queue_id_);
+    client_.Init(pool_id_);
     CreateLaneGroup(kDefaultGroup, 4, QUEUE_LOW_LATENCY);
 
 #if defined(CHIMAERA_ENABLE_CUDA) or defined(CHIMAERA_ENABLE_ROCM)
@@ -47,7 +47,8 @@ class Server : public Module {
 
     // Create monitoring functions
     for (int i = 0; i < Method::kCount; ++i) {
-      if (i == Method::kIo) continue;
+      if (i == Method::kIo)
+        continue;
       monitor_[i].Shape(hshm::Formatter::format("{}-method-{}", name_, i));
     }
     monitor_io_.Shape(
@@ -56,18 +57,18 @@ class Server : public Module {
   }
   void MonitorCreate(MonitorModeId mode, CreateTask *task, RunContext &rctx) {
     switch (mode) {
-      case MonitorMode::kEstLoad: {
-        rctx.load_.cpu_load_ = monitor_[Method::kCreate].Predict();
-        break;
-      }
-      case MonitorMode::kSampleLoad: {
-        monitor_[Method::kCreate].Add(rctx.timer_->GetNsec(), rctx.load_);
-        break;
-      }
-      case MonitorMode::kReinforceLoad: {
-        monitor_[Method::kCreate].DoTrain();
-        break;
-      }
+    case MonitorMode::kEstLoad: {
+      rctx.load_.cpu_load_ = monitor_[Method::kCreate].Predict();
+      break;
+    }
+    case MonitorMode::kSampleLoad: {
+      monitor_[Method::kCreate].Add(rctx.timer_->GetNsec(), rctx.load_);
+      break;
+    }
+    case MonitorMode::kReinforceLoad: {
+      monitor_[Method::kCreate].DoTrain();
+      break;
+    }
     }
   }
 
@@ -81,18 +82,18 @@ class Server : public Module {
   void Destroy(DestroyTask *task, RunContext &rctx) {}
   void MonitorDestroy(MonitorModeId mode, DestroyTask *task, RunContext &rctx) {
     switch (mode) {
-      case MonitorMode::kEstLoad: {
-        rctx.load_.cpu_load_ = monitor_[Method::kDestroy].Predict();
-        break;
-      }
-      case MonitorMode::kSampleLoad: {
-        monitor_[Method::kDestroy].Add(rctx.timer_->GetNsec(), rctx.load_);
-        break;
-      }
-      case MonitorMode::kReinforceLoad: {
-        monitor_[Method::kDestroy].DoTrain();
-        break;
-      }
+    case MonitorMode::kEstLoad: {
+      rctx.load_.cpu_load_ = monitor_[Method::kDestroy].Predict();
+      break;
+    }
+    case MonitorMode::kSampleLoad: {
+      monitor_[Method::kDestroy].Add(rctx.timer_->GetNsec(), rctx.load_);
+      break;
+    }
+    case MonitorMode::kReinforceLoad: {
+      monitor_[Method::kDestroy].DoTrain();
+      break;
+    }
     }
   }
 
@@ -103,18 +104,18 @@ class Server : public Module {
   }
   void MonitorUpgrade(MonitorModeId mode, UpgradeTask *task, RunContext &rctx) {
     switch (mode) {
-      case MonitorMode::kEstLoad: {
-        rctx.load_.cpu_load_ = monitor_[Method::kUpgrade].Predict();
-        break;
-      }
-      case MonitorMode::kSampleLoad: {
-        monitor_[Method::kUpgrade].Add(rctx.timer_->GetNsec(), rctx.load_);
-        break;
-      }
-      case MonitorMode::kReinforceLoad: {
-        monitor_[Method::kUpgrade].DoTrain();
-        break;
-      }
+    case MonitorMode::kEstLoad: {
+      rctx.load_.cpu_load_ = monitor_[Method::kUpgrade].Predict();
+      break;
+    }
+    case MonitorMode::kSampleLoad: {
+      monitor_[Method::kUpgrade].Add(rctx.timer_->GetNsec(), rctx.load_);
+      break;
+    }
+    case MonitorMode::kReinforceLoad: {
+      monitor_[Method::kUpgrade].DoTrain();
+      break;
+    }
     }
   }
 
@@ -129,25 +130,25 @@ class Server : public Module {
   }
   void MonitorMd(MonitorModeId mode, MdTask *task, RunContext &rctx) {
     switch (mode) {
-      case MonitorMode::kEstLoad: {
-        rctx.load_.cpu_load_ = monitor_[Method::kMd].Predict();
-        break;
+    case MonitorMode::kEstLoad: {
+      rctx.load_.cpu_load_ = monitor_[Method::kMd].Predict();
+      break;
+    }
+    case MonitorMode::kSampleLoad: {
+      monitor_[Method::kMd].Add(rctx.timer_->GetNsec(), rctx.load_);
+      break;
+    }
+    case MonitorMode::kReinforceLoad: {
+      monitor_[Method::kMd].DoTrain();
+      break;
+    }
+    case MonitorMode::kReplicaAgg: {
+      std::vector<FullPtr<Task>> &replicas = *rctx.replicas_;
+      for (FullPtr<Task> &replica : replicas) {
+        auto replica_task = reinterpret_cast<MdTask *>(replica.ptr_);
+        task->ret_ = replica_task->ret_;
       }
-      case MonitorMode::kSampleLoad: {
-        monitor_[Method::kMd].Add(rctx.timer_->GetNsec(), rctx.load_);
-        break;
-      }
-      case MonitorMode::kReinforceLoad: {
-        monitor_[Method::kMd].DoTrain();
-        break;
-      }
-      case MonitorMode::kReplicaAgg: {
-        std::vector<FullPtr<Task>> &replicas = *rctx.replicas_;
-        for (FullPtr<Task> &replica : replicas) {
-          auto replica_task = reinterpret_cast<MdTask *>(replica.ptr_);
-          task->ret_ = replica_task->ret_;
-        }
-      }
+    }
     }
   }
 
@@ -162,40 +163,40 @@ class Server : public Module {
   }
   void MonitorIo(MonitorModeId mode, IoTask *task, RunContext &rctx) {
     switch (mode) {
-      case MonitorMode::kEstLoad: {
-        rctx.load_.cpu_load_ = monitor_io_.consts_[0] * task->size_;
-        break;
+    case MonitorMode::kEstLoad: {
+      rctx.load_.cpu_load_ = monitor_io_.consts_[0] * task->size_;
+      break;
+    }
+    case MonitorMode::kSampleLoad: {
+      monitor_io_.Add({(float)task->size_,
+                       // (float)rctx.load_.cpu_load_,
+                       (float)rctx.timer_->GetNsec()},
+                      rctx.load_);
+      break;
+    }
+    case MonitorMode::kReinforceLoad: {
+      if (monitor_io_.DoTrain()) {
+        CHI_WORK_ORCHESTRATOR->ImportModule("small_message_monitor");
+        CHI_WORK_ORCHESTRATOR->RunMethod("ChimaeraMonitor", "least_squares_fit",
+                                         monitor_io_);
       }
-      case MonitorMode::kSampleLoad: {
-        monitor_io_.Add({(float)task->size_,
-                         // (float)rctx.load_.cpu_load_,
-                         (float)rctx.timer_->GetNsec()},
-                        rctx.load_);
-        break;
+      break;
+    }
+    case MonitorMode::kReplicaAgg: {
+      std::vector<FullPtr<Task>> &replicas = *rctx.replicas_;
+      for (FullPtr<Task> &replica : replicas) {
+        auto replica_task = reinterpret_cast<IoTask *>(replica.ptr_);
+        task->ret_ = replica_task->ret_;
       }
-      case MonitorMode::kReinforceLoad: {
-        if (monitor_io_.DoTrain()) {
-          CHI_WORK_ORCHESTRATOR->ImportModule("small_message_monitor");
-          CHI_WORK_ORCHESTRATOR->RunMethod("ChimaeraMonitor",
-                                           "least_squares_fit", monitor_io_);
-        }
-        break;
-      }
-      case MonitorMode::kReplicaAgg: {
-        std::vector<FullPtr<Task>> &replicas = *rctx.replicas_;
-        for (FullPtr<Task> &replica : replicas) {
-          auto replica_task = reinterpret_cast<IoTask *>(replica.ptr_);
-          task->ret_ = replica_task->ret_;
-        }
-      }
+    }
     }
   }
 
-  CHI_AUTOGEN_METHODS  // keep at class bottom
+  CHI_AUTOGEN_METHODS // keep at class bottom
       public:
 #include "small_message/small_message_lib_exec.h"
 };
 
-}  // namespace chi::small_message
+} // namespace chi::small_message
 
 CHI_TASK_CC(chi::small_message::Server, "chimaera_small_message");

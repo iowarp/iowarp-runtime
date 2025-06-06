@@ -7,13 +7,10 @@ namespace chi::Admin {
 
 /** Create admin requests */
 class Client : public ModuleClient {
- public:
+public:
   /** Default constructor */
   HSHM_INLINE_CROSS_FUN
-  Client() {
-    id_ = chi::ADMIN_POOL_ID;
-    queue_id_ = chi::ADMIN_QUEUE_ID;
-  }
+  Client() { pool_id_ = chi::ADMIN_POOL_ID; }
 
   /** Destructor */
   HSHM_INLINE_CROSS_FUN
@@ -90,10 +87,9 @@ class Client : public ModuleClient {
   /** Terminate the runtime */
   HSHM_INLINE_CROSS_FUN
   void StopRuntime(const hipc::MemContext &mctx) {
-    HILOG(kInfo,
-          "Beginning to flush the runtime.\n"
-          "If you did async I/O, this may take some time.\n"
-          "All unflushed data will be written to the PFS.");
+    HILOG(kInfo, "Beginning to flush the runtime.\n"
+                 "If you did async I/O, this may take some time.\n"
+                 "All unflushed data will be written to the PFS.");
     Flush(mctx, DomainQuery::GetGlobalBcast());
     HILOG(kInfo, "Finished the flushing!");
     AsyncStopRuntime(mctx, DomainQuery::GetGlobalBcast());
@@ -181,9 +177,9 @@ class Client : public ModuleClient {
 };
 
 HSHM_DEFINE_GLOBAL_CROSS_PTR_VAR_H(Client, chiAdminClient);
-#define CHI_ADMIN \
+#define CHI_ADMIN                                                              \
   HSHM_GET_GLOBAL_CROSS_PTR_VAR(chi::Admin::Client, chi::Admin::chiAdminClient)
 
-}  // namespace chi::Admin
+} // namespace chi::Admin
 
-#endif  // CHI_TASKS_CHI_ADMIN_CHI_ADMIN_H_
+#endif // CHI_TASKS_CHI_ADMIN_CHI_ADMIN_H_

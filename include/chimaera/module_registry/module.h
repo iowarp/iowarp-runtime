@@ -37,7 +37,6 @@ public:
     PoolId id_; /**< The unique name of a pool */
     PoolId pool_id_;
   };
-  QueueId queue_id_;         /**< The queue id of a pool */
   std::string name_;         /**< The unique semantic name of a pool */
   ContainerId container_id_; /**< The logical id of a container */
   std::vector<std::shared_ptr<LaneGroup>>
@@ -49,7 +48,6 @@ public:
 
   /** Copy constructor */
   Module(const Module &other) : pool_id_(other.pool_id_) {
-    queue_id_ = other.queue_id_;
     name_ = other.name_;
     container_id_ = other.container_id_;
     is_created_ = other.is_created_;
@@ -58,7 +56,6 @@ public:
 
   /** Move constructor */
   Module(Module &&other) noexcept : pool_id_(std::move(other.pool_id_)) {
-    queue_id_ = other.queue_id_;
     name_ = other.name_;
     container_id_ = other.container_id_;
     is_created_ = other.is_created_;
@@ -69,7 +66,6 @@ public:
   Module &operator=(const Module &other) {
     if (this != &other) {
       pool_id_ = other.pool_id_;
-      queue_id_ = other.queue_id_;
       name_ = other.name_;
       container_id_ = other.container_id_;
       is_created_ = other.is_created_;
@@ -82,7 +78,6 @@ public:
   Module &operator=(Module &&other) noexcept {
     if (this != &other) {
       pool_id_ = std::move(other.pool_id_);
-      queue_id_ = other.queue_id_;
       name_ = other.name_;
       container_id_ = other.container_id_;
       is_created_ = other.is_created_;
@@ -92,10 +87,8 @@ public:
   }
 
   /** Emplace Constructor */
-  void Init(const PoolId &id, const QueueId &queue_id,
-            const std::string &name) {
-    id_ = id;
-    queue_id_ = queue_id;
+  void Init(const PoolId &id, const std::string &name) {
+    pool_id_ = id;
     name_ = name;
   }
 
@@ -206,51 +199,35 @@ public:
     PoolId id_; // NOTE(llogan): Deprecated, please use pool_id_ instead
     PoolId pool_id_;
   };
-  QueueId queue_id_;
 
 public:
-  /** Init from existing ID */
-  HSHM_CROSS_FUN
-  void Init(const PoolId &id, const QueueId &queue_id) {
-    if (id.IsNull()) {
-      HELOG(kWarning, "Failed to create pool");
-    }
-    pool_id_ = id;
-    // queue_id_ = QueueId(id_);
-    queue_id_ = queue_id;
-  }
-
   /** Init from existing ID */
   HSHM_CROSS_FUN
   void Init(const PoolId &id) {
     if (id.IsNull()) {
       HELOG(kWarning, "Failed to create pool");
     }
-    id_ = id;
-    // queue_id_ = QueueId(id_);
-    queue_id_ = id;
+    pool_id_ = id;
   }
 
   /** Default constructor */
   HSHM_CROSS_FUN
-  ModuleClient() : id_(PoolId::GetNull()), queue_id_(QueueId::GetNull()) {}
+  ModuleClient() : pool_id_(PoolId::GetNull()) {}
 
   /** Copy constructor */
   HSHM_CROSS_FUN
-  ModuleClient(const ModuleClient &other)
-      : id_(other.id_), queue_id_(other.queue_id_) {}
+  ModuleClient(const ModuleClient &other) : pool_id_(other.pool_id_) {}
 
   /** Move constructor */
   HSHM_CROSS_FUN
   ModuleClient(ModuleClient &&other) noexcept
-      : id_(std::move(other.id_)), queue_id_(std::move(other.queue_id_)) {}
+      : pool_id_(std::move(other.pool_id_)) {}
 
   /** Copy assignment operator */
   HSHM_CROSS_FUN
   ModuleClient &operator=(const ModuleClient &other) {
     if (this != &other) {
-      id_ = other.id_;
-      queue_id_ = other.queue_id_;
+      pool_id_ = other.pool_id_;
     }
     return *this;
   }
@@ -259,16 +236,12 @@ public:
   HSHM_CROSS_FUN
   ModuleClient &operator=(ModuleClient &&other) noexcept {
     if (this != &other) {
-      id_ = std::move(other.id_);
-      queue_id_ = std::move(other.queue_id_);
+      pool_id_ = std::move(other.pool_id_);
     }
     return *this;
   }
 
-  template <typename Ar> void serialize(Ar &ar) {
-    ar(id_);
-    ar(queue_id_);
-  }
+  template <typename Ar> void serialize(Ar &ar) { ar(pool_id_); }
 };
 
 extern "C" {
@@ -294,7 +267,7 @@ typedef const char *(*get_module_name_t)(void);
                            const char *pool_name) {                            \
     chi::Container *exec =                                                     \
         reinterpret_cast<chi::Container *>(new TYPE_UNWRAP(TRAIT_CLASS)());    \
-    exec->Init(*pool_id, CHI_CLIENT->GetQueueId(*pool_id), pool_name);         \
+    exec->Init(*pool_id, pool_name);                                           \
     return exec;                                                               \
   }                                                                            \
   HSHM_DLL const char *get_module_name(void) { return MOD_NAME; }              \
