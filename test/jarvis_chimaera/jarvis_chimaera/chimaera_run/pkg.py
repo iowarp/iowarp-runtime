@@ -149,6 +149,22 @@ class ChimaeraRun(Service):
                 'rank': 1,
             },
             {
+                'name': 'comux_depth',
+                'msg': 'The depth of the comutex queue',
+                'type': int,
+                'default': 1024,
+                'class': 'queuing',
+                'rank': 1,
+            },
+            {
+                'name': 'lane_depth',
+                'msg': 'The depth of the lane queue',
+                'type': int,
+                'default': 1024,
+                'class': 'queuing',
+                'rank': 1,
+            }, 
+            {
                 'name': 'worker_cpus',
                 'msg': 'the mapping of workers to cpu cores',
                 'type': list,
@@ -253,6 +269,8 @@ class ChimaeraRun(Service):
                 'rdata_shm_size': self.config['rdata_shm'],
                 'gpu_md_shm_size': self.config['gpu_md_shm'],
                 'gpu_data_shm_size': self.config['gpu_data_shm'],
+                'comux_depth': self.config['comux_depth'],
+                'lane_depth': self.config['lane_depth'],
             }
         }
         if self.config['worker_cpus'] is not None:
