@@ -1,4 +1,4 @@
-# Chimaera: The Core Runtime of the IOWarp Project
+# The IOWarp Runtime: Chimaera
 
 <p align="center">
   <strong>The high-performance, modular runtime for IOWarp's near-data processing and data storage systems.</strong>
