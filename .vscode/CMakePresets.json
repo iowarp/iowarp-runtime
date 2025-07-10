@@ -13,7 +13,7 @@
             "binaryDir": "${sourceDir}/build",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_INSTALL_PREFIX": "/home/llogan/.scspkg/packages/iowarp_runtime",
+                "CMAKE_INSTALL_PREFIX": "IOWARP_PREFIX",
                 "CHIMAERA_ENABLE_CUDA": "OFF",
                 "CHIMAERA_ENABLE_CMAKE_DOTENV": "ON"
             }
@@ -25,7 +25,7 @@
             "binaryDir": "${sourceDir}/build",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_INSTALL_PREFIX": "/home/llogan/.scspkg/packages/iowarp_runtime",
+                "CMAKE_INSTALL_PREFIX": "IOWARP_PREFIX",
                 "CHIMAERA_ENABLE_CUDA": "ON",
                 "CHIMAERA_ENABLE_ROCM": "OFF",
                 "BUILD_TESTS": "OFF",
@@ -40,7 +40,7 @@
             "binaryDir": "${sourceDir}/build",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_INSTALL_PREFIX": "/home/llogan/.scspkg/packages/iowarp_runtime",
+                "CMAKE_INSTALL_PREFIX": "IOWARP_PREFIX",
                 "CHIMAERA_ENABLE_CUDA": "OFF",
                 "CHIMAERA_ENABLE_ROCM": "ON",
                 "BUILD_TESTS": "OFF",
@@ -55,7 +55,7 @@
             "binaryDir": "${sourceDir}/build",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
-                "CMAKE_INSTALL_PREFIX": "/home/llogan/.scspkg/packages/iowarp_runtime",
+                "CMAKE_INSTALL_PREFIX": "IOWARP_PREFIX",
                 "CHIMAERA_ENABLE_CMAKE_DOTENV": "ON"
             }
         }
