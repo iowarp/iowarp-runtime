@@ -23,19 +23,18 @@ struct CreateTaskParams {
   HSHM_INLINE_CROSS_FUN
   CreateTaskParams(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc) {}
 
-  template <typename Ar>
-  HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {}
+  template <typename Ar> HSHM_INLINE_CROSS_FUN void serialize(Ar &ar) {}
 };
 typedef chi::Admin::CreatePoolBaseTask<CreateTaskParams> CreateTask;
 CHI_END(Create)
 
 CHI_BEGIN(Destroy)
 /** A task to destroy MOD_NAME */
-typedef chi::Admin::DestroyContainerTask DestroyTask;
+typedef chi::Admin::DestroyPoolTask DestroyTask;
 CHI_END(Destroy)
 
-CHI_AUTOGEN_METHODS  // keep at class bottom
+CHI_AUTOGEN_METHODS // keep at class bottom
 
-}  // namespace chi::MOD_NAME
+} // namespace chi::MOD_NAME
 
-#endif  // CHI_TASKS_TASK_TEMPL_INCLUDE_MOD_NAME_MOD_NAME_TASKS_H_
+#endif // CHI_TASKS_TASK_TEMPL_INCLUDE_MOD_NAME_MOD_NAME_TASKS_H_

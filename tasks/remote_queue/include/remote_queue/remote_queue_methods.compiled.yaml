@@ -1,6 +1,0 @@
-kCreate: {'val': 0, 'compiled': True}
-kDestroy: {'val': 1, 'compiled': True}
-kClientPushSubmit: {'val': 10, 'compiled': True}
-kClientSubmit: {'val': 11, 'compiled': True}
-kServerPushComplete: {'val': 12, 'compiled': True}
-kServerComplete: {'val': 13, 'compiled': True}

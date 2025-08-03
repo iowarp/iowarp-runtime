@@ -23,14 +23,6 @@ queue_manager:
   shm_name: "chimaera_shm"
   # The size of the shared memory region to allocate for general data structures
   shm_size: 0g
-  # The size of the shared memory to allocate for data buffers
-  data_shm_size: 4g
-  # The size of the shared memory to allocate for runtime data buffers
-  rdata_shm_size: 4g
-  # The size of shared memory to allocate from GPUs for metadata
-  gpu_md_shm_size: 10m
-  # The size of shared memory to allocate from GPUs for data
-  gpu_data_shm_size: 100m
 
 ### Define properties of RPCs
 rpc:
@@ -54,9 +46,6 @@ rpc:
 
   # Desired RPC port number.
   port: 8080
-
-  # The mapping of RPC threads to CPUs
-  cpus: [4, 5]
 
 ### Task Registry
 module_registry: []

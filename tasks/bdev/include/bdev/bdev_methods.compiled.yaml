@@ -1,7 +1,0 @@
-kCreate: {'val': 0, 'compiled': True}
-kDestroy: {'val': 1, 'compiled': True}
-kAllocate: {'val': 10, 'compiled': True}
-kFree: {'val': 11, 'compiled': True}
-kWrite: {'val': 12, 'compiled': True}
-kRead: {'val': 13, 'compiled': True}
-kPollStats: {'val': 14, 'compiled': True}

@@ -8,15 +8,5 @@ kUpgrade: -1       # 5
 
 # Custom Methods
 kCreatePool: 10
-kDestroyContainer: 11
-kRegisterModule: 12
-kDestroyModule: 13
-kUpgradeModule: 14
-kGetPoolId: 15
-kStopRuntime: 16
-kSetWorkOrchQueuePolicy: 17
-kSetWorkOrchProcPolicy: 18
-kFlush: 19
-kGetDomainSize: 20
-kUpdateDomain: 21
-kPollStats: 22
+kDestroyPool: 11
+kStopRuntime: 12

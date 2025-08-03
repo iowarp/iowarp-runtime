@@ -35,14 +35,6 @@ public:
   void MonitorCreate(MonitorModeId mode, CreateTask *task, RunContext &rctx) {}
   CHI_END(Create)
 
-  /** Route a task to a lane */
-  Lane *MapTaskToLane(const Task *task) override {
-    // Route tasks to lanes based on their properties
-    // E.g., a strongly consistent filesystem could map tasks to a lane
-    // by the hash of an absolute filename path.
-    return GetLaneByHash(kDefaultGroup, task->prio_, 0);
-  }
-
   CHI_BEGIN(Destroy)
   /** Destroy MOD_NAME */
   void Destroy(DestroyTask *task, RunContext &rctx) {}

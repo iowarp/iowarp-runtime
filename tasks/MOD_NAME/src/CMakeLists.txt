@@ -29,8 +29,6 @@ install(
         ARCHIVE DESTINATION ${CHIMAERA_INSTALL_LIB_DIR}
         RUNTIME DESTINATION ${CHIMAERA_INSTALL_BIN_DIR}
 )
-install(FILES MOD_NAME_monitor.py
-        DESTINATION ${CHIMAERA_INSTALL_LIB_DIR})
 
 # ------------------------------------------------------------------------------
 # Coverage
