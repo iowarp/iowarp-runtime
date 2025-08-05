@@ -1,10 +1,11 @@
 #ifndef CHI_TASKS_CHI_ADMIN_INCLUDE_CHI_ADMIN_CHI_ADMIN_TASKS_H_
 #define CHI_TASKS_CHI_ADMIN_INCLUDE_CHI_ADMIN_CHI_ADMIN_TASKS_H_
 
-#include "chimaera/api/chimaera_client.h"
-#include "chimaera/module_registry/module.h"
-#include "chimaera/queue_manager/queue_manager.h"
-#include "chimaera/work_orchestrator/scheduler.h"
+#include "chimaera/chimaera.h"
+
+#ifndef CHI_TASKS_CHI_ADMIN_INCLUDE_CHI_ADMIN_CHI_ADMIN_TASKS_H_
+#include "chimaera_admin/chimaera_admin_client.h"
+#endif
 
 namespace chi::Admin {
 
@@ -90,7 +91,7 @@ struct CreatePoolBaseTask : public Task, TaskFlags<TF_SRL_SYM> {
 
   /** Duplicate message */
   HSHM_INLINE_CROSS_FUN
-  void CopyStart(const CreatePoolBaseTask &other, bool deep) {
+  void Copy(const CreatePoolBaseTask &other, bool deep) {
     lib_name_ = other.lib_name_;
     pool_name_ = other.pool_name_;
     ctx_ = other.ctx_;
@@ -100,12 +101,12 @@ struct CreatePoolBaseTask : public Task, TaskFlags<TF_SRL_SYM> {
   }
 
   /** (De)serialize message call */
-  template <typename Ar> HSHM_INLINE_CROSS_FUN void SerializeStart(Ar &ar) {
+  template <typename Ar> HSHM_INLINE_CROSS_FUN void SerializeIn(Ar &ar) {
     ar(lib_name_, pool_name_, ctx_, root_, affinity_, params_);
   }
 
   /** (De)serialize message return */
-  template <typename Ar> HSHM_INLINE_CROSS_FUN void SerializeEnd(Ar &ar) {
+  template <typename Ar> HSHM_INLINE_CROSS_FUN void SerializeOut(Ar &ar) {
     ar(ctx_.id_, params_);
   }
 
@@ -171,17 +172,17 @@ struct DestroyPoolTask : public Task, TaskFlags<TF_SRL_SYM> {
 
   /** Copy message input */
   template <typename DestroyTaskT>
-  HSHM_INLINE_CROSS_FUN void CopyStart(const DestroyTaskT &other, bool deep) {
+  HSHM_INLINE_CROSS_FUN void Copy(const DestroyTaskT &other, bool deep) {
     id_ = other.id_;
   }
 
   /** (De)serialize message call */
-  template <typename Ar> HSHM_INLINE_CROSS_FUN void SerializeStart(Ar &ar) {
+  template <typename Ar> HSHM_INLINE_CROSS_FUN void SerializeIn(Ar &ar) {
     ar & id_;
   }
 
   /** (De)serialize message return */
-  template <typename Ar> HSHM_INLINE_CROSS_FUN void SerializeEnd(Ar &ar) {}
+  template <typename Ar> HSHM_INLINE_CROSS_FUN void SerializeOut(Ar &ar) {}
 };
 CHI_END(DestroyPool)
 
@@ -210,13 +211,13 @@ struct StopRuntimeTask : public Task, TaskFlags<TF_SRL_SYM> {
 
   /** Duplicate message */
   HSHM_INLINE_CROSS_FUN
-  void CopyStart(const StopRuntimeTask &other, bool deep) {}
+  void Copy(const StopRuntimeTask &other, bool deep) {}
 
   /** (De)serialize message call */
-  template <typename Ar> HSHM_INLINE_CROSS_FUN void SerializeStart(Ar &ar) {}
+  template <typename Ar> HSHM_INLINE_CROSS_FUN void SerializeIn(Ar &ar) {}
 
   /** (De)serialize message return */
-  template <typename Ar> HSHM_INLINE_CROSS_FUN void SerializeEnd(Ar &ar) {}
+  template <typename Ar> HSHM_INLINE_CROSS_FUN void SerializeOut(Ar &ar) {}
 };
 CHI_END(StopRuntime)
 

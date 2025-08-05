@@ -10,34 +10,17 @@
  * have access to the file, you may request a copy from help@hdfgroup.org.   *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include "chimaera/api/chimaera_runtime.h"
-#include "chimaera/monitor/monitor.h"
-#include "chimaera/work_orchestrator/comutex.h"
-#include "chimaera/work_orchestrator/corwlock.h"
-#include "chimaera/work_orchestrator/scheduler.h"
-#include "chimaera/work_orchestrator/work_orchestrator.h"
 #include "chimaera_admin/chimaera_admin_client.h"
 
 namespace chi::Admin {
 
 class Server : public Module {
 public:
-  CLS_CONST LaneGroupId kDefaultGroup = 0;
-  Task *queue_sched_;
-  Task *proc_sched_;
-  RollingAverage monitor_[Method::kCount];
-
-public:
-  Server() : queue_sched_(nullptr), proc_sched_(nullptr) {}
+  Server() {}
 
   CHI_BEGIN(Create)
   /** Create the state */
-  void Create(CreateTask *task, RunContext &rctx) {
-    CreateLaneGroup(kDefaultGroup, 1, QUEUE_LOW_LATENCY);
-    for (int i = 0; i < Method::kCount; ++i) {
-      monitor_[i].Shape(hshm::Formatter::format("{}-method-{}", name_, i));
-    }
-  }
+  void Create(CreateTask *task, RunContext &rctx) {}
   void MonitorCreate(MonitorModeId mode, CreateTask *task, RunContext &rctx) {}
   CHI_END(Create)
 
@@ -47,6 +30,19 @@ public:
   void MonitorDestroy(MonitorModeId mode, DestroyTask *task, RunContext &rctx) {
   }
   CHI_END(Destroy)
+
+  CHI_BEGIN(CreatePool)
+  /** The CreatePool method */
+  void CreatePool(CreatePoolTask *task, RunContext &rctx) {}
+  void MonitorCreatePool(MonitorModeId mode, CreatePoolTask *task,
+                         RunContext &rctx) {
+    switch (mode) {
+    case MonitorMode::kReplicaAgg: {
+      std::vector<FullPtr<Task>> &replicas = *rctx.replicas_;
+    }
+    }
+  }
+  CHI_END(CreatePool)
 
   CHI_BEGIN(CreatePool)
   /** Create a pool */

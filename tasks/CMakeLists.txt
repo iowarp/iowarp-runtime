@@ -31,12 +31,7 @@ endif()
 
 # ADD SUBDIRECTORIES
 add_subdirectory(MOD_NAME)
-add_subdirectory(bdev)
 add_subdirectory(chimaera_admin)
-add_subdirectory(remote_queue)
-add_subdirectory(small_message)
-add_subdirectory(worch_proc_round_robin)
-add_subdirectory(worch_queue_round_robin)
 
 # INSTALL TARGETS
 install(EXPORT ${CHIMAERA_EXPORTED_TARGETS}

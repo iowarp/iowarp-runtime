@@ -11,15 +11,12 @@
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include "MOD_NAME/MOD_NAME_client.h"
-#include "chimaera/api/chimaera_runtime.h"
-#include "chimaera/monitor/monitor.h"
-#include "chimaera_admin/chimaera_admin_client.h"
 
 namespace chi::MOD_NAME {
 
 class Server : public Module {
 public:
-  CLS_CONST LaneGroupId kDefaultGroup = 0;
+  CLS_CONST QueueId kDefaultGroup = 0;
   Client client_;
 
 public:
@@ -29,7 +26,7 @@ public:
   /** Construct MOD_NAME */
   void Create(CreateTask *task, RunContext &rctx) {
     // Create a set of lanes for holding tasks
-    CreateLaneGroup(kDefaultGroup, 1, QUEUE_LOW_LATENCY);
+    CreateQueue(kDefaultGroup, 1, QUEUE_LOW_LATENCY);
     client_.Init(pool_id_);
   }
   void MonitorCreate(MonitorModeId mode, CreateTask *task, RunContext &rctx) {}

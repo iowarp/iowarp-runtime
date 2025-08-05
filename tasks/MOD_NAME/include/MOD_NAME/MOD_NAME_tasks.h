@@ -5,12 +5,15 @@
 #ifndef CHI_TASKS_TASK_TEMPL_INCLUDE_MOD_NAME_MOD_NAME_TASKS_H_
 #define CHI_TASKS_TASK_TEMPL_INCLUDE_MOD_NAME_MOD_NAME_TASKS_H_
 
-#include "chimaera/chimaera_namespace.h"
+#include "chimaera/chimaera.h"
+
+#ifndef CHI_TASKS_CHI_ADMIN_INCLUDE_CHI_ADMIN_CHI_ADMIN_TASKS_H_
+#include "chimaera_admin/chimaera_admin_client.h"
+#endif
 
 namespace chi::MOD_NAME {
 
 #include "MOD_NAME_methods.h"
-CHI_NAMESPACE_INIT
 
 CHI_BEGIN(Create)
 /** A task to create MOD_NAME */

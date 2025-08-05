@@ -16,8 +16,7 @@
 #include <malloc.h>
 #include <stdlib.h>
 
-#include "hermes_shm/util/real_api.h"
-#include "hermes_shm/util/singleton.h"
+#include "hermes_shm/hermes_shm.h"
 
 extern "C" {
 typedef void* (*malloc_t)(size_t);

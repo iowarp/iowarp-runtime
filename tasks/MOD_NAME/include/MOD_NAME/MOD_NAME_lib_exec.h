@@ -1,6 +1,8 @@
 #ifndef CHI_MOD_NAME_LIB_EXEC_H_
 #define CHI_MOD_NAME_LIB_EXEC_H_
 
+#include "chimaera/chimaera.h"
+
 /** Execute a task */
 void Run(u32 method, Task *task, RunContext &rctx) override {
   switch (method) {

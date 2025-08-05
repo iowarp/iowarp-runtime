@@ -1,151 +1,53 @@
-# ------------------------------------------------------------------------------
-# Build Chimaera Client Library
-# ------------------------------------------------------------------------------
-set(CLIENT_SOURCES
-  api/chimaera_client.cc
-  config/config_client.cc
-  config/config_server.cc
-  # module_registry/module.cc
-  module_registry/task.cc
+# Collect all source files for the chimaera library
+file(GLOB_RECURSE CHIMAERA_SOURCES
+    "${CMAKE_CURRENT_SOURCE_DIR}/*.cc"
 )
-set(chimaera_client_exports)
 
-# Create the no-gpu client library
-add_library(chimaera_client_host ${CLIENT_SOURCES})
-target_link_libraries(chimaera_client_host PUBLIC hshm::cxx)
-target_include_directories(chimaera_client_host
-  PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../include>
-  PUBLIC $<INSTALL_INTERFACE:include>
+# Remove malloc sources as they might be separate
+list(FILTER CHIMAERA_SOURCES EXCLUDE REGEX "malloc/")
+
+# Create chimaera_runtime target
+add_library(chimaera_runtime ${CHIMAERA_SOURCES})
+
+# Set include directories
+target_include_directories(chimaera_runtime PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
 )
-add_library(client_host INTERFACE)
-target_link_libraries(client_host INTERFACE chimaera_client_host)
-add_library(chimaera::client_host ALIAS chimaera_client_host)
-list(APPEND chimaera_client_exports chimaera_client_host client_host)
 
-# Create the CUDA gpu client library
-if(CHIMAERA_ENABLE_CUDA)
-  add_cuda_library(chimaera_client_gpu STATIC TRUE ${CLIENT_SOURCES})
-  target_link_libraries(chimaera_client_gpu PUBLIC hshm::cudacxx)
-  target_include_directories(chimaera_client_gpu
-    PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../include>
-    PUBLIC $<INSTALL_INTERFACE:include>
-  )
-  target_compile_definitions(chimaera_client_gpu PUBLIC CHIMAERA_ENABLE_CUDA)
-  add_library(client_gpu INTERFACE)
-  target_link_libraries(client_gpu INTERFACE chimaera_client_gpu)
-  add_library(chimaera::client_gpu ALIAS chimaera_client_gpu)
-  list(APPEND chimaera_client_exports chimaera_client_gpu client_gpu)
-endif()
+# Set compile definitions - CHIMAERA_RUNTIME macro for runtime code
+target_compile_definitions(chimaera_runtime PUBLIC CHIMAERA_RUNTIME)
 
-# Create the ROCM gpu client library
-if(CHIMAERA_ENABLE_ROCM)
-  add_rocm_gpu_library(chimaera_client_gpu STATIC TRUE ${CLIENT_SOURCES})
-  target_link_libraries(chimaera_client_gpu PUBLIC hshm::rocmcxx_gpu)
-  target_include_directories(chimaera_client_gpu
-    PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../include>
-    PUBLIC $<INSTALL_INTERFACE:include>
-  )
-  target_compile_definitions(chimaera_client_gpu PUBLIC CHIMAERA_ENABLE_ROCM)
-  add_library(client_gpu INTERFACE)
-  target_link_libraries(client_gpu INTERFACE chimaera_client_gpu)
-  add_library(chimaera::client_gpu ALIAS chimaera_client_gpu)
-  list(APPEND chimaera_client_exports chimaera_client_gpu client_gpu)
-endif()
+# Link to hermes_shm
+target_link_libraries(chimaera_runtime PUBLIC hshm::cxx)
 
-# ------------------------------------------------------------------------------
-# Build Chimaera Runtime Library
-# ------------------------------------------------------------------------------
-set(RUNTIME_SOURCES
-  api/chimaera_runtime.cc
-  api/chimaera_client.cc
-  config/config_client.cc
-  config/config_server.cc
-  module_registry/module.cc
-  module_registry/module_queue.cc
-  module_registry/task.cc
-  module_registry/module_registry.cc
-  work_orchestrator/work_orchestrator.cc
-  work_orchestrator/python_wrapper.cc
-  work_orchestrator/reinforce_worker.cc
-  work_orchestrator/worker.cc
-  work_orchestrator/comutex.cc
-  work_orchestrator/corwlock.cc
-  queue_manager/queue_manager.cc
+# Create chimaera_client target
+add_library(chimaera_client ${CHIMAERA_SOURCES})
+
+# Set include directories
+target_include_directories(chimaera_client PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
 )
-set(chimaera_runtime_exports)
 
-if(CHIMAERA_ENABLE_CUDA)
-  add_cuda_library(chimaera_runtime SHARED TRUE ${RUNTIME_SOURCES})
-  target_link_libraries(chimaera_runtime PUBLIC hshm::cudacxx cufile)
-  target_compile_definitions(chimaera_runtime PUBLIC CHIMAERA_ENABLE_CUDA)
-elseif(CHIMAERA_ENABLE_ROCM)
-  add_rocm_gpu_library(chimaera_runtime SHARED TRUE ${RUNTIME_SOURCES})
-  target_link_libraries(chimaera_runtime PUBLIC hshm::rocmcxx_gpu)
-  target_compile_definitions(chimaera_runtime PUBLIC CHIMAERA_ENABLE_ROCM)
-else()
-  add_library(chimaera_runtime ${RUNTIME_SOURCES})
-  target_link_libraries(chimaera_runtime PUBLIC hshm::cxx)
-endif()
+# Link to hermes_shm (no CHIMAERA_RUNTIME macro for client)
+target_link_libraries(chimaera_client PUBLIC hshm::cxx)
 
-target_link_libraries(chimaera_runtime PUBLIC runtime_deps)
-target_include_directories(chimaera_runtime
-  PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../include>
-  PUBLIC $<INSTALL_INTERFACE:include>
-)
-target_compile_definitions(chimaera_runtime PUBLIC HSHM_DEFAULT_THREAD_MODEL=hshm::thread::Argobots)
-add_library(runtime INTERFACE)
-target_link_libraries(runtime INTERFACE chimaera_runtime)
+# Create aliases with chimaera:: namespace (expected by build system)
 add_library(chimaera::runtime ALIAS chimaera_runtime)
-list(APPEND chimaera_runtime_exports chimaera_runtime runtime)
+add_library(chimaera::client_host ALIAS chimaera_client)
 
-# ------------------------------------------------------------------------------
-# Build Utilities
-# ------------------------------------------------------------------------------
-add_subdirectory(util)
+# Also create chi:: namespace aliases as requested
+add_library(chi::runtime ALIAS chimaera_runtime)
+add_library(chi::client ALIAS chimaera_client)
+
+# Install targets for export
+install(TARGETS chimaera_runtime chimaera_client
+        EXPORT ${CHIMAERA_EXPORTED_TARGETS}
+        LIBRARY DESTINATION ${CHIMAERA_INSTALL_LIB_DIR}
+        ARCHIVE DESTINATION ${CHIMAERA_INSTALL_LIB_DIR}
+        RUNTIME DESTINATION ${CHIMAERA_INSTALL_BIN_DIR})
+
+# Add subdirectories for additional components
 add_subdirectory(malloc)
-
-# -----------------------------------------------------------------------------
-# Add file(s) to CMake Install
-# -----------------------------------------------------------------------------
-install(
-  FILES
-  ${CHIMAERA_HEADERS}
-  DESTINATION
-  ${CHIMAERA_INSTALL_INCLUDE_DIR}
-  COMPONENT
-  headers
-)
-
-# -----------------------------------------------------------------------------
-# Add Target(s) to CMake Install
-# -----------------------------------------------------------------------------
-set(CHIMAERA_EXPORTED_LIBS
-  ${chimaera_client_exports}
-  ${chimaera_runtime_exports}
-  runtime_deps)
-
-install(
-  TARGETS
-  ${CHIMAERA_EXPORTED_LIBS}
-  EXPORT
-  ${CHIMAERA_EXPORTED_TARGETS}
-  LIBRARY DESTINATION ${CHIMAERA_INSTALL_LIB_DIR}
-  ARCHIVE DESTINATION ${CHIMAERA_INSTALL_LIB_DIR}
-  RUNTIME DESTINATION ${CHIMAERA_INSTALL_BIN_DIR}
-)
-install(
-  FILES
-  work_orchestrator/chimaera_monitor.py
-  DESTINATION
-  ${CHIMAERA_INSTALL_LIB_DIR}
-  COMPONENT
-  headers
-)
-
-# ------------------------------------------------------------------------------
-# Coverage
-# ------------------------------------------------------------------------------
-if(CHIMAERA_ENABLE_COVERAGE)
-  set_coverage_flags(chimaera_client)
-  set_coverage_flags(chimaera_runtime)
-endif()
+add_subdirectory(util)

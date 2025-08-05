@@ -397,15 +397,15 @@ struct CompressTask : public Task, TaskFlags<TF_SRL_SYM> {
   }
 
   /** Duplicate message */
-  void CopyStart(const CompressTask &other, bool deep) {}
+  void Copy(const CompressTask &other, bool deep) {}
 
   /** (De)serialize message call */
   template <typename Ar>
-  void SerializeStart(Ar &ar) {}
+  void SerializeIn(Ar &ar) {}
 
   /** (De)serialize message return */
   template <typename Ar>
-  void SerializeEnd(Ar &ar) {}
+  void SerializeOut(Ar &ar) {}
 };
 CHI_END(Compress)
 
@@ -434,15 +434,15 @@ struct DecompresssTask : public Task, TaskFlags<TF_SRL_SYM> {
   }
 
   /** Duplicate message */
-  void CopyStart(const DecompresssTask &other, bool deep) {}
+  void Copy(const DecompresssTask &other, bool deep) {}
 
   /** (De)serialize message call */
   template <typename Ar>
-  void SerializeStart(Ar &ar) {}
+  void SerializeIn(Ar &ar) {}
 
   /** (De)serialize message return */
   template <typename Ar>
-  void SerializeEnd(Ar &ar) {}
+  void SerializeOut(Ar &ar) {}
 };
 CHI_END(Decompress)
 
@@ -478,15 +478,15 @@ struct DecompresssTask : public Task, TaskFlags<TF_SRL_SYM> {
   }
 
   /** Duplicate message */
-  void CopyStart(const DecompresssTask &other, bool deep) {}
+  void Copy(const DecompresssTask &other, bool deep) {}
 
   /** (De)serialize message call */
   template <typename Ar>
-  void SerializeStart(Ar &ar) {}
+  void SerializeIn(Ar &ar) {}
 
   /** (De)serialize message return */
   template <typename Ar>
-  void SerializeEnd(Ar &ar) {}
+  void SerializeOut(Ar &ar) {}
 };
 CHI_END(Decompress)
 ```
@@ -618,7 +618,7 @@ a class named Server. This class should always be named Server.
 ```cpp
 class Server : public Module {
  public:
-  CLS_CONST LaneGroupId kDefaultGroup = 0;
+  CLS_CONST QueueId kDefaultGroup = 0;
 
  public:
   Server() = default;
@@ -627,7 +627,7 @@ class Server : public Module {
   /** Construct compressor */
   void Create(CreateTask *task, RunContext &rctx) {
     // Create a set of lanes for holding tasks
-    CreateLaneGroup(kDefaultGroup, 1, QUEUE_LOW_LATENCY);
+    CreateQueue(kDefaultGroup, 1, QUEUE_LOW_LATENCY);
   }
   void MonitorCreate(MonitorModeId mode, CreateTask *task, RunContext &rctx) {}
   CHI_END(Create)
@@ -768,7 +768,7 @@ struct CompressTask : public Task, TaskFlags<TF_SRL_SYM> {
   }
 
   /** Duplicate message */
-  void CopyStart(const CompressTask &other, bool deep) {
+  void Copy(const CompressTask &other, bool deep) {
     data_ = other.data_;
     data_size_ = other.data_size_;
     if (!deep) {
@@ -778,13 +778,13 @@ struct CompressTask : public Task, TaskFlags<TF_SRL_SYM> {
 
   /** (De)serialize message call */
   template <typename Ar>
-  void SerializeStart(Ar &ar) {
+  void SerializeIn(Ar &ar) {
     ar.bulk(DT_WRITE, data_, data_size_);
   }
 
   /** (De)serialize message return */
   template <typename Ar>
-  void SerializeEnd(Ar &ar) {}
+  void SerializeOut(Ar &ar) {}
 };
 ```
 
@@ -808,7 +808,7 @@ and transferred over a network." The alternative is TF_LOCAL,
 which means "This task executes on this node only."
 
 When using TF_SRL_SYM, all of these methods are required to be implemented.
-When using TF_LOCAL, only CopyStart is required.
+When using TF_LOCAL, only Copy is required.
 
 #### Task variables
 ```cpp
@@ -917,10 +917,10 @@ HSHM_INLINE explicit CompressTask(
 The last part is the custom parameters. Not much magic here, 
 just set them.
 
-#### CopyStart
+#### Copy
 
 ```cpp
-  void CopyStart(const CompressTask &other, bool deep) {
+  void Copy(const CompressTask &other, bool deep) {
     data_ = other.data_;
     data_size_ = other.data_size_;
     if (!deep) {
@@ -929,7 +929,7 @@ just set them.
   }
 ```
 
-The CopyStart method is used to duplicate a task. It takes 
+The Copy method is used to duplicate a task. It takes 
 as input the other task (i.e., the original task) and 
 a parameter named "deep", which indicates how much to copy.
 
@@ -947,12 +947,12 @@ Copies can happen within the networking module of chimaera.
 For example, for replication, a task may be duplicated
 to each container it is sent to.
 
-#### SerializeStart
+#### SerializeIn
 
 ```cpp
   /** (De)serialize message call */
   template<typename Ar>
-  void SerializeStart(Ar &ar) {
+  void SerializeIn(Ar &ar) {
     ar.bulk(DT_WRITE, data_, data_size_);
   }
 ```
@@ -963,11 +963,11 @@ It serializes the custom parameters of the task.
 ar.bulk will serialize the data pointer. DT_WRITE means "I'm writing
 data_ of size data_size_ to the remote host".
 
-#### SerializeEnd
+#### SerializeOut
 ```cpp
   /** (De)serialize message return */
   template<typename Ar>
-  void SerializeEnd(Ar &ar) {
+  void SerializeOut(Ar &ar) {
   }
 ```
 This function is called when the task completes on the remote node. 
@@ -1005,7 +1005,7 @@ struct DecompressTask : public Task, TaskFlags<TF_SRL_SYM> {
   }
 
   /** Duplicate message */
-  void CopyStart(const DecompressTask &other, bool deep) {
+  void Copy(const DecompressTask &other, bool deep) {
     data_ = other.data_;
     data_size_ = other.data_size_;
     if (!deep) {
@@ -1015,25 +1015,25 @@ struct DecompressTask : public Task, TaskFlags<TF_SRL_SYM> {
 
   /** (De)serialize message call */
   template <typename Ar>
-  void SerializeStart(Ar &ar) {
+  void SerializeIn(Ar &ar) {
     ar.bulk(DT_EXPOSE, data_, data_size_);
   }
 
   /** (De)serialize message return */
   template <typename Ar>
-  void SerializeEnd(Ar &ar) {
+  void SerializeOut(Ar &ar) {
     ar.bulk(DT_WRITE, data_, data_size_);
   }
 };
 ```
 
-The main difference here is the implementations of SerializeStart and SerializeEnd.
+The main difference here is the implementations of SerializeIn and SerializeOut.
 
-#### SerializeStart
+#### SerializeIn
 ```cpp
   /** (De)serialize message call */
   template <typename Ar>
-  void SerializeStart(Ar &ar) {
+  void SerializeIn(Ar &ar) {
     ar.bulk(DT_EXPOSE, data_, data_size_);
   }
 ```
@@ -1042,11 +1042,11 @@ In this case, we are only "exposing" the buffer for I/O operations.
 This means the remote node will not actually copy the data_ buffer.
 It will just have the ability to access that buffer.
 
-#### SerializeEnd
+#### SerializeOut
 ```cpp
   /** (De)serialize message return */
   template <typename Ar>
-  void SerializeEnd(Ar &ar) {
+  void SerializeOut(Ar &ar) {
     ar.bulk(DT_WRITE, data_, data_size_);
   }
 ```
@@ -1121,13 +1121,13 @@ a class named Server. This class should always be named Server.
   /** Construct compressor */
   void Create(CreateTask *task, RunContext &rctx) {
     // Create a set of lanes for holding tasks
-    CreateLaneGroup(kDefaultGroup, 1, QUEUE_LOW_LATENCY);
+    CreateQueue(kDefaultGroup, 1, QUEUE_LOW_LATENCY);
   }
   void MonitorCreate(MonitorModeId mode, CreateTask *task, RunContext &rctx) {}
 ```
 
 This method is used to effectively construct the module. The first line of this
-file should always be CreateLaneGroup. Lanes are essentially threads. A LaneGroup
+file should always be CreateQueue. Lanes are essentially threads. A LaneGroup
 is a set of threads that behave similarly and execute similar types of tasks.
 Change the number of lanes to potentially have more concurrency in your module. 
 
@@ -1751,8 +1751,8 @@ we discuss are Lanes.
     url_.Parse(url);
     url_.path_ = hshm::Formatter::format("{}.{}", url_.path_, container_id_);
     alloc_.Init(1, dev_size);
-    CreateLaneGroup(kMdGroup, 1, QUEUE_LOW_LATENCY);
-    CreateLaneGroup(kDataGroup, 32, QUEUE_HIGH_LATENCY);
+    CreateQueue(kMdGroup, 1, QUEUE_LOW_LATENCY);
+    CreateQueue(kDataGroup, 32, QUEUE_HIGH_LATENCY);
 ```
 
 Lanes store a set of tasks to execute to process in sequence.

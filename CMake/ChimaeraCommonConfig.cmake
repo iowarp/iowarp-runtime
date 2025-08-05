@@ -20,13 +20,6 @@ if(BUILD_OpenMP_TESTS)
     message(STATUS "found omp.h at ${OpenMP_CXX_INCLUDE_DIRS}")
 endif()
 
-# Zeromq
-if(BUILD_ZeroMQ_TESTS)
-    pkg_check_modules(ZMQ REQUIRED libzmq)
-    include_directories(${ZMQ_INCLUDE_DIRS})
-    message("Found libzmq at: ${ZMQ_INCLUDE_DIRS}")
-endif()
-
 # Boost
 find_package(Boost REQUIRED COMPONENTS regex system filesystem fiber REQUIRED)
 
