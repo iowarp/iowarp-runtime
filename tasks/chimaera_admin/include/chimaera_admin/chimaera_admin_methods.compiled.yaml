@@ -1,5 +1,0 @@
-kCreate: {'val': 0, 'compiled': True}
-kDestroy: {'val': 1, 'compiled': True}
-kCreatePool: {'val': 10, 'compiled': True}
-kDestroyPool: {'val': 11, 'compiled': True}
-kStopRuntime: {'val': 12, 'compiled': True}
