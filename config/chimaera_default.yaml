@@ -1,0 +1,34 @@
+# Default Chimaera Configuration
+# This file contains the default configuration for the Chimaera distributed task execution framework
+
+# Worker thread configuration
+workers:
+  low_latency_threads: 4
+  high_latency_threads: 2  
+  reinforcement_threads: 1
+  process_reaper_threads: 1
+
+# Memory segment configuration  
+memory:
+  main_segment_size: 1073741824      # 1GB
+  client_data_segment_size: 536870912 # 512MB
+  runtime_data_segment_size: 536870912 # 512MB
+
+# Network configuration
+network:
+  zmq_port: 5555
+  
+# Logging configuration
+logging:
+  level: "info"
+  file: "/tmp/chimaera.log"
+
+# Performance tuning
+performance:
+  stack_size: 65536  # 64KB per task
+  queue_depth: 10000
+  
+# Runtime configuration
+runtime:
+  heartbeat_interval: 1000  # milliseconds
+  task_timeout: 30000       # milliseconds
