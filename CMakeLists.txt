@@ -52,7 +52,13 @@ else()
 endif()
 
 #------------------------------------------------------------------------------
-# SECTION 3: FIND_PACKAGE
+# SECTION 3: CHIMOD CMAKE UTILITIES
+#------------------------------------------------------------------------------
+# Include ChiMod utilities for building Chimaera modules
+include(${CMAKE_SOURCE_DIR}/cmake/ChimaeraChiModUtils.cmake)
+
+#------------------------------------------------------------------------------
+# SECTION 4: FIND_PACKAGE
 #------------------------------------------------------------------------------
 # Find required dependencies
 find_package(PkgConfig REQUIRED)
@@ -69,7 +75,7 @@ message(STATUS "found hermes_shm at ${HermesShm_PREFIX}")
 # Note: ZeroMQ support disabled for stub implementation
 
 #------------------------------------------------------------------------------
-# SECTION 4: SOURCE COMPILATION
+# SECTION 5: SOURCE COMPILATION
 #------------------------------------------------------------------------------
 # Include directories
 include_directories(${CMAKE_SOURCE_DIR}/include)
@@ -109,6 +115,9 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
+# Add chimods subdirectory
+add_subdirectory(chimods)
+
 # Add utilities
 if(CHIMAERA_BUILD_RUNTIME)
   # Build chimaera_start_runtime
@@ -125,7 +134,7 @@ if(CHIMAERA_BUILD_RUNTIME)
 endif()
 
 #------------------------------------------------------------------------------
-# SECTION 5: INSTALL CODE
+# SECTION 6: INSTALL CODE
 #------------------------------------------------------------------------------
 # Install library
 install(TARGETS chimaera

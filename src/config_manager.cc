@@ -10,7 +10,7 @@ namespace chi {
 
 // Constructor and destructor removed - handled by HSHM singleton pattern
 
-bool ConfigManager::Init() {
+bool ConfigManager::ClientInit() {
   if (is_initialized_) {
     return true;
   }
@@ -28,6 +28,11 @@ bool ConfigManager::Init() {
 
   is_initialized_ = true;
   return true;
+}
+
+bool ConfigManager::ServerInit() {
+  // Configuration is needed by both client and server, so same implementation
+  return ClientInit();
 }
 
 bool ConfigManager::LoadYaml(const std::string& config_path) {

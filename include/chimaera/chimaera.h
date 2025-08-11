@@ -3,15 +3,15 @@
 
 /**
  * Main header file for Chimaera distributed task execution framework
- * 
+ *
  * This header provides the primary interface for both runtime and client
  * applications using the Chimaera framework.
  */
 
-#include "chimaera/types.h"
-#include "chimaera/task.h"
 #include "chimaera/domain_query.h"
 #include "chimaera/singletons.h"
+#include "chimaera/task.h"
+#include "chimaera/types.h"
 #include "chimaera/worker.h"
 
 namespace chi {
@@ -28,7 +28,7 @@ bool CHIMAERA_CLIENT_INIT();
 
 /**
  * Initialize Chimaera runtime components
- * @return true if initialization successful, false otherwise  
+ * @return true if initialization successful, false otherwise
  */
 bool CHIMAERA_RUNTIME_INIT();
 

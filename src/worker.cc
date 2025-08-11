@@ -27,7 +27,7 @@ bool Worker::Init() {
 
   // Initialize stack allocator using HSHM memory manager
   auto mem_manager = HSHM_MEMORY_MANAGER;
-  hipc::AllocatorId alloc_id(2, worker_id_); // Use worker-specific allocator
+  hipc::AllocatorId alloc_id(10 + worker_id_, 0); // Use worker-specific major allocator ID
   
   try {
     // Create a dedicated allocator for this worker's stack

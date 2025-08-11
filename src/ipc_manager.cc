@@ -15,15 +15,13 @@ bool IpcManager::ClientInit() {
     return true;
   }
 
-  is_client_mode_ = true;
-
   // Initialize memory segments for client
-  if (!InitializeMemorySegments()) {
+  if (!ClientInitShm()) {
     return false;
   }
 
   // Initialize priority queues
-  if (!InitializePriorityQueues()) {
+  if (!InitializePriorityQueues(false)) {
     return false;
   }
 
@@ -36,22 +34,18 @@ bool IpcManager::ServerInit() {
     return true;
   }
 
-  is_client_mode_ = false;
-
   // Initialize memory segments for server
-  if (!InitializeMemorySegments()) {
+  if (!ServerInitShm()) {
     return false;
   }
 
   // Initialize priority queues
-  if (!InitializePriorityQueues()) {
+  if (!InitializePriorityQueues(true)) {
     return false;
   }
 
-  // Initialize ZeroMQ server
-  if (!InitializeZmqServer()) {
-    return false;
-  }
+  // Initialize ZeroMQ server (optional - failure is non-fatal)
+  InitializeZmqServer();
 
   is_initialized_ = true;
   return true;
@@ -67,11 +61,14 @@ void IpcManager::Finalize() {
   // Cleanup ZeroMQ server
   zmq_server_.reset();
 
-  // Cleanup task queues
-  if (!task_queue_.IsNull()) {
-    auto alloc = mem_manager->GetAllocator<CHI_MAIN_ALLOC_T>(main_allocator_id_);
-    alloc->DelObj(HSHM_MCTX, task_queue_);
-  }
+  // Cleanup task queue in shared header (queue handles cleanup automatically)
+  // Only the last process to detach will actually destroy shared data
+  shared_header_ = nullptr;
+  
+  // Clear cached allocator pointers
+  main_allocator_ = nullptr;
+  client_data_allocator_ = nullptr;
+  runtime_data_allocator_ = nullptr;
 
   // Cleanup allocators
   if (!main_allocator_id_.IsNull()) {
@@ -94,85 +91,31 @@ void IpcManager::Finalize() {
   is_initialized_ = false;
 }
 
-template<typename TaskT, typename ...Args>
-FullPtr<TaskT> IpcManager::NewTask(MemorySegment segment, Args&&... args) {
-  auto mem_manager = HSHM_MEMORY_MANAGER;
-  hipc::AllocatorId alloc_id;
-  
-  switch (segment) {
-    case kMainSegment:
-      alloc_id = main_allocator_id_;
-      break;
-    case kClientDataSegment:
-      alloc_id = client_data_allocator_id_;
-      break;
-    case kRuntimeDataSegment:
-      alloc_id = runtime_data_allocator_id_;
-      break;
-    default:
-      return FullPtr<TaskT>();
-  }
-  
-  auto alloc = mem_manager->GetAllocator<CHI_MAIN_ALLOC_T>(alloc_id);
-  hipc::CtxAllocator<CHI_MAIN_ALLOC_T> ctx_alloc(HSHM_MCTX, alloc);
-  return alloc->NewObj<TaskT>(HSHM_MCTX, ctx_alloc, std::forward<Args>(args)...);
-}
+// Template methods (NewTask, DelTask, AllocateBuffer, Enqueue) are implemented inline in the header
 
-template<typename TaskT>
-void IpcManager::DelTask(FullPtr<TaskT>& task_ptr, MemorySegment segment) {
-  if (task_ptr.IsNull()) return;
-  
-  auto mem_manager = HSHM_MEMORY_MANAGER;
-  hipc::AllocatorId alloc_id;
-  
-  switch (segment) {
-    case kMainSegment:
-      alloc_id = main_allocator_id_;
-      break;
-    case kClientDataSegment:
-      alloc_id = client_data_allocator_id_;
-      break;
-    case kRuntimeDataSegment:
-      alloc_id = runtime_data_allocator_id_;
-      break;
-    default:
-      return;
+hipc::Pointer IpcManager::Dequeue(QueuePriority priority) {
+  if (!shared_header_ || !shared_header_->task_queue.get() || 
+      shared_header_->task_queue.get()->IsNull()) {
+    return hipc::Pointer();
   }
   
-  auto alloc = mem_manager->GetAllocator<CHI_MAIN_ALLOC_T>(alloc_id);
-  alloc->DelObj(HSHM_MCTX, task_ptr);
-}
-
-template<typename T>
-FullPtr<T> IpcManager::AllocateBuffer(size_t size, MemorySegment segment) {
-  auto mem_manager = HSHM_MEMORY_MANAGER;
-  hipc::AllocatorId alloc_id;
-  
-  switch (segment) {
-    case kMainSegment:
-      alloc_id = main_allocator_id_;
-      break;
-    case kClientDataSegment:
-      alloc_id = client_data_allocator_id_;
-      break;
-    case kRuntimeDataSegment:
-      alloc_id = runtime_data_allocator_id_;
-      break;
-    default:
-      return FullPtr<T>();
+  hipc::Pointer task_ptr;
+  auto& lane = shared_header_->task_queue.get()->GetLane(0, static_cast<int>(priority));
+  auto token = lane.pop(task_ptr);
+  if (!token.IsNull()) {
+    return task_ptr;
   }
-  
-  auto alloc = mem_manager->GetAllocator<CHI_MAIN_ALLOC_T>(alloc_id);
-  return alloc->template Allocate<T>(HSHM_MCTX, size);
+  return hipc::Pointer();
 }
 
 void* IpcManager::GetProcessQueue(QueuePriority priority) {
-  if (task_queue_.IsNull()) {
+  if (!shared_header_ || !shared_header_->task_queue.get() || 
+      shared_header_->task_queue.get()->IsNull()) {
     return nullptr;
   }
   
   // Return specific lane of multi-queue based on priority
-  auto& lane = task_queue_.ptr_->GetLane(0, static_cast<int>(priority));
+  auto& lane = shared_header_->task_queue.get()->GetLane(0, static_cast<int>(priority));
   return &lane;
 }
 
@@ -180,68 +123,128 @@ bool IpcManager::IsInitialized() const {
   return is_initialized_;
 }
 
-bool IpcManager::InitializeMemorySegments() {
+bool IpcManager::ServerInitShm() {
   auto mem_manager = HSHM_MEMORY_MANAGER;
   ConfigManager* config = CHI_CONFIG;
   
   try {
-    // Initialize main memory backend
+    // Set backend and allocator IDs
     main_backend_id_ = hipc::MemoryBackendId::Get(0);
+    client_data_backend_id_ = hipc::MemoryBackendId::Get(1);
+    runtime_data_backend_id_ = hipc::MemoryBackendId::Get(2);
+    
+    main_allocator_id_ = hipc::AllocatorId(1, 0);
+    client_data_allocator_id_ = hipc::AllocatorId(2, 0);
+    runtime_data_allocator_id_ = hipc::AllocatorId(3, 0);
+    
+    // Create memory backends
     mem_manager->CreateBackend<hipc::PosixShmMmap>(
         main_backend_id_,
         hshm::Unit<size_t>::Bytes(config->GetMemorySegmentSize(kMainSegment)),
         "chi_main_segment"
     );
     
-    // Initialize client data backend
-    client_data_backend_id_ = hipc::MemoryBackendId::Get(1);
     mem_manager->CreateBackend<hipc::PosixShmMmap>(
         client_data_backend_id_,
         hshm::Unit<size_t>::Bytes(config->GetMemorySegmentSize(kClientDataSegment)),
         "chi_client_data_segment"
     );
     
-    // Initialize runtime data backend
-    runtime_data_backend_id_ = hipc::MemoryBackendId::Get(2);
     mem_manager->CreateBackend<hipc::PosixShmMmap>(
         runtime_data_backend_id_,
         hshm::Unit<size_t>::Bytes(config->GetMemorySegmentSize(kRuntimeDataSegment)),
         "chi_runtime_data_segment"
     );
     
-    // Create allocators
-    main_allocator_id_ = hipc::AllocatorId(1, 0);
+    // Create allocators with custom header for main allocator
+    size_t custom_header_size = sizeof(IpcSharedHeader);
     mem_manager->CreateAllocator<CHI_MAIN_ALLOC_T>(
-        main_backend_id_, main_allocator_id_, 0
+        main_backend_id_, main_allocator_id_, custom_header_size
     );
     
-    client_data_allocator_id_ = hipc::AllocatorId(1, 1);
     mem_manager->CreateAllocator<CHI_CDATA_ALLOC_T>(
         client_data_backend_id_, client_data_allocator_id_, 0
     );
     
-    runtime_data_allocator_id_ = hipc::AllocatorId(1, 2);
     mem_manager->CreateAllocator<CHI_RDATA_ALLOC_T>(
         runtime_data_backend_id_, runtime_data_allocator_id_, 0
     );
     
-    return true;
+    // Cache allocator pointers
+    main_allocator_ = mem_manager->GetAllocator<CHI_MAIN_ALLOC_T>(main_allocator_id_);
+    client_data_allocator_ = mem_manager->GetAllocator<CHI_CDATA_ALLOC_T>(client_data_allocator_id_);
+    runtime_data_allocator_ = mem_manager->GetAllocator<CHI_RDATA_ALLOC_T>(runtime_data_allocator_id_);
+    
+    return main_allocator_ && client_data_allocator_ && runtime_data_allocator_;
   } catch (const std::exception& e) {
     return false;
   }
 }
 
-bool IpcManager::InitializePriorityQueues() {
+bool IpcManager::ClientInitShm() {
   auto mem_manager = HSHM_MEMORY_MANAGER;
-  auto alloc = mem_manager->GetAllocator<CHI_MAIN_ALLOC_T>(main_allocator_id_);
   
   try {
-    // Create multi-queue with 1 lane, 2 priorities (low/high latency), depth 1024
-    task_queue_ = alloc->NewObj<hshm::multi_mpsc_queue<u32>>(
-        HSHM_MCTX, alloc, 1, 2, 1024
-    );
+    // Set backend and allocator IDs (must match server)
+    main_backend_id_ = hipc::MemoryBackendId::Get(0);
+    client_data_backend_id_ = hipc::MemoryBackendId::Get(1);
+    runtime_data_backend_id_ = hipc::MemoryBackendId::Get(2);
     
-    return !task_queue_.IsNull();
+    main_allocator_id_ = hipc::AllocatorId(1, 0);
+    client_data_allocator_id_ = hipc::AllocatorId(2, 0);
+    runtime_data_allocator_id_ = hipc::AllocatorId(3, 0);
+    
+    // Clean up any existing local state first
+    mem_manager->UnregisterAllocator(main_allocator_id_);
+    mem_manager->UnregisterAllocator(client_data_allocator_id_);
+    mem_manager->UnregisterAllocator(runtime_data_allocator_id_);
+    mem_manager->DestroyBackend(main_backend_id_);
+    mem_manager->DestroyBackend(client_data_backend_id_);
+    mem_manager->DestroyBackend(runtime_data_backend_id_);
+    
+    // Attach to existing shared memory segments
+    mem_manager->AttachBackend(hipc::MemoryBackendType::kPosixShmMmap, "chi_main_segment");
+    mem_manager->AttachBackend(hipc::MemoryBackendType::kPosixShmMmap, "chi_client_data_segment");
+    mem_manager->AttachBackend(hipc::MemoryBackendType::kPosixShmMmap, "chi_runtime_data_segment");
+    
+    // Cache allocator pointers
+    main_allocator_ = mem_manager->GetAllocator<CHI_MAIN_ALLOC_T>(main_allocator_id_);
+    client_data_allocator_ = mem_manager->GetAllocator<CHI_CDATA_ALLOC_T>(client_data_allocator_id_);
+    runtime_data_allocator_ = mem_manager->GetAllocator<CHI_RDATA_ALLOC_T>(runtime_data_allocator_id_);
+    
+    return main_allocator_ && client_data_allocator_ && runtime_data_allocator_;
+  } catch (const std::exception& e) {
+    return false;
+  }
+}
+
+bool IpcManager::InitializePriorityQueues(bool is_server) {
+  if (!main_allocator_) {
+    return false;
+  }
+  
+  try {
+    // Get the custom header from allocator
+    shared_header_ = main_allocator_->template GetCustomHeader<IpcSharedHeader>();
+    
+    if (is_server) {
+      // Server initializes the queue in the custom header
+      // Create multi-queue with 1 lane, 2 priorities (low/high latency), depth 1024
+      // Queue stores hipc::Pointer which represents .shm component of FullPtr<Task>
+      hipc::CtxAllocator<CHI_MAIN_ALLOC_T> ctx_alloc(HSHM_MCTX, main_allocator_);
+      shared_header_->task_queue.shm_init(ctx_alloc, 1, 2, 1024);
+    }
+    // Client just accesses the already initialized queue
+    
+    // For server, check if queue was initialized
+    // For client, just check if we got the header
+    if (is_server) {
+      return shared_header_ != nullptr && shared_header_->task_queue.get() != nullptr && 
+             !shared_header_->task_queue.get()->IsNull();
+    } else {
+      // Client doesn't check IsNull as queue should already be initialized
+      return shared_header_ != nullptr && shared_header_->task_queue.get() != nullptr;
+    }
   } catch (const std::exception& e) {
     return false;
   }
@@ -266,9 +269,6 @@ bool IpcManager::InitializeZmqServer() {
   }
 }
 
-// Explicit template instantiations
-template FullPtr<Task> IpcManager::NewTask<Task>(MemorySegment);
-template void IpcManager::DelTask<Task>(FullPtr<Task>&, MemorySegment);
-template FullPtr<char> IpcManager::AllocateBuffer<char>(size_t, MemorySegment);
+// No template instantiations needed - all templates are inline in header
 
 }  // namespace chi

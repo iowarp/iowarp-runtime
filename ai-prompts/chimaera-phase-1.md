@@ -76,7 +76,7 @@ Tasks are used to communicate with containers and pools. Tasks are like RPCs. Th
 #define TEMP  // This is internally used by the runtime or client.
 
 /** A container method to execute + parameters */
-struct Task : public hipc::ShmContainer {
+struct Task {
 public:
   IN PoolId pool_id_;        /**< The unique ID of a pool */
   IN TaskNode task_node_;    /**< The unique ID of this task in the graph */

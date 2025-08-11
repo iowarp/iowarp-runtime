@@ -8,7 +8,7 @@ namespace chi {
 
 // Constructor and destructor removed - handled by HSHM singleton pattern
 
-bool PoolManager::Init() {
+bool PoolManager::ClientInit() {
   if (is_initialized_) {
     return true;
   }
@@ -18,6 +18,11 @@ bool PoolManager::Init() {
 
   is_initialized_ = true;
   return true;
+}
+
+bool PoolManager::ServerInit() {
+  // Pool manager needs same functionality in both client and server
+  return ClientInit();
 }
 
 void PoolManager::Finalize() {

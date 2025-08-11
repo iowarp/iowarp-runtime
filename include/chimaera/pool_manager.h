@@ -6,8 +6,13 @@
 
 namespace chi {
 
-// Forward declaration - ChiContainer is typedef'd to void for now
+// Forward declarations for ChiMod system
+#ifndef CHIMAERA_RUNTIME
 using ChiContainer = void;
+#else
+// When CHIMAERA_RUNTIME is defined, ChiContainer is defined in chimod_spec.h
+class ChiContainer;
+#endif
 
 /**
  * Pool Manager singleton for managing ChiPools and ChiContainers
@@ -19,10 +24,25 @@ using ChiContainer = void;
 class PoolManager {
  public:
   /**
-   * Initialize pool manager
+   * Initialize pool manager (generic wrapper)
+   * Basic initialization for pool tracking
    * @return true if initialization successful, false otherwise
    */
-  bool Init();
+  bool Init() { return ClientInit(); }
+
+  /**
+   * Initialize pool manager (client mode)
+   * Basic initialization for pool tracking
+   * @return true if initialization successful, false otherwise
+   */
+  bool ClientInit();
+
+  /**
+   * Initialize pool manager (server/runtime mode)  
+   * Full initialization for pool management
+   * @return true if initialization successful, false otherwise
+   */
+  bool ServerInit();
 
   /**
    * Finalize and cleanup pool resources

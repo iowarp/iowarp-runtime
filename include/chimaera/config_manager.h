@@ -16,10 +16,25 @@ namespace chi {
 class ConfigManager : public hshm::BaseConfig {
  public:
   /**
-   * Initialize configuration manager
+   * Initialize configuration manager (generic wrapper)
+   * Loads configuration from environment variables and files
    * @return true if initialization successful, false otherwise
    */
-  bool Init();
+  bool Init() { return ClientInit(); }
+
+  /**
+   * Initialize configuration manager (client mode)
+   * Loads configuration from environment variables and files
+   * @return true if initialization successful, false otherwise
+   */
+  bool ClientInit();
+
+  /**
+   * Initialize configuration manager (server/runtime mode)
+   * Same as ClientInit since config is needed by both
+   * @return true if initialization successful, false otherwise
+   */
+  bool ServerInit();
 
   /**
    * Load configuration from YAML file

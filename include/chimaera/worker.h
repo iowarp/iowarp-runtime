@@ -5,25 +5,12 @@
 #include <thread>
 #include "chimaera/types.h"
 #include "chimaera/task.h"
+#include "chimaera/chimod_spec.h"
 
 namespace chi {
 
 // Forward declarations
 class Task;
-
-/**
- * Run context for task execution
- * Provides execution environment and stack management
- */
-struct RunContext {
-  void* stack_ptr;
-  size_t stack_size;
-  ThreadType thread_type;
-  u32 worker_id;
-  
-  RunContext() : stack_ptr(nullptr), stack_size(0), 
-                 thread_type(kLowLatencyWorker), worker_id(0) {}
-};
 
 /**
  * Worker class for executing tasks
