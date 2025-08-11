@@ -7,3 +7,5 @@ This is a special chimod that the chimaera runtime should always find. If it is 
 3. StopRuntime
 
 When creating a container, a table should be built mapping DomainIds to either node ids or other DomainIds. These are referred to as domain tables. These tables should be stored as part of the pool metadata in PoolInfo. Two domains should be stored: kLocal and kGlobal. Local domain maps containers on this node to the global DomainId. Global maps DomainId to physical DomainIds, representing node Ids. The global domain table should be consistent across all nodes. 
+
+The ContainerId should be set based on the 

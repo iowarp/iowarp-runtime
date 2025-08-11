@@ -22,5 +22,7 @@ Add this task to the worker's waiting queue, which is built using a min heap.
 Mark this task as blocked in the RunContext.
 The worker sees the task is blocked. It does not do any additional work to the task.
 
+At the end of each worker iteration, it pops the minimum element from the min heap and checks for completion. If it is incomplete, the worker continues. If the worker has no additional work to do, then it will wait for the estimated task completion time. 
+
 On the client:
 A spinwait that sleeps for 10 microseconds. It checks to see if the task is complete every 10 us. Use HSHM_THREAD_MODEL->SleepForUs. to do this.

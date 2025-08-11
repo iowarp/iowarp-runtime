@@ -5,6 +5,9 @@
 #include <thread>
 #include <vector>
 #include <shared_mutex>
+#include <queue>
+#include <chrono>
+#include <boost/context/detail/fcontext.hpp>
 #include "chimaera/types.h"
 #include "chimaera/task.h"
 #include "chimaera/chimod_spec.h"
@@ -21,17 +24,19 @@ class Task;
 //   FullPtr<Task> current_task = CHI_CUR_TASK;
 //   RunContext* run_ctx = CHI_CUR_RCTX;
 //   Worker* worker = CHI_CUR_WORKER;
-#define CHI_CUR_TASK (CHI_CUR_RCTX ? CHI_CUR_RCTX->current_task : FullPtr<Task>())
+#define CHI_CUR_TASK (CHI_CUR_RCTX ? CHI_CUR_RCTX->current_task : FullPtr<Task>::GetNull())
 #define CHI_CUR_RCTX (HSHM_THREAD_MODEL->GetTls<struct RunContext>(chi_cur_rctx_key_))
 #define CHI_CUR_WORKER (HSHM_THREAD_MODEL->GetTls<class Worker>(chi_cur_worker_key_))
+#define CHI_CUR_CONTAINER (CHI_CUR_RCTX ? static_cast<ChiContainer*>(CHI_CUR_RCTX->container) : nullptr)
+#define CHI_CUR_LANE (CHI_CUR_RCTX ? static_cast<Lane*>(CHI_CUR_RCTX->lane) : nullptr)
 
 // Helper macros for setting thread-local storage (internal use)
-#define CHI_SET_CUR_TASK(task_ptr) (CHI_CUR_RCTX ? (CHI_CUR_RCTX->current_task = (task_ptr)) : FullPtr<Task>())
+#define CHI_SET_CUR_TASK(task_ptr) (CHI_CUR_RCTX ? (CHI_CUR_RCTX->current_task = (task_ptr)) : FullPtr<Task>::GetNull())
 #define CHI_SET_CUR_RCTX(rctx) (HSHM_THREAD_MODEL->SetTls(chi_cur_rctx_key_, static_cast<struct RunContext*>(rctx)))
 #define CHI_SET_CUR_WORKER(worker) (HSHM_THREAD_MODEL->SetTls(chi_cur_worker_key_, static_cast<class Worker*>(worker)))
 
 // Helper macros for clearing thread-local storage (internal use)
-#define CHI_CLEAR_CUR_TASK() (CHI_CUR_RCTX ? (CHI_CUR_RCTX->current_task = FullPtr<Task>()) : FullPtr<Task>())
+#define CHI_CLEAR_CUR_TASK() (CHI_CUR_RCTX ? (CHI_CUR_RCTX->current_task = FullPtr<Task>::GetNull()) : FullPtr<Task>::GetNull())
 #define CHI_CLEAR_CUR_RCTX() (HSHM_THREAD_MODEL->SetTls(chi_cur_rctx_key_, static_cast<struct RunContext*>(nullptr)))
 #define CHI_CLEAR_CUR_WORKER() (HSHM_THREAD_MODEL->SetTls(chi_cur_worker_key_, static_cast<class Worker*>(nullptr)))
 
@@ -93,6 +98,14 @@ class Worker {
    * @return true if worker is active, false otherwise
    */
   bool IsRunning() const;
+
+  /**
+   * Add task to blocked queue with estimated completion time
+   * @param task_ptr Full pointer to task
+   * @param run_ctx_ptr Pointer to run context
+   * @param estimated_time_us Estimated completion time in microseconds
+   */
+  void AddToBlockedQueue(const FullPtr<Task>& task_ptr, RunContext* run_ctx_ptr, double estimated_time_us);
 
  private:
   /**
@@ -159,8 +172,18 @@ class Worker {
   /**
    * Execute task using boost::fiber for context switching
    * @param task_ptr Full pointer to task to execute (RunContext will be allocated and set in task)
+   * @param container Container for the task
+   * @param lane Lane for the task
    */
-  void ExecuteTask(const FullPtr<Task>& task_ptr);
+  void ExecuteTask(const FullPtr<Task>& task_ptr, ChiContainer* container, Lane* lane);
+
+  /**
+   * Unified task execution function with context reuse capability
+   * @param task_ptr Full pointer to task to execute
+   * @param run_ctx_ptr Pointer to existing RunContext (can be null for new tasks)
+   * @param is_started True if task is resuming, false for new task
+   */
+  void ExecuteTaskUnified(const FullPtr<Task>& task_ptr, RunContext* run_ctx_ptr, bool is_started);
 
   /**
    * Task execution function - calls container's Run function
@@ -169,6 +192,18 @@ class Worker {
    * @return true if task completed successfully, false otherwise
    */
   bool TaskExecutionFunction(const FullPtr<Task>& task_ptr, const RunContext& run_ctx);
+
+  /**
+   * Check blocked queue for completed tasks
+   * @return Number of microseconds the worker could sleep if no new work, 0 if immediate work available
+   */
+  u32 CheckBlockedQueue();
+
+  /**
+   * Static function for boost::fiber execution context
+   * @param t Transfer context for boost::fiber
+   */
+  static void FiberExecutionFunction(boost::context::detail::transfer_t t);
 
   u32 worker_id_;
   ThreadType thread_type_;
@@ -196,9 +231,24 @@ class Worker {
   
   std::vector<StackInfo> stack_pool_;
 
-  // Boost fiber context for task switching
-  boost::context::detail::fcontext_t fiber_context_;
-  boost::context::detail::transfer_t shared_transfer_;
+  // Blocked queue for partially completed tasks (priority queue by completion time)
+  struct BlockedTask {
+    FullPtr<Task> task_ptr;
+    RunContext* run_ctx_ptr;
+    double estimated_completion_time_us;
+    std::chrono::steady_clock::time_point block_time;
+    
+    BlockedTask(const FullPtr<Task>& task, RunContext* ctx, double est_time)
+        : task_ptr(task), run_ctx_ptr(ctx), estimated_completion_time_us(est_time),
+          block_time(std::chrono::steady_clock::now()) {}
+    
+    // Comparator for priority queue (earliest completion time first)
+    bool operator>(const BlockedTask& other) const {
+      return estimated_completion_time_us > other.estimated_completion_time_us;
+    }
+  };
+  
+  std::priority_queue<BlockedTask, std::vector<BlockedTask>, std::greater<BlockedTask>> blocked_queue_;
 };
 
 }  // namespace chi

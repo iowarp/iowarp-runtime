@@ -7,6 +7,8 @@
 #include "chimaera/work_orchestrator.h"
 #include "chimaera/pool_manager.h"
 #include <cstdlib>
+#include <limits>
+#include <boost/context/detail/fcontext.hpp>
 
 namespace chi {
 
@@ -108,7 +110,7 @@ void Worker::Run() {
                 // Call monitor function with kLocalSchedule to map task to lane
                 if (CallMonitorForLocalSchedule(container, task_full_ptr)) {
                   // Execute the task (RunContext allocated within ExecuteTask)
-                  ExecuteTask(task_full_ptr);
+                  ExecuteTask(task_full_ptr, container, nullptr);
                 }
               }
             }
@@ -120,9 +122,21 @@ void Worker::Run() {
       }
     }
     
+    // Check blocked queue for completed tasks at end of each iteration
+    u32 sleep_time_us = CheckBlockedQueue();
+    
     if (!task_found) {
-      // No tasks available, yield briefly
-      HSHM_THREAD_MODEL->Yield();
+      // No new tasks available, use sleep time from CheckBlockedQueue
+      if (sleep_time_us == 0) {
+        // Immediate recheck needed, just yield briefly
+        HSHM_THREAD_MODEL->Yield();
+      } else if (sleep_time_us == std::numeric_limits<u32>::max()) {
+        // No blocked tasks, yield briefly
+        HSHM_THREAD_MODEL->Yield();
+      } else {
+        // Sleep for the calculated time until next blocked task should be checked
+        HSHM_THREAD_MODEL->SleepForUs(static_cast<size_t>(sleep_time_us));
+      }
     }
   }
 }
@@ -270,12 +284,12 @@ void Worker::DeallocateStackAndContext(RunContext* run_ctx_ptr) {
   // If stack not found in pool (shouldn't happen), just ignore
 }
 
-void Worker::ExecuteTask(const FullPtr<Task>& task_ptr) {
+void Worker::ExecuteTask(const FullPtr<Task>& task_ptr, ChiContainer* container, Lane* lane) {
   if (task_ptr.IsNull()) {
     return;
   }
 
-  // Allocate stack and RunContext together
+  // Allocate stack and RunContext together for new task
   RunContext* run_ctx_ptr = AllocateStackAndContext(65536); // 64KB default
   
   if (!run_ctx_ptr) {
@@ -285,10 +299,23 @@ void Worker::ExecuteTask(const FullPtr<Task>& task_ptr) {
     std::abort(); // Fatal failure
   }
   
-  // Initialize RunContext
+  // Initialize RunContext for new task
   run_ctx_ptr->thread_type = thread_type_;
   run_ctx_ptr->worker_id = worker_id_;
   run_ctx_ptr->current_task = task_ptr;  // Store task in RunContext
+  run_ctx_ptr->is_blocked = false;       // Initially not blocked
+  run_ctx_ptr->container = static_cast<void*>(container);    // Store container for CHI_CUR_CONTAINER
+  run_ctx_ptr->lane = static_cast<void*>(lane);              // Store lane for CHI_CUR_LANE
+  run_ctx_ptr->waiting_for_tasks.clear();  // Clear waiting tasks for new task
+  
+  // Use unified execution function
+  ExecuteTaskUnified(task_ptr, run_ctx_ptr, false);
+}
+
+void Worker::ExecuteTaskUnified(const FullPtr<Task>& task_ptr, RunContext* run_ctx_ptr, bool is_started) {
+  if (task_ptr.IsNull() || !run_ctx_ptr) {
+    return;
+  }
   
   // Set RunContext pointer in task
   task_ptr->run_ctx_ = run_ctx_ptr;
@@ -298,73 +325,60 @@ void Worker::ExecuteTask(const FullPtr<Task>& task_ptr) {
   CHI_SET_CUR_WORKER(this);
   
   namespace bctx = boost::context::detail;
-
-  if (run_ctx_ptr->stack_ptr) {
-    // Create fiber context for this task
-    fiber_context_ = bctx::make_fcontext(run_ctx_ptr->stack_ptr, run_ctx_ptr->stack_size, 
-      [](bctx::transfer_t t) {
-        // This lambda runs in the fiber context
-        // Use thread-local storage instead of transfer data
-        FullPtr<Task> current_task_ptr = CHI_CUR_TASK;
-        Worker* worker = CHI_CUR_WORKER;
-        RunContext* run_ctx = CHI_CUR_RCTX;
-        
-        bool task_completed = false;
-        if (!current_task_ptr.IsNull() && worker && run_ctx) {
-          // Execute the task using the RunContext stored in the task
-          bool execution_success = worker->TaskExecutionFunction(current_task_ptr, *run_ctx);
-          
-          // Mark task completion status before returning from fiber
-          // Don't mark periodic tasks as complete
-          if (execution_success && !current_task_ptr->IsPeriodic()) {
-            task_completed = true;
-          }
-        }
-        
-        // Store completion status in RunContext for access after fiber return
-        run_ctx->runtime_data = task_completed ? reinterpret_cast<void*>(1) : nullptr;
-        
-        // Jump back to main context when done
-        worker->shared_transfer_ = bctx::jump_fcontext(t.fctx, nullptr);
-      });
-
-    // Jump to fiber context to execute the task (no data needed, using thread-local)
-    shared_transfer_ = bctx::jump_fcontext(fiber_context_, nullptr);
-    
-    // Retrieve task completion status from RunContext
-    bool task_completed = (run_ctx_ptr->runtime_data != nullptr);
-    
-    // Clear thread-local storage and task reference
-    run_ctx_ptr->current_task = FullPtr<Task>(); // Clear task from RunContext
-    CHI_CLEAR_CUR_RCTX();
-    CHI_CLEAR_CUR_WORKER();
-    
-    // Clear RunContext pointer in task
-    task_ptr->run_ctx_ = nullptr;
-    
-    // Only deallocate stack if task is marked complete
-    if (task_completed) {
-      DeallocateStackAndContext(run_ctx_ptr);
+  
+  if (is_started) {
+    // Resume execution - the task's fiber context is already set up
+    if (run_ctx_ptr->jump_point) {
+      bctx::transfer_t* transfer = static_cast<bctx::transfer_t*>(run_ctx_ptr->jump_point);
+      // Resume fiber execution
+      *transfer = bctx::jump_fcontext(transfer->fctx, transfer->data);
     }
-    // If task is incomplete (failed or periodic), keep stack allocated for reuse
   } else {
-    // Fallback to direct execution if no stack available
-    bool execution_success = TaskExecutionFunction(task_ptr, *run_ctx_ptr);
-    
-    // Clear thread-local storage and task reference
-    run_ctx_ptr->current_task = FullPtr<Task>(); // Clear task from RunContext
-    CHI_CLEAR_CUR_RCTX();
-    CHI_CLEAR_CUR_WORKER();
-    
-    // Clear RunContext pointer in task
-    task_ptr->run_ctx_ = nullptr;
-    
-    // Mark task completion for direct execution and deallocate if complete
-    if (execution_success && !task_ptr->IsPeriodic()) {
-      DeallocateStackAndContext(run_ctx_ptr);
+    // New task execution - stack is required to be available
+    if (!run_ctx_ptr->stack_ptr) {
+      // FATAL: Stack is required for task execution
+      HELOG(kFatal, "Worker {}: Task execution requires stack to be allocated. Task method: {}, pool: {}", 
+            worker_id_, task_ptr->method_, task_ptr->pool_id_);
+      std::abort(); // Fatal failure - stack is mandatory
     }
-    // If task is incomplete (failed or periodic), keep stack allocated for reuse
+    
+    bctx::transfer_t shared_transfer;
+    // Store transfer context in RunContext for Wait() to use
+    run_ctx_ptr->jump_point = &shared_transfer;
+    
+    // Create fiber context for this task
+    bctx::fcontext_t fiber_context = bctx::make_fcontext(run_ctx_ptr->stack_ptr, run_ctx_ptr->stack_size, 
+      FiberExecutionFunction);
+
+    // Store fiber context in RunContext for Wait() to use
+    run_ctx_ptr->fiber_context = &fiber_context;
+    
+    // Jump to fiber context to execute the task
+    shared_transfer = bctx::jump_fcontext(fiber_context, nullptr);
   }
+  
+  // Common cleanup logic for both fiber and direct execution
+  if (run_ctx_ptr->is_blocked) {
+    // Task is blocked - don't clean up, will be resumed later
+    return;
+  }
+  
+  // Retrieve task completion status from RunContext
+  bool task_completed = (run_ctx_ptr->runtime_data != nullptr);
+  
+  // Clear thread-local storage and task reference
+  run_ctx_ptr->current_task = FullPtr<Task>::GetNull();
+  CHI_CLEAR_CUR_RCTX();
+  CHI_CLEAR_CUR_WORKER();
+  
+  // Clear RunContext pointer in task
+  task_ptr->run_ctx_ = nullptr;
+  
+  // Only deallocate stack if task is marked complete
+  if (task_completed) {
+    DeallocateStackAndContext(run_ctx_ptr);
+  }
+  // If task is incomplete (failed or periodic), keep stack allocated for reuse
 }
 
 bool Worker::TaskExecutionFunction(const FullPtr<Task>& task_ptr, const RunContext& run_ctx) {
@@ -373,22 +387,21 @@ bool Worker::TaskExecutionFunction(const FullPtr<Task>& task_ptr, const RunConte
   }
 
   // Task execution function - calls container's Run function
-  // This is where the worker will eventually poll the lane and call the container's Run function
+  // Use container pointer from RunContext instead of CHI_POOL_MANAGER
   
   try {
-    // Get the container for this task
-    ChiContainer* container = CHI_POOL_MANAGER->GetContainer(task_ptr->pool_id_);
+    // Get the container from RunContext
+    ChiContainer* container = static_cast<ChiContainer*>(run_ctx.container);
     
     if (container) {
       // Call the container's Run function with the task
-      RunContext mutable_run_ctx = run_ctx; // Make a mutable copy
-      container->Run(task_ptr->method_, task_ptr, mutable_run_ctx);
+      container->Run(task_ptr->method_, task_ptr, const_cast<RunContext&>(run_ctx));
       
       // Task execution completed successfully
       return true;
     } else {
       // Container not found - this is an error condition
-      HILOG(kWarning, "Container not found for pool_id: {}", task_ptr->pool_id_);
+      HILOG(kWarning, "Container not found in RunContext for pool_id: {}", task_ptr->pool_id_);
       return false;
     }
   } catch (const std::exception& e) {
@@ -396,6 +409,87 @@ bool Worker::TaskExecutionFunction(const FullPtr<Task>& task_ptr, const RunConte
     HELOG(kError, "Task execution failed: {}", e.what());
     return false;
   }
+}
+
+void Worker::AddToBlockedQueue(const FullPtr<Task>& task_ptr, RunContext* run_ctx_ptr, double estimated_time_us) {
+  if (task_ptr.IsNull() || !run_ctx_ptr) {
+    return;
+  }
+  
+  // Add task to the blocked queue (priority queue)
+  blocked_queue_.emplace(task_ptr, run_ctx_ptr, estimated_time_us);
+}
+
+u32 Worker::CheckBlockedQueue() {
+  // Always check tasks from the front of the queue
+  while (!blocked_queue_.empty()) {
+    const BlockedTask& blocked_task = blocked_queue_.top();
+    
+    if (!blocked_task.task_ptr.IsNull() && blocked_task.run_ctx_ptr) {
+      // Always check if all subtasks are completed first
+      if (blocked_task.run_ctx_ptr->AreSubtasksCompleted()) {
+        // All subtasks are completed, resume this task immediately
+        blocked_task.run_ctx_ptr->is_blocked = false;
+        
+        // Use unified execution function to resume the task
+        ExecuteTaskUnified(blocked_task.task_ptr, blocked_task.run_ctx_ptr, true);
+        
+        // Remove from queue and continue checking next task
+        blocked_queue_.pop();
+        continue;
+      }
+      
+      // Subtasks not completed - calculate time only once for the first blocked task
+      auto current_time = std::chrono::steady_clock::now();
+      auto elapsed_us = std::chrono::duration_cast<std::chrono::microseconds>(
+          current_time - blocked_task.block_time).count();
+      
+      // Calculate remaining time until estimated completion
+      if (elapsed_us >= blocked_task.estimated_completion_time_us) {
+        // Time estimate exceeded, return 0 to indicate immediate recheck needed
+        return 0;
+      } else {
+        // Return remaining time until estimated completion
+        return static_cast<u32>(blocked_task.estimated_completion_time_us - elapsed_us);
+      }
+    } else {
+      // Invalid task, remove from queue and continue
+      blocked_queue_.pop();
+    }
+  }
+  
+  // No blocked tasks remaining, worker can sleep indefinitely (return max value)
+  return std::numeric_limits<u32>::max();
+}
+
+void Worker::FiberExecutionFunction(boost::context::detail::transfer_t t) {
+  namespace bctx = boost::context::detail;
+  
+  // This function runs in the fiber context
+  // Use thread-local storage to get context
+  FullPtr<Task> current_task_ptr = CHI_CUR_TASK;
+  Worker* worker = CHI_CUR_WORKER;
+  RunContext* run_ctx = CHI_CUR_RCTX;
+  
+  bool task_completed = false;
+  if (!current_task_ptr.IsNull() && worker && run_ctx) {
+    // Execute the task using the RunContext stored in the task
+    bool execution_success = worker->TaskExecutionFunction(current_task_ptr, *run_ctx);
+    
+    // Mark task completion status before returning from fiber
+    // Don't mark periodic tasks as complete
+    if (execution_success && !current_task_ptr->IsPeriodic()) {
+      task_completed = true;
+    }
+  }
+  
+  // Store completion status in RunContext for access after fiber return
+  if (run_ctx) {
+    run_ctx->runtime_data = task_completed ? reinterpret_cast<void*>(1) : nullptr;
+  }
+  
+  // Jump back to main context when done
+  bctx::jump_fcontext(t.fctx, t.data);
 }
 
 }  // namespace chi

@@ -2,6 +2,7 @@
 #define CHIMAERA_INCLUDE_CHIMAERA_CHIMOD_SPEC_H_
 
 #include <string>
+#include <vector>
 #include "chimaera/types.h"
 #include "chimaera/task.h"
 
@@ -19,6 +20,9 @@ namespace chi {
 class Lane;
 class RunContext;
 
+// ChiContainer forward declaration - available in all contexts
+class ChiContainer;
+
 /**
  * Monitor mode identifiers for task scheduling
  */
@@ -26,6 +30,7 @@ enum class MonitorModeId : u32 {
   kLocalSchedule = 0,    ///< Route task to local container queue lane
   kGlobalSchedule = 1,   ///< Coordinate global task distribution
   kCleanup = 2,          ///< Clean up completed tasks
+  kEstLoad = 3,          ///< Estimate task execution time for waiting
 };
 
 /**
@@ -76,9 +81,35 @@ struct RunContext {
   u32 worker_id;
   void* runtime_data;
   FullPtr<Task> current_task;  // Current task being executed
+  bool is_blocked;             // Task is waiting for completion
+  double estimated_completion_time_us; // Estimated completion time in microseconds
+  void* fiber_context;         // boost::context::detail::fcontext_t for fiber jump point
+  void* jump_point;            // boost::context::detail::transfer_t data for fiber resume
+  void* container;             // Current container being executed (ChiContainer* in runtime)
+  void* lane;                  // Current lane being processed (Lane* in runtime)
+  std::vector<FullPtr<Task>> waiting_for_tasks; // Tasks this task is waiting for completion
   
   RunContext() : stack_ptr(nullptr), stack_size(0), 
-                 thread_type(kLowLatencyWorker), worker_id(0), runtime_data(nullptr) {}
+                 thread_type(kLowLatencyWorker), worker_id(0), runtime_data(nullptr),
+                 is_blocked(false), estimated_completion_time_us(0.0),
+                 fiber_context(nullptr), jump_point(nullptr), container(nullptr), lane(nullptr) {}
+
+  /**
+   * Check if all subtasks this task is waiting for are completed
+   * @return true if all subtasks are completed, false otherwise
+   */
+  bool AreSubtasksCompleted() const {
+    // Check each task in the waiting_for_tasks vector
+    for (const auto& waiting_task : waiting_for_tasks) {
+      if (!waiting_task.IsNull()) {
+        // Check if the waiting task is still blocked (not completed)
+        if (waiting_task->run_ctx_ && waiting_task->run_ctx_->is_blocked) {
+          return false; // Found a subtask that's still blocked
+        }
+      }
+    }
+    return true; // All subtasks are completed (or no subtasks)
+  }
 };
 
 #ifdef CHIMAERA_RUNTIME
