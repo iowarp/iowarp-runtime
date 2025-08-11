@@ -52,22 +52,30 @@ inline void Monitor(Runtime* runtime, chi::MonitorModeId mode, chi::u32 method,
 }
 
 /**
- * Delete a task
+ * Delete a task from shared memory
+ * Uses IPC manager to properly deallocate the task
  */
 inline void Del(Runtime* runtime, chi::u32 method, hipc::FullPtr<chi::Task> task_ptr) {
+  // Use IPC manager to deallocate task from shared memory
+  auto* ipc_manager = CHI_IPC;
   Method method_enum = static_cast<Method>(method);
+  
   switch (method_enum) {
     case Method::kCreate: {
-      runtime->DelCreate(task_ptr.Cast<CreateTask>());
+      ipc_manager->DelTask(task_ptr.Cast<CreateTask>(), chi::kMainSegment);
       break;
     }
     case Method::kCustom: {
-      runtime->DelCustom(task_ptr.Cast<CustomTask>());
+      ipc_manager->DelTask(task_ptr.Cast<CustomTask>(), chi::kMainSegment);
       break;
     }
     default:
+      // For unknown methods, still try to delete from main segment
+      ipc_manager->DelTask(task_ptr, chi::kMainSegment);
       break;
   }
+  
+  (void)runtime; // Runtime not needed for IPC-managed deletion
 }
 
 } // namespace chimaera::MOD_NAME

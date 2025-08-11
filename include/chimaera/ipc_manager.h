@@ -141,11 +141,16 @@ class IpcManager {
   bool ClientInitShm();
 
   /**
-   * Initialize priority queues
-   * @param is_server true if initializing for server, false for client
+   * Initialize priority queues for server
    * @return true if successful, false otherwise
    */
-  bool InitializePriorityQueues(bool is_server);
+  bool ServerInitQueues();
+
+  /**
+   * Initialize priority queues for client
+   * @return true if successful, false otherwise
+   */
+  bool ClientInitQueues();
 
   /**
    * Initialize ZeroMQ server

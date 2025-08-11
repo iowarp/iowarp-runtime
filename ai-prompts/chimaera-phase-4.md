@@ -1,7 +1,7 @@
 
 ### Admin ChiMod
 
-This is a special chimod that must be loaded for the chimaera runtime to fully function. This chimod is responsible for creating chipools, destroying them, and stopping the runtime. Processes initially send tasks containing the parameters to the chimod they want to instantiate to the admin chimod, which then distributes the chipool. It should use the PoolManager singleton to create containers locally. The chimod has three main tasks:
+This is a special chimod that the chimaera runtime should always find. If it is not found, then a fatal error should occur. This chimod is responsible for creating chipools, destroying them, and stopping the runtime. Processes initially send tasks containing the parameters to the chimod they want to instantiate to the admin chimod, which then distributes the chipool. It should use the PoolManager singleton to create containers locally. The chimod has three main tasks:
 1. CreatePool
 2. DestroyPool
 3. StopRuntime

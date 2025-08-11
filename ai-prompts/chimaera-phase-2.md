@@ -298,3 +298,7 @@ For chimods, we should create a CMakeLists.txt in a directory called CMake. It s
 ## Create the initial module repo
 
 Create the module repo for chimaera for all modules that are automatically provided. Name this chimod repo chimods. The namespace should be chimaera. Build a module named MOD_NAME with kCreate and kCustom methods. 
+
+## Documentation
+
+In a fold named doc, document the coding style, structure, and style of creating a module. It should be detailed enough that a new module with its own methods (i.e., tasks) could be easily programmed by another AI. 

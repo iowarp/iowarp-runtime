@@ -12,32 +12,7 @@ namespace chimaera::MOD_NAME {
 
 // Method implementations for Runtime class
 
-void Runtime::Init(const chi::PoolId& pool_id, const std::string& pool_name) {
-  chi::ChiContainer::Init(pool_id, pool_name);
-  std::cout << "MOD_NAME Runtime initialized for pool: " << pool_name 
-            << " (ID: " << pool_id << ")" << std::endl;
-}
-
-void Runtime::CreateLocalQueue(chi::QueueId queue_id, chi::u32 num_lanes, chi::u32 flags) {
-  // Simplified implementation - would create actual lanes in full implementation
-  std::cout << "Creating local queue " << queue_id << " with " << num_lanes 
-            << " lanes" << std::endl;
-}
-
-chi::Lane* Runtime::GetLane(chi::QueueId queue_id, chi::LaneId lane_id) {
-  // Return default lane for now
-  return default_lane_.get();
-}
-
-chi::Lane* Runtime::GetLaneByHash(chi::QueueId queue_id, chi::u32 hash) {
-  // Simple implementation - just return default lane
-  return default_lane_.get();
-}
-
-void Runtime::Run(chi::u32 method, chi::Task* task, chi::RunContext& rctx) {
-  // Convert Task* to FullPtr for dispatch to autogen functions
-  hipc::FullPtr<chi::Task> task_ptr;
-  task_ptr.ptr_ = task;
+void Runtime::Run(chi::u32 method, hipc::FullPtr<chi::Task> task_ptr, chi::RunContext& rctx) {
   // Dispatch to the appropriate method handler
   chimaera::MOD_NAME::Run(this, method, task_ptr, rctx);
 }
@@ -62,12 +37,17 @@ void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& rctx) {
   std::cout << "MOD_NAME: Executing Create task for pool " 
             << task->pool_id_ << std::endl;
   
+  // Initialize the container with pool information and domain query
+  chi::Container::Init(task->pool_id_, task->dom_query_);
+  
+  // Create local queues for different priorities
+  CreateLocalQueue(chi::kLowLatency, 4);   // 4 lanes for low latency tasks
+  CreateLocalQueue(chi::kHighLatency, 2);  // 2 lanes for high latency tasks
+  
   create_count_++;
   
-  // Perform initialization logic here
-  // In a real implementation, this would set up container resources
-  
-  std::cout << "MOD_NAME: Create completed (count: " << create_count_ << ")" 
+  std::cout << "MOD_NAME: Container created and initialized for pool: " << pool_name_ 
+            << " (ID: " << task->pool_id_ << ", count: " << create_count_ << ")" 
             << std::endl;
 }
 
@@ -78,8 +58,9 @@ void Runtime::MonitorCreate(chi::MonitorModeId mode,
     case chi::MonitorModeId::kLocalSchedule:
       // Route task to local queue
       std::cout << "MOD_NAME: Routing Create task to local queue" << std::endl;
-      if (default_lane_) {
-        default_lane_->Enqueue(task_ptr.shm_);
+      // Use base class lane management - route to low latency queue
+      if (auto* lane = GetLane(chi::kLowLatency, 0)) {
+        lane->Enqueue(task_ptr.shm_);
       }
       break;
       
@@ -95,10 +76,6 @@ void Runtime::MonitorCreate(chi::MonitorModeId mode,
   }
 }
 
-void Runtime::DelCreate(hipc::FullPtr<CreateTask> task_ptr) {
-  // Clean up task-specific resources
-  std::cout << "MOD_NAME: Deleting Create task" << std::endl;
-}
 
 void Runtime::Custom(hipc::FullPtr<CustomTask> task, chi::RunContext& rctx) {
   std::cout << "MOD_NAME: Executing Custom task with data: " 
@@ -120,8 +97,9 @@ void Runtime::MonitorCustom(chi::MonitorModeId mode,
     case chi::MonitorModeId::kLocalSchedule:
       // Route task to local queue
       std::cout << "MOD_NAME: Routing Custom task to local queue" << std::endl;
-      if (default_lane_) {
-        default_lane_->Enqueue(task_ptr.shm_);
+      // Use base class lane management - can use hash-based routing
+      if (auto* lane = GetLaneByHash(chi::kLowLatency, task_ptr->operation_id_)) {
+        lane->Enqueue(task_ptr.shm_);
       }
       break;
       
@@ -137,12 +115,8 @@ void Runtime::MonitorCustom(chi::MonitorModeId mode,
   }
 }
 
-void Runtime::DelCustom(hipc::FullPtr<CustomTask> task_ptr) {
-  // Clean up task-specific resources
-  std::cout << "MOD_NAME: Deleting Custom task" << std::endl;
-}
 
 } // namespace chimaera::MOD_NAME
 
-// Define ChiMod entry points
-CHI_CHIMOD_CC(chimaera::MOD_NAME::Runtime, "MOD_NAME")
+// Define ChiMod entry points using CHI_TASK_CC macro
+CHI_TASK_CC(chimaera::MOD_NAME::Runtime, "MOD_NAME")

@@ -138,10 +138,10 @@ class ChiContainer {
   /**
    * Execute a method on a task
    * @param method Method identifier
-   * @param task Pointer to task to execute
+   * @param task_ptr Full pointer to task to execute
    * @param rctx Runtime execution context
    */
-  virtual void Run(u32 method, Task* task, RunContext& rctx) = 0;
+  virtual void Run(u32 method, hipc::FullPtr<Task> task_ptr, RunContext& rctx) = 0;
 
   /**
    * Monitor a method execution for scheduling/coordination
@@ -235,9 +235,10 @@ extern "C" {
 }
 
 /**
- * Macro to define ChiMod entry points in runtime source file
+ * Macro to define ChiMod entry points in runtime source file (deprecated)
  * 
  * Usage: CHI_CHIMOD_CC(MyContainerClass, "my_chimod_name")
+ * Note: Use CHI_TASK_CC instead for new modules
  */
 #define CHI_CHIMOD_CC(CONTAINER_CLASS, MOD_NAME)                              \
   extern "C" {                                                                \
@@ -262,6 +263,37 @@ extern "C" {
     }                                                                         \
                                                                               \
     bool is_chimaera_chimod_ = true;                                          \
+  }
+
+/**
+ * Macro to define ChiMod entry points for task-based modules
+ * 
+ * Usage: CHI_TASK_CC(MyContainerClass, "my_chimod_name")
+ * This macro provides a cleaner interface for modules that use the Container base class
+ */
+#define CHI_TASK_CC(CONTAINER_CLASS, MOD_NAME)                               \
+  extern "C" {                                                               \
+    chi::ChiContainer* alloc_chimod() {                                      \
+      return reinterpret_cast<chi::ChiContainer*>(new CONTAINER_CLASS());    \
+    }                                                                        \
+                                                                             \
+    chi::ChiContainer* new_chimod(const chi::PoolId* pool_id,                \
+                                 const char* pool_name) {                    \
+      auto* container = new CONTAINER_CLASS();                              \
+      /* Use base Container Init for compatibility */                       \
+      container->chi::Container::Init(*pool_id, std::string(pool_name));    \
+      return reinterpret_cast<chi::ChiContainer*>(container);                \
+    }                                                                        \
+                                                                             \
+    const char* get_chimod_name() {                                          \
+      return MOD_NAME;                                                       \
+    }                                                                        \
+                                                                             \
+    void destroy_chimod(chi::ChiContainer* container) {                      \
+      delete reinterpret_cast<CONTAINER_CLASS*>(container);                  \
+    }                                                                        \
+                                                                             \
+    bool is_chimaera_chimod_ = true;                                         \
   }
 
 #endif // CHIMAERA_INCLUDE_CHIMAERA_CHIMOD_SPEC_H_
