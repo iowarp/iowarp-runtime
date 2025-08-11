@@ -39,6 +39,10 @@ using PoolId = u32;
 using TaskNode = u32;
 using MethodId = u32;
 
+// Worker and Lane identifiers
+using WorkerId = u32;
+using LaneId = u32;
+
 // Domain system types
 using SubDomainGroup = u32;
 using SubDomainMinor = u32;
@@ -111,6 +115,10 @@ enum MemorySegment {
 #define OUT
 #define INOUT
 #define TEMP
+
+// HSHM Thread-local storage keys for current run context and worker  
+extern hshm::ThreadLocalKey chi_cur_rctx_key_;
+extern hshm::ThreadLocalKey chi_cur_worker_key_;
 
 // Template aliases for full pointers using HSHM
 template<typename T>

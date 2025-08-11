@@ -27,7 +27,7 @@
 // CHI_CHIMAERA - Main Chimaera framework coordinator
 // CHI_CONFIG   - Configuration manager for YAML parsing
 // CHI_IPC      - IPC manager for shared memory and networking
-// CHI_POOL     - Pool manager for ChiPools and ChiContainers  
+// CHI_POOL_MANAGER - Pool manager for ChiPools and ChiContainers  
 // CHI_MODULE   - Module manager for dynamic loading
 // CHI_WORK_ORCHESTRATOR - Work orchestrator for thread management
 
@@ -35,7 +35,7 @@
 // - CHI_CHIMAERA defined in chimaera/chimaera_manager.h
 // - CHI_CONFIG defined in chimaera/config_manager.h
 // - CHI_IPC defined in chimaera/ipc_manager.h
-// - CHI_POOL defined in chimaera/pool_manager.h
+// - CHI_POOL_MANAGER defined in chimaera/pool_manager.h
 // - CHI_MODULE defined in chimaera/module_manager.h
 // - CHI_WORK_ORCHESTRATOR defined in chimaera/work_orchestrator.h
 
@@ -56,7 +56,7 @@
  * CHI_WORK_ORCHESTRATOR->StartWorkers();
  * 
  * // Register a pool
- * CHI_POOL->RegisterContainer(pool_id, container);
+ * CHI_POOL_MANAGER->RegisterContainer(pool_id, container);
  */
 
 #endif  // CHIMAERA_INCLUDE_CHIMAERA_SINGLETONS_H_

@@ -8,8 +8,9 @@
 
 namespace chi {
 
-// Forward declaration
+// Forward declarations
 class Task;
+struct RunContext;
 
 // Define macros for container template
 #define CLASS_NAME Task
@@ -30,6 +31,7 @@ class Task : public hipc::ShmContainer {
   IN MethodId method_;       /**< Method identifier for task type */
   IN ibitfield task_flags_;  /**< Task properties and flags */
   IN double period_ns_;      /**< Period in nanoseconds for periodic tasks */
+  IN RunContext* run_ctx_;   /**< Pointer to runtime context for task execution */
 
   /**
    * SHM default constructor
@@ -53,6 +55,7 @@ class Task : public hipc::ShmContainer {
     task_flags_.SetBits(0);
     dom_query_ = dom_query;
     period_ns_ = 0.0;
+    run_ctx_ = nullptr;
   }
 
   /**
@@ -74,6 +77,7 @@ class Task : public hipc::ShmContainer {
     method_ = other.method_;
     task_flags_ = other.task_flags_;
     period_ns_ = other.period_ns_;
+    run_ctx_ = other.run_ctx_;
   }
 
   /**
@@ -111,6 +115,7 @@ class Task : public hipc::ShmContainer {
     method_ = 0;
     task_flags_.Clear();
     period_ns_ = 0.0;
+    run_ctx_ = nullptr;
   }
 
   /**

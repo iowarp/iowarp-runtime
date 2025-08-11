@@ -6,10 +6,18 @@
 
 namespace chi {
 
+// HSHM Thread-local storage key definitions
+hshm::ThreadLocalKey chi_cur_rctx_key_;
+hshm::ThreadLocalKey chi_cur_worker_key_;
+
 bool Chimaera::ClientInit() {
   if (is_initialized_) {
     return true;
   }
+
+  // Initialize HSHM TLS keys
+  HSHM_THREAD_MODEL->CreateTls<struct RunContext>(chi_cur_rctx_key_, nullptr);
+  HSHM_THREAD_MODEL->CreateTls<class Worker>(chi_cur_worker_key_, nullptr);
 
   // Initialize configuration manager
   if (!CHI_CONFIG->Init()) {
@@ -22,7 +30,7 @@ bool Chimaera::ClientInit() {
   }
 
   // Initialize pool manager
-  if (!CHI_POOL->Init()) {
+  if (!CHI_POOL_MANAGER->Init()) {
     return false;
   }
 
@@ -38,6 +46,10 @@ bool Chimaera::ServerInit() {
     return true;
   }
 
+  // Initialize HSHM TLS keys
+  HSHM_THREAD_MODEL->CreateTls<struct RunContext>(chi_cur_rctx_key_, nullptr);
+  HSHM_THREAD_MODEL->CreateTls<class Worker>(chi_cur_worker_key_, nullptr);
+
   // Initialize configuration manager
   if (!CHI_CONFIG->Init()) {
     return false;
@@ -49,7 +61,7 @@ bool Chimaera::ServerInit() {
   }
 
   // Initialize pool manager
-  if (!CHI_POOL->Init()) {
+  if (!CHI_POOL_MANAGER->Init()) {
     return false;
   }
 
@@ -88,7 +100,7 @@ void Chimaera::Finalize() {
   }
 
   // Finalize managers
-  CHI_POOL->Finalize();
+  CHI_POOL_MANAGER->Finalize();
   CHI_IPC->Finalize();
 
   is_initialized_ = false;

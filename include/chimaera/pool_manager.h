@@ -106,6 +106,6 @@ class PoolManager {
 }  // namespace chi
 
 // Macro for accessing the Pool manager singleton using HSHM singleton
-#define CHI_POOL hshm::Singleton<PoolManager>::GetInstance()
+#define CHI_POOL_MANAGER hshm::Singleton<PoolManager>::GetInstance()
 
 #endif  // CHIMAERA_INCLUDE_CHIMAERA_MANAGERS_POOL_MANAGER_H_

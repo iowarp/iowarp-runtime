@@ -29,10 +29,9 @@ enum class MonitorModeId : u32 {
 };
 
 /**
- * Queue and Lane identifiers
+ * Queue identifier
  */
 using QueueId = u32;
-using LaneId = u32;
 
 /**
  * Lane represents a single processing lane within a container queue
@@ -76,6 +75,7 @@ struct RunContext {
   ThreadType thread_type;
   u32 worker_id;
   void* runtime_data;
+  FullPtr<Task> current_task;  // Current task being executed
   
   RunContext() : stack_ptr(nullptr), stack_size(0), 
                  thread_type(kLowLatencyWorker), worker_id(0), runtime_data(nullptr) {}

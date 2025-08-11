@@ -7,12 +7,75 @@
 
 namespace chi {
 
+//===========================================================================
+// WorkerLane Implementation
+//===========================================================================
+
+WorkerLane::WorkerLane(LaneId lane_id, hipc::multi_mpsc_queue<hipc::Pointer>* parent_queue, u32 lane_index)
+    : lane_id_(lane_id), lane_index_(lane_index), parent_queue_(parent_queue),
+      assigned_worker_(0), is_active_(false) {
+}
+
+void WorkerLane::Enqueue(hipc::Pointer task_ptr) {
+  if (parent_queue_ && !task_ptr.IsNull()) {
+    // Enqueue to the specific lane within the multi-MPSC queue
+    parent_queue_->GetLane(0, lane_index_).push(task_ptr);
+  }
+}
+
+bool WorkerLane::Dequeue(hipc::Pointer& task_ptr) {
+  if (parent_queue_) {
+    // Try to pop from the specific lane
+    auto token = parent_queue_->GetLane(0, lane_index_).pop(task_ptr);
+    return !token.IsNull();  // Check if the token is valid (successful pop)
+  }
+  return false;
+}
+
+bool WorkerLane::IsEmpty() const {
+  if (parent_queue_) {
+    return parent_queue_->GetLane(0, lane_index_).size() == 0;
+  }
+  return true;
+}
+
+size_t WorkerLane::Size() const {
+  if (parent_queue_) {
+    return parent_queue_->GetLane(0, lane_index_).size();
+  }
+  return 0;
+}
+
+void WorkerLane::SetAssignedWorker(WorkerId worker_id) {
+  assigned_worker_.store(worker_id);
+}
+
+WorkerId WorkerLane::GetAssignedWorker() const {
+  return assigned_worker_.load();
+}
+
+bool WorkerLane::HasAssignedWorker() const {
+  return assigned_worker_.load() != 0;
+}
+
+void WorkerLane::ClearAssignedWorker() {
+  assigned_worker_.store(0);
+}
+
+//===========================================================================
+// Work Orchestrator Implementation
+//===========================================================================
+
 // Constructor and destructor removed - handled by HSHM singleton pattern
 
 bool WorkOrchestrator::Init() {
   if (is_initialized_) {
     return true;
   }
+
+  // Initialize lane management
+  next_lane_id_.store(1); // Start from 1, 0 is reserved for invalid
+  next_worker_index_for_scheduling_.store(0);
 
   // Initialize HSHM thread group first
   auto thread_model = HSHM_THREAD_MODEL;
@@ -223,13 +286,134 @@ bool WorkOrchestrator::CreateWorkers(ThreadType thread_type, u32 count) {
 }
 
 bool WorkOrchestrator::InitializeQueueMappings() {
-  // Stub implementation - would initialize lane to worker mappings
-  // For now, just ensure the map is properly sized
+  // Initialize lane to worker mappings
+  // This will be updated as lanes are created and scheduled
   if (!all_workers_.empty()) {
     lane_to_worker_map_.resize(all_workers_.size(), 0);
   }
 
   return true;
+}
+
+//===========================================================================
+// Lane Scheduling Methods
+//===========================================================================
+
+void WorkOrchestrator::ScheduleLanes(const std::vector<LaneId>& lanes) {
+  for (LaneId lane_id : lanes) {
+    ScheduleLane(lane_id);
+  }
+}
+
+bool WorkOrchestrator::ScheduleLane(LaneId lane_id) {
+  std::unique_lock<std::shared_mutex> lock(lanes_mutex_);
+  
+  auto it = lanes_.find(lane_id);
+  if (it == lanes_.end()) {
+    return false; // Lane not found
+  }
+
+  WorkerLane* lane = it->second.get();
+  if (lane->HasAssignedWorker()) {
+    return true; // Already assigned
+  }
+
+  // Get next worker using round-robin scheduling
+  WorkerId worker_id = GetNextAvailableWorker();
+  if (worker_id == 0) {
+    return false; // No available workers
+  }
+
+  // Assign lane to worker
+  lane->SetAssignedWorker(worker_id);
+  lane->SetActive(true);
+
+  // Add to active lanes list
+  active_lanes_.push_back(lane_id);
+
+  return true;
+}
+
+std::vector<LaneId> WorkOrchestrator::CreateLocalQueue(QueuePriority priority, u32 num_lanes) {
+  std::vector<LaneId> created_lanes;
+
+  // Get or create multi-MPSC queue for this priority
+  auto& queue_ptr = priority_queues_[priority];
+  if (!queue_ptr) {
+    // Create new multi-MPSC queue with the requested number of lanes
+    auto alloc = HSHM_MEMORY_MANAGER->GetDefaultAllocator<CHI_MAIN_ALLOC_T>();
+    hipc::CtxAllocator<CHI_MAIN_ALLOC_T> ctx_alloc(HSHM_MCTX, alloc);
+    // Can't use make_unique with HSHM objects, need to use allocator
+    auto queue_full_ptr = alloc->template NewObj<hipc::multi_mpsc_queue<hipc::Pointer>>(
+        HSHM_MCTX, ctx_alloc, num_lanes, 1, 1024);
+    queue_ptr.reset(queue_full_ptr.ptr_);
+  }
+
+  std::unique_lock<std::shared_mutex> lock(lanes_mutex_);
+
+  // Create individual lanes for this queue
+  for (u32 i = 0; i < num_lanes; ++i) {
+    LaneId lane_id = next_lane_id_.fetch_add(1);
+    
+    // Create lane object
+    auto lane = std::make_unique<WorkerLane>(lane_id, queue_ptr.get(), i);
+    
+    // Store the lane
+    lanes_[lane_id] = std::move(lane);
+    created_lanes.push_back(lane_id);
+  }
+
+  return created_lanes;
+}
+
+bool WorkOrchestrator::ServerInitQueues(u32 num_lanes) {
+  // Initialize process queues for different priorities
+  bool success = true;
+
+  // Create queues for each priority level
+  auto low_latency_lanes = CreateLocalQueue(kLowLatency, num_lanes);
+  auto high_latency_lanes = CreateLocalQueue(kHighLatency, num_lanes);
+
+  // Schedule the lanes for processing
+  ScheduleLanes(low_latency_lanes);
+  ScheduleLanes(high_latency_lanes);
+
+  return success && !low_latency_lanes.empty() && !high_latency_lanes.empty();
+}
+
+WorkerLane* WorkOrchestrator::GetLane(LaneId lane_id) {
+  std::shared_lock<std::shared_mutex> lock(lanes_mutex_);
+  
+  auto it = lanes_.find(lane_id);
+  if (it != lanes_.end()) {
+    return it->second.get();
+  }
+  return nullptr;
+}
+
+std::vector<LaneId> WorkOrchestrator::GetActiveLanesForWorker(WorkerId worker_id) {
+  std::vector<LaneId> worker_lanes;
+  std::shared_lock<std::shared_mutex> lock(lanes_mutex_);
+
+  for (const auto& [lane_id, lane_ptr] : lanes_) {
+    if (lane_ptr->GetAssignedWorker() == worker_id && lane_ptr->IsActive()) {
+      worker_lanes.push_back(lane_id);
+    }
+  }
+
+  return worker_lanes;
+}
+
+WorkerId WorkOrchestrator::GetNextAvailableWorker() {
+  if (all_workers_.empty()) {
+    return 0; // No workers available
+  }
+
+  // Round-robin scheduling
+  u32 worker_index = next_worker_index_for_scheduling_.fetch_add(1) % all_workers_.size();
+  Worker* worker = all_workers_[worker_index];
+  
+  return worker ? worker->GetId() : 0;
 }
 
 }  // namespace chi

@@ -3,16 +3,16 @@
 
 #include <memory>
 #include "chimaera/types.h"
-#include "hermes_shm/data_structures/internal/shm_archive.h"
+#include "chimaera/task_queue.h"
 
 namespace chi {
 
 /**
  * Custom header structure for shared memory allocator
- * Contains the process queue as a delay_ar
+ * Contains a pointer to the process TaskQueue
  */
 struct IpcSharedHeader {
-  hipc::delay_ar<hshm::multi_mpsc_queue<hipc::Pointer>> task_queue;
+  hipc::Pointer task_queue_ptr; // Pointer to TaskQueue in shared memory
 };
 
 /**
@@ -96,13 +96,12 @@ class IpcManager {
    */
   template<typename TaskT>
   void Enqueue(FullPtr<TaskT>& task_ptr, QueuePriority priority = kLowLatency) {
-    if (shared_header_ && shared_header_->task_queue.get() && 
-        !shared_header_->task_queue.get()->IsNull()) {
+    if (!process_task_queue_.IsNull()) {
       // Get the shared memory pointer from the task
       hipc::Pointer shm_ptr = task_ptr.shm_;
       
-      // Enqueue the pointer to the appropriate priority queue
-      auto& lane = shared_header_->task_queue.get()->GetLane(0, static_cast<int>(priority));
+      // Enqueue the pointer using round-robin across lanes
+      auto& lane = process_task_queue_->GetLane(0, static_cast<u32>(priority));
       lane.push(shm_ptr);
     }
   }
@@ -115,9 +114,15 @@ class IpcManager {
   hipc::Pointer Dequeue(QueuePriority priority = kLowLatency);
 
   /**
-   * Get priority queue for task processing
+   * Get TaskQueue for task processing
+   * @return Pointer to the TaskQueue or nullptr if not available
+   */
+  TaskQueue* GetTaskQueue();
+  
+  /**
+   * Get priority queue for task processing (compatibility)
    * @param priority Queue priority level
-   * @return Pointer to the priority queue (stub)
+   * @return Pointer to the TaskQueue (cast as void*)
    */
   void* GetProcessQueue(QueuePriority priority);
 
@@ -194,8 +199,14 @@ class IpcManager {
   CHI_CDATA_ALLOC_T* client_data_allocator_ = nullptr;
   CHI_RDATA_ALLOC_T* runtime_data_allocator_ = nullptr;
   
-  // Pointer to shared header containing the task queue
+  // Pointer to shared header containing the task queue pointer
   IpcSharedHeader* shared_header_ = nullptr;
+  
+  // The actual TaskQueue instance 
+  hipc::FullPtr<TaskQueue> process_task_queue_;
+  
+  // TaskQueue header (stored separately from queue)
+  TaskQueueHeader process_queue_header_;
   
   // ZeroMQ server (using lightbeam)
   std::unique_ptr<hshm::lbm::Server> zmq_server_;

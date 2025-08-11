@@ -6,6 +6,7 @@
 
 #include "chimaera/singletons.h"
 #include "chimaera/task.h"
+#include "chimaera/task_queue.h"
 
 namespace chi {
 
@@ -96,14 +97,14 @@ void IpcManager::Finalize() {
 // inline in the header
 
 hipc::Pointer IpcManager::Dequeue(QueuePriority priority) {
-  if (!shared_header_ || !shared_header_->task_queue.get() ||
-      shared_header_->task_queue.get()->IsNull()) {
+  if (process_task_queue_.IsNull()) {
     return hipc::Pointer();
   }
 
   hipc::Pointer task_ptr;
-  auto& lane =
-      shared_header_->task_queue.get()->GetLane(0, static_cast<int>(priority));
+  
+  // Try to dequeue from the specified priority
+  auto& lane = process_task_queue_->GetLane(0, static_cast<u32>(priority));
   auto token = lane.pop(task_ptr);
   if (!token.IsNull()) {
     return task_ptr;
@@ -111,16 +112,14 @@ hipc::Pointer IpcManager::Dequeue(QueuePriority priority) {
   return hipc::Pointer();
 }
 
-void* IpcManager::GetProcessQueue(QueuePriority priority) {
-  if (!shared_header_ || !shared_header_->task_queue.get() ||
-      shared_header_->task_queue.get()->IsNull()) {
-    return nullptr;
-  }
+TaskQueue* IpcManager::GetTaskQueue() {
+  return process_task_queue_.ptr_;
+}
 
-  // Return specific lane of multi-queue based on priority
-  auto& lane =
-      shared_header_->task_queue.get()->GetLane(0, static_cast<int>(priority));
-  return &lane;
+void* IpcManager::GetProcessQueue(QueuePriority priority) {
+  // For compatibility, return the TaskQueue as void*
+  (void)priority; // Suppress unused parameter warning
+  return static_cast<void*>(GetTaskQueue());
 }
 
 bool IpcManager::IsInitialized() const { return is_initialized_; }
@@ -235,17 +234,20 @@ bool IpcManager::ServerInitQueues() {
     shared_header_ =
         main_allocator_->template GetCustomHeader<IpcSharedHeader>();
 
-    // Server initializes the queue in the custom header
-    // Create multi-queue with 1 lane, 2 priorities (low/high latency), depth
-    // 1024 Queue stores hipc::Pointer which represents .shm component of
-    // FullPtr<Task>
+    // Server creates the TaskQueue using allocator
     hipc::CtxAllocator<CHI_MAIN_ALLOC_T> ctx_alloc(HSHM_MCTX, main_allocator_);
-    shared_header_->task_queue.shm_init(ctx_alloc, 1, 2, 1024);
+    
+    // Create TaskQueue
+    process_task_queue_ = main_allocator_->template NewObj<TaskQueue>(
+        HSHM_MCTX, ctx_alloc, 
+        4, // num_lanes for concurrency
+        2, // num_priorities (low/high latency)  
+        1024); // depth_per_queue
 
-    // Check if queue was initialized
-    return shared_header_ != nullptr &&
-           shared_header_->task_queue.get() != nullptr &&
-           !shared_header_->task_queue.get()->IsNull();
+    // Initialize header separately
+    process_queue_header_ = TaskQueueHeader(static_cast<PoolId>(0), 0);
+
+    return !process_task_queue_.IsNull();
   } catch (const std::exception& e) {
     return false;
   }
@@ -261,11 +263,21 @@ bool IpcManager::ClientInitQueues() {
     shared_header_ =
         main_allocator_->template GetCustomHeader<IpcSharedHeader>();
 
-    // Client just accesses the already initialized queue
-    // Client doesn't check IsNull as queue should already be initialized by
-    // server
-    return shared_header_ != nullptr &&
-           shared_header_->task_queue.get() != nullptr;
+    // Client creates its own TaskQueue instance (for now)
+    // In a full implementation, this would access the server's shared TaskQueue
+    hipc::CtxAllocator<CHI_MAIN_ALLOC_T> ctx_alloc(HSHM_MCTX, main_allocator_);
+    
+    // Create TaskQueue
+    process_task_queue_ = main_allocator_->template NewObj<TaskQueue>(
+        HSHM_MCTX, ctx_alloc, 
+        4, // num_lanes for concurrency
+        2, // num_priorities (low/high latency)  
+        1024); // depth_per_queue
+
+    // Initialize header separately
+    process_queue_header_ = TaskQueueHeader(static_cast<PoolId>(0), 0);
+
+    return !process_task_queue_.IsNull();
   } catch (const std::exception& e) {
     return false;
   }
