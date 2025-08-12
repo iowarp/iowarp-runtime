@@ -1,10 +1,8 @@
 #ifndef CHIMAERA_INCLUDE_CHIMAERA_WORKERS_WORKER_H_
 #define CHIMAERA_INCLUDE_CHIMAERA_WORKERS_WORKER_H_
 
-#include <memory>
 #include <thread>
 #include <vector>
-#include <shared_mutex>
 #include <queue>
 #include <chrono>
 #include <boost/context/detail/fcontext.hpp>
@@ -107,6 +105,12 @@ class Worker {
    */
   void AddToBlockedQueue(const FullPtr<Task>& task_ptr, RunContext* run_ctx_ptr, double estimated_time_us);
 
+  /**
+   * Enqueue a lane to this worker's active queue for processing
+   * @param lane_ptr hipc::Pointer to TaskQueue lane that has work available
+   */
+  void EnqueueLane(hipc::Pointer lane_ptr);
+
  private:
   /**
    * Pop task from active lane queue
@@ -114,17 +118,6 @@ class Worker {
    */
   Task* PopActiveTask();
 
-  /**
-   * Pop task from cold lane queue
-   * @return Pointer to task or nullptr if queue empty
-   */
-  Task* PopColdTask();
-
-  /**
-   * Iterate over active lanes assigned to this worker
-   * @return Vector of lane IDs that this worker should process
-   */
-  std::vector<LaneId> GetActiveLanes();
 
   /**
    * Resolve domain query for task routing
@@ -173,7 +166,7 @@ class Worker {
    * Execute task using boost::fiber for context switching
    * @param task_ptr Full pointer to task to execute (RunContext will be allocated and set in task)
    * @param container Container for the task
-   * @param lane Lane for the task
+   * @param lane Lane for the task (can be nullptr)
    */
   void ExecuteTask(const FullPtr<Task>& task_ptr, ChiContainer* container, Lane* lane);
 
@@ -210,13 +203,8 @@ class Worker {
   bool is_running_;
   bool is_initialized_;
 
-  // Queue references - will be set to point to IpcManager queues
-  void* active_queue_;  // Stub - would be multi_mpsc_queue pointer
-  void* cold_queue_;    // Stub - would be multi_mpsc_queue pointer
-
-  // Assigned lanes for this worker
-  std::vector<LaneId> assigned_lanes_;
-  mutable std::shared_mutex assigned_lanes_mutex_;
+  // Active queue of lane pointers for processing
+  hipc::FullPtr<hipc::mpsc_queue<hipc::Pointer>> active_queue_;  // Queue of hipc::Pointer to TaskQueue lanes
 
   // Stack management using malloc and std::vector (replaces hipc::StackAllocator)
   struct StackInfo {

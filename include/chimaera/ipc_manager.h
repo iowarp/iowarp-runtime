@@ -9,10 +9,12 @@ namespace chi {
 
 /**
  * Custom header structure for shared memory allocator
- * Contains a pointer to the process TaskQueue
+ * Contains shared data structures using delay_ar for better type safety
  */
 struct IpcSharedHeader {
-  hipc::Pointer task_queue_ptr; // Pointer to TaskQueue in shared memory
+  hipc::delay_ar<TaskQueue> task_queue; // TaskQueue in shared memory
+  hipc::delay_ar<hipc::vector<hipc::FullPtr<hipc::mpsc_queue<hipc::Pointer>>>> worker_queues; // Vector of worker active queues
+  u32 num_workers; // Number of workers for which queues are allocated
 };
 
 /**
@@ -42,51 +44,52 @@ class IpcManager {
   void Finalize();
 
   /**
-   * Create a new task in shared memory
-   * @param segment Memory segment to use for allocation
+   * Create a new task in shared memory (always uses main segment)
    * @param args Constructor arguments for the task
    * @return FullPtr to allocated task
    */
-  template<typename TaskT, typename MemCtxT, typename ...Args>
-  FullPtr<TaskT> NewTask(MemorySegment segment, MemCtxT&& mem_ctx, Args&&... args) {
-    auto* alloc = GetAllocatorForSegment<TaskT>(segment);
-    if (!alloc) {
+  template<typename TaskT, typename ...Args>
+  FullPtr<TaskT> NewTask(Args&&... args) {
+    if (!main_allocator_) {
       return FullPtr<TaskT>();
     }
     
-    hipc::CtxAllocator<std::remove_pointer_t<decltype(alloc)>> ctx_alloc(HSHM_MCTX, alloc);
-    return alloc->template NewObj<TaskT>(HSHM_MCTX, ctx_alloc, std::forward<Args>(args)...);
+    hipc::CtxAllocator<CHI_MAIN_ALLOC_T> ctx_alloc(HSHM_MCTX, main_allocator_);
+    return main_allocator_->template NewObj<TaskT>(HSHM_MCTX, ctx_alloc, std::forward<Args>(args)...);
   }
 
   /**
-   * Delete a task from shared memory
+   * Delete a task from shared memory (always uses main segment)
    * @param task_ptr FullPtr to task to delete
-   * @param segment Memory segment where task was allocated
    */
   template<typename TaskT>
-  void DelTask(FullPtr<TaskT>& task_ptr, MemorySegment segment) {
-    if (task_ptr.IsNull()) return;
+  void DelTask(FullPtr<TaskT>& task_ptr) {
+    if (task_ptr.IsNull() || !main_allocator_) return;
     
-    auto* alloc = GetAllocatorForSegment<TaskT>(segment);
-    if (alloc) {
-      alloc->template DelObj(HSHM_MCTX, task_ptr);
-    }
+    main_allocator_->template DelObj(HSHM_MCTX, task_ptr);
   }
 
   /**
-   * Allocate buffer in specified memory segment
+   * Allocate buffer in appropriate memory segment
+   * Client uses cdata segment, runtime uses rdata segment
    * @param size Size in bytes to allocate
-   * @param segment Memory segment to use
    * @return FullPtr to allocated memory
    */
   template<typename T>
-  FullPtr<T> AllocateBuffer(size_t size, MemorySegment segment) {
-    auto* alloc = GetAllocatorForSegment<T>(segment);
-    if (!alloc) {
+  FullPtr<T> AllocateBuffer(size_t size) {
+    #ifdef CHIMAERA_RUNTIME
+    // Runtime uses rdata segment
+    if (!runtime_data_allocator_) {
       return FullPtr<T>();
     }
-    
-    return alloc->template AllocateObjs<T>(HSHM_MCTX, size);
+    return runtime_data_allocator_->template AllocateObjs<T>(HSHM_MCTX, size);
+    #else
+    // Client uses cdata segment
+    if (!client_data_allocator_) {
+      return FullPtr<T>();
+    }
+    return client_data_allocator_->template AllocateObjs<T>(HSHM_MCTX, size);
+    #endif
   }
 
   /**
@@ -132,6 +135,26 @@ class IpcManager {
    */
   bool IsInitialized() const;
 
+  /**
+   * Get main allocator for creating worker queues
+   * @return Pointer to main allocator or nullptr if not available
+   */
+  CHI_MAIN_ALLOC_T* GetMainAllocator() { return main_allocator_; }
+
+  /**
+   * Initialize worker queues in shared memory
+   * @param num_workers Number of worker queues to create
+   * @return true if initialization successful, false otherwise
+   */
+  bool InitializeWorkerQueues(u32 num_workers);
+
+  /**
+   * Get worker active queue by worker ID
+   * @param worker_id Worker identifier (0-based)
+   * @return FullPtr to worker's active queue or null if invalid
+   */
+  hipc::FullPtr<hipc::mpsc_queue<hipc::Pointer>> GetWorkerQueue(u32 worker_id);
+
  private:
   /**
    * Initialize memory segments for server
@@ -163,24 +186,6 @@ class IpcManager {
    */
   bool InitializeZmqServer();
 
-  /**
-   * Get allocator pointer for the specified segment
-   * @param segment Memory segment identifier
-   * @return Pointer to allocator or nullptr if invalid
-   */
-  template<typename TaskT = void>
-  auto* GetAllocatorForSegment(MemorySegment segment) {
-    switch (segment) {
-      case kMainSegment:
-        return main_allocator_;
-      case kClientDataSegment:
-        return client_data_allocator_;
-      case kRuntimeDataSegment:
-        return runtime_data_allocator_;
-      default:
-        return static_cast<CHI_MAIN_ALLOC_T*>(nullptr);
-    }
-  }
 
   bool is_initialized_ = false;
   

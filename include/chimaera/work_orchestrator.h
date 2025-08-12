@@ -15,13 +15,13 @@ namespace chi {
 class Worker;
 
 /**
- * WorkerLane represents a single processing lane within a multi-MPSC queue
+ * LaneQueue represents a single processing lane within a multi-MPSC queue
  * Each lane can be independently scheduled and assigned to workers
  */
-class WorkerLane {
+class LaneQueue {
 public:
-  WorkerLane(LaneId lane_id, hipc::multi_mpsc_queue<hipc::Pointer>* parent_queue, u32 lane_index);
-  ~WorkerLane() = default;
+  LaneQueue(LaneId lane_id, hipc::multi_mpsc_queue<hipc::Pointer>* parent_queue, u32 lane_index);
+  ~LaneQueue() = default;
 
   // Task operations
   void Enqueue(hipc::Pointer task_ptr);
@@ -142,7 +142,7 @@ class WorkOrchestrator {
    * @param lane_id Lane identifier
    * @return Pointer to lane or nullptr if not found
    */
-  WorkerLane* GetLane(LaneId lane_id);
+  LaneQueue* GetLane(LaneId lane_id);
 
   /**
    * Get all active lanes assigned to a specific worker
@@ -176,6 +176,21 @@ class WorkOrchestrator {
    * @return true if workers are active, false otherwise
    */
   bool AreWorkersRunning() const;
+
+  /**
+   * Notify that a lane has work available and should be enqueued to its assigned worker
+   * @param queue_id Queue identifier
+   * @param lane_id Lane identifier
+   */
+  void NotifyWorkerLaneReady(u32 queue_id, u32 lane_id);
+
+  /**
+   * Notify that a lane has work available and should be enqueued to its assigned worker
+   * @param queue_id Queue identifier
+   * @param lane_id Lane identifier  
+   * @param lane_ref_ptr hipc::Pointer to TaskQueueLaneRef in shared memory
+   */
+  void NotifyWorkerLaneReady(u32 queue_id, u32 lane_id, hipc::Pointer lane_ref_ptr);
 
  private:
   /**
@@ -211,7 +226,7 @@ class WorkOrchestrator {
   std::vector<Worker*> all_workers_;
 
   // Lane management
-  std::unordered_map<LaneId, std::unique_ptr<WorkerLane>> lanes_;
+  std::unordered_map<LaneId, std::unique_ptr<LaneQueue>> lanes_;
   std::atomic<LaneId> next_lane_id_;
   std::vector<LaneId> active_lanes_;
   mutable std::shared_mutex lanes_mutex_;

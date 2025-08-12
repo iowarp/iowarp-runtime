@@ -6,6 +6,7 @@
 #include "chimaera/singletons.h"
 #include "chimaera/work_orchestrator.h"
 #include "chimaera/pool_manager.h"
+#include "chimaera/task_queue.h"
 #include <cstdlib>
 #include <limits>
 #include <boost/context/detail/fcontext.hpp>
@@ -14,8 +15,7 @@ namespace chi {
 
 Worker::Worker(u32 worker_id, ThreadType thread_type) 
     : worker_id_(worker_id), thread_type_(thread_type), 
-      is_running_(false), is_initialized_(false),
-      active_queue_(nullptr), cold_queue_(nullptr) {
+      is_running_(false), is_initialized_(false) {
 }
 
 Worker::~Worker() {
@@ -32,14 +32,10 @@ bool Worker::Init() {
   // Initialize stack pool (using malloc instead of hipc::StackAllocator)
   stack_pool_.clear();
 
-  // Set queue references based on thread type
+  // Get active queue from shared memory via IPC Manager
   IpcManager* ipc = CHI_IPC;
-  if (thread_type_ == kLowLatencyWorker) {
-    active_queue_ = ipc->GetProcessQueue(kLowLatency);
-    cold_queue_ = ipc->GetProcessQueue(kHighLatency);
-  } else {
-    active_queue_ = ipc->GetProcessQueue(kHighLatency);
-    cold_queue_ = ipc->GetProcessQueue(kLowLatency);
+  if (ipc) {
+    active_queue_ = ipc->GetWorkerQueue(worker_id_);
   }
 
   is_initialized_ = true;
@@ -66,9 +62,8 @@ void Worker::Finalize() {
   }
   stack_pool_.clear();
 
-  // Clear queue references
-  active_queue_ = nullptr;
-  cold_queue_ = nullptr;
+  // Clear active queue reference (don't delete - it's in shared memory)
+  active_queue_ = hipc::FullPtr<hipc::mpsc_queue<hipc::Pointer>>();
 
   is_initialized_ = false;
 }
@@ -80,44 +75,76 @@ void Worker::Run() {
 
   is_running_ = true;
 
-  // Main worker loop - iterate over active lanes and pop tasks from them
+  // Main worker loop - pop lanes from active queue and process tasks
   while (is_running_) {
     bool task_found = false;
+    hipc::Pointer lane_ref_ptr;
     
-    // Get the current set of active lanes assigned to this worker
-    std::vector<LaneId> active_lanes = GetActiveLanes();
-    
-    // Iterate over assigned lanes
-    for (LaneId lane_id : active_lanes) {
-      WorkOrchestrator* orchestrator = CHI_WORK_ORCHESTRATOR;
-      WorkerLane* lane = orchestrator->GetLane(lane_id);
+    // Pop a lane reference pointer from the active queue
+    if (!active_queue_.IsNull() && !active_queue_->pop(lane_ref_ptr).IsNull()) {
+      // Convert hipc::Pointer to TaskQueueLaneRef
+      hipc::FullPtr<TaskQueueLaneRef> lane_ref_full_ptr(lane_ref_ptr);
       
-      if (lane) {
-        hipc::Pointer task_ptr;
+      if (!lane_ref_full_ptr.IsNull()) {
+        // Get the TaskQueue and lane information
+        u32 queue_id = lane_ref_full_ptr->queue_id;
+        u32 lane_id = lane_ref_full_ptr->lane_id;
         
-        // Try to dequeue a task from this lane
-        if (lane->Dequeue(task_ptr)) {
-          task_found = true;
+        // For now, we need to get the TaskQueue - this is a simplified approach
+        // In practice, the TaskQueueLaneRef would contain the TaskQueue pointer
+        IpcManager* ipc = CHI_IPC;
+        TaskQueue* task_queue = ipc->GetTaskQueue(); // Get the process TaskQueue
+        
+        if (task_queue) {
+          // Process up to 64 tasks from this lane
+          const u32 MAX_TASKS_PER_LANE = 64;
+          u32 tasks_processed = 0;
+          bool should_re_enqueue = false;
           
-          // Convert pointer to FullPtr for consistent API usage
-          hipc::FullPtr<Task> task_full_ptr(task_ptr);
-          
-          if (!task_full_ptr.IsNull()) {
-            // Resolve domain query and route task to container
-            if (ResolveDomainQuery(task_full_ptr)) {
-              ChiContainer* container = QueryContainerFromPoolManager(task_full_ptr);
-              if (container) {
-                // Call monitor function with kLocalSchedule to map task to lane
-                if (CallMonitorForLocalSchedule(container, task_full_ptr)) {
-                  // Execute the task (RunContext allocated within ExecuteTask)
-                  ExecuteTask(task_full_ptr, container, nullptr);
+          while (tasks_processed < MAX_TASKS_PER_LANE && is_running_) {
+            hipc::Pointer task_ptr;
+            
+            // Try to dequeue a task from the specific lane
+            if (task_queue->Dequeue(task_ptr, queue_id, lane_id)) {
+              task_found = true;
+              tasks_processed++;
+              
+              // Convert pointer to FullPtr for consistent API usage
+              hipc::FullPtr<Task> task_full_ptr(task_ptr);
+              
+              if (!task_full_ptr.IsNull()) {
+                // Resolve domain query and route task to container
+                if (ResolveDomainQuery(task_full_ptr)) {
+                  ChiContainer* container = QueryContainerFromPoolManager(task_full_ptr);
+                  if (container) {
+                    // Call monitor function with kLocalSchedule to map task to lane
+                    if (CallMonitorForLocalSchedule(container, task_full_ptr)) {
+                      // Execute the task (RunContext allocated within ExecuteTask)
+                      ExecuteTask(task_full_ptr, container, nullptr);
+                    }
+                  }
                 }
               }
+              
+              // Check if lane still has tasks after processing this one
+              if (task_queue->GetLane(queue_id, lane_id).size() > 0) {
+                should_re_enqueue = true;
+              }
+            } else {
+              // No more tasks in this lane
+              break;
             }
           }
           
-          // Process one task per lane iteration to ensure fairness
-          break;
+          // Re-enqueue the lane if it still has tasks and we processed the maximum
+          if (should_re_enqueue && tasks_processed >= MAX_TASKS_PER_LANE) {
+            active_queue_->push(lane_ref_ptr);
+          }
+        }
+        
+        // Clean up the TaskQueueLaneRef from shared memory when done
+        if (ipc && ipc->GetMainAllocator()) {
+          ipc->GetMainAllocator()->DelObj(HSHM_MCTX, lane_ref_full_ptr);
         }
       }
     }
@@ -145,6 +172,15 @@ void Worker::Stop() {
   is_running_ = false;
 }
 
+void Worker::EnqueueLane(hipc::Pointer lane_ptr) {
+  if (lane_ptr.IsNull() || active_queue_.IsNull()) {
+    return;
+  }
+  
+  // Enqueue lane pointer to active queue (lock-free)
+  active_queue_->push(lane_ptr);
+}
+
 u32 Worker::GetId() const {
   return worker_id_;
 }
@@ -158,19 +194,11 @@ bool Worker::IsRunning() const {
 }
 
 Task* Worker::PopActiveTask() {
-  // Stub implementation - would pop from active_queue_
+  // Stub implementation - this method is now deprecated
+  // Task processing is handled directly in Worker::Run() through lane-based processing
   return nullptr;
 }
 
-Task* Worker::PopColdTask() {
-  // Stub implementation - would pop from cold_queue_
-  return nullptr;
-}
-
-std::vector<LaneId> Worker::GetActiveLanes() {
-  WorkOrchestrator* orchestrator = CHI_WORK_ORCHESTRATOR;
-  return orchestrator->GetActiveLanesForWorker(worker_id_);
-}
 
 bool Worker::ResolveDomainQuery(const FullPtr<Task>& task_ptr) {
   if (task_ptr.IsNull()) {

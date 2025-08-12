@@ -124,6 +124,63 @@ void* IpcManager::GetProcessQueue(QueuePriority priority) {
 
 bool IpcManager::IsInitialized() const { return is_initialized_; }
 
+bool IpcManager::InitializeWorkerQueues(u32 num_workers) {
+  if (!main_allocator_ || !shared_header_) {
+    return false;
+  }
+
+  try {
+    hipc::CtxAllocator<CHI_MAIN_ALLOC_T> ctx_alloc(HSHM_MCTX, main_allocator_);
+    
+    // Initialize worker queues vector in shared header using delay_ar
+    shared_header_->worker_queues.shm_init(ctx_alloc);
+    
+    // Resize vector to hold all worker queue FullPtrs
+    shared_header_->worker_queues->resize(num_workers);
+    
+    // Initialize each worker queue
+    for (u32 i = 0; i < num_workers; ++i) {
+      // Create mpsc_queue for this worker
+      auto worker_queue = main_allocator_->template NewObj<hipc::mpsc_queue<hipc::Pointer>>(
+          HSHM_MCTX, ctx_alloc, 1024); // 1024 depth
+      
+      if (worker_queue.IsNull()) {
+        return false;
+      }
+      
+      // Store FullPtr in vector
+      (*shared_header_->worker_queues)[i] = worker_queue;
+    }
+    
+    // Store worker count
+    shared_header_->num_workers = num_workers;
+    
+    return true;
+  } catch (const std::exception& e) {
+    return false;
+  }
+}
+
+hipc::FullPtr<hipc::mpsc_queue<hipc::Pointer>> IpcManager::GetWorkerQueue(u32 worker_id) {
+  if (!shared_header_) {
+    return hipc::FullPtr<hipc::mpsc_queue<hipc::Pointer>>();
+  }
+  
+  if (worker_id >= shared_header_->num_workers) {
+    return hipc::FullPtr<hipc::mpsc_queue<hipc::Pointer>>();
+  }
+  
+  // Get the vector of worker queues from delay_ar
+  auto& worker_queues_vector = shared_header_->worker_queues;
+  
+  if (worker_id >= worker_queues_vector->size()) {
+    return hipc::FullPtr<hipc::mpsc_queue<hipc::Pointer>>();
+  }
+  
+  // Return the FullPtr to the specific worker's queue
+  return (*worker_queues_vector)[worker_id];
+}
+
 bool IpcManager::ServerInitShm() {
   auto mem_manager = HSHM_MEMORY_MANAGER;
   ConfigManager* config = CHI_CONFIG;
@@ -234,15 +291,20 @@ bool IpcManager::ServerInitQueues() {
     shared_header_ =
         main_allocator_->template GetCustomHeader<IpcSharedHeader>();
 
-    // Server creates the TaskQueue using allocator
+    // Initialize shared header
+    shared_header_->num_workers = 0;
+
+    // Server creates the TaskQueue using delay_ar
     hipc::CtxAllocator<CHI_MAIN_ALLOC_T> ctx_alloc(HSHM_MCTX, main_allocator_);
     
-    // Create TaskQueue
-    process_task_queue_ = main_allocator_->template NewObj<TaskQueue>(
-        HSHM_MCTX, ctx_alloc, 
+    // Initialize TaskQueue in shared header
+    shared_header_->task_queue.shm_init(ctx_alloc, 
         4, // num_lanes for concurrency
         2, // num_priorities (low/high latency)  
         1024); // depth_per_queue
+        
+    // Create FullPtr reference to the shared TaskQueue
+    process_task_queue_ = hipc::FullPtr<TaskQueue>(&shared_header_->task_queue.get_ref());
 
     // Initialize header separately
     process_queue_header_ = TaskQueueHeader(static_cast<PoolId>(0), 0);
@@ -263,16 +325,9 @@ bool IpcManager::ClientInitQueues() {
     shared_header_ =
         main_allocator_->template GetCustomHeader<IpcSharedHeader>();
 
-    // Client creates its own TaskQueue instance (for now)
-    // In a full implementation, this would access the server's shared TaskQueue
-    hipc::CtxAllocator<CHI_MAIN_ALLOC_T> ctx_alloc(HSHM_MCTX, main_allocator_);
-    
-    // Create TaskQueue
-    process_task_queue_ = main_allocator_->template NewObj<TaskQueue>(
-        HSHM_MCTX, ctx_alloc, 
-        4, // num_lanes for concurrency
-        2, // num_priorities (low/high latency)  
-        1024); // depth_per_queue
+    // Client accesses the server's shared TaskQueue via delay_ar
+    // Create FullPtr reference to the shared TaskQueue
+    process_task_queue_ = hipc::FullPtr<TaskQueue>(&shared_header_->task_queue.get_ref());
 
     // Initialize header separately
     process_queue_header_ = TaskQueueHeader(static_cast<PoolId>(0), 0);

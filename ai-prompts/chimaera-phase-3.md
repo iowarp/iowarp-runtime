@@ -26,3 +26,8 @@ At the end of each worker iteration, it pops the minimum element from the min he
 
 On the client:
 A spinwait that sleeps for 10 microseconds. It checks to see if the task is complete every 10 us. Use HSHM_THREAD_MODEL->SleepForUs. to do this.
+
+# Active Queues
+Remove the concept of cold queues. There will only be an active queue. Active queue should be an mpsc queue containing pointers to lanes. The lanes can come from either containers or from the process queue. Workers should pop the lanes from the active queue. The worker then iterates for a fixed maximum number of tasks per-lane, for example 64. If the lane has no more tasks by the end of the iteration, then do not re-enqueue the lane. When a task is enqueued to a lane, if the lane's size was 0, the lane should be re-enqueued in the worker. This could result in the same lane being enqueued multiple times. Devise a way to reduce this duplication. 
+
+We should create a new queue that is a simple wrapper around hipc::multi_mpsc_queue. Use TaskQueue class for this. It should have the hipc::multi_mpsc_queue as a class variable. It has similar inputs, but stores the custom header. It also implements custom Enqueue and Dequeue functions. During Enqueue, for the runtime, it should enqeueue the lane to its assigned worker if the lane's size is initially 0. The worker should somehow track if the lane is enqueued multiple times and remove duplicates. 
