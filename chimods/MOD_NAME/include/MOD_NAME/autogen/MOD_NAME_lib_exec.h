@@ -62,16 +62,16 @@ inline void Del(Runtime* runtime, chi::u32 method, hipc::FullPtr<chi::Task> task
   
   switch (method_enum) {
     case Method::kCreate: {
-      ipc_manager->DelTask(task_ptr.Cast<CreateTask>(), chi::kMainSegment);
+      ipc_manager->DelTask(task_ptr.Cast<CreateTask>());
       break;
     }
     case Method::kCustom: {
-      ipc_manager->DelTask(task_ptr.Cast<CustomTask>(), chi::kMainSegment);
+      ipc_manager->DelTask(task_ptr.Cast<CustomTask>());
       break;
     }
     default:
       // For unknown methods, still try to delete from main segment
-      ipc_manager->DelTask(task_ptr, chi::kMainSegment);
+      ipc_manager->DelTask(task_ptr);
       break;
   }
   

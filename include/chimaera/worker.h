@@ -10,11 +10,13 @@
 #include "chimaera/task.h"
 #include "chimaera/chimod_spec.h"
 #include "chimaera/domain_query.h"
+#include "chimaera/task_queue.h"
 
 namespace chi {
 
 // Forward declarations
 class Task;
+class TaskQueue;
 
 // Macros for accessing HSHM thread-local storage (worker thread context)
 // These macros allow access to the current task, run context, and worker from any thread
@@ -107,9 +109,9 @@ class Worker {
 
   /**
    * Enqueue a lane to this worker's active queue for processing
-   * @param lane_ptr hipc::Pointer to TaskQueue lane that has work available
+   * @param lane_ptr FullPtr to lane (as returned by GetLane) that has work available
    */
-  void EnqueueLane(hipc::Pointer lane_ptr);
+  void EnqueueLane(hipc::FullPtr<TaskQueue::TaskLane> lane_ptr);
 
  private:
   /**
@@ -203,8 +205,9 @@ class Worker {
   bool is_running_;
   bool is_initialized_;
 
-  // Active queue of lane pointers for processing
-  hipc::FullPtr<hipc::mpsc_queue<hipc::Pointer>> active_queue_;  // Queue of hipc::Pointer to TaskQueue lanes
+  // Active queue of lanes for processing
+  // GetLane returns a lane reference, so we store lane FullPtrs
+  hipc::FullPtr<hipc::mpsc_queue<hipc::FullPtr<TaskQueue::TaskLane>>> active_queue_;  // Queue of lane FullPtrs from GetLane
 
   // Stack management using malloc and std::vector (replaces hipc::StackAllocator)
   struct StackInfo {

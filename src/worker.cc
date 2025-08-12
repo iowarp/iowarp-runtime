@@ -63,7 +63,7 @@ void Worker::Finalize() {
   stack_pool_.clear();
 
   // Clear active queue reference (don't delete - it's in shared memory)
-  active_queue_ = hipc::FullPtr<hipc::mpsc_queue<hipc::Pointer>>();
+  active_queue_ = hipc::FullPtr<hipc::mpsc_queue<hipc::FullPtr<TaskQueue::TaskLane>>>();
 
   is_initialized_ = false;
 }
@@ -78,39 +78,26 @@ void Worker::Run() {
   // Main worker loop - pop lanes from active queue and process tasks
   while (is_running_) {
     bool task_found = false;
-    hipc::Pointer lane_ref_ptr;
+    hipc::FullPtr<TaskQueue::TaskLane> lane_ptr;
     
-    // Pop a lane reference pointer from the active queue
-    if (!active_queue_.IsNull() && !active_queue_->pop(lane_ref_ptr).IsNull()) {
-      // Convert hipc::Pointer to TaskQueueLaneRef
-      hipc::FullPtr<TaskQueueLaneRef> lane_ref_full_ptr(lane_ref_ptr);
-      
-      if (!lane_ref_full_ptr.IsNull()) {
-        // Get the TaskQueue and lane information
-        u32 queue_id = lane_ref_full_ptr->queue_id;
-        u32 lane_id = lane_ref_full_ptr->lane_id;
-        
-        // For now, we need to get the TaskQueue - this is a simplified approach
-        // In practice, the TaskQueueLaneRef would contain the TaskQueue pointer
-        IpcManager* ipc = CHI_IPC;
-        TaskQueue* task_queue = ipc->GetTaskQueue(); // Get the process TaskQueue
-        
-        if (task_queue) {
-          // Process up to 64 tasks from this lane
-          const u32 MAX_TASKS_PER_LANE = 64;
-          u32 tasks_processed = 0;
-          bool should_re_enqueue = false;
+    // Pop a lane from the active queue
+    if (!active_queue_.IsNull() && !active_queue_->pop(lane_ptr).IsNull()) {
+      if (!lane_ptr.IsNull()) {
+        // Process up to 64 tasks from this specific lane
+        const u32 MAX_TASKS_TOTAL = 64;
+        u32 tasks_processed = 0;
+        bool should_re_enqueue = false;
           
-          while (tasks_processed < MAX_TASKS_PER_LANE && is_running_) {
-            hipc::Pointer task_ptr;
-            
-            // Try to dequeue a task from the specific lane
-            if (task_queue->Dequeue(task_ptr, queue_id, lane_id)) {
+        while (tasks_processed < MAX_TASKS_TOTAL && is_running_) {
+          hipc::TypedPointer<Task> task_typed_ptr;
+          
+          // Use static method to pop task from lane
+          if (TaskQueue::PopTask(lane_ptr, task_typed_ptr)) {
               task_found = true;
               tasks_processed++;
               
-              // Convert pointer to FullPtr for consistent API usage
-              hipc::FullPtr<Task> task_full_ptr(task_ptr);
+              // Convert TypedPointer to FullPtr for consistent API usage
+              hipc::FullPtr<Task> task_full_ptr(task_typed_ptr);
               
               if (!task_full_ptr.IsNull()) {
                 // Resolve domain query and route task to container
@@ -127,8 +114,10 @@ void Worker::Run() {
               }
               
               // Check if lane still has tasks after processing this one
-              if (task_queue->GetLane(queue_id, lane_id).size() > 0) {
-                should_re_enqueue = true;
+              // We can check the lane size, but we need to cast back to proper type first
+              // For simplicity, assume if we processed the max we should re-enqueue
+              if (tasks_processed < MAX_TASKS_TOTAL) {
+                should_re_enqueue = true; // There might be more tasks
               }
             } else {
               // No more tasks in this lane
@@ -137,15 +126,9 @@ void Worker::Run() {
           }
           
           // Re-enqueue the lane if it still has tasks and we processed the maximum
-          if (should_re_enqueue && tasks_processed >= MAX_TASKS_PER_LANE) {
-            active_queue_->push(lane_ref_ptr);
+          if (should_re_enqueue && tasks_processed >= MAX_TASKS_TOTAL) {
+            active_queue_->push(lane_ptr);
           }
-        }
-        
-        // Clean up the TaskQueueLaneRef from shared memory when done
-        if (ipc && ipc->GetMainAllocator()) {
-          ipc->GetMainAllocator()->DelObj(HSHM_MCTX, lane_ref_full_ptr);
-        }
       }
     }
     
@@ -172,12 +155,12 @@ void Worker::Stop() {
   is_running_ = false;
 }
 
-void Worker::EnqueueLane(hipc::Pointer lane_ptr) {
+void Worker::EnqueueLane(hipc::FullPtr<TaskQueue::TaskLane> lane_ptr) {
   if (lane_ptr.IsNull() || active_queue_.IsNull()) {
     return;
   }
   
-  // Enqueue lane pointer to active queue (lock-free)
+  // Enqueue lane FullPtr to active queue (lock-free)
   active_queue_->push(lane_ptr);
 }
 

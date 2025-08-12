@@ -35,7 +35,7 @@ class Client : public chi::ChiContainerClient {
     
     // Clean up task
     auto* ipc_manager = CHI_IPC;
-    ipc_manager->DelTask(task, chi::kMainSegment);
+    ipc_manager->DelTask(task);
   }
 
   /**
@@ -47,8 +47,6 @@ class Client : public chi::ChiContainerClient {
     
     // Allocate CreateTask
     auto task = ipc_manager->NewTask<CreateTask>(
-        chi::kMainSegment, 
-        HSHM_DEFAULT_MEM_CTX,
         chi::TaskNode(0), 
         pool_id_,
         dom_query);
@@ -76,7 +74,7 @@ class Client : public chi::ChiContainerClient {
     
     // Clean up task
     auto* ipc_manager = CHI_IPC;
-    ipc_manager->DelTask(task, chi::kMainSegment);
+    ipc_manager->DelTask(task);
     
     return result_code;
   }
@@ -92,8 +90,6 @@ class Client : public chi::ChiContainerClient {
     
     // Allocate CustomTask
     auto task = ipc_manager->NewTask<CustomTask>(
-        chi::kMainSegment,
-        HSHM_DEFAULT_MEM_CTX,
         chi::TaskNode(0),
         pool_id_,
         dom_query,

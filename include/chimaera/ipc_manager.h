@@ -12,8 +12,8 @@ namespace chi {
  * Contains shared data structures using delay_ar for better type safety
  */
 struct IpcSharedHeader {
-  hipc::delay_ar<TaskQueue> task_queue; // TaskQueue in shared memory
-  hipc::delay_ar<hipc::vector<hipc::FullPtr<hipc::mpsc_queue<hipc::Pointer>>>> worker_queues; // Vector of worker active queues
+  hipc::delay_ar<TaskQueue> external_queue; // External/Process TaskQueue in shared memory
+  hipc::delay_ar<hipc::vector<hipc::mpsc_queue<hipc::FullPtr<TaskQueue::TaskLane>>>> worker_queues; // Vector of worker active queues
   u32 num_workers; // Number of workers for which queues are allocated
 };
 
@@ -82,13 +82,13 @@ class IpcManager {
     if (!runtime_data_allocator_) {
       return FullPtr<T>();
     }
-    return runtime_data_allocator_->template AllocateObjs<T>(HSHM_MCTX, size);
+    return runtime_data_allocator_->template AllocateObjs<T>(size);
     #else
     // Client uses cdata segment
     if (!client_data_allocator_) {
       return FullPtr<T>();
     }
-    return client_data_allocator_->template AllocateObjs<T>(HSHM_MCTX, size);
+    return client_data_allocator_->template AllocateObjs<T>(size);
     #endif
   }
 
@@ -99,22 +99,22 @@ class IpcManager {
    */
   template<typename TaskT>
   void Enqueue(FullPtr<TaskT>& task_ptr, QueuePriority priority = kLowLatency) {
-    if (!process_task_queue_.IsNull()) {
-      // Get the shared memory pointer from the task
-      hipc::Pointer shm_ptr = task_ptr.shm_;
+    if (!process_external_queue_.IsNull()) {
+      // Create TypedPointer from the task FullPtr
+      hipc::TypedPointer<Task> typed_ptr(task_ptr.shm_);
       
-      // Enqueue the pointer using round-robin across lanes
-      auto& lane = process_task_queue_->GetLane(0, static_cast<u32>(priority));
-      lane.push(shm_ptr);
+      // Enqueue the TypedPointer using round-robin across lanes
+      auto& lane = process_external_queue_->GetLane(0, static_cast<u32>(priority));
+      lane.push(typed_ptr);
     }
   }
 
   /**
    * Dequeue task from process queue
    * @param priority Queue priority level
-   * @return hipc::Pointer to task, null if queue empty
+   * @return hipc::TypedPointer to task, null if queue empty
    */
-  hipc::Pointer Dequeue(QueuePriority priority = kLowLatency);
+  hipc::TypedPointer<Task> Dequeue(QueuePriority priority = kLowLatency);
 
   /**
    * Get TaskQueue for task processing
@@ -153,7 +153,13 @@ class IpcManager {
    * @param worker_id Worker identifier (0-based)
    * @return FullPtr to worker's active queue or null if invalid
    */
-  hipc::FullPtr<hipc::mpsc_queue<hipc::Pointer>> GetWorkerQueue(u32 worker_id);
+  hipc::FullPtr<hipc::mpsc_queue<hipc::FullPtr<TaskQueue::TaskLane>>> GetWorkerQueue(u32 worker_id);
+
+  /**
+   * Get number of workers from shared memory header
+   * @return Number of workers, 0 if not initialized
+   */
+  u32 GetWorkerCount();
 
  private:
   /**
@@ -207,8 +213,8 @@ class IpcManager {
   // Pointer to shared header containing the task queue pointer
   IpcSharedHeader* shared_header_ = nullptr;
   
-  // The actual TaskQueue instance 
-  hipc::FullPtr<TaskQueue> process_task_queue_;
+  // The actual external TaskQueue instance 
+  hipc::FullPtr<TaskQueue> process_external_queue_;
   
   // TaskQueue header (stored separately from queue)
   TaskQueueHeader process_queue_header_;

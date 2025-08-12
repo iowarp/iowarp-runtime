@@ -96,24 +96,24 @@ void IpcManager::Finalize() {
 // Template methods (NewTask, DelTask, AllocateBuffer, Enqueue) are implemented
 // inline in the header
 
-hipc::Pointer IpcManager::Dequeue(QueuePriority priority) {
-  if (process_task_queue_.IsNull()) {
-    return hipc::Pointer();
+hipc::TypedPointer<Task> IpcManager::Dequeue(QueuePriority priority) {
+  if (process_external_queue_.IsNull()) {
+    return hipc::TypedPointer<Task>();
   }
 
-  hipc::Pointer task_ptr;
+  hipc::TypedPointer<Task> task_ptr;
   
   // Try to dequeue from the specified priority
-  auto& lane = process_task_queue_->GetLane(0, static_cast<u32>(priority));
+  auto& lane = process_external_queue_->GetLane(0, static_cast<u32>(priority));
   auto token = lane.pop(task_ptr);
   if (!token.IsNull()) {
     return task_ptr;
   }
-  return hipc::Pointer();
+  return hipc::TypedPointer<Task>();
 }
 
 TaskQueue* IpcManager::GetTaskQueue() {
-  return process_task_queue_.ptr_;
+  return process_external_queue_.ptr_;
 }
 
 void* IpcManager::GetProcessQueue(QueuePriority priority) {
@@ -133,24 +133,8 @@ bool IpcManager::InitializeWorkerQueues(u32 num_workers) {
     hipc::CtxAllocator<CHI_MAIN_ALLOC_T> ctx_alloc(HSHM_MCTX, main_allocator_);
     
     // Initialize worker queues vector in shared header using delay_ar
-    shared_header_->worker_queues.shm_init(ctx_alloc);
-    
-    // Resize vector to hold all worker queue FullPtrs
-    shared_header_->worker_queues->resize(num_workers);
-    
-    // Initialize each worker queue
-    for (u32 i = 0; i < num_workers; ++i) {
-      // Create mpsc_queue for this worker
-      auto worker_queue = main_allocator_->template NewObj<hipc::mpsc_queue<hipc::Pointer>>(
-          HSHM_MCTX, ctx_alloc, 1024); // 1024 depth
-      
-      if (worker_queue.IsNull()) {
-        return false;
-      }
-      
-      // Store FullPtr in vector
-      (*shared_header_->worker_queues)[i] = worker_queue;
-    }
+    // Single call to initialize vector with num_workers queues, each with depth 1024
+    shared_header_->worker_queues.shm_init(ctx_alloc, num_workers, 1024);
     
     // Store worker count
     shared_header_->num_workers = num_workers;
@@ -161,24 +145,31 @@ bool IpcManager::InitializeWorkerQueues(u32 num_workers) {
   }
 }
 
-hipc::FullPtr<hipc::mpsc_queue<hipc::Pointer>> IpcManager::GetWorkerQueue(u32 worker_id) {
+hipc::FullPtr<hipc::mpsc_queue<hipc::FullPtr<TaskQueue::TaskLane>>> IpcManager::GetWorkerQueue(u32 worker_id) {
   if (!shared_header_) {
-    return hipc::FullPtr<hipc::mpsc_queue<hipc::Pointer>>();
+    return hipc::FullPtr<hipc::mpsc_queue<hipc::FullPtr<TaskQueue::TaskLane>>>();
   }
   
   if (worker_id >= shared_header_->num_workers) {
-    return hipc::FullPtr<hipc::mpsc_queue<hipc::Pointer>>();
+    return hipc::FullPtr<hipc::mpsc_queue<hipc::FullPtr<TaskQueue::TaskLane>>>();
   }
   
   // Get the vector of worker queues from delay_ar
   auto& worker_queues_vector = shared_header_->worker_queues;
   
   if (worker_id >= worker_queues_vector->size()) {
-    return hipc::FullPtr<hipc::mpsc_queue<hipc::Pointer>>();
+    return hipc::FullPtr<hipc::mpsc_queue<hipc::FullPtr<TaskQueue::TaskLane>>>();
   }
   
-  // Return the FullPtr to the specific worker's queue
-  return (*worker_queues_vector)[worker_id];
+  // Return FullPtr reference to the specific worker's queue in the vector
+  return hipc::FullPtr<hipc::mpsc_queue<hipc::FullPtr<TaskQueue::TaskLane>>>(&(*worker_queues_vector)[worker_id]);
+}
+
+u32 IpcManager::GetWorkerCount() {
+  if (!shared_header_) {
+    return 0;
+  }
+  return shared_header_->num_workers;
 }
 
 bool IpcManager::ServerInitShm() {
@@ -298,18 +289,18 @@ bool IpcManager::ServerInitQueues() {
     hipc::CtxAllocator<CHI_MAIN_ALLOC_T> ctx_alloc(HSHM_MCTX, main_allocator_);
     
     // Initialize TaskQueue in shared header
-    shared_header_->task_queue.shm_init(ctx_alloc, 
+    shared_header_->external_queue.shm_init(ctx_alloc, ctx_alloc, 
         4, // num_lanes for concurrency
         2, // num_priorities (low/high latency)  
         1024); // depth_per_queue
         
     // Create FullPtr reference to the shared TaskQueue
-    process_task_queue_ = hipc::FullPtr<TaskQueue>(&shared_header_->task_queue.get_ref());
+    process_external_queue_ = hipc::FullPtr<TaskQueue>(&shared_header_->external_queue.get_ref());
 
     // Initialize header separately
     process_queue_header_ = TaskQueueHeader(static_cast<PoolId>(0), 0);
 
-    return !process_task_queue_.IsNull();
+    return !process_external_queue_.IsNull();
   } catch (const std::exception& e) {
     return false;
   }
@@ -327,12 +318,12 @@ bool IpcManager::ClientInitQueues() {
 
     // Client accesses the server's shared TaskQueue via delay_ar
     // Create FullPtr reference to the shared TaskQueue
-    process_task_queue_ = hipc::FullPtr<TaskQueue>(&shared_header_->task_queue.get_ref());
+    process_external_queue_ = hipc::FullPtr<TaskQueue>(&shared_header_->external_queue.get_ref());
 
     // Initialize header separately
     process_queue_header_ = TaskQueueHeader(static_cast<PoolId>(0), 0);
 
-    return !process_task_queue_.IsNull();
+    return !process_external_queue_.IsNull();
   } catch (const std::exception& e) {
     return false;
   }
