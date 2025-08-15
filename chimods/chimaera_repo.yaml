@@ -2,7 +2,7 @@
 # This repository contains the standard Chimaera modules
 
 name: chimods
-namespace: chimods
+namespace: chimaera
 version: 1.0.0
 description: Standard Chimaera modules repository
 
@@ -13,6 +13,7 @@ license: Apache-2.0
 # Modules in this repository
 modules:
   - MOD_NAME
+  - admin
 
 # Build configuration
 build:

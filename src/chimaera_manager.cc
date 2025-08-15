@@ -4,23 +4,33 @@
 
 #include "chimaera/singletons.h"
 
+// Global pointer variable definition for Chimaera manager singleton
+HSHM_DEFINE_GLOBAL_PTR_VAR_CC(chi::Chimaera, g_chimaera_manager);
+
 namespace chi {
 
-// HSHM Thread-local storage key definitions
-hshm::ThreadLocalKey chi_cur_rctx_key_;
+// HSHM Thread-local storage key definition
 hshm::ThreadLocalKey chi_cur_worker_key_;
+
+Chimaera::~Chimaera() {
+  if (is_initialized_) {
+    // Always finalize client components
+    ClientFinalize();
+    
+    #ifdef CHIMAERA_RUNTIME
+    // Only finalize server components if compiled as runtime
+    ServerFinalize();
+    #endif
+  }
+}
 
 bool Chimaera::ClientInit() {
   if (is_initialized_) {
     return true;
   }
 
-  // Initialize HSHM TLS keys
-  HSHM_THREAD_MODEL->CreateTls<struct RunContext>(chi_cur_rctx_key_, nullptr);
-  HSHM_THREAD_MODEL->CreateTls<class Worker>(chi_cur_worker_key_, nullptr);
-
   // Initialize configuration manager
-  if (!CHI_CONFIG->Init()) {
+  if (!CHI_CONFIG_MANAGER->Init()) {
     return false;
   }
 
@@ -46,12 +56,8 @@ bool Chimaera::ServerInit() {
     return true;
   }
 
-  // Initialize HSHM TLS keys
-  HSHM_THREAD_MODEL->CreateTls<struct RunContext>(chi_cur_rctx_key_, nullptr);
-  HSHM_THREAD_MODEL->CreateTls<class Worker>(chi_cur_worker_key_, nullptr);
-
   // Initialize configuration manager
-  if (!CHI_CONFIG->Init()) {
+  if (!CHI_CONFIG_MANAGER->Init()) {
     return false;
   }
 
@@ -66,7 +72,7 @@ bool Chimaera::ServerInit() {
   }
 
   // Initialize module manager
-  if (!CHI_MODULE->Init()) {
+  if (!CHI_MODULE_MANAGER->Init()) {
     return false;
   }
 
@@ -87,24 +93,35 @@ bool Chimaera::ServerInit() {
   return true;
 }
 
-void Chimaera::Finalize() {
-  if (!is_initialized_) {
+
+void Chimaera::ClientFinalize() {
+  if (!is_initialized_ || !is_client_mode_) {
     return;
   }
 
-  // Stop workers if running
-  if (is_runtime_mode_) {
-    CHI_WORK_ORCHESTRATOR->StopWorkers();
-    CHI_WORK_ORCHESTRATOR->Finalize();
-    CHI_MODULE->Finalize();
-  }
-
-  // Finalize managers
+  // Finalize client components
   CHI_POOL_MANAGER->Finalize();
-  CHI_IPC->Finalize();
+  CHI_IPC->ClientFinalize();
 
   is_initialized_ = false;
   is_client_mode_ = false;
+}
+
+void Chimaera::ServerFinalize() {
+  if (!is_initialized_ || !is_runtime_mode_) {
+    return;
+  }
+
+  // Stop workers and finalize server components
+  CHI_WORK_ORCHESTRATOR->StopWorkers();
+  CHI_WORK_ORCHESTRATOR->Finalize();
+  CHI_MODULE_MANAGER->Finalize();
+
+  // Finalize shared components
+  CHI_POOL_MANAGER->Finalize();
+  CHI_IPC->ServerFinalize();
+
+  is_initialized_ = false;
   is_runtime_mode_ = false;
 }
 

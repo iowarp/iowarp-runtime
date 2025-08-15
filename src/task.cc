@@ -76,14 +76,9 @@ void Task::Yield() {
   // Jump back to worker using boost::fiber
   namespace bctx = boost::context::detail;
   
-  if (run_ctx->fiber_context) {
-    // Store current fiber context for resume point
-    bctx::transfer_t* transfer = static_cast<bctx::transfer_t*>(run_ctx->jump_point);
-    if (transfer) {
-      // Jump back to worker - the task has been added to blocked queue
-      *transfer = bctx::jump_fcontext(transfer->fctx, transfer->data);
-    }
-  }
+  // Jump back to worker - the task has been added to blocked queue
+  run_ctx->fiber_transfer = bctx::jump_fcontext(run_ctx->fiber_transfer.fctx, 
+                                                run_ctx->fiber_transfer.data);
 }
 #endif
 

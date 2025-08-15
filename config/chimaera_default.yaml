@@ -27,6 +27,16 @@ logging:
 performance:
   stack_size: 65536  # 64KB per task
   queue_depth: 10000
+
+# Task queue configuration
+task_queue:
+  lanes: 4  # Number of concurrent lanes for task processing
+
+# Shared memory configuration
+shared_memory:
+  main_segment_name: "chi_main_segment_${USER}"           # Main segment with user isolation
+  client_data_segment_name: "chi_client_data_segment_${USER}"  # Client data segment
+  runtime_data_segment_name: "chi_runtime_data_segment_${USER}" # Runtime data segment
   
 # Runtime configuration
 runtime:

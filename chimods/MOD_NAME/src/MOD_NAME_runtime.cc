@@ -59,8 +59,11 @@ void Runtime::MonitorCreate(chi::MonitorModeId mode,
       // Route task to local queue
       std::cout << "MOD_NAME: Routing Create task to local queue" << std::endl;
       // Use base class lane management - route to low latency queue
-      if (auto* lane = GetLane(chi::kLowLatency, 0)) {
-        lane->Enqueue(task_ptr.shm_);
+      {
+        auto lane_ptr = GetLaneFullPtr(chi::kLowLatency, 0);
+        if (!lane_ptr.IsNull()) {
+          chi::TaskQueue::EmplaceTask(lane_ptr, task_ptr.shm_);
+        }
       }
       break;
       
@@ -69,9 +72,10 @@ void Runtime::MonitorCreate(chi::MonitorModeId mode,
       std::cout << "MOD_NAME: Global scheduling for Create task" << std::endl;
       break;
       
-    case chi::MonitorModeId::kCleanup:
-      // Clean up completed task
-      std::cout << "MOD_NAME: Cleaning up Create task" << std::endl;
+      
+    case chi::MonitorModeId::kEstLoad:
+      // Estimate task execution time
+      std::cout << "MOD_NAME: Estimating load for Create task" << std::endl;
       break;
   }
 }
@@ -97,9 +101,12 @@ void Runtime::MonitorCustom(chi::MonitorModeId mode,
     case chi::MonitorModeId::kLocalSchedule:
       // Route task to local queue
       std::cout << "MOD_NAME: Routing Custom task to local queue" << std::endl;
-      // Use base class lane management - can use hash-based routing
-      if (auto* lane = GetLaneByHash(chi::kLowLatency, task_ptr->operation_id_)) {
-        lane->Enqueue(task_ptr.shm_);
+      // Use base class lane management - route to low latency queue lane 0
+      {
+        auto lane_ptr = GetLaneFullPtr(chi::kLowLatency, 0);
+        if (!lane_ptr.IsNull()) {
+          chi::TaskQueue::EmplaceTask(lane_ptr, task_ptr.shm_);
+        }
       }
       break;
       
@@ -108,9 +115,10 @@ void Runtime::MonitorCustom(chi::MonitorModeId mode,
       std::cout << "MOD_NAME: Global scheduling for Custom task" << std::endl;
       break;
       
-    case chi::MonitorModeId::kCleanup:
-      // Clean up completed task
-      std::cout << "MOD_NAME: Cleaning up Custom task" << std::endl;
+      
+    case chi::MonitorModeId::kEstLoad:
+      // Estimate task execution time
+      std::cout << "MOD_NAME: Estimating load for Custom task" << std::endl;
       break;
   }
 }
@@ -119,4 +127,4 @@ void Runtime::MonitorCustom(chi::MonitorModeId mode,
 } // namespace chimaera::MOD_NAME
 
 // Define ChiMod entry points using CHI_TASK_CC macro
-CHI_TASK_CC(chimaera::MOD_NAME::Runtime, "MOD_NAME")
+CHI_TASK_CC(chimaera::MOD_NAME::Runtime)

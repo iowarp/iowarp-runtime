@@ -24,29 +24,29 @@
  */
 
 // Core Framework Singleton Access
-// CHI_CHIMAERA - Main Chimaera framework coordinator
-// CHI_CONFIG   - Configuration manager for YAML parsing
-// CHI_IPC      - IPC manager for shared memory and networking
-// CHI_POOL_MANAGER - Pool manager for ChiPools and ChiContainers  
-// CHI_MODULE   - Module manager for dynamic loading
+// CHI_CHIMAERA_MANAGER - Main Chimaera framework coordinator
+// CHI_CONFIG_MANAGER   - Configuration manager for YAML parsing
+// CHI_IPC              - IPC manager for shared memory and networking
+// CHI_POOL_MANAGER     - Pool manager for ChiPools and ChiContainers  
+// CHI_MODULE_MANAGER   - Module manager for dynamic loading
 // CHI_WORK_ORCHESTRATOR - Work orchestrator for thread management
 
 // All macros are defined in their respective header files:
-// - CHI_CHIMAERA defined in chimaera/chimaera_manager.h
-// - CHI_CONFIG defined in chimaera/config_manager.h
+// - CHI_CHIMAERA_MANAGER defined in chimaera/chimaera_manager.h
+// - CHI_CONFIG_MANAGER defined in chimaera/config_manager.h
 // - CHI_IPC defined in chimaera/ipc_manager.h
 // - CHI_POOL_MANAGER defined in chimaera/pool_manager.h
-// - CHI_MODULE defined in chimaera/module_manager.h
+// - CHI_MODULE_MANAGER defined in chimaera/module_manager.h
 // - CHI_WORK_ORCHESTRATOR defined in chimaera/work_orchestrator.h
 
 /**
  * Example usage:
  * 
  * // Initialize the configuration manager
- * CHI_CONFIG->Init();
+ * CHI_CONFIG_MANAGER->Init();
  * 
  * // Get worker thread count from config
- * u32 workers = CHI_CONFIG->GetWorkerThreadCount(ThreadType::kLowLatency);
+ * u32 workers = CHI_CONFIG_MANAGER->GetWorkerThreadCount(ThreadType::kLowLatency);
  * 
  * // Initialize IPC components
  * CHI_IPC->ServerInit();

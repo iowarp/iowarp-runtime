@@ -32,10 +32,7 @@ bool CHIMAERA_CLIENT_INIT();
  */
 bool CHIMAERA_RUNTIME_INIT();
 
-/**
- * Shutdown Chimaera components
- */
-void CHIMAERA_FINALIZE();
+
 
 }  // namespace chi
 

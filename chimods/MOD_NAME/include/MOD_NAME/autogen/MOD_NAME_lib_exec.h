@@ -15,20 +15,12 @@ namespace chimaera::MOD_NAME {
  * Execute a method on the runtime
  */
 inline void Run(Runtime* runtime, chi::u32 method, hipc::FullPtr<chi::Task> task, chi::RunContext& rctx) {
-  Method method_enum = static_cast<Method>(method);
-  switch (method_enum) {
-    case Method::kCreate: {
-      runtime->Create(task.Cast<CreateTask>(), rctx);
-      break;
-    }
-    case Method::kCustom: {
-      runtime->Custom(task.Cast<CustomTask>(), rctx);
-      break;
-    }
-    default:
-      // Unknown method - do nothing
-      break;
+  if (method == Method::kCreate) {
+    runtime->Create(task.Cast<CreateTask>(), rctx);
+  } else if (method == Method::kCustom) {
+    runtime->Custom(task.Cast<CustomTask>(), rctx);
   }
+  // Unknown method - do nothing
 }
 
 /**
@@ -36,18 +28,10 @@ inline void Run(Runtime* runtime, chi::u32 method, hipc::FullPtr<chi::Task> task
  */
 inline void Monitor(Runtime* runtime, chi::MonitorModeId mode, chi::u32 method, 
                    hipc::FullPtr<chi::Task> task_ptr, chi::RunContext& rctx) {
-  Method method_enum = static_cast<Method>(method);
-  switch (method_enum) {
-    case Method::kCreate: {
-      runtime->MonitorCreate(mode, task_ptr.Cast<CreateTask>(), rctx);
-      break;
-    }
-    case Method::kCustom: {
-      runtime->MonitorCustom(mode, task_ptr.Cast<CustomTask>(), rctx);
-      break;
-    }
-    default:
-      break;
+  if (method == Method::kCreate) {
+    runtime->MonitorCreate(mode, task_ptr.Cast<CreateTask>(), rctx);
+  } else if (method == Method::kCustom) {
+    runtime->MonitorCustom(mode, task_ptr.Cast<CustomTask>(), rctx);
   }
 }
 
@@ -58,21 +42,14 @@ inline void Monitor(Runtime* runtime, chi::MonitorModeId mode, chi::u32 method,
 inline void Del(Runtime* runtime, chi::u32 method, hipc::FullPtr<chi::Task> task_ptr) {
   // Use IPC manager to deallocate task from shared memory
   auto* ipc_manager = CHI_IPC;
-  Method method_enum = static_cast<Method>(method);
   
-  switch (method_enum) {
-    case Method::kCreate: {
-      ipc_manager->DelTask(task_ptr.Cast<CreateTask>());
-      break;
-    }
-    case Method::kCustom: {
-      ipc_manager->DelTask(task_ptr.Cast<CustomTask>());
-      break;
-    }
-    default:
-      // For unknown methods, still try to delete from main segment
-      ipc_manager->DelTask(task_ptr);
-      break;
+  if (method == Method::kCreate) {
+    ipc_manager->DelTask(task_ptr.Cast<CreateTask>());
+  } else if (method == Method::kCustom) {
+    ipc_manager->DelTask(task_ptr.Cast<CustomTask>());
+  } else {
+    // For unknown methods, still try to delete from main segment
+    ipc_manager->DelTask(task_ptr);
   }
   
   (void)runtime; // Runtime not needed for IPC-managed deletion

@@ -15,6 +15,11 @@ namespace chi {
 class Chimaera {
  public:
   /**
+   * Destructor - handles automatic finalization
+   */
+  ~Chimaera();
+
+  /**
    * Initialize client components
    * @return true if initialization successful, false otherwise
    */
@@ -26,10 +31,16 @@ class Chimaera {
    */
   bool ServerInit();
 
+
   /**
-   * Finalize and cleanup all components
+   * Finalize client components only
    */
-  void Finalize();
+  void ClientFinalize();
+
+  /**
+   * Finalize server/runtime components only
+   */
+  void ServerFinalize();
 
   /**
    * Check if Chimaera is initialized
@@ -57,7 +68,10 @@ class Chimaera {
 
 }  // namespace chi
 
-// Macro for accessing the Chimaera manager singleton using HSHM singleton
-#define CHI_CHIMAERA hshm::Singleton<Chimaera>::GetInstance()
+// Global pointer variable declaration for Chimaera manager singleton
+HSHM_DEFINE_GLOBAL_PTR_VAR_H(chi::Chimaera, g_chimaera_manager);
+
+// Macro for accessing the Chimaera manager singleton using global pointer variable
+#define CHI_CHIMAERA_MANAGER HSHM_GET_GLOBAL_PTR_VAR(::chi::Chimaera, g_chimaera_manager)
 
 #endif  // CHIMAERA_INCLUDE_CHIMAERA_MANAGERS_CHIMAERA_MANAGER_H_

@@ -6,6 +6,9 @@
 #include <cstdlib>
 #include <iostream>
 
+// Global pointer variable definition for Configuration manager singleton
+HSHM_DEFINE_GLOBAL_PTR_VAR_CC(chi::ConfigManager, g_config_manager);
+
 namespace chi {
 
 // Constructor and destructor removed - handled by HSHM singleton pattern
@@ -82,6 +85,31 @@ u32 ConfigManager::GetZmqPort() const {
   return zmq_port_;
 }
 
+u32 ConfigManager::GetTaskQueueLanes() const {
+  return task_queue_lanes_;
+}
+
+std::string ConfigManager::GetSharedMemorySegmentName(MemorySegment segment) const {
+  std::string segment_name;
+  
+  switch (segment) {
+    case kMainSegment:
+      segment_name = main_segment_name_;
+      break;
+    case kClientDataSegment:
+      segment_name = client_data_segment_name_;
+      break;
+    case kRuntimeDataSegment:
+      segment_name = runtime_data_segment_name_;
+      break;
+    default:
+      return "";
+  }
+  
+  // Use HSHM's ExpandPath to resolve environment variables
+  return hshm::ConfigParse::ExpandPath(segment_name);
+}
+
 bool ConfigManager::IsValid() const {
   return is_initialized_;
 }
@@ -98,6 +126,12 @@ void ConfigManager::LoadDefault() {
   runtime_data_segment_size_ = 512 * 1024 * 1024; // 512MB
   
   zmq_port_ = 5555;
+  task_queue_lanes_ = 4;
+  
+  // Set default shared memory segment names with environment variables
+  main_segment_name_ = "chi_main_segment_${USER}";
+  client_data_segment_name_ = "chi_client_data_segment_${USER}";
+  runtime_data_segment_name_ = "chi_runtime_data_segment_${USER}";
 }
 
 void ConfigManager::ParseYAML(YAML::Node &yaml_conf) {
@@ -143,6 +177,28 @@ void ConfigManager::ParseYAML(YAML::Node &yaml_conf) {
     auto networking = yaml_conf["networking"];
     if (networking["zmq_port"]) {
       zmq_port_ = networking["zmq_port"].as<u32>();
+    }
+  }
+  
+  // Parse task queue configuration
+  if (yaml_conf["task_queue"]) {
+    auto task_queue = yaml_conf["task_queue"];
+    if (task_queue["lanes"]) {
+      task_queue_lanes_ = task_queue["lanes"].as<u32>();
+    }
+  }
+  
+  // Parse shared memory configuration
+  if (yaml_conf["shared_memory"]) {
+    auto shm = yaml_conf["shared_memory"];
+    if (shm["main_segment_name"]) {
+      main_segment_name_ = shm["main_segment_name"].as<std::string>();
+    }
+    if (shm["client_data_segment_name"]) {
+      client_data_segment_name_ = shm["client_data_segment_name"].as<std::string>();
+    }
+    if (shm["runtime_data_segment_name"]) {
+      runtime_data_segment_name_ = shm["runtime_data_segment_name"].as<std::string>();
     }
   }
 }

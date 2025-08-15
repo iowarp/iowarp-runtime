@@ -2,9 +2,16 @@
 #define CHIMAERA_INCLUDE_CHIMAERA_TASK_H_
 
 #include <vector>
+#include <sstream>
 
 #include "chimaera/domain_query.h"
 #include "chimaera/types.h"
+
+// Include cereal for serialization
+#include <cereal/cereal.hpp>
+#include <cereal/archives/binary.hpp>
+#include <cereal/types/string.hpp>
+#include <cereal/types/vector.hpp>
 
 
 namespace chi {
@@ -242,6 +249,39 @@ public:
    */
   HSHM_CROSS_FUN hipc::CtxAllocator<CHI_MAIN_ALLOC_T> GetCtxAllocator() const {
     return HSHM_MEMORY_MANAGER->GetDefaultAllocator<CHI_MAIN_ALLOC_T>();
+  }
+
+  /**
+   * Serialize data structures to chi::ipc::string using cereal
+   * @param alloc Context allocator for memory management
+   * @param output_str The string to store serialized data
+   * @param args The arguments to serialize
+   */
+  template<typename... Args>
+  static void Serialize(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T>& alloc,
+                        chi::ipc::string& output_str, const Args&... args) {
+    std::ostringstream os;
+    cereal::BinaryOutputArchive archive(os);
+    archive(args...);
+    
+    std::string serialized = os.str();
+    output_str = chi::ipc::string(alloc, serialized);
+  }
+
+  /**
+   * Deserialize data structure from chi::ipc::string using cereal
+   * @param input_str The string containing serialized data
+   * @return The deserialized object
+   */
+  template<typename OutT>
+  static OutT Deserialize(const chi::ipc::string& input_str) {
+    std::string data = input_str.str();
+    std::istringstream is(data);
+    cereal::BinaryInputArchive archive(is);
+    
+    OutT result;
+    archive(result);
+    return result;
   }
 };
 

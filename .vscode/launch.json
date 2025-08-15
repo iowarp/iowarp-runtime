@@ -1,87 +1,108 @@
 {
-  "version": "0.2.0",
-  "configurations": [
-    {
-      "name": "remote-debug",
-      "type": "cppdbg",
-      "request": "launch",
-      "program": "/usr/bin/echo",
-      "miDebuggerServerAddress": "localhost:4000",
-      "miDebuggerPath": "/usr/bin/gdb",
-      "cwd": "${workspaceFolder}",
-      "setupCommands": [
+    "version": "0.2.0",
+    "configurations": [
         {
-          "description": "Enable pretty-printing for gdb",
-          "text": "-enable-pretty-printing",
-          "ignoreFailures": true
-        }
-      ],
-      "externalConsole": true,
-      "logging": {
-        "engineLogging": false
-      }
-    },
-    {
-      "name": "client-debug",
-      "type": "cppdbg",
-      "request": "launch",
-      "program": "/usr/bin/echo",
-      "miDebuggerServerAddress": "localhost:4001",
-      "miDebuggerPath": "/usr/bin/gdb",
-      "cwd": "${workspaceFolder}",
-      "setupCommands": [
+            "name": "remote-debug",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "/usr/bin/echo",
+            "miDebuggerServerAddress": "localhost:4000",
+            "miDebuggerPath": "/usr/bin/gdb",
+            "cwd": "${workspaceFolder}",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "externalConsole": true,
+            "logging": {
+                "engineLogging": false
+            }
+        },
         {
-          "description": "Enable pretty-printing for gdb",
-          "text": "-enable-pretty-printing",
-          "ignoreFailures": true
-        }
-      ],
-      "externalConsole": true,
-      "logging": {
-        "engineLogging": false
-      }
-    },
-    {
-      "name": "test_start_runtime",
-      "type": "cppdbg",
-      "request": "launch",
-      "program": "${workspaceFolder}/build/bin/chimaera_start_runtime",
-      "args": [
-        ""
-      ],
-      "stopAtEntry": false,
-      "cwd": "${workspaceFolder}",
-      "environment": [],
-      "externalConsole": false,
-      "MIMode": "gdb",
-      "setupCommands": [
+            "name": "client-debug",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "/usr/bin/echo",
+            "miDebuggerServerAddress": "localhost:4001",
+            "miDebuggerPath": "/usr/bin/gdb",
+            "cwd": "${workspaceFolder}",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "externalConsole": true,
+            "logging": {
+                "engineLogging": false
+            }
+        },
         {
-          "description": "Enable pretty-printing for gdb",
-          "text": "-enable-pretty-printing",
-          "ignoreFailures": true
-        }
-      ]
-    },
-    {
-      "name": "test_rocm_exec",
-      "type": "cppdbg",
-      "request": "launch",
-      "program": "${workspaceFolder}/build/bin/test_rocm_exec",
-      "args": [
-        ""
-      ],
-      "stopAtEntry": false,
-      "cwd": "${workspaceFolder}",
-      "environment": [],
-      "externalConsole": false,
-      "MIMode": "gdb",
-      "setupCommands": [
+            "name": "test_start_runtime",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/bin/chimaera_start_runtime",
+            "args": [
+                ""
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        },
         {
-          "description": "Enable pretty-printing for gdb",
-          "text": "-enable-pretty-printing",
-          "ignoreFailures": true
+            "name": "test_stop_runtime",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/bin/chimaera_stop_runtime",
+            "args": [
+                ""
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "test_rocm_exec",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/bin/test_rocm_exec",
+            "args": [
+                ""
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
         }
-      ]
-    }
-  ]
+    ]
 }

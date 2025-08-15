@@ -5,9 +5,11 @@
 #include "chimaera/types.h"
 #include "chimaera/task.h"
 #include "chimaera/task_queue.h"
+#include "chimaera/work_orchestrator.h"
 #include <unordered_map>
 #include <vector>
 #include <memory>
+#include <iostream>
 
 /**
  * Container Base Class with Default Implementations
@@ -30,7 +32,6 @@ class Container : public ChiContainer {
  protected:
   // Local queue management using TaskQueue
   std::unordered_map<QueueId, hipc::FullPtr<TaskQueue>> local_queues_;
-  std::unordered_map<QueueId, TaskQueueHeader> queue_headers_;
   DomainQuery dom_query_;
   std::string name_;
   
@@ -39,7 +40,10 @@ class Container : public ChiContainer {
   
  public:
   Container() = default;
-  virtual ~Container() = default;
+  virtual ~Container() {
+    // Note: Lane mappings are managed by WorkOrchestrator lifecycle
+    // No explicit cleanup needed since lanes are mapped, not registered
+  }
   
   /**
    * Initialize container with pool information and domain query
@@ -66,47 +70,53 @@ class Container : public ChiContainer {
     // Get main allocator for creating lanes
     auto mem_manager = HSHM_MEMORY_MANAGER;
     main_allocator_ = mem_manager->GetAllocator<CHI_MAIN_ALLOC_T>(hipc::AllocatorId(1, 0));
+    
+    // For testing: Create local queues during initialization to verify WorkOrchestrator integration
+    std::cout << "Container: Initializing container for pool " << pool_id << " (" << pool_name << ")" << std::endl;
+    CreateLocalQueue(kLowLatency, 4);   // 4 lanes for low latency tasks
+    CreateLocalQueue(kHighLatency, 2);  // 2 lanes for heavy operations
+    std::cout << "Container: Created local queues for pool " << pool_id << std::endl;
   }
   
   /**
    * Create a local queue with specified priority
-   * Simplified version using QueuePriority enum with configurable lanes and priorities
+   * Simplified version using QueuePriority enum with configurable lanes
    */
-  virtual void CreateLocalQueue(QueuePriority priority, u32 num_lanes = 1, u32 num_priorities = 1) {
-    CreateLocalQueue(static_cast<QueueId>(priority), num_lanes, num_priorities, 0);
+  virtual void CreateLocalQueue(QueuePriority priority, u32 num_lanes = 1) {
+    CreateLocalQueue(static_cast<QueueId>(priority), num_lanes, 0);
   }
   
+  
   /**
-   * Create a local queue with specified lanes (ChiContainer interface compatibility)
+   * Create a local queue with specified lanes (ChiContainer interface)
    */
   void CreateLocalQueue(QueueId queue_id, u32 num_lanes, u32 flags) override {
-    CreateLocalQueue(queue_id, num_lanes, 1, flags); // Default to 1 priority
-  }
-  
-  /**
-   * Create a local queue with specified lanes and priorities
-   */
-  void CreateLocalQueue(QueueId queue_id, u32 num_lanes, u32 num_priorities, u32 flags) {
     (void)flags; // Suppress unused parameter warning - flags not used in TaskQueue yet
     
     if (local_queues_.find(queue_id) != local_queues_.end()) {
       return; // Queue already exists
     }
     
-    // Create TaskQueue with configurable lanes and priorities
+    // Create TaskQueue with configurable lanes (assume only one priority)
     if (main_allocator_) {
       hipc::CtxAllocator<CHI_MAIN_ALLOC_T> ctx_alloc(HSHM_MCTX, main_allocator_);
       
-      // Create TaskQueue
+      // Create TaskQueue (headers are managed internally by TaskQueue)
       auto task_queue = main_allocator_->template NewObj<TaskQueue>(
-        HSHM_MCTX, ctx_alloc, num_lanes, num_priorities, 1024);
-      
-      // Store header separately
-      TaskQueueHeader header(pool_id_, 0); // pool_id, no worker assigned initially
-      queue_headers_[queue_id] = header;
+        HSHM_MCTX, ctx_alloc, num_lanes, 1, 1024);
       
       if (!task_queue.IsNull()) {
         local_queues_[queue_id] = task_queue;
+        
+        // Schedule all lanes in the queue using round-robin scheduler
+        auto* work_orchestrator = CHI_WORK_ORCHESTRATOR;
+        if (work_orchestrator && work_orchestrator->IsInitialized()) {
+          work_orchestrator->RoundRobinTaskQueueScheduler(task_queue.ptr_);
+          std::cout << "Container: Scheduled lanes for queue " << queue_id 
+                    << " with WorkOrchestrator for pool " << pool_id_ << std::endl;
+        } else {
+          std::cerr << "Container: WorkOrchestrator not available for lane scheduling" << std::endl;
+        }
       }
     }
   }
@@ -124,28 +134,50 @@ class Container : public ChiContainer {
   
   /**
    * Get specific lane by ID (ChiContainer interface)
-   * Note: Returns nullptr since TaskQueue doesn't expose Lane objects directly
-   * Use GetTaskQueue() and TaskQueue methods instead
    */
-  Lane* GetLane(QueueId queue_id, LaneId lane_id) override {
-    // TaskQueue doesn't expose individual Lane objects
-    // Containers should use GetTaskQueue() and TaskQueue methods directly
-    (void)queue_id; // Suppress unused parameter warning
-    (void)lane_id;  // Suppress unused parameter warning
+  TaskQueue::TaskLane* GetLane(QueueId queue_id, LaneId lane_id) override {
+    auto* task_queue = GetTaskQueue(queue_id);
+    if (task_queue && lane_id < task_queue->GetNumLanes()) {
+      return &task_queue->GetLane(lane_id, 0);  // priority 0 since only one priority
+    }
     return nullptr;
   }
   
   /**
    * Get lane by hash for load balancing (ChiContainer interface)
-   * Note: Returns nullptr since TaskQueue doesn't expose Lane objects directly
-   * Use GetTaskQueue() and TaskQueue methods instead
    */
-  Lane* GetLaneByHash(QueueId queue_id, u32 hash) override {
-    // TaskQueue doesn't expose individual Lane objects
-    // Containers should use GetTaskQueue() and TaskQueue methods directly
-    (void)queue_id; // Suppress unused parameter warning
-    (void)hash;     // Suppress unused parameter warning
+  TaskQueue::TaskLane* GetLaneByHash(QueueId queue_id, u32 hash) override {
+    auto* task_queue = GetTaskQueue(queue_id);
+    if (task_queue) {
+      u32 num_lanes = task_queue->GetNumLanes();
+      if (num_lanes > 0) {
+        LaneId lane_id = hash % num_lanes;
+        return &task_queue->GetLane(lane_id, 0);  // priority 0 since only one priority
+      }
+    }
     return nullptr;
+  }
+  
+  /**
+   * Get FullPtr to specific lane by ID for task emplacement
+   */
+  hipc::FullPtr<TaskQueue::TaskLane> GetLaneFullPtr(QueueId queue_id, LaneId lane_id) {
+    auto* lane = GetLane(queue_id, lane_id);
+    if (lane) {
+      return hipc::FullPtr<TaskQueue::TaskLane>(lane);
+    }
+    return hipc::FullPtr<TaskQueue::TaskLane>();
+  }
+  
+  /**
+   * Get FullPtr to lane by hash for task emplacement
+   */
+  hipc::FullPtr<TaskQueue::TaskLane> GetLaneByHashFullPtr(QueueId queue_id, u32 hash) {
+    auto* lane = GetLaneByHash(queue_id, hash);
+    if (lane) {
+      return hipc::FullPtr<TaskQueue::TaskLane>(lane);
+    }
+    return hipc::FullPtr<TaskQueue::TaskLane>();
   }
   
   /**

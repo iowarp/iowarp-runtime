@@ -7,6 +7,9 @@
 #include <filesystem>
 #include <cstring>
 
+// Global pointer variable definition for Module manager singleton
+HSHM_DEFINE_GLOBAL_PTR_VAR_CC(chi::ModuleManager, g_module_manager);
+
 namespace chi {
 
 // Constructor and destructor removed - handled by HSHM singleton pattern

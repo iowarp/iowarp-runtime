@@ -13,7 +13,7 @@ namespace chi {
  */
 struct IpcSharedHeader {
   hipc::delay_ar<TaskQueue> external_queue; // External/Process TaskQueue in shared memory
-  hipc::delay_ar<hipc::vector<hipc::mpsc_queue<hipc::FullPtr<TaskQueue::TaskLane>>>> worker_queues; // Vector of worker active queues
+  hipc::delay_ar<chi::ipc::vector<chi::ipc::mpsc_queue<hipc::FullPtr<TaskQueue::TaskLane>>>> worker_queues; // Vector of worker active queues
   u32 num_workers; // Number of workers for which queues are allocated
 };
 
@@ -38,10 +38,16 @@ class IpcManager {
    */
   bool ServerInit();
 
+
   /**
-   * Finalize and cleanup IPC resources
+   * Client finalize - does nothing for now
    */
-  void Finalize();
+  void ClientFinalize();
+
+  /**
+   * Server finalize - cleanup all IPC resources 
+   */
+  void ServerFinalize();
 
   /**
    * Create a new task in shared memory (always uses main segment)
@@ -94,27 +100,29 @@ class IpcManager {
 
   /**
    * Enqueue task to process queue
+   * Priority is determined from the task itself
    * @param task_ptr Task to enqueue  
-   * @param priority Queue priority level
    */
   template<typename TaskT>
-  void Enqueue(FullPtr<TaskT>& task_ptr, QueuePriority priority = kLowLatency) {
-    if (!process_external_queue_.IsNull()) {
+  void Enqueue(FullPtr<TaskT>& task_ptr) {
+    if (!external_queue_.IsNull() && external_queue_.ptr_) {
       // Create TypedPointer from the task FullPtr
       hipc::TypedPointer<Task> typed_ptr(task_ptr.shm_);
       
-      // Enqueue the TypedPointer using round-robin across lanes
-      auto& lane = process_external_queue_->GetLane(0, static_cast<u32>(priority));
-      lane.push(typed_ptr);
+      // Use HSHM_THREAD_MODEL to get thread ID for lane hashing
+      auto tid = HSHM_THREAD_MODEL->GetTid();
+      u32 num_lanes = external_queue_->GetNumLanes();
+      if (num_lanes == 0) return; // Avoid division by zero
+      
+      LaneId lane_id = static_cast<LaneId>(std::hash<void*>{}(&tid) % num_lanes);
+      
+      // Get lane as FullPtr and use TaskQueue's EmplaceTask method
+      auto& lane_ref = external_queue_->GetLane(lane_id, 0);
+      hipc::FullPtr<TaskQueue::TaskLane> lane_ptr(&lane_ref);
+      TaskQueue::EmplaceTask(lane_ptr, typed_ptr);
     }
   }
 
-  /**
-   * Dequeue task from process queue
-   * @param priority Queue priority level
-   * @return hipc::TypedPointer to task, null if queue empty
-   */
-  hipc::TypedPointer<Task> Dequeue(QueuePriority priority = kLowLatency);
 
   /**
    * Get TaskQueue for task processing
@@ -214,10 +222,7 @@ class IpcManager {
   IpcSharedHeader* shared_header_ = nullptr;
   
   // The actual external TaskQueue instance 
-  hipc::FullPtr<TaskQueue> process_external_queue_;
-  
-  // TaskQueue header (stored separately from queue)
-  TaskQueueHeader process_queue_header_;
+  hipc::FullPtr<TaskQueue> external_queue_;
   
   // ZeroMQ server (using lightbeam)
   std::unique_ptr<hshm::lbm::Server> zmq_server_;
@@ -225,7 +230,10 @@ class IpcManager {
 
 }  // namespace chi
 
-// Macro for accessing the IPC manager singleton using HSHM singleton
-#define CHI_IPC hshm::Singleton<::chi::IpcManager>::GetInstance()
+// Global pointer variable declaration for IPC manager singleton
+HSHM_DEFINE_GLOBAL_PTR_VAR_H(chi::IpcManager, g_ipc_manager);
+
+// Macro for accessing the IPC manager singleton using global pointer variable
+#define CHI_IPC HSHM_GET_GLOBAL_PTR_VAR(::chi::IpcManager, g_ipc_manager)
 
 #endif  // CHIMAERA_INCLUDE_CHIMAERA_MANAGERS_IPC_MANAGER_H_

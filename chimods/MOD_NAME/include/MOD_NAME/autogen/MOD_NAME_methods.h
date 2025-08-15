@@ -1,6 +1,8 @@
 #ifndef MOD_NAME_AUTOGEN_METHODS_H_
 #define MOD_NAME_AUTOGEN_METHODS_H_
 
+#include <chimaera/chimaera.h>
+
 /**
  * Auto-generated method definitions for MOD_NAME
  * Generated from chimaera_mod.yaml
@@ -8,18 +10,18 @@
 
 namespace chimaera::MOD_NAME {
 
-enum class Method : chi::u32 {
+namespace Method {
   // Inherited methods
-  kCreate = 0,
-  kDestroy = 1,
-  kNodeFailure = 2,
-  kRecover = 3,
-  kMigrate = 4,
-  kUpgrade = 5,
+  GLOBAL_CONST chi::u32 kCreate = 0;
+  GLOBAL_CONST chi::u32 kDestroy = 1;
+  GLOBAL_CONST chi::u32 kNodeFailure = 2;
+  GLOBAL_CONST chi::u32 kRecover = 3;
+  GLOBAL_CONST chi::u32 kMigrate = 4;
+  GLOBAL_CONST chi::u32 kUpgrade = 5;
   
   // Custom methods
-  kCustom = 10
-};
+  GLOBAL_CONST chi::u32 kCustom = 10;
+}
 
 } // namespace chimaera::MOD_NAME
 

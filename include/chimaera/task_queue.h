@@ -5,6 +5,9 @@
 
 namespace chi {
 
+// Forward declaration for WorkOrchestrator static method
+class WorkOrchestrator;
+
 // Forward declarations
 class Worker;
 class Lane;
@@ -13,17 +16,16 @@ class WorkOrchestrator;
 
 /**
  * Custom header for tracking lane state (stored per-lane)
- * Inherits from BaseAllocator to satisfy HSHM allocator interface requirements
  */
-struct TaskQueueHeader : public hipc::BaseAllocator<hipc::_ThreadLocalAllocator> {
+struct TaskQueueHeader {
   PoolId pool_id;
   WorkerId assigned_worker_id;
   u32 task_count;        // Number of tasks currently in the queue
   bool is_enqueued;      // Whether this queue is currently enqueued in worker
   
-  TaskQueueHeader() : hipc::BaseAllocator<hipc::_ThreadLocalAllocator>(), pool_id(0), assigned_worker_id(0), task_count(0), is_enqueued(false) {}
+  TaskQueueHeader() : pool_id(0), assigned_worker_id(0), task_count(0), is_enqueued(false) {}
   TaskQueueHeader(PoolId pid, WorkerId wid = 0) 
-    : hipc::BaseAllocator<hipc::_ThreadLocalAllocator>(), pool_id(pid), assigned_worker_id(wid), task_count(0), is_enqueued(false) {}
+    : pool_id(pid), assigned_worker_id(wid), task_count(0), is_enqueued(false) {}
 };
 
 /**
@@ -35,7 +37,7 @@ struct TaskQueueHeader : public hipc::BaseAllocator<hipc::_ThreadLocalAllocator>
 class TaskQueue {
 public:
   // Type alias for individual lanes with per-lane headers
-  using TaskLane = hipc::multi_mpsc_queue<hipc::TypedPointer<Task>, TaskQueueHeader>::queue_t;
+  using TaskLane = chi::ipc::multi_mpsc_queue<hipc::TypedPointer<Task>, TaskQueueHeader>::queue_t;
   /**
    * Constructor using CtxAllocator (preferred pattern)
    * @param alloc Context allocator containing memory context
@@ -67,6 +69,16 @@ public:
    */
   bool IsNull() const { return queue_.IsNull(); }
 
+  /**
+   * Get number of lanes in the queue
+   */
+  u32 GetNumLanes() const { return queue_.GetNumLanes(); }
+
+  /**
+   * Get number of priorities in the queue
+   */
+  u32 GetNumPriorities() const { return queue_.GetNumPriorities(); }
+
 
 
   /**
@@ -75,24 +87,7 @@ public:
    * @param task_ptr TypedPointer to the task to emplace
    * @return true if emplace successful
    */
-  static bool EmplaceTask(hipc::FullPtr<TaskLane>& lane_ptr, hipc::TypedPointer<Task> task_ptr) {
-    if (lane_ptr.IsNull() || task_ptr.IsNull()) {
-      return false;
-    }
-    
-    // Check if lane was empty before enqueue for notification
-    bool was_empty = (lane_ptr->size() == 0);
-    
-    // Push to the lane
-    lane_ptr->push(task_ptr);
-    
-    // Notify worker if lane was empty (notification handled in implementation)
-    if (was_empty) {
-      NotifyWorkerLaneReadyStatic(lane_ptr);
-    }
-    
-    return true;
-  }
+  static bool EmplaceTask(hipc::FullPtr<TaskLane>& lane_ptr, hipc::TypedPointer<Task> task_ptr);
 
   /**
    * Static method to pop a task from a specific lane
@@ -110,15 +105,7 @@ public:
   }
 
 private:
-  /**
-   * Helper function to notify worker about ready lane
-   * @param lane_ptr FullPtr to the lane that has work available
-   */
-  static void NotifyWorkerLaneReadyStatic(hipc::FullPtr<TaskLane>& lane_ptr);
-
-
-private:
-  hipc::multi_mpsc_queue<hipc::TypedPointer<Task>, TaskQueueHeader> queue_; // Underlying queue with per-lane headers
+  chi::ipc::multi_mpsc_queue<hipc::TypedPointer<Task>, TaskQueueHeader> queue_; // Underlying queue
 
   /**
    * Notify worker that a lane should be processed

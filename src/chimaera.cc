@@ -7,15 +7,13 @@
 namespace chi {
 
 bool CHIMAERA_CLIENT_INIT() {
-  return CHI_CHIMAERA->ClientInit();
+  return CHI_CHIMAERA_MANAGER->ClientInit();
 }
 
 bool CHIMAERA_RUNTIME_INIT() {
-  return CHI_CHIMAERA->ServerInit();
+  return CHI_CHIMAERA_MANAGER->ServerInit();
 }
 
-void CHIMAERA_FINALIZE() {
-  CHI_CHIMAERA->Finalize();
-}
+
 
 }  // namespace chi

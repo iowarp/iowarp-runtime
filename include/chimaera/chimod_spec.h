@@ -3,8 +3,10 @@
 
 #include <string>
 #include <vector>
+#include <boost/context/detail/fcontext.hpp>
 #include "chimaera/types.h"
 #include "chimaera/task.h"
+#include "chimaera/task_queue.h"
 
 /**
  * ChiMod Specification - Client/Server Interface
@@ -17,7 +19,6 @@
 namespace chi {
 
 // Forward declarations
-class Lane;
 class RunContext;
 
 // ChiContainer forward declaration - available in all contexts
@@ -29,8 +30,7 @@ class ChiContainer;
 enum class MonitorModeId : u32 {
   kLocalSchedule = 0,    ///< Route task to local container queue lane
   kGlobalSchedule = 1,   ///< Coordinate global task distribution
-  kCleanup = 2,          ///< Clean up completed tasks
-  kEstLoad = 3,          ///< Estimate task execution time for waiting
+  kEstLoad = 2,          ///< Estimate task execution time for waiting
 };
 
 /**
@@ -38,38 +38,6 @@ enum class MonitorModeId : u32 {
  */
 using QueueId = u32;
 
-/**
- * Lane represents a single processing lane within a container queue
- */
-class Lane {
- public:
-  virtual ~Lane() = default;
-  
-  /**
-   * Enqueue task to this lane
-   * @param task_ptr Shared memory pointer to task
-   */
-  virtual void Enqueue(hipc::Pointer task_ptr) = 0;
-  
-  /**
-   * Dequeue task from this lane
-   * @param task_ptr Output pointer to dequeued task
-   * @return true if task dequeued, false if empty
-   */
-  virtual bool Dequeue(hipc::Pointer& task_ptr) = 0;
-  
-  /**
-   * Check if lane is empty
-   * @return true if no tasks queued
-   */
-  virtual bool IsEmpty() const = 0;
-  
-  /**
-   * Get number of queued tasks
-   * @return Task count
-   */
-  virtual size_t Size() const = 0;
-};
 
 /**
  * Context passed to task execution methods
@@ -83,8 +51,8 @@ struct RunContext {
   FullPtr<Task> current_task;  // Current task being executed
   bool is_blocked;             // Task is waiting for completion
   double estimated_completion_time_us; // Estimated completion time in microseconds
-  void* fiber_context;         // boost::context::detail::fcontext_t for fiber jump point
-  void* jump_point;            // boost::context::detail::transfer_t data for fiber resume
+  boost::context::detail::transfer_t fiber_transfer; // boost::context transfer data for fiber execution
+  boost::context::detail::fcontext_t fiber_context;  // boost::context fiber context for task execution
   void* container;             // Current container being executed (ChiContainer* in runtime)
   void* lane;                  // Current lane being processed (Lane* in runtime)
   std::vector<FullPtr<Task>> waiting_for_tasks; // Tasks this task is waiting for completion
@@ -92,7 +60,7 @@ struct RunContext {
   RunContext() : stack_ptr(nullptr), stack_size(0), 
                  thread_type(kLowLatencyWorker), worker_id(0), runtime_data(nullptr),
                  is_blocked(false), estimated_completion_time_us(0.0),
-                 fiber_context(nullptr), jump_point(nullptr), container(nullptr), lane(nullptr) {}
+                 fiber_transfer{}, fiber_context{}, container(nullptr), lane(nullptr) {}
 
   /**
    * Check if all subtasks this task is waiting for are completed
@@ -140,7 +108,7 @@ class ChiContainer {
    * @param lane_id Lane identifier within queue
    * @return Pointer to lane or nullptr if not found
    */
-  virtual Lane* GetLane(QueueId queue_id, LaneId lane_id) = 0;
+  virtual TaskQueue::TaskLane* GetLane(QueueId queue_id, LaneId lane_id) = 0;
 
   /**
    * Get lane by hash for load balancing
@@ -148,7 +116,7 @@ class ChiContainer {
    * @param hash Hash value for lane selection
    * @return Pointer to selected lane
    */
-  virtual Lane* GetLaneByHash(QueueId queue_id, u32 hash) = 0;
+  virtual TaskQueue::TaskLane* GetLaneByHash(QueueId queue_id, u32 hash) = 0;
 
   /**
    * Initialize container with pool information
@@ -299,10 +267,11 @@ extern "C" {
 /**
  * Macro to define ChiMod entry points for task-based modules
  * 
- * Usage: CHI_TASK_CC(MyContainerClass, "my_chimod_name")
- * This macro provides a cleaner interface for modules that use the Container base class
+ * Usage: CHI_TASK_CC(MyContainerClass)
+ * This macro provides a cleaner interface for modules that use the Container base class.
+ * The ChiMod name is automatically retrieved from CONTAINER_CLASS::CreateParams::chimod_lib_name.
  */
-#define CHI_TASK_CC(CONTAINER_CLASS, MOD_NAME)                               \
+#define CHI_TASK_CC(CONTAINER_CLASS)                                         \
   extern "C" {                                                               \
     chi::ChiContainer* alloc_chimod() {                                      \
       return reinterpret_cast<chi::ChiContainer*>(new CONTAINER_CLASS());    \
@@ -317,7 +286,7 @@ extern "C" {
     }                                                                        \
                                                                              \
     const char* get_chimod_name() {                                          \
-      return MOD_NAME;                                                       \
+      return CONTAINER_CLASS::CreateParams::chimod_lib_name;                 \
     }                                                                        \
                                                                              \
     void destroy_chimod(chi::ChiContainer* container) {                      \

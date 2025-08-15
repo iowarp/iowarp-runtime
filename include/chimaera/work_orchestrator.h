@@ -74,12 +74,6 @@ class WorkOrchestrator {
    */
   u32 GetWorkerCountByType(ThreadType thread_type) const;
 
-  /**
-   * Schedule lanes for worker assignment
-   * Exposes lanes for scheduling and implements round-robin assignment
-   * @param lanes Vector of lane IDs to schedule
-   */
-  void ScheduleLanes(const std::vector<LaneId>& lanes);
 
   /**
    * Initialize process queues with multiple lanes (for runtime)
@@ -105,6 +99,20 @@ class WorkOrchestrator {
    * @return true if workers are active, false otherwise
    */
   bool AreWorkersRunning() const;
+
+  /**
+   * Map a lane to a specific worker by setting the worker ID in the lane's header
+   * @param lane Raw pointer to the TaskLane
+   * @param worker_id Worker ID to assign to this lane
+   */
+  void MapLaneToWorker(TaskQueue::TaskLane* lane, WorkerId worker_id);
+
+  /**
+   * Round-robin scheduler for TaskQueue lanes
+   * Iterates over each lane in the TaskQueue and assigns workers using round-robin
+   * @param task_queue Pointer to the TaskQueue to schedule
+   */
+  void RoundRobinTaskQueueScheduler(TaskQueue* task_queue);
 
   /**
    * Static function to notify that a lane has work available and should be
@@ -158,11 +166,15 @@ class WorkOrchestrator {
   // HSHM threads (will be filled during initialization)
   std::vector<hshm::thread::Thread> worker_threads_;
   hshm::thread::ThreadGroup thread_group_;
+
 };
 
 }  // namespace chi
 
-// Macro for accessing the Work Orchestrator singleton using HSHM singleton
-#define CHI_WORK_ORCHESTRATOR hshm::Singleton<WorkOrchestrator>::GetInstance()
+// Global pointer variable declaration for Work Orchestrator singleton
+HSHM_DEFINE_GLOBAL_PTR_VAR_H(chi::WorkOrchestrator, g_work_orchestrator);
+
+// Macro for accessing the Work Orchestrator singleton using global pointer variable
+#define CHI_WORK_ORCHESTRATOR HSHM_GET_GLOBAL_PTR_VAR(::chi::WorkOrchestrator, g_work_orchestrator)
 
 #endif  // CHIMAERA_INCLUDE_CHIMAERA_WORKERS_WORK_ORCHESTRATOR_H_

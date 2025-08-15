@@ -88,6 +88,13 @@ class ModuleManager {
   ChiModInfo* GetChiMod(const std::string& chimod_name);
 
   /**
+   * Get ChiMod by library name
+   * @param chimod_lib_name Library name (e.g., "chimods_admin_runtime")
+   * @return Pointer to ChiModInfo or nullptr if not found
+   */
+  ChiModInfo* GetChiModByLibName(const std::string& chimod_lib_name);
+
+  /**
    * Create ChiContainer instance from ChiMod
    * @param chimod_name Name of ChiMod to instantiate
    * @param pool_id Pool identifier for the container
@@ -97,6 +104,17 @@ class ModuleManager {
   ChiContainer* CreateContainer(const std::string& chimod_name, 
                                 const PoolId& pool_id, 
                                 const std::string& pool_name);
+
+  /**
+   * Create ChiContainer instance using library name from CreateTask
+   * @param chimod_lib_name Library name from CreateTask (e.g., "chimods_admin_runtime")
+   * @param pool_id Pool identifier for the container
+   * @param pool_name Pool name for the container
+   * @return Pointer to ChiContainer or nullptr if failed
+   */
+  ChiContainer* CreateContainerByLibName(const std::string& chimod_lib_name,
+                                         const PoolId& pool_id, 
+                                         const std::string& pool_name);
 
   /**
    * Destroy ChiContainer instance
@@ -151,7 +169,10 @@ class ModuleManager {
 
 }  // namespace chi
 
-// Macro for accessing the Module manager singleton using HSHM singleton
-#define CHI_MODULE hshm::Singleton<ModuleManager>::GetInstance()
+// Global pointer variable declaration for Module manager singleton
+HSHM_DEFINE_GLOBAL_PTR_VAR_H(chi::ModuleManager, g_module_manager);
+
+// Macro for accessing the Module manager singleton using global pointer variable
+#define CHI_MODULE_MANAGER HSHM_GET_GLOBAL_PTR_VAR(::chi::ModuleManager, g_module_manager)
 
 #endif  // CHIMAERA_INCLUDE_CHIMAERA_MANAGERS_MODULE_MANAGER_H_

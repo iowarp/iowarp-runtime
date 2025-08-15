@@ -120,7 +120,7 @@ struct CreateTask : public chi::Task {
       : chi::Task(alloc, task_node, pool_id, dom_query, 0) {
     task_node_ = task_node;
     pool_id_ = pool_id;
-    method_ = static_cast<chi::u32>(Method::kCreate);
+    method_ = Method::kCreate;
     task_flags_.Clear();
     dom_query_ = dom_query;
   }
@@ -156,7 +156,7 @@ struct CustomTask : public chi::Task {
         result_code_(0) {
     task_node_ = task_node;
     pool_id_ = pool_id;
-    method_ = static_cast<chi::u32>(Method::kCustom);
+    method_ = Method::kCustom;
     task_flags_.Clear();
     dom_query_ = dom_query;
   }
@@ -324,7 +324,7 @@ class Container : public chi::Container {
 }  // namespace chimaera::MOD_NAME
 
 // Define ChiMod entry points using CHI_TASK_CC macro
-CHI_TASK_CC(chimaera::MOD_NAME::Container, "MOD_NAME")
+CHI_TASK_CC(chimaera::MOD_NAME::Container)
 
 #endif  // MOD_NAME_RUNTIME_H_
 ```
@@ -338,6 +338,202 @@ CHI_TASK_CC(chimaera::MOD_NAME::Container, "MOD_NAME")
 4. **Method Assignment**: Set the method_ field to identify the operation
 5. **FullPtr Usage**: All task method signatures use `hipc::FullPtr<TaskType>` instead of raw pointers
 6. **Monitor Methods**: Every task type MUST have a Monitor method that implements `kLocalSchedule`
+
+### Method System and Auto-Generated Files
+
+#### Method Definitions (autogen/MOD_NAME_methods.h)
+Method IDs are now defined as namespace constants instead of enum class values. This eliminates the need for static casting:
+
+```cpp
+#ifndef MOD_NAME_AUTOGEN_METHODS_H_
+#define MOD_NAME_AUTOGEN_METHODS_H_
+
+#include <chimaera/chimaera.h>
+
+namespace chimaera::MOD_NAME {
+
+namespace Method {
+  // Inherited methods
+  GLOBAL_CONST chi::u32 kCreate = 0;
+  GLOBAL_CONST chi::u32 kDestroy = 1;
+  GLOBAL_CONST chi::u32 kNodeFailure = 2;
+  GLOBAL_CONST chi::u32 kRecover = 3;
+  GLOBAL_CONST chi::u32 kMigrate = 4;
+  GLOBAL_CONST chi::u32 kUpgrade = 5;
+  
+  // Module-specific methods
+  GLOBAL_CONST chi::u32 kCustom = 10;
+}
+
+} // namespace chimaera::MOD_NAME
+
+#endif // MOD_NAME_AUTOGEN_METHODS_H_
+```
+
+**Key Changes:**
+- **Namespace instead of enum class**: Use `Method::kMethodName` directly
+- **GLOBAL_CONST values**: No more static casting required
+- **Include chimaera.h**: Required for GLOBAL_CONST macro
+- **Direct assignment**: `method_ = Method::kCreate;` (no casting)
+
+#### BaseCreateTask Template System
+
+For modules that need container creation functionality, use the BaseCreateTask template instead of implementing custom CreateTask:
+
+```cpp
+#include <admin/admin_tasks.h>  // Include admin BaseCreateTask
+
+namespace chimaera::MOD_NAME {
+
+/**
+ * CreateParams for MOD_NAME container creation
+ */
+struct MOD_NAMECreateParams {
+  // Module-specific configuration
+  std::string config_data_;
+  chi::u32 worker_count_;
+  
+  // Required: chimod library name
+  static constexpr const char* chimod_lib_name = "chimaera_MOD_NAME";
+  
+  // Constructors
+  MOD_NAMECreateParams() : worker_count_(1) {}
+  
+  MOD_NAMECreateParams(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
+                       const std::string& config_data = "",
+                       chi::u32 worker_count = 1)
+      : config_data_(config_data), worker_count_(worker_count) {}
+  
+  // Cereal serialization
+  template<class Archive>
+  void serialize(Archive& ar) {
+    ar(config_data_, worker_count_);
+  }
+};
+
+/**
+ * CreateTask - Uses BaseCreateTask template with proper method ID
+ */
+using CreateTask = chimaera::admin::BaseCreateTask<MOD_NAMECreateParams, Method::kCreate>;
+
+}  // namespace chimaera::MOD_NAME
+```
+
+#### BaseCreateTask Template Parameters
+
+The BaseCreateTask template has three parameters with smart defaults:
+
+```cpp
+template <typename CreateParamsT, 
+          chi::u32 MethodId = Method::kGetOrCreatePool, 
+          bool IS_ADMIN = false>
+struct BaseCreateTask : public chi::Task
+```
+
+**Template Parameters:**
+1. **CreateParamsT**: Your module's parameter structure (required)
+2. **MethodId**: Method ID for the task (default: `kGetOrCreatePool`)
+3. **IS_ADMIN**: Whether this is an admin operation (default: `false`)
+
+**Default Values Designed for Non-Admin Modules:**
+- Most modules only need to specify `CreateParamsT` and `MethodId`
+- Admin-specific parameters (like `IS_ADMIN=true`) are only needed for admin operations
+- Pool operations use `kGetOrCreatePool` by default
+
+#### BaseCreateTask Structure
+
+BaseCreateTask provides a unified structure for container creation and pool operations:
+
+```cpp
+template <typename CreateParamsT, chi::u32 MethodId, bool IS_ADMIN>
+struct BaseCreateTask : public chi::Task {
+  // Pool operation parameters
+  INOUT hipc::string chimod_name_;     // ChiMod name for loading
+  IN hipc::string pool_name_;          // Target pool name
+  INOUT hipc::string chimod_params_;   // Serialized CreateParamsT
+  IN chi::u32 domain_flags_;           // Domain configuration flags
+  INOUT chi::PoolId pool_id_;          // Input: requested ID, Output: actual ID
+  
+  // Results
+  OUT chi::u32 result_code_;           // 0 = success, non-zero = error
+  OUT hipc::string error_message_;     // Error description if failed
+  
+  // Runtime flag set by template parameter
+  volatile bool is_admin_;             // Set to IS_ADMIN template value
+  
+  // Serialization methods
+  template<typename... Args>
+  void SetParams(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc, Args &&...args);
+  
+  CreateParamsT GetParams(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc) const;
+};
+```
+
+**Key Features:**
+- **Single pool_id**: Serves as both input (requested) and output (result)
+- **Serialized parameters**: `chimod_params_` stores serialized CreateParamsT
+- **Error checking**: Use `result_code_ != 0` to check for failures
+- **Template-driven behavior**: IS_ADMIN template parameter sets volatile variable
+- **No static casting**: Direct method assignment using namespace constants
+
+#### Usage Examples
+
+**Regular ChiMod Container Creation:**
+```cpp
+// Only specify CreateParamsT and MethodId - uses IS_ADMIN=false default
+using CreateTask = chimaera::admin::BaseCreateTask<MyCreateParams, Method::kCreate>;
+```
+
+**Pool Get-or-Create Operations:**
+```cpp
+// Use all defaults - MethodId=kGetOrCreatePool, IS_ADMIN=false
+using CreateTask = chimaera::admin::BaseCreateTask<AdminCreateParams>;
+```
+
+**Admin Container Creation:**
+```cpp
+// Admin operations need IS_ADMIN=true explicitly
+using AdminCreateTask = chimaera::admin::BaseCreateTask<AdminCreateParams, Method::kCreate, true>;
+```
+
+#### Migration from Custom CreateTask
+
+If you have existing custom CreateTask implementations, migrate to BaseCreateTask:
+
+**Before (Custom Implementation):**
+```cpp
+struct CreateTask : public chi::Task {
+  // Custom constructor implementations
+  explicit CreateTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
+                      const chi::TaskNode &task_node,
+                      const chi::PoolId &pool_id,
+                      const chi::DomainQuery &dom_query)
+      : chi::Task(alloc, task_node, pool_id, dom_query, 0) {
+    method_ = Method::kCreate;  // Static casting required
+    // ... initialization code ...
+  }
+};
+```
+
+**After (BaseCreateTask):**
+```cpp
+// Create params structure
+struct MyCreateParams {
+  static constexpr const char* chimod_lib_name = "chimaera_mymodule";
+  // ... other params ...
+  template<class Archive> void serialize(Archive& ar) { /* ... */ }
+};
+
+// Simple type alias - no custom implementation needed
+using CreateTask = chimaera::admin::BaseCreateTask<MyCreateParams, Method::kCreate>;
+```
+
+**Benefits of Migration:**
+- **No static casting**: Direct use of `Method::kCreate`
+- **Standardized structure**: Consistent across all modules
+- **Built-in serialization**: SetParams/GetParams methods included
+- **Error handling**: Standardized result_code and error_message
+- **Less boilerplate**: No need to implement constructors manually
 
 ### Data Annotations
 - `IN`: Input-only parameters (read by runtime)
@@ -441,27 +637,122 @@ ipc_manager->DelTask(task, chi::kMainSegment);
 ## Build System Integration
 
 ### CMakeLists.txt Template
+ChiMod CMakeLists.txt files should use the standardized ChimaeraCommon.cmake functions for consistency and proper configuration:
+
 ```cmake
-# Client library
-add_library(MOD_NAME_client SHARED
-  src/MOD_NAME_client.cc
-)
-target_link_libraries(MOD_NAME_client PUBLIC
-  chimaera
+cmake_minimum_required(VERSION 3.10)
+
+# Create both client and runtime libraries for your module
+# This creates targets: ${NAMESPACE}_${CHIMOD_NAME}_runtime and ${NAMESPACE}_${CHIMOD_NAME}_client
+add_chimod_both(
+  CHIMOD_NAME YOUR_MODULE_NAME
+  RUNTIME_SOURCES src/YOUR_MODULE_NAME_runtime.cc
+  CLIENT_SOURCES src/YOUR_MODULE_NAME_client.cc
 )
 
-# Runtime library
-add_library(MOD_NAME_runtime SHARED
-  src/MOD_NAME_runtime.cc
+# Install the ChiMod
+# Automatically finds and installs the targets created above
+install_chimod(
+  CHIMOD_NAME YOUR_MODULE_NAME
 )
-target_link_libraries(MOD_NAME_runtime PUBLIC
-  chimaera
+```
+
+### CMakeLists.txt Guidelines
+
+**DO:**
+- Use `add_chimod_both()` and `install_chimod()` utility functions
+- Set `CHIMOD_NAME` to your module's name
+- List source files explicitly in `RUNTIME_SOURCES` and `CLIENT_SOURCES`
+- Keep the CMakeLists.txt minimal and consistent
+
+**DON'T:**
+- Use manual `add_library()` calls - use the utilities instead
+- Include relative paths like `../include/*` - use proper include directories
+- Set custom compile definitions - the utilities handle this
+- Manually configure target properties - the utilities provide standard settings
+
+### ChiMod Utility Functions
+
+The `add_chimod_both()` function automatically:
+- Creates both client and runtime shared libraries
+- Sets proper include directories (include/, ${CMAKE_SOURCE_DIR}/include)
+- Links against the chimaera library
+- Sets required compile definitions (CHI_CHIMOD_NAME, CHIMAERA_CLIENT, CHIMAERA_RUNTIME)
+- Configures proper build flags and settings
+
+The `install_chimod()` function automatically:
+- Installs libraries to the correct destination
+- Sets up proper runtime paths
+- Configures installation properties
+
+### Targets Created by add_chimod_both()
+
+When you call `add_chimod_both(CHIMOD_NAME YOUR_MODULE_NAME ...)`, it creates the following CMake targets using the format `${NAMESPACE}_${CHIMOD_NAME}_{client/runtime}`:
+
+#### Runtime Target: `${NAMESPACE}_${CHIMOD_NAME}_runtime`
+- **Target Name**: `chimaera_YOUR_MODULE_NAME_runtime` (e.g., `chimaera_admin_runtime`, `chimaera_MOD_NAME_runtime`)
+- **Type**: Shared library (`.so` file)
+- **Purpose**: Contains server-side execution logic, runs in the Chimaera runtime process
+- **Compile Definitions**:
+  - `CHI_CHIMOD_NAME="${CHIMOD_NAME}"` - Module name for runtime identification
+  - `CHI_NAMESPACE="${NAMESPACE}"` - Project namespace
+  - `CHIMAERA_RUNTIME=1` - Enables runtime-specific code paths
+- **Include Directories**:
+  - `include/` - Local module headers
+  - `${CMAKE_SOURCE_DIR}/include` - Chimaera framework headers
+- **Dependencies**: Links against `chimaera` library
+
+#### Client Target: `${NAMESPACE}_${CHIMOD_NAME}_client`
+- **Target Name**: `chimaera_YOUR_MODULE_NAME_client` (e.g., `chimaera_admin_client`, `chimaera_MOD_NAME_client`)
+- **Type**: Shared library (`.so` file)  
+- **Purpose**: Contains client-side API, runs in user processes
+- **Compile Definitions**:
+  - `CHI_CHIMOD_NAME="${CHIMOD_NAME}"` - Module name for client identification
+  - `CHI_NAMESPACE="${NAMESPACE}"` - Project namespace
+  - `CHIMAERA_CLIENT=1` - Enables client-specific code paths
+  - `CHIMAERA_RUNTIME=1` - Enables shared code paths between client/runtime
+- **Include Directories**:
+  - `include/` - Local module headers
+  - `${CMAKE_SOURCE_DIR}/include` - Chimaera framework headers
+- **Dependencies**: Links against `chimaera` library
+
+#### Namespace Configuration
+The namespace is automatically read from `chimaera_repo.yaml` files. The system searches up the directory tree from the CMakeLists.txt location to find the first `chimaera_repo.yaml` file:
+
+**Main project `chimaera_repo.yaml`:**
+```yaml
+namespace: chimaera  # Main project namespace
+```
+
+**Module repository `chimods/chimaera_repo.yaml`:**
+```yaml
+namespace: chimods   # Modules get this namespace
+```
+
+This means modules in the `chimods/` directory will use the "chimods" namespace, creating targets like `chimods_admin_runtime`, while other components use the main project namespace.
+
+#### Example Output Files
+For a module named "admin" with namespace "chimods" (from `chimods/chimaera_repo.yaml`), the build produces:
+```
+build/bin/libchimods_admin_runtime.so    # Runtime library  
+build/bin/libchimods_admin_client.so     # Client library
+```
+
+#### Using the Targets
+You can reference these targets in your CMakeLists.txt using the full target name:
+```cmake
+# Add custom properties to the runtime target
+set_target_properties(chimaera_${CHIMOD_NAME}_runtime PROPERTIES
+  VERSION 1.0.0
+  SOVERSION 1
 )
 
-# Install targets
-install(TARGETS MOD_NAME_client MOD_NAME_runtime
-  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-)
+# Add additional dependencies if needed
+target_link_libraries(chimaera_${CHIMOD_NAME}_runtime PRIVATE some_external_lib)
+
+# Or use the global property to get the actual target name
+get_property(RUNTIME_TARGET GLOBAL PROPERTY ${CHIMOD_NAME}_RUNTIME_TARGET)
+target_link_libraries(${RUNTIME_TARGET} PRIVATE some_external_lib)
 ```
 
 ### Module Configuration (chimaera_mod.yaml)
@@ -476,19 +767,83 @@ methods:
 dependencies: []
 ```
 
+### Auto-Generated Method Files
+Each module requires an auto-generated methods file at `include/MOD_NAME/autogen/MOD_NAME_methods.h`. This file must:
+
+1. **Include chimaera.h**: Required for GLOBAL_CONST macro
+2. **Use namespace constants**: Define methods as `GLOBAL_CONST chi::u32` values
+3. **Follow naming convention**: Method names should start with `k` (e.g., `kCreate`, `kCustom`)
+
+**Required Template:**
+```cpp
+#ifndef MOD_NAME_AUTOGEN_METHODS_H_
+#define MOD_NAME_AUTOGEN_METHODS_H_
+
+#include <chimaera/chimaera.h>
+
+namespace chimaera::MOD_NAME {
+
+namespace Method {
+  // Standard inherited methods (always include these)
+  GLOBAL_CONST chi::u32 kCreate = 0;
+  GLOBAL_CONST chi::u32 kDestroy = 1;
+  GLOBAL_CONST chi::u32 kNodeFailure = 2;
+  GLOBAL_CONST chi::u32 kRecover = 3;
+  GLOBAL_CONST chi::u32 kMigrate = 4;
+  GLOBAL_CONST chi::u32 kUpgrade = 5;
+  
+  // Module-specific methods (customize these)
+  GLOBAL_CONST chi::u32 kCustom = 10;
+  // Add more module-specific methods starting from 10+
+}
+
+} // namespace chimaera::MOD_NAME
+
+#endif // MOD_NAME_AUTOGEN_METHODS_H_
+```
+
+**Important Notes:**
+- **GLOBAL_CONST is required**: Do not use `const` or `constexpr` - use `GLOBAL_CONST`
+- **Include chimaera.h**: This header defines the GLOBAL_CONST macro
+- **Standard methods 0-5**: Always include the inherited methods (kCreate through kUpgrade)
+- **Custom methods 10+**: Start custom methods from ID 10 to avoid conflicts
+- **No static casting needed**: Use method values directly (e.g., `method_ = Method::kCreate;`)
+
 ### Runtime Entry Points
 Use the `CHI_TASK_CC` macro to define module entry points:
 
 ```cpp
 // At the end of your runtime source file (_runtime.cc)
-CHI_TASK_CC(your_namespace::YourContainerClass, "your_module_name")
+CHI_TASK_CC(your_namespace::YourContainerClass)
 ```
 
-This macro automatically generates all required extern "C" functions:
+This macro automatically generates all required extern "C" functions and gets the module name from `YourContainerClass::CreateParams::chimod_lib_name`:
 - `alloc_chimod()` - Creates container instance
 - `new_chimod()` - Creates and initializes container  
 - `get_chimod_name()` - Returns module name
 - `destroy_chimod()` - Destroys container instance
+
+**Requirements for CHI_TASK_CC to work:**
+1. Your runtime class must define a public typedef: `using CreateParams = your_namespace::CreateParams;`
+2. Your CreateParams struct must have: `static constexpr const char* chimod_lib_name = "your_module_name";`
+
+Example:
+```cpp
+namespace chimaera::your_module {
+
+struct CreateParams {
+  static constexpr const char* chimod_lib_name = "chimaera_your_module";
+  // ... other parameters
+};
+
+class Runtime : public chi::Container {
+public:
+  using CreateParams = chimaera::your_module::CreateParams;  // Required for CHI_TASK_CC
+  // ... rest of class
+};
+
+}  // namespace chimaera::your_module
+```
 - `is_chimaera_chimod_` - Module identification flag
 
 ## Example Module
@@ -507,7 +862,7 @@ See the `chimods/MOD_NAME` directory for a complete working example that demonst
 4. Define your tasks in the _tasks.h file
 5. Implement client API in _client.h/cc
 6. Implement runtime logic in _runtime.h/cc
-7. Add `CHI_TASK_CC(YourContainerClass, "module_name")` at the end of runtime source
+7. Add `CHI_TASK_CC(YourContainerClass)` at the end of runtime source
 8. Add to the build system
 9. Test with client and runtime
 
@@ -545,7 +900,7 @@ extern "C" {
 }
 
 // New approach (simple macro)
-CHI_TASK_CC(chimaera::MOD_NAME::Runtime, "MOD_NAME")
+CHI_TASK_CC(chimaera::MOD_NAME::Runtime)
 ```
 
 ```cpp
@@ -588,8 +943,135 @@ When updating existing modules:
 5. **Implement kLocalSchedule**: Every Monitor method MUST implement `kLocalSchedule` mode
 6. **Remove Del Methods**: Delete all `DelTaskType` methods - framework calls `ipc_manager->DelTask()` automatically
 7. **Update Autogen Files**: Ensure Del dispatcher calls `ipc_manager->DelTask()` instead of custom Del methods
-8. **Replace Entry Points**: Replace extern "C" blocks with `CHI_TASK_CC(ClassName, "ModuleName")` macro
+8. **Replace Entry Points**: Replace extern "C" blocks with `CHI_TASK_CC(ClassName)` macro
 9. **Remove Completion Calls**: Framework handles task completion automatically
+
+## Custom Namespace Configuration
+
+### Overview
+While the default namespace is `chimaera`, you can customize the namespace for your ChiMod modules. This is useful for:
+- **Project Branding**: Use your own project or company namespace
+- **Avoiding Conflicts**: Prevent naming conflicts with other ChiMod collections
+- **Module Organization**: Group related modules under a custom namespace
+
+### Configuring Custom Namespace
+
+The namespace is controlled by the `chimaera_repo.yaml` file in your project root:
+
+```yaml
+namespace: your_custom_namespace
+```
+
+For example:
+```yaml
+namespace: mycompany
+```
+
+### Required Changes for Custom Namespace
+
+When using a custom namespace, you must update several components:
+
+#### 1. **CreateParams chimod_lib_name**
+The most critical change is updating the `chimod_lib_name` in your CreateParams:
+
+```cpp
+// Default chimaera namespace
+struct CreateParams {
+  static constexpr const char* chimod_lib_name = "chimaera_your_module";
+};
+
+// Custom namespace example
+struct CreateParams {
+  static constexpr const char* chimod_lib_name = "mycompany_your_module";
+};
+```
+
+#### 2. **Module Namespace Declaration**
+Update your module's C++ namespace:
+
+```cpp
+// Default
+namespace chimaera::your_module {
+  // module code
+}
+
+// Custom
+namespace mycompany::your_module {
+  // module code
+}
+```
+
+#### 3. **CMake Library Names**
+The CMake system automatically uses your custom namespace. Libraries will be named:
+- Default: `libchimaera_module_runtime.so`, `libchimaera_module_client.so`
+- Custom: `libmycompany_module_runtime.so`, `libmycompany_module_client.so`
+
+#### 4. **Runtime Integration**
+If your runtime code references the admin module or other system modules, update the references:
+
+```cpp
+// Default admin module reference
+auto* admin_chimod = module_manager->GetChiMod("chimaera_admin");
+
+// Custom namespace admin module
+auto* admin_chimod = module_manager->GetChiMod("mycompany_admin");
+```
+
+### Checklist for Custom Namespace
+
+- [ ] **Update chimaera_repo.yaml** with your custom namespace
+- [ ] **Update CreateParams::chimod_lib_name** to use custom namespace prefix
+- [ ] **Update C++ namespace declarations** in all module files
+- [ ] **Update runtime references** to admin module and other system modules
+- [ ] **Update any hardcoded module names** in configuration or startup code
+- [ ] **Rebuild all modules** after namespace changes
+- [ ] **Update library search paths** if needed for deployment
+
+### Example: Complete Custom Namespace Module
+
+```yaml
+# chimaera_repo.yaml
+namespace: mycompany
+```
+
+```cpp
+// mymodule_tasks.h
+namespace mycompany::mymodule {
+
+struct CreateParams {
+  static constexpr const char* chimod_lib_name = "mycompany_mymodule";
+  // ... other parameters
+};
+
+using CreateTask = chimaera::admin::BaseCreateTask<CreateParams, Method::kCreate>;
+
+}  // namespace mycompany::mymodule
+```
+
+```cpp
+// mymodule_runtime.h
+namespace mycompany::mymodule {
+
+class Runtime : public chi::Container {
+public:
+  using CreateParams = mycompany::mymodule::CreateParams;  // Required for CHI_TASK_CC
+  // ... rest of class
+};
+
+}  // namespace mycompany::mymodule
+```
+
+```cpp
+// mymodule_runtime.cc
+CHI_TASK_CC(mycompany::mymodule::Runtime)
+```
+
+### Important Notes
+
+- **Library Name Consistency**: The `chimod_lib_name` must exactly match what the CMake system generates
+- **Admin Module**: If you customize the namespace, you may also want to rebuild the admin module with your custom namespace
+- **Backward Compatibility**: Changing namespace breaks compatibility with existing deployments using default namespace
+- **Documentation**: Update any module-specific documentation to reflect the new namespace
 
 ## Advanced Topics
 
@@ -755,11 +1237,13 @@ void Custom(hipc::FullPtr<CustomTask> task, chi::RunContext& ctx) {
 When creating a new Chimaera module, ensure you have:
 
 ### Task Definition Checklist (`_tasks.h`)
-- [ ] Tasks inherit from `chi::Task`
-- [ ] SHM constructor with CtxAllocator parameter
-- [ ] Emplace constructor with all required parameters
+- [ ] Tasks inherit from `chi::Task` or use BaseCreateTask template
+- [ ] SHM constructor with CtxAllocator parameter (if custom task)
+- [ ] Emplace constructor with all required parameters (if custom task)
 - [ ] Uses HSHM serializable types (hipc::string, hipc::vector, etc.)
-- [ ] Method enum value assigned in constructor
+- [ ] Method constant assigned in constructor (e.g., `method_ = Method::kCreate;`)
+- [ ] **No static casting**: Use Method namespace constants directly
+- [ ] Include auto-generated methods file for Method constants
 
 ### Runtime Container Checklist (`_runtime.h/cc`)
 - [ ] Inherits from `chi::Container`
@@ -770,7 +1254,7 @@ When creating a new Chimaera module, ensure you have:
 - [ ] `kLocalSchedule` calls `GetLane()` or `GetLaneByHash()`
 - [ ] `kLocalSchedule` calls `lane->Enqueue(task_ptr.shm_)`
 - [ ] **NO custom Del methods needed** - framework calls `ipc_manager->DelTask()` automatically
-- [ ] Uses `CHI_TASK_CC(ClassName, "ModuleName")` macro for entry points
+- [ ] Uses `CHI_TASK_CC(ClassName)` macro for entry points
 
 ### Client API Checklist (`_client.h/cc`)
 - [ ] Inherits from `chi::ChiContainerClient`
@@ -782,6 +1266,9 @@ When creating a new Chimaera module, ensure you have:
 ### Build System Checklist
 - [ ] CMakeLists.txt creates both client and runtime libraries
 - [ ] chimaera_mod.yaml defines module metadata
+- [ ] **Auto-generated methods file**: `autogen/MOD_NAME_methods.h` with Method namespace
+- [ ] **Include chimaera.h**: In methods file for GLOBAL_CONST macro
+- [ ] **GLOBAL_CONST constants**: Use namespace constants, not enum class
 - [ ] Proper install targets configured
 - [ ] Links against chimaera library
 
@@ -793,5 +1280,9 @@ When creating a new Chimaera module, ensure you have:
 - [ ] ❌ Forgetting to create local queues in Create method
 - [ ] ❌ Implementing custom Del methods (framework calls `ipc_manager->DelTask()` automatically)
 - [ ] ❌ Writing complex extern "C" blocks (use `CHI_TASK_CC` macro instead)
+- [ ] ❌ **Using static_cast with Method values** (use Method::kName directly)
+- [ ] ❌ **Missing chimaera.h include** in methods file (GLOBAL_CONST won't work)
+- [ ] ❌ **Using enum class for methods** (use namespace with GLOBAL_CONST instead)
+- [ ] ❌ **Forgetting BaseCreateTask template** for container creation (reduces boilerplate)
 
 Remember: **kLocalSchedule is mandatory** - without it, your tasks will never be executed!

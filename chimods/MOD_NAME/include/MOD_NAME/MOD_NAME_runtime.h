@@ -9,14 +9,17 @@
 
 namespace chimaera::MOD_NAME {
 
-// Forward declarations
-struct CreateTask;
+// Forward declarations (CustomTask only, CreateTask is a using alias in MOD_NAME_tasks.h)
 struct CustomTask;
 
 /**
  * Runtime implementation for MOD_NAME container
  */
 class Runtime : public chi::Container {
+public:
+  // CreateParams type used by CHI_TASK_CC macro for lib_name access
+  using CreateParams = chimaera::MOD_NAME::CreateParams;
+
 private:
   // Container-specific state
   chi::u32 create_count_ = 0;

@@ -24,21 +24,21 @@ class TaskQueue;
 //   FullPtr<Task> current_task = CHI_CUR_TASK;
 //   RunContext* run_ctx = CHI_CUR_RCTX;
 //   Worker* worker = CHI_CUR_WORKER;
-#define CHI_CUR_TASK (CHI_CUR_RCTX ? CHI_CUR_RCTX->current_task : FullPtr<Task>::GetNull())
-#define CHI_CUR_RCTX (HSHM_THREAD_MODEL->GetTls<struct RunContext>(chi_cur_rctx_key_))
 #define CHI_CUR_WORKER (HSHM_THREAD_MODEL->GetTls<class Worker>(chi_cur_worker_key_))
-#define CHI_CUR_CONTAINER (CHI_CUR_RCTX ? static_cast<ChiContainer*>(CHI_CUR_RCTX->container) : nullptr)
-#define CHI_CUR_LANE (CHI_CUR_RCTX ? static_cast<Lane*>(CHI_CUR_RCTX->lane) : nullptr)
+#define CHI_CUR_RCTX (CHI_CUR_WORKER->GetCurrentRunContext())
+#define CHI_CUR_TASK (CHI_CUR_RCTX->current_task)
+#define CHI_CUR_CONTAINER (static_cast<ChiContainer*>(CHI_CUR_RCTX->container))
+#define CHI_CUR_LANE (static_cast<Lane*>(CHI_CUR_RCTX->lane))
 
 // Helper macros for setting thread-local storage (internal use)
-#define CHI_SET_CUR_TASK(task_ptr) (CHI_CUR_RCTX ? (CHI_CUR_RCTX->current_task = (task_ptr)) : FullPtr<Task>::GetNull())
-#define CHI_SET_CUR_RCTX(rctx) (HSHM_THREAD_MODEL->SetTls(chi_cur_rctx_key_, static_cast<struct RunContext*>(rctx)))
 #define CHI_SET_CUR_WORKER(worker) (HSHM_THREAD_MODEL->SetTls(chi_cur_worker_key_, static_cast<class Worker*>(worker)))
+#define CHI_SET_CUR_RCTX(rctx) (CHI_CUR_WORKER->SetCurrentRunContext(rctx))
+#define CHI_SET_CUR_TASK(task_ptr) (CHI_CUR_RCTX->current_task = (task_ptr))
 
 // Helper macros for clearing thread-local storage (internal use)
-#define CHI_CLEAR_CUR_TASK() (CHI_CUR_RCTX ? (CHI_CUR_RCTX->current_task = FullPtr<Task>::GetNull()) : FullPtr<Task>::GetNull())
-#define CHI_CLEAR_CUR_RCTX() (HSHM_THREAD_MODEL->SetTls(chi_cur_rctx_key_, static_cast<struct RunContext*>(nullptr)))
 #define CHI_CLEAR_CUR_WORKER() (HSHM_THREAD_MODEL->SetTls(chi_cur_worker_key_, static_cast<class Worker*>(nullptr)))
+#define CHI_CLEAR_CUR_RCTX() (CHI_CUR_WORKER->SetCurrentRunContext(nullptr))
+#define CHI_CLEAR_CUR_TASK() (CHI_CUR_RCTX->current_task = FullPtr<Task>::GetNull())
 
 /**
  * Worker class for executing tasks
@@ -98,6 +98,19 @@ class Worker {
    * @return true if worker is active, false otherwise
    */
   bool IsRunning() const;
+
+  /**
+   * Get current RunContext for this worker thread
+   * @return Pointer to current RunContext or nullptr
+   */
+  RunContext* GetCurrentRunContext() const;
+
+  /**
+   * Set current RunContext for this worker thread
+   * @param rctx Pointer to RunContext to set as current
+   * @return Pointer to the set RunContext
+   */
+  RunContext* SetCurrentRunContext(RunContext* rctx);
 
   /**
    * Add task to blocked queue with estimated completion time
@@ -205,9 +218,12 @@ class Worker {
   bool is_running_;
   bool is_initialized_;
 
+  // Current RunContext for this worker thread
+  RunContext* current_run_context_;
+
   // Active queue of lanes for processing
   // GetLane returns a lane reference, so we store lane FullPtrs
-  hipc::FullPtr<hipc::mpsc_queue<hipc::FullPtr<TaskQueue::TaskLane>>> active_queue_;  // Queue of lane FullPtrs from GetLane
+  hipc::FullPtr<chi::ipc::mpsc_queue<hipc::FullPtr<TaskQueue::TaskLane>>> active_queue_;  // Queue of lane FullPtrs from GetLane
 
   // Stack management using malloc and std::vector (replaces hipc::StackAllocator)
   struct StackInfo {
