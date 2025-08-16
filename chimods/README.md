@@ -58,12 +58,12 @@ make
 chimaera::MOD_NAME::Client client(pool_id);
 
 // Initialize the container
-client.Create(HSHM_DEFAULT_MEM_CTX, chi::DomainQuery());
+client.Create(HSHM_MCTX, chi::DomainQuery());
 
 // Execute a custom operation
 std::string output;
 u32 result = client.Custom(
-    HSHM_DEFAULT_MEM_CTX,
+    HSHM_MCTX,
     chi::DomainQuery(),
     "Hello, World!",  // input data
     0,                // operation_id (0 = echo)

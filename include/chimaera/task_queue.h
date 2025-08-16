@@ -10,7 +10,6 @@ class WorkOrchestrator;
 
 // Forward declarations
 class Worker;
-class Lane;
 class TaskQueue;
 class WorkOrchestrator;
 

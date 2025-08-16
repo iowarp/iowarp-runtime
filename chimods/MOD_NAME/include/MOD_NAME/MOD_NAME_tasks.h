@@ -52,6 +52,12 @@ struct CreateParams {
 using CreateTask = chimaera::admin::BaseCreateTask<CreateParams, chimaera::MOD_NAME::Method::kCreate>;
 
 /**
+ * GetOrCreatePoolTask - Create pools of this MOD_NAME type from external ChiMods
+ * Type alias using the admin template for external pool creation
+ */
+using GetOrCreatePoolTask = chimaera::admin::GetOrCreatePoolTask<CreateParams>;
+
+/**
  * CustomTask - Example custom operation
  */
 struct CustomTask : public chi::Task {

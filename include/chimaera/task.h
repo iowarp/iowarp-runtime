@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <sstream>
+#include <atomic>
 
 #include "chimaera/domain_query.h"
 #include "chimaera/types.h"
@@ -40,6 +41,7 @@ class Task : public hipc::ShmContainer {
   IN ibitfield task_flags_;  /**< Task properties and flags */
   IN double period_ns_;      /**< Period in nanoseconds for periodic tasks */
   IN RunContext* run_ctx_;   /**< Pointer to runtime context for task execution */
+  std::atomic<u32> is_complete; /**< Atomic flag indicating task completion (0=not complete, 1=complete) */
 
   /**
    * SHM default constructor
@@ -64,6 +66,7 @@ class Task : public hipc::ShmContainer {
     dom_query_ = dom_query;
     period_ns_ = 0.0;
     run_ctx_ = nullptr;
+    is_complete.store(0); // Initialize as not complete
   }
 
   /**
@@ -124,6 +127,7 @@ class Task : public hipc::ShmContainer {
     task_flags_.Clear();
     period_ns_ = 0.0;
     run_ctx_ = nullptr;
+    is_complete.store(0); // Initialize as not complete
   }
 
   /**
@@ -213,10 +217,18 @@ public:
   }
 
   /**
-   * Get task execution period
-   * @return Period in nanoseconds, 0 if not periodic
+   * Get task execution period in specified time unit
+   * @param unit Time unit constant (kNano, kMicro, kMilli, kSec, kMin, kHour)
+   * @return Period in specified unit, 0 if not periodic
    */
-  HSHM_CROSS_FUN double GetPeriod() const { return period_ns_; }
+  HSHM_CROSS_FUN double GetPeriod(double unit) const { return period_ns_ / unit; }
+
+  /**
+   * Set task execution period in specified time unit
+   * @param period Period value in the specified unit
+   * @param unit Time unit constant (kNano, kMicro, kMilli, kSec, kMin, kHour)
+   */
+  HSHM_CROSS_FUN void SetPeriod(double period, double unit) { period_ns_ = period * unit; }
 
   /**
    * Set task flags

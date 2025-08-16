@@ -101,6 +101,12 @@ class WorkOrchestrator {
   bool AreWorkersRunning() const;
 
   /**
+   * Get stack growth direction (detected during initialization)
+   * @return true if stack grows downward, false if upward
+   */
+  bool IsStackDownward() const;
+
+  /**
    * Map a lane to a specific worker by setting the worker ID in the lane's header
    * @param lane Raw pointer to the TaskLane
    * @param worker_id Worker ID to assign to this lane
@@ -147,6 +153,7 @@ class WorkOrchestrator {
 
   bool is_initialized_ = false;
   bool workers_running_ = false;
+  bool stack_is_downward_ = true; // Stack growth direction (detected at initialization)
 
   // Worker containers organized by type
   std::vector<std::unique_ptr<Worker>> low_latency_workers_;

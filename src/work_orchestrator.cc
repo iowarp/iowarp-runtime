@@ -6,6 +6,8 @@
 
 #include <chrono>
 #include <iostream>
+#include <cstdlib>
+#include <boost/context/detail/fcontext.hpp>
 
 #include "chimaera/singletons.h"
 
@@ -13,6 +15,110 @@
 HSHM_DEFINE_GLOBAL_PTR_VAR_CC(chi::WorkOrchestrator, g_work_orchestrator);
 
 namespace chi {
+
+//===========================================================================
+// Stack Growth Direction Detection (for boost::context)
+//===========================================================================
+
+// Structure to pass data to stack detection function
+struct StackDetectionData {
+  void* middle_ptr;
+  bool* detection_complete;
+};
+
+// Function called in boost context to detect stack growth direction
+static void StackDetectionFunction(boost::context::detail::transfer_t t) {
+  // Get the data passed from the context
+  StackDetectionData* data = static_cast<StackDetectionData*>(t.data);
+  
+  // Create a local array to check stack addresses
+  char local_array[64];
+  void* array_start = &local_array[0];
+  
+  // For debugging - check where we are relative to middle
+  bool is_below_middle = (array_start < data->middle_ptr);
+  
+  // Debug output to understand what's happening
+  std::cout << "Stack detection: middle_ptr=" << data->middle_ptr 
+            << ", array_start=" << array_start 
+            << ", is_below_middle=" << is_below_middle << std::endl;
+  
+  *data->detection_complete = true;
+  
+  // Jump back to caller
+  boost::context::detail::jump_fcontext(t.fctx, nullptr);
+}
+
+// Detect stack growth direction at runtime using boost context
+static bool DetectStackGrowthDirection() {
+  // Allocate 128KB test stack
+  const size_t test_stack_size = 128 * 1024;
+  void* test_stack = malloc(test_stack_size);
+  if (!test_stack) {
+    // Fallback to downward assumption
+    std::cout << "Stack detection: Failed to allocate test stack, assuming downward" << std::endl;
+    return true;
+  }
+  
+  // Calculate middle pointer
+  void* middle_ptr = static_cast<char*>(test_stack) + (test_stack_size / 2);
+  
+  // Prepare detection data
+  bool detection_complete = false;
+  StackDetectionData data = { middle_ptr, &detection_complete };
+  
+  // Try high-end pointer first (correct for downward-growing stacks)
+  std::cout << "Testing stack detection with high-end pointer..." << std::endl;
+  void* high_end_ptr = static_cast<char*>(test_stack) + test_stack_size;
+  
+  bool stack_grows_downward = true;  // Default assumption
+  
+  try {
+    auto context = boost::context::detail::make_fcontext(high_end_ptr, test_stack_size, StackDetectionFunction);
+    boost::context::detail::jump_fcontext(context, &data);
+  } catch (...) {
+    std::cout << "High-end pointer attempt failed" << std::endl;
+    detection_complete = false;
+  }
+  
+  if (detection_complete) {
+    // If high-end pointer worked, it means make_fcontext expects high-end pointer
+    // This is the correct behavior for downward-growing stacks
+    stack_grows_downward = true;
+    std::cout << "High-end pointer succeeded - stack grows downward (correct for x86_64)" << std::endl;
+  } else {
+    // If first attempt failed, try low end pointer (upward growth)
+    std::cout << "Testing stack detection with low-end pointer..." << std::endl;
+    detection_complete = false;
+    
+    try {
+      auto context2 = boost::context::detail::make_fcontext(test_stack, test_stack_size, StackDetectionFunction);
+      boost::context::detail::jump_fcontext(context2, &data);
+    } catch (...) {
+      std::cout << "Low-end pointer attempt also failed" << std::endl;
+      detection_complete = false;
+    }
+    
+    if (detection_complete) {
+      // If low-end pointer worked, it means make_fcontext expects low-end pointer
+      // This would be for upward-growing stacks (rare)
+      stack_grows_downward = false;
+      std::cout << "Low-end pointer succeeded - stack grows upward (unusual architecture)" << std::endl;
+    } else {
+      // Fallback to downward assumption
+      std::cout << "Both attempts failed, falling back to downward assumption" << std::endl;
+      stack_grows_downward = true;
+    }
+  }
+  
+  free(test_stack);
+  
+  // Log the detection result
+  std::cout << "Stack growth direction detected: " 
+            << (stack_grows_downward ? "downward" : "upward") << std::endl;
+  
+  return stack_grows_downward;
+}
 
 //===========================================================================
 // Work Orchestrator Implementation
@@ -24,6 +130,9 @@ bool WorkOrchestrator::Init() {
   if (is_initialized_) {
     return true;
   }
+
+  // Detect stack growth direction once at orchestrator initialization
+  stack_is_downward_ = DetectStackGrowthDirection();
 
   // Initialize HSHM TLS key for workers
   HSHM_THREAD_MODEL->CreateTls<class Worker>(chi_cur_worker_key_, nullptr);
@@ -198,6 +307,8 @@ u32 WorkOrchestrator::GetWorkerCountByType(ThreadType thread_type) const {
 bool WorkOrchestrator::IsInitialized() const { return is_initialized_; }
 
 bool WorkOrchestrator::AreWorkersRunning() const { return workers_running_; }
+
+bool WorkOrchestrator::IsStackDownward() const { return stack_is_downward_; }
 
 bool WorkOrchestrator::SpawnWorkerThreads() {
   // Use HSHM thread model to spawn worker threads

@@ -23,6 +23,14 @@ using u32 = hshm::u32;
 using u64 = hshm::u64;
 using ibitfield = hshm::ibitfield;
 
+// Time unit constants for period conversions (divisors from nanoseconds)
+constexpr double kNano = 1.0;                    // 1 nanosecond
+constexpr double kMicro = 1000.0;               // 1000 nanoseconds = 1 microsecond
+constexpr double kMilli = 1000000.0;            // 1,000,000 nanoseconds = 1 millisecond  
+constexpr double kSec = 1000000000.0;           // 1,000,000,000 nanoseconds = 1 second
+constexpr double kMin = 60000000000.0;          // 60 seconds = 1 minute
+constexpr double kHour = 3600000000000.0;       // 3600 seconds = 1 hour
+
 // Forward declarations
 class Task;
 class DomainQuery;

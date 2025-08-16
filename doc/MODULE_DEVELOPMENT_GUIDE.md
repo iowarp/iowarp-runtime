@@ -206,7 +206,7 @@ class Client : public chi::ChiContainerClient {
     // Allocate task in shared memory
     auto task = ipc_manager->NewTask<CreateTask>(
         chi::kMainSegment,
-        HSHM_DEFAULT_MEM_CTX,
+        HSHM_MCTX,
         chi::TaskNode(0),
         pool_id_,
         dom_query);
@@ -620,7 +620,7 @@ my_vector.resize(100);
 // Client side - allocation
 auto task = ipc_manager->NewTask<CustomTask>(
     chi::kMainSegment,
-    HSHM_DEFAULT_MEM_CTX,
+    HSHM_MCTX,
     chi::TaskNode(0),
     pool_id_,
     dom_query,

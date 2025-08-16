@@ -43,22 +43,23 @@ using QueueId = u32;
  * Context passed to task execution methods
  */
 struct RunContext {
-  void* stack_ptr;
+  void* stack_ptr;              // Stack pointer (positioned for boost::context based on stack growth)
+  void* stack_base_for_free;    // Original malloc pointer for freeing
   size_t stack_size;
   ThreadType thread_type;
   u32 worker_id;
-  void* runtime_data;
-  FullPtr<Task> current_task;  // Current task being executed
+  FullPtr<Task> task;  // Task being executed by this context
   bool is_blocked;             // Task is waiting for completion
   double estimated_completion_time_us; // Estimated completion time in microseconds
+  hshm::Timepoint block_time;          // Time when task was blocked (for timing measurements)
   boost::context::detail::transfer_t fiber_transfer; // boost::context transfer data for fiber execution
   boost::context::detail::fcontext_t fiber_context;  // boost::context fiber context for task execution
   void* container;             // Current container being executed (ChiContainer* in runtime)
-  void* lane;                  // Current lane being processed (Lane* in runtime)
+  void* lane;                  // Current lane being processed (TaskQueue::TaskLane* in runtime)
   std::vector<FullPtr<Task>> waiting_for_tasks; // Tasks this task is waiting for completion
   
-  RunContext() : stack_ptr(nullptr), stack_size(0), 
-                 thread_type(kLowLatencyWorker), worker_id(0), runtime_data(nullptr),
+  RunContext() : stack_ptr(nullptr), stack_base_for_free(nullptr), stack_size(0), 
+                 thread_type(kLowLatencyWorker), worker_id(0),
                  is_blocked(false), estimated_completion_time_us(0.0),
                  fiber_transfer{}, fiber_context{}, container(nullptr), lane(nullptr) {}
 
@@ -70,9 +71,9 @@ struct RunContext {
     // Check each task in the waiting_for_tasks vector
     for (const auto& waiting_task : waiting_for_tasks) {
       if (!waiting_task.IsNull()) {
-        // Check if the waiting task is still blocked (not completed)
-        if (waiting_task->run_ctx_ && waiting_task->run_ctx_->is_blocked) {
-          return false; // Found a subtask that's still blocked
+        // Check if the waiting task is completed using atomic flag
+        if (waiting_task->is_complete.load() == 0) {
+          return false; // Found a subtask that's not completed yet
         }
       }
     }

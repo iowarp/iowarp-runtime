@@ -22,7 +22,7 @@ int main() {
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
   chi::small_message::Client client;
   client.Create(
-      HSHM_DEFAULT_MEM_CTX,
+      HSHM_MCTX,
       chi::DomainQuery::GetGlobalHash(0),
       chi::DomainQuery::GetGlobalBcast(), "ipc_test");
   hshm::Timer t;
@@ -32,7 +32,7 @@ int main() {
   int depth = 0;
   for (size_t i = 0; i < ops; ++i) {
     int cont_id = i;
-    int ret = client.Md(HSHM_DEFAULT_MEM_CTX,
+    int ret = client.Md(HSHM_MCTX,
                         chi::DomainQuery::GetGlobalHash(cont_id),
                         depth, 0);
     REQUIRE(ret == 1);
@@ -78,7 +78,7 @@ and the runtime to allow tasks to be scheduled.
 ```cpp
 chi::small_message::Client client;
 client.Create(
-    HSHM_DEFAULT_MEM_CTX,
+    HSHM_MCTX,
     chi::DomainQuery::GetGlobalHash(0),
     chi::DomainQuery::GetGlobalBcast(), "ipc_test");
 ```
@@ -100,7 +100,7 @@ In this case, the set of all nodes.
   int depth = 0;
   for (size_t i = 0; i < ops; ++i) {
     int cont_id = i;
-    int ret = client.Md(HSHM_DEFAULT_MEM_CTX,
+    int ret = client.Md(HSHM_MCTX,
                         chi::DomainQuery::GetGlobalHash(cont_id),
                         depth, 0);
     REQUIRE(ret == 1);

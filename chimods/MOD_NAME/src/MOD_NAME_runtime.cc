@@ -12,6 +12,14 @@ namespace chimaera::MOD_NAME {
 
 // Method implementations for Runtime class
 
+void Runtime::Init(const chi::PoolId& pool_id, const std::string& pool_name) {
+  // Call base class Init
+  Container::Init(pool_id, pool_name);
+  
+  // Initialize the client for this ChiMod
+  client_ = Client(pool_id);
+}
+
 void Runtime::Run(chi::u32 method, hipc::FullPtr<chi::Task> task_ptr, chi::RunContext& rctx) {
   // Dispatch to the appropriate method handler
   chimaera::MOD_NAME::Run(this, method, task_ptr, rctx);

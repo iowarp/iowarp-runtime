@@ -124,12 +124,12 @@ void basic_allocator_setup_example() {
         *custom_header = 0x12345678;  // Custom metadata
         
         // Use the allocator
-        auto full_ptr = allocator->Allocate(HSHM_DEFAULT_MEM_CTX, 1024);
+        auto full_ptr = allocator->Allocate(HSHM_MCTX, 1024);
         printf("Allocated %zu bytes at offset %zu\n", 
                size_t(1024), full_ptr.shm_.off_.load());
         
         // Free the memory
-        allocator->Free(HSHM_DEFAULT_MEM_CTX, full_ptr);
+        allocator->Free(HSHM_MCTX, full_ptr);
         
         // Verify custom header persisted
         printf("Custom header: 0x%08X\n", *custom_header);

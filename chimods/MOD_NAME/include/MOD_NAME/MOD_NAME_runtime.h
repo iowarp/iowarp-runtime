@@ -5,7 +5,7 @@
 #include <chimaera/container.h>
 #include "MOD_NAME_tasks.h"
 #include "autogen/MOD_NAME_methods.h"
-#include <memory>
+#include "MOD_NAME_client.h"
 
 namespace chimaera::MOD_NAME {
 
@@ -25,6 +25,9 @@ private:
   chi::u32 create_count_ = 0;
   chi::u32 custom_count_ = 0;
 
+  // Client for making calls to this ChiMod
+  Client client_;
+
 public:
   /**
    * Constructor
@@ -35,6 +38,11 @@ public:
    * Destructor
    */
   virtual ~Runtime() = default;
+
+  /**
+   * Initialize container with pool information
+   */
+  void Init(const chi::PoolId& pool_id, const std::string& pool_name) override;
 
   /**
    * Execute a method on a task
