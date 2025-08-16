@@ -19,32 +19,15 @@ namespace chi {
 class Task;
 class TaskQueue;
 
-// Macros for accessing HSHM thread-local storage (worker thread context)
-// These macros allow access to the current task, run context, and worker from
-// any thread Example usage in ChiMod container code:
-//   FullPtr<Task> current_task = CHI_CUR_TASK;
-//   RunContext* run_ctx = CHI_CUR_RCTX;
+// Macro for accessing HSHM thread-local storage (worker thread context)
+// This macro allows access to the current worker from any thread
+// Example usage in ChiMod container code:
 //   Worker* worker = CHI_CUR_WORKER;
+//   FullPtr<Task> current_task = worker->GetCurrentTask();
+//   RunContext* run_ctx = worker->GetCurrentRunContext();
 #define CHI_CUR_WORKER \
   (HSHM_THREAD_MODEL->GetTls<class Worker>(chi_cur_worker_key_))
-#define CHI_CUR_RCTX (CHI_CUR_WORKER->GetCurrentRunContext())
-#define CHI_CUR_TASK (CHI_CUR_RCTX->task)
-#define CHI_CUR_CONTAINER (static_cast<ChiContainer*>(CHI_CUR_RCTX->container))
-#define CHI_CUR_LANE (static_cast<TaskQueue::TaskLane*>(CHI_CUR_RCTX->lane))
 
-// Helper macros for setting thread-local storage (internal use)
-#define CHI_SET_CUR_WORKER(worker)                \
-  (HSHM_THREAD_MODEL->SetTls(chi_cur_worker_key_, \
-                             static_cast<class Worker*>(worker)))
-#define CHI_SET_CUR_RCTX(rctx) (CHI_CUR_WORKER->SetCurrentRunContext(rctx))
-#define CHI_SET_CUR_TASK(task_ptr) (CHI_CUR_RCTX->task = (task_ptr))
-
-// Helper macros for clearing thread-local storage (internal use)
-#define CHI_CLEAR_CUR_WORKER()                    \
-  (HSHM_THREAD_MODEL->SetTls(chi_cur_worker_key_, \
-                             static_cast<class Worker*>(nullptr)))
-#define CHI_CLEAR_CUR_RCTX() (CHI_CUR_WORKER->SetCurrentRunContext(nullptr))
-#define CHI_CLEAR_CUR_TASK() (CHI_CUR_RCTX->task = FullPtr<Task>::GetNull())
 
 /**
  * Worker class for executing tasks
@@ -117,6 +100,34 @@ class Worker {
    * @return Pointer to the set RunContext
    */
   RunContext* SetCurrentRunContext(RunContext* rctx);
+
+  /**
+   * Get current task from the current RunContext
+   * @return FullPtr to current task or null if no RunContext
+   */
+  FullPtr<Task> GetCurrentTask() const;
+
+  /**
+   * Get current container from the current RunContext
+   * @return Pointer to current container or nullptr if no RunContext
+   */
+  ChiContainer* GetCurrentContainer() const;
+
+  /**
+   * Get current lane from the current RunContext
+   * @return Pointer to current lane or nullptr if no RunContext
+   */
+  TaskQueue::TaskLane* GetCurrentLane() const;
+
+  /**
+   * Set this worker as the current worker in thread-local storage
+   */
+  void SetAsCurrentWorker();
+
+  /**
+   * Clear the current worker from thread-local storage
+   */
+  static void ClearCurrentWorker();
 
   /**
    * Add run context to blocked queue with estimated completion time

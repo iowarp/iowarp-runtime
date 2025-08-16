@@ -156,13 +156,12 @@ private:
   HSHM_CROSS_FUN bool IsComplete() const;
 #endif
 
-#ifdef CHIMAERA_RUNTIME
   /**
-   * Yield execution back to worker (runtime only)
-   * Jumps back to worker fiber context with estimated completion time
+   * Yield execution back to worker (runtime) or sleep briefly (non-runtime)
+   * In runtime: Jumps back to worker fiber context with estimated completion time
+   * Outside runtime: Uses SleepForUs when worker is null
    */
   HSHM_CROSS_FUN void Yield();
-#endif
 
 public:
 

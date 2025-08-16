@@ -71,7 +71,7 @@ void Worker::Run() {
   }
 
   // Set current worker once for the entire thread duration
-  CHI_SET_CUR_WORKER(this);
+  SetAsCurrentWorker();
   is_running_ = true;
 
   // Main worker loop - pop lanes from active queue and process tasks
@@ -166,6 +166,38 @@ RunContext* Worker::GetCurrentRunContext() const {
 RunContext* Worker::SetCurrentRunContext(RunContext* rctx) {
   current_run_context_ = rctx;
   return current_run_context_;
+}
+
+FullPtr<Task> Worker::GetCurrentTask() const {
+  RunContext* run_ctx = GetCurrentRunContext();
+  if (!run_ctx) {
+    return FullPtr<Task>::GetNull();
+  }
+  return run_ctx->task;
+}
+
+ChiContainer* Worker::GetCurrentContainer() const {
+  RunContext* run_ctx = GetCurrentRunContext();
+  if (!run_ctx) {
+    return nullptr;
+  }
+  return static_cast<ChiContainer*>(run_ctx->container);
+}
+
+TaskQueue::TaskLane* Worker::GetCurrentLane() const {
+  RunContext* run_ctx = GetCurrentRunContext();
+  if (!run_ctx) {
+    return nullptr;
+  }
+  return static_cast<TaskQueue::TaskLane*>(run_ctx->lane);
+}
+
+void Worker::SetAsCurrentWorker() {
+  HSHM_THREAD_MODEL->SetTls(chi_cur_worker_key_, static_cast<class Worker*>(this));
+}
+
+void Worker::ClearCurrentWorker() {
+  HSHM_THREAD_MODEL->SetTls(chi_cur_worker_key_, static_cast<class Worker*>(nullptr));
 }
 
 Task* Worker::PopActiveTask() {
@@ -380,9 +412,9 @@ void Worker::ExecTask(const FullPtr<Task>& task_ptr, RunContext* run_ctx_ptr,
   // Mark that work is being done
   did_work_ = true;
 
-  // Set thread-local storage variables
+  // Set current run context
   // Note: Current worker is already set for thread duration
-  CHI_SET_CUR_RCTX(run_ctx_ptr);
+  SetCurrentRunContext(run_ctx_ptr);
 
   namespace bctx = boost::context::detail;
 
@@ -472,7 +504,7 @@ void Worker::FiberExecutionFunction(boost::context::detail::transfer_t t) {
   // Use thread-local storage to get context
   Worker* worker = CHI_CUR_WORKER;
   RunContext* run_ctx = worker->GetCurrentRunContext();
-  FullPtr<Task> task_ptr = CHI_CUR_TASK;
+  FullPtr<Task> task_ptr = worker ? worker->GetCurrentTask() : FullPtr<Task>::GetNull();
 
   if (!task_ptr.IsNull() && worker && run_ctx) {
     // Execute the task directly - merged TaskExecutionFunction logic

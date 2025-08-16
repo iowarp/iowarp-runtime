@@ -17,15 +17,16 @@ void Task::Wait() {
 #ifdef CHIMAERA_RUNTIME
   // Runtime implementation: Estimate load and yield execution
 
-  // Get current run context
-  RunContext* run_ctx = CHI_CUR_RCTX;
+  // Get current run context from worker
+  Worker* worker = CHI_CUR_WORKER;
+  RunContext* run_ctx = worker ? worker->GetCurrentRunContext() : nullptr;
 
   if (!run_ctx) {
     return;  // Cannot wait without run context
   }
 
   // Use container from RunContext instead of CHI_POOL_MANAGER
-  ChiContainer* container = CHI_CUR_CONTAINER;
+  ChiContainer* container = worker ? worker->GetCurrentContainer() : nullptr;
   if (container) {
     // Estimate completion time using Monitor with kEstLoad
     RunContext est_ctx = *run_ctx;  // Copy run context for estimation
@@ -48,7 +49,7 @@ void Task::Wait() {
   }
 
   // Add task to worker's blocked queue and yield
-  Worker* worker = CHI_CUR_WORKER;
+  // Note: worker variable already retrieved above
   if (worker) {
     worker->AddToBlockedQueue(run_ctx, 
                               run_ctx->estimated_completion_time_us);
@@ -65,13 +66,16 @@ void Task::Wait() {
 #endif
 }
 
-#ifdef CHIMAERA_RUNTIME
 void Task::Yield() {
-  // Get current run context
-  RunContext* run_ctx = CHI_CUR_RCTX;
+#ifdef CHIMAERA_RUNTIME
+  // Get current run context from worker
+  Worker* worker = CHI_CUR_WORKER;
+  RunContext* run_ctx = worker ? worker->GetCurrentRunContext() : nullptr;
 
   if (!run_ctx) {
-    return;  // Cannot yield without run context
+    // No run context available, fall back to sleep
+    HSHM_THREAD_MODEL->SleepForUs(10);  // Sleep for 10 microseconds
+    return;
   }
 
   // Mark this task as blocked
@@ -83,8 +87,11 @@ void Task::Yield() {
   // Jump back to worker - the task has been added to blocked queue
   run_ctx->fiber_transfer = bctx::jump_fcontext(run_ctx->fiber_transfer.fctx,
                                                 run_ctx->fiber_transfer.data);
-}
+#else
+  // Outside CHIMAERA_RUNTIME, just sleep briefly
+  HSHM_THREAD_MODEL->SleepForUs(10);  // Sleep for 10 microseconds
 #endif
+}
 
 #ifndef CHIMAERA_RUNTIME
 bool Task::IsComplete() const {
