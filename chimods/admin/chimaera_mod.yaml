@@ -1,0 +1,20 @@
+# Admin ChiMod Configuration
+# Critical module for pool management and runtime control
+
+module_name: admin
+namespace: chimods
+version: 1.0.0
+critical: true  # This is a critical ChiMod - runtime must find it or fatal error
+
+# Inherited Methods
+kCreate: 0        # 0 - Create the Admin container
+kDestroy: 1       # 1 - Destroy the Admin container
+kNodeFailure: -1  # 2 - Not implemented
+kRecover: -1      # 3 - Not implemented
+kMigrate: -1      # 4 - Not implemented
+kUpgrade: -1      # 5 - Not implemented
+
+# Admin-specific Methods (start from 10)
+kCreatePool: 10   # Create a new ChiPool
+kDestroyPool: 11  # Destroy an existing ChiPool
+kStopRuntime: 12  # Stop the entire Chimaera runtime

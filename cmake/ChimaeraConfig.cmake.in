@@ -1,0 +1,13 @@
+# ChimaeraConfig.cmake.in
+# Config file for the Chimaera package
+
+@PACKAGE_INIT@
+
+# Include common utilities and dependencies
+include("${CMAKE_CURRENT_LIST_DIR}/ChimaeraCommon.cmake")
+
+# Include the exported targets
+include("${CMAKE_CURRENT_LIST_DIR}/ChimaeraTargets.cmake")
+
+# Provide components
+check_required_components(Chimaera)
