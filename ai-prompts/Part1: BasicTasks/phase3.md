@@ -27,6 +27,12 @@ At the end of each worker iteration, it pops the minimum element from the min he
 On the client:
 A spinwait that sleeps for 10 microseconds. It checks to see if the task is complete every 10 us. Use HSHM_THREAD_MODEL->SleepForUs. to do this.
 
+There should be a Yield() function that works on both client and runtime. It uses the #if CHIMAERA_RUNTIME to separate client and runtime code.
+On the runtime, it should use the CHI_CUR_WORKER macro to get the current runtime context. If the worker is null, then fallback to the client implementation.
+The client code should be the fallback option for the runtime if there is no worker. This should should just call HSHM_THREAD_MODEL->Yield().
+
+The Wait() function should also work on client and runtime. This is simply a while loop that checks if is_complete is true. Otherwise, yield.
+
 # Active Queues
 Remove the concept of cold queues. There will only be an active queue. Active queue should be an mpsc queue containing pointers to lanes. The lanes can come from either containers or from the process queue. Workers should pop the lanes from the active queue. The worker then iterates for a fixed maximum number of tasks per-lane, for example 64. If the lane has no more tasks by the end of the iteration, then do not re-enqueue the lane. When a task is enqueued to a lane, if the lane's size was 0, the lane should be re-enqueued in the worker. This could result in the same lane being enqueued multiple times. Devise a way to reduce this duplication. 
 

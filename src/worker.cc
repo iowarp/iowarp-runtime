@@ -416,8 +416,6 @@ void Worker::ExecTask(const FullPtr<Task>& task_ptr, RunContext* run_ctx_ptr,
   // Note: Current worker is already set for thread duration
   SetCurrentRunContext(run_ctx_ptr);
 
-  namespace bctx = boost::context::detail;
-
   if (is_started) {
     // Resume execution - the task's fiber context is already set up
     // Resume fiber execution using stored transfer data
@@ -498,8 +496,6 @@ void Worker::ReschedulePeriodicTask(RunContext* run_ctx_ptr, const FullPtr<Task>
 }
 
 void Worker::FiberExecutionFunction(boost::context::detail::transfer_t t) {
-  namespace bctx = boost::context::detail;
-
   // This function runs in the fiber context
   // Use thread-local storage to get context
   Worker* worker = CHI_CUR_WORKER;

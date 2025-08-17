@@ -21,8 +21,12 @@ void Task::Wait() {
   Worker* worker = CHI_CUR_WORKER;
   RunContext* run_ctx = worker ? worker->GetCurrentRunContext() : nullptr;
 
-  if (!run_ctx) {
-    return;  // Cannot wait without run context
+  if (!worker || !run_ctx) {
+    // No worker or run context available, fall back to client implementation
+    while (is_complete.load() == 0) {
+      Yield();
+    }
+    return;
   }
 
   // Use container from RunContext instead of CHI_POOL_MANAGER
@@ -59,9 +63,9 @@ void Task::Wait() {
   Yield();
 
 #else
-  // Client implementation: Spinwait with 10 microsecond sleep
+  // Client implementation: Wait loop using Yield()
   while (!IsComplete()) {
-    HSHM_THREAD_MODEL->SleepForUs(10);  // Sleep for 10 microseconds
+    Yield();
   }
 #endif
 }
@@ -73,8 +77,8 @@ void Task::Yield() {
   RunContext* run_ctx = worker ? worker->GetCurrentRunContext() : nullptr;
 
   if (!run_ctx) {
-    // No run context available, fall back to sleep
-    HSHM_THREAD_MODEL->SleepForUs(10);  // Sleep for 10 microseconds
+    // No run context available, fall back to client implementation
+    HSHM_THREAD_MODEL->Yield();
     return;
   }
 
@@ -82,23 +86,20 @@ void Task::Yield() {
   run_ctx->is_blocked = true;
 
   // Jump back to worker using boost::fiber
-  namespace bctx = boost::context::detail;
 
   // Jump back to worker - the task has been added to blocked queue
   run_ctx->fiber_transfer = bctx::jump_fcontext(run_ctx->fiber_transfer.fctx,
                                                 run_ctx->fiber_transfer.data);
 #else
-  // Outside CHIMAERA_RUNTIME, just sleep briefly
-  HSHM_THREAD_MODEL->SleepForUs(10);  // Sleep for 10 microseconds
+  // Outside CHIMAERA_RUNTIME, just yield
+  HSHM_THREAD_MODEL->Yield();
 #endif
 }
 
 #ifndef CHIMAERA_RUNTIME
 bool Task::IsComplete() const {
   // Client-side completion check
-  // This would check task completion status
-  // For now, stub implementation
-  return false;  // TODO: Implement completion checking
+  return is_complete.load() != 0;
 }
 #endif
 

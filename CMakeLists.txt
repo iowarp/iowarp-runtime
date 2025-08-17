@@ -8,7 +8,7 @@ project(chimaera VERSION 1.0.0)
 # SECTION 1: OPTIONS
 #------------------------------------------------------------------------------
 option(CHIMAERA_ENABLE_CMAKE_DOTENV "Enable reading environment variables from .env.cmake" ON)
-option(CHIMAERA_ENABLE_TESTS "Enable testing" OFF)
+option(CHIMAERA_ENABLE_TESTS "Enable testing" ON)
 
 # Read environment variables from .env.cmake if enabled
 if(CHIMAERA_ENABLE_CMAKE_DOTENV)
@@ -90,6 +90,13 @@ add_subdirectory(chimods)
 
 # Add utilities subdirectory
 add_subdirectory(util)
+
+# Add test subdirectory if testing is enabled
+if(CHIMAERA_ENABLE_TESTS)
+  enable_testing()
+  add_subdirectory(test)
+  message(STATUS "Unit tests enabled - added test subdirectory")
+endif()
 
 #------------------------------------------------------------------------------
 # SECTION 6: INSTALL CODE
