@@ -212,19 +212,26 @@ bool Worker::ResolveDomainQuery(const FullPtr<Task>& task_ptr) {
     return false;
   }
 
-  // Resolve DomainQuery stored in the task to route to a specific container
-  // For now, this routes the task to a container on this node based on PoolId
-  // and DomainQuery
-
   // Basic validation of domain query
-  // For now, we assume the domain query is valid if the task has a valid
-  // pool_id
   if (task_ptr->pool_id_ == 0) {
     return false;  // Invalid pool ID
   }
 
-  // Here we would implement the actual domain resolution logic
-  // For now, we assume the task is valid for local processing
+  // Check if distributed scheduling is enabled
+  auto* config_manager = CHI_CONFIG_MANAGER;
+  if (config_manager && !config_manager->GetHostfilePath().empty()) {
+    // Distributed scheduling is enabled - check if task should be processed remotely
+    if (ShouldScheduleRemotely(task_ptr)) {
+      // Route task to remote node via admin chimod's networking methods
+      if (ScheduleTaskRemotely(task_ptr)) {
+        return false; // Task was sent remotely, don't process locally
+      }
+      // If remote scheduling failed, fall back to local processing
+    }
+  }
+
+  // Process task locally - resolve DomainQuery stored in the task to route to a specific container
+  // For now, this routes the task to a container on this node based on PoolId and DomainQuery
   return true;
 }
 
@@ -536,6 +543,62 @@ void Worker::FiberExecutionFunction(boost::context::detail::transfer_t t) {
 
   // Jump back to main context when done
   bctx::jump_fcontext(t.fctx, t.data);
+}
+
+bool Worker::ShouldScheduleRemotely(const FullPtr<Task>& task_ptr) {
+  if (task_ptr.IsNull()) {
+    return false;
+  }
+
+  // For now, implement a simple load balancing strategy
+  // In a real implementation, this would:
+  // 1. Parse the hostfile to get available nodes
+  // 2. Check current node load vs remote node load
+  // 3. Use task's domain query to determine affinity
+  // 4. Consider network latency and bandwidth
+  
+  // Simple heuristic: if task has a net_key_ set, it may be intended for remote execution
+  if (task_ptr->net_key_ != 0) {
+    return true;
+  }
+  
+  // Check domain query for remote execution hints
+  // For now, assume local execution is preferred
+  return false;
+}
+
+bool Worker::ScheduleTaskRemotely(const FullPtr<Task>& task_ptr) {
+  if (task_ptr.IsNull()) {
+    return false;
+  }
+
+  try {
+    // Get admin container to handle network scheduling
+    auto* pool_manager = CHI_POOL_MANAGER;
+    if (!pool_manager) {
+      return false;
+    }
+    
+    // For now, skip the actual remote scheduling implementation
+    // In a real implementation, this would:
+    // 1. Find the admin pool through some registry mechanism
+    // 2. Get the admin container
+    // 3. Use the admin container to handle remote task scheduling
+
+    // In a real implementation, this would:
+    // 1. Serialize the task using SerializeIn method
+    // 2. Create a ClientSendTaskInTask with the serialized data
+    // 3. Submit the network task to admin container
+    // 4. Handle the result asynchronously
+    
+    // For now, just log the attempt and return false to fall back to local processing
+    HILOG(kInfo, "Remote scheduling requested for task method {} but not fully implemented, processing locally", task_ptr->method_);
+    return false;
+    
+  } catch (const std::exception& e) {
+    HELOG(kError, "Failed to schedule task remotely: {}", e.what());
+    return false;
+  }
 }
 
 }  // namespace chi

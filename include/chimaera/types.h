@@ -169,6 +169,12 @@ struct SubDomainId {
   bool operator!=(const SubDomainId& other) const {
     return !(*this == other);
   }
+
+  // Cereal serialization support
+  template<class Archive>
+  void serialize(Archive& ar) {
+    ar(major_, minor_);
+  }
 };
 
 /**
@@ -196,6 +202,10 @@ struct DomainId {
 // Task flags using HSHM BIT_OPT macro
 #define TASK_PERIODIC BIT_OPT(u32, 0)
 #define TASK_FIRE_AND_FORGET BIT_OPT(u32, 1)
+
+// Bulk transfer flags for task archives
+#define CHI_WRITE BIT_OPT(u32, 0)    ///< Copy data from pointer to remote location
+#define CHI_EXPOSE BIT_OPT(u32, 1)   ///< Copy pointer to remote so remote can write to it
 
 // Queue priorities
 enum QueuePriority {

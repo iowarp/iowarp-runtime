@@ -1,4 +1,93 @@
-Use the incremental logic builder to initially implement this spec. 
+Use the incremental logic builder to initially implement this spec. Make sure to review @doc/MODULE_DEVELOPMENT_GUIDE.md when augmenting the chimod.
+
+# Remote Queue Tasks
+
+This will be adding several new functions and features to the admin chimod and other parts of the chimaera runtime to support distributed task scheduling.
+
+## Configuration Changes
+
+Add a hostfile parameter to the chimaera configuration. If the hostfile is empty, assume this host is the only node on the system. Use hshm::ParseHostfile for this.
+Make sure to use hshm::ConfigParse::ExpandPath to expand the hostfile path before using ParseHostfile.
+
+```cpp
+// Parse a hostfile with multiple formats
+std::vector<std::string> ParseHostfile(const std::string& hostfile_path) {
+    std::vector<std::string> all_hosts = hshm::ConfigParse::ParseHostfile(hostfile_path);
+    
+    // Process and validate hosts
+    std::vector<std::string> valid_hosts;
+    for (const auto& host : all_hosts) {
+        if (IsValidHostname(host)) {
+            valid_hosts.push_back(host);
+        } else {
+            fprintf(stderr, "Warning: Invalid hostname '%s' skipped\n", host.c_str());
+        }
+    }
+    
+    return valid_hosts;
+}
+
+bool IsValidHostname(const std::string& hostname) {
+    // Basic validation
+    if (hostname.empty() || hostname.length() > 255) {
+        return false;
+    }
+    
+    // Check for valid characters
+    for (char c : hostname) {
+        if (!std::isalnum(c) && c != '-' && c != '.') {
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+// Example hostfile content:
+/*
+# Compute nodes
+compute[001-064]-ib
+compute[065-128]-ib
+
+# GPU nodes  
+gpu[01-16]-40g
+
+# Special nodes
+login1
+login2
+scheduler
+storage[01-04]
+*/
+```
+
+```cpp
+// Expand environment variables in paths
+std::string ExpandConfigPath(const std::string& template_path) {
+    return hshm::ConfigParse::ExpandPath(template_path);
+}
+
+// Examples
+std::string home_config = ExpandConfigPath("${HOME}/.config/myapp");
+std::string data_path = ExpandConfigPath("${XDG_DATA_HOME}/myapp/data");
+std::string temp_file = ExpandConfigPath("${TMPDIR}/myapp_${USER}.tmp");
+
+// Complex expansion with multiple variables
+std::string complex = ExpandConfigPath(
+    "${HOME}/.cache/${APPLICATION_NAME}-${VERSION}/data"
+);
+
+// Set up environment and expand
+hshm::SystemInfo::Setenv("APP_ROOT", "/opt/myapp", 1);
+hshm::SystemInfo::Setenv("APP_VERSION", "2.1.0", 1);
+std::string app_config = ExpandConfigPath("${APP_ROOT}/config-${APP_VERSION}.yaml");
+```
+
+## Core Functionality
+
+**Inter-Node Communication**: Handles task distribution and result collection across the distributed system
+**Task Serialization**: Manages efficient serialization/deserialization of task parameters and data
+**Bulk Data Transfer**: Supports large binary data movement with optimized transfer mechanisms
+**Archive Management**: Provides four distinct archive types for different serialization needs
 
 ## Task Serialization
 
@@ -9,7 +98,6 @@ Implement serializers that serialize different parts of the task. All tasks  sho
 The base class Task should implement BaseSerializeIn and BaseSerializeOut. This will serialize the parts of the task that every task contains. Derived classes should not call BaseSerializeIn. 
 
 ## Task Archivers
-These use cereal for serialization. They serialize non-task objects using the traditional cereal path. For objects inheriting from class Task, they will call the specific SerializeIn and SerializeOut methods of the tasks. Tasks are required to have these methods implemented.
 
 ### Here is the general flow:
 
@@ -58,6 +146,13 @@ Four distinct archive types handle different serialization scenarios:
 - **TaskInputArchiveIN**: Deserialize IN params of task using SerializeIn
 - **TaskOutputArchiveOUT**: Serialize OUT params of task using SerializeOut  
 - **TaskInputArchiveOUT**: Deserialize OUT params of task using SerializeOut
+
+## Admin Chimod Changes
+Create a local queue for SendIn and SendOut. 
+1. Implement a ClientSendTaskIn function. This function will iterate over the CHI_CUR_LANE and pop all current tasks on that lane. It will create a map of archives where the key is a physical DomainId and the value is a BinaryOutputArchiveIN.  use a for loop using a variable storing current lane size, not a while loop. We should add a new parameter to the base task called net_key_ that uniquely identifies the task in the network queue. This should just be a (u64) of the task pointer since that is unique.
+2. Implement a ServerRecvTaskIn function. This function is a periodc task that will receive task inputs and deserialize them. The resulting tasks will be scheduled in the local runtime.
+3. Implement a ServerSendTaskOut function. Similar to 1, but BinaryOutputArchiveOUT.
+4. Implement a ClientRecvTaskOut function. This is a periodic task that will receive task outputs. The period should be a configurable parameter for now. It deserializes outputs to the original task structures based on the net_key_.
 
 ## Container Server
 The container server class should be updated to support serializing and copying tasks. Like Run, Monitor, and Del, these tasks should be structure with switch-case statements.
@@ -122,3 +217,11 @@ public:
 #endif // CHIMAERA_RUNTIME
 } // namespace chi
 ```
+
+## Worker
+Resolving a task should be updated to support distributed scheduling.
+
+There are a few cases. 
+1. If GetDynamic was used, then get the local container and call the Monitor function using the MonitorMode kGlobalSchedule. This will replace the domain query with something more concrete. Proceed to 2 and 3.
+2. If the task does not resolve to kLocal addresses, then send the task to the local admin container for scheduling using the updated chimaera admin client API (ClientSendTask). 
+3. Otherwise, if the task is local, then get the container to send this task to. Call the Monitor function with the kLocalSchedule MonitorMode to route the task to a specific lane. If the lane was initially empty, then the worker processing it likely will ignore it. 

@@ -84,6 +84,12 @@ class ConfigManager : public hshm::BaseConfig {
   std::string GetSharedMemorySegmentName(MemorySegment segment) const;
 
   /**
+   * Get hostfile path for distributed scheduling
+   * @return Path to hostfile with list of available nodes
+   */
+  std::string GetHostfilePath() const;
+
+  /**
    * Check if configuration is valid
    * @return true if configuration is valid and loaded
    */
@@ -120,6 +126,9 @@ class ConfigManager : public hshm::BaseConfig {
   std::string main_segment_name_ = "chi_main_segment_${USER}";
   std::string client_data_segment_name_ = "chi_client_data_segment_${USER}";
   std::string runtime_data_segment_name_ = "chi_runtime_data_segment_${USER}";
+
+  // Distributed scheduling configuration
+  std::string hostfile_path_ = "";
 };
 
 }  // namespace chi

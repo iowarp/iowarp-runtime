@@ -2,6 +2,7 @@
 #define CHIMAERA_INCLUDE_CHIMAERA_DOMAIN_QUERY_H_
 
 #include "chimaera/types.h"
+#include <cereal/cereal.hpp>
 
 namespace chi {
 
@@ -68,6 +69,15 @@ class DomainQuery {
    * @return SubDomainId for dynamic execution
    */
   SubDomainId GetDynamic() const;
+
+  /**
+   * Cereal serialization support
+   * @param ar Archive for serialization
+   */
+  template<class Archive>
+  void serialize(Archive& ar) {
+    ar(local_id_, global_id_, local_hash_, global_hash_);
+  }
 
  private:
   SubDomainId local_id_;

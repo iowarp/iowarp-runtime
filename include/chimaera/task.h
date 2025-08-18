@@ -41,6 +41,7 @@ class Task : public hipc::ShmContainer {
   IN ibitfield task_flags_;  /**< Task properties and flags */
   IN double period_ns_;      /**< Period in nanoseconds for periodic tasks */
   IN RunContext* run_ctx_;   /**< Pointer to runtime context for task execution */
+  IN u32 net_key_;           /**< Network identification key for distributed scheduling */
   std::atomic<u32> is_complete; /**< Atomic flag indicating task completion (0=not complete, 1=complete) */
 
   /**
@@ -66,6 +67,7 @@ class Task : public hipc::ShmContainer {
     dom_query_ = dom_query;
     period_ns_ = 0.0;
     run_ctx_ = nullptr;
+    net_key_ = 0;
     is_complete.store(0); // Initialize as not complete
   }
 
@@ -89,6 +91,7 @@ class Task : public hipc::ShmContainer {
     task_flags_ = other.task_flags_;
     period_ns_ = other.period_ns_;
     run_ctx_ = other.run_ctx_;
+    net_key_ = other.net_key_;
   }
 
   /**
@@ -127,6 +130,7 @@ class Task : public hipc::ShmContainer {
     task_flags_.Clear();
     period_ns_ = 0.0;
     run_ctx_ = nullptr;
+    net_key_ = 0;
     is_complete.store(0); // Initialize as not complete
   }
 
@@ -270,13 +274,13 @@ public:
    */
   template<typename... Args>
   static void Serialize(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T>& alloc,
-                        chi::ipc::string& output_str, const Args&... args) {
+                        hipc::string& output_str, const Args&... args) {
     std::ostringstream os;
     cereal::BinaryOutputArchive archive(os);
     archive(args...);
     
     std::string serialized = os.str();
-    output_str = chi::ipc::string(alloc, serialized);
+    output_str = hipc::string(alloc, serialized);
   }
 
   /**
@@ -285,7 +289,7 @@ public:
    * @return The deserialized object
    */
   template<typename OutT>
-  static OutT Deserialize(const chi::ipc::string& input_str) {
+  static OutT Deserialize(const hipc::string& input_str) {
     std::string data = input_str.str();
     std::istringstream is(data);
     cereal::BinaryInputArchive archive(is);
@@ -293,6 +297,126 @@ public:
     OutT result;
     archive(result);
     return result;
+  }
+
+  /**
+   * Serialize base task fields for incoming network transfer (IN and INOUT parameters)
+   * This method serializes the common task fields that are shared across all task types.
+   * Called automatically by archives when they detect Task inheritance.
+   * @param ar Archive to serialize to
+   */
+  template<typename Archive>
+  void BaseSerializeIn(Archive& ar) {
+    ar(pool_id_, task_node_, dom_query_, method_, task_flags_, period_ns_, net_key_);
+  }
+
+  /**
+   * Serialize base task fields for outgoing network transfer (OUT and INOUT parameters)
+   * This method serializes the common task fields that are shared across all task types.
+   * Called automatically by archives when they detect Task inheritance.
+   * @param ar Archive to serialize to
+   */
+  template<typename Archive>
+  void BaseSerializeOut(Archive& ar) {
+    ar(pool_id_, task_node_, dom_query_, method_, task_flags_, period_ns_, net_key_);
+  }
+
+  /**
+   * Serialize task for incoming network transfer (IN and INOUT parameters)
+   * This method should be implemented by each specific task type.
+   * Archives automatically call BaseSerializeIn first, then this method.
+   * @param ar Archive to serialize to
+   */
+  template<typename Archive>
+  void SerializeIn(Archive& ar) {
+    // Base implementation does nothing - derived classes override to serialize their IN/INOUT fields
+  }
+
+  /**
+   * Serialize task for outgoing network transfer (OUT and INOUT parameters)  
+   * This method should be implemented by each specific task type.
+   * Archives automatically call BaseSerializeOut first, then this method.
+   * @param ar Archive to serialize to
+   */
+  template<typename Archive>
+  void SerializeOut(Archive& ar) {
+    // Base implementation does nothing - derived classes override to serialize their OUT/INOUT fields
+  }
+
+  /**
+   * Static serialize method for IN parameters (non-virtual)
+   * Uses template dispatch to call appropriate task serialization
+   */
+  static void StaticSerializeIn(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T>& alloc,
+                                hipc::string& output_str,
+                                hipc::FullPtr<Task> task_ptr) {
+    // Create cereal archive for serialization
+    std::ostringstream stream;
+    cereal::BinaryOutputArchive archive(stream);
+    
+    // Always serialize base task fields first
+    task_ptr->BaseSerializeIn(archive);
+    
+    // Then serialize task-specific fields using template method
+    task_ptr->SerializeIn(archive);
+    
+    // Store serialized data
+    output_str = hipc::string(alloc, stream.str());
+  }
+
+  /**
+   * Static serialize method for OUT parameters (non-virtual)
+   * Uses template dispatch to call appropriate task serialization
+   */
+  static void StaticSerializeOut(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T>& alloc,
+                                 hipc::string& output_str,
+                                 hipc::FullPtr<Task> task_ptr) {
+    // Create cereal archive for serialization  
+    std::ostringstream stream;
+    cereal::BinaryOutputArchive archive(stream);
+    
+    // Always serialize base task fields first
+    task_ptr->BaseSerializeOut(archive);
+    
+    // Then serialize task-specific fields using template method
+    task_ptr->SerializeOut(archive);
+    
+    // Store serialized data
+    output_str = hipc::string(alloc, stream.str());
+  }
+
+  /**
+   * Static deserialize method for IN parameters (non-virtual)
+   * Uses template dispatch to call appropriate task deserialization
+   */
+  static void StaticDeserializeIn(const hipc::string& input_str,
+                                  hipc::FullPtr<Task> task_ptr) {
+    // Create cereal archive for deserialization
+    std::istringstream stream(input_str.str());
+    cereal::BinaryInputArchive archive(stream);
+    
+    // Always deserialize base task fields first
+    task_ptr->BaseSerializeIn(archive);
+    
+    // Then deserialize task-specific fields using template method
+    task_ptr->SerializeIn(archive);
+  }
+
+  /**
+   * Static deserialize method for OUT parameters (non-virtual)
+   * Uses template dispatch to call appropriate task deserialization
+   */
+  static void StaticDeserializeOut(const hipc::string& input_str,
+                                   hipc::FullPtr<Task> task_ptr) {
+    // Create cereal archive for deserialization
+    std::istringstream stream(input_str.str());
+    cereal::BinaryInputArchive archive(stream);
+    
+    // Always deserialize base task fields first
+    task_ptr->BaseSerializeOut(archive);
+    
+    // Then deserialize task-specific fields using template method
+    task_ptr->SerializeOut(archive);
   }
 };
 

@@ -23,6 +23,12 @@ GLOBAL_CONST chi::u32 kUpgrade = 5;
 GLOBAL_CONST chi::u32 kGetOrCreatePool = 10;
 GLOBAL_CONST chi::u32 kDestroyPool = 11;
 GLOBAL_CONST chi::u32 kStopRuntime = 12;
+
+// Distributed task scheduling methods
+GLOBAL_CONST chi::u32 kClientSendTaskIn = 13;
+GLOBAL_CONST chi::u32 kServerRecvTaskIn = 14;
+GLOBAL_CONST chi::u32 kServerSendTaskOut = 15;
+GLOBAL_CONST chi::u32 kClientRecvTaskOut = 16;
 }  // namespace Method
 
 }  // namespace chimaera::admin

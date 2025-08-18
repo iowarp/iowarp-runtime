@@ -116,6 +116,24 @@ struct BaseCreateTask : public chi::Task {
   CreateParamsT GetParams(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc) const {
     return chi::Task::Deserialize<CreateParamsT>(chimod_params_);
   }
+  
+  /**
+   * Serialize IN and INOUT parameters for network transfer
+   * This includes: chimod_name_, pool_name_, chimod_params_, domain_flags_, pool_id_
+   */
+  template<typename Archive>
+  void SerializeIn(Archive& ar) {
+    ar(chimod_name_, pool_name_, chimod_params_, domain_flags_, pool_id_);
+  }
+  
+  /**
+   * Serialize OUT and INOUT parameters for network transfer
+   * This includes: chimod_name_, chimod_params_, pool_id_, result_code_, error_message_
+   */
+  template<typename Archive>
+  void SerializeOut(Archive& ar) {
+    ar(chimod_name_, chimod_params_, pool_id_, result_code_, error_message_);
+  }
 };
 
 
@@ -172,6 +190,24 @@ struct DestroyPoolTask : public chi::Task {
     task_flags_.Clear();
     dom_query_ = dom_query;
   }
+  
+  /**
+   * Serialize IN and INOUT parameters for network transfer
+   * This includes: target_pool_id_, destruction_flags_
+   */
+  template<typename Archive>
+  void SerializeIn(Archive& ar) {
+    ar(target_pool_id_, destruction_flags_);
+  }
+  
+  /**
+   * Serialize OUT and INOUT parameters for network transfer
+   * This includes: result_code_, error_message_
+   */
+  template<typename Archive>
+  void SerializeOut(Archive& ar) {
+    ar(result_code_, error_message_);
+  }
 };
 
 /**
@@ -213,6 +249,24 @@ struct StopRuntimeTask : public chi::Task {
     task_flags_.Clear();
     dom_query_ = dom_query;
   }
+  
+  /**
+   * Serialize IN and INOUT parameters for network transfer
+   * This includes: shutdown_flags_, grace_period_ms_
+   */
+  template<typename Archive>
+  void SerializeIn(Archive& ar) {
+    ar(shutdown_flags_, grace_period_ms_);
+  }
+  
+  /**
+   * Serialize OUT and INOUT parameters for network transfer
+   * This includes: result_code_, error_message_
+   */
+  template<typename Archive>
+  void SerializeOut(Archive& ar) {
+    ar(result_code_, error_message_);
+  }
 };
 
 /**
@@ -220,6 +274,254 @@ struct StopRuntimeTask : public chi::Task {
  * All ChiMods should use this same DestroyTask structure
  */
 using DestroyTask = DestroyPoolTask;
+
+/**
+ * ClientSendTaskInTask - Send task input data to remote node
+ * Used for distributed task scheduling when sending tasks to remote nodes
+ */
+struct ClientSendTaskInTask : public chi::Task {
+  // Task data to send
+  INOUT chi::TaskInputArchiveOUT task_archive_;
+  
+  // Network transfer parameters
+  IN chi::u32 transfer_flags_;  ///< Flags controlling transfer behavior (CHI_WRITE/CHI_EXPOSE)
+  
+  // Results
+  OUT chi::u32 result_code_;        ///< Result code (0 = success)
+  OUT hipc::string error_message_;  ///< Error description if transfer failed
+  
+  /** SHM default constructor */
+  explicit ClientSendTaskInTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc)
+      : chi::Task(alloc),
+        task_archive_(alloc),
+        transfer_flags_(0),
+        result_code_(0),
+        error_message_(alloc) {}
+
+  /** Emplace constructor */
+  explicit ClientSendTaskInTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
+                                const chi::TaskNode &task_node,
+                                const chi::PoolId &pool_id,
+                                const chi::DomainQuery &dom_query,
+                                chi::TaskInputArchiveOUT &&task_archive,
+                                chi::u32 transfer_flags = 0)
+      : chi::Task(alloc, task_node, pool_id, dom_query, Method::kClientSendTaskIn),
+        task_archive_(std::move(task_archive)),
+        transfer_flags_(transfer_flags),
+        result_code_(0),
+        error_message_(alloc) {
+    // Initialize task
+    task_node_ = task_node;
+    pool_id_ = pool_id;
+    method_ = Method::kClientSendTaskIn;
+    task_flags_.Clear();
+    dom_query_ = dom_query;
+  }
+  
+  /**
+   * Serialize IN and INOUT parameters for network transfer
+   * This includes: task_archive_, transfer_flags_
+   */
+  template<typename Archive>
+  void SerializeIn(Archive& ar) {
+    ar(task_archive_, transfer_flags_);
+  }
+  
+  /**
+   * Serialize OUT and INOUT parameters for network transfer
+   * This includes: task_archive_, result_code_, error_message_
+   */
+  template<typename Archive>
+  void SerializeOut(Archive& ar) {
+    ar(task_archive_, result_code_, error_message_);
+  }
+};
+
+/**
+ * ServerRecvTaskInTask - Receive task input data from remote node
+ * Used for distributed task scheduling when receiving tasks from remote nodes
+ */
+struct ServerRecvTaskInTask : public chi::Task {
+  // Received task data
+  INOUT chi::TaskInputArchiveIN task_archive_;
+  
+  // Network transfer parameters
+  IN chi::u32 transfer_flags_;  ///< Flags controlling transfer behavior (CHI_WRITE/CHI_EXPOSE)
+  
+  // Results
+  OUT chi::u32 result_code_;        ///< Result code (0 = success)
+  OUT hipc::string error_message_;  ///< Error description if transfer failed
+  
+  /** SHM default constructor */
+  explicit ServerRecvTaskInTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc)
+      : chi::Task(alloc),
+        task_archive_(alloc),
+        transfer_flags_(0),
+        result_code_(0),
+        error_message_(alloc) {}
+
+  /** Emplace constructor */
+  explicit ServerRecvTaskInTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
+                                const chi::TaskNode &task_node,
+                                const chi::PoolId &pool_id,
+                                const chi::DomainQuery &dom_query,
+                                chi::TaskInputArchiveIN &&task_archive,
+                                chi::u32 transfer_flags = 0)
+      : chi::Task(alloc, task_node, pool_id, dom_query, Method::kServerRecvTaskIn),
+        task_archive_(std::move(task_archive)),
+        transfer_flags_(transfer_flags),
+        result_code_(0),
+        error_message_(alloc) {
+    // Initialize task
+    task_node_ = task_node;
+    pool_id_ = pool_id;
+    method_ = Method::kServerRecvTaskIn;
+    task_flags_.Clear();
+    dom_query_ = dom_query;
+  }
+  
+  /**
+   * Serialize IN and INOUT parameters for network transfer
+   * This includes: task_archive_, transfer_flags_
+   */
+  template<typename Archive>
+  void SerializeIn(Archive& ar) {
+    ar(task_archive_, transfer_flags_);
+  }
+  
+  /**
+   * Serialize OUT and INOUT parameters for network transfer
+   * This includes: task_archive_, result_code_, error_message_
+   */
+  template<typename Archive>
+  void SerializeOut(Archive& ar) {
+    ar(task_archive_, result_code_, error_message_);
+  }
+};
+
+/**
+ * ServerSendTaskOutTask - Send task output data to remote node
+ * Used for distributed task scheduling when sending completed task results
+ */
+struct ServerSendTaskOutTask : public chi::Task {
+  // Task result data to send
+  INOUT chi::TaskOutputArchiveOUT result_archive_;
+  
+  // Network transfer parameters
+  IN chi::u32 transfer_flags_;  ///< Flags controlling transfer behavior (CHI_WRITE/CHI_EXPOSE)
+  
+  // Results
+  OUT chi::u32 result_code_;        ///< Result code (0 = success)
+  OUT hipc::string error_message_;  ///< Error description if transfer failed
+  
+  /** SHM default constructor */
+  explicit ServerSendTaskOutTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc)
+      : chi::Task(alloc),
+        result_archive_(alloc),
+        transfer_flags_(0),
+        result_code_(0),
+        error_message_(alloc) {}
+
+  /** Emplace constructor */
+  explicit ServerSendTaskOutTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
+                                 const chi::TaskNode &task_node,
+                                 const chi::PoolId &pool_id,
+                                 const chi::DomainQuery &dom_query,
+                                 chi::TaskOutputArchiveOUT &&result_archive,
+                                 chi::u32 transfer_flags = 0)
+      : chi::Task(alloc, task_node, pool_id, dom_query, Method::kServerSendTaskOut),
+        result_archive_(std::move(result_archive)),
+        transfer_flags_(transfer_flags),
+        result_code_(0),
+        error_message_(alloc) {
+    // Initialize task
+    task_node_ = task_node;
+    pool_id_ = pool_id;
+    method_ = Method::kServerSendTaskOut;
+    task_flags_.Clear();
+    dom_query_ = dom_query;
+  }
+  
+  /**
+   * Serialize IN and INOUT parameters for network transfer
+   * This includes: result_archive_, transfer_flags_
+   */
+  template<typename Archive>
+  void SerializeIn(Archive& ar) {
+    ar(result_archive_, transfer_flags_);
+  }
+  
+  /**
+   * Serialize OUT and INOUT parameters for network transfer
+   * This includes: result_archive_, result_code_, error_message_
+   */
+  template<typename Archive>
+  void SerializeOut(Archive& ar) {
+    ar(result_archive_, result_code_, error_message_);
+  }
+};
+
+/**
+ * ClientRecvTaskOutTask - Receive task output data from remote node
+ * Used for distributed task scheduling when receiving completed task results
+ */
+struct ClientRecvTaskOutTask : public chi::Task {
+  // Received task result data
+  INOUT chi::TaskOutputArchiveIN result_archive_;
+  
+  // Network transfer parameters
+  IN chi::u32 transfer_flags_;  ///< Flags controlling transfer behavior (CHI_WRITE/CHI_EXPOSE)
+  
+  // Results
+  OUT chi::u32 result_code_;        ///< Result code (0 = success)
+  OUT hipc::string error_message_;  ///< Error description if transfer failed
+  
+  /** SHM default constructor */
+  explicit ClientRecvTaskOutTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc)
+      : chi::Task(alloc),
+        result_archive_(alloc),
+        transfer_flags_(0),
+        result_code_(0),
+        error_message_(alloc) {}
+
+  /** Emplace constructor */
+  explicit ClientRecvTaskOutTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
+                                 const chi::TaskNode &task_node,
+                                 const chi::PoolId &pool_id,
+                                 const chi::DomainQuery &dom_query,
+                                 chi::TaskOutputArchiveIN &&result_archive,
+                                 chi::u32 transfer_flags = 0)
+      : chi::Task(alloc, task_node, pool_id, dom_query, Method::kClientRecvTaskOut),
+        result_archive_(std::move(result_archive)),
+        transfer_flags_(transfer_flags),
+        result_code_(0),
+        error_message_(alloc) {
+    // Initialize task
+    task_node_ = task_node;
+    pool_id_ = pool_id;
+    method_ = Method::kClientRecvTaskOut;
+    task_flags_.Clear();
+    dom_query_ = dom_query;
+  }
+  
+  /**
+   * Serialize IN and INOUT parameters for network transfer
+   * This includes: result_archive_, transfer_flags_
+   */
+  template<typename Archive>
+  void SerializeIn(Archive& ar) {
+    ar(result_archive_, transfer_flags_);
+  }
+  
+  /**
+   * Serialize OUT and INOUT parameters for network transfer
+   * This includes: result_archive_, result_code_, error_message_
+   */
+  template<typename Archive>
+  void SerializeOut(Archive& ar) {
+    ar(result_archive_, result_code_, error_message_);
+  }
+};
 
 }  // namespace chimaera::admin
 

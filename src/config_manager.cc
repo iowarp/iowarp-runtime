@@ -110,6 +110,15 @@ std::string ConfigManager::GetSharedMemorySegmentName(MemorySegment segment) con
   return hshm::ConfigParse::ExpandPath(segment_name);
 }
 
+std::string ConfigManager::GetHostfilePath() const {
+  if (hostfile_path_.empty()) {
+    return "";
+  }
+  
+  // Use HSHM's ExpandPath to resolve environment variables in hostfile path
+  return hshm::ConfigParse::ExpandPath(hostfile_path_);
+}
+
 bool ConfigManager::IsValid() const {
   return is_initialized_;
 }
@@ -132,6 +141,9 @@ void ConfigManager::LoadDefault() {
   main_segment_name_ = "chi_main_segment_${USER}";
   client_data_segment_name_ = "chi_client_data_segment_${USER}";
   runtime_data_segment_name_ = "chi_runtime_data_segment_${USER}";
+  
+  // Set default hostfile path (empty means no distributed scheduling)
+  hostfile_path_ = "";
 }
 
 void ConfigManager::ParseYAML(YAML::Node &yaml_conf) {
@@ -199,6 +211,14 @@ void ConfigManager::ParseYAML(YAML::Node &yaml_conf) {
     }
     if (shm["runtime_data_segment_name"]) {
       runtime_data_segment_name_ = shm["runtime_data_segment_name"].as<std::string>();
+    }
+  }
+  
+  // Parse distributed scheduling configuration
+  if (yaml_conf["distributed_scheduling"]) {
+    auto dist = yaml_conf["distributed_scheduling"];
+    if (dist["hostfile"]) {
+      hostfile_path_ = dist["hostfile"].as<std::string>();
     }
   }
 }

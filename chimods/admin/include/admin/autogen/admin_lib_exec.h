@@ -33,6 +33,22 @@ inline void Run(Runtime* runtime, chi::u32 method, hipc::FullPtr<chi::Task> task
       runtime->StopRuntime(task.Cast<StopRuntimeTask>(), rctx);
       break;
     }
+    case Method::kClientSendTaskIn: {
+      runtime->ClientSendTaskIn(task.Cast<ClientSendTaskInTask>(), rctx);
+      break;
+    }
+    case Method::kServerRecvTaskIn: {
+      runtime->ServerRecvTaskIn(task.Cast<ServerRecvTaskInTask>(), rctx);
+      break;
+    }
+    case Method::kServerSendTaskOut: {
+      runtime->ServerSendTaskOut(task.Cast<ServerSendTaskOutTask>(), rctx);
+      break;
+    }
+    case Method::kClientRecvTaskOut: {
+      runtime->ClientRecvTaskOut(task.Cast<ClientRecvTaskOutTask>(), rctx);
+      break;
+    }
     default: {
       // Unknown method - do nothing
       break;
@@ -60,6 +76,22 @@ inline void Monitor(Runtime* runtime, chi::MonitorModeId mode, chi::u32 method,
     }
     case Method::kStopRuntime: {
       runtime->MonitorStopRuntime(mode, task_ptr.Cast<StopRuntimeTask>(), rctx);
+      break;
+    }
+    case Method::kClientSendTaskIn: {
+      runtime->MonitorClientSendTaskIn(mode, task_ptr.Cast<ClientSendTaskInTask>(), rctx);
+      break;
+    }
+    case Method::kServerRecvTaskIn: {
+      runtime->MonitorServerRecvTaskIn(mode, task_ptr.Cast<ServerRecvTaskInTask>(), rctx);
+      break;
+    }
+    case Method::kServerSendTaskOut: {
+      runtime->MonitorServerSendTaskOut(mode, task_ptr.Cast<ServerSendTaskOutTask>(), rctx);
+      break;
+    }
+    case Method::kClientRecvTaskOut: {
+      runtime->MonitorClientRecvTaskOut(mode, task_ptr.Cast<ClientRecvTaskOutTask>(), rctx);
       break;
     }
     default: {
@@ -92,6 +124,22 @@ inline void Del(Runtime* runtime, chi::u32 method, hipc::FullPtr<chi::Task> task
     }
     case Method::kStopRuntime: {
       ipc_manager->DelTask(task_ptr.Cast<StopRuntimeTask>());
+      break;
+    }
+    case Method::kClientSendTaskIn: {
+      ipc_manager->DelTask(task_ptr.Cast<ClientSendTaskInTask>());
+      break;
+    }
+    case Method::kServerRecvTaskIn: {
+      ipc_manager->DelTask(task_ptr.Cast<ServerRecvTaskInTask>());
+      break;
+    }
+    case Method::kServerSendTaskOut: {
+      ipc_manager->DelTask(task_ptr.Cast<ServerSendTaskOutTask>());
+      break;
+    }
+    case Method::kClientRecvTaskOut: {
+      ipc_manager->DelTask(task_ptr.Cast<ClientRecvTaskOutTask>());
       break;
     }
     default: {

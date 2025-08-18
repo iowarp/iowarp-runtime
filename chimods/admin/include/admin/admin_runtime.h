@@ -124,6 +124,58 @@ public:
                          hipc::FullPtr<StopRuntimeTask> task_ptr,
                          chi::RunContext& rctx);
 
+  //===========================================================================
+  // Distributed Task Scheduling Methods
+  //===========================================================================
+
+  /**
+   * Handle ClientSendTaskIn - Send task input data to remote node
+   */
+  void ClientSendTaskIn(hipc::FullPtr<ClientSendTaskInTask> task, chi::RunContext& rctx);
+
+  /**
+   * Monitor ClientSendTaskIn task
+   */
+  void MonitorClientSendTaskIn(chi::MonitorModeId mode, 
+                              hipc::FullPtr<ClientSendTaskInTask> task_ptr,
+                              chi::RunContext& rctx);
+
+  /**
+   * Handle ServerRecvTaskIn - Receive task input data from remote node
+   */
+  void ServerRecvTaskIn(hipc::FullPtr<ServerRecvTaskInTask> task, chi::RunContext& rctx);
+
+  /**
+   * Monitor ServerRecvTaskIn task
+   */
+  void MonitorServerRecvTaskIn(chi::MonitorModeId mode, 
+                              hipc::FullPtr<ServerRecvTaskInTask> task_ptr,
+                              chi::RunContext& rctx);
+
+  /**
+   * Handle ServerSendTaskOut - Send task output data to remote node
+   */
+  void ServerSendTaskOut(hipc::FullPtr<ServerSendTaskOutTask> task, chi::RunContext& rctx);
+
+  /**
+   * Monitor ServerSendTaskOut task
+   */
+  void MonitorServerSendTaskOut(chi::MonitorModeId mode, 
+                               hipc::FullPtr<ServerSendTaskOutTask> task_ptr,
+                               chi::RunContext& rctx);
+
+  /**
+   * Handle ClientRecvTaskOut - Receive task output data from remote node
+   */
+  void ClientRecvTaskOut(hipc::FullPtr<ClientRecvTaskOutTask> task, chi::RunContext& rctx);
+
+  /**
+   * Monitor ClientRecvTaskOut task
+   */
+  void MonitorClientRecvTaskOut(chi::MonitorModeId mode, 
+                               hipc::FullPtr<ClientRecvTaskOutTask> task_ptr,
+                               chi::RunContext& rctx);
+
 private:
   /**
    * Initiate runtime shutdown sequence

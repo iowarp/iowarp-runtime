@@ -185,6 +185,20 @@ class Worker {
                                    const FullPtr<Task>& task_ptr);
 
   /**
+   * Check if task should be scheduled remotely based on domain query and load balancing
+   * @param task_ptr Full pointer to task to check
+   * @return true if task should be sent to remote node, false for local processing
+   */
+  bool ShouldScheduleRemotely(const FullPtr<Task>& task_ptr);
+
+  /**
+   * Schedule task for remote execution via admin chimod networking methods
+   * @param task_ptr Full pointer to task to send remotely
+   * @return true if task was successfully sent remotely, false otherwise
+   */
+  bool ScheduleTaskRemotely(const FullPtr<Task>& task_ptr);
+
+  /**
    * Create run context for task execution
    * @param task_ptr Full pointer to task to create context for
    * @return RunContext for task execution

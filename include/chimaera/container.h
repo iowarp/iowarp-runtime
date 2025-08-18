@@ -10,6 +10,9 @@
 #include <vector>
 #include <memory>
 #include <iostream>
+#include <sstream>
+#include <cereal/cereal.hpp>
+#include <cereal/archives/binary.hpp>
 
 /**
  * Container Base Class with Default Implementations
@@ -208,6 +211,41 @@ class Container : public ChiContainer {
     (void)method; (void)task_ptr; // Suppress unused warnings
   }
   
+  /**
+   * Serialize task IN parameters for network transfer (non-virtual)
+   * Uses static dispatch to call appropriate task serialization methods
+   * Archives automatically detect Task inheritance and call BaseSerializeIn + SerializeIn
+   */
+  void SaveIn(hipc::string& output_data, hipc::FullPtr<Task> task_ptr) {
+    auto alloc = GetAllocator();
+    Task::StaticSerializeIn(alloc, output_data, task_ptr);
+  }
+  
+  /**
+   * Deserialize task IN parameters from network transfer (non-virtual)
+   * Uses static dispatch to call appropriate task deserialization methods
+   */  
+  void LoadIn(const hipc::string& input_data, hipc::FullPtr<Task> task_ptr) {
+    Task::StaticDeserializeIn(input_data, task_ptr);
+  }
+  
+  /**
+   * Serialize task OUT parameters for network transfer (non-virtual)
+   * Uses static dispatch to call appropriate task serialization methods
+   */
+  void SaveOut(hipc::string& output_data, hipc::FullPtr<Task> task_ptr) {
+    auto alloc = GetAllocator();
+    Task::StaticSerializeOut(alloc, output_data, task_ptr);
+  }
+  
+  /**
+   * Deserialize task OUT parameters from network transfer (non-virtual)
+   * Uses static dispatch to call appropriate task deserialization methods
+   */
+  void LoadOut(const hipc::string& input_data, hipc::FullPtr<Task> task_ptr) {
+    Task::StaticDeserializeOut(input_data, task_ptr);
+  }
+  
  protected:
   /**
    * Helper to get queue priority from queue ID
@@ -228,6 +266,13 @@ class Container : public ChiContainer {
    */
   size_t GetQueueCount() const {
     return local_queues_.size();
+  }
+  
+  /**
+   * Get the allocator for this container
+   */
+  hipc::CtxAllocator<CHI_MAIN_ALLOC_T> GetAllocator() const {
+    return HSHM_MEMORY_MANAGER->GetDefaultAllocator<CHI_MAIN_ALLOC_T>();
   }
 };
 
