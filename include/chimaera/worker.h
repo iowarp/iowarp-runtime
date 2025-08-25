@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "chimaera/chimod_spec.h"
-#include "chimaera/domain_query.h"
+#include "chimaera/pool_query.h"
 #include "chimaera/task.h"
 #include "chimaera/task_queue.h"
 #include "chimaera/types.h"
@@ -153,6 +153,13 @@ class Worker {
    */
   void EnqueueLane(hipc::FullPtr<TaskQueue::TaskLane> lane_ptr);
 
+  /**
+   * Resolve a pool query into concrete physical addresses and update RuntimeContext
+   * @param task_ptr Full pointer to task with pool query to resolve
+   * @return Vector of resolved pool queries with concrete addresses
+   */
+  std::vector<ResolvedPoolQuery> ResolvePoolQuery(const FullPtr<Task>& task_ptr);
+
  private:
   /**
    * Pop task from active lane queue
@@ -160,13 +167,6 @@ class Worker {
    */
   Task* PopActiveTask();
 
-  /**
-   * Resolve domain query for task routing
-   * Routes tasks to containers on this node based on PoolId and DomainQuery
-   * @param task_ptr Full pointer to task to resolve domain for
-   * @return true if resolution successful, false otherwise
-   */
-  bool ResolveDomainQuery(const FullPtr<Task>& task_ptr);
 
   /**
    * Query container from PoolManager based on task requirements

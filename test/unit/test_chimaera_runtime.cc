@@ -16,7 +16,7 @@ using namespace std::chrono_literals;
 #include <chimaera/chimaera.h>
 #include <chimaera/singletons.h>
 #include <chimaera/types.h>
-#include <chimaera/domain_query.h>
+#include <chimaera/pool_query.h>
 
 // Include MOD_NAME client and tasks for custom task testing
 #include <MOD_NAME/MOD_NAME_client.h>

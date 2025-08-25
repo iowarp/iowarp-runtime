@@ -46,7 +46,7 @@ void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& rctx) {
             << task->pool_id_ << std::endl;
   
   // Initialize the container with pool information and domain query
-  chi::Container::Init(task->pool_id_, task->dom_query_);
+  chi::Container::Init(task->pool_id_, task->pool_query_);
   
   // Create local queues for different priorities
   CreateLocalQueue(chi::kLowLatency, 4);   // 4 lanes for low latency tasks

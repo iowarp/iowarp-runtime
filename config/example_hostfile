@@ -1,0 +1,19 @@
+# Example hostfile for Chimaera runtime
+# This file contains host patterns that the runtime will attempt to bind to
+# in order to identify which host the process is running on
+
+# Simple hostnames
+localhost
+127.0.0.1
+
+# Range patterns (compute01-ib, compute02-ib, ..., compute64-ib)
+# compute[01-64]-ib
+
+# More range patterns
+# node[001-128]
+# gpu[01-16]-ib
+
+# You can also specify individual hosts
+# headnode
+# storage01
+# storage02

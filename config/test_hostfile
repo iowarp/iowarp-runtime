@@ -1,0 +1,9 @@
+# Test hostfile for Chimaera runtime host identification
+# Simple hostnames
+localhost
+127.0.0.1
+
+# Hostname patterns using HSHM ConfigParse format
+# compute[01-04]-ib
+# storage[001-003,010-012]-40g
+# gpu[01-02];cpu[01-03]

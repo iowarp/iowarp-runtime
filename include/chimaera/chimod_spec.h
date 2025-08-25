@@ -5,6 +5,7 @@
 #include <vector>
 #include <boost/context/detail/fcontext.hpp>
 #include "chimaera/types.h"
+#include "chimaera/pool_query.h"
 #include "chimaera/task.h"
 #include "chimaera/task_queue.h"
 
@@ -57,6 +58,7 @@ struct RunContext {
   void* container;             // Current container being executed (ChiContainer* in runtime)
   void* lane;                  // Current lane being processed (TaskQueue::TaskLane* in runtime)
   std::vector<FullPtr<Task>> waiting_for_tasks; // Tasks this task is waiting for completion
+  std::vector<ResolvedPoolQuery> resolved_queries; // Resolved pool queries for task distribution
   
   RunContext() : stack_ptr(nullptr), stack_base_for_free(nullptr), stack_size(0), 
                  thread_type(kLowLatencyWorker), worker_id(0),

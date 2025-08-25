@@ -8,7 +8,7 @@
  * applications using the Chimaera framework.
  */
 
-#include "chimaera/domain_query.h"
+#include "chimaera/pool_query.h"
 #include "chimaera/singletons.h"
 #include "chimaera/task.h"
 #include "chimaera/task_archives.h"

@@ -76,17 +76,17 @@ struct CustomTask : public chi::Task {
       const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
       const chi::TaskNode &task_node,
       const chi::PoolId &pool_id, 
-      const chi::DomainQuery &dom_query,
+      const chi::PoolQuery &pool_query,
       const std::string &data,
       chi::u32 operation_id)
-      : chi::Task(alloc, task_node, pool_id, dom_query, 10),
+      : chi::Task(alloc, task_node, pool_id, pool_query, 10),
         data_(alloc, data), operation_id_(operation_id), result_code_(0) {
     // Initialize task
     task_node_ = task_node;
     pool_id_ = pool_id;
     method_ = Method::kCustom;
     task_flags_.Clear();
-    dom_query_ = dom_query;
+    pool_query_ = pool_query;
   }
 };
 

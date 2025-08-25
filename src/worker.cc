@@ -97,8 +97,21 @@ void Worker::Run() {
             hipc::FullPtr<Task> task_full_ptr(task_typed_ptr);
 
             if (!task_full_ptr.IsNull()) {
-              // Resolve domain query and route task to container
-              if (ResolveDomainQuery(task_full_ptr)) {
+              // Resolve pool query and route task to container
+              std::vector<ResolvedPoolQuery> resolved_queries =
+                  ResolvePoolQuery(task_full_ptr);
+
+              // Check if we have valid resolved queries for local processing
+              bool should_process_locally = false;
+              for (const auto& resolved_query : resolved_queries) {
+                if (resolved_query.node_id_ == 0) {
+                  // Local node processing
+                  should_process_locally = true;
+                  break;
+                }
+              }
+
+              if (should_process_locally) {
                 ChiContainer* container =
                     QueryContainerFromPoolManager(task_full_ptr);
                 if (container) {
@@ -193,11 +206,13 @@ TaskQueue::TaskLane* Worker::GetCurrentLane() const {
 }
 
 void Worker::SetAsCurrentWorker() {
-  HSHM_THREAD_MODEL->SetTls(chi_cur_worker_key_, static_cast<class Worker*>(this));
+  HSHM_THREAD_MODEL->SetTls(chi_cur_worker_key_,
+                            static_cast<class Worker*>(this));
 }
 
 void Worker::ClearCurrentWorker() {
-  HSHM_THREAD_MODEL->SetTls(chi_cur_worker_key_, static_cast<class Worker*>(nullptr));
+  HSHM_THREAD_MODEL->SetTls(chi_cur_worker_key_,
+                            static_cast<class Worker*>(nullptr));
 }
 
 Task* Worker::PopActiveTask() {
@@ -207,32 +222,191 @@ Task* Worker::PopActiveTask() {
   return nullptr;
 }
 
-bool Worker::ResolveDomainQuery(const FullPtr<Task>& task_ptr) {
+std::vector<ResolvedPoolQuery> Worker::ResolvePoolQuery(
+    const FullPtr<Task>& task_ptr) {
+  std::vector<ResolvedPoolQuery> resolved_queries;
+
   if (task_ptr.IsNull()) {
-    return false;
+    return resolved_queries;
   }
 
-  // Basic validation of domain query
+  // Basic validation
   if (task_ptr->pool_id_ == 0) {
-    return false;  // Invalid pool ID
+    return resolved_queries;  // Invalid pool ID
   }
 
-  // Check if distributed scheduling is enabled
-  auto* config_manager = CHI_CONFIG_MANAGER;
-  if (config_manager && !config_manager->GetHostfilePath().empty()) {
-    // Distributed scheduling is enabled - check if task should be processed remotely
-    if (ShouldScheduleRemotely(task_ptr)) {
-      // Route task to remote node via admin chimod's networking methods
-      if (ScheduleTaskRemotely(task_ptr)) {
-        return false; // Task was sent remotely, don't process locally
+  const PoolQuery& query = task_ptr->pool_query_;
+  RoutingMode routing_mode = query.GetRoutingMode();
+
+  switch (routing_mode) {
+    case RoutingMode::Local: {
+      // Local routing - process on current node
+      PoolQuery local_query = query;
+      ResolvedPoolQuery resolved(0, local_query);  // Node 0 = local node
+      resolved_queries.push_back(resolved);
+      break;
+    }
+
+    case RoutingMode::DirectId: {
+      // Direct ID routing - route to specific container
+      ContainerId target_container = query.GetContainerId();
+
+      // Get pool info and address table to lookup physical node
+      auto* pool_manager = CHI_POOL_MANAGER;
+      const PoolInfo* pool_info = pool_manager->GetPoolInfo(task_ptr->pool_id_);
+      if (pool_info) {
+        Address global_address =
+            pool_info->address_table_.GetGlobalAddress(target_container);
+        std::vector<u32> physical_nodes =
+            pool_info->address_table_.GetPhysicalNodes(global_address);
+
+        if (!physical_nodes.empty()) {
+          // Use first physical node for direct routing
+          u32 node_id = physical_nodes[0];
+          PoolQuery resolved_query = query;
+          ResolvedPoolQuery resolved(node_id, resolved_query);
+          resolved_queries.push_back(resolved);
+        } else {
+          // Fallback to local node if no physical mapping found
+          PoolQuery resolved_query = query;
+          ResolvedPoolQuery resolved(0, resolved_query);
+          resolved_queries.push_back(resolved);
+        }
+      } else {
+        // Fallback to local node if no pool info found
+        PoolQuery resolved_query = query;
+        ResolvedPoolQuery resolved(0, resolved_query);
+        resolved_queries.push_back(resolved);
       }
-      // If remote scheduling failed, fall back to local processing
+      break;
+    }
+
+    case RoutingMode::DirectHash: {
+      // Hash-based routing for container selection
+      u32 hash_value = query.GetHash();
+
+      // Get pool info to determine available containers
+      auto* pool_manager = CHI_POOL_MANAGER;
+      const PoolInfo* pool_info = pool_manager->GetPoolInfo(task_ptr->pool_id_);
+      if (pool_info && pool_info->num_containers_ > 0) {
+        ContainerId target_container = hash_value % pool_info->num_containers_;
+
+        // Lookup physical node for this container
+        Address global_address =
+            pool_info->address_table_.GetGlobalAddress(target_container);
+        std::vector<u32> physical_nodes =
+            pool_info->address_table_.GetPhysicalNodes(global_address);
+
+        if (!physical_nodes.empty()) {
+          // Use hash to select from available physical nodes
+          u32 node_index = hash_value % physical_nodes.size();
+          u32 node_id = physical_nodes[node_index];
+
+          PoolQuery resolved_query = query;
+          ResolvedPoolQuery resolved(node_id, resolved_query);
+          resolved_queries.push_back(resolved);
+        } else {
+          // Fallback to local node
+          PoolQuery resolved_query = query;
+          ResolvedPoolQuery resolved(0, resolved_query);
+          resolved_queries.push_back(resolved);
+        }
+      } else {
+        // Fallback to local node if no pool info
+        PoolQuery resolved_query = query;
+        ResolvedPoolQuery resolved(0, resolved_query);
+        resolved_queries.push_back(resolved);
+      }
+      break;
+    }
+
+    case RoutingMode::Range: {
+      // Range routing - route to a range of containers
+      u32 hash_base = query.GetHash();
+
+      // Get pool info to determine container range
+      auto* pool_manager = CHI_POOL_MANAGER;
+      const PoolInfo* pool_info = pool_manager->GetPoolInfo(task_ptr->pool_id_);
+      if (pool_info && pool_info->num_containers_ > 0) {
+        u32 range_start = hash_base % pool_info->num_containers_;
+        u32 range_size = std::min(
+            4u,
+            pool_info->num_containers_);  // Process up to 4 containers in range
+
+        for (u32 i = 0; i < range_size; ++i) {
+          ContainerId target_container =
+              (range_start + i) % pool_info->num_containers_;
+
+          // Lookup physical node for this container
+          Address global_address =
+              pool_info->address_table_.GetGlobalAddress(target_container);
+          std::vector<u32> physical_nodes =
+              pool_info->address_table_.GetPhysicalNodes(global_address);
+
+          if (!physical_nodes.empty()) {
+            // Use first physical node for this container
+            u32 node_id = physical_nodes[0];
+            PoolQuery range_query = query;
+            ResolvedPoolQuery resolved(node_id, range_query);
+            resolved_queries.push_back(resolved);
+          }
+        }
+      }
+
+      // If no resolved queries, fallback to local node
+      if (resolved_queries.empty()) {
+        PoolQuery local_query = query;
+        ResolvedPoolQuery resolved(0, local_query);
+        resolved_queries.push_back(resolved);
+      }
+      break;
+    }
+
+    case RoutingMode::Broadcast: {
+      // Broadcast routing - route to all containers
+      auto* pool_manager = CHI_POOL_MANAGER;
+      const PoolInfo* pool_info = pool_manager->GetPoolInfo(task_ptr->pool_id_);
+      if (pool_info && pool_info->num_containers_ > 0) {
+        // Create set to track unique physical nodes to avoid duplicates
+        std::set<u32> unique_nodes;
+
+        // Iterate through all containers to find all unique physical nodes
+        for (u32 container_id = 0; container_id < pool_info->num_containers_;
+             ++container_id) {
+          Address global_address =
+              pool_info->address_table_.GetGlobalAddress(container_id);
+          std::vector<u32> physical_nodes =
+              pool_info->address_table_.GetPhysicalNodes(global_address);
+
+          for (u32 node_id : physical_nodes) {
+            unique_nodes.insert(node_id);
+          }
+        }
+
+        // Create resolved queries for each unique physical node
+        for (u32 node_id : unique_nodes) {
+          PoolQuery broadcast_query = query;
+          ResolvedPoolQuery resolved(node_id, broadcast_query);
+          resolved_queries.push_back(resolved);
+        }
+      }
+
+      // If no resolved queries, fallback to local node broadcast
+      if (resolved_queries.empty()) {
+        PoolQuery local_query = query;
+        ResolvedPoolQuery resolved(0, local_query);
+        resolved_queries.push_back(resolved);
+      }
+      break;
     }
   }
 
-  // Process task locally - resolve DomainQuery stored in the task to route to a specific container
-  // For now, this routes the task to a container on this node based on PoolId and DomainQuery
-  return true;
+  // Store resolved queries in the task's RuntimeContext
+  if (task_ptr->run_ctx_) {
+    task_ptr->run_ctx_->resolved_queries = resolved_queries;
+  }
+
+  return resolved_queries;
 }
 
 ChiContainer* Worker::QueryContainerFromPoolManager(
@@ -243,7 +417,8 @@ ChiContainer* Worker::QueryContainerFromPoolManager(
 
   // Query container from the PoolManager based on task's PoolId
   // Using singleton access pattern similar to other components
-  return CHI_POOL_MANAGER->GetContainer(task_ptr->pool_id_);
+  auto* pool_manager = CHI_POOL_MANAGER;
+  return pool_manager->GetContainer(task_ptr->pool_id_);
 }
 
 bool Worker::CallMonitorForLocalSchedule(ChiContainer* container,
@@ -448,9 +623,10 @@ void Worker::ExecTask(const FullPtr<Task>& task_ptr, RunContext* run_ctx_ptr,
   }
 
   // Tasks should never return incomplete from ExecTask
-  // Periodic tasks are rescheduled by ReschedulePeriodicTask in FiberExecutionFunction
-  // Non-periodic tasks are marked complete in FiberExecutionFunction
-  
+  // Periodic tasks are rescheduled by ReschedulePeriodicTask in
+  // FiberExecutionFunction Non-periodic tasks are marked complete in
+  // FiberExecutionFunction
+
   // Only clean up completed non-periodic tasks
   bool task_completed = (task_ptr->is_complete.load() != 0);
   if (task_completed) {
@@ -475,13 +651,15 @@ void Worker::AddToBlockedQueue(RunContext* run_ctx_ptr,
   blocked_queue_.push(run_ctx_ptr);
 }
 
-void Worker::ReschedulePeriodicTask(RunContext* run_ctx_ptr, const FullPtr<Task>& task_ptr) {
+void Worker::ReschedulePeriodicTask(RunContext* run_ctx_ptr,
+                                    const FullPtr<Task>& task_ptr) {
   if (!run_ctx_ptr || task_ptr.IsNull() || !task_ptr->IsPeriodic()) {
     return;
   }
 
   // Get the lane from the run context
-  TaskQueue::TaskLane* lane = static_cast<TaskQueue::TaskLane*>(run_ctx_ptr->lane);
+  TaskQueue::TaskLane* lane =
+      static_cast<TaskQueue::TaskLane*>(run_ctx_ptr->lane);
   if (!lane) {
     // No lane information, cannot reschedule
     return;
@@ -494,8 +672,8 @@ void Worker::ReschedulePeriodicTask(RunContext* run_ctx_ptr, const FullPtr<Task>
     double period_us = task_ptr->GetPeriod(kMicro);
     AddToBlockedQueue(run_ctx_ptr, period_us);
   } else {
-    // Lane has been reassigned to a different worker - reschedule task in the lane
-    // Convert task FullPtr to TypedPointer for lane enqueueing
+    // Lane has been reassigned to a different worker - reschedule task in the
+    // lane Convert task FullPtr to TypedPointer for lane enqueueing
     hipc::TypedPointer<Task> task_typed_ptr(task_ptr.shm_);
     hipc::FullPtr<TaskQueue::TaskLane> lane_full_ptr(lane);
     TaskQueue::EmplaceTask(lane_full_ptr, task_typed_ptr);
@@ -507,7 +685,8 @@ void Worker::FiberExecutionFunction(boost::context::detail::transfer_t t) {
   // Use thread-local storage to get context
   Worker* worker = CHI_CUR_WORKER;
   RunContext* run_ctx = worker->GetCurrentRunContext();
-  FullPtr<Task> task_ptr = worker ? worker->GetCurrentTask() : FullPtr<Task>::GetNull();
+  FullPtr<Task> task_ptr =
+      worker ? worker->GetCurrentTask() : FullPtr<Task>::GetNull();
 
   if (!task_ptr.IsNull() && worker && run_ctx) {
     // Execute the task directly - merged TaskExecutionFunction logic
@@ -536,7 +715,8 @@ void Worker::FiberExecutionFunction(boost::context::detail::transfer_t t) {
       // Periodic tasks are always rescheduled regardless of execution success
       worker->ReschedulePeriodicTask(run_ctx, task_ptr);
     } else {
-      // Non-periodic task completed - mark as complete regardless of success/failure
+      // Non-periodic task completed - mark as complete regardless of
+      // success/failure
       task_ptr->is_complete.store(1);
     }
   }
@@ -556,12 +736,13 @@ bool Worker::ShouldScheduleRemotely(const FullPtr<Task>& task_ptr) {
   // 2. Check current node load vs remote node load
   // 3. Use task's domain query to determine affinity
   // 4. Consider network latency and bandwidth
-  
-  // Simple heuristic: if task has a net_key_ set, it may be intended for remote execution
+
+  // Simple heuristic: if task has a net_key_ set, it may be intended for remote
+  // execution
   if (task_ptr->net_key_ != 0) {
     return true;
   }
-  
+
   // Check domain query for remote execution hints
   // For now, assume local execution is preferred
   return false;
@@ -578,7 +759,7 @@ bool Worker::ScheduleTaskRemotely(const FullPtr<Task>& task_ptr) {
     if (!pool_manager) {
       return false;
     }
-    
+
     // For now, skip the actual remote scheduling implementation
     // In a real implementation, this would:
     // 1. Find the admin pool through some registry mechanism
@@ -590,11 +771,15 @@ bool Worker::ScheduleTaskRemotely(const FullPtr<Task>& task_ptr) {
     // 2. Create a ClientSendTaskInTask with the serialized data
     // 3. Submit the network task to admin container
     // 4. Handle the result asynchronously
-    
-    // For now, just log the attempt and return false to fall back to local processing
-    HILOG(kInfo, "Remote scheduling requested for task method {} but not fully implemented, processing locally", task_ptr->method_);
+
+    // For now, just log the attempt and return false to fall back to local
+    // processing
+    HILOG(kInfo,
+          "Remote scheduling requested for task method {} but not fully "
+          "implemented, processing locally",
+          task_ptr->method_);
     return false;
-    
+
   } catch (const std::exception& e) {
     HELOG(kError, "Failed to schedule task remotely: {}", e.what());
     return false;

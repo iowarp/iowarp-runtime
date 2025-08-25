@@ -73,7 +73,7 @@ struct BaseCreateTask : public chi::Task {
   explicit BaseCreateTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
                           const chi::TaskNode &task_node,
                           const chi::PoolId &task_pool_id,
-                          const chi::DomainQuery &dom_query,
+                          const chi::PoolQuery &dom_query,
                           const std::string &chimod_name = "",
                           const std::string &pool_name = "",
                           chi::u32 domain_flags = 0,
@@ -87,7 +87,7 @@ struct BaseCreateTask : public chi::Task {
     task_node_ = task_node;
     method_ = MethodId;
     task_flags_.Clear();
-    dom_query_ = dom_query;
+    pool_query_ = dom_query;
 
     // Create and serialize the CreateParams into chimod_params_
     CreateParamsT params(alloc);
@@ -175,7 +175,7 @@ struct DestroyPoolTask : public chi::Task {
   explicit DestroyPoolTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
                            const chi::TaskNode &task_node,
                            const chi::PoolId &pool_id,
-                           const chi::DomainQuery &dom_query,
+                           const chi::PoolQuery &dom_query,
                            chi::PoolId target_pool_id,
                            chi::u32 destruction_flags = 0)
       : chi::Task(alloc, task_node, pool_id, dom_query, 10),
@@ -188,7 +188,7 @@ struct DestroyPoolTask : public chi::Task {
     pool_id_ = pool_id;
     method_ = Method::kDestroyPool;
     task_flags_.Clear();
-    dom_query_ = dom_query;
+    pool_query_ = dom_query;
   }
   
   /**
@@ -234,7 +234,7 @@ struct StopRuntimeTask : public chi::Task {
   explicit StopRuntimeTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
                            const chi::TaskNode &task_node,
                            const chi::PoolId &pool_id,
-                           const chi::DomainQuery &dom_query,
+                           const chi::PoolQuery &dom_query,
                            chi::u32 shutdown_flags = 0,
                            chi::u32 grace_period_ms = 5000)
       : chi::Task(alloc, task_node, pool_id, dom_query, 10),
@@ -247,7 +247,7 @@ struct StopRuntimeTask : public chi::Task {
     pool_id_ = pool_id;
     method_ = Method::kStopRuntime;
     task_flags_.Clear();
-    dom_query_ = dom_query;
+    pool_query_ = dom_query;
   }
   
   /**
@@ -302,7 +302,7 @@ struct ClientSendTaskInTask : public chi::Task {
   explicit ClientSendTaskInTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
                                 const chi::TaskNode &task_node,
                                 const chi::PoolId &pool_id,
-                                const chi::DomainQuery &dom_query,
+                                const chi::PoolQuery &dom_query,
                                 chi::TaskInputArchiveOUT &&task_archive,
                                 chi::u32 transfer_flags = 0)
       : chi::Task(alloc, task_node, pool_id, dom_query, Method::kClientSendTaskIn),
@@ -315,7 +315,7 @@ struct ClientSendTaskInTask : public chi::Task {
     pool_id_ = pool_id;
     method_ = Method::kClientSendTaskIn;
     task_flags_.Clear();
-    dom_query_ = dom_query;
+    pool_query_ = dom_query;
   }
   
   /**
@@ -364,7 +364,7 @@ struct ServerRecvTaskInTask : public chi::Task {
   explicit ServerRecvTaskInTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
                                 const chi::TaskNode &task_node,
                                 const chi::PoolId &pool_id,
-                                const chi::DomainQuery &dom_query,
+                                const chi::PoolQuery &dom_query,
                                 chi::TaskInputArchiveIN &&task_archive,
                                 chi::u32 transfer_flags = 0)
       : chi::Task(alloc, task_node, pool_id, dom_query, Method::kServerRecvTaskIn),
@@ -377,7 +377,7 @@ struct ServerRecvTaskInTask : public chi::Task {
     pool_id_ = pool_id;
     method_ = Method::kServerRecvTaskIn;
     task_flags_.Clear();
-    dom_query_ = dom_query;
+    pool_query_ = dom_query;
   }
   
   /**
@@ -426,7 +426,7 @@ struct ServerSendTaskOutTask : public chi::Task {
   explicit ServerSendTaskOutTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
                                  const chi::TaskNode &task_node,
                                  const chi::PoolId &pool_id,
-                                 const chi::DomainQuery &dom_query,
+                                 const chi::PoolQuery &dom_query,
                                  chi::TaskOutputArchiveOUT &&result_archive,
                                  chi::u32 transfer_flags = 0)
       : chi::Task(alloc, task_node, pool_id, dom_query, Method::kServerSendTaskOut),
@@ -439,7 +439,7 @@ struct ServerSendTaskOutTask : public chi::Task {
     pool_id_ = pool_id;
     method_ = Method::kServerSendTaskOut;
     task_flags_.Clear();
-    dom_query_ = dom_query;
+    pool_query_ = dom_query;
   }
   
   /**
@@ -488,7 +488,7 @@ struct ClientRecvTaskOutTask : public chi::Task {
   explicit ClientRecvTaskOutTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
                                  const chi::TaskNode &task_node,
                                  const chi::PoolId &pool_id,
-                                 const chi::DomainQuery &dom_query,
+                                 const chi::PoolQuery &dom_query,
                                  chi::TaskOutputArchiveIN &&result_archive,
                                  chi::u32 transfer_flags = 0)
       : chi::Task(alloc, task_node, pool_id, dom_query, Method::kClientRecvTaskOut),
@@ -501,7 +501,7 @@ struct ClientRecvTaskOutTask : public chi::Task {
     pool_id_ = pool_id;
     method_ = Method::kClientRecvTaskOut;
     task_flags_.Clear();
-    dom_query_ = dom_query;
+    pool_query_ = dom_query;
   }
   
   /**

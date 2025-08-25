@@ -35,7 +35,7 @@ class Container : public ChiContainer {
  protected:
   // Local queue management using TaskQueue
   std::unordered_map<QueueId, hipc::FullPtr<TaskQueue>> local_queues_;
-  DomainQuery dom_query_;
+  PoolQuery pool_query_;
   std::string name_;
   
   // Default allocator for creating lanes
@@ -50,11 +50,11 @@ class Container : public ChiContainer {
   
   /**
    * Initialize container with pool information and domain query
-   * This version includes DomainQuery for more complete initialization
+   * This version includes PoolQuery for more complete initialization
    */
-  virtual void Init(const PoolId& pool_id, const DomainQuery& dom_query) {
+  virtual void Init(const PoolId& pool_id, const PoolQuery& pool_query) {
     pool_id_ = pool_id;
-    dom_query_ = dom_query;
+    pool_query_ = pool_query;
     pool_name_ = "pool_" + std::to_string(pool_id);
     
     // Get main allocator for creating lanes
@@ -68,7 +68,7 @@ class Container : public ChiContainer {
   void Init(const PoolId& pool_id, const std::string& pool_name) override {
     pool_id_ = pool_id;
     pool_name_ = pool_name;
-    dom_query_ = DomainQuery();  // Default domain query
+    pool_query_ = PoolQuery();  // Default pool query
     
     // Get main allocator for creating lanes
     auto mem_manager = HSHM_MEMORY_MANAGER;

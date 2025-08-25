@@ -36,7 +36,7 @@ constexpr double kHour = 3600000000000.0;       // 3600 seconds = 1 hour
 
 // Forward declarations
 class Task;
-class DomainQuery;
+class PoolQuery;
 class Worker;
 class WorkOrchestrator;
 class PoolManager;
@@ -135,69 +135,67 @@ using MethodId = u32;
 // Worker and Lane identifiers
 using WorkerId = u32;
 using LaneId = u32;
+using ContainerId = u32;
+using MinorId = u32;
 
-// Domain system types
-using SubDomainGroup = u32;
-using SubDomainMinor = u32;
-
-/**
- * Predefined subdomain groups
- */
-namespace SubDomain {
-static constexpr SubDomainGroup kPhysicalNode = 0;
-static constexpr SubDomainGroup kGlobal = 1;
-static constexpr SubDomainGroup kLocal = 2;
-}  // namespace SubDomain
+// Container addressing system types
+using GroupId = u32;
 
 /**
- * Subdomain identifier containing major and minor components
+ * Predefined container groups
  */
-struct SubDomainId {
-  SubDomainGroup major_;
-  SubDomainMinor minor_;
+namespace Group {
+static constexpr GroupId kPhysical = 0; /**< Physical address wrapper around node_id */
+static constexpr GroupId kLocal = 1;    /**< Containers on THIS node */
+static constexpr GroupId kGlobal = 2;   /**< All containers in the pool */
+}  // namespace Group
 
-  SubDomainId() : major_(0), minor_(0) {}
-  SubDomainId(SubDomainGroup major, SubDomainMinor minor)
-      : major_(major), minor_(minor) {}
+/**
+ * Container address containing pool, group, and minor ID components
+ * 
+ * Addresses have three components:
+ * - PoolId: The pool the address is for
+ * - GroupId: The container group (Physical, Local, or Global)
+ * - MinorId: The unique ID within the group (node_id or container_id)
+ */
+struct Address {
+  PoolId pool_id_;
+  GroupId group_id_;
+  MinorId minor_id_;
+
+  Address() : pool_id_(0), group_id_(Group::kLocal), minor_id_(0) {}
+  Address(PoolId pool_id, GroupId group_id, MinorId minor_id)
+      : pool_id_(pool_id), group_id_(group_id), minor_id_(minor_id) {}
 
   // Equality operator
-  bool operator==(const SubDomainId& other) const {
-    return major_ == other.major_ && minor_ == other.minor_;
+  bool operator==(const Address& other) const {
+    return pool_id_ == other.pool_id_ && 
+           group_id_ == other.group_id_ && 
+           minor_id_ == other.minor_id_;
   }
 
   // Inequality operator
-  bool operator!=(const SubDomainId& other) const {
+  bool operator!=(const Address& other) const {
     return !(*this == other);
   }
 
   // Cereal serialization support
   template<class Archive>
   void serialize(Archive& ar) {
-    ar(major_, minor_);
+    ar(pool_id_, group_id_, minor_id_);
   }
 };
 
-/**
- * Complete domain identifier including pool and subdomain
- */
-struct DomainId {
-  PoolId pool_id_;
-  SubDomainId sub_id_;
-
-  DomainId() : pool_id_(0), sub_id_() {}
-  DomainId(PoolId pool_id, const SubDomainId& sub_id)
-      : pool_id_(pool_id), sub_id_(sub_id) {}
-
-  // Equality operator
-  bool operator==(const DomainId& other) const {
-    return pool_id_ == other.pool_id_ && sub_id_ == other.sub_id_;
-  }
-
-  // Inequality operator
-  bool operator!=(const DomainId& other) const {
-    return !(*this == other);
+// Hash function for Address to use in std::unordered_map
+struct AddressHash {
+  std::size_t operator()(const Address& addr) const {
+    std::size_t h1 = std::hash<u64>{}(addr.pool_id_.ToU64());
+    std::size_t h2 = std::hash<GroupId>{}(addr.group_id_);
+    std::size_t h3 = std::hash<MinorId>{}(addr.minor_id_);
+    return h1 ^ (h2 << 1) ^ (h3 << 2);
   }
 };
+
 
 // Task flags using HSHM BIT_OPT macro
 #define TASK_PERIODIC BIT_OPT(u32, 0)
@@ -271,21 +269,6 @@ namespace std {
     }
   };
 
-  template <>
-  struct hash<chi::SubDomainId> {
-    size_t operator()(const chi::SubDomainId& id) const {
-      return hash<chi::SubDomainGroup>()(id.major_) ^ 
-             (hash<chi::SubDomainMinor>()(id.minor_) << 1);
-    }
-  };
-
-  template <>
-  struct hash<chi::DomainId> {
-    size_t operator()(const chi::DomainId& id) const {
-      return hash<chi::PoolId>()(id.pool_id_) ^ 
-             (hash<chi::SubDomainId>()(id.sub_id_) << 1);
-    }
-  };
 }
 
 #endif  // CHIMAERA_INCLUDE_CHIMAERA_TYPES_H_

@@ -29,7 +29,7 @@ class Client : public chi::ChiContainerClient {
   /**
    * Create the container (synchronous)
    */
-  void Create(const hipc::MemContext& mctx, const chi::DomainQuery& dom_query) {
+  void Create(const hipc::MemContext& mctx, const chi::PoolQuery& dom_query) {
     auto task = AsyncCreate(mctx, dom_query);
     task->Wait();
     
@@ -42,7 +42,7 @@ class Client : public chi::ChiContainerClient {
    * Create the container (asynchronous)
    */
   hipc::FullPtr<CreateTask> AsyncCreate(const hipc::MemContext& mctx, 
-                                       const chi::DomainQuery& dom_query) {
+                                       const chi::PoolQuery& dom_query) {
     auto* ipc_manager = CHI_IPC;
     
     // Allocate CreateTask
@@ -61,7 +61,7 @@ class Client : public chi::ChiContainerClient {
    * Execute custom operation (synchronous)
    */
   chi::u32 Custom(const hipc::MemContext& mctx,
-             const chi::DomainQuery& dom_query,
+             const chi::PoolQuery& dom_query,
              const std::string& input_data,
              chi::u32 operation_id,
              std::string& output_data) {
@@ -83,7 +83,7 @@ class Client : public chi::ChiContainerClient {
    * Execute custom operation (asynchronous)
    */
   hipc::FullPtr<CustomTask> AsyncCustom(const hipc::MemContext& mctx,
-                                       const chi::DomainQuery& dom_query,
+                                       const chi::PoolQuery& dom_query,
                                        const std::string& input_data,
                                        chi::u32 operation_id) {
     auto* ipc_manager = CHI_IPC;

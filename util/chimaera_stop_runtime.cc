@@ -11,7 +11,7 @@
 
 #include "admin/admin_client.h"
 #include "chimaera/chimaera.h"
-#include "chimaera/domain_query.h"
+#include "chimaera/pool_query.h"
 #include "chimaera/types.h"
 
 int main(int argc, char* argv[]) {
@@ -64,7 +64,7 @@ int main(int argc, char* argv[]) {
     }
 
     // Create domain query for local execution
-    chi::DomainQuery dom_query;
+    chi::PoolQuery pool_query;
 
     // Parse command line arguments for shutdown parameters
     chi::u32 shutdown_flags = 0;
@@ -88,7 +88,7 @@ int main(int argc, char* argv[]) {
     hipc::FullPtr<chimaera::admin::StopRuntimeTask> stop_task;
     try {
       stop_task = admin_client.AsyncStopRuntime(
-          HSHM_MCTX, dom_query, shutdown_flags, grace_period_ms);
+          HSHM_MCTX, pool_query, shutdown_flags, grace_period_ms);
       if (stop_task.IsNull()) {
         std::cerr
             << "Failed to create stop runtime task - runtime may not be running"

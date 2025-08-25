@@ -17,44 +17,107 @@ class ChiContainer;
 #endif
 
 /**
- * Domain mapping table for pool management
- * Maps local containers to global domain IDs and vice versa
+ * Address mapping table for pool management
+ * 
+ * Contains two unordered_maps for address translation:
+ * - Local to Global address mapping
+ * - Global to Physical address mapping
  */
-struct DomainTable {
-  // Local domain: Maps containers on this node to global DomainId
-  std::unordered_map<u32, DomainId> local_to_global_map_;
+struct AddressTable {
+  // Local to global: Maps local addresses to global addresses
+  std::unordered_map<Address, Address, AddressHash> local_to_global_map_;
   
-  // Global domain: Maps DomainId to physical DomainIds (node IDs)
-  std::unordered_map<DomainId, std::vector<u32>> global_to_physical_map_;
+  // Global to physical: Maps global addresses to physical addresses
+  std::unordered_map<Address, Address, AddressHash> global_to_physical_map_;
   
   /**
-   * Add local container mapping
+   * Add local to global mapping
    */
-  void AddLocalMapping(u32 container_id, const DomainId& global_domain) {
-    local_to_global_map_[container_id] = global_domain;
+  void AddLocalToGlobalMapping(const Address& local_addr, const Address& global_addr) {
+    local_to_global_map_[local_addr] = global_addr;
   }
   
   /**
-   * Add global domain mapping
+   * Add global to physical mapping
    */
-  void AddGlobalMapping(const DomainId& global_domain, const std::vector<u32>& physical_nodes) {
-    global_to_physical_map_[global_domain] = physical_nodes;
+  void AddGlobalToPhysicalMapping(const Address& global_addr, const Address& physical_addr) {
+    global_to_physical_map_[global_addr] = physical_addr;
   }
   
   /**
-   * Get global domain for local container
+   * Convert local address to global address
    */
-  DomainId GetGlobalDomain(u32 container_id) const {
-    auto it = local_to_global_map_.find(container_id);
-    return (it != local_to_global_map_.end()) ? it->second : DomainId();
+  bool LocalToGlobal(const Address& local_addr, Address& global_addr) const {
+    auto it = local_to_global_map_.find(local_addr);
+    if (it != local_to_global_map_.end()) {
+      global_addr = it->second;
+      return true;
+    }
+    return false;
   }
   
   /**
-   * Get physical nodes for global domain
+   * Convert global address to physical address
    */
-  std::vector<u32> GetPhysicalNodes(const DomainId& global_domain) const {
-    auto it = global_to_physical_map_.find(global_domain);
-    return (it != global_to_physical_map_.end()) ? it->second : std::vector<u32>();
+  bool GlobalToPhysical(const Address& global_addr, Address& physical_addr) const {
+    auto it = global_to_physical_map_.find(global_addr);
+    if (it != global_to_physical_map_.end()) {
+      physical_addr = it->second;
+      return true;
+    }
+    return false;
+  }
+  
+  /**
+   * Remove local to global mapping
+   */
+  void RemoveLocalToGlobalMapping(const Address& local_addr) {
+    local_to_global_map_.erase(local_addr);
+  }
+  
+  /**
+   * Remove global to physical mapping
+   */
+  void RemoveGlobalToPhysicalMapping(const Address& global_addr) {
+    global_to_physical_map_.erase(global_addr);
+  }
+  
+  /**
+   * Clear all mappings
+   */
+  void Clear() {
+    local_to_global_map_.clear();
+    global_to_physical_map_.clear();
+  }
+
+  /**
+   * Get global address for a container ID
+   * @param container_id Container identifier
+   * @return Global address for the container
+   */
+  Address GetGlobalAddress(u32 container_id) const {
+    // For now, assume container_id maps to global address with same minor_id
+    // This could be made more sophisticated based on addressing scheme
+    if (!global_to_physical_map_.empty()) {
+      auto it = global_to_physical_map_.begin();
+      PoolId pool_id = it->first.pool_id_;
+      return Address(pool_id, Group::kGlobal, container_id);
+    }
+    return Address();
+  }
+
+  /**
+   * Get physical nodes for a global address
+   * @param global_address Global address to look up
+   * @return Vector of physical node IDs
+   */
+  std::vector<u32> GetPhysicalNodes(const Address& global_address) const {
+    std::vector<u32> nodes;
+    Address physical_address;
+    if (GlobalToPhysical(global_address, physical_address)) {
+      nodes.push_back(physical_address.minor_id_);
+    }
+    return nodes;
   }
 };
 
@@ -67,7 +130,7 @@ struct PoolInfo {
   std::string chimod_name_;
   std::string chimod_params_;
   u32 num_containers_;
-  DomainTable domain_table_;
+  AddressTable address_table_;
   bool is_active_;
   
   PoolInfo() : pool_id_(0), num_containers_(0), is_active_(false) {}
@@ -170,12 +233,12 @@ class PoolManager {
   bool ValidatePoolParams(const std::string& chimod_name, const std::string& pool_name);
 
   /**
-   * Create domain table for a pool
+   * Create address table for a pool
    * @param pool_id Pool identifier
    * @param num_containers Number of containers in the pool
-   * @return Domain table for the pool
+   * @return Address table for the pool
    */
-  DomainTable CreateDomainTable(PoolId pool_id, u32 num_containers);
+  AddressTable CreateAddressTable(PoolId pool_id, u32 num_containers);
 
   /**
    * Create a complete pool with metadata, domain tables, and local containers
@@ -250,6 +313,8 @@ class PoolManager {
   bool IsInitialized() const;
 
  private:
+
+
   bool is_initialized_ = false;
   
   // Map PoolId to ChiContainers on this node
@@ -260,6 +325,7 @@ class PoolManager {
   
   // Pool ID counter for generating unique IDs
   PoolId next_pool_id_ = 2; // Start at 2, since 1 is reserved for admin
+
 };
 
 }  // namespace chi

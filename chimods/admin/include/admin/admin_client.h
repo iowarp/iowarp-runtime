@@ -30,7 +30,7 @@ class Client : public chi::ChiContainerClient {
   /**
    * Create the Admin container (synchronous)
    */
-  void Create(const hipc::MemContext& mctx, const chi::DomainQuery& dom_query) {
+  void Create(const hipc::MemContext& mctx, const chi::PoolQuery& dom_query) {
     auto task = AsyncCreate(mctx, dom_query);
     task->Wait();
     
@@ -43,7 +43,7 @@ class Client : public chi::ChiContainerClient {
    * Create the Admin container (asynchronous)
    */
   hipc::FullPtr<CreateTask> AsyncCreate(const hipc::MemContext& mctx, 
-                                       const chi::DomainQuery& dom_query) {
+                                       const chi::PoolQuery& dom_query) {
     auto* ipc_manager = CHI_IPC;
     
     // Allocate CreateTask for admin container creation
@@ -63,7 +63,7 @@ class Client : public chi::ChiContainerClient {
    * Destroy an existing ChiPool (synchronous)
    */
   void DestroyPool(const hipc::MemContext& mctx,
-                   const chi::DomainQuery& dom_query,
+                   const chi::PoolQuery& dom_query,
                    chi::PoolId target_pool_id,
                    chi::u32 destruction_flags = 0) {
     auto task = AsyncDestroyPool(mctx, dom_query, target_pool_id, destruction_flags);
@@ -86,7 +86,7 @@ class Client : public chi::ChiContainerClient {
    * Destroy an existing ChiPool (asynchronous)
    */
   hipc::FullPtr<DestroyPoolTask> AsyncDestroyPool(const hipc::MemContext& mctx,
-                                                  const chi::DomainQuery& dom_query,
+                                                  const chi::PoolQuery& dom_query,
                                                   chi::PoolId target_pool_id,
                                                   chi::u32 destruction_flags = 0) {
     auto* ipc_manager = CHI_IPC;
@@ -110,7 +110,7 @@ class Client : public chi::ChiContainerClient {
    * Stop the entire Chimaera runtime (asynchronous)
    */
   hipc::FullPtr<StopRuntimeTask> AsyncStopRuntime(const hipc::MemContext& mctx,
-                                                  const chi::DomainQuery& dom_query,
+                                                  const chi::PoolQuery& dom_query,
                                                   chi::u32 shutdown_flags = 0,
                                                   chi::u32 grace_period_ms = 5000) {
     auto* ipc_manager = CHI_IPC;

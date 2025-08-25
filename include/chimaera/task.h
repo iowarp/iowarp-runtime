@@ -5,7 +5,7 @@
 #include <sstream>
 #include <atomic>
 
-#include "chimaera/domain_query.h"
+#include "chimaera/pool_query.h"
 #include "chimaera/types.h"
 
 // Include cereal for serialization
@@ -36,7 +36,7 @@ class Task : public hipc::ShmContainer {
  public:
   IN PoolId pool_id_;        /**< Pool identifier for task execution */
   IN TaskNode task_node_;    /**< Node identifier for task routing */
-  IN DomainQuery dom_query_; /**< Domain query for execution location */
+  IN PoolQuery pool_query_; /**< Pool query for execution location */
   IN MethodId method_;       /**< Method identifier for task type */
   IN ibitfield task_flags_;  /**< Task properties and flags */
   IN double period_ns_;      /**< Period in nanoseconds for periodic tasks */
@@ -57,14 +57,14 @@ class Task : public hipc::ShmContainer {
    */
   explicit Task(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
                 const TaskNode &task_node, const PoolId &pool_id,
-                const DomainQuery &dom_query, const MethodId &method)
+                const PoolQuery &pool_query, const MethodId &method)
       : hipc::ShmContainer() {
     // Initialize task
     task_node_ = task_node;
     pool_id_ = pool_id;
     method_ = method;
     task_flags_.SetBits(0);
-    dom_query_ = dom_query;
+    pool_query_ = pool_query;
     period_ns_ = 0.0;
     run_ctx_ = nullptr;
     net_key_ = 0;
@@ -86,7 +86,7 @@ class Task : public hipc::ShmContainer {
   HSHM_CROSS_FUN void shm_strong_copy_main(const ContainerT &other) {
     pool_id_ = other.pool_id_;
     task_node_ = other.task_node_;
-    dom_query_ = other.dom_query_;
+    pool_query_ = other.pool_query_;
     method_ = other.method_;
     task_flags_ = other.task_flags_;
     period_ns_ = other.period_ns_;
@@ -125,7 +125,7 @@ class Task : public hipc::ShmContainer {
   HSHM_INLINE_CROSS_FUN void SetNull() {
     pool_id_ = 0;
     task_node_ = 0;
-    dom_query_ = DomainQuery();
+    pool_query_ = PoolQuery();
     method_ = 0;
     task_flags_.Clear();
     period_ns_ = 0.0;
@@ -307,7 +307,7 @@ public:
    */
   template<typename Archive>
   void BaseSerializeIn(Archive& ar) {
-    ar(pool_id_, task_node_, dom_query_, method_, task_flags_, period_ns_, net_key_);
+    ar(pool_id_, task_node_, pool_query_, method_, task_flags_, period_ns_, net_key_);
   }
 
   /**
@@ -318,7 +318,7 @@ public:
    */
   template<typename Archive>
   void BaseSerializeOut(Archive& ar) {
-    ar(pool_id_, task_node_, dom_query_, method_, task_flags_, period_ns_, net_key_);
+    ar(pool_id_, task_node_, pool_query_, method_, task_flags_, period_ns_, net_key_);
   }
 
   /**

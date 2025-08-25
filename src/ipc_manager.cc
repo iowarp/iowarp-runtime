@@ -7,6 +7,7 @@
 #include "chimaera/singletons.h"
 #include "chimaera/task.h"
 #include "chimaera/task_queue.h"
+#include <functional>
 
 // Global pointer variable definition for IPC manager singleton
 HSHM_DEFINE_GLOBAL_PTR_VAR_CC(chi::IpcManager, g_ipc_manager);
@@ -290,6 +291,7 @@ bool IpcManager::ServerInitQueues() {
 
     // Initialize shared header
     shared_header_->num_workers = 0;
+    shared_header_->node_id = 0; // Will be set after host identification
 
     // Server creates the TaskQueue using delay_ar
     hipc::CtxAllocator<CHI_MAIN_ALLOC_T> ctx_alloc(HSHM_MCTX, main_allocator_);
@@ -355,6 +357,28 @@ bool IpcManager::InitializeZmqServer() {
   } catch (const std::exception& e) {
     return false;
   }
+}
+
+void IpcManager::SetNodeId(const std::string& hostname) {
+  if (!shared_header_) {
+    return;
+  }
+  
+  shared_header_->node_id = ComputeNodeIdHash(hostname);
+}
+
+u64 IpcManager::GetNodeId() const {
+  if (!shared_header_) {
+    return 0;
+  }
+  
+  return shared_header_->node_id;
+}
+
+u64 IpcManager::ComputeNodeIdHash(const std::string& hostname) {
+  // Use std::hash<std::string> to generate a 64-bit hash of the hostname
+  std::hash<std::string> hasher;
+  return static_cast<u64>(hasher(hostname));
 }
 
 // No template instantiations needed - all templates are inline in header

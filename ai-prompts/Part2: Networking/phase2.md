@@ -82,6 +82,11 @@ hshm::SystemInfo::Setenv("APP_VERSION", "2.1.0", 1);
 std::string app_config = ExpandConfigPath("${APP_ROOT}/config-${APP_VERSION}.yaml");
 ```
 
+## Detecting the current host
+We should have a function in the initialization of the chimaera runtime that identifies this host in the set of hosts on the provided hostfile. This can be done by iterating over the set of hosts and spawning a lightbeam tcp server. Check @ai-prompts/hshm-context.md for details on lightbeam. Make sure to catch exception if the tcp server does not start. If none of the servers start, then exit the runtime
+
+The 64-bit representation of the host string should be stored in the main allocator's shared memory header as "node ID".
+
 ## Core Functionality
 
 **Inter-Node Communication**: Handles task distribution and result collection across the distributed system

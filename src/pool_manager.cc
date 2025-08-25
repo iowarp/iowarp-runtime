@@ -26,8 +26,23 @@ bool PoolManager::ClientInit() {
 }
 
 bool PoolManager::ServerInit() {
-  // Pool manager needs same functionality in both client and server
-  return ClientInit();
+  // Initialize basic pool manager functionality
+  if (!ClientInit()) {
+    return false;
+  }
+
+  // Identify which host this process is running on
+  // Try to read hostfile from config or use default path
+  auto* config = CHI_CONFIG_MANAGER;
+  std::string hostfile_path = "/etc/chimaera/hostfile";
+  if (config) {
+    // Try to get hostfile path from config if available
+    // For now, use default path
+  }
+
+  // Host identification is now handled by ChimaeraManager during runtime initialization
+
+  return true;
 }
 
 void PoolManager::Finalize() {
@@ -230,30 +245,31 @@ bool PoolManager::ValidatePoolParams(const std::string& chimod_name, const std::
   return true;
 }
 
-DomainTable PoolManager::CreateDomainTable(PoolId pool_id, u32 num_containers) {
-  DomainTable domain_table;
+AddressTable PoolManager::CreateAddressTable(PoolId pool_id, u32 num_containers) {
+  AddressTable address_table;
   
   if (!is_initialized_) {
-    return domain_table;
+    return address_table;
   }
   
-  // Create local domain mappings for containers
-  for (u32 i = 0; i < num_containers; ++i) {
-    // Create a domain ID for local containers using kLocal subdomain
-    SubDomainId local_sub_id(SubDomain::kLocal, i);
-    DomainId local_domain(pool_id, local_sub_id);
+  // Create one address per container in the global table
+  for (u32 container_idx = 0; container_idx < num_containers; ++container_idx) {
+    Address global_address(pool_id, Group::kGlobal, container_idx);
+    Address physical_address(pool_id, Group::kPhysical, container_idx);
     
-    domain_table.AddLocalMapping(i, local_domain);
+    // Map each global address to its corresponding physical address
+    address_table.AddGlobalToPhysicalMapping(global_address, physical_address);
   }
   
-  // Create global domain mapping for kGlobal subdomain (maps to local node for now)
-  SubDomainId global_sub_id(SubDomain::kGlobal, 0);
-  DomainId global_domain(pool_id, global_sub_id);
+  // Create exactly one local address that maps to the global address of the container on this node
+  // Assuming this node gets container 0 (this could be made configurable)
+  Address local_address(pool_id, Group::kLocal, 0); // One local address for this node
+  Address global_address(pool_id, Group::kGlobal, 0); // Maps to container 0 globally
   
-  std::vector<u32> physical_nodes = {0}; // Just local node for now
-  domain_table.AddGlobalMapping(global_domain, physical_nodes);
+  // Map the single local address to its global counterpart
+  address_table.AddLocalToGlobalMapping(local_address, global_address);
   
-  return domain_table;
+  return address_table;
 }
 
 bool PoolManager::CreatePool(const std::string& chimod_name, const std::string& pool_name,
@@ -299,12 +315,12 @@ bool PoolManager::CreatePool(const std::string& chimod_name, const std::string& 
     return true;
   }
   
-  // Create domain table for the pool
-  DomainTable domain_table = CreateDomainTable(target_pool_id, num_containers);
+  // Create address table for the pool
+  AddressTable address_table = CreateAddressTable(target_pool_id, num_containers);
   
   // Create pool metadata
   PoolInfo pool_info(target_pool_id, pool_name, chimod_name, chimod_params, num_containers);
-  pool_info.domain_table_ = domain_table;
+  pool_info.address_table_ = address_table;
   
   // Store pool metadata
   UpdatePoolMetadata(target_pool_id, pool_info);
@@ -368,5 +384,6 @@ void PoolManager::UpdatePoolMetadata(PoolId pool_id, const PoolInfo& info) {
   
   pool_metadata_[pool_id] = info;
 }
+
 
 }  // namespace chi

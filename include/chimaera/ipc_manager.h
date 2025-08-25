@@ -15,6 +15,7 @@ struct IpcSharedHeader {
   hipc::delay_ar<TaskQueue> external_queue; // External/Process TaskQueue in shared memory
   hipc::delay_ar<chi::ipc::vector<chi::ipc::mpsc_queue<hipc::FullPtr<TaskQueue::TaskLane>>>> worker_queues; // Vector of worker active queues
   u32 num_workers; // Number of workers for which queues are allocated
+  u64 node_id; // 64-bit hash of the hostname for node identification
 };
 
 /**
@@ -169,6 +170,18 @@ class IpcManager {
    */
   u32 GetWorkerCount();
 
+  /**
+   * Set the node ID in the shared memory header
+   * @param hostname Hostname string to hash and store
+   */
+  void SetNodeId(const std::string& hostname);
+
+  /**
+   * Get the node ID from the shared memory header
+   * @return 64-bit node ID, 0 if not initialized
+   */
+  u64 GetNodeId() const;
+
  private:
   /**
    * Initialize memory segments for server
@@ -199,6 +212,13 @@ class IpcManager {
    * @return true if successful, false otherwise
    */
   bool InitializeZmqServer();
+
+  /**
+   * Compute 64-bit hash of hostname string
+   * @param hostname Hostname string to hash
+   * @return 64-bit hash value
+   */
+  static u64 ComputeNodeIdHash(const std::string& hostname);
 
 
   bool is_initialized_ = false;
