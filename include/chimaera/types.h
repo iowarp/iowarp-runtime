@@ -200,6 +200,7 @@ struct AddressHash {
 // Task flags using HSHM BIT_OPT macro
 #define TASK_PERIODIC BIT_OPT(u32, 0)
 #define TASK_FIRE_AND_FORGET BIT_OPT(u32, 1)
+#define TASK_ROUTED BIT_OPT(u32, 2)
 
 // Bulk transfer flags for task archives
 #define CHI_WRITE BIT_OPT(u32, 0)    ///< Copy data from pointer to remote location

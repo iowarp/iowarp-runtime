@@ -229,12 +229,12 @@ bool Chimaera::IdentifyHost(const std::string& hostfile_path) {
 
 std::unique_ptr<hshm::lbm::Server> Chimaera::TryStartTcpServer(const std::string& hostname, u32 port) {
   try {
-    std::string protocol = "tcp://" + hostname + ":" + std::to_string(port);
+    std::string protocol = "tcp";
     auto server = hshm::lbm::TransportFactory::GetServer(
         hostname, hshm::lbm::Transport::kZeroMq, protocol, port);
     
     if (server != nullptr) {
-      std::cout << "TCP server successfully bound to " << protocol << std::endl;
+      std::cout << "TCP server successfully bound to " << hostname << ":" << port << std::endl;
       return server;
     }
   } catch (const std::exception& e) {

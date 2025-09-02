@@ -134,14 +134,14 @@ void Runtime::MonitorCreate(chi::MonitorModeId mode,
                             chi::RunContext& rctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule:
-      // Route task to local queue
-      std::cout << "Admin: Routing admin Create task to local queue"
+      // Set route_lane_ to indicate where task should be routed
+      std::cout << "Admin: Setting route_lane_ for admin Create task"
                 << std::endl;
-      // Route to low latency queue lane 0
+      // Set route_lane_ to low latency queue lane 0
       {
         auto lane_ptr = GetLaneFullPtr(chi::kLowLatency, 0);
         if (!lane_ptr.IsNull()) {
-          chi::TaskQueue::EmplaceTask(lane_ptr, task_ptr.shm_);
+          rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
         }
       }
       break;
@@ -167,14 +167,14 @@ void Runtime::MonitorGetOrCreatePool(
     chi::RunContext& rctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule:
-      // Route task to local queue
-      std::cout << "Admin: Routing GetOrCreatePool task to local queue"
+      // Set route_lane_ to indicate where task should be routed
+      std::cout << "Admin: Setting route_lane_ for GetOrCreatePool task"
                 << std::endl;
-      // Route to low latency queue lane 0
+      // Set route_lane_ to low latency queue lane 0
       {
         auto lane_ptr = GetLaneFullPtr(chi::kLowLatency, 0);
         if (!lane_ptr.IsNull()) {
-          chi::TaskQueue::EmplaceTask(lane_ptr, task_ptr.shm_);
+          rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
         }
       }
       break;
@@ -245,14 +245,14 @@ void Runtime::MonitorDestroyPool(chi::MonitorModeId mode,
                                  chi::RunContext& rctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule:
-      // Route task to local queue
-      std::cout << "Admin: Routing DestroyPool task to local queue"
+      // Set route_lane_ to indicate where task should be routed
+      std::cout << "Admin: Setting route_lane_ for DestroyPool task"
                 << std::endl;
-      // Route to low latency queue lane 0
+      // Set route_lane_ to low latency queue lane 0
       {
         auto lane_ptr = GetLaneFullPtr(chi::kLowLatency, 0);
         if (!lane_ptr.IsNull()) {
-          chi::TaskQueue::EmplaceTask(lane_ptr, task_ptr.shm_);
+          rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
         }
       }
       break;
@@ -304,14 +304,14 @@ void Runtime::MonitorStopRuntime(chi::MonitorModeId mode,
                                  chi::RunContext& rctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule:
-      // Route task to local queue
-      std::cout << "Admin: Routing StopRuntime task to local queue"
+      // Set route_lane_ to indicate where task should be routed
+      std::cout << "Admin: Setting route_lane_ for StopRuntime task"
                 << std::endl;
-      // Route to low latency queue lane 0
+      // Set route_lane_ to low latency queue lane 0
       {
         auto lane_ptr = GetLaneFullPtr(chi::kLowLatency, 0);
         if (!lane_ptr.IsNull()) {
-          chi::TaskQueue::EmplaceTask(lane_ptr, task_ptr.shm_);
+          rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
         }
       }
       break;
@@ -387,12 +387,13 @@ void Runtime::MonitorClientSendTaskIn(chi::MonitorModeId mode,
                                      chi::RunContext& rctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule:
-      // Route task to local queue for network operations
-      std::cout << "Admin: Routing ClientSendTaskIn to network queue" << std::endl;
+      // Set route_lane_ to indicate where task should be routed
+      std::cout << "Admin: Setting route_lane_ for ClientSendTaskIn" << std::endl;
+      // Set route_lane_ to low latency queue lane 0 for network operations
       {
         auto lane_ptr = GetLaneFullPtr(chi::kLowLatency, 0);
         if (!lane_ptr.IsNull()) {
-          chi::TaskQueue::EmplaceTask(lane_ptr, task_ptr.shm_);
+          rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
         }
       }
       break;
@@ -441,12 +442,13 @@ void Runtime::MonitorServerRecvTaskIn(chi::MonitorModeId mode,
                                      chi::RunContext& rctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule:
-      // Route task to local queue for network operations
-      std::cout << "Admin: Routing ServerRecvTaskIn to network queue" << std::endl;
+      // Set route_lane_ to indicate where task should be routed
+      std::cout << "Admin: Setting route_lane_ for ServerRecvTaskIn" << std::endl;
+      // Set route_lane_ to low latency queue lane 0 for network operations
       {
         auto lane_ptr = GetLaneFullPtr(chi::kLowLatency, 0);
         if (!lane_ptr.IsNull()) {
-          chi::TaskQueue::EmplaceTask(lane_ptr, task_ptr.shm_);
+          rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
         }
       }
       break;
@@ -495,12 +497,13 @@ void Runtime::MonitorServerSendTaskOut(chi::MonitorModeId mode,
                                       chi::RunContext& rctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule:
-      // Route task to local queue for network operations
-      std::cout << "Admin: Routing ServerSendTaskOut to network queue" << std::endl;
+      // Set route_lane_ to indicate where task should be routed
+      std::cout << "Admin: Setting route_lane_ for ServerSendTaskOut" << std::endl;
+      // Set route_lane_ to low latency queue lane 0 for network operations
       {
         auto lane_ptr = GetLaneFullPtr(chi::kLowLatency, 0);
         if (!lane_ptr.IsNull()) {
-          chi::TaskQueue::EmplaceTask(lane_ptr, task_ptr.shm_);
+          rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
         }
       }
       break;
@@ -549,12 +552,13 @@ void Runtime::MonitorClientRecvTaskOut(chi::MonitorModeId mode,
                                       chi::RunContext& rctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule:
-      // Route task to local queue for network operations
-      std::cout << "Admin: Routing ClientRecvTaskOut to network queue" << std::endl;
+      // Set route_lane_ to indicate where task should be routed
+      std::cout << "Admin: Setting route_lane_ for ClientRecvTaskOut" << std::endl;
+      // Set route_lane_ to low latency queue lane 0 for network operations
       {
         auto lane_ptr = GetLaneFullPtr(chi::kLowLatency, 0);
         if (!lane_ptr.IsNull()) {
-          chi::TaskQueue::EmplaceTask(lane_ptr, task_ptr.shm_);
+          rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
         }
       }
       break;

@@ -151,7 +151,16 @@ class Worker {
    * @param lane_ptr FullPtr to lane (as returned by GetLane) that has work
    * available
    */
-  void EnqueueLane(hipc::FullPtr<TaskQueue::TaskLane> lane_ptr);
+  void EnqueueLane(hipc::TypedPointer<TaskQueue::TaskLane> lane_ptr);
+
+  /**
+   * Route a task by calling ResolvePoolQuery and determining local vs global scheduling
+   * @param task_ptr Full pointer to task to route
+   * @param lane Pointer to the task lane for execution context
+   * @param container Output parameter for the container to use for task execution
+   * @return true if task was successfully routed, false otherwise
+   */
+  bool RouteTask(const FullPtr<Task>& task_ptr, TaskQueue::TaskLane* lane, ChiContainer*& container);
 
   /**
    * Resolve a pool query into concrete physical addresses and update RuntimeContext
@@ -174,15 +183,6 @@ class Worker {
    * @return Pointer to container or nullptr if not found
    */
   ChiContainer* QueryContainerFromPoolManager(const FullPtr<Task>& task_ptr);
-
-  /**
-   * Call monitor function with kLocalSchedule to map task to lane
-   * @param container Target container for the task
-   * @param task_ptr Full pointer to task to be mapped to a lane
-   * @return true if mapping successful, false otherwise
-   */
-  bool CallMonitorForLocalSchedule(ChiContainer* container,
-                                   const FullPtr<Task>& task_ptr);
 
   /**
    * Check if task should be scheduled remotely based on domain query and load balancing
@@ -261,9 +261,9 @@ class Worker {
   RunContext* current_run_context_;
 
   // Active queue of lanes for processing
-  // GetLane returns a lane reference, so we store lane FullPtrs
-  hipc::FullPtr<chi::ipc::mpsc_queue<hipc::FullPtr<TaskQueue::TaskLane>>>
-      active_queue_;  // Queue of lane FullPtrs from GetLane
+  // GetLane returns a lane reference, so we store lane TypedPointers
+  hipc::FullPtr<chi::ipc::mpsc_queue<hipc::TypedPointer<TaskQueue::TaskLane>>>
+      active_queue_;  // Queue of lane TypedPointers from GetLane
 
   // Stack management simplified - allocate/free directly with malloc
 

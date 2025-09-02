@@ -220,6 +220,14 @@ public:
   }
 
   /**
+   * Check if task has been routed
+   * @return true if task has routed flag set
+   */
+  HSHM_CROSS_FUN bool IsRouted() const {
+    return task_flags_.Any(TASK_ROUTED);
+  }
+
+  /**
    * Get task execution period in specified time unit
    * @param unit Time unit constant (kNano, kMicro, kMilli, kSec, kMin, kHour)
    * @return Period in specified unit, 0 if not periodic

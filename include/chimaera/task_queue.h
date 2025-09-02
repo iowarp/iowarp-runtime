@@ -88,31 +88,18 @@ public:
    */
   static bool EmplaceTask(hipc::FullPtr<TaskLane>& lane_ptr, hipc::TypedPointer<Task> task_ptr);
 
+
   /**
    * Static method to pop a task from a specific lane
-   * @param lane_ptr FullPtr to the lane (as returned by GetLane)
+   * @param lane_ptr FullPtr to the lane
    * @param task_ptr Output TypedPointer to the popped task
    * @return true if pop successful
    */
-  static bool PopTask(hipc::FullPtr<TaskLane>& lane_ptr, hipc::TypedPointer<Task>& task_ptr) {
-    if (lane_ptr.IsNull()) {
-      return false;
-    }
-    
-    auto token = lane_ptr->pop(task_ptr);
-    return !token.IsNull();
-  }
+  static bool PopTask(hipc::FullPtr<TaskLane>& lane_ptr, hipc::TypedPointer<Task>& task_ptr);
 
 private:
   chi::ipc::multi_mpsc_queue<hipc::TypedPointer<Task>, TaskQueueHeader> queue_; // Underlying queue
 
-  /**
-   * Notify worker that a lane should be processed
-   * Called when task is added to empty lane
-   * @param lane_id Lane identifier
-   * @param prio_id Priority identifier
-   */
-  void NotifyWorkerLaneReady(u32 lane_id, u32 prio_id);
 };
 
 } // namespace chi

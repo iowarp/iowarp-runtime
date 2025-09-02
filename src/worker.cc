@@ -60,7 +60,7 @@ void Worker::Finalize() {
 
   // Clear active queue reference (don't delete - it's in shared memory)
   active_queue_ =
-      hipc::FullPtr<chi::ipc::mpsc_queue<hipc::FullPtr<TaskQueue::TaskLane>>>();
+      hipc::FullPtr<chi::ipc::mpsc_queue<hipc::TypedPointer<TaskQueue::TaskLane>>>();
 
   is_initialized_ = false;
 }
@@ -77,11 +77,15 @@ void Worker::Run() {
   // Main worker loop - pop lanes from active queue and process tasks
   while (is_running_) {
     did_work_ = false;  // Reset work tracker at start of each loop iteration
-    hipc::FullPtr<TaskQueue::TaskLane> lane_ptr;
+    hipc::TypedPointer<TaskQueue::TaskLane> lane_ptr;
 
     // Pop a lane from the active queue
     if (!active_queue_.IsNull() && !active_queue_->pop(lane_ptr).IsNull()) {
       if (!lane_ptr.IsNull()) {
+        // Convert TypedPointer to FullPtr by passing to constructor
+        hipc::FullPtr<TaskQueue::TaskLane> lane_full_ptr(lane_ptr);
+        did_work_ = true; // Mark that we attempted to process work
+      
         // Process up to 64 tasks from this specific lane
         const u32 MAX_TASKS_TOTAL = 64;
         u32 tasks_processed = 0;
@@ -89,40 +93,19 @@ void Worker::Run() {
         while (tasks_processed < MAX_TASKS_TOTAL && is_running_) {
           hipc::TypedPointer<Task> task_typed_ptr;
 
-          // Use static method to pop task from lane
-          if (TaskQueue::PopTask(lane_ptr, task_typed_ptr)) {
+          // Use static method to pop task from lane (convert TypedPointer to FullPtr first)
+          if (TaskQueue::PopTask(lane_full_ptr, task_typed_ptr)) {
             tasks_processed++;
 
             // Convert TypedPointer to FullPtr for consistent API usage
             hipc::FullPtr<Task> task_full_ptr(task_typed_ptr);
 
             if (!task_full_ptr.IsNull()) {
-              // Resolve pool query and route task to container
-              std::vector<ResolvedPoolQuery> resolved_queries =
-                  ResolvePoolQuery(task_full_ptr);
-
-              // Check if we have valid resolved queries for local processing
-              bool should_process_locally = false;
-              for (const auto& resolved_query : resolved_queries) {
-                if (resolved_query.node_id_ == 0) {
-                  // Local node processing
-                  should_process_locally = true;
-                  break;
-                }
-              }
-
-              if (should_process_locally) {
-                ChiContainer* container =
-                    QueryContainerFromPoolManager(task_full_ptr);
-                if (container) {
-                  // Call monitor function with kLocalSchedule to map task to
-                  // lane
-                  if (CallMonitorForLocalSchedule(container, task_full_ptr)) {
-                    // Execute the task (RunContext allocated within
-                    // BeginTask)
-                    BeginTask(task_full_ptr, container, lane_ptr.ptr_);
-                  }
-                }
+              // Route task using consolidated routing function
+              ChiContainer* container = nullptr;
+              if (RouteTask(task_full_ptr, lane_full_ptr.ptr_, container)) {
+                // Routing successful, execute the task
+                BeginTask(task_full_ptr, container, lane_full_ptr.ptr_);
               }
             }
           } else {
@@ -132,7 +115,7 @@ void Worker::Run() {
         }
 
         // Re-enqueue the lane if it still has tasks remaining
-        if (lane_ptr->GetSize() > 0) {
+        if (lane_full_ptr->GetSize() > 0) {
           active_queue_->push(lane_ptr);
         }
       }
@@ -157,12 +140,12 @@ void Worker::Run() {
 
 void Worker::Stop() { is_running_ = false; }
 
-void Worker::EnqueueLane(hipc::FullPtr<TaskQueue::TaskLane> lane_ptr) {
+void Worker::EnqueueLane(hipc::TypedPointer<TaskQueue::TaskLane> lane_ptr) {
   if (lane_ptr.IsNull() || active_queue_.IsNull()) {
     return;
   }
 
-  // Enqueue lane FullPtr to active queue (lock-free)
+  // Enqueue lane TypedPointer to active queue (lock-free)
   active_queue_->push(lane_ptr);
 }
 
@@ -220,6 +203,77 @@ Task* Worker::PopActiveTask() {
   // Task processing is handled directly in Worker::Run() through lane-based
   // processing
   return nullptr;
+}
+
+bool Worker::RouteTask(const FullPtr<Task>& task_ptr, TaskQueue::TaskLane* lane, ChiContainer*& container) {
+  if (task_ptr.IsNull()) {
+    return false;
+  }
+
+  // Check if task has already been routed - if so, return true immediately
+  if (task_ptr->IsRouted()) {
+    container = QueryContainerFromPoolManager(task_ptr);
+    return (container != nullptr);
+  }
+
+  // Resolve pool query and route task to container
+  std::vector<ResolvedPoolQuery> resolved_queries =
+      ResolvePoolQuery(task_ptr);
+
+  // Check if we have valid resolved queries for local processing
+  bool should_process_locally = false;
+  for (const auto& resolved_query : resolved_queries) {
+    if (resolved_query.node_id_ == 0) {
+      // Local node processing
+      should_process_locally = true;
+      break;
+    }
+  }
+
+  if (should_process_locally) {
+    container = QueryContainerFromPoolManager(task_ptr);
+    if (container) {
+      // Call monitor function with kLocalSchedule to determine routing
+      RunContext run_ctx = CreateRunContext(task_ptr);
+      
+      try {
+        container->Monitor(MonitorModeId::kLocalSchedule, task_ptr->method_,
+                           task_ptr, run_ctx);
+        
+        // Check if the route_lane_ is different from the input lane
+        TaskQueue::TaskLane* route_lane = static_cast<TaskQueue::TaskLane*>(run_ctx.route_lane_);
+        if (route_lane && route_lane != lane) {
+          // Task should be routed to a different lane - enqueue it there
+          hipc::TypedPointer<Task> task_typed_ptr(task_ptr.shm_);
+          hipc::FullPtr<TaskQueue::TaskLane> route_lane_full_ptr(route_lane);
+          TaskQueue::EmplaceTask(route_lane_full_ptr, task_typed_ptr);
+          
+          // Set TASK_ROUTED flag to indicate this task has been routed
+          task_ptr->SetFlags(TASK_ROUTED);
+          
+          // Task was routed to different lane, return false to indicate no local execution needed
+          return false;
+        } else {
+          // Task should be executed locally (same lane or no routing needed)
+          // Set TASK_ROUTED flag to indicate this task has been routed
+          task_ptr->SetFlags(TASK_ROUTED);
+          
+          // Routing successful - caller should execute the task locally
+          return true;
+        }
+      } catch (const std::exception& e) {
+        // Monitor function failed
+        return false;
+      }
+    }
+  } else {
+    // Global/remote routing - use kGlobalSchedule
+    // For now, this is not implemented, so return false
+    // In future, this would handle remote task routing
+    return false;
+  }
+
+  return false;
 }
 
 std::vector<ResolvedPoolQuery> Worker::ResolvePoolQuery(
@@ -421,24 +475,6 @@ ChiContainer* Worker::QueryContainerFromPoolManager(
   return pool_manager->GetContainer(task_ptr->pool_id_);
 }
 
-bool Worker::CallMonitorForLocalSchedule(ChiContainer* container,
-                                         const FullPtr<Task>& task_ptr) {
-  if (container == nullptr || task_ptr.IsNull()) {
-    return false;
-  }
-
-  // Call the monitor function with kLocalSchedule to map the task to a lane
-  RunContext run_ctx = CreateRunContext(task_ptr);
-
-  try {
-    container->Monitor(MonitorModeId::kLocalSchedule, task_ptr->method_,
-                       task_ptr, run_ctx);
-    return true;
-  } catch (const std::exception& e) {
-    // Monitor function failed
-    return false;
-  }
-}
 
 RunContext Worker::CreateRunContext(const FullPtr<Task>& task_ptr) {
   // This method is deprecated - use AllocateStackAndContext instead

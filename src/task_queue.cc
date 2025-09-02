@@ -15,14 +15,6 @@ TaskQueue::TaskQueue(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T>& alloc,
   // Headers are now managed automatically by the multi_mpsc_queue per lane
 }
 
-void TaskQueue::NotifyWorkerLaneReady(u32 lane_id, u32 prio_id) {
-  // Get the specific lane that has work available
-  auto& lane = queue_.GetLane(lane_id, prio_id);
-  hipc::FullPtr<TaskQueue::TaskLane> lane_ptr(&lane);
-
-  // Call static function to notify worker via IPC Manager
-  WorkOrchestrator::NotifyWorkerLaneReady(lane_ptr);
-}
 
 /*static*/ bool TaskQueue::EmplaceTask(hipc::FullPtr<TaskLane>& lane_ptr, hipc::TypedPointer<Task> task_ptr) {
   if (lane_ptr.IsNull() || task_ptr.IsNull()) {
@@ -41,6 +33,15 @@ void TaskQueue::NotifyWorkerLaneReady(u32 lane_id, u32 prio_id) {
   }
   
   return true;
+}
+
+/*static*/ bool TaskQueue::PopTask(hipc::FullPtr<TaskLane>& lane_ptr, hipc::TypedPointer<Task>& task_ptr) {
+  if (lane_ptr.IsNull()) {
+    return false;
+  }
+  
+  auto token = lane_ptr->pop(task_ptr);
+  return !token.IsNull();
 }
 
 }  // namespace chi

@@ -64,13 +64,13 @@ void Runtime::MonitorCreate(chi::MonitorModeId mode,
                            chi::RunContext& rctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule:
-      // Route task to local queue
-      std::cout << "MOD_NAME: Routing Create task to local queue" << std::endl;
-      // Use base class lane management - route to low latency queue
+      // Set route_lane_ to indicate where task should be routed
+      std::cout << "MOD_NAME: Setting route_lane_ for Create task" << std::endl;
+      // Use base class lane management - set route_lane_ to low latency queue
       {
         auto lane_ptr = GetLaneFullPtr(chi::kLowLatency, 0);
         if (!lane_ptr.IsNull()) {
-          chi::TaskQueue::EmplaceTask(lane_ptr, task_ptr.shm_);
+          rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
         }
       }
       break;
@@ -107,13 +107,13 @@ void Runtime::MonitorCustom(chi::MonitorModeId mode,
                            chi::RunContext& rctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule:
-      // Route task to local queue
-      std::cout << "MOD_NAME: Routing Custom task to local queue" << std::endl;
-      // Use base class lane management - route to low latency queue lane 0
+      // Set route_lane_ to indicate where task should be routed
+      std::cout << "MOD_NAME: Setting route_lane_ for Custom task" << std::endl;
+      // Use base class lane management - set route_lane_ to low latency queue lane 0
       {
         auto lane_ptr = GetLaneFullPtr(chi::kLowLatency, 0);
         if (!lane_ptr.IsNull()) {
-          chi::TaskQueue::EmplaceTask(lane_ptr, task_ptr.shm_);
+          rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
         }
       }
       break;

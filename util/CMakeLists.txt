@@ -9,7 +9,7 @@ add_executable(chimaera_start_runtime
 )
 target_compile_definitions(chimaera_start_runtime PRIVATE CHIMAERA_RUNTIME=1)
 target_link_libraries(chimaera_start_runtime
-  PRIVATE chimaera
+  PUBLIC chimaera
 )
 
 # Build chimaera_stop_runtime  
@@ -18,7 +18,7 @@ add_executable(chimaera_stop_runtime
 )
 target_compile_definitions(chimaera_stop_runtime PRIVATE CHIMAERA_RUNTIME=1)
 target_link_libraries(chimaera_stop_runtime
-  PRIVATE chimaera
+  PUBLIC chimaera
 )
 target_include_directories(chimaera_stop_runtime PRIVATE
   ${CMAKE_SOURCE_DIR}/chimods/admin/include

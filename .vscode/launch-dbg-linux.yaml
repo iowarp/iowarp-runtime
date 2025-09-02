@@ -43,7 +43,3 @@ configurations:
     launch-name: test_start_runtime
     program: chimaera_start_runtime
     args: [""]
-  - macro: debug
-    launch-name: test_rocm_exec
-    program: test_rocm_exec
-    args: [""]

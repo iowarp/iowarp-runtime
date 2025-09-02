@@ -57,13 +57,15 @@ struct RunContext {
   boost::context::detail::fcontext_t fiber_context;  // boost::context fiber context for task execution
   void* container;             // Current container being executed (ChiContainer* in runtime)
   void* lane;                  // Current lane being processed (TaskQueue::TaskLane* in runtime)
+  void* route_lane_;           // Lane pointer set by kLocalSchedule for task routing (TaskQueue::TaskLane* in runtime)
   std::vector<FullPtr<Task>> waiting_for_tasks; // Tasks this task is waiting for completion
   std::vector<ResolvedPoolQuery> resolved_queries; // Resolved pool queries for task distribution
   
   RunContext() : stack_ptr(nullptr), stack_base_for_free(nullptr), stack_size(0), 
                  thread_type(kLowLatencyWorker), worker_id(0),
                  is_blocked(false), estimated_completion_time_us(0.0),
-                 fiber_transfer{}, fiber_context{}, container(nullptr), lane(nullptr) {}
+                 fiber_transfer{}, fiber_context{}, container(nullptr), lane(nullptr), 
+                 route_lane_(nullptr) {}
 
   /**
    * Check if all subtasks this task is waiting for are completed

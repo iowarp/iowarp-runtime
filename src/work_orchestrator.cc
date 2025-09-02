@@ -447,15 +447,15 @@ void WorkOrchestrator::RoundRobinTaskQueueScheduler(TaskQueue* task_queue) {
   }
 
   // Get worker ID from lane header
-  // Access the lane's header directly - TaskQueueHeader is the header type
   auto& header = lane_ptr->GetHeader();
   u32 worker_id = header.assigned_worker_id;
 
   // Get the worker's active queue from shared memory
   auto worker_queue = ipc->GetWorkerQueue(worker_id);
   if (!worker_queue.IsNull()) {
-    // Enqueue the lane to the worker's queue
-    worker_queue->push(lane_ptr);
+    // Convert FullPtr to TypedPointer for worker queue
+    hipc::TypedPointer<TaskQueue::TaskLane> lane_typed_ptr(lane_ptr.shm_);
+    worker_queue->push(lane_typed_ptr);
   }
 }
 

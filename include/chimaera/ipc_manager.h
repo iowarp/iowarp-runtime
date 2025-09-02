@@ -13,7 +13,7 @@ namespace chi {
  */
 struct IpcSharedHeader {
   hipc::delay_ar<TaskQueue> external_queue; // External/Process TaskQueue in shared memory
-  hipc::delay_ar<chi::ipc::vector<chi::ipc::mpsc_queue<hipc::FullPtr<TaskQueue::TaskLane>>>> worker_queues; // Vector of worker active queues
+  hipc::delay_ar<chi::ipc::vector<chi::ipc::mpsc_queue<hipc::TypedPointer<TaskQueue::TaskLane>>>> worker_queues; // Vector of worker active queues
   u32 num_workers; // Number of workers for which queues are allocated
   u64 node_id; // 64-bit hash of the hostname for node identification
 };
@@ -162,7 +162,7 @@ class IpcManager {
    * @param worker_id Worker identifier (0-based)
    * @return FullPtr to worker's active queue or null if invalid
    */
-  hipc::FullPtr<hipc::mpsc_queue<hipc::FullPtr<TaskQueue::TaskLane>>> GetWorkerQueue(u32 worker_id);
+  hipc::FullPtr<hipc::mpsc_queue<hipc::TypedPointer<TaskQueue::TaskLane>>> GetWorkerQueue(u32 worker_id);
 
   /**
    * Get number of workers from shared memory header
