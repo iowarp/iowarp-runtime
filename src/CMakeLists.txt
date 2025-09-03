@@ -5,6 +5,7 @@ cmake_minimum_required(VERSION 3.10)
 
 # Include directories
 include_directories(${CMAKE_SOURCE_DIR}/include)
+include_directories(${CMAKE_SOURCE_DIR}/chimods/admin/include)
 
 # Get all source files
 file(GLOB_RECURSE CHIMAERA_SOURCES
@@ -25,6 +26,7 @@ target_link_libraries(chimaera
     cereal::cereal
     Boost::fiber
     Boost::context
+    # chimods_admin_client  # Admin client library for global task routing - TODO: Enable when admin chimod is built
 )
 
 # Set target properties

@@ -33,6 +33,6 @@ This aims to avoid overwhelming nodes with tasks.
 Similar to case 3, it should map to smaller domain queries. DomainQuery object should have a "range" mode where a linear range of container IDs can be chosen for broadcast.
 
 ## Worker Route
-If the ResolvedDomainQuery object exactly one entry and the resolved node ID is this node, then we schedule the task as-is. Otherwise, the task is sent to the chimaera admin using the ClientSendTask method. The DomainQuery used should be GetLocalHash.
+If the ResolvedDomainQuery object exactly one entry and the resolved node ID is this node, then we schedule the task as-is. Otherwise, the task is sent to the chimaera admin using the ClientSendTask method. The DomainQuery used should be LocalHash.
 
 Otherwise, the task should be scheduled like it is now.

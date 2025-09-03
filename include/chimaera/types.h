@@ -128,8 +128,45 @@ struct PoolId : public UniqueId {
   }
 };
 
-// Task and method identifiers
-using TaskNode = u32;
+/**
+ * Task node identifier containing process, thread, and sequence information
+ */
+struct TaskNode {
+  u32 pid_;       ///< Process ID
+  u32 tid_;       ///< Thread ID
+  u32 major_;     ///< Major sequence number (monotonically increasing per thread)
+  u32 minor_;     ///< Minor sequence number (for sub-tasks)
+
+  TaskNode() : pid_(0), tid_(0), major_(0), minor_(0) {}
+  TaskNode(u32 pid, u32 tid, u32 major, u32 minor = 0) 
+      : pid_(pid), tid_(tid), major_(major), minor_(minor) {}
+
+  // For backward compatibility with u32 constructor
+  TaskNode(u32 simple_id) : pid_(0), tid_(0), major_(simple_id), minor_(0) {}
+
+  // Equality operators
+  bool operator==(const TaskNode& other) const {
+    return pid_ == other.pid_ && tid_ == other.tid_ && 
+           major_ == other.major_ && minor_ == other.minor_;
+  }
+
+  bool operator!=(const TaskNode& other) const {
+    return !(*this == other);
+  }
+
+  // Convert to u64 for hashing (combine pid, tid, major)
+  u64 ToU64() const {
+    return (static_cast<u64>(pid_) << 48) | (static_cast<u64>(tid_) << 32) | 
+           (static_cast<u64>(major_) << 16) | static_cast<u64>(minor_);
+  }
+
+  // Serialization support
+  template<typename Ar>
+  void serialize(Ar& ar) {
+    ar(pid_, tid_, major_, minor_);
+  }
+};
+
 using MethodId = u32;
 
 // Worker and Lane identifiers
@@ -241,8 +278,30 @@ enum MemorySegment {
 #define INOUT
 #define TEMP
 
-// HSHM Thread-local storage key for current worker  
+// HSHM Thread-local storage keys
 extern hshm::ThreadLocalKey chi_cur_worker_key_;
+extern hshm::ThreadLocalKey chi_task_counter_key_;
+
+/**
+ * Thread-local task counter for generating unique TaskNode major numbers
+ */
+struct TaskCounter {
+  u32 counter_;
+  
+  TaskCounter() : counter_(0) {}
+  
+  u32 GetNext() {
+    return ++counter_;
+  }
+};
+
+/**
+ * Create a new TaskNode with current process/thread info and next major counter
+ * In runtime mode: copies current task's TaskNode and increments minor by 1
+ * In client mode: creates new TaskNode with fresh major counter and minor = 0
+ * @return TaskNode with pid, tid, major, and minor populated
+ */
+TaskNode CreateTaskNode();
 
 // Template aliases for full pointers using HSHM
 template<typename T>
@@ -267,6 +326,13 @@ namespace std {
   struct hash<chi::PoolId> {
     size_t operator()(const chi::PoolId& id) const {
       return hash<chi::UniqueId>()(id);
+    }
+  };
+
+  template <>
+  struct hash<chi::TaskNode> {
+    size_t operator()(const chi::TaskNode& node) const {
+      return hash<chi::u64>()(node.ToU64());
     }
   };
 

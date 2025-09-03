@@ -31,6 +31,16 @@ bool IpcManager::ClientInit() {
     return false;
   }
 
+  // Initialize HSHM TLS key for task counter
+  HSHM_THREAD_MODEL->CreateTls<TaskCounter>(chi_task_counter_key_, nullptr);
+
+  // Initialize thread-local task counter for this client thread
+  auto* counter = new TaskCounter();
+  HSHM_THREAD_MODEL->SetTls(chi_task_counter_key_, counter);
+
+  // Set current worker to null for client-only mode
+  HSHM_THREAD_MODEL->SetTls(chi_cur_worker_key_, static_cast<Worker*>(nullptr));
+
   is_initialized_ = true;
   return true;
 }
@@ -50,6 +60,9 @@ bool IpcManager::ServerInit() {
     return false;
   }
 
+  // Initialize HSHM TLS key for task counter (needed for CreateTaskNode in runtime)
+  HSHM_THREAD_MODEL->CreateTls<TaskCounter>(chi_task_counter_key_, nullptr);
+
   // Initialize ZeroMQ server (optional - failure is non-fatal)
   InitializeZmqServer();
 
@@ -59,7 +72,15 @@ bool IpcManager::ServerInit() {
 
 
 void IpcManager::ClientFinalize() {
-  // Client finalize does nothing for now
+  // Clean up thread-local task counter
+  TaskCounter* counter =
+      HSHM_THREAD_MODEL->GetTls<TaskCounter>(chi_task_counter_key_);
+  if (counter) {
+    delete counter;
+    HSHM_THREAD_MODEL->SetTls(chi_task_counter_key_,
+                              static_cast<TaskCounter*>(nullptr));
+  }
+
   // Clients should not destroy shared resources
 }
 

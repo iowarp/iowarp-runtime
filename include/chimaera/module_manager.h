@@ -11,12 +11,8 @@
 namespace chi {
 
 // Forward declarations for ChiMod system
-#ifndef CHIMAERA_RUNTIME
-using ChiContainer = void;
-#else
-// When CHIMAERA_RUNTIME is defined, ChiContainer is defined in chimod_spec.h
+// ChiContainer is always a class forward declaration (defined in chimod_spec.h)
 class ChiContainer;
-#endif
 
 // ChiMod function types
 typedef ChiContainer* (*alloc_chimod_t)();

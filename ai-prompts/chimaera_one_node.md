@@ -54,9 +54,9 @@ struct DomainId {
 ```
 
 A DomainQuery should be implemented that can be used for selecting basic regions of a domain. DomainQuery is not like a SQL query and should focus on being small in size and avoiding strings. DomainQuery has the following options:
-1. GetLocalId(u32 id): Send task to container using its local address
+1. LocalId(u32 id): Send task to container using its local address
 2. GetGlobalId(u32 id): Send task to container using its global address 
-3. GetLocalHash(u32 hash): Hash task to a container by taking modulo of the kLocal subdomain
+3. LocalHash(u32 hash): Hash task to a container by taking modulo of the kLocal subdomain
 4. GetGlobalHash(u32 hash): Hash task to a container by taking module of the kGlobal subdomain
 5. GetGlobalBcast(): Replicates task to every node in the domain
 5. GetDynamic(): Send this request to the container's Monitor method with MonitorMode kGlobalSchedule

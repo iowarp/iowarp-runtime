@@ -6,20 +6,24 @@
 
 namespace chi {
 
-PoolQuery::PoolQuery() : routing_mode_(RoutingMode::Local), hash_value_(0), container_id_(0) {
-}
+PoolQuery::PoolQuery()
+    : routing_mode_(RoutingMode::Local), hash_value_(0), container_id_(0), 
+      range_offset_(0), range_count_(0) {}
 
-PoolQuery::PoolQuery(const PoolQuery& other) 
-    : routing_mode_(other.routing_mode_), 
-      hash_value_(other.hash_value_), 
-      container_id_(other.container_id_) {
-}
+PoolQuery::PoolQuery(const PoolQuery& other)
+    : routing_mode_(other.routing_mode_),
+      hash_value_(other.hash_value_),
+      container_id_(other.container_id_),
+      range_offset_(other.range_offset_),
+      range_count_(other.range_count_) {}
 
 PoolQuery& PoolQuery::operator=(const PoolQuery& other) {
   if (this != &other) {
     routing_mode_ = other.routing_mode_;
     hash_value_ = other.hash_value_;
     container_id_ = other.container_id_;
+    range_offset_ = other.range_offset_;
+    range_count_ = other.range_count_;
   }
   return *this;
 }
@@ -35,6 +39,8 @@ PoolQuery PoolQuery::Local() {
   query.routing_mode_ = RoutingMode::Local;
   query.hash_value_ = 0;
   query.container_id_ = 0;
+  query.range_offset_ = 0;
+  query.range_count_ = 0;
   return query;
 }
 
@@ -43,6 +49,8 @@ PoolQuery PoolQuery::DirectId(ContainerId container_id) {
   query.routing_mode_ = RoutingMode::DirectId;
   query.hash_value_ = 0;
   query.container_id_ = container_id;
+  query.range_offset_ = 0;
+  query.range_count_ = 0;
   return query;
 }
 
@@ -51,14 +59,18 @@ PoolQuery PoolQuery::DirectHash(u32 hash) {
   query.routing_mode_ = RoutingMode::DirectHash;
   query.hash_value_ = hash;
   query.container_id_ = 0;
+  query.range_offset_ = 0;
+  query.range_count_ = 0;
   return query;
 }
 
-PoolQuery PoolQuery::Range(u32 hash) {
+PoolQuery PoolQuery::Range(u32 offset, u32 count) {
   PoolQuery query;
   query.routing_mode_ = RoutingMode::Range;
-  query.hash_value_ = hash;
+  query.hash_value_ = 0;
   query.container_id_ = 0;
+  query.range_offset_ = offset;
+  query.range_count_ = count;
   return query;
 }
 
@@ -67,22 +79,22 @@ PoolQuery PoolQuery::Broadcast() {
   query.routing_mode_ = RoutingMode::Broadcast;
   query.hash_value_ = 0;
   query.container_id_ = 0;
+  query.range_offset_ = 0;
+  query.range_count_ = 0;
   return query;
 }
 
 // Getter methods
 
-u32 PoolQuery::GetHash() const {
-  return hash_value_;
-}
+u32 PoolQuery::GetHash() const { return hash_value_; }
 
-ContainerId PoolQuery::GetContainerId() const {
-  return container_id_;
-}
+ContainerId PoolQuery::GetContainerId() const { return container_id_; }
 
-RoutingMode PoolQuery::GetRoutingMode() const {
-  return routing_mode_;
-}
+u32 PoolQuery::GetRangeOffset() const { return range_offset_; }
+
+u32 PoolQuery::GetRangeCount() const { return range_count_; }
+
+RoutingMode PoolQuery::GetRoutingMode() const { return routing_mode_; }
 
 bool PoolQuery::IsLocalMode() const {
   return routing_mode_ == RoutingMode::Local;

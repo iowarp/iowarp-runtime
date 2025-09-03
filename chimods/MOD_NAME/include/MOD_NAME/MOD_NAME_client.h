@@ -47,7 +47,7 @@ class Client : public chi::ChiContainerClient {
     
     // Allocate CreateTask
     auto task = ipc_manager->NewTask<CreateTask>(
-        chi::TaskNode(0), 
+        chi::CreateTaskNode(),
         pool_id_,
         dom_query);
     
@@ -90,7 +90,7 @@ class Client : public chi::ChiContainerClient {
     
     // Allocate CustomTask
     auto task = ipc_manager->NewTask<CustomTask>(
-        chi::TaskNode(0),
+        chi::CreateTaskNode(),
         pool_id_,
         dom_query,
         input_data,

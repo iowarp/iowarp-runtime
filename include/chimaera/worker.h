@@ -19,6 +19,7 @@ namespace chi {
 class Task;
 class TaskQueue;
 
+
 // Macro for accessing HSHM thread-local storage (worker thread context)
 // This macro allows access to the current worker from any thread
 // Example usage in ChiMod container code:
@@ -163,18 +164,48 @@ class Worker {
   bool RouteTask(const FullPtr<Task>& task_ptr, TaskQueue::TaskLane* lane, ChiContainer*& container);
 
   /**
-   * Resolve a pool query into concrete physical addresses and update RuntimeContext
-   * @param task_ptr Full pointer to task with pool query to resolve
+   * Resolve a pool query into concrete physical addresses
+   * @param query Pool query to resolve
+   * @param pool_id Pool ID for the query
    * @return Vector of resolved pool queries with concrete addresses
    */
-  std::vector<ResolvedPoolQuery> ResolvePoolQuery(const FullPtr<Task>& task_ptr);
+  std::vector<ResolvedPoolQuery> ResolvePoolQuery(const PoolQuery& query, PoolId pool_id);
+
+private:
+  // Pool query resolution helper functions
+  std::vector<ResolvedPoolQuery> ResolveLocalQuery(const PoolQuery& query);
+  std::vector<ResolvedPoolQuery> ResolveDirectIdQuery(const PoolQuery& query, PoolId pool_id);
+  std::vector<ResolvedPoolQuery> ResolveDirectHashQuery(const PoolQuery& query, PoolId pool_id);
+  std::vector<ResolvedPoolQuery> ResolveRangeQuery(const PoolQuery& query, PoolId pool_id);
+  std::vector<ResolvedPoolQuery> ResolveBroadcastQuery(const PoolQuery& query, PoolId pool_id);
+
+public:
+
+  /**
+   * Check if task should be processed locally based on resolved pool queries
+   * @param resolved_queries Vector of resolved pool queries from ResolvePoolQuery
+   * @return true if task should be processed locally, false for global routing
+   */
+  bool IsTaskLocal(const std::vector<ResolvedPoolQuery>& resolved_queries);
+
+  /**
+   * Route task locally using container query and Monitor with kLocalSchedule
+   * @param task_ptr Full pointer to task to route locally
+   * @param lane Pointer to the task lane for execution context
+   * @param container Output parameter for the container to use for task execution
+   * @return true if local routing successful, false otherwise
+   */
+  bool RouteLocal(const FullPtr<Task>& task_ptr, TaskQueue::TaskLane* lane, ChiContainer*& container);
+
+  /**
+   * Route task globally using admin client's ClientSendTaskIn method
+   * @param task_ptr Full pointer to task to route globally
+   * @param resolved_queries Vector of resolved pool queries for global routing
+   * @return true if global routing successful, false otherwise
+   */
+  bool RouteGlobal(const FullPtr<Task>& task_ptr, const std::vector<ResolvedPoolQuery>& resolved_queries);
 
  private:
-  /**
-   * Pop task from active lane queue
-   * @return Pointer to task or nullptr if queue empty
-   */
-  Task* PopActiveTask();
 
 
   /**
@@ -184,19 +215,6 @@ class Worker {
    */
   ChiContainer* QueryContainerFromPoolManager(const FullPtr<Task>& task_ptr);
 
-  /**
-   * Check if task should be scheduled remotely based on domain query and load balancing
-   * @param task_ptr Full pointer to task to check
-   * @return true if task should be sent to remote node, false for local processing
-   */
-  bool ShouldScheduleRemotely(const FullPtr<Task>& task_ptr);
-
-  /**
-   * Schedule task for remote execution via admin chimod networking methods
-   * @param task_ptr Full pointer to task to send remotely
-   * @return true if task was successfully sent remotely, false otherwise
-   */
-  bool ScheduleTaskRemotely(const FullPtr<Task>& task_ptr);
 
   /**
    * Create run context for task execution
@@ -259,6 +277,7 @@ class Worker {
 
   // Current RunContext for this worker thread
   RunContext* current_run_context_;
+
 
   // Active queue of lanes for processing
   // GetLane returns a lane reference, so we store lane TypedPointers

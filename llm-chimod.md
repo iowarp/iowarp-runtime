@@ -1229,7 +1229,7 @@ int main() {
   size_t data_size = hshm::Unit<size_t>::Megabytes(1);
   hipc::FullPtr<char> orig_data =
       CHI_CLIENT->AllocateBuffer(HSHM_MCTX, data_size);
-  client.Compress(HSHM_MCTX, chi::DomainQuery::GetLocalHash(0), orig_data.shm_,
+  client.Compress(HSHM_MCTX, chi::DomainQuery::LocalHash(0), orig_data.shm_,
                   data_size);
   return 0;
 }
@@ -1349,7 +1349,7 @@ int main() {
   size_t data_size = hshm::Unit<size_t>::Megabytes(1);
   hipc::FullPtr<char> orig_data =
       CHI_CLIENT->AllocateBuffer(HSHM_MCTX, data_size);
-  client.Compress(HSHM_MCTX, chi::DomainQuery::GetLocalHash(0), orig_data.shm_,
+  client.Compress(HSHM_MCTX, chi::DomainQuery::LocalHash(0), orig_data.shm_,
                   data_size);
   return 0;
 }

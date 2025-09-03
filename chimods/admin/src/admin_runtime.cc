@@ -347,15 +347,17 @@ void Runtime::InitiateShutdown(chi::u32 grace_period_ms) {
   if (chimaera_manager) {
     // chimaera_manager->InitiateShutdown(grace_period_ms);
   }
-  // std::abort();
+  std::abort();
 }
 
 //===========================================================================
 // Distributed Task Scheduling Method Implementations
 //===========================================================================
 
-void Runtime::ClientSendTaskIn(hipc::FullPtr<ClientSendTaskInTask> task, chi::RunContext& rctx) {
-  std::cout << "Admin: Executing ClientSendTaskIn - Sending task input data" << std::endl;
+void Runtime::ClientSendTaskIn(hipc::FullPtr<ClientSendTaskInTask> task,
+                               chi::RunContext& rctx) {
+  std::cout << "Admin: Executing ClientSendTaskIn - Sending task input data"
+            << std::endl;
 
   // Initialize output values
   task->result_code_ = 0;
@@ -382,13 +384,14 @@ void Runtime::ClientSendTaskIn(hipc::FullPtr<ClientSendTaskInTask> task, chi::Ru
   }
 }
 
-void Runtime::MonitorClientSendTaskIn(chi::MonitorModeId mode,
-                                     hipc::FullPtr<ClientSendTaskInTask> task_ptr,
-                                     chi::RunContext& rctx) {
+void Runtime::MonitorClientSendTaskIn(
+    chi::MonitorModeId mode, hipc::FullPtr<ClientSendTaskInTask> task_ptr,
+    chi::RunContext& rctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule:
       // Set route_lane_ to indicate where task should be routed
-      std::cout << "Admin: Setting route_lane_ for ClientSendTaskIn" << std::endl;
+      std::cout << "Admin: Setting route_lane_ for ClientSendTaskIn"
+                << std::endl;
       // Set route_lane_ to low latency queue lane 0 for network operations
       {
         auto lane_ptr = GetLaneFullPtr(chi::kLowLatency, 0);
@@ -410,8 +413,10 @@ void Runtime::MonitorClientSendTaskIn(chi::MonitorModeId mode,
   }
 }
 
-void Runtime::ServerRecvTaskIn(hipc::FullPtr<ServerRecvTaskInTask> task, chi::RunContext& rctx) {
-  std::cout << "Admin: Executing ServerRecvTaskIn - Receiving task input data" << std::endl;
+void Runtime::ServerRecvTaskIn(hipc::FullPtr<ServerRecvTaskInTask> task,
+                               chi::RunContext& rctx) {
+  std::cout << "Admin: Executing ServerRecvTaskIn - Receiving task input data"
+            << std::endl;
 
   // Initialize output values
   task->result_code_ = 0;
@@ -437,13 +442,14 @@ void Runtime::ServerRecvTaskIn(hipc::FullPtr<ServerRecvTaskInTask> task, chi::Ru
   }
 }
 
-void Runtime::MonitorServerRecvTaskIn(chi::MonitorModeId mode,
-                                     hipc::FullPtr<ServerRecvTaskInTask> task_ptr,
-                                     chi::RunContext& rctx) {
+void Runtime::MonitorServerRecvTaskIn(
+    chi::MonitorModeId mode, hipc::FullPtr<ServerRecvTaskInTask> task_ptr,
+    chi::RunContext& rctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule:
       // Set route_lane_ to indicate where task should be routed
-      std::cout << "Admin: Setting route_lane_ for ServerRecvTaskIn" << std::endl;
+      std::cout << "Admin: Setting route_lane_ for ServerRecvTaskIn"
+                << std::endl;
       // Set route_lane_ to low latency queue lane 0 for network operations
       {
         auto lane_ptr = GetLaneFullPtr(chi::kLowLatency, 0);
@@ -465,8 +471,10 @@ void Runtime::MonitorServerRecvTaskIn(chi::MonitorModeId mode,
   }
 }
 
-void Runtime::ServerSendTaskOut(hipc::FullPtr<ServerSendTaskOutTask> task, chi::RunContext& rctx) {
-  std::cout << "Admin: Executing ServerSendTaskOut - Sending task results" << std::endl;
+void Runtime::ServerSendTaskOut(hipc::FullPtr<ServerSendTaskOutTask> task,
+                                chi::RunContext& rctx) {
+  std::cout << "Admin: Executing ServerSendTaskOut - Sending task results"
+            << std::endl;
 
   // Initialize output values
   task->result_code_ = 0;
@@ -492,13 +500,14 @@ void Runtime::ServerSendTaskOut(hipc::FullPtr<ServerSendTaskOutTask> task, chi::
   }
 }
 
-void Runtime::MonitorServerSendTaskOut(chi::MonitorModeId mode,
-                                      hipc::FullPtr<ServerSendTaskOutTask> task_ptr,
-                                      chi::RunContext& rctx) {
+void Runtime::MonitorServerSendTaskOut(
+    chi::MonitorModeId mode, hipc::FullPtr<ServerSendTaskOutTask> task_ptr,
+    chi::RunContext& rctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule:
       // Set route_lane_ to indicate where task should be routed
-      std::cout << "Admin: Setting route_lane_ for ServerSendTaskOut" << std::endl;
+      std::cout << "Admin: Setting route_lane_ for ServerSendTaskOut"
+                << std::endl;
       // Set route_lane_ to low latency queue lane 0 for network operations
       {
         auto lane_ptr = GetLaneFullPtr(chi::kLowLatency, 0);
@@ -510,7 +519,8 @@ void Runtime::MonitorServerSendTaskOut(chi::MonitorModeId mode,
 
     case chi::MonitorModeId::kGlobalSchedule:
       // Coordinate global network send
-      std::cout << "Admin: Global scheduling for ServerSendTaskOut" << std::endl;
+      std::cout << "Admin: Global scheduling for ServerSendTaskOut"
+                << std::endl;
       break;
 
     case chi::MonitorModeId::kEstLoad:
@@ -520,8 +530,10 @@ void Runtime::MonitorServerSendTaskOut(chi::MonitorModeId mode,
   }
 }
 
-void Runtime::ClientRecvTaskOut(hipc::FullPtr<ClientRecvTaskOutTask> task, chi::RunContext& rctx) {
-  std::cout << "Admin: Executing ClientRecvTaskOut - Receiving task results" << std::endl;
+void Runtime::ClientRecvTaskOut(hipc::FullPtr<ClientRecvTaskOutTask> task,
+                                chi::RunContext& rctx) {
+  std::cout << "Admin: Executing ClientRecvTaskOut - Receiving task results"
+            << std::endl;
 
   // Initialize output values
   task->result_code_ = 0;
@@ -547,13 +559,14 @@ void Runtime::ClientRecvTaskOut(hipc::FullPtr<ClientRecvTaskOutTask> task, chi::
   }
 }
 
-void Runtime::MonitorClientRecvTaskOut(chi::MonitorModeId mode,
-                                      hipc::FullPtr<ClientRecvTaskOutTask> task_ptr,
-                                      chi::RunContext& rctx) {
+void Runtime::MonitorClientRecvTaskOut(
+    chi::MonitorModeId mode, hipc::FullPtr<ClientRecvTaskOutTask> task_ptr,
+    chi::RunContext& rctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule:
       // Set route_lane_ to indicate where task should be routed
-      std::cout << "Admin: Setting route_lane_ for ClientRecvTaskOut" << std::endl;
+      std::cout << "Admin: Setting route_lane_ for ClientRecvTaskOut"
+                << std::endl;
       // Set route_lane_ to low latency queue lane 0 for network operations
       {
         auto lane_ptr = GetLaneFullPtr(chi::kLowLatency, 0);
@@ -565,7 +578,8 @@ void Runtime::MonitorClientRecvTaskOut(chi::MonitorModeId mode,
 
     case chi::MonitorModeId::kGlobalSchedule:
       // Coordinate global network receive
-      std::cout << "Admin: Global scheduling for ClientRecvTaskOut" << std::endl;
+      std::cout << "Admin: Global scheduling for ClientRecvTaskOut"
+                << std::endl;
       break;
 
     case chi::MonitorModeId::kEstLoad:
@@ -576,18 +590,6 @@ void Runtime::MonitorClientRecvTaskOut(chi::MonitorModeId mode,
 }
 
 }  // namespace chimaera::admin
-
-// Dummy function to ensure AdminCreateTask MonitorCreate is linked
-// This forces the linker to include the symbol
-__attribute__((unused)) static void force_link_admin_monitor_create() {
-  // This will never be called but ensures the symbol is included
-  chimaera::admin::Runtime* runtime = nullptr;
-  if (runtime) {
-    hipc::FullPtr<chimaera::admin::CreateTask> task;
-    chi::RunContext rctx;
-    runtime->MonitorCreate(chi::MonitorModeId::kLocalSchedule, task, rctx);
-  }
-}
 
 // Define ChiMod entry points using CHI_TASK_CC macro
 CHI_TASK_CC(chimaera::admin::Runtime)

@@ -16,7 +16,7 @@ target_link_libraries(chimaera_start_runtime
 add_executable(chimaera_stop_runtime
   ${CMAKE_CURRENT_SOURCE_DIR}/chimaera_stop_runtime.cc
 )
-target_compile_definitions(chimaera_stop_runtime PRIVATE CHIMAERA_RUNTIME=1)
+# chimaera_stop_runtime is client-only code, so do not define CHIMAERA_RUNTIME
 target_link_libraries(chimaera_stop_runtime
   PUBLIC chimaera
 )
