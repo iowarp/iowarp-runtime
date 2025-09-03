@@ -378,30 +378,36 @@ namespace Method {
 
 #### BaseCreateTask Template System
 
-For modules that need container creation functionality, use the BaseCreateTask template instead of implementing custom CreateTask:
+For modules that need container creation functionality, use the BaseCreateTask template instead of implementing custom CreateTask. However, there are different approaches depending on whether your module is the admin module or a regular ChiMod:
+
+##### GetOrCreatePoolTask vs BaseCreateTask Usage
+
+**For Non-Admin Modules (Recommended Pattern):**
+
+All non-admin ChiMods should use `GetOrCreatePoolTask` which is a specialized version of BaseCreateTask designed for external pool creation:
 
 ```cpp
-#include <admin/admin_tasks.h>  // Include admin BaseCreateTask
+#include <admin/admin_tasks.h>  // Include admin templates
 
 namespace chimaera::MOD_NAME {
 
 /**
  * CreateParams for MOD_NAME container creation
  */
-struct MOD_NAMECreateParams {
+struct CreateParams {
   // Module-specific configuration
   std::string config_data_;
   chi::u32 worker_count_;
   
   // Required: chimod library name
-  static constexpr const char* chimod_lib_name = "chimaera_MOD_NAME";
+  static constexpr const char* chimod_lib_name = "chimaera_MOD_NAME_runtime";
   
   // Constructors
-  MOD_NAMECreateParams() : worker_count_(1) {}
+  CreateParams() : worker_count_(1) {}
   
-  MOD_NAMECreateParams(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
-                       const std::string& config_data = "",
-                       chi::u32 worker_count = 1)
+  CreateParams(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
+               const std::string& config_data = "",
+               chi::u32 worker_count = 1)
       : config_data_(config_data), worker_count_(worker_count) {}
   
   // Cereal serialization
@@ -412,11 +418,27 @@ struct MOD_NAMECreateParams {
 };
 
 /**
- * CreateTask - Uses BaseCreateTask template with proper method ID
+ * CreateTask - Non-admin modules should use GetOrCreatePoolTask
+ * This uses Method::kGetOrCreatePool and is designed for external pool creation
  */
-using CreateTask = chimaera::admin::BaseCreateTask<MOD_NAMECreateParams, Method::kCreate>;
+using CreateTask = chimaera::admin::GetOrCreatePoolTask<CreateParams>;
 
 }  // namespace chimaera::MOD_NAME
+```
+
+**For Admin Module Only:**
+
+The admin module itself uses BaseCreateTask directly with Method::kCreate:
+
+```cpp
+namespace chimaera::admin {
+
+/**
+ * CreateTask - Admin uses BaseCreateTask with Method::kCreate and IS_ADMIN=true
+ */
+using CreateTask = BaseCreateTask<CreateParams, Method::kCreate, true>;
+
+}  // namespace chimaera::admin
 ```
 
 #### BaseCreateTask Template Parameters
@@ -435,10 +457,19 @@ struct BaseCreateTask : public chi::Task
 2. **MethodId**: Method ID for the task (default: `kGetOrCreatePool`)
 3. **IS_ADMIN**: Whether this is an admin operation (default: `false`)
 
-**Default Values Designed for Non-Admin Modules:**
-- Most modules only need to specify `CreateParamsT` and `MethodId`
-- Admin-specific parameters (like `IS_ADMIN=true`) are only needed for admin operations
-- Pool operations use `kGetOrCreatePool` by default
+**GetOrCreatePoolTask Template:**
+
+The `GetOrCreatePoolTask` template is a convenient alias that uses the optimal defaults for non-admin modules:
+
+```cpp
+template<typename CreateParamsT>
+using GetOrCreatePoolTask = BaseCreateTask<CreateParamsT, Method::kGetOrCreatePool, false>;
+```
+
+**When to Use Each Pattern:**
+- **GetOrCreatePoolTask**: For all non-admin ChiMods (recommended)
+- **BaseCreateTask with Method::kCreate**: Only for admin module internal operations
+- **BaseCreateTask with Method::kGetOrCreatePool**: Same as GetOrCreatePoolTask (not typically used directly)
 
 #### BaseCreateTask Structure
 
@@ -478,22 +509,22 @@ struct BaseCreateTask : public chi::Task {
 
 #### Usage Examples
 
-**Regular ChiMod Container Creation:**
+**Non-Admin ChiMod Container Creation (Recommended):**
 ```cpp
-// Only specify CreateParamsT and MethodId - uses IS_ADMIN=false default
-using CreateTask = chimaera::admin::BaseCreateTask<MyCreateParams, Method::kCreate>;
+// Use GetOrCreatePoolTask for all non-admin modules
+using CreateTask = chimaera::admin::GetOrCreatePoolTask<MyCreateParams>;
 ```
 
-**Pool Get-or-Create Operations:**
+**Admin Module Container Creation:**
 ```cpp
-// Use all defaults - MethodId=kGetOrCreatePool, IS_ADMIN=false
-using CreateTask = chimaera::admin::BaseCreateTask<AdminCreateParams>;
+// Admin module uses BaseCreateTask with Method::kCreate and IS_ADMIN=true
+using CreateTask = chimaera::admin::BaseCreateTask<AdminCreateParams, Method::kCreate, true>;
 ```
 
-**Admin Container Creation:**
+**Alternative (Not Recommended):**
 ```cpp
-// Admin operations need IS_ADMIN=true explicitly
-using AdminCreateTask = chimaera::admin::BaseCreateTask<AdminCreateParams, Method::kCreate, true>;
+// Direct BaseCreateTask usage - GetOrCreatePoolTask is cleaner
+using CreateTask = chimaera::admin::BaseCreateTask<MyCreateParams, Method::kGetOrCreatePool, false>;
 ```
 
 #### Migration from Custom CreateTask
@@ -515,17 +546,17 @@ struct CreateTask : public chi::Task {
 };
 ```
 
-**After (BaseCreateTask):**
+**After (GetOrCreatePoolTask - Recommended for Non-Admin Modules):**
 ```cpp
 // Create params structure
-struct MyCreateParams {
-  static constexpr const char* chimod_lib_name = "chimaera_mymodule";
+struct CreateParams {
+  static constexpr const char* chimod_lib_name = "chimaera_mymodule_runtime";
   // ... other params ...
   template<class Archive> void serialize(Archive& ar) { /* ... */ }
 };
 
-// Simple type alias - no custom implementation needed
-using CreateTask = chimaera::admin::BaseCreateTask<MyCreateParams, Method::kCreate>;
+// Simple type alias using GetOrCreatePoolTask - no custom implementation needed
+using CreateTask = chimaera::admin::GetOrCreatePoolTask<CreateParams>;
 ```
 
 **Benefits of Migration:**
@@ -1237,7 +1268,9 @@ void Custom(hipc::FullPtr<CustomTask> task, chi::RunContext& ctx) {
 When creating a new Chimaera module, ensure you have:
 
 ### Task Definition Checklist (`_tasks.h`)
-- [ ] Tasks inherit from `chi::Task` or use BaseCreateTask template
+- [ ] Tasks inherit from `chi::Task` or use GetOrCreatePoolTask template (recommended for non-admin modules)
+- [ ] **Use GetOrCreatePoolTask**: For non-admin modules instead of BaseCreateTask directly
+- [ ] **Use BaseCreateTask with IS_ADMIN=true**: Only for admin module
 - [ ] SHM constructor with CtxAllocator parameter (if custom task)
 - [ ] Emplace constructor with all required parameters (if custom task)
 - [ ] Uses HSHM serializable types (hipc::string, hipc::vector, etc.)
@@ -1283,6 +1316,7 @@ When creating a new Chimaera module, ensure you have:
 - [ ] ❌ **Using static_cast with Method values** (use Method::kName directly)
 - [ ] ❌ **Missing chimaera.h include** in methods file (GLOBAL_CONST won't work)
 - [ ] ❌ **Using enum class for methods** (use namespace with GLOBAL_CONST instead)
-- [ ] ❌ **Forgetting BaseCreateTask template** for container creation (reduces boilerplate)
+- [ ] ❌ **Using BaseCreateTask directly for non-admin modules** (use GetOrCreatePoolTask instead)
+- [ ] ❌ **Forgetting GetOrCreatePoolTask template** for container creation (reduces boilerplate)
 
 Remember: **kLocalSchedule is mandatory** - without it, your tasks will never be executed!

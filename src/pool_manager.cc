@@ -3,6 +3,7 @@
  */
 
 #include "chimaera/pool_manager.h"
+#include "chimaera/container.h"
 #include "chimaera/singletons.h"
 #include <iostream>
 
@@ -13,35 +14,28 @@ namespace chi {
 
 // Constructor and destructor removed - handled by HSHM singleton pattern
 
-bool PoolManager::ClientInit() {
+bool PoolManager::ServerInit() {
   if (is_initialized_) {
     return true;
   }
 
-  // Initialize pool container map
+  // Initialize pool container map and metadata
   pool_container_map_.clear();
+  pool_metadata_.clear();
 
   is_initialized_ = true;
-  return true;
-}
 
-bool PoolManager::ServerInit() {
-  // Initialize basic pool manager functionality
-  if (!ClientInit()) {
+  // Create the admin chimod pool (kAdminPoolId = 1)
+  // This is required for flush operations and other admin tasks
+  u32 num_nodes = 1; // TODO: Get actual node count from configuration
+  PoolId admin_pool_id;
+  bool was_created;
+  if (!CreatePool("chimaera_admin", "admin", "", num_nodes, kAdminPoolId, admin_pool_id, was_created)) {
+    std::cerr << "PoolManager: Failed to create admin chimod pool during ServerInit" << std::endl;
     return false;
   }
 
-  // Identify which host this process is running on
-  // Try to read hostfile from config or use default path
-  auto* config = CHI_CONFIG_MANAGER;
-  std::string hostfile_path = "/etc/chimaera/hostfile";
-  if (config) {
-    // Try to get hostfile path from config if available
-    // For now, use default path
-  }
-
-  // Host identification is now handled by ChimaeraManager during runtime initialization
-
+  std::cout << "PoolManager: Admin chimod pool created successfully with PoolId " << admin_pool_id << std::endl;
   return true;
 }
 
@@ -56,7 +50,7 @@ void PoolManager::Finalize() {
   is_initialized_ = false;
 }
 
-bool PoolManager::RegisterContainer(PoolId pool_id, ChiContainer* container) {
+bool PoolManager::RegisterContainer(PoolId pool_id, Container* container) {
   if (!is_initialized_ || container == nullptr) {
     return false;
   }
@@ -78,7 +72,7 @@ bool PoolManager::UnregisterContainer(PoolId pool_id) {
   return false;
 }
 
-ChiContainer* PoolManager::GetContainer(PoolId pool_id) const {
+Container* PoolManager::GetContainer(PoolId pool_id) const {
   if (!is_initialized_) {
     return nullptr;
   }

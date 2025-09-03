@@ -1,25 +1,29 @@
 #ifndef CHIMAERA_INCLUDE_CHIMAERA_TASK_H_
 #define CHIMAERA_INCLUDE_CHIMAERA_TASK_H_
 
-#include <vector>
-#include <sstream>
 #include <atomic>
+#include <sstream>
+#include <vector>
+#include <boost/context/detail/fcontext.hpp>
 
 #include "chimaera/pool_query.h"
 #include "chimaera/types.h"
 
 // Include cereal for serialization
-#include <cereal/cereal.hpp>
 #include <cereal/archives/binary.hpp>
+#include <cereal/cereal.hpp>
 #include <cereal/types/string.hpp>
 #include <cereal/types/vector.hpp>
 
+// TaskQueue types are now forward declared as void* to avoid circular dependencies
 
 namespace chi {
 
 // Forward declarations
 class Task;
+class Container;
 struct RunContext;
+
 
 // Define macros for container template
 #define CLASS_NAME Task
@@ -34,20 +38,21 @@ struct RunContext;
  */
 class Task : public hipc::ShmContainer {
  public:
-  IN PoolId pool_id_;        /**< Pool identifier for task execution */
-  IN TaskNode task_node_;    /**< Node identifier for task routing */
+  IN PoolId pool_id_;       /**< Pool identifier for task execution */
+  IN TaskNode task_node_;   /**< Node identifier for task routing */
   IN PoolQuery pool_query_; /**< Pool query for execution location */
-  IN MethodId method_;       /**< Method identifier for task type */
-  IN ibitfield task_flags_;  /**< Task properties and flags */
-  IN double period_ns_;      /**< Period in nanoseconds for periodic tasks */
-  IN RunContext* run_ctx_;   /**< Pointer to runtime context for task execution */
-  IN u32 net_key_;           /**< Network identification key for distributed scheduling */
-  std::atomic<u32> is_complete; /**< Atomic flag indicating task completion (0=not complete, 1=complete) */
+  IN MethodId method_;      /**< Method identifier for task type */
+  IN ibitfield task_flags_; /**< Task properties and flags */
+  IN double period_ns_;     /**< Period in nanoseconds for periodic tasks */
+  IN RunContext* run_ctx_; /**< Pointer to runtime context for task execution */
+  IN u32 net_key_; /**< Network identification key for distributed scheduling */
+  std::atomic<u32> is_complete; /**< Atomic flag indicating task completion
+                                   (0=not complete, 1=complete) */
 
   /**
    * SHM default constructor
    */
-  explicit Task(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc)
+  explicit Task(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T>& alloc)
       : hipc::ShmContainer() {
     SetNull();
   }
@@ -55,9 +60,9 @@ class Task : public hipc::ShmContainer {
   /**
    * Emplace constructor with task initialization
    */
-  explicit Task(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
-                const TaskNode &task_node, const PoolId &pool_id,
-                const PoolQuery &pool_query, const MethodId &method)
+  explicit Task(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T>& alloc,
+                const TaskNode& task_node, const PoolId& pool_id,
+                const PoolQuery& pool_query, const MethodId& method)
       : hipc::ShmContainer() {
     // Initialize task
     task_node_ = task_node;
@@ -68,13 +73,13 @@ class Task : public hipc::ShmContainer {
     period_ns_ = 0.0;
     run_ctx_ = nullptr;
     net_key_ = 0;
-    is_complete.store(0); // Initialize as not complete
+    is_complete.store(0);  // Initialize as not complete
   }
 
   /**
    * Copy constructor
    */
-  HSHM_CROSS_FUN explicit Task(const Task &other) {
+  HSHM_CROSS_FUN explicit Task(const Task& other) {
     SetNull();
     shm_strong_copy_main(other);
   }
@@ -83,7 +88,7 @@ class Task : public hipc::ShmContainer {
    * Strong copy implementation
    */
   template <typename ContainerT>
-  HSHM_CROSS_FUN void shm_strong_copy_main(const ContainerT &other) {
+  HSHM_CROSS_FUN void shm_strong_copy_main(const ContainerT& other) {
     pool_id_ = other.pool_id_;
     task_node_ = other.task_node_;
     pool_query_ = other.pool_query_;
@@ -97,7 +102,7 @@ class Task : public hipc::ShmContainer {
   /**
    * Move constructor
    */
-  HSHM_CROSS_FUN Task(Task &&other) {
+  HSHM_CROSS_FUN Task(Task&& other) {
     shm_move_op<false>(
         HSHM_MEMORY_MANAGER->GetDefaultAllocator<CHI_MAIN_ALLOC_T>(),
         std::move(other));
@@ -105,8 +110,8 @@ class Task : public hipc::ShmContainer {
 
   template <bool IS_ASSIGN>
   HSHM_CROSS_FUN void shm_move_op(
-      const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
-      Task &&other) noexcept {
+      const hipc::CtxAllocator<CHI_MAIN_ALLOC_T>& alloc,
+      Task&& other) noexcept {
     // For simplified Task class, just copy the data
     shm_strong_copy_main(other);
     other.SetNull();
@@ -131,7 +136,7 @@ class Task : public hipc::ShmContainer {
     period_ns_ = 0.0;
     run_ctx_ = nullptr;
     net_key_ = 0;
-    is_complete.store(0); // Initialize as not complete
+    is_complete.store(0);  // Initialize as not complete
   }
 
   /**
@@ -151,7 +156,6 @@ class Task : public hipc::ShmContainer {
    */
   HSHM_CROSS_FUN void Wait();
 
-private:
 #ifndef CHIMAERA_RUNTIME
   /**
    * Check if task is complete (client-side implementation)
@@ -162,19 +166,17 @@ private:
 
   /**
    * Yield execution back to worker (runtime) or sleep briefly (non-runtime)
-   * In runtime: Jumps back to worker fiber context with estimated completion time
-   * Outside runtime: Uses SleepForUs when worker is null
+   * In runtime: Jumps back to worker fiber context with estimated completion
+   * time Outside runtime: Uses SleepForUs when worker is null
    */
   HSHM_CROSS_FUN void Yield();
-
-public:
 
   /**
    * Wait for specific subtask completion
    * @param subtask Pointer to subtask to wait for
    */
   template <typename TaskT>
-  HSHM_CROSS_FUN void Wait(TaskT *subtask) {
+  HSHM_CROSS_FUN void Wait(TaskT* subtask) {
     if (subtask) {
 #ifdef CHIMAERA_RUNTIME
       // Add to waiting_for_tasks vector before calling Wait()
@@ -190,13 +192,13 @@ public:
    * @param subtasks Vector of subtask pointers to wait for
    */
   template <typename TaskT>
-  HSHM_CROSS_FUN void Wait(std::vector<FullPtr<TaskT>> &subtasks) {
+  HSHM_CROSS_FUN void Wait(std::vector<FullPtr<TaskT>>& subtasks) {
 #ifdef CHIMAERA_RUNTIME
     // Add all subtasks to waiting_for_tasks vector in task.cc implementation
     // This will be handled to avoid circular includes
 #endif
     // Iterate through and wait for each
-    for (auto &subtask : subtasks) {
+    for (auto& subtask : subtasks) {
       if (!subtask.IsNull()) {
         subtask->Wait();
       }
@@ -223,23 +225,25 @@ public:
    * Check if task has been routed
    * @return true if task has routed flag set
    */
-  HSHM_CROSS_FUN bool IsRouted() const {
-    return task_flags_.Any(TASK_ROUTED);
-  }
+  HSHM_CROSS_FUN bool IsRouted() const { return task_flags_.Any(TASK_ROUTED); }
 
   /**
    * Get task execution period in specified time unit
    * @param unit Time unit constant (kNano, kMicro, kMilli, kSec, kMin, kHour)
    * @return Period in specified unit, 0 if not periodic
    */
-  HSHM_CROSS_FUN double GetPeriod(double unit) const { return period_ns_ / unit; }
+  HSHM_CROSS_FUN double GetPeriod(double unit) const {
+    return period_ns_ / unit;
+  }
 
   /**
    * Set task execution period in specified time unit
    * @param period Period value in the specified unit
    * @param unit Time unit constant (kNano, kMicro, kMilli, kSec, kMin, kHour)
    */
-  HSHM_CROSS_FUN void SetPeriod(double period, double unit) { period_ns_ = period * unit; }
+  HSHM_CROSS_FUN void SetPeriod(double period, double unit) {
+    period_ns_ = period * unit;
+  }
 
   /**
    * Set task flags
@@ -280,13 +284,13 @@ public:
    * @param output_str The string to store serialized data
    * @param args The arguments to serialize
    */
-  template<typename... Args>
+  template <typename... Args>
   static void Serialize(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T>& alloc,
                         hipc::string& output_str, const Args&... args) {
     std::ostringstream os;
     cereal::BinaryOutputArchive archive(os);
     archive(args...);
-    
+
     std::string serialized = os.str();
     output_str = hipc::string(alloc, serialized);
   }
@@ -296,37 +300,41 @@ public:
    * @param input_str The string containing serialized data
    * @return The deserialized object
    */
-  template<typename OutT>
+  template <typename OutT>
   static OutT Deserialize(const hipc::string& input_str) {
     std::string data = input_str.str();
     std::istringstream is(data);
     cereal::BinaryInputArchive archive(is);
-    
+
     OutT result;
     archive(result);
     return result;
   }
 
   /**
-   * Serialize base task fields for incoming network transfer (IN and INOUT parameters)
-   * This method serializes the common task fields that are shared across all task types.
-   * Called automatically by archives when they detect Task inheritance.
+   * Serialize base task fields for incoming network transfer (IN and INOUT
+   * parameters) This method serializes the common task fields that are shared
+   * across all task types. Called automatically by archives when they detect
+   * Task inheritance.
    * @param ar Archive to serialize to
    */
-  template<typename Archive>
+  template <typename Archive>
   void BaseSerializeIn(Archive& ar) {
-    ar(pool_id_, task_node_, pool_query_, method_, task_flags_, period_ns_, net_key_);
+    ar(pool_id_, task_node_, pool_query_, method_, task_flags_, period_ns_,
+       net_key_);
   }
 
   /**
-   * Serialize base task fields for outgoing network transfer (OUT and INOUT parameters)
-   * This method serializes the common task fields that are shared across all task types.
-   * Called automatically by archives when they detect Task inheritance.
+   * Serialize base task fields for outgoing network transfer (OUT and INOUT
+   * parameters) This method serializes the common task fields that are shared
+   * across all task types. Called automatically by archives when they detect
+   * Task inheritance.
    * @param ar Archive to serialize to
    */
-  template<typename Archive>
+  template <typename Archive>
   void BaseSerializeOut(Archive& ar) {
-    ar(pool_id_, task_node_, pool_query_, method_, task_flags_, period_ns_, net_key_);
+    ar(pool_id_, task_node_, pool_query_, method_, task_flags_, period_ns_,
+       net_key_);
   }
 
   /**
@@ -335,39 +343,41 @@ public:
    * Archives automatically call BaseSerializeIn first, then this method.
    * @param ar Archive to serialize to
    */
-  template<typename Archive>
+  template <typename Archive>
   void SerializeIn(Archive& ar) {
-    // Base implementation does nothing - derived classes override to serialize their IN/INOUT fields
+    // Base implementation does nothing - derived classes override to serialize
+    // their IN/INOUT fields
   }
 
   /**
-   * Serialize task for outgoing network transfer (OUT and INOUT parameters)  
+   * Serialize task for outgoing network transfer (OUT and INOUT parameters)
    * This method should be implemented by each specific task type.
    * Archives automatically call BaseSerializeOut first, then this method.
    * @param ar Archive to serialize to
    */
-  template<typename Archive>
+  template <typename Archive>
   void SerializeOut(Archive& ar) {
-    // Base implementation does nothing - derived classes override to serialize their OUT/INOUT fields
+    // Base implementation does nothing - derived classes override to serialize
+    // their OUT/INOUT fields
   }
 
   /**
    * Static serialize method for IN parameters (non-virtual)
    * Uses template dispatch to call appropriate task serialization
    */
-  static void StaticSerializeIn(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T>& alloc,
-                                hipc::string& output_str,
-                                hipc::FullPtr<Task> task_ptr) {
+  static void StaticSerializeIn(
+      const hipc::CtxAllocator<CHI_MAIN_ALLOC_T>& alloc,
+      hipc::string& output_str, hipc::FullPtr<Task> task_ptr) {
     // Create cereal archive for serialization
     std::ostringstream stream;
     cereal::BinaryOutputArchive archive(stream);
-    
+
     // Always serialize base task fields first
     task_ptr->BaseSerializeIn(archive);
-    
+
     // Then serialize task-specific fields using template method
     task_ptr->SerializeIn(archive);
-    
+
     // Store serialized data
     output_str = hipc::string(alloc, stream.str());
   }
@@ -376,19 +386,19 @@ public:
    * Static serialize method for OUT parameters (non-virtual)
    * Uses template dispatch to call appropriate task serialization
    */
-  static void StaticSerializeOut(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T>& alloc,
-                                 hipc::string& output_str,
-                                 hipc::FullPtr<Task> task_ptr) {
-    // Create cereal archive for serialization  
+  static void StaticSerializeOut(
+      const hipc::CtxAllocator<CHI_MAIN_ALLOC_T>& alloc,
+      hipc::string& output_str, hipc::FullPtr<Task> task_ptr) {
+    // Create cereal archive for serialization
     std::ostringstream stream;
     cereal::BinaryOutputArchive archive(stream);
-    
+
     // Always serialize base task fields first
     task_ptr->BaseSerializeOut(archive);
-    
+
     // Then serialize task-specific fields using template method
     task_ptr->SerializeOut(archive);
-    
+
     // Store serialized data
     output_str = hipc::string(alloc, stream.str());
   }
@@ -402,10 +412,10 @@ public:
     // Create cereal archive for deserialization
     std::istringstream stream(input_str.str());
     cereal::BinaryInputArchive archive(stream);
-    
+
     // Always deserialize base task fields first
     task_ptr->BaseSerializeIn(archive);
-    
+
     // Then deserialize task-specific fields using template method
     task_ptr->SerializeIn(archive);
   }
@@ -419,12 +429,58 @@ public:
     // Create cereal archive for deserialization
     std::istringstream stream(input_str.str());
     cereal::BinaryInputArchive archive(stream);
-    
+
     // Always deserialize base task fields first
     task_ptr->BaseSerializeOut(archive);
-    
+
     // Then deserialize task-specific fields using template method
     task_ptr->SerializeOut(archive);
+  }
+};
+
+
+/**
+ * Context passed to task execution methods
+ */
+struct RunContext {
+  void* stack_ptr;              // Stack pointer (positioned for boost::context based on stack growth)
+  void* stack_base_for_free;    // Original malloc pointer for freeing
+  size_t stack_size;
+  ThreadType thread_type;
+  u32 worker_id;
+  FullPtr<Task> task;  // Task being executed by this context
+  bool is_blocked;             // Task is waiting for completion
+  double estimated_completion_time_us; // Estimated completion time in microseconds
+  hshm::Timepoint block_time;          // Time when task was blocked (for timing measurements)
+  boost::context::detail::transfer_t fiber_transfer; // boost::context transfer data for fiber execution
+  boost::context::detail::fcontext_t fiber_context;  // boost::context fiber context for task execution
+  Container* container;             // Current container being executed
+  void* lane;        // Current lane being processed (TaskQueue::TaskLane*)
+  void* route_lane_; // Lane pointer set by kLocalSchedule for task routing (TaskQueue::TaskLane*)
+  std::vector<FullPtr<Task>> waiting_for_tasks; // Tasks this task is waiting for completion
+  std::vector<ResolvedPoolQuery> resolved_queries; // Resolved pool queries for task distribution
+  
+  RunContext() : stack_ptr(nullptr), stack_base_for_free(nullptr), stack_size(0), 
+                 thread_type(kLowLatencyWorker), worker_id(0),
+                 is_blocked(false), estimated_completion_time_us(0.0),
+                 fiber_transfer{}, fiber_context{}, container(nullptr), lane(nullptr), 
+                 route_lane_(nullptr) {}
+
+  /**
+   * Check if all subtasks this task is waiting for are completed
+   * @return true if all subtasks are completed, false otherwise
+   */
+  bool AreSubtasksCompleted() const {
+    // Check each task in the waiting_for_tasks vector
+    for (const auto& waiting_task : waiting_for_tasks) {
+      if (!waiting_task.IsNull()) {
+        // Check if the waiting task is completed using atomic flag
+        if (waiting_task->is_complete.load() == 0) {
+          return false; // Found a subtask that's not completed yet
+        }
+      }
+    }
+    return true; // All subtasks are completed (or no subtasks)
   }
 };
 

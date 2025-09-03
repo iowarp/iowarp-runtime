@@ -2,7 +2,6 @@
 #define ADMIN_RUNTIME_H_
 
 #include <chimaera/chimaera.h>
-#include <chimaera/chimod_spec.h>
 #include <chimaera/container.h>
 #include <chimaera/pool_manager.h>
 #include "admin_tasks.h"
@@ -124,6 +123,18 @@ public:
                          hipc::FullPtr<StopRuntimeTask> task_ptr,
                          chi::RunContext& rctx);
 
+  /**
+   * Handle Flush task - Flush administrative operations
+   */
+  void Flush(hipc::FullPtr<FlushTask> task, chi::RunContext& rctx);
+
+  /**
+   * Monitor Flush task
+   */
+  void MonitorFlush(chi::MonitorModeId mode, 
+                   hipc::FullPtr<FlushTask> task_ptr,
+                   chi::RunContext& rctx);
+
   //===========================================================================
   // Distributed Task Scheduling Methods
   //===========================================================================
@@ -175,6 +186,12 @@ public:
   void MonitorClientRecvTaskOut(chi::MonitorModeId mode, 
                                hipc::FullPtr<ClientRecvTaskOutTask> task_ptr,
                                chi::RunContext& rctx);
+
+  /**
+   * Get remaining work count for this admin container
+   * Admin container typically has no pending work, returns 0
+   */
+  chi::u64 GetWorkRemaining() const override;
 
 private:
   /**

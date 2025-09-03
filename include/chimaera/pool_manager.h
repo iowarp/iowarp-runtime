@@ -9,8 +9,8 @@
 namespace chi {
 
 // Forward declarations for ChiMod system
-// ChiContainer is always a class forward declaration (defined in chimod_spec.h)
-class ChiContainer;
+// Container is always a class forward declaration (defined in container.h)
+class Container;
 
 /**
  * Address mapping table for pool management
@@ -139,31 +139,17 @@ struct PoolInfo {
 };
 
 /**
- * Pool Manager singleton for managing ChiPools and ChiContainers
+ * Pool Manager singleton for managing ChiPools and Containers
  * 
- * Maps PoolId to ChiContainers on this node and manages the lifecycle
+ * Maps PoolId to Containers on this node and manages the lifecycle
  * of pools in the distributed system.
  * Uses HSHM global cross pointer variable singleton pattern.
  */
 class PoolManager {
  public:
   /**
-   * Initialize pool manager (generic wrapper)
-   * Basic initialization for pool tracking
-   * @return true if initialization successful, false otherwise
-   */
-  bool Init() { return ClientInit(); }
-
-  /**
-   * Initialize pool manager (client mode)
-   * Basic initialization for pool tracking
-   * @return true if initialization successful, false otherwise
-   */
-  bool ClientInit();
-
-  /**
    * Initialize pool manager (server/runtime mode)  
-   * Full initialization for pool management
+   * Full initialization for pool management and creates admin chimod pool
    * @return true if initialization successful, false otherwise
    */
   bool ServerInit();
@@ -174,26 +160,26 @@ class PoolManager {
   void Finalize();
 
   /**
-   * Register a ChiContainer with a specific PoolId
+   * Register a Container with a specific PoolId
    * @param pool_id Pool identifier
-   * @param container Pointer to ChiContainer
+   * @param container Pointer to Container
    * @return true if registration successful, false otherwise
    */
-  bool RegisterContainer(PoolId pool_id, ChiContainer* container);
+  bool RegisterContainer(PoolId pool_id, Container* container);
 
   /**
-   * Unregister a ChiContainer
+   * Unregister a Container
    * @param pool_id Pool identifier
    * @return true if unregistration successful, false otherwise
    */
   bool UnregisterContainer(PoolId pool_id);
 
   /**
-   * Get ChiContainer by PoolId
+   * Get Container by PoolId
    * @param pool_id Pool identifier
-   * @return Pointer to ChiContainer or nullptr if not found
+   * @return Pointer to Container or nullptr if not found
    */
-  ChiContainer* GetContainer(PoolId pool_id) const;
+  Container* GetContainer(PoolId pool_id) const;
 
   /**
    * Check if pool exists on this node
@@ -313,8 +299,8 @@ class PoolManager {
 
   bool is_initialized_ = false;
   
-  // Map PoolId to ChiContainers on this node
-  std::unordered_map<PoolId, ChiContainer*> pool_container_map_;
+  // Map PoolId to Containers on this node
+  std::unordered_map<PoolId, Container*> pool_container_map_;
   
   // Map PoolId to pool metadata
   std::unordered_map<PoolId, PoolInfo> pool_metadata_;

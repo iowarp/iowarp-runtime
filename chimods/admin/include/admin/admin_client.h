@@ -15,7 +15,7 @@
 
 namespace chimaera::admin {
 
-class Client : public chi::ChiContainerClient {
+class Client : public chi::ContainerClient {
  public:
   /**
    * Default constructor
@@ -265,6 +265,42 @@ class Client : public chi::ChiContainerClient {
     // Allocate ClientRecvTaskOutTask for periodic polling
     auto task = ipc_manager->NewTask<ClientRecvTaskOutTask>(
         chi::CreateTaskNode(), pool_id_, dom_query, 0);
+
+    // Submit to runtime
+    ipc_manager->Enqueue(task);
+
+    return task;
+  }
+
+  /**
+   * Flush administrative operations (synchronous)
+   */
+  void Flush(const hipc::MemContext& mctx, const chi::PoolQuery& dom_query) {
+    auto task = AsyncFlush(mctx, dom_query);
+    task->Wait();
+
+    // Check for errors
+    if (task->result_code_ != 0) {
+      auto* ipc_manager = CHI_IPC;
+      ipc_manager->DelTask(task);
+      throw std::runtime_error("Flush failed with result code: " + std::to_string(task->result_code_));
+    }
+
+    // Clean up task
+    auto* ipc_manager = CHI_IPC;
+    ipc_manager->DelTask(task);
+  }
+
+  /**
+   * Flush administrative operations (asynchronous)
+   */
+  hipc::FullPtr<FlushTask> AsyncFlush(const hipc::MemContext& mctx,
+                                      const chi::PoolQuery& dom_query) {
+    auto* ipc_manager = CHI_IPC;
+
+    // Allocate FlushTask
+    auto task = ipc_manager->NewTask<FlushTask>(chi::CreateTaskNode(), pool_id_,
+                                                dom_query);
 
     // Submit to runtime
     ipc_manager->Enqueue(task);

@@ -11,14 +11,14 @@
 namespace chi {
 
 // Forward declarations for ChiMod system
-// ChiContainer is always a class forward declaration (defined in chimod_spec.h)
-class ChiContainer;
+// Container is always a class forward declaration (defined in container.h)
+class Container;
 
 // ChiMod function types
-typedef ChiContainer* (*alloc_chimod_t)();
-typedef ChiContainer* (*new_chimod_t)(const PoolId* pool_id, const char* pool_name);
+typedef Container* (*alloc_chimod_t)();
+typedef Container* (*new_chimod_t)(const PoolId* pool_id, const char* pool_name);
 typedef const char* (*get_chimod_name_t)(void);
-typedef void (*destroy_chimod_t)(ChiContainer* container);
+typedef void (*destroy_chimod_t)(Container* container);
 
 /**
  * ChiMod metadata and shared library wrapper
@@ -91,33 +91,33 @@ class ModuleManager {
   ChiModInfo* GetChiModByLibName(const std::string& chimod_lib_name);
 
   /**
-   * Create ChiContainer instance from ChiMod
+   * Create Container instance from ChiMod
    * @param chimod_name Name of ChiMod to instantiate
    * @param pool_id Pool identifier for the container
    * @param pool_name Pool name for the container
-   * @return Pointer to ChiContainer or nullptr if failed
+   * @return Pointer to Container or nullptr if failed
    */
-  ChiContainer* CreateContainer(const std::string& chimod_name, 
+  Container* CreateContainer(const std::string& chimod_name, 
                                 const PoolId& pool_id, 
                                 const std::string& pool_name);
 
   /**
-   * Create ChiContainer instance using library name from CreateTask
+   * Create Container instance using library name from CreateTask
    * @param chimod_lib_name Library name from CreateTask (e.g., "chimods_admin_runtime")
    * @param pool_id Pool identifier for the container
    * @param pool_name Pool name for the container
-   * @return Pointer to ChiContainer or nullptr if failed
+   * @return Pointer to Container or nullptr if failed
    */
-  ChiContainer* CreateContainerByLibName(const std::string& chimod_lib_name,
+  Container* CreateContainerByLibName(const std::string& chimod_lib_name,
                                          const PoolId& pool_id, 
                                          const std::string& pool_name);
 
   /**
-   * Destroy ChiContainer instance
+   * Destroy Container instance
    * @param chimod_name Name of ChiMod that created the container
    * @param container Pointer to container to destroy
    */
-  void DestroyContainer(const std::string& chimod_name, ChiContainer* container);
+  void DestroyContainer(const std::string& chimod_name, Container* container);
 
   /**
    * Get list of loaded ChiMod names

@@ -7,7 +7,7 @@
 #include <thread>
 #include <vector>
 
-#include "chimaera/chimod_spec.h"
+#include "chimaera/container.h"
 #include "chimaera/pool_query.h"
 #include "chimaera/task.h"
 #include "chimaera/task_queue.h"
@@ -15,9 +15,8 @@
 
 namespace chi {
 
-// Forward declarations
+// Forward declarations  
 class Task;
-class TaskQueue;
 
 
 // Macro for accessing HSHM thread-local storage (worker thread context)
@@ -112,13 +111,13 @@ class Worker {
    * Get current container from the current RunContext
    * @return Pointer to current container or nullptr if no RunContext
    */
-  ChiContainer* GetCurrentContainer() const;
+  Container* GetCurrentContainer() const;
 
   /**
    * Get current lane from the current RunContext
    * @return Pointer to current lane or nullptr if no RunContext
    */
-  TaskQueue::TaskLane* GetCurrentLane() const;
+  ::chi::TaskQueue::TaskLane* GetCurrentLane() const;
 
   /**
    * Set this worker as the current worker in thread-local storage
@@ -152,7 +151,7 @@ class Worker {
    * @param lane_ptr FullPtr to lane (as returned by GetLane) that has work
    * available
    */
-  void EnqueueLane(hipc::TypedPointer<TaskQueue::TaskLane> lane_ptr);
+  void EnqueueLane(hipc::TypedPointer<::chi::TaskQueue::TaskLane> lane_ptr);
 
   /**
    * Route a task by calling ResolvePoolQuery and determining local vs global scheduling
@@ -161,7 +160,7 @@ class Worker {
    * @param container Output parameter for the container to use for task execution
    * @return true if task was successfully routed, false otherwise
    */
-  bool RouteTask(const FullPtr<Task>& task_ptr, TaskQueue::TaskLane* lane, ChiContainer*& container);
+  bool RouteTask(const FullPtr<Task>& task_ptr, ::chi::TaskQueue::TaskLane* lane, Container*& container);
 
   /**
    * Resolve a pool query into concrete physical addresses
@@ -195,7 +194,7 @@ public:
    * @param container Output parameter for the container to use for task execution
    * @return true if local routing successful, false otherwise
    */
-  bool RouteLocal(const FullPtr<Task>& task_ptr, TaskQueue::TaskLane* lane, ChiContainer*& container);
+  bool RouteLocal(const FullPtr<Task>& task_ptr, ::chi::TaskQueue::TaskLane* lane, Container*& container);
 
   /**
    * Route task globally using admin client's ClientSendTaskIn method
@@ -208,12 +207,6 @@ public:
  private:
 
 
-  /**
-   * Query container from PoolManager based on task requirements
-   * @param task_ptr Full pointer to task requiring container lookup
-   * @return Pointer to container or nullptr if not found
-   */
-  ChiContainer* QueryContainerFromPoolManager(const FullPtr<Task>& task_ptr);
 
 
   /**
@@ -244,8 +237,8 @@ public:
    * @param container Container for the task
    * @param lane Lane for the task (can be nullptr)
    */
-  void BeginTask(const FullPtr<Task>& task_ptr, ChiContainer* container,
-                 TaskQueue::TaskLane* lane);
+  void BeginTask(const FullPtr<Task>& task_ptr, Container* container,
+                 ::chi::TaskQueue::TaskLane* lane);
 
   /**
    * Continue processing blocked tasks that are ready to resume
@@ -281,7 +274,7 @@ public:
 
   // Active queue of lanes for processing
   // GetLane returns a lane reference, so we store lane TypedPointers
-  hipc::FullPtr<chi::ipc::mpsc_queue<hipc::TypedPointer<TaskQueue::TaskLane>>>
+  hipc::FullPtr<chi::ipc::mpsc_queue<hipc::TypedPointer<::chi::TaskQueue::TaskLane>>>
       active_queue_;  // Queue of lane TypedPointers from GetLane
 
   // Stack management simplified - allocate/free directly with malloc

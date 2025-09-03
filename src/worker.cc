@@ -8,12 +8,15 @@
 #include <cstdlib>
 #include <iostream>
 
+// Include task_queue.h before other chimaera headers to ensure proper resolution
+#include "chimaera/task_queue.h"
+#include "chimaera/task.h"
 #include "admin/admin_client.h"
 #include "chimaera/pool_manager.h"
 #include "chimaera/singletons.h"
 #include "chimaera/task_archives.h"
-#include "chimaera/task_queue.h"
 #include "chimaera/work_orchestrator.h"
+#include "chimaera/container.h"
 
 namespace chi {
 
@@ -62,7 +65,7 @@ void Worker::Finalize() {
 
   // Clear active queue reference (don't delete - it's in shared memory)
   active_queue_ = hipc::FullPtr<
-      chi::ipc::mpsc_queue<hipc::TypedPointer<TaskQueue::TaskLane>>>();
+      chi::ipc::mpsc_queue<hipc::TypedPointer<::chi::TaskQueue::TaskLane>>>();
 
   is_initialized_ = false;
 }
@@ -79,13 +82,13 @@ void Worker::Run() {
   // Main worker loop - pop lanes from active queue and process tasks
   while (is_running_) {
     did_work_ = false;  // Reset work tracker at start of each loop iteration
-    hipc::TypedPointer<TaskQueue::TaskLane> lane_ptr;
+    hipc::TypedPointer<::chi::TaskQueue::TaskLane> lane_ptr;
 
     // Pop a lane from the active queue
     if (!active_queue_.IsNull() && !active_queue_->pop(lane_ptr).IsNull()) {
       if (!lane_ptr.IsNull()) {
         // Convert TypedPointer to FullPtr by passing to constructor
-        hipc::FullPtr<TaskQueue::TaskLane> lane_full_ptr(lane_ptr);
+        hipc::FullPtr<::chi::TaskQueue::TaskLane> lane_full_ptr(lane_ptr);
         did_work_ = true;  // Mark that we attempted to process work
 
         // Process up to 64 tasks from this specific lane
@@ -97,7 +100,7 @@ void Worker::Run() {
 
           // Use static method to pop task from lane (convert TypedPointer to
           // FullPtr first)
-          if (TaskQueue::PopTask(lane_full_ptr, task_typed_ptr)) {
+          if (::chi::TaskQueue::PopTask(lane_full_ptr, task_typed_ptr)) {
             tasks_processed++;
 
             // Convert TypedPointer to FullPtr for consistent API usage
@@ -105,7 +108,7 @@ void Worker::Run() {
 
             if (!task_full_ptr.IsNull()) {
               // Route task using consolidated routing function
-              ChiContainer* container = nullptr;
+              Container* container = nullptr;
               if (RouteTask(task_full_ptr, lane_full_ptr.ptr_, container)) {
                 // Routing successful, execute the task
                 BeginTask(task_full_ptr, container, lane_full_ptr.ptr_);
@@ -143,7 +146,7 @@ void Worker::Run() {
 
 void Worker::Stop() { is_running_ = false; }
 
-void Worker::EnqueueLane(hipc::TypedPointer<TaskQueue::TaskLane> lane_ptr) {
+void Worker::EnqueueLane(hipc::TypedPointer<::chi::TaskQueue::TaskLane> lane_ptr) {
   if (lane_ptr.IsNull() || active_queue_.IsNull()) {
     return;
   }
@@ -175,20 +178,20 @@ FullPtr<Task> Worker::GetCurrentTask() const {
   return run_ctx->task;
 }
 
-ChiContainer* Worker::GetCurrentContainer() const {
+Container* Worker::GetCurrentContainer() const {
   RunContext* run_ctx = GetCurrentRunContext();
   if (!run_ctx) {
     return nullptr;
   }
-  return static_cast<ChiContainer*>(run_ctx->container);
+  return run_ctx->container;
 }
 
-TaskQueue::TaskLane* Worker::GetCurrentLane() const {
+::chi::TaskQueue::TaskLane* Worker::GetCurrentLane() const {
   RunContext* run_ctx = GetCurrentRunContext();
   if (!run_ctx) {
     return nullptr;
   }
-  return static_cast<TaskQueue::TaskLane*>(run_ctx->lane);
+  return static_cast<::chi::TaskQueue::TaskLane*>(run_ctx->lane);
 }
 
 void Worker::SetAsCurrentWorker() {
@@ -201,15 +204,16 @@ void Worker::ClearCurrentWorker() {
                             static_cast<class Worker*>(nullptr));
 }
 
-bool Worker::RouteTask(const FullPtr<Task>& task_ptr, TaskQueue::TaskLane* lane,
-                       ChiContainer*& container) {
+bool Worker::RouteTask(const FullPtr<Task>& task_ptr, ::chi::TaskQueue::TaskLane* lane,
+                       Container*& container) {
   if (task_ptr.IsNull()) {
     return false;
   }
 
   // Check if task has already been routed - if so, return true immediately
   if (task_ptr->IsRouted()) {
-    container = QueryContainerFromPoolManager(task_ptr);
+    auto* pool_manager = CHI_POOL_MANAGER;
+    container = pool_manager->GetContainer(task_ptr->pool_id_);
     return (container != nullptr);
   }
 
@@ -240,8 +244,9 @@ bool Worker::IsTaskLocal(
 }
 
 bool Worker::RouteLocal(const FullPtr<Task>& task_ptr,
-                        TaskQueue::TaskLane* lane, ChiContainer*& container) {
-  container = QueryContainerFromPoolManager(task_ptr);
+                        ::chi::TaskQueue::TaskLane* lane, Container*& container) {
+  auto* pool_manager = CHI_POOL_MANAGER;
+  container = pool_manager->GetContainer(task_ptr->pool_id_);
   if (!container) {
     return false;
   }
@@ -254,13 +259,13 @@ bool Worker::RouteLocal(const FullPtr<Task>& task_ptr,
                        task_ptr, run_ctx);
 
     // Check if the route_lane_ is different from the input lane
-    TaskQueue::TaskLane* route_lane =
-        static_cast<TaskQueue::TaskLane*>(run_ctx.route_lane_);
+    ::chi::TaskQueue::TaskLane* route_lane =
+        static_cast<::chi::TaskQueue::TaskLane*>(run_ctx.route_lane_);
     if (route_lane && route_lane != lane) {
       // Task should be routed to a different lane - enqueue it there
       hipc::TypedPointer<Task> task_typed_ptr(task_ptr.shm_);
-      hipc::FullPtr<TaskQueue::TaskLane> route_lane_full_ptr(route_lane);
-      TaskQueue::EmplaceTask(route_lane_full_ptr, task_typed_ptr);
+      hipc::FullPtr<::chi::TaskQueue::TaskLane> route_lane_full_ptr(route_lane);
+      ::chi::TaskQueue::EmplaceTask(route_lane_full_ptr, task_typed_ptr);
 
       // Set TASK_ROUTED flag to indicate this task has been routed
       task_ptr->SetFlags(TASK_ROUTED);
@@ -450,17 +455,6 @@ std::vector<ResolvedPoolQuery> Worker::ResolveBroadcastQuery(const PoolQuery& qu
   return {resolved};
 }
 
-ChiContainer* Worker::QueryContainerFromPoolManager(
-    const FullPtr<Task>& task_ptr) {
-  if (task_ptr.IsNull()) {
-    return nullptr;
-  }
-
-  // Query container from the PoolManager based on task's PoolId
-  // Using singleton access pattern similar to other components
-  auto* pool_manager = CHI_POOL_MANAGER;
-  return pool_manager->GetContainer(task_ptr->pool_id_);
-}
 
 RunContext Worker::CreateRunContext(const FullPtr<Task>& task_ptr) {
   // This method is deprecated - use AllocateStackAndContext instead
@@ -526,8 +520,8 @@ void Worker::DeallocateStackAndContext(RunContext* run_ctx_ptr) {
   free(run_ctx_ptr);
 }
 
-void Worker::BeginTask(const FullPtr<Task>& task_ptr, ChiContainer* container,
-                       TaskQueue::TaskLane* lane) {
+void Worker::BeginTask(const FullPtr<Task>& task_ptr, Container* container,
+                       ::chi::TaskQueue::TaskLane* lane) {
   if (task_ptr.IsNull()) {
     return;
   }
@@ -549,9 +543,8 @@ void Worker::BeginTask(const FullPtr<Task>& task_ptr, ChiContainer* container,
   run_ctx_ptr->worker_id = worker_id_;
   run_ctx_ptr->task = task_ptr;     // Store task in RunContext
   run_ctx_ptr->is_blocked = false;  // Initially not blocked
-  run_ctx_ptr->container =
-      static_cast<void*>(container);  // Store container for CHI_CUR_CONTAINER
-  run_ctx_ptr->lane = static_cast<void*>(lane);  // Store lane for CHI_CUR_LANE
+  run_ctx_ptr->container = container;  // Store container for CHI_CUR_CONTAINER
+  run_ctx_ptr->lane = lane;  // Store lane for CHI_CUR_LANE
   run_ctx_ptr->waiting_for_tasks.clear();  // Clear waiting tasks for new task
   // Set RunContext pointer in task
   task_ptr->run_ctx_ = run_ctx_ptr;
@@ -627,6 +620,12 @@ void Worker::ExecTask(const FullPtr<Task>& task_ptr, RunContext* run_ctx_ptr,
         run_ctx_ptr->fiber_context, run_ctx_ptr->fiber_transfer.data);
   } else {
     // New task execution
+    // Increment work count for non-periodic tasks at task start
+    if (run_ctx_ptr->container && !task_ptr->IsPeriodic()) {
+      // Increment work remaining in the container for non-periodic tasks
+      run_ctx_ptr->container->UpdateWork(task_ptr, *run_ctx_ptr, 1);
+    }
+    
     // Create fiber context for this task and store directly in RunContext
     // stack_ptr is already correctly positioned based on stack growth direction
     run_ctx_ptr->fiber_context =
@@ -680,8 +679,8 @@ void Worker::ReschedulePeriodicTask(RunContext* run_ctx_ptr,
   }
 
   // Get the lane from the run context
-  TaskQueue::TaskLane* lane =
-      static_cast<TaskQueue::TaskLane*>(run_ctx_ptr->lane);
+  ::chi::TaskQueue::TaskLane* lane =
+      static_cast<::chi::TaskQueue::TaskLane*>(run_ctx_ptr->lane);
   if (!lane) {
     // No lane information, cannot reschedule
     return;
@@ -697,8 +696,8 @@ void Worker::ReschedulePeriodicTask(RunContext* run_ctx_ptr,
     // Lane has been reassigned to a different worker - reschedule task in the
     // lane Convert task FullPtr to TypedPointer for lane enqueueing
     hipc::TypedPointer<Task> task_typed_ptr(task_ptr.shm_);
-    hipc::FullPtr<TaskQueue::TaskLane> lane_full_ptr(lane);
-    TaskQueue::EmplaceTask(lane_full_ptr, task_typed_ptr);
+    hipc::FullPtr<::chi::TaskQueue::TaskLane> lane_full_ptr(lane);
+    ::chi::TaskQueue::EmplaceTask(lane_full_ptr, task_typed_ptr);
   }
 }
 
@@ -714,7 +713,7 @@ void Worker::FiberExecutionFunction(boost::context::detail::transfer_t t) {
     // Execute the task directly - merged TaskExecutionFunction logic
     try {
       // Get the container from RunContext
-      ChiContainer* container = static_cast<ChiContainer*>(run_ctx->container);
+      Container* container = run_ctx->container;
 
       if (container) {
         // Call the container's Run function with the task
@@ -737,8 +736,13 @@ void Worker::FiberExecutionFunction(boost::context::detail::transfer_t t) {
       // Periodic tasks are always rescheduled regardless of execution success
       worker->ReschedulePeriodicTask(run_ctx, task_ptr);
     } else {
-      // Non-periodic task completed - mark as complete regardless of
-      // success/failure
+      // Non-periodic task completed - decrement work count and mark as complete
+      if (run_ctx->container) {
+        // Decrement work remaining in the container for non-periodic tasks
+        run_ctx->container->UpdateWork(task_ptr, *run_ctx, -1);
+      }
+      
+      // Mark as complete regardless of success/failure
       task_ptr->is_complete.store(1);
     }
   }

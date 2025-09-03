@@ -10,6 +10,7 @@
 #include <boost/context/detail/fcontext.hpp>
 
 #include "chimaera/singletons.h"
+#include "chimaera/container.h"
 
 // Global pointer variable definition for Work Orchestrator singleton
 HSHM_DEFINE_GLOBAL_PTR_VAR_CC(chi::WorkOrchestrator, g_work_orchestrator);
@@ -389,7 +390,7 @@ WorkerId WorkOrchestrator::GetNextAvailableWorker() {
   return worker ? worker->GetId() : 0;
 }
 
-void WorkOrchestrator::MapLaneToWorker(TaskQueue::TaskLane* lane,
+void WorkOrchestrator::MapLaneToWorker(::chi::TaskQueue::TaskLane* lane,
                                        WorkerId worker_id) {
   if (!lane) {
     return;
@@ -435,7 +436,7 @@ void WorkOrchestrator::RoundRobinTaskQueueScheduler(TaskQueue* task_queue) {
 }
 
 /*static*/ void WorkOrchestrator::NotifyWorkerLaneReady(
-    hipc::FullPtr<TaskQueue::TaskLane> lane_ptr) {
+    hipc::FullPtr<::chi::TaskQueue::TaskLane> lane_ptr) {
   if (lane_ptr.IsNull()) {
     return;
   }
@@ -454,9 +455,37 @@ void WorkOrchestrator::RoundRobinTaskQueueScheduler(TaskQueue* task_queue) {
   auto worker_queue = ipc->GetWorkerQueue(worker_id);
   if (!worker_queue.IsNull()) {
     // Convert FullPtr to TypedPointer for worker queue
-    hipc::TypedPointer<TaskQueue::TaskLane> lane_typed_ptr(lane_ptr.shm_);
+    hipc::TypedPointer<::chi::TaskQueue::TaskLane> lane_typed_ptr(lane_ptr.shm_);
     worker_queue->push(lane_typed_ptr);
   }
+}
+
+bool WorkOrchestrator::HasWorkRemaining(u64& total_work_remaining) const {
+  total_work_remaining = 0;
+  
+  // Get PoolManager to access all containers in the system
+  auto* pool_manager = CHI_POOL_MANAGER;
+  if (!pool_manager || !pool_manager->IsInitialized()) {
+    return false; // No pool manager means no work
+  }
+
+  // Get all container pool IDs from the pool manager
+  std::vector<PoolId> all_pool_ids = pool_manager->GetAllPoolIds();
+  
+  for (const auto& pool_id : all_pool_ids) {
+    // Get container for each pool
+    Container* container = pool_manager->GetContainer(pool_id);
+    if (container) {
+      // Cast to Container base class to call GetWorkRemaining
+      Container* base_container = dynamic_cast<Container*>(container);
+      if (base_container) {
+        u64 work_remaining = base_container->GetWorkRemaining();
+        total_work_remaining += work_remaining;
+      }
+    }
+  }
+  
+  return total_work_remaining > 0;
 }
 
 }  // namespace chi

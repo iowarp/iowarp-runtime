@@ -88,11 +88,8 @@ bool Chimaera::ClientInit() {
     return false;
   }
 
-  // Initialize pool manager
-  auto* pool_manager = CHI_POOL_MANAGER;
-  if (!pool_manager->Init()) {
-    return false;
-  }
+  // Pool manager is not initialized in client mode
+  // It's only needed for server/runtime mode
 
 
   is_client_mode_ = true;
@@ -140,15 +137,15 @@ bool Chimaera::ServerInit() {
   std::cout << "Node ID stored in shared memory: 0x" << std::hex
             << ipc_manager->GetNodeId() << std::dec << std::endl;
 
-  // Initialize pool manager
-  auto* pool_manager = CHI_POOL_MANAGER;
-  if (!pool_manager->Init()) {
+  // Initialize module manager first (needed for admin chimod)
+  auto* module_manager = CHI_MODULE_MANAGER;
+  if (!module_manager->Init()) {
     return false;
   }
 
-  // Initialize module manager
-  auto* module_manager = CHI_MODULE_MANAGER;
-  if (!module_manager->Init()) {
+  // Initialize pool manager (server mode only) after module manager
+  auto* pool_manager = CHI_POOL_MANAGER;
+  if (!pool_manager->ServerInit()) {
     return false;
   }
 

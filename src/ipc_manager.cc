@@ -159,16 +159,16 @@ bool IpcManager::InitializeWorkerQueues(u32 num_workers) {
   }
 }
 
-hipc::FullPtr<chi::ipc::mpsc_queue<hipc::TypedPointer<TaskQueue::TaskLane>>>
+hipc::FullPtr<chi::ipc::mpsc_queue<hipc::TypedPointer<::chi::TaskQueue::TaskLane>>>
 IpcManager::GetWorkerQueue(u32 worker_id) {
   if (!shared_header_) {
     return hipc::FullPtr<
-        chi::ipc::mpsc_queue<hipc::TypedPointer<TaskQueue::TaskLane>>>();
+        chi::ipc::mpsc_queue<hipc::TypedPointer<::chi::TaskQueue::TaskLane>>>();
   }
 
   if (worker_id >= shared_header_->num_workers) {
     return hipc::FullPtr<
-        chi::ipc::mpsc_queue<hipc::TypedPointer<TaskQueue::TaskLane>>>();
+        chi::ipc::mpsc_queue<hipc::TypedPointer<::chi::TaskQueue::TaskLane>>>();
   }
 
   // Get the vector of worker queues from delay_ar
@@ -176,12 +176,12 @@ IpcManager::GetWorkerQueue(u32 worker_id) {
 
   if (worker_id >= worker_queues_vector->size()) {
     return hipc::FullPtr<
-        chi::ipc::mpsc_queue<hipc::TypedPointer<TaskQueue::TaskLane>>>();
+        chi::ipc::mpsc_queue<hipc::TypedPointer<::chi::TaskQueue::TaskLane>>>();
   }
 
   // Return FullPtr reference to the specific worker's queue in the vector
   return hipc::FullPtr<
-      chi::ipc::mpsc_queue<hipc::TypedPointer<TaskQueue::TaskLane>>>(
+      chi::ipc::mpsc_queue<hipc::TypedPointer<::chi::TaskQueue::TaskLane>>>(
       &(*worker_queues_vector)[worker_id]);
 }
 

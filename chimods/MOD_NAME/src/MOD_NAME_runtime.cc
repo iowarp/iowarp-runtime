@@ -131,6 +131,10 @@ void Runtime::MonitorCustom(chi::MonitorModeId mode,
   }
 }
 
+chi::u64 Runtime::GetWorkRemaining() const {
+  // Template container implementation returns 0 (no work tracking)
+  return 0;
+}
 
 } // namespace chimaera::MOD_NAME
 

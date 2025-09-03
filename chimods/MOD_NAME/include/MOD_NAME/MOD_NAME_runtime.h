@@ -88,6 +88,12 @@ public:
   void MonitorCustom(chi::MonitorModeId mode, 
                     hipc::FullPtr<CustomTask> task_ptr,
                     chi::RunContext& rctx);
+
+  /**
+   * Get remaining work count for this container
+   * Template implementation returns 0 (no work tracking)
+   */
+  chi::u64 GetWorkRemaining() const override;
 };
 
 } // namespace chimaera::MOD_NAME

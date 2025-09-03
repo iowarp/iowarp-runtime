@@ -12,7 +12,7 @@
 
 namespace chimaera::MOD_NAME {
 
-class Client : public chi::ChiContainerClient {
+class Client : public chi::ContainerClient {
  public:
   /**
    * Default constructor
@@ -45,11 +45,17 @@ class Client : public chi::ChiContainerClient {
                                        const chi::PoolQuery& dom_query) {
     auto* ipc_manager = CHI_IPC;
     
-    // Allocate CreateTask
+    // CreateTask is a GetOrCreatePoolTask, which must be handled by admin pool
+    // So we send it to admin pool (chi::kAdminPoolId), not to our target pool_id_
     auto task = ipc_manager->NewTask<CreateTask>(
         chi::CreateTaskNode(),
-        pool_id_,
-        dom_query);
+        chi::kAdminPoolId,  // Send to admin pool for GetOrCreatePool processing
+        dom_query,
+        "chimaera_MOD_NAME_runtime",  // chimod name  
+        "mod_name_pool_" + std::to_string(pool_id_.ToU64()),  // pool name
+        0,   // domain flags
+        pool_id_  // target pool ID to create
+    );
     
     // Submit to runtime
     ipc_manager->Enqueue(task);

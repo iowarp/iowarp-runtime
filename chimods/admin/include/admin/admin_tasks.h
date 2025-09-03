@@ -270,6 +270,57 @@ struct StopRuntimeTask : public chi::Task {
 };
 
 /**
+ * FlushTask - Flush administrative operations
+ * Simple task with no additional inputs beyond basic task parameters
+ */
+struct FlushTask : public chi::Task {
+  // Output results
+  OUT chi::u32 result_code_;        ///< Result code (0 = success)
+  OUT chi::u64 total_work_done_;    ///< Total amount of work remaining across all containers
+
+  /** SHM default constructor */
+  explicit FlushTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc)
+      : chi::Task(alloc),
+        result_code_(0),
+        total_work_done_(0) {}
+
+  /** Emplace constructor */
+  explicit FlushTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
+                     const chi::TaskNode &task_node,
+                     const chi::PoolId &pool_id,
+                     const chi::PoolQuery &dom_query)
+      : chi::Task(alloc, task_node, pool_id, dom_query, 10),
+        result_code_(0),
+        total_work_done_(0) {
+    // Initialize task
+    task_node_ = task_node;
+    pool_id_ = pool_id;
+    method_ = Method::kFlush;
+    task_flags_.Clear();
+    pool_query_ = dom_query;
+  }
+  
+  /**
+   * Serialize IN and INOUT parameters for network transfer
+   * No additional parameters for FlushTask
+   */
+  template<typename Archive>
+  void SerializeIn(Archive& ar) {
+    // No parameters to serialize for flush
+    (void)ar;
+  }
+  
+  /**
+   * Serialize OUT and INOUT parameters for network transfer
+   * This includes: result_code_, total_work_done_
+   */
+  template<typename Archive>
+  void SerializeOut(Archive& ar) {
+    ar(result_code_, total_work_done_);
+  }
+};
+
+/**
  * Standard DestroyTask for reuse by all ChiMods
  * All ChiMods should use this same DestroyTask structure
  */

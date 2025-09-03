@@ -18,6 +18,18 @@ set(TASK_ARCHIVE_TEST_SOURCES
   test_task_archive.cc
 )
 
+# Flush correctness test executable (separate test for flush functionality)
+set(FLUSH_TEST_TARGET chimaera_flush_correctness_tests)
+set(FLUSH_TEST_SOURCES
+  test_flush_correctness.cc
+)
+
+# MOD_NAME debug test executable (separate test for debugging MOD_NAME issues)
+set(DEBUG_TEST_TARGET chimaera_mod_name_debug_tests)
+set(DEBUG_TEST_SOURCES
+  test_mod_name_debug.cc
+)
+
 # Create task archive test executable
 add_executable(${TASK_ARCHIVE_TEST_TARGET} ${TASK_ARCHIVE_TEST_SOURCES})
 
@@ -51,6 +63,84 @@ target_compile_definitions(${TASK_ARCHIVE_TEST_TARGET} PRIVATE
 
 # Copy task archive test executable to bin directory
 set_target_properties(${TASK_ARCHIVE_TEST_TARGET} PROPERTIES
+  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)
+
+# Create flush correctness test executable
+add_executable(${FLUSH_TEST_TARGET} ${FLUSH_TEST_SOURCES})
+
+# Include directories for flush tests
+target_include_directories(${FLUSH_TEST_TARGET} PRIVATE
+  ${CMAKE_SOURCE_DIR}/include
+  ${CMAKE_SOURCE_DIR}/test  # For test utilities
+  ${CMAKE_SOURCE_DIR}/chimods/admin/include  # For admin tasks
+  ${CMAKE_SOURCE_DIR}/chimods/MOD_NAME/include  # For MOD_NAME tasks
+  ${HermesShm_INCLUDE_DIRS}
+)
+
+# Link against required libraries for flush tests
+target_link_libraries(${FLUSH_TEST_TARGET}
+  chimaera                        # Main Chimaera library
+  chimaera_admin_runtime          # Admin module runtime
+  chimaera_admin_client           # Admin module client
+  chimaera_MOD_NAME_runtime       # MOD_NAME module runtime for work tracking
+  chimaera_MOD_NAME_client        # MOD_NAME module client
+  ${HermesShm_LIBRARIES}          # HSHM libraries
+  ${CMAKE_THREAD_LIBS_INIT}       # Threading support
+)
+
+# Set C++ standard for flush tests
+set_target_properties(${FLUSH_TEST_TARGET} PROPERTIES
+  CXX_STANDARD 17
+  CXX_STANDARD_REQUIRED ON
+)
+
+# Compiler flags for flush tests
+target_compile_definitions(${FLUSH_TEST_TARGET} PRIVATE
+  CHIMAERA_RUNTIME=1  # Enable runtime-specific code paths in headers
+)
+
+# Copy flush test executable to bin directory
+set_target_properties(${FLUSH_TEST_TARGET} PROPERTIES
+  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)
+
+# Create debug test executable
+add_executable(${DEBUG_TEST_TARGET} ${DEBUG_TEST_SOURCES})
+
+# Include directories for debug tests
+target_include_directories(${DEBUG_TEST_TARGET} PRIVATE
+  ${CMAKE_SOURCE_DIR}/include
+  ${CMAKE_SOURCE_DIR}/test  # For test utilities
+  ${CMAKE_SOURCE_DIR}/chimods/admin/include  # For admin tasks
+  ${CMAKE_SOURCE_DIR}/chimods/MOD_NAME/include  # For MOD_NAME tasks
+  ${HermesShm_INCLUDE_DIRS}
+)
+
+# Link against required libraries for debug tests
+target_link_libraries(${DEBUG_TEST_TARGET}
+  chimaera                        # Main Chimaera library
+  chimaera_admin_runtime          # Admin module runtime
+  chimaera_admin_client           # Admin module client
+  chimaera_MOD_NAME_runtime       # MOD_NAME module runtime
+  chimaera_MOD_NAME_client        # MOD_NAME module client
+  ${HermesShm_LIBRARIES}          # HSHM libraries
+  ${CMAKE_THREAD_LIBS_INIT}       # Threading support
+)
+
+# Set C++ standard for debug tests
+set_target_properties(${DEBUG_TEST_TARGET} PROPERTIES
+  CXX_STANDARD 17
+  CXX_STANDARD_REQUIRED ON
+)
+
+# Compiler flags for debug tests
+target_compile_definitions(${DEBUG_TEST_TARGET} PRIVATE
+  CHIMAERA_RUNTIME=1  # Enable runtime-specific code paths in headers
+)
+
+# Copy debug test executable to bin directory
+set_target_properties(${DEBUG_TEST_TARGET} PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
 )
 
@@ -200,6 +290,32 @@ if(CHIMAERA_ENABLE_TESTS)
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
   )
   
+  # Flush Correctness Tests
+  add_test(
+    NAME flush_basic_tests
+    COMMAND ${FLUSH_TEST_TARGET} "[flush][admin]"
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  )
+  
+  add_test(
+    NAME flush_work_orchestrator_tests
+    COMMAND ${FLUSH_TEST_TARGET} "[flush][work_orchestrator]"
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  )
+  
+  add_test(
+    NAME flush_stress_tests
+    COMMAND ${FLUSH_TEST_TARGET} "[flush][stress]"
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  )
+  
+  # Comprehensive flush test
+  add_test(
+    NAME all_flush_tests
+    COMMAND ${FLUSH_TEST_TARGET}
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  )
+
   # Add a comprehensive test that runs all tests
   add_test(
     NAME all_chimaera_tests
@@ -227,6 +343,10 @@ if(CHIMAERA_ENABLE_TESTS)
     concurrent_tests
     memory_tests
     performance_tests
+    flush_basic_tests
+    flush_work_orchestrator_tests
+    flush_stress_tests
+    all_flush_tests
     all_chimaera_tests
     PROPERTIES
       TIMEOUT 60  # 60 second timeout for each test
@@ -300,6 +420,35 @@ add_custom_target(test_performance
   COMMENT "Running Chimaera performance tests"
 )
 
+# Custom targets for flush tests
+add_custom_target(test_flush
+  COMMAND ${FLUSH_TEST_TARGET}
+  DEPENDS ${FLUSH_TEST_TARGET}
+  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  COMMENT "Running Chimaera flush correctness tests"
+)
+
+add_custom_target(test_flush_basic
+  COMMAND ${FLUSH_TEST_TARGET} "[flush][admin]"
+  DEPENDS ${FLUSH_TEST_TARGET}
+  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  COMMENT "Running Chimaera flush basic tests"
+)
+
+add_custom_target(test_flush_work_orchestrator
+  COMMAND ${FLUSH_TEST_TARGET} "[flush][work_orchestrator]"
+  DEPENDS ${FLUSH_TEST_TARGET}
+  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  COMMENT "Running Chimaera flush WorkOrchestrator integration tests"
+)
+
+add_custom_target(test_flush_stress
+  COMMAND ${FLUSH_TEST_TARGET} "[flush][stress]"
+  DEPENDS ${FLUSH_TEST_TARGET}
+  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  COMMENT "Running Chimaera flush stress tests"
+)
+
 # Custom target to run all unit tests
 add_custom_target(test_all_unit
   COMMAND ${TEST_TARGET}
@@ -309,7 +458,7 @@ add_custom_target(test_all_unit
 )
 
 # Install test executables (optional)
-install(TARGETS ${TEST_TARGET} ${TASK_ARCHIVE_TEST_TARGET}
+install(TARGETS ${TEST_TARGET} ${TASK_ARCHIVE_TEST_TARGET} ${FLUSH_TEST_TARGET}
   RUNTIME DESTINATION bin
 )
 
@@ -319,5 +468,7 @@ message(STATUS "  Test target: ${TEST_TARGET}")
 message(STATUS "  Test sources: ${TEST_SOURCES}")
 message(STATUS "  Task archive test target: ${TASK_ARCHIVE_TEST_TARGET}")
 message(STATUS "  Task archive test sources: ${TASK_ARCHIVE_TEST_SOURCES}")
+message(STATUS "  Flush test target: ${FLUSH_TEST_TARGET}")
+message(STATUS "  Flush test sources: ${FLUSH_TEST_SOURCES}")
 message(STATUS "  CTest enabled: ${CHIMAERA_ENABLE_TESTS}")
 message(STATUS "  Output directory: ${CMAKE_BINARY_DIR}/bin")

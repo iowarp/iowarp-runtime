@@ -1,11 +1,10 @@
 #ifndef CHIMAERA_INCLUDE_CHIMAERA_CONTAINER_H_
 #define CHIMAERA_INCLUDE_CHIMAERA_CONTAINER_H_
 
-#include "chimaera/chimod_spec.h"
 #include "chimaera/types.h"
-#include "chimaera/task.h"
-#include "chimaera/task_queue.h"
+#include "chimaera/pool_query.h"
 #include "chimaera/work_orchestrator.h"
+#include "chimaera/task.h"
 #include <unordered_map>
 #include <vector>
 #include <memory>
@@ -25,16 +24,34 @@
 namespace chi {
 
 /**
- * Container - Base class with default implementations
- * 
- * Provides a simpler base class than ChiContainer with default implementations
- * of queue and lane management. Modules can inherit from this class to get
- * basic functionality without having to implement all pure virtual methods.
+ * Monitor mode identifiers for task scheduling
  */
-class Container : public ChiContainer {
+enum class MonitorModeId : u32 {
+  kLocalSchedule = 0,    ///< Route task to local container queue lane
+  kGlobalSchedule = 1,   ///< Coordinate global task distribution
+  kEstLoad = 2,          ///< Estimate task execution time for waiting
+};
+
+/**
+ * Queue identifier
+ */
+using QueueId = u32;
+
+/**
+ * Container - Base class for all containers
+ * 
+ * Unified container class that provides all functionality for task processing,
+ * monitoring, and scheduling. Replaces the previous ChiContainer/Container split.
+ */
+class Container {
+ public:
+  PoolId pool_id_;           ///< The unique ID of this pool
+  std::string pool_name_;    ///< The semantic name of this pool  
+  u32 container_id_;         ///< The logical ID of this container instance
+
  protected:
   // Local queue management using TaskQueue
-  std::unordered_map<QueueId, hipc::FullPtr<TaskQueue>> local_queues_;
+  std::unordered_map<QueueId, hipc::FullPtr<::chi::TaskQueue>> local_queues_;
   PoolQuery pool_query_;
   std::string name_;
   
@@ -52,7 +69,7 @@ class Container : public ChiContainer {
    * Initialize container with pool information and domain query
    * This version includes PoolQuery for more complete initialization
    */
-  virtual void Init(const PoolId& pool_id, const PoolQuery& pool_query) {
+  void Init(const PoolId& pool_id, const PoolQuery& pool_query) {
     pool_id_ = pool_id;
     pool_query_ = pool_query;
     pool_name_ = "pool_" + std::to_string(pool_id);
@@ -63,11 +80,12 @@ class Container : public ChiContainer {
   }
   
   /**
-   * Initialize container with pool information (ChiContainer interface)
+   * Initialize container with pool information
    */
-  void Init(const PoolId& pool_id, const std::string& pool_name) override {
+  virtual void Init(const PoolId& pool_id, const std::string& pool_name) {
     pool_id_ = pool_id;
     pool_name_ = pool_name;
+    container_id_ = 0; // Set by container manager
     pool_query_ = PoolQuery();  // Default pool query
     
     // Get main allocator for creating lanes
@@ -91,9 +109,9 @@ class Container : public ChiContainer {
   
   
   /**
-   * Create a local queue with specified lanes (ChiContainer interface)
+   * Create a local queue with specified lanes
    */
-  void CreateLocalQueue(QueueId queue_id, u32 num_lanes, u32 flags) override {
+  virtual void CreateLocalQueue(QueueId queue_id, u32 num_lanes, u32 flags) {
     (void)flags; // Suppress unused parameter warning - flags not used in TaskQueue yet
     
     if (local_queues_.find(queue_id) != local_queues_.end()) {
@@ -105,21 +123,23 @@ class Container : public ChiContainer {
       hipc::CtxAllocator<CHI_MAIN_ALLOC_T> ctx_alloc(HSHM_MCTX, main_allocator_);
       
       // Create TaskQueue (headers are managed internally by TaskQueue)
-      auto task_queue = main_allocator_->template NewObj<TaskQueue>(
+      auto task_queue = main_allocator_->template NewObj<::chi::TaskQueue>(
         HSHM_MCTX, ctx_alloc, num_lanes, 1, 1024);
       
       if (!task_queue.IsNull()) {
         local_queues_[queue_id] = task_queue;
         
         // Schedule all lanes in the queue using round-robin scheduler
-        auto* work_orchestrator = CHI_WORK_ORCHESTRATOR;
-        if (work_orchestrator && work_orchestrator->IsInitialized()) {
-          work_orchestrator->RoundRobinTaskQueueScheduler(task_queue.ptr_);
-          std::cout << "Container: Scheduled lanes for queue " << queue_id 
-                    << " with WorkOrchestrator for pool " << pool_id_ << std::endl;
-        } else {
-          std::cerr << "Container: WorkOrchestrator not available for lane scheduling" << std::endl;
-        }
+        // TODO: Re-enable WorkOrchestrator scheduling once circular dependency is resolved
+        // auto* work_orchestrator = CHI_WORK_ORCHESTRATOR;
+        // if (work_orchestrator && work_orchestrator->IsInitialized()) {
+        //   work_orchestrator->RoundRobinTaskQueueScheduler(task_queue.ptr_);
+        //   std::cout << "Container: Scheduled lanes for queue " << queue_id 
+        //             << " with WorkOrchestrator for pool " << pool_id_ << std::endl;
+        // } else {
+        //   std::cerr << "Container: WorkOrchestrator not available for lane scheduling" << std::endl;
+        // }
+        std::cout << "Container: Created queue " << queue_id << " for pool " << pool_id_ << std::endl;
       }
     }
   }
@@ -127,7 +147,7 @@ class Container : public ChiContainer {
   /**
    * Get TaskQueue by queue ID
    */
-  TaskQueue* GetTaskQueue(QueueId queue_id) {
+  ::chi::TaskQueue* GetTaskQueue(QueueId queue_id) {
     auto it = local_queues_.find(queue_id);
     if (it != local_queues_.end() && !it->second.IsNull()) {
       return it->second.ptr_;
@@ -136,9 +156,9 @@ class Container : public ChiContainer {
   }
   
   /**
-   * Get specific lane by ID (ChiContainer interface)
+   * Get specific lane by ID
    */
-  TaskQueue::TaskLane* GetLane(QueueId queue_id, LaneId lane_id) override {
+  virtual ::chi::TaskQueue::TaskLane* GetLane(QueueId queue_id, LaneId lane_id) {
     auto* task_queue = GetTaskQueue(queue_id);
     if (task_queue && lane_id < task_queue->GetNumLanes()) {
       return &task_queue->GetLane(lane_id, 0);  // priority 0 since only one priority
@@ -147,9 +167,9 @@ class Container : public ChiContainer {
   }
   
   /**
-   * Get lane by hash for load balancing (ChiContainer interface)
+   * Get lane by hash for load balancing
    */
-  TaskQueue::TaskLane* GetLaneByHash(QueueId queue_id, u32 hash) override {
+  virtual ::chi::TaskQueue::TaskLane* GetLaneByHash(QueueId queue_id, u32 hash) {
     auto* task_queue = GetTaskQueue(queue_id);
     if (task_queue) {
       u32 num_lanes = task_queue->GetNumLanes();
@@ -164,51 +184,57 @@ class Container : public ChiContainer {
   /**
    * Get FullPtr to specific lane by ID for task emplacement
    */
-  hipc::FullPtr<TaskQueue::TaskLane> GetLaneFullPtr(QueueId queue_id, LaneId lane_id) {
+  hipc::FullPtr<::chi::TaskQueue::TaskLane> GetLaneFullPtr(QueueId queue_id, LaneId lane_id) {
     auto* lane = GetLane(queue_id, lane_id);
     if (lane) {
-      return hipc::FullPtr<TaskQueue::TaskLane>(lane);
+      return hipc::FullPtr<::chi::TaskQueue::TaskLane>(lane);
     }
-    return hipc::FullPtr<TaskQueue::TaskLane>();
+    return hipc::FullPtr<::chi::TaskQueue::TaskLane>();
   }
   
   /**
    * Get FullPtr to lane by hash for task emplacement
    */
-  hipc::FullPtr<TaskQueue::TaskLane> GetLaneByHashFullPtr(QueueId queue_id, u32 hash) {
+  hipc::FullPtr<::chi::TaskQueue::TaskLane> GetLaneByHashFullPtr(QueueId queue_id, u32 hash) {
     auto* lane = GetLaneByHash(queue_id, hash);
     if (lane) {
-      return hipc::FullPtr<TaskQueue::TaskLane>(lane);
+      return hipc::FullPtr<::chi::TaskQueue::TaskLane>(lane);
     }
-    return hipc::FullPtr<TaskQueue::TaskLane>();
+    return hipc::FullPtr<::chi::TaskQueue::TaskLane>();
   }
   
   /**
-   * Default Run implementation - should be overridden by derived classes
+   * Execute a method on a task - must be implemented by derived classes
    */
-  void Run(u32 method, hipc::FullPtr<Task> task_ptr, RunContext& rctx) override {
-    // Default: no-op, derived classes should override this
-    (void)method;
-    (void)task_ptr;
-    (void)rctx;
-  }
+  virtual void Run(u32 method, hipc::FullPtr<Task> task_ptr, RunContext& rctx) = 0;
   
   /**
-   * Default Monitor implementation - should be overridden by derived classes
+   * Monitor a method execution for scheduling/coordination - must be implemented by derived classes
    */
-  void Monitor(MonitorModeId mode, u32 method, 
-               hipc::FullPtr<Task> task_ptr,
-               RunContext& rctx) override {
-    // Default: no monitoring action
-    (void)mode; (void)method; (void)task_ptr; (void)rctx; // Suppress unused warnings
-  }
+  virtual void Monitor(MonitorModeId mode, u32 method, hipc::FullPtr<Task> task_ptr,
+                      RunContext& rctx) = 0;
+
+  /**
+   * Delete/cleanup a task - must be implemented by derived classes
+   */
+  virtual void Del(u32 method, hipc::FullPtr<Task> task_ptr) = 0;
   
   /**
-   * Default Del implementation - should be overridden by derived classes
+   * Get remaining work count for this container - PURE VIRTUAL
+   * Must be implemented by all derived container classes
+   * @return Number of work units remaining in this container
    */
-  void Del(u32 method, hipc::FullPtr<Task> task_ptr) override {
-    // Default: no cleanup needed
-    (void)method; (void)task_ptr; // Suppress unused warnings
+  virtual u64 GetWorkRemaining() const = 0;
+  
+  /**
+   * Update work count for a task - should be overridden by derived classes
+   * @param task_ptr Task being executed
+   * @param rctx Current run context
+   * @param increment Work count change (positive or negative)
+   */
+  virtual void UpdateWork(hipc::FullPtr<Task> task_ptr, RunContext& rctx, i64 increment) {
+    // Default: no work tracking
+    (void)task_ptr; (void)rctx; (void)increment; // Suppress unused warnings
   }
   
   /**
@@ -276,6 +302,138 @@ class Container : public ChiContainer {
   }
 };
 
+/**
+ * Container Client Interface (Client-Side)
+ * 
+ * Minimal client interface for task submission.
+ * Executes in user processes, performs only task allocation and queueing.
+ */
+class ContainerClient {
+ public:
+  PoolId pool_id_; ///< The unique ID of the pool this client connects to
+
+  /**
+   * Default constructor
+   */
+  ContainerClient() : pool_id_(0) {}
+
+  /**
+   * Initialize client with pool ID
+   * @param pool_id Pool identifier to connect to
+   */
+  virtual void Init(const PoolId& pool_id) {
+    pool_id_ = pool_id;
+  }
+
+  /**
+   * Virtual destructor
+   */
+  virtual ~ContainerClient() = default;
+
+  /**
+   * Serialization support
+   */
+  template <typename Ar> 
+  void serialize(Ar& ar) { 
+    ar(pool_id_); 
+  }
+
+ protected:
+  /**
+   * Helper method to allocate and enqueue a task
+   * @param task_ptr Allocated task to enqueue
+   * @param priority Queue priority for the task
+   */
+  void EnqueueTask(hipc::FullPtr<Task>& task_ptr, QueuePriority priority = kLowLatency);
+
+  /**
+   * Helper method to allocate a new task
+   * @param args Arguments for task construction
+   * @return Full pointer to allocated task
+   */
+  template<typename TaskT, typename... Args>
+  hipc::FullPtr<TaskT> AllocateTask(MemorySegment segment, Args&&... args);
+};
+
 } // namespace chi
+
+/**
+ * ChiMod Entry Point Macros
+ * 
+ * These macros must be used in the runtime implementation file to
+ * export the required C symbols for dynamic loading.
+ */
+
+extern "C" {
+  // Required ChiMod entry points
+  typedef chi::Container* (*alloc_chimod_t)();
+  typedef chi::Container* (*new_chimod_t)(const chi::PoolId* pool_id, 
+                                             const char* pool_name);
+  typedef const char* (*get_chimod_name_t)(void);
+  typedef void (*destroy_chimod_t)(chi::Container* container);
+}
+
+/**
+ * Macro to define ChiMod entry points in runtime source file (deprecated)
+ * 
+ * Usage: CHI_CHIMOD_CC(MyContainerClass, "my_chimod_name")
+ * Note: Use CHI_TASK_CC instead for new modules
+ */
+#define CHI_CHIMOD_CC(CONTAINER_CLASS, MOD_NAME)                              \
+  extern "C" {                                                                \
+    chi::Container* alloc_chimod() {                                          \
+      return reinterpret_cast<chi::Container*>(new CONTAINER_CLASS());        \
+    }                                                                         \
+                                                                              \
+    chi::Container* new_chimod(const chi::PoolId* pool_id,                    \
+                                 const char* pool_name) {                     \
+      chi::Container* container =                                             \
+        reinterpret_cast<chi::Container*>(new CONTAINER_CLASS());             \
+      container->Init(*pool_id, std::string(pool_name));                     \
+      return container;                                                       \
+    }                                                                         \
+                                                                              \
+    const char* get_chimod_name() {                                           \
+      return MOD_NAME;                                                        \
+    }                                                                         \
+                                                                              \
+    void destroy_chimod(chi::Container* container) {                          \
+      delete reinterpret_cast<CONTAINER_CLASS*>(container);                   \
+    }                                                                         \
+                                                                              \
+    bool is_chimaera_chimod_ = true;                                          \
+  }
+
+/**
+ * Macro to define ChiMod entry points for task-based modules
+ * 
+ * Usage: CHI_TASK_CC(MyContainerClass)
+ * This macro provides a cleaner interface for modules that use the Container base class.
+ * The ChiMod name is automatically retrieved from CONTAINER_CLASS::CreateParams::chimod_lib_name.
+ */
+#define CHI_TASK_CC(CONTAINER_CLASS)                                         \
+  extern "C" {                                                               \
+    chi::Container* alloc_chimod() {                                         \
+      return reinterpret_cast<chi::Container*>(new CONTAINER_CLASS());       \
+    }                                                                        \
+                                                                             \
+    chi::Container* new_chimod(const chi::PoolId* pool_id,                   \
+                                 const char* pool_name) {                    \
+      auto* container = new CONTAINER_CLASS();                              \
+      /* Use base Container Init for compatibility */                       \
+      container->chi::Container::Init(*pool_id, std::string(pool_name));    \
+      return reinterpret_cast<chi::Container*>(container);                   \
+    }                                                                        \
+                                                                             \
+    const char* get_chimod_name() {                                          \
+      return CONTAINER_CLASS::CreateParams::chimod_lib_name;                 \
+    }                                                                        \
+                                                                             \
+    void destroy_chimod(chi::Container* container) {                         \
+      delete reinterpret_cast<CONTAINER_CLASS*>(container);                  \
+    }                                                                        \
+                                                                             \
+    bool is_chimaera_chimod_ = true;                                         \
+  }
 
 #endif // CHIMAERA_INCLUDE_CHIMAERA_CONTAINER_H_

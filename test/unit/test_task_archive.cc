@@ -463,9 +463,33 @@ TEST_CASE("Archive Operator() Bidirectional Functionality", "[task_archive][bidi
   }
 }
 
+// Test container class that implements all pure virtual methods
+class TestContainer : public chi::Container {
+public:
+  chi::u64 GetWorkRemaining() const override {
+    return 0; // Test implementation returns no work
+  }
+  
+  void Run(chi::u32 method, hipc::FullPtr<chi::Task> task_ptr, chi::RunContext& rctx) override {
+    // Test implementation - do nothing
+    (void)method; (void)task_ptr; (void)rctx;
+  }
+  
+  void Monitor(chi::MonitorModeId mode, chi::u32 method, hipc::FullPtr<chi::Task> task_ptr,
+               chi::RunContext& rctx) override {
+    // Test implementation - do nothing
+    (void)mode; (void)method; (void)task_ptr; (void)rctx;
+  }
+  
+  void Del(chi::u32 method, hipc::FullPtr<chi::Task> task_ptr) override {
+    // Test implementation - do nothing
+    (void)method; (void)task_ptr;
+  }
+};
+
 TEST_CASE("Container Serialization Methods", "[task_archive][container]") {
   SECTION("Container SaveIn/LoadIn for base Task") {
-    chi::Container container;
+    TestContainer container;
     auto original_task = CreateTestTask();
     hipc::FullPtr<chi::Task> task_ptr(original_task.get());
     
@@ -486,7 +510,7 @@ TEST_CASE("Container Serialization Methods", "[task_archive][container]") {
   }
   
   SECTION("Container SaveOut/LoadOut for base Task") {
-    chi::Container container;
+    TestContainer container;
     auto original_task = CreateTestTask();
     hipc::FullPtr<chi::Task> task_ptr(original_task.get());
     

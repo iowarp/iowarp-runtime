@@ -3,6 +3,7 @@
  */
 
 #include "chimaera/module_manager.h"
+#include "chimaera/container.h"
 #include <iostream>
 #include <filesystem>
 #include <cstring>
@@ -88,7 +89,7 @@ ChiModInfo* ModuleManager::GetChiMod(const std::string& chimod_name) {
   return (it != chimods_.end()) ? it->second.get() : nullptr;
 }
 
-ChiContainer* ModuleManager::CreateContainer(const std::string& chimod_name, 
+Container* ModuleManager::CreateContainer(const std::string& chimod_name, 
                                            const PoolId& pool_id, 
                                            const std::string& pool_name) {
   ChiModInfo* chimod = GetChiMod(chimod_name);
@@ -99,7 +100,7 @@ ChiContainer* ModuleManager::CreateContainer(const std::string& chimod_name,
   return chimod->new_func(&pool_id, pool_name.c_str());
 }
 
-void ModuleManager::DestroyContainer(const std::string& chimod_name, ChiContainer* container) {
+void ModuleManager::DestroyContainer(const std::string& chimod_name, Container* container) {
   ChiModInfo* chimod = GetChiMod(chimod_name);
   if (chimod && chimod->destroy_func && container) {
     chimod->destroy_func(container);

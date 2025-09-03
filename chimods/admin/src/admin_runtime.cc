@@ -11,7 +11,9 @@
 #include <chimaera/module_manager.h>
 #include <chimaera/pool_manager.h>
 
+#include <chrono>
 #include <iostream>
+#include <thread>
 
 #include "admin/autogen/admin_lib_exec.h"
 
@@ -350,6 +352,74 @@ void Runtime::InitiateShutdown(chi::u32 grace_period_ms) {
   std::abort();
 }
 
+void Runtime::Flush(hipc::FullPtr<FlushTask> task, chi::RunContext& rctx) {
+  std::cout << "Admin: Executing Flush task" << std::endl;
+
+  // Initialize output values
+  task->result_code_ = 0;
+  task->total_work_done_ = 0;
+
+  try {
+    // Get WorkOrchestrator to check work remaining across all containers
+    auto* work_orchestrator = CHI_WORK_ORCHESTRATOR;
+    if (!work_orchestrator || !work_orchestrator->IsInitialized()) {
+      task->result_code_ = 1;
+      return;
+    }
+
+    // Loop until all work is complete
+    chi::u64 total_work_remaining = 0;
+    while (work_orchestrator->HasWorkRemaining(total_work_remaining)) {
+      std::cout << "Admin: Flush found " << total_work_remaining
+                << " work units still remaining, waiting..." << std::endl;
+
+      // Brief sleep to avoid busy waiting
+      task->Yield();
+    }
+
+    // Store the final work count (should be 0)
+    task->total_work_done_ = total_work_remaining;
+    task->result_code_ = 0;  // Success - all work completed
+
+    std::cout
+        << "Admin: Flush completed - no work remaining across all containers"
+        << std::endl;
+
+  } catch (const std::exception& e) {
+    task->result_code_ = 99;
+    std::cerr << "Admin: Flush failed with exception: " << e.what()
+              << std::endl;
+  }
+}
+
+void Runtime::MonitorFlush(chi::MonitorModeId mode,
+                           hipc::FullPtr<FlushTask> task_ptr,
+                           chi::RunContext& rctx) {
+  switch (mode) {
+    case chi::MonitorModeId::kLocalSchedule:
+      // Set route_lane_ to indicate where task should be routed
+      std::cout << "Admin: Setting route_lane_ for Flush task" << std::endl;
+      // Set route_lane_ to low latency queue lane 0
+      {
+        auto lane_ptr = GetLaneFullPtr(chi::kLowLatency, 0);
+        if (!lane_ptr.IsNull()) {
+          rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
+        }
+      }
+      break;
+
+    case chi::MonitorModeId::kGlobalSchedule:
+      // Coordinate global flush operations
+      std::cout << "Admin: Global scheduling for Flush task" << std::endl;
+      break;
+
+    case chi::MonitorModeId::kEstLoad:
+      // Estimate task execution time - flush should be fast
+      rctx.estimated_completion_time_us = 1000.0;  // 1ms for flush
+      break;
+  }
+}
+
 //===========================================================================
 // Distributed Task Scheduling Method Implementations
 //===========================================================================
@@ -587,6 +657,13 @@ void Runtime::MonitorClientRecvTaskOut(
       rctx.estimated_completion_time_us = 10000.0;  // 10ms for result receive
       break;
   }
+}
+
+chi::u64 Runtime::GetWorkRemaining() const {
+  // Admin container typically has no pending work
+  // In a real implementation, this could track pending administrative
+  // operations
+  return 0;
 }
 
 }  // namespace chimaera::admin

@@ -4,7 +4,7 @@
 
 #include "chimaera/task.h"
 
-#include "chimaera/chimod_spec.h"
+#include "chimaera/container.h"
 
 #ifdef CHIMAERA_RUNTIME
 #include "chimaera/singletons.h"
@@ -30,7 +30,7 @@ void Task::Wait() {
   }
 
   // Use container from RunContext instead of CHI_POOL_MANAGER
-  ChiContainer* container = worker ? worker->GetCurrentContainer() : nullptr;
+  Container* container = worker ? worker->GetCurrentContainer() : nullptr;
   if (container) {
     // Estimate completion time using Monitor with kEstLoad
     RunContext est_ctx = *run_ctx;  // Copy run context for estimation

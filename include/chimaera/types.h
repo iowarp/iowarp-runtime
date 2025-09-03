@@ -24,6 +24,7 @@ namespace chi {
 // Basic type aliases using HSHM types
 using u32 = hshm::u32;
 using u64 = hshm::u64;
+using i64 = hshm::i64;
 using ibitfield = hshm::ibitfield;
 
 // Time unit constants for period conversions (divisors from nanoseconds)
