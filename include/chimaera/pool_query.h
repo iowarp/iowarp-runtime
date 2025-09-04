@@ -15,7 +15,8 @@ enum class RoutingMode {
   DirectId,   /**< Route to specific container by ID */
   DirectHash, /**< Route using hash-based load balancing */
   Range,      /**< Route to range of containers */
-  Broadcast   /**< Broadcast to all containers */
+  Broadcast,  /**< Broadcast to all containers */
+  Physical    /**< Route to specific physical node by ID */
 };
 
 /**
@@ -82,6 +83,13 @@ class PoolQuery {
    */
   static PoolQuery Broadcast();
 
+  /**
+   * Create a physical routing pool query
+   * @param node_id Specific node ID to route to
+   * @return PoolQuery configured for physical node routing
+   */
+  static PoolQuery Physical(u32 node_id);
+
   // Getter methods for internal query parameters (used by routing logic)
 
   /**
@@ -107,6 +115,12 @@ class PoolQuery {
    * @return Number of containers in the range
    */
   u32 GetRangeCount() const;
+
+  /**
+   * Get the node ID for physical routing mode
+   * @return Node ID for physical routing
+   */
+  u32 GetNodeId() const;
 
   /**
    * Determine the routing mode of this pool query
@@ -145,12 +159,18 @@ class PoolQuery {
   bool IsBroadcastMode() const;
 
   /**
+   * Check if pool query is in Physical routing mode
+   * @return true if routing mode is Physical
+   */
+  bool IsPhysicalMode() const;
+
+  /**
    * Cereal serialization support
    * @param ar Archive for serialization
    */
   template <class Archive>
   void serialize(Archive& ar) {
-    ar(routing_mode_, hash_value_, container_id_, range_offset_, range_count_);
+    ar(routing_mode_, hash_value_, container_id_, range_offset_, range_count_, node_id_);
   }
 
  private:
@@ -159,40 +179,9 @@ class PoolQuery {
   ContainerId container_id_; /**< Container ID for direct ID routing */
   u32 range_offset_;         /**< Starting offset for range routing */
   u32 range_count_;          /**< Number of containers for range routing */
+  u32 node_id_;              /**< Node ID for physical routing */
 };
 
-/**
- * Resolved pool query representing a concrete physical address for task
- * execution
- *
- * Contains the actual node ID and the resolved pool query where a task should
- * be executed.
- */
-struct ResolvedPoolQuery {
-  u32 node_id_; /**< Physical node identifier where task should execute */
-  PoolQuery pool_query_; /**< Resolved pool query for the task */
-
-  ResolvedPoolQuery() : node_id_(0), pool_query_() {}
-  ResolvedPoolQuery(u32 node_id, const PoolQuery& pool_query)
-      : node_id_(node_id), pool_query_(pool_query) {}
-
-  // Equality operator
-  bool operator==(const ResolvedPoolQuery& other) const {
-    return node_id_ == other.node_id_ &&
-           pool_query_.GetHash() == other.pool_query_.GetHash();
-  }
-
-  // Inequality operator
-  bool operator!=(const ResolvedPoolQuery& other) const {
-    return !(*this == other);
-  }
-
-  // Cereal serialization support
-  template <class Archive>
-  void serialize(Archive& ar) {
-    ar(node_id_, pool_query_);
-  }
-};
 
 }  // namespace chi
 

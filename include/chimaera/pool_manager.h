@@ -12,6 +12,10 @@ namespace chi {
 // Container is always a class forward declaration (defined in container.h)
 class Container;
 
+// Configuration constants for pool query resolution
+constexpr u32 MAX_RANGE_FOR_PHYSICAL_SPLITTING = 64;  // Maximum range size before using range splitting
+constexpr u32 MAX_POOL_QUERIES_PER_RESOLUTION = 16;   // Maximum number of PoolQueries to produce from one resolution
+
 /**
  * Address mapping table for pool management
  * 
@@ -293,6 +297,14 @@ class PoolManager {
    * @return true if initialized, false otherwise
    */
   bool IsInitialized() const;
+
+  /**
+   * Get physical node ID for a container in a pool
+   * @param pool_id Pool identifier
+   * @param container_id Container identifier
+   * @return Physical node ID, or 0 if not found or local node
+   */
+  u32 GetContainerNodeId(PoolId pool_id, ContainerId container_id) const;
 
  private:
 

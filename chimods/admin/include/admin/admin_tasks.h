@@ -331,8 +331,8 @@ using DestroyTask = DestroyPoolTask;
  * Used for distributed task scheduling when sending tasks to remote nodes
  */
 struct ClientSendTaskInTask : public chi::Task {
-  // Resolved pool queries for target nodes
-  INOUT std::vector<chi::ResolvedPoolQuery> resolved_queries_;
+  // Pool queries for target nodes
+  INOUT std::vector<chi::PoolQuery> pool_queries_;
   
   // Task to send
   INOUT hipc::FullPtr<chi::Task> task_to_send_;
@@ -347,7 +347,7 @@ struct ClientSendTaskInTask : public chi::Task {
   /** SHM default constructor */
   explicit ClientSendTaskInTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc)
       : chi::Task(alloc),
-        resolved_queries_(),
+        pool_queries_(),
         task_to_send_(hipc::FullPtr<chi::Task>()),
         transfer_flags_(0),
         result_code_(0),
@@ -358,11 +358,11 @@ struct ClientSendTaskInTask : public chi::Task {
                                 const chi::TaskNode &task_node,
                                 const chi::PoolId &pool_id,
                                 const chi::PoolQuery &dom_query,
-                                const std::vector<chi::ResolvedPoolQuery>& resolved_queries,
+                                const std::vector<chi::PoolQuery>& pool_queries,
                                 hipc::FullPtr<chi::Task> task_to_send,
                                 chi::u32 transfer_flags = 0)
       : chi::Task(alloc, task_node, pool_id, dom_query, Method::kClientSendTaskIn),
-        resolved_queries_(resolved_queries),
+        pool_queries_(pool_queries),
         task_to_send_(task_to_send),
         transfer_flags_(transfer_flags),
         result_code_(0),
@@ -377,20 +377,20 @@ struct ClientSendTaskInTask : public chi::Task {
   
   /**
    * Serialize IN and INOUT parameters for network transfer
-   * This includes: resolved_queries_, task_to_send_, transfer_flags_
+   * This includes: pool_queries_, task_to_send_, transfer_flags_
    */
   template<typename Archive>
   void SerializeIn(Archive& ar) {
-    ar(resolved_queries_, task_to_send_, transfer_flags_);
+    ar(pool_queries_, task_to_send_, transfer_flags_);
   }
   
   /**
    * Serialize OUT and INOUT parameters for network transfer
-   * This includes: resolved_queries_, task_to_send_, result_code_, error_message_
+   * This includes: pool_queries_, task_to_send_, result_code_, error_message_
    */
   template<typename Archive>
   void SerializeOut(Archive& ar) {
-    ar(resolved_queries_, task_to_send_, result_code_, error_message_);
+    ar(pool_queries_, task_to_send_, result_code_, error_message_);
   }
 };
 

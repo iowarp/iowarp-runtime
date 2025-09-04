@@ -104,9 +104,9 @@ class Client : public chi::ContainerClient {
   template <typename TaskType>
   void ClientSendTaskIn(
       const hipc::MemContext& mctx,
-      const std::vector<chi::ResolvedPoolQuery>& resolved_queries,
+      const std::vector<chi::PoolQuery>& pool_queries,
       const hipc::FullPtr<TaskType>& task_to_send) {
-    auto task = AsyncClientSendTaskIn(mctx, resolved_queries, task_to_send);
+    auto task = AsyncClientSendTaskIn(mctx, pool_queries, task_to_send);
     task->Wait();
 
     // Check for errors
@@ -128,16 +128,16 @@ class Client : public chi::ContainerClient {
   template <typename TaskType>
   hipc::FullPtr<ClientSendTaskInTask> AsyncClientSendTaskIn(
       const hipc::MemContext& mctx,
-      const std::vector<chi::ResolvedPoolQuery>& resolved_queries,
+      const std::vector<chi::PoolQuery>& pool_queries,
       const hipc::FullPtr<TaskType>& task_to_send) {
     auto* ipc_manager = CHI_IPC;
 
     // Use local routing
     chi::PoolQuery local_pool_query = chi::PoolQuery::Local();
 
-    // Allocate ClientSendTaskInTask with resolved queries and task
+    // Allocate ClientSendTaskInTask with pool queries and task
     auto task = ipc_manager->NewTask<ClientSendTaskInTask>(
-        chi::CreateTaskNode(), pool_id_, local_pool_query, resolved_queries,
+        chi::CreateTaskNode(), pool_id_, local_pool_query, pool_queries,
         task_to_send, 0);
 
     // Submit to runtime

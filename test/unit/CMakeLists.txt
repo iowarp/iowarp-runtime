@@ -24,11 +24,6 @@ set(FLUSH_TEST_SOURCES
   test_flush_correctness.cc
 )
 
-# MOD_NAME debug test executable (separate test for debugging MOD_NAME issues)
-set(DEBUG_TEST_TARGET chimaera_mod_name_debug_tests)
-set(DEBUG_TEST_SOURCES
-  test_mod_name_debug.cc
-)
 
 # Create task archive test executable
 add_executable(${TASK_ARCHIVE_TEST_TARGET} ${TASK_ARCHIVE_TEST_SOURCES})
@@ -105,44 +100,6 @@ set_target_properties(${FLUSH_TEST_TARGET} PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
 )
 
-# Create debug test executable
-add_executable(${DEBUG_TEST_TARGET} ${DEBUG_TEST_SOURCES})
-
-# Include directories for debug tests
-target_include_directories(${DEBUG_TEST_TARGET} PRIVATE
-  ${CMAKE_SOURCE_DIR}/include
-  ${CMAKE_SOURCE_DIR}/test  # For test utilities
-  ${CMAKE_SOURCE_DIR}/chimods/admin/include  # For admin tasks
-  ${CMAKE_SOURCE_DIR}/chimods/MOD_NAME/include  # For MOD_NAME tasks
-  ${HermesShm_INCLUDE_DIRS}
-)
-
-# Link against required libraries for debug tests
-target_link_libraries(${DEBUG_TEST_TARGET}
-  chimaera                        # Main Chimaera library
-  chimaera_admin_runtime          # Admin module runtime
-  chimaera_admin_client           # Admin module client
-  chimaera_MOD_NAME_runtime       # MOD_NAME module runtime
-  chimaera_MOD_NAME_client        # MOD_NAME module client
-  ${HermesShm_LIBRARIES}          # HSHM libraries
-  ${CMAKE_THREAD_LIBS_INIT}       # Threading support
-)
-
-# Set C++ standard for debug tests
-set_target_properties(${DEBUG_TEST_TARGET} PROPERTIES
-  CXX_STANDARD 17
-  CXX_STANDARD_REQUIRED ON
-)
-
-# Compiler flags for debug tests
-target_compile_definitions(${DEBUG_TEST_TARGET} PRIVATE
-  CHIMAERA_RUNTIME=1  # Enable runtime-specific code paths in headers
-)
-
-# Copy debug test executable to bin directory
-set_target_properties(${DEBUG_TEST_TARGET} PROPERTIES
-  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
-)
 
 # Create test executable
 add_executable(${TEST_TARGET} ${TEST_SOURCES})

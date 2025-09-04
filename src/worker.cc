@@ -7,6 +7,7 @@
 #include <boost/context/detail/fcontext.hpp>
 #include <cstdlib>
 #include <iostream>
+#include <unordered_set>
 
 // Include task_queue.h before other chimaera headers to ensure proper resolution
 #include "chimaera/task_queue.h"
@@ -218,29 +219,50 @@ bool Worker::RouteTask(const FullPtr<Task>& task_ptr, ::chi::TaskQueue::TaskLane
   }
 
   // Resolve pool query and route task to container
-  std::vector<ResolvedPoolQuery> resolved_queries = ResolvePoolQuery(task_ptr->pool_query_, task_ptr->pool_id_);
+  std::vector<PoolQuery> pool_queries = ResolvePoolQuery(task_ptr->pool_query_, task_ptr->pool_id_);
 
   // Check if task should be processed locally
-  if (IsTaskLocal(resolved_queries)) {
+  if (IsTaskLocal(pool_queries)) {
     // Route task locally using container query and Monitor with kLocalSchedule
     return RouteLocal(task_ptr, lane, container);
   } else {
     // Route task globally using admin client's ClientSendTaskIn method
     // RouteGlobal never fails, so no need for fallback logic
-    RouteGlobal(task_ptr, resolved_queries);
+    RouteGlobal(task_ptr, pool_queries);
     return false;  // No local execution needed
   }
 }
 
 bool Worker::IsTaskLocal(
-    const std::vector<ResolvedPoolQuery>& resolved_queries) {
-  // Task is local only if there is exactly one resolved query
-  if (resolved_queries.size() != 1) {
+    const std::vector<PoolQuery>& pool_queries) {
+  // Task is local only if there is exactly one pool query
+  if (pool_queries.size() != 1) {
     return false;
   }
   
-  // Check if the single resolved query targets the local node
-  return resolved_queries[0].node_id_ == 0;
+  const PoolQuery& query = pool_queries[0];
+  
+  // Check routing mode first, then specific conditions
+  RoutingMode routing_mode = query.GetRoutingMode();
+  
+  switch (routing_mode) {
+    case RoutingMode::Local:
+      return true;  // Always local
+      
+    case RoutingMode::Physical:
+      // Physical mode is local only if targeting local node (node_id == 0)
+      return query.GetNodeId() == 0;
+      
+    case RoutingMode::DirectId:
+    case RoutingMode::DirectHash:
+    case RoutingMode::Range:
+    case RoutingMode::Broadcast:
+      // These modes should have been resolved to Physical queries by now
+      // If we still see them here, they are not local
+      return false;
+  }
+  
+  return false;
 }
 
 bool Worker::RouteLocal(const FullPtr<Task>& task_ptr,
@@ -289,7 +311,7 @@ bool Worker::RouteLocal(const FullPtr<Task>& task_ptr,
 
 bool Worker::RouteGlobal(
     const FullPtr<Task>& task_ptr,
-    const std::vector<ResolvedPoolQuery>& resolved_queries) {
+    const std::vector<PoolQuery>& pool_queries) {
   try {
     // Create admin client to send task to target node
     chimaera::admin::Client admin_client(kAdminPoolId);
@@ -297,10 +319,10 @@ bool Worker::RouteGlobal(
     // Create memory context
     hipc::MemContext mctx;
 
-    // Send task using Client API with entire resolved queries vector
+    // Send task using Client API with entire pool queries vector
     admin_client.ClientSendTaskIn(
         mctx,
-        resolved_queries,  // Pass entire resolved queries vector
+        pool_queries,  // Pass entire pool queries vector
         task_ptr  // Task pointer passed, serialization handled internally
     );
 
@@ -321,7 +343,7 @@ bool Worker::RouteGlobal(
   }
 }
 
-std::vector<ResolvedPoolQuery> Worker::ResolvePoolQuery(
+std::vector<PoolQuery> Worker::ResolvePoolQuery(
     const PoolQuery& query, PoolId pool_id) {
   // Basic validation
   if (pool_id == 0) {
@@ -341,118 +363,132 @@ std::vector<ResolvedPoolQuery> Worker::ResolvePoolQuery(
       return ResolveRangeQuery(query, pool_id);
     case RoutingMode::Broadcast:
       return ResolveBroadcastQuery(query, pool_id);
+    case RoutingMode::Physical:
+      return ResolvePhysicalQuery(query, pool_id);
   }
 
   return {};
 }
 
-std::vector<ResolvedPoolQuery> Worker::ResolveLocalQuery(const PoolQuery& query) {
+std::vector<PoolQuery> Worker::ResolveLocalQuery(const PoolQuery& query) {
   // Local routing - process on current node
-  ResolvedPoolQuery resolved(0, query);  // Node 0 = local node
-  return {resolved};
+  return {query};
 }
 
-std::vector<ResolvedPoolQuery> Worker::ResolveDirectIdQuery(const PoolQuery& query, PoolId pool_id) {
-  // Direct ID routing - route to specific container
-  ContainerId target_container = query.GetContainerId();
-
-  // Get pool info and address table to lookup physical node
+std::vector<PoolQuery> Worker::ResolveDirectIdQuery(const PoolQuery& query, PoolId pool_id) {
   auto* pool_manager = CHI_POOL_MANAGER;
-  const PoolInfo* pool_info = pool_manager->GetPoolInfo(pool_id);
-  if (pool_info) {
-    Address global_address =
-        pool_info->address_table_.GetGlobalAddress(target_container);
-    std::vector<u32> physical_nodes =
-        pool_info->address_table_.GetPhysicalNodes(global_address);
-
-    if (!physical_nodes.empty()) {
-      // Use first physical node for direct routing
-      u32 node_id = physical_nodes[0];
-      ResolvedPoolQuery resolved(node_id, query);
-      return {resolved};
-    }
+  if (!pool_manager) {
+    return {query};  // Fallback to original query
   }
   
-  // Return original query if no physical mapping found
-  ResolvedPoolQuery resolved(0, query);
-  return {resolved};
+  // Get the container ID from the query
+  ContainerId container_id = query.GetContainerId();
+  
+  // Get the physical node ID for this container
+  u32 node_id = pool_manager->GetContainerNodeId(pool_id, container_id);
+  
+  // Create a Physical PoolQuery to that node
+  return {PoolQuery::Physical(node_id)};
 }
 
-std::vector<ResolvedPoolQuery> Worker::ResolveDirectHashQuery(const PoolQuery& query, PoolId pool_id) {
-  // Hash-based routing for container selection - convert hash to container ID and use DirectId logic
-  u32 hash_value = query.GetHash();
-
-  // Get pool info to determine available containers
+std::vector<PoolQuery> Worker::ResolveDirectHashQuery(const PoolQuery& query, PoolId pool_id) {
   auto* pool_manager = CHI_POOL_MANAGER;
-  const PoolInfo* pool_info = pool_manager->GetPoolInfo(pool_id);
-  if (pool_info && pool_info->num_containers_ > 0) {
-    ContainerId target_container = hash_value % pool_info->num_containers_;
-    
-    // Create a DirectId query and delegate to DirectId resolution
-    PoolQuery direct_id_query = PoolQuery::DirectId(target_container);
-    return ResolveDirectIdQuery(direct_id_query, pool_id);
+  if (!pool_manager) {
+    return {query};  // Fallback to original query
   }
-
-  // Return original query if no pool info
-  ResolvedPoolQuery resolved(0, query);
-  return {resolved};
+  
+  // Get pool info to find the number of containers
+  const PoolInfo* pool_info = pool_manager->GetPoolInfo(pool_id);
+  if (!pool_info || pool_info->num_containers_ == 0) {
+    return {query};  // Fallback to original query
+  }
+  
+  // Hash to get container ID
+  u32 hash_value = query.GetHash();
+  ContainerId container_id = hash_value % pool_info->num_containers_;
+  
+  // Get the physical node ID for this container
+  u32 node_id = pool_manager->GetContainerNodeId(pool_id, container_id);
+  
+  // Create a Physical PoolQuery to that node
+  return {PoolQuery::Physical(node_id)};
 }
 
-std::vector<ResolvedPoolQuery> Worker::ResolveRangeQuery(const PoolQuery& query, PoolId pool_id) {
-  // Range routing - route to a range of containers using explicit offset and count
-  std::vector<ResolvedPoolQuery> resolved_queries;
+std::vector<PoolQuery> Worker::ResolveRangeQuery(const PoolQuery& query, PoolId pool_id) {
+  auto* pool_manager = CHI_POOL_MANAGER;
+  if (!pool_manager) {
+    return {query};  // Fallback to original query
+  }
+  
   u32 range_offset = query.GetRangeOffset();
   u32 range_count = query.GetRangeCount();
-
-  // Get pool info to determine container range
-  auto* pool_manager = CHI_POOL_MANAGER;
-  const PoolInfo* pool_info = pool_manager->GetPoolInfo(pool_id);
-  if (pool_info && pool_info->num_containers_ > 0 && range_count > 0) {
+  
+  // Validate range
+  if (range_count == 0) {
+    return {};  // Empty range
+  }
+  
+  std::vector<PoolQuery> result_queries;
+  
+  // Case 1: Range is small enough - create Physical PoolQuery for each container
+  if (range_count <= MAX_RANGE_FOR_PHYSICAL_SPLITTING) {
+    std::unordered_set<u32> unique_nodes;
+    
     for (u32 i = 0; i < range_count; ++i) {
-      ContainerId target_container = (range_offset + i) % pool_info->num_containers_;
-
-      // Use DirectId resolution for each container in range
-      PoolQuery direct_id_query = PoolQuery::DirectId(target_container);
-      auto container_resolved = ResolveDirectIdQuery(direct_id_query, pool_id);
-      
-      if (!container_resolved.empty()) {
-        resolved_queries.push_back(container_resolved[0]);
-      }
+      ContainerId container_id = range_offset + i;
+      u32 node_id = pool_manager->GetContainerNodeId(pool_id, container_id);
+      unique_nodes.insert(node_id);
+    }
+    
+    // Create one Physical query per unique node
+    for (u32 node_id : unique_nodes) {
+      result_queries.push_back(PoolQuery::Physical(node_id));
+    }
+    
+    return result_queries;
+  }
+  
+  // Case 2: Range is large - split into smaller Range queries
+  u32 queries_to_create = std::min(range_count, MAX_POOL_QUERIES_PER_RESOLUTION);
+  u32 containers_per_query = range_count / queries_to_create;
+  u32 remaining_containers = range_count % queries_to_create;
+  
+  u32 current_offset = range_offset;
+  for (u32 i = 0; i < queries_to_create; ++i) {
+    u32 current_count = containers_per_query;
+    if (i < remaining_containers) {
+      current_count++;  // Distribute remainder across first queries
+    }
+    
+    if (current_count > 0) {
+      result_queries.push_back(PoolQuery::Range(current_offset, current_count));
+      current_offset += current_count;
     }
   }
-
-  // If no resolved queries, return original query
-  if (resolved_queries.empty()) {
-    ResolvedPoolQuery resolved(0, query);
-    resolved_queries.push_back(resolved);
-  }
-
-  return resolved_queries;
+  
+  return result_queries;
 }
 
-std::vector<ResolvedPoolQuery> Worker::ResolveBroadcastQuery(const PoolQuery& query, PoolId pool_id) {
-  // Broadcast routing - determine total number of containers and create range for all
+std::vector<PoolQuery> Worker::ResolveBroadcastQuery(const PoolQuery& query, PoolId pool_id) {
   auto* pool_manager = CHI_POOL_MANAGER;
-  const PoolInfo* pool_info = pool_manager->GetPoolInfo(pool_id);
-  
-  if (pool_info && pool_info->num_containers_ > 0) {
-    // Create range query covering all containers (offset=0, count=all)
-    PoolQuery range_query = PoolQuery::Range(0, pool_info->num_containers_);
-    auto range_resolved = ResolveRangeQuery(range_query, pool_id);
-    
-    if (!range_resolved.empty()) {
-      // Convert back to broadcast queries
-      std::vector<ResolvedPoolQuery> broadcast_resolved;
-      for (const auto& resolved : range_resolved) {
-        broadcast_resolved.emplace_back(resolved.node_id_, query);
-      }
-      return broadcast_resolved;
-    }
+  if (!pool_manager) {
+    return {query};  // Fallback to original query
   }
+  
+  // Get pool info to find the total number of containers
+  const PoolInfo* pool_info = pool_manager->GetPoolInfo(pool_id);
+  if (!pool_info || pool_info->num_containers_ == 0) {
+    return {query};  // Fallback to original query
+  }
+  
+  // Create a Range query that covers all containers, then resolve it
+  PoolQuery range_query = PoolQuery::Range(0, pool_info->num_containers_);
+  return ResolveRangeQuery(range_query, pool_id);
+}
 
-  // If no resolved queries, return original query
-  ResolvedPoolQuery resolved(0, query);
-  return {resolved};
+std::vector<PoolQuery> Worker::ResolvePhysicalQuery(const PoolQuery& query, PoolId pool_id) {
+  // Physical routing - query is already resolved to a specific node
+  return {query};
 }
 
 

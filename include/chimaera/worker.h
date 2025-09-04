@@ -166,26 +166,27 @@ class Worker {
    * Resolve a pool query into concrete physical addresses
    * @param query Pool query to resolve
    * @param pool_id Pool ID for the query
-   * @return Vector of resolved pool queries with concrete addresses
+   * @return Vector of pool queries for routing
    */
-  std::vector<ResolvedPoolQuery> ResolvePoolQuery(const PoolQuery& query, PoolId pool_id);
+  std::vector<PoolQuery> ResolvePoolQuery(const PoolQuery& query, PoolId pool_id);
 
 private:
   // Pool query resolution helper functions
-  std::vector<ResolvedPoolQuery> ResolveLocalQuery(const PoolQuery& query);
-  std::vector<ResolvedPoolQuery> ResolveDirectIdQuery(const PoolQuery& query, PoolId pool_id);
-  std::vector<ResolvedPoolQuery> ResolveDirectHashQuery(const PoolQuery& query, PoolId pool_id);
-  std::vector<ResolvedPoolQuery> ResolveRangeQuery(const PoolQuery& query, PoolId pool_id);
-  std::vector<ResolvedPoolQuery> ResolveBroadcastQuery(const PoolQuery& query, PoolId pool_id);
+  std::vector<PoolQuery> ResolveLocalQuery(const PoolQuery& query);
+  std::vector<PoolQuery> ResolveDirectIdQuery(const PoolQuery& query, PoolId pool_id);
+  std::vector<PoolQuery> ResolveDirectHashQuery(const PoolQuery& query, PoolId pool_id);
+  std::vector<PoolQuery> ResolveRangeQuery(const PoolQuery& query, PoolId pool_id);
+  std::vector<PoolQuery> ResolveBroadcastQuery(const PoolQuery& query, PoolId pool_id);
+  std::vector<PoolQuery> ResolvePhysicalQuery(const PoolQuery& query, PoolId pool_id);
 
 public:
 
   /**
-   * Check if task should be processed locally based on resolved pool queries
-   * @param resolved_queries Vector of resolved pool queries from ResolvePoolQuery
+   * Check if task should be processed locally based on pool queries
+   * @param pool_queries Vector of pool queries from ResolvePoolQuery
    * @return true if task should be processed locally, false for global routing
    */
-  bool IsTaskLocal(const std::vector<ResolvedPoolQuery>& resolved_queries);
+  bool IsTaskLocal(const std::vector<PoolQuery>& pool_queries);
 
   /**
    * Route task locally using container query and Monitor with kLocalSchedule
@@ -199,10 +200,10 @@ public:
   /**
    * Route task globally using admin client's ClientSendTaskIn method
    * @param task_ptr Full pointer to task to route globally
-   * @param resolved_queries Vector of resolved pool queries for global routing
+   * @param pool_queries Vector of pool queries for global routing
    * @return true if global routing successful, false otherwise
    */
-  bool RouteGlobal(const FullPtr<Task>& task_ptr, const std::vector<ResolvedPoolQuery>& resolved_queries);
+  bool RouteGlobal(const FullPtr<Task>& task_ptr, const std::vector<PoolQuery>& pool_queries);
 
  private:
 

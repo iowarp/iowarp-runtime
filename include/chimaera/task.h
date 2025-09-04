@@ -458,7 +458,7 @@ struct RunContext {
   void* lane;        // Current lane being processed (TaskQueue::TaskLane*)
   void* route_lane_; // Lane pointer set by kLocalSchedule for task routing (TaskQueue::TaskLane*)
   std::vector<FullPtr<Task>> waiting_for_tasks; // Tasks this task is waiting for completion
-  std::vector<ResolvedPoolQuery> resolved_queries; // Resolved pool queries for task distribution
+  std::vector<PoolQuery> pool_queries; // Pool queries for task distribution
   
   RunContext() : stack_ptr(nullptr), stack_base_for_free(nullptr), stack_size(0), 
                  thread_type(kLowLatencyWorker), worker_id(0),

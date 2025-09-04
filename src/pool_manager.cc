@@ -379,5 +379,30 @@ void PoolManager::UpdatePoolMetadata(PoolId pool_id, const PoolInfo& info) {
   pool_metadata_[pool_id] = info;
 }
 
+u32 PoolManager::GetContainerNodeId(PoolId pool_id, ContainerId container_id) const {
+  if (!is_initialized_) {
+    return 0;  // Default to local node
+  }
+  
+  // Get pool metadata
+  const PoolInfo* pool_info = GetPoolInfo(pool_id);
+  if (!pool_info) {
+    return 0;  // Pool not found, assume local
+  }
+  
+  // Create global address for the container
+  Address global_address(pool_id, Group::kGlobal, container_id);
+  
+  // Look up physical address from the address table
+  Address physical_address;
+  if (pool_info->address_table_.GlobalToPhysical(global_address, physical_address)) {
+    // Return the minor_id which represents the node ID
+    return physical_address.minor_id_;
+  }
+  
+  // Default to local node if mapping not found
+  return 0;
+}
+
 
 }  // namespace chi
