@@ -2,7 +2,7 @@
 # Critical module for pool management and runtime control
 
 module_name: admin
-namespace: chimods
+namespace: chimaera
 version: 1.0.0
 critical: true  # This is a critical ChiMod - runtime must find it or fatal error
 
@@ -15,6 +15,13 @@ kMigrate: -1      # 4 - Not implemented
 kUpgrade: -1      # 5 - Not implemented
 
 # Admin-specific Methods (start from 10)
-kCreatePool: 10   # Create a new ChiPool
-kDestroyPool: 11  # Destroy an existing ChiPool
-kStopRuntime: 12  # Stop the entire Chimaera runtime
+kGetOrCreatePool: 10  # Get or create a new ChiPool
+kDestroyPool: 11      # Destroy an existing ChiPool
+kStopRuntime: 12      # Stop the entire Chimaera runtime
+kFlush: 13            # Flush pending operations
+
+# Distributed task scheduling methods
+kClientSendTaskIn: 14    # Client sends task input data
+kServerRecvTaskIn: 15    # Server receives task input data
+kServerSendTaskOut: 16   # Server sends task output data
+kClientRecvTaskOut: 17   # Client receives task output data

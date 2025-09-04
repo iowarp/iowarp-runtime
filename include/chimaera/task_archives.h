@@ -36,7 +36,7 @@ struct BulkTransferInfo {
  * Archive for deserializing task inputs (uses cereal::BinaryInputArchive)
  * Used when receiving tasks from remote nodes for execution
  */
-class TaskInputArchiveIN {
+class TaskLoadInArchive {
 private:
   std::string data_;
   std::unique_ptr<std::istringstream> stream_;
@@ -45,30 +45,30 @@ private:
 
 public:
   /** Constructor from serialized data */
-  explicit TaskInputArchiveIN(const std::string& data) 
+  explicit TaskLoadInArchive(const std::string& data) 
       : data_(data),
         stream_(std::make_unique<std::istringstream>(data_)),
         archive_(std::make_unique<cereal::BinaryInputArchive>(*stream_)) {}
 
   /** Constructor with allocator (for compatibility - allocator is unused for input archives) */
-  explicit TaskInputArchiveIN(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T>& alloc)
-      : TaskInputArchiveIN("") {}
+  explicit TaskLoadInArchive(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T>& alloc)
+      : TaskLoadInArchive("") {}
 
   /** Constructor from const char* and size */
-  TaskInputArchiveIN(const char* data, size_t size)
+  TaskLoadInArchive(const char* data, size_t size)
       : data_(data, size),
         stream_(std::make_unique<std::istringstream>(data_)),
         archive_(std::make_unique<cereal::BinaryInputArchive>(*stream_)) {}
 
   /** Move constructor */
-  TaskInputArchiveIN(TaskInputArchiveIN&& other) noexcept
+  TaskLoadInArchive(TaskLoadInArchive&& other) noexcept
       : data_(std::move(other.data_)),
         stream_(std::move(other.stream_)),
         archive_(std::move(other.archive_)),
         bulk_transfers_(std::move(other.bulk_transfers_)) {}
 
   /** Move assignment operator */
-  TaskInputArchiveIN& operator=(TaskInputArchiveIN&& other) noexcept {
+  TaskLoadInArchive& operator=(TaskLoadInArchive&& other) noexcept {
     if (this != &other) {
       data_ = std::move(other.data_);
       stream_ = std::move(other.stream_);
@@ -79,12 +79,12 @@ public:
   }
 
   /** Delete copy constructor and assignment */
-  TaskInputArchiveIN(const TaskInputArchiveIN&) = delete;
-  TaskInputArchiveIN& operator=(const TaskInputArchiveIN&) = delete;
+  TaskLoadInArchive(const TaskLoadInArchive&) = delete;
+  TaskLoadInArchive& operator=(const TaskLoadInArchive&) = delete;
 
   /** Deserialize operator for input archives */
   template<typename T>
-  TaskInputArchiveIN& operator>>(T& value) {
+  TaskLoadInArchive& operator>>(T& value) {
     if constexpr (std::is_base_of_v<Task, T>) {
       // Automatically call BaseSerializeIn + SerializeIn for Task-derived objects
       value.BaseSerializeIn(*this);
@@ -121,7 +121,7 @@ public:
  * Archive for serializing task inputs (uses cereal::BinaryOutputArchive)  
  * Used when sending tasks to remote nodes for execution
  */
-class TaskOutputArchiveIN {
+class TaskSaveInArchive {
 private:
   std::ostringstream stream_;
   std::unique_ptr<cereal::BinaryOutputArchive> archive_;
@@ -129,21 +129,21 @@ private:
 
 public:
   /** Default constructor */
-  TaskOutputArchiveIN() 
+  TaskSaveInArchive() 
       : archive_(std::make_unique<cereal::BinaryOutputArchive>(stream_)) {}
 
   /** Constructor with allocator (for compatibility - allocator is unused for output archives) */
-  explicit TaskOutputArchiveIN(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T>& alloc)
-      : TaskOutputArchiveIN() {}
+  explicit TaskSaveInArchive(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T>& alloc)
+      : TaskSaveInArchive() {}
 
   /** Move constructor */
-  TaskOutputArchiveIN(TaskOutputArchiveIN&& other) noexcept
+  TaskSaveInArchive(TaskSaveInArchive&& other) noexcept
       : stream_(std::move(other.stream_)),
         archive_(std::move(other.archive_)),
         bulk_transfers_(std::move(other.bulk_transfers_)) {}
 
   /** Move assignment operator */
-  TaskOutputArchiveIN& operator=(TaskOutputArchiveIN&& other) noexcept {
+  TaskSaveInArchive& operator=(TaskSaveInArchive&& other) noexcept {
     if (this != &other) {
       stream_ = std::move(other.stream_);
       archive_ = std::move(other.archive_);
@@ -153,12 +153,12 @@ public:
   }
 
   /** Delete copy constructor and assignment */
-  TaskOutputArchiveIN(const TaskOutputArchiveIN&) = delete;
-  TaskOutputArchiveIN& operator=(const TaskOutputArchiveIN&) = delete;
+  TaskSaveInArchive(const TaskSaveInArchive&) = delete;
+  TaskSaveInArchive& operator=(const TaskSaveInArchive&) = delete;
 
   /** Serialize operator for output archives */
   template<typename T>
-  TaskOutputArchiveIN& operator<<(const T& value) {
+  TaskSaveInArchive& operator<<(const T& value) {
     if constexpr (std::is_base_of_v<Task, T>) {
       // Automatically call BaseSerializeIn + SerializeIn for Task-derived objects
       const_cast<T&>(value).BaseSerializeIn(*this);
@@ -201,7 +201,7 @@ public:
  * Archive for deserializing task outputs (uses cereal::BinaryInputArchive)
  * Used when receiving completed task results from remote nodes
  */
-class TaskInputArchiveOUT {
+class TaskLoadOutArchive {
 private:
   std::string data_;
   std::unique_ptr<std::istringstream> stream_;
@@ -210,30 +210,30 @@ private:
 
 public:
   /** Constructor from serialized data */
-  explicit TaskInputArchiveOUT(const std::string& data)
+  explicit TaskLoadOutArchive(const std::string& data)
       : data_(data),
         stream_(std::make_unique<std::istringstream>(data_)),
         archive_(std::make_unique<cereal::BinaryInputArchive>(*stream_)) {}
 
   /** Constructor with allocator (for compatibility - allocator is unused for input archives) */
-  explicit TaskInputArchiveOUT(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T>& alloc)
-      : TaskInputArchiveOUT("") {}
+  explicit TaskLoadOutArchive(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T>& alloc)
+      : TaskLoadOutArchive("") {}
 
   /** Constructor from const char* and size */
-  TaskInputArchiveOUT(const char* data, size_t size)
+  TaskLoadOutArchive(const char* data, size_t size)
       : data_(data, size),
         stream_(std::make_unique<std::istringstream>(data_)),
         archive_(std::make_unique<cereal::BinaryInputArchive>(*stream_)) {}
 
   /** Move constructor */
-  TaskInputArchiveOUT(TaskInputArchiveOUT&& other) noexcept
+  TaskLoadOutArchive(TaskLoadOutArchive&& other) noexcept
       : data_(std::move(other.data_)),
         stream_(std::move(other.stream_)),
         archive_(std::move(other.archive_)),
         bulk_transfers_(std::move(other.bulk_transfers_)) {}
 
   /** Move assignment operator */
-  TaskInputArchiveOUT& operator=(TaskInputArchiveOUT&& other) noexcept {
+  TaskLoadOutArchive& operator=(TaskLoadOutArchive&& other) noexcept {
     if (this != &other) {
       data_ = std::move(other.data_);
       stream_ = std::move(other.stream_);
@@ -244,12 +244,12 @@ public:
   }
 
   /** Delete copy constructor and assignment */
-  TaskInputArchiveOUT(const TaskInputArchiveOUT&) = delete;
-  TaskInputArchiveOUT& operator=(const TaskInputArchiveOUT&) = delete;
+  TaskLoadOutArchive(const TaskLoadOutArchive&) = delete;
+  TaskLoadOutArchive& operator=(const TaskLoadOutArchive&) = delete;
 
   /** Deserialize operator for input archives */
   template<typename T>
-  TaskInputArchiveOUT& operator>>(T& value) {
+  TaskLoadOutArchive& operator>>(T& value) {
     if constexpr (std::is_base_of_v<Task, T>) {
       // Automatically call BaseSerializeOut + SerializeOut for Task-derived objects
       value.BaseSerializeOut(*this);
@@ -284,7 +284,7 @@ public:
  * Archive for serializing task outputs (uses cereal::BinaryOutputArchive)
  * Used when sending completed task results to remote nodes
  */
-class TaskOutputArchiveOUT {
+class TaskSaveOutArchive {
 private:
   std::ostringstream stream_;
   std::unique_ptr<cereal::BinaryOutputArchive> archive_;
@@ -292,21 +292,21 @@ private:
 
 public:
   /** Default constructor */
-  TaskOutputArchiveOUT()
+  TaskSaveOutArchive()
       : archive_(std::make_unique<cereal::BinaryOutputArchive>(stream_)) {}
 
   /** Constructor with allocator (for compatibility - allocator is unused for output archives) */
-  explicit TaskOutputArchiveOUT(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T>& alloc)
-      : TaskOutputArchiveOUT() {}
+  explicit TaskSaveOutArchive(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T>& alloc)
+      : TaskSaveOutArchive() {}
 
   /** Move constructor */
-  TaskOutputArchiveOUT(TaskOutputArchiveOUT&& other) noexcept
+  TaskSaveOutArchive(TaskSaveOutArchive&& other) noexcept
       : stream_(std::move(other.stream_)),
         archive_(std::move(other.archive_)),
         bulk_transfers_(std::move(other.bulk_transfers_)) {}
 
   /** Move assignment operator */
-  TaskOutputArchiveOUT& operator=(TaskOutputArchiveOUT&& other) noexcept {
+  TaskSaveOutArchive& operator=(TaskSaveOutArchive&& other) noexcept {
     if (this != &other) {
       stream_ = std::move(other.stream_);
       archive_ = std::move(other.archive_);
@@ -316,12 +316,12 @@ public:
   }
 
   /** Delete copy constructor and assignment */
-  TaskOutputArchiveOUT(const TaskOutputArchiveOUT&) = delete;
-  TaskOutputArchiveOUT& operator=(const TaskOutputArchiveOUT&) = delete;
+  TaskSaveOutArchive(const TaskSaveOutArchive&) = delete;
+  TaskSaveOutArchive& operator=(const TaskSaveOutArchive&) = delete;
 
   /** Serialize operator for output archives */
   template<typename T>
-  TaskOutputArchiveOUT& operator<<(const T& value) {
+  TaskSaveOutArchive& operator<<(const T& value) {
     if constexpr (std::is_base_of_v<Task, T>) {
       // Automatically call BaseSerializeOut + SerializeOut for Task-derived objects
       const_cast<T&>(value).BaseSerializeOut(*this);

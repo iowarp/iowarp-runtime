@@ -39,10 +39,11 @@ public:
    */
   virtual ~Runtime() = default;
 
+
   /**
-   * Initialize container with pool information
+   * Initialize client for this container
    */
-  void Init(const chi::PoolId& pool_id, const std::string& pool_name) override;
+  void InitClient(const chi::PoolId& pool_id) override;
 
   /**
    * Execute a method on a task
@@ -90,10 +91,46 @@ public:
                     chi::RunContext& rctx);
 
   /**
+   * Handle Destroy task - Alias for DestroyPool (DestroyTask = DestroyPoolTask)
+   */
+  void Destroy(hipc::FullPtr<DestroyTask> task, chi::RunContext& rctx);
+
+  /**
+   * Monitor Destroy task - Alias for MonitorDestroyPool (DestroyTask = DestroyPoolTask)
+   */
+  void MonitorDestroy(chi::MonitorModeId mode, 
+                     hipc::FullPtr<DestroyTask> task_ptr,
+                     chi::RunContext& rctx);
+
+  /**
    * Get remaining work count for this container
    * Template implementation returns 0 (no work tracking)
    */
   chi::u64 GetWorkRemaining() const override;
+
+  //===========================================================================
+  // Task Serialization Methods
+  //===========================================================================
+
+  /**
+   * Serialize task IN parameters for network transfer
+   */
+  void SaveIn(chi::u32 method, chi::TaskSaveInArchive& archive, hipc::FullPtr<chi::Task> task_ptr) override;
+
+  /**
+   * Deserialize task IN parameters from network transfer
+   */
+  void LoadIn(chi::u32 method, chi::TaskLoadInArchive& archive, hipc::FullPtr<chi::Task> task_ptr) override;
+
+  /**
+   * Serialize task OUT parameters for network transfer
+   */
+  void SaveOut(chi::u32 method, chi::TaskSaveOutArchive& archive, hipc::FullPtr<chi::Task> task_ptr) override;
+
+  /**
+   * Deserialize task OUT parameters from network transfer
+   */
+  void LoadOut(chi::u32 method, chi::TaskLoadOutArchive& archive, hipc::FullPtr<chi::Task> task_ptr) override;
 };
 
 } // namespace chimaera::MOD_NAME

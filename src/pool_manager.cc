@@ -139,13 +139,21 @@ bool PoolManager::CreateLocalPool(PoolId pool_id, const std::string& chimod_name
     }
     
     // Initialize the container with pool information
-    container->Init(pool_id, pool_name);
+    container->Init(pool_id);
     
     // Register the container
     if (!RegisterContainer(pool_id, container)) {
       std::cerr << "PoolManager: Failed to register container" << std::endl;
       module_manager->DestroyContainer(chimod_name, container);
       return false;
+    }
+    
+    // Initialize client after registration (when system is more stable)
+    try {
+      container->InitClient(pool_id);
+    } catch (const std::exception& e) {
+      std::cerr << "PoolManager: Warning - failed to initialize client: " << e.what() << std::endl;
+      // Continue anyway, client initialization is not critical for basic container functionality
     }
     
     std::cout << "PoolManager: Created local pool " << pool_id 

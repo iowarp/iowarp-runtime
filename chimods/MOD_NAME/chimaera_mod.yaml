@@ -2,7 +2,7 @@
 # Basic module with Create and Custom methods
 
 module_name: MOD_NAME
-namespace: chimods
+namespace: chimaera
 version: 1.0.0
 
 # Inherited Methods

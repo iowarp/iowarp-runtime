@@ -6,6 +6,8 @@
 #include <chimaera/pool_manager.h>
 #include "admin_tasks.h"
 #include "admin_client.h"
+#include <unordered_map>
+#include <vector>
 
 namespace chimaera::admin {
 
@@ -48,10 +50,11 @@ public:
    */
   virtual ~Runtime() = default;
 
+
   /**
-   * Initialize container with pool information
+   * Initialize client for this container
    */
-  void Init(const chi::PoolId& pool_id, const std::string& pool_name) override;
+  void InitClient(const chi::PoolId& pool_id) override;
 
   /**
    * Execute a method on a task
@@ -100,9 +103,21 @@ public:
 
 
   /**
+   * Handle Destroy task - Alias for DestroyPool (DestroyTask = DestroyPoolTask)
+   */
+  void Destroy(hipc::FullPtr<DestroyTask> task, chi::RunContext& rctx);
+
+  /**
    * Handle DestroyPool task - Destroy an existing ChiPool
    */
   void DestroyPool(hipc::FullPtr<DestroyPoolTask> task, chi::RunContext& rctx);
+
+  /**
+   * Monitor Destroy task - Alias for MonitorDestroyPool (DestroyTask = DestroyPoolTask)
+   */
+  void MonitorDestroy(chi::MonitorModeId mode, 
+                     hipc::FullPtr<DestroyTask> task_ptr,
+                     chi::RunContext& rctx);
 
   /**
    * Monitor DestroyPool task
@@ -138,6 +153,19 @@ public:
   //===========================================================================
   // Distributed Task Scheduling Methods
   //===========================================================================
+
+  /**
+   * Helper function to add tasks to the node mapping
+   * @param task_to_copy Single task to process
+   * @param pool_queries Vector of PoolQuery objects for routing
+   * @param node_task_map Reference to the map of node_id -> list of tasks
+   * @param container Container to use for task copying
+   */
+  void AddTasksToMap(
+      hipc::FullPtr<chi::Task> task_to_copy,
+      const std::vector<chi::PoolQuery>& pool_queries,
+      std::unordered_map<chi::u32, std::vector<hipc::FullPtr<chi::Task>>>& node_task_map,
+      chi::Container* container);
 
   /**
    * Handle ClientSendTaskIn - Send task input data to remote node
@@ -192,6 +220,30 @@ public:
    * Admin container typically has no pending work, returns 0
    */
   chi::u64 GetWorkRemaining() const override;
+
+  //===========================================================================
+  // Task Serialization Methods
+  //===========================================================================
+
+  /**
+   * Serialize task IN parameters for network transfer
+   */
+  void SaveIn(chi::u32 method, chi::TaskSaveInArchive& archive, hipc::FullPtr<chi::Task> task_ptr) override;
+
+  /**
+   * Deserialize task IN parameters from network transfer
+   */
+  void LoadIn(chi::u32 method, chi::TaskLoadInArchive& archive, hipc::FullPtr<chi::Task> task_ptr) override;
+
+  /**
+   * Serialize task OUT parameters for network transfer
+   */
+  void SaveOut(chi::u32 method, chi::TaskSaveOutArchive& archive, hipc::FullPtr<chi::Task> task_ptr) override;
+
+  /**
+   * Deserialize task OUT parameters from network transfer
+   */
+  void LoadOut(chi::u32 method, chi::TaskLoadOutArchive& archive, hipc::FullPtr<chi::Task> task_ptr) override;
 
 private:
   /**

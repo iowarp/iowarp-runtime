@@ -2,7 +2,7 @@
  * Comprehensive unit tests for Task Archive Serialization System
  * 
  * Tests the complete task archive functionality including:
- * - TaskInputArchiveIN/OUT and TaskOutputArchiveIN/OUT
+ * - TaskLoadInArchive/OUT and TaskSaveInArchive/OUT
  * - Task serialization/deserialization with BaseSerialize methods
  * - Container Save/Load methods
  * - Bulk transfer recording
@@ -87,10 +87,10 @@ namespace {
   }
 }
 
-TEST_CASE("TaskInputArchiveIN - Basic Construction", "[task_archive][input_in]") {
+TEST_CASE("TaskLoadInArchive - Basic Construction", "[task_archive][input_in]") {
   SECTION("Construction from string") {
     std::string test_data = "test serialized data";
-    chi::TaskInputArchiveIN archive(test_data);
+    chi::TaskLoadInArchive archive(test_data);
     
     // Archive should be constructed successfully
     // We can't easily test internal state, but construction should not throw
@@ -100,7 +100,7 @@ TEST_CASE("TaskInputArchiveIN - Basic Construction", "[task_archive][input_in]")
   SECTION("Construction from const char* and size") {
     const char* test_data = "test data";
     size_t size = strlen(test_data);
-    chi::TaskInputArchiveIN archive(test_data, size);
+    chi::TaskLoadInArchive archive(test_data, size);
     
     // Archive should be constructed successfully
     REQUIRE_NOTHROW(archive.GetBulkTransfers());
@@ -108,16 +108,16 @@ TEST_CASE("TaskInputArchiveIN - Basic Construction", "[task_archive][input_in]")
   
   SECTION("Bulk transfers should be empty initially") {
     std::string test_data = "test";
-    chi::TaskInputArchiveIN archive(test_data);
+    chi::TaskLoadInArchive archive(test_data);
     
     auto bulk_transfers = archive.GetBulkTransfers();
     REQUIRE(bulk_transfers.empty());
   }
 }
 
-TEST_CASE("TaskOutputArchiveIN - Basic Construction and Data Retrieval", "[task_archive][output_in]") {
+TEST_CASE("TaskSaveInArchive - Basic Construction and Data Retrieval", "[task_archive][output_in]") {
   SECTION("Default construction") {
-    chi::TaskOutputArchiveIN archive;
+    chi::TaskSaveInArchive archive;
     
     // Should start with empty bulk transfers
     REQUIRE(archive.GetBulkTransfers().empty());
@@ -129,7 +129,7 @@ TEST_CASE("TaskOutputArchiveIN - Basic Construction and Data Retrieval", "[task_
   }
   
   SECTION("Serializing simple data") {
-    chi::TaskOutputArchiveIN archive;
+    chi::TaskSaveInArchive archive;
     int test_value = 42;
     
     REQUIRE_NOTHROW(archive << test_value);
@@ -139,10 +139,10 @@ TEST_CASE("TaskOutputArchiveIN - Basic Construction and Data Retrieval", "[task_
   }
 }
 
-TEST_CASE("TaskInputArchiveOUT - Basic Construction", "[task_archive][input_out]") {
+TEST_CASE("TaskLoadOutArchive - Basic Construction", "[task_archive][input_out]") {
   SECTION("Construction from string") {
     std::string test_data = "test serialized data";
-    chi::TaskInputArchiveOUT archive(test_data);
+    chi::TaskLoadOutArchive archive(test_data);
     
     REQUIRE_NOTHROW(archive.GetBulkTransfers());
   }
@@ -150,15 +150,15 @@ TEST_CASE("TaskInputArchiveOUT - Basic Construction", "[task_archive][input_out]
   SECTION("Construction from const char* and size") {
     const char* test_data = "test data";
     size_t size = strlen(test_data);
-    chi::TaskInputArchiveOUT archive(test_data, size);
+    chi::TaskLoadOutArchive archive(test_data, size);
     
     REQUIRE_NOTHROW(archive.GetBulkTransfers());
   }
 }
 
-TEST_CASE("TaskOutputArchiveOUT - Basic Construction and Data Retrieval", "[task_archive][output_out]") {
+TEST_CASE("TaskSaveOutArchive - Basic Construction and Data Retrieval", "[task_archive][output_out]") {
   SECTION("Default construction") {
-    chi::TaskOutputArchiveOUT archive;
+    chi::TaskSaveOutArchive archive;
     
     REQUIRE(archive.GetBulkTransfers().empty());
     
@@ -168,7 +168,7 @@ TEST_CASE("TaskOutputArchiveOUT - Basic Construction and Data Retrieval", "[task
   }
   
   SECTION("Serializing simple data") {
-    chi::TaskOutputArchiveOUT archive;
+    chi::TaskSaveOutArchive archive;
     int test_value = 42;
     
     REQUIRE_NOTHROW(archive << test_value);
@@ -179,9 +179,9 @@ TEST_CASE("TaskOutputArchiveOUT - Basic Construction and Data Retrieval", "[task
 }
 
 TEST_CASE("Bulk Transfer Recording", "[task_archive][bulk_transfer]") {
-  SECTION("TaskInputArchiveIN bulk transfer recording") {
+  SECTION("TaskLoadInArchive bulk transfer recording") {
     std::string test_data = "test";
-    chi::TaskInputArchiveIN archive(test_data);
+    chi::TaskLoadInArchive archive(test_data);
     
     hipc::Pointer test_ptr;  // Null pointer for testing
     size_t test_size = 1024;
@@ -195,8 +195,8 @@ TEST_CASE("Bulk Transfer Recording", "[task_archive][bulk_transfer]") {
     REQUIRE(bulk_transfers[0].flags == test_flags);
   }
   
-  SECTION("TaskOutputArchiveIN bulk transfer recording") {
-    chi::TaskOutputArchiveIN archive;
+  SECTION("TaskSaveInArchive bulk transfer recording") {
+    chi::TaskSaveInArchive archive;
     
     hipc::Pointer test_ptr;
     size_t test_size = 2048;
@@ -211,7 +211,7 @@ TEST_CASE("Bulk Transfer Recording", "[task_archive][bulk_transfer]") {
   }
   
   SECTION("Multiple bulk transfers") {
-    chi::TaskOutputArchiveIN archive;
+    chi::TaskSaveInArchive archive;
     
     // Add multiple bulk transfers
     archive.bulk(hipc::Pointer(), 100, kTestWriteFlag);
@@ -232,12 +232,12 @@ TEST_CASE("Non-Task Object Serialization", "[task_archive][non_task]") {
     TestData original = CreateTestData();
     
     // Serialize
-    chi::TaskOutputArchiveIN out_archive;
+    chi::TaskSaveInArchive out_archive;
     REQUIRE_NOTHROW(out_archive << original);
     std::string serialized_data = out_archive.GetData();
     
     // Deserialize
-    chi::TaskInputArchiveIN in_archive(serialized_data);
+    chi::TaskLoadInArchive in_archive(serialized_data);
     TestData deserialized;
     REQUIRE_NOTHROW(in_archive >> deserialized);
     
@@ -251,12 +251,12 @@ TEST_CASE("Non-Task Object Serialization", "[task_archive][non_task]") {
     double double1 = 3.14159;
     
     // Serialize using operator()
-    chi::TaskOutputArchiveIN out_archive;
+    chi::TaskSaveInArchive out_archive;
     REQUIRE_NOTHROW(out_archive(str1, int1, double1));
     std::string serialized_data = out_archive.GetData();
     
     // Deserialize using operator()
-    chi::TaskInputArchiveIN in_archive(serialized_data);
+    chi::TaskLoadInArchive in_archive(serialized_data);
     std::string str2;
     int int2;
     double double2;
@@ -270,16 +270,16 @@ TEST_CASE("Non-Task Object Serialization", "[task_archive][non_task]") {
 }
 
 TEST_CASE("Task Base Class Serialization", "[task_archive][task_base]") {
-  SECTION("Task BaseSerializeIn/Out with TaskInputArchiveIN") {
+  SECTION("Task BaseSerializeIn/Out with TaskLoadInArchive") {
     auto original_task = CreateTestTask();
     
-    // Serialize using TaskOutputArchiveIN (calls BaseSerializeIn + SerializeIn)
-    chi::TaskOutputArchiveIN out_archive;
+    // Serialize using TaskSaveInArchive (calls BaseSerializeIn + SerializeIn)
+    chi::TaskSaveInArchive out_archive;
     REQUIRE_NOTHROW(out_archive << *original_task);
     std::string serialized_data = out_archive.GetData();
     
-    // Deserialize using TaskInputArchiveIN  
-    chi::TaskInputArchiveIN in_archive(serialized_data);
+    // Deserialize using TaskLoadInArchive  
+    chi::TaskLoadInArchive in_archive(serialized_data);
     auto new_task = CreateTestTask();  // Create fresh task
     new_task->SetNull();  // Clear data to ensure deserialization works
     REQUIRE_NOTHROW(in_archive >> *new_task);
@@ -293,16 +293,16 @@ TEST_CASE("Task Base Class Serialization", "[task_archive][task_base]") {
     REQUIRE(new_task->task_flags_.bits_.load() == original_task->task_flags_.bits_.load());
   }
   
-  SECTION("Task BaseSerializeOut with TaskOutputArchiveOUT") {
+  SECTION("Task BaseSerializeOut with TaskSaveOutArchive") {
     auto original_task = CreateTestTask();
     
-    // Serialize using TaskOutputArchiveOUT (calls BaseSerializeOut + SerializeOut)
-    chi::TaskOutputArchiveOUT out_archive;
+    // Serialize using TaskSaveOutArchive (calls BaseSerializeOut + SerializeOut)
+    chi::TaskSaveOutArchive out_archive;
     REQUIRE_NOTHROW(out_archive << *original_task);
     std::string serialized_data = out_archive.GetData();
     
-    // Deserialize using TaskInputArchiveOUT
-    chi::TaskInputArchiveOUT in_archive(serialized_data);
+    // Deserialize using TaskLoadOutArchive
+    chi::TaskLoadOutArchive in_archive(serialized_data);
     auto new_task = CreateTestTask();
     new_task->SetNull();
     REQUIRE_NOTHROW(in_archive >> *new_task);
@@ -321,11 +321,11 @@ TEST_CASE("Admin Task Serialization", "[task_archive][admin_tasks]") {
     auto original_task = CreateTestAdminTask();
     
     // Test IN parameter serialization
-    chi::TaskOutputArchiveIN out_archive_in;
+    chi::TaskSaveInArchive out_archive_in;
     REQUIRE_NOTHROW(out_archive_in << *original_task);
     std::string in_data = out_archive_in.GetData();
     
-    chi::TaskInputArchiveIN in_archive_in(in_data);
+    chi::TaskLoadInArchive in_archive_in(in_data);
     auto new_task_in = CreateTestAdminTask();
     new_task_in->chimod_name_ = hipc::string(GetTestAllocator(), ""); // Clear
     new_task_in->pool_name_ = hipc::string(GetTestAllocator(), "");
@@ -337,11 +337,11 @@ TEST_CASE("Admin Task Serialization", "[task_archive][admin_tasks]") {
     REQUIRE(new_task_in->pool_id_ == original_task->pool_id_);
     
     // Test OUT parameter serialization
-    chi::TaskOutputArchiveOUT out_archive_out;
+    chi::TaskSaveOutArchive out_archive_out;
     REQUIRE_NOTHROW(out_archive_out << *original_task);
     std::string out_data = out_archive_out.GetData();
     
-    chi::TaskInputArchiveOUT in_archive_out(out_data);
+    chi::TaskLoadOutArchive in_archive_out(out_data);
     auto new_task_out = CreateTestAdminTask();
     new_task_out->result_code_ = 0;  // Clear
     new_task_out->error_message_ = hipc::string(GetTestAllocator(), "");
@@ -362,10 +362,10 @@ TEST_CASE("Admin Task Serialization", "[task_archive][admin_tasks]") {
     original_task.error_message_ = hipc::string(alloc, "destroy error");
     
     // Test round-trip IN parameters
-    chi::TaskOutputArchiveIN out_archive_in;
+    chi::TaskSaveInArchive out_archive_in;
     out_archive_in << original_task;
     
-    chi::TaskInputArchiveIN in_archive_in(out_archive_in.GetData());
+    chi::TaskLoadInArchive in_archive_in(out_archive_in.GetData());
     chimaera::admin::DestroyPoolTask new_task_in(alloc);
     in_archive_in >> new_task_in;
     
@@ -373,10 +373,10 @@ TEST_CASE("Admin Task Serialization", "[task_archive][admin_tasks]") {
     REQUIRE(new_task_in.destruction_flags_ == original_task.destruction_flags_);
     
     // Test round-trip OUT parameters
-    chi::TaskOutputArchiveOUT out_archive_out;
+    chi::TaskSaveOutArchive out_archive_out;
     out_archive_out << original_task;
     
-    chi::TaskInputArchiveOUT in_archive_out(out_archive_out.GetData());
+    chi::TaskLoadOutArchive in_archive_out(out_archive_out.GetData());
     chimaera::admin::DestroyPoolTask new_task_out(alloc);
     in_archive_out >> new_task_out;
     
@@ -393,10 +393,10 @@ TEST_CASE("Admin Task Serialization", "[task_archive][admin_tasks]") {
     original_task.error_message_ = hipc::string(alloc, "shutdown error");
     
     // Test IN parameters
-    chi::TaskOutputArchiveIN out_archive_in;
+    chi::TaskSaveInArchive out_archive_in;
     out_archive_in << original_task;
     
-    chi::TaskInputArchiveIN in_archive_in(out_archive_in.GetData());
+    chi::TaskLoadInArchive in_archive_in(out_archive_in.GetData());
     chimaera::admin::StopRuntimeTask new_task_in(alloc);
     in_archive_in >> new_task_in;
     
@@ -404,10 +404,10 @@ TEST_CASE("Admin Task Serialization", "[task_archive][admin_tasks]") {
     REQUIRE(new_task_in.grace_period_ms_ == original_task.grace_period_ms_);
     
     // Test OUT parameters  
-    chi::TaskOutputArchiveOUT out_archive_out;
+    chi::TaskSaveOutArchive out_archive_out;
     out_archive_out << original_task;
     
-    chi::TaskInputArchiveOUT in_archive_out(out_archive_out.GetData());
+    chi::TaskLoadOutArchive in_archive_out(out_archive_out.GetData());
     chimaera::admin::StopRuntimeTask new_task_out(alloc);
     in_archive_out >> new_task_out;
     
@@ -417,7 +417,7 @@ TEST_CASE("Admin Task Serialization", "[task_archive][admin_tasks]") {
 }
 
 TEST_CASE("Archive Operator() Bidirectional Functionality", "[task_archive][bidirectional]") {
-  SECTION("TaskInputArchiveIN operator() acts as input") {
+  SECTION("TaskLoadInArchive operator() acts as input") {
     // Create test data
     int value1 = 42;
     std::string value2 = "test string";
@@ -428,8 +428,8 @@ TEST_CASE("Archive Operator() Bidirectional Functionality", "[task_archive][bidi
     cereal::BinaryOutputArchive out_archive(oss);
     out_archive(value1, value2, value3);
     
-    // Deserialize with TaskInputArchiveIN using operator()
-    chi::TaskInputArchiveIN in_archive(oss.str());
+    // Deserialize with TaskLoadInArchive using operator()
+    chi::TaskLoadInArchive in_archive(oss.str());
     int result1;
     std::string result2;
     double result3;
@@ -440,13 +440,13 @@ TEST_CASE("Archive Operator() Bidirectional Functionality", "[task_archive][bidi
     REQUIRE(result3 == value3);
   }
   
-  SECTION("TaskOutputArchiveIN operator() acts as output") {
+  SECTION("TaskSaveInArchive operator() acts as output") {
     int value1 = 123;
     std::string value2 = "output test";
     double value3 = 2.71828;
     
-    // Serialize with TaskOutputArchiveIN using operator()
-    chi::TaskOutputArchiveIN out_archive;
+    // Serialize with TaskSaveInArchive using operator()
+    chi::TaskSaveInArchive out_archive;
     REQUIRE_NOTHROW(out_archive(value1, value2, value3));
     
     // Deserialize with standard cereal
@@ -485,6 +485,30 @@ public:
     // Test implementation - do nothing
     (void)method; (void)task_ptr;
   }
+  
+  void SaveIn(chi::u32 method, chi::TaskSaveInArchive& archive, hipc::FullPtr<chi::Task> task_ptr) override {
+    // Test implementation - just call task serialization
+    (void)method;
+    archive << *task_ptr;
+  }
+  
+  void LoadIn(chi::u32 method, chi::TaskLoadInArchive& archive, hipc::FullPtr<chi::Task> task_ptr) override {
+    // Test implementation - just call task deserialization
+    (void)method;
+    archive >> *task_ptr;
+  }
+  
+  void SaveOut(chi::u32 method, chi::TaskSaveOutArchive& archive, hipc::FullPtr<chi::Task> task_ptr) override {
+    // Test implementation - just call task serialization
+    (void)method;
+    archive << *task_ptr;
+  }
+  
+  void LoadOut(chi::u32 method, chi::TaskLoadOutArchive& archive, hipc::FullPtr<chi::Task> task_ptr) override {
+    // Test implementation - just call task deserialization
+    (void)method;
+    archive >> *task_ptr;
+  }
 };
 
 TEST_CASE("Container Serialization Methods", "[task_archive][container]") {
@@ -494,16 +518,19 @@ TEST_CASE("Container Serialization Methods", "[task_archive][container]") {
     hipc::FullPtr<chi::Task> task_ptr(original_task.get());
     
     // Test SaveIn
-    hipc::string output_data(GetTestAllocator());
-    REQUIRE_NOTHROW(container.SaveIn(output_data, task_ptr));
-    REQUIRE_FALSE(output_data.str().empty());
+    chi::TaskSaveInArchive save_archive;
+    chi::u32 method = task_ptr->method_;
+    REQUIRE_NOTHROW(container.SaveIn(method, save_archive, task_ptr));
+    std::string serialized_data = save_archive.GetData();
+    REQUIRE_FALSE(serialized_data.empty());
     
     // Test LoadIn
     auto new_task = CreateTestTask();
     new_task->SetNull();
     hipc::FullPtr<chi::Task> new_task_ptr(new_task.get());
     new_task_ptr->method_ = original_task->method_;  // LoadIn needs method for switch-case
-    REQUIRE_NOTHROW(container.LoadIn(output_data, new_task_ptr));
+    chi::TaskLoadInArchive load_archive(serialized_data);
+    REQUIRE_NOTHROW(container.LoadIn(method, load_archive, new_task_ptr));
     
     // Verify data was loaded (though specific verification depends on switch-case implementation)
     // For base Task, the default case should call BaseSerializeIn + SerializeIn
@@ -515,23 +542,26 @@ TEST_CASE("Container Serialization Methods", "[task_archive][container]") {
     hipc::FullPtr<chi::Task> task_ptr(original_task.get());
     
     // Test SaveOut
-    hipc::string output_data(GetTestAllocator());
-    REQUIRE_NOTHROW(container.SaveOut(output_data, task_ptr));
-    REQUIRE_FALSE(output_data.str().empty());
+    chi::TaskSaveOutArchive save_archive;
+    chi::u32 method = task_ptr->method_;
+    REQUIRE_NOTHROW(container.SaveOut(method, save_archive, task_ptr));
+    std::string serialized_data = save_archive.GetData();
+    REQUIRE_FALSE(serialized_data.empty());
     
     // Test LoadOut
     auto new_task = CreateTestTask();
     new_task->SetNull();
     hipc::FullPtr<chi::Task> new_task_ptr(new_task.get());
     new_task_ptr->method_ = original_task->method_;  // LoadOut needs method for switch-case
-    REQUIRE_NOTHROW(container.LoadOut(output_data, new_task_ptr));
+    chi::TaskLoadOutArchive load_archive(serialized_data);
+    REQUIRE_NOTHROW(container.LoadOut(method, load_archive, new_task_ptr));
   }
 }
 
 TEST_CASE("Error Handling and Edge Cases", "[task_archive][error_handling]") {
   SECTION("Invalid serialization data") {
     std::string invalid_data = "this is not valid cereal data";
-    chi::TaskInputArchiveIN archive(invalid_data);
+    chi::TaskLoadInArchive archive(invalid_data);
     
     // Attempting to deserialize should fail gracefully
     int value;
@@ -542,13 +572,13 @@ TEST_CASE("Error Handling and Edge Cases", "[task_archive][error_handling]") {
   
   SECTION("Empty serialization data") {
     std::string empty_data = "";
-    chi::TaskInputArchiveIN archive(empty_data);
+    chi::TaskLoadInArchive archive(empty_data);
     
     REQUIRE(archive.GetBulkTransfers().empty());
   }
   
   SECTION("Bulk transfer with null pointer") {
-    chi::TaskOutputArchiveIN archive;
+    chi::TaskSaveInArchive archive;
     hipc::Pointer null_ptr;  // Default constructs to null
     
     REQUIRE_NOTHROW(archive.bulk(null_ptr, 0, 0));
@@ -564,13 +594,13 @@ TEST_CASE("Performance and Large Data", "[task_archive][performance]") {
   SECTION("Large string serialization") {
     std::string large_string(10000, 'X');  // 10KB string
     
-    chi::TaskOutputArchiveIN out_archive;
+    chi::TaskSaveInArchive out_archive;
     REQUIRE_NOTHROW(out_archive << large_string);
     
     std::string serialized_data = out_archive.GetData();
     REQUIRE(serialized_data.size() > large_string.size());  // Should include cereal overhead
     
-    chi::TaskInputArchiveIN in_archive(serialized_data);
+    chi::TaskLoadInArchive in_archive(serialized_data);
     std::string result_string;
     REQUIRE_NOTHROW(in_archive >> result_string);
     
@@ -580,10 +610,10 @@ TEST_CASE("Performance and Large Data", "[task_archive][performance]") {
   SECTION("Large vector serialization") {
     std::vector<double> large_vector(1000, 3.14159);  // 1000 doubles
     
-    chi::TaskOutputArchiveIN out_archive;
+    chi::TaskSaveInArchive out_archive;
     out_archive << large_vector;
     
-    chi::TaskInputArchiveIN in_archive(out_archive.GetData());
+    chi::TaskLoadInArchive in_archive(out_archive.GetData());
     std::vector<double> result_vector;
     in_archive >> result_vector;
     
@@ -599,7 +629,7 @@ TEST_CASE("Performance and Large Data", "[task_archive][performance]") {
       auto task = CreateTestTask();
       task->net_key_ = i * 100;  // Unique identifier
       
-      chi::TaskOutputArchiveIN archive;
+      chi::TaskSaveInArchive archive;
       archive << *task;
       serialized_tasks.push_back(archive.GetData());
     }
@@ -621,13 +651,13 @@ TEST_CASE("Complete Serialization Flow", "[task_archive][integration]") {
     auto original_task = CreateTestAdminTask();
     
     // Step 1: Serialize IN parameters (for sending task to remote node)
-    chi::TaskOutputArchiveIN in_archive;
+    chi::TaskSaveInArchive in_archive;
     in_archive << *original_task;
     std::string in_data = in_archive.GetData();
     auto in_bulk_transfers = in_archive.GetBulkTransfers();
     
     // Step 2: Simulate remote node receiving and deserializing IN parameters
-    chi::TaskInputArchiveIN recv_in_archive(in_data);
+    chi::TaskLoadInArchive recv_in_archive(in_data);
     auto remote_task = CreateTestAdminTask();
     remote_task->chimod_name_ = hipc::string(GetTestAllocator(), "");  // Clear
     remote_task->pool_name_ = hipc::string(GetTestAllocator(), "");
@@ -643,13 +673,13 @@ TEST_CASE("Complete Serialization Flow", "[task_archive][integration]") {
     remote_task->error_message_ = hipc::string(GetTestAllocator(), "remote execution result");
     
     // Step 4: Serialize OUT parameters (for sending results back)
-    chi::TaskOutputArchiveOUT out_archive;
+    chi::TaskSaveOutArchive out_archive;
     out_archive << *remote_task;
     std::string out_data = out_archive.GetData();
     auto out_bulk_transfers = out_archive.GetBulkTransfers();
     
     // Step 5: Simulate client receiving and deserializing OUT parameters
-    chi::TaskInputArchiveOUT recv_out_archive(out_data);
+    chi::TaskLoadOutArchive recv_out_archive(out_data);
     auto final_task = CreateTestAdminTask();
     final_task->result_code_ = 0;  // Clear
     final_task->error_message_ = hipc::string(GetTestAllocator(), "");

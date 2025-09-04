@@ -5,6 +5,7 @@
 #include "chimaera/pool_query.h"
 #include "chimaera/work_orchestrator.h"
 #include "chimaera/task.h"
+#include "chimaera/task_archives.h"
 #include <unordered_map>
 #include <vector>
 #include <memory>
@@ -77,27 +78,37 @@ class Container {
     // Get main allocator for creating lanes
     auto mem_manager = HSHM_MEMORY_MANAGER;
     main_allocator_ = mem_manager->GetAllocator<CHI_MAIN_ALLOC_T>(hipc::AllocatorId(1, 0));
+    
+    // Note: InitClient should be called separately after system is fully initialized
   }
   
   /**
-   * Initialize container with pool information
+   * Simple initialization without client initialization
+   * Used when we only have a PoolId available
    */
-  virtual void Init(const PoolId& pool_id, const std::string& pool_name) {
+  void Init(const PoolId& pool_id) {
     pool_id_ = pool_id;
-    pool_name_ = pool_name;
-    container_id_ = 0; // Set by container manager
+    pool_name_ = "pool_" + std::to_string(pool_id);
+    container_id_ = 0;
     pool_query_ = PoolQuery();  // Default pool query
     
     // Get main allocator for creating lanes
     auto mem_manager = HSHM_MEMORY_MANAGER;
     main_allocator_ = mem_manager->GetAllocator<CHI_MAIN_ALLOC_T>(hipc::AllocatorId(1, 0));
     
-    // For testing: Create local queues during initialization to verify WorkOrchestrator integration
-    std::cout << "Container: Initializing container for pool " << pool_id << " (" << pool_name << ")" << std::endl;
-    CreateLocalQueue(kLowLatency, 4);   // 4 lanes for low latency tasks
-    CreateLocalQueue(kHighLatency, 2);  // 2 lanes for heavy operations
-    std::cout << "Container: Created local queues for pool " << pool_id << std::endl;
+    // Note: InitClient should be called separately after system is fully initialized
   }
+
+  /**
+   * Initialize client for this container - can be overridden by derived classes
+   * This is called by Init to allow runtime modules to initialize their clients
+   * Default implementation does nothing (for test containers and simple cases)
+   */
+  virtual void InitClient(const PoolId& pool_id) {
+    // Default: do nothing
+    (void)pool_id;
+  }
+  
   
   /**
    * Create a local queue with specified priority
@@ -238,39 +249,28 @@ class Container {
   }
   
   /**
-   * Serialize task IN parameters for network transfer (non-virtual)
-   * Uses static dispatch to call appropriate task serialization methods
-   * Archives automatically detect Task inheritance and call BaseSerializeIn + SerializeIn
+   * Serialize task IN parameters for network transfer - must be implemented by derived classes
+   * Uses switch-case structure based on method ID to dispatch to appropriate serialization
    */
-  void SaveIn(hipc::string& output_data, hipc::FullPtr<Task> task_ptr) {
-    auto alloc = GetAllocator();
-    Task::StaticSerializeIn(alloc, output_data, task_ptr);
-  }
+  virtual void SaveIn(u32 method, TaskSaveInArchive& archive, hipc::FullPtr<Task> task_ptr) = 0;
   
   /**
-   * Deserialize task IN parameters from network transfer (non-virtual)
-   * Uses static dispatch to call appropriate task deserialization methods
+   * Deserialize task IN parameters from network transfer - must be implemented by derived classes
+   * Uses switch-case structure based on method ID to dispatch to appropriate deserialization
    */  
-  void LoadIn(const hipc::string& input_data, hipc::FullPtr<Task> task_ptr) {
-    Task::StaticDeserializeIn(input_data, task_ptr);
-  }
+  virtual void LoadIn(u32 method, TaskLoadInArchive& archive, hipc::FullPtr<Task> task_ptr) = 0;
   
   /**
-   * Serialize task OUT parameters for network transfer (non-virtual)
-   * Uses static dispatch to call appropriate task serialization methods
+   * Serialize task OUT parameters for network transfer - must be implemented by derived classes
+   * Uses switch-case structure based on method ID to dispatch to appropriate serialization
    */
-  void SaveOut(hipc::string& output_data, hipc::FullPtr<Task> task_ptr) {
-    auto alloc = GetAllocator();
-    Task::StaticSerializeOut(alloc, output_data, task_ptr);
-  }
+  virtual void SaveOut(u32 method, TaskSaveOutArchive& archive, hipc::FullPtr<Task> task_ptr) = 0;
   
   /**
-   * Deserialize task OUT parameters from network transfer (non-virtual)
-   * Uses static dispatch to call appropriate task deserialization methods
+   * Deserialize task OUT parameters from network transfer - must be implemented by derived classes
+   * Uses switch-case structure based on method ID to dispatch to appropriate deserialization
    */
-  void LoadOut(const hipc::string& input_data, hipc::FullPtr<Task> task_ptr) {
-    Task::StaticDeserializeOut(input_data, task_ptr);
-  }
+  virtual void LoadOut(u32 method, TaskLoadOutArchive& archive, hipc::FullPtr<Task> task_ptr) = 0;
   
  protected:
   /**
@@ -389,7 +389,7 @@ extern "C" {
                                  const char* pool_name) {                     \
       chi::Container* container =                                             \
         reinterpret_cast<chi::Container*>(new CONTAINER_CLASS());             \
-      container->Init(*pool_id, std::string(pool_name));                     \
+      /* Initialization is handled by the container's Create method */       \
       return container;                                                       \
     }                                                                         \
                                                                               \
@@ -420,8 +420,7 @@ extern "C" {
     chi::Container* new_chimod(const chi::PoolId* pool_id,                   \
                                  const char* pool_name) {                    \
       auto* container = new CONTAINER_CLASS();                              \
-      /* Use base Container Init for compatibility */                       \
-      container->chi::Container::Init(*pool_id, std::string(pool_name));    \
+      /* Initialization is handled by the container's Create method */     \
       return reinterpret_cast<chi::Container*>(container);                   \
     }                                                                        \
                                                                              \

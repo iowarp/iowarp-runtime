@@ -84,6 +84,24 @@ struct CustomTask : public chi::Task {
     task_flags_.Clear();
     pool_query_ = pool_query;
   }
+
+  /**
+   * Serialize IN and INOUT parameters for network transfer
+   * This includes: data_, operation_id_
+   */
+  template<typename Archive>
+  void SerializeIn(Archive& ar) {
+    ar(data_, operation_id_);
+  }
+  
+  /**
+   * Serialize OUT and INOUT parameters for network transfer
+   * This includes: data_, result_code_
+   */
+  template<typename Archive>
+  void SerializeOut(Archive& ar) {
+    ar(data_, result_code_);
+  }
 };
 
 /**

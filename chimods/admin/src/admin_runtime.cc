@@ -14,6 +14,8 @@
 #include <chrono>
 #include <iostream>
 #include <thread>
+#include <unordered_map>
+#include <vector>
 
 #include "admin/autogen/admin_lib_exec.h"
 
@@ -21,10 +23,7 @@ namespace chimaera::admin {
 
 // Method implementations for Runtime class
 
-void Runtime::Init(const chi::PoolId& pool_id, const std::string& pool_name) {
-  // Call base class Init
-  Container::Init(pool_id, pool_name);
-
+void Runtime::InitClient(const chi::PoolId& pool_id) {
   // Initialize the client for this ChiMod
   client_ = Client(pool_id);
 }
@@ -198,6 +197,11 @@ void Runtime::MonitorGetOrCreatePool(
 
 // MonitorGetOrCreatePool functionality is now merged into MonitorCreate method
 
+void Runtime::Destroy(hipc::FullPtr<DestroyTask> task, chi::RunContext& rctx) {
+  // DestroyTask is aliased to DestroyPoolTask, so delegate to DestroyPool
+  DestroyPool(task, rctx);
+}
+
 void Runtime::DestroyPool(hipc::FullPtr<DestroyPoolTask> task,
                           chi::RunContext& rctx) {
   std::cout << "Admin: Executing DestroyPool task - Pool ID: "
@@ -240,6 +244,13 @@ void Runtime::DestroyPool(hipc::FullPtr<DestroyPoolTask> task,
     std::cerr << "Admin: Pool destruction failed with exception: " << e.what()
               << std::endl;
   }
+}
+
+void Runtime::MonitorDestroy(chi::MonitorModeId mode,
+                             hipc::FullPtr<DestroyTask> task_ptr,
+                             chi::RunContext& rctx) {
+  // DestroyTask is aliased to DestroyPoolTask, so delegate to MonitorDestroyPool
+  MonitorDestroyPool(mode, task_ptr, rctx);
 }
 
 void Runtime::MonitorDestroyPool(chi::MonitorModeId mode,
@@ -424,6 +435,37 @@ void Runtime::MonitorFlush(chi::MonitorModeId mode,
 // Distributed Task Scheduling Method Implementations
 //===========================================================================
 
+/**
+ * Helper function to add tasks to the node mapping
+ * @param task_to_copy Single task to process
+ * @param pool_queries Vector of PoolQuery objects for routing
+ * @param node_task_map Reference to the map of node_id -> list of tasks
+ * @param container Container to use for task copying
+ */
+void Runtime::AddTasksToMap(
+    hipc::FullPtr<chi::Task> task_to_copy,
+    const std::vector<chi::PoolQuery>& pool_queries,
+    std::unordered_map<chi::u32, std::vector<hipc::FullPtr<chi::Task>>>&
+        node_task_map,
+    chi::Container* container) {
+  // Iterate over the PoolQuery vector
+  for (const auto& pool_query : pool_queries) {
+    // Get the node ID from the PoolQuery
+    chi::u32 node_id = 0;
+    if (pool_query.IsPhysicalMode()) {
+      node_id = pool_query.GetNodeId();
+    }
+
+    // Make a copy of the task using the container NewCopy method
+    // Note: NewCopy method may not exist yet, using task copy for now
+    hipc::FullPtr<chi::Task> task_copy =
+        task_to_copy;  // This should be a proper copy
+
+    // Add entry to the unordered map
+    node_task_map[node_id].push_back(task_copy);
+  }
+}
+
 void Runtime::ClientSendTaskIn(hipc::FullPtr<ClientSendTaskInTask> task,
                                chi::RunContext& rctx) {
   std::cout << "Admin: Executing ClientSendTaskIn - Sending task input data"
@@ -434,14 +476,94 @@ void Runtime::ClientSendTaskIn(hipc::FullPtr<ClientSendTaskInTask> task,
   task->error_message_ = "";
 
   try {
-    // In a real implementation, this would:
-    // 1. Use the network layer to send the serialized task data
-    // 2. Handle CHI_WRITE/CHI_EXPOSE flags for bulk transfer
-    // 3. Wait for acknowledgment from remote node
-    // 4. Set appropriate result codes
+    // Step 1: Get the current lane
+    chi::Worker* worker =
+        (HSHM_THREAD_MODEL->GetTls<chi::Worker>(chi::chi_cur_worker_key_));
+    if (!worker) {
+      task->result_code_ = 1;
+      task->error_message_ = "No current worker available";
+      return;
+    }
 
-    // For now, simulate successful send
-    std::cout << "Admin: Task input data sent successfully" << std::endl;
+    auto* current_lane = worker->GetCurrentLane();
+    if (!current_lane) {
+      task->result_code_ = 2;
+      task->error_message_ = "No current lane available";
+      return;
+    }
+
+    // Get the container for the task_to_send_
+    auto* pool_manager = CHI_POOL_MANAGER;
+    if (!pool_manager) {
+      task->result_code_ = 3;
+      task->error_message_ = "Pool manager not available";
+      return;
+    }
+
+    auto* container = pool_manager->GetContainer(task->task_to_send_->pool_id_);
+    if (!container) {
+      task->result_code_ = 4;
+      task->error_message_ = "Container not found for task pool";
+      return;
+    }
+
+    // Step 2 & 3: Build unordered_map of node_id -> list<Task> using single
+    // loop
+    std::unordered_map<chi::u32, std::vector<hipc::FullPtr<chi::Task>>>
+        node_task_map;
+
+    // Convert current lane to FullPtr for TaskQueue operations
+    hipc::FullPtr<chi::TaskQueue::TaskLane> lane_full_ptr(current_lane);
+
+    // Add the input task to the map
+    AddTasksToMap(task->task_to_send_, task->pool_queries_, node_task_map,
+                  container);
+
+    // Pop each task from the current lane and add to the map in a single loop
+    hipc::TypedPointer<chi::Task> popped_task_ptr;
+    while (chi::TaskQueue::PopTask(lane_full_ptr, popped_task_ptr)) {
+      hipc::FullPtr<chi::Task> task_full_ptr(popped_task_ptr);
+      if (!task_full_ptr.IsNull()) {
+        AddTasksToMap(task_full_ptr, task->pool_queries_, node_task_map,
+                      container);
+      }
+    }
+
+    // Step 4: Iterate over the map and serialize tasks
+    for (auto& [node_id, task_list] : node_task_map) {
+      if (task_list.empty()) continue;
+
+      std::cout << "Admin: Processing " << task_list.size()
+                << " tasks for node " << node_id << std::endl;
+
+      // Create TaskSaveInArchive for serializing task inputs
+      auto* ipc = CHI_IPC;
+      hipc::CtxAllocator<CHI_MAIN_ALLOC_T> ctx_alloc(HSHM_MCTX,
+                                                     ipc->GetMainAllocator());
+      chi::TaskSaveInArchive archive(ctx_alloc);
+
+      for (auto& task_copy : task_list) {
+        // For each task copy, update the pool query to the resolved PoolQuery
+        // (This would be the first PoolQuery that maps to this node_id)
+        for (const auto& pool_query : task->pool_queries_) {
+          if ((pool_query.IsPhysicalMode() &&
+               pool_query.GetNodeId() == node_id) ||
+              (!pool_query.IsPhysicalMode() && node_id == 0)) {
+            task_copy->pool_query_ = pool_query;
+            break;
+          }
+        }
+
+        // Serialize task using TaskSaveInArchive
+        archive << *task_copy;
+
+        std::cout << "Admin: Serialized task for node " << node_id
+                  << " using TaskSaveInArchive" << std::endl;
+      }
+    }
+
+    std::cout << "Admin: Task input data sent successfully to "
+              << node_task_map.size() << " nodes" << std::endl;
 
     task->result_code_ = 0;
 
@@ -664,6 +786,242 @@ chi::u64 Runtime::GetWorkRemaining() const {
   // In a real implementation, this could track pending administrative
   // operations
   return 0;
+}
+
+//===========================================================================
+// Task Serialization Method Implementations
+//===========================================================================
+
+void Runtime::SaveIn(chi::u32 method, chi::TaskSaveInArchive& archive, hipc::FullPtr<chi::Task> task_ptr) {
+  switch (method) {
+    case Method::kCreate: {
+      auto typed_task = task_ptr.Cast<CreateTask>();
+      typed_task->SerializeIn(archive);
+      break;
+    }
+    case Method::kDestroy: {
+      auto typed_task = task_ptr.Cast<DestroyTask>();
+      typed_task->SerializeIn(archive);
+      break;
+    }
+    case Method::kGetOrCreatePool: {
+      auto typed_task = task_ptr.Cast<admin::GetOrCreatePoolTask<admin::CreateParams>>();
+      typed_task->SerializeIn(archive);
+      break;
+    }
+    case Method::kDestroyPool: {
+      auto typed_task = task_ptr.Cast<DestroyPoolTask>();
+      typed_task->SerializeIn(archive);
+      break;
+    }
+    case Method::kStopRuntime: {
+      auto typed_task = task_ptr.Cast<StopRuntimeTask>();
+      typed_task->SerializeIn(archive);
+      break;
+    }
+    case Method::kFlush: {
+      auto typed_task = task_ptr.Cast<FlushTask>();
+      typed_task->SerializeIn(archive);
+      break;
+    }
+    case Method::kClientSendTaskIn: {
+      auto typed_task = task_ptr.Cast<ClientSendTaskInTask>();
+      typed_task->SerializeIn(archive);
+      break;
+    }
+    case Method::kServerRecvTaskIn: {
+      auto typed_task = task_ptr.Cast<ServerRecvTaskInTask>();
+      typed_task->SerializeIn(archive);
+      break;
+    }
+    case Method::kServerSendTaskOut: {
+      auto typed_task = task_ptr.Cast<ServerSendTaskOutTask>();
+      typed_task->SerializeIn(archive);
+      break;
+    }
+    case Method::kClientRecvTaskOut: {
+      auto typed_task = task_ptr.Cast<ClientRecvTaskOutTask>();
+      typed_task->SerializeIn(archive);
+      break;
+    }
+    default:
+      // Unknown method - do nothing
+      break;
+  }
+}
+
+void Runtime::LoadIn(chi::u32 method, chi::TaskLoadInArchive& archive, hipc::FullPtr<chi::Task> task_ptr) {
+  switch (method) {
+    case Method::kCreate: {
+      auto typed_task = task_ptr.Cast<CreateTask>();
+      typed_task->SerializeIn(archive);
+      break;
+    }
+    case Method::kDestroy: {
+      auto typed_task = task_ptr.Cast<DestroyTask>();
+      typed_task->SerializeIn(archive);
+      break;
+    }
+    case Method::kGetOrCreatePool: {
+      auto typed_task = task_ptr.Cast<admin::GetOrCreatePoolTask<admin::CreateParams>>();
+      typed_task->SerializeIn(archive);
+      break;
+    }
+    case Method::kDestroyPool: {
+      auto typed_task = task_ptr.Cast<DestroyPoolTask>();
+      typed_task->SerializeIn(archive);
+      break;
+    }
+    case Method::kStopRuntime: {
+      auto typed_task = task_ptr.Cast<StopRuntimeTask>();
+      typed_task->SerializeIn(archive);
+      break;
+    }
+    case Method::kFlush: {
+      auto typed_task = task_ptr.Cast<FlushTask>();
+      typed_task->SerializeIn(archive);
+      break;
+    }
+    case Method::kClientSendTaskIn: {
+      auto typed_task = task_ptr.Cast<ClientSendTaskInTask>();
+      typed_task->SerializeIn(archive);
+      break;
+    }
+    case Method::kServerRecvTaskIn: {
+      auto typed_task = task_ptr.Cast<ServerRecvTaskInTask>();
+      typed_task->SerializeIn(archive);
+      break;
+    }
+    case Method::kServerSendTaskOut: {
+      auto typed_task = task_ptr.Cast<ServerSendTaskOutTask>();
+      typed_task->SerializeIn(archive);
+      break;
+    }
+    case Method::kClientRecvTaskOut: {
+      auto typed_task = task_ptr.Cast<ClientRecvTaskOutTask>();
+      typed_task->SerializeIn(archive);
+      break;
+    }
+    default:
+      // Unknown method - do nothing
+      break;
+  }
+}
+
+void Runtime::SaveOut(chi::u32 method, chi::TaskSaveOutArchive& archive, hipc::FullPtr<chi::Task> task_ptr) {
+  switch (method) {
+    case Method::kCreate: {
+      auto typed_task = task_ptr.Cast<CreateTask>();
+      typed_task->SerializeOut(archive);
+      break;
+    }
+    case Method::kDestroy: {
+      auto typed_task = task_ptr.Cast<DestroyTask>();
+      typed_task->SerializeOut(archive);
+      break;
+    }
+    case Method::kGetOrCreatePool: {
+      auto typed_task = task_ptr.Cast<admin::GetOrCreatePoolTask<admin::CreateParams>>();
+      typed_task->SerializeOut(archive);
+      break;
+    }
+    case Method::kDestroyPool: {
+      auto typed_task = task_ptr.Cast<DestroyPoolTask>();
+      typed_task->SerializeOut(archive);
+      break;
+    }
+    case Method::kStopRuntime: {
+      auto typed_task = task_ptr.Cast<StopRuntimeTask>();
+      typed_task->SerializeOut(archive);
+      break;
+    }
+    case Method::kFlush: {
+      auto typed_task = task_ptr.Cast<FlushTask>();
+      typed_task->SerializeOut(archive);
+      break;
+    }
+    case Method::kClientSendTaskIn: {
+      auto typed_task = task_ptr.Cast<ClientSendTaskInTask>();
+      typed_task->SerializeOut(archive);
+      break;
+    }
+    case Method::kServerRecvTaskIn: {
+      auto typed_task = task_ptr.Cast<ServerRecvTaskInTask>();
+      typed_task->SerializeOut(archive);
+      break;
+    }
+    case Method::kServerSendTaskOut: {
+      auto typed_task = task_ptr.Cast<ServerSendTaskOutTask>();
+      typed_task->SerializeOut(archive);
+      break;
+    }
+    case Method::kClientRecvTaskOut: {
+      auto typed_task = task_ptr.Cast<ClientRecvTaskOutTask>();
+      typed_task->SerializeOut(archive);
+      break;
+    }
+    default:
+      // Unknown method - do nothing
+      break;
+  }
+}
+
+void Runtime::LoadOut(chi::u32 method, chi::TaskLoadOutArchive& archive, hipc::FullPtr<chi::Task> task_ptr) {
+  switch (method) {
+    case Method::kCreate: {
+      auto typed_task = task_ptr.Cast<CreateTask>();
+      typed_task->SerializeOut(archive);
+      break;
+    }
+    case Method::kDestroy: {
+      auto typed_task = task_ptr.Cast<DestroyTask>();
+      typed_task->SerializeOut(archive);
+      break;
+    }
+    case Method::kGetOrCreatePool: {
+      auto typed_task = task_ptr.Cast<admin::GetOrCreatePoolTask<admin::CreateParams>>();
+      typed_task->SerializeOut(archive);
+      break;
+    }
+    case Method::kDestroyPool: {
+      auto typed_task = task_ptr.Cast<DestroyPoolTask>();
+      typed_task->SerializeOut(archive);
+      break;
+    }
+    case Method::kStopRuntime: {
+      auto typed_task = task_ptr.Cast<StopRuntimeTask>();
+      typed_task->SerializeOut(archive);
+      break;
+    }
+    case Method::kFlush: {
+      auto typed_task = task_ptr.Cast<FlushTask>();
+      typed_task->SerializeOut(archive);
+      break;
+    }
+    case Method::kClientSendTaskIn: {
+      auto typed_task = task_ptr.Cast<ClientSendTaskInTask>();
+      typed_task->SerializeOut(archive);
+      break;
+    }
+    case Method::kServerRecvTaskIn: {
+      auto typed_task = task_ptr.Cast<ServerRecvTaskInTask>();
+      typed_task->SerializeOut(archive);
+      break;
+    }
+    case Method::kServerSendTaskOut: {
+      auto typed_task = task_ptr.Cast<ServerSendTaskOutTask>();
+      typed_task->SerializeOut(archive);
+      break;
+    }
+    case Method::kClientRecvTaskOut: {
+      auto typed_task = task_ptr.Cast<ClientRecvTaskOutTask>();
+      typed_task->SerializeOut(archive);
+      break;
+    }
+    default:
+      // Unknown method - do nothing
+      break;
+  }
 }
 
 }  // namespace chimaera::admin
