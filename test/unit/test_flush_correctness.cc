@@ -5,17 +5,18 @@
  * to verify proper runtime setup and flush operations.
  */
 
-#include <simple_test.h>
+#include <MOD_NAME/MOD_NAME_client.h>
+#include <MOD_NAME/MOD_NAME_tasks.h>
+#include <admin/admin_client.h>
+#include <admin/admin_tasks.h>
 #include <chimaera/chimaera.h>
 #include <chimaera/ipc_manager.h>
 #include <chimaera/pool_manager.h>
 #include <chimaera/work_orchestrator.h>
-#include <admin/admin_client.h>
-#include <admin/admin_tasks.h>
-#include <MOD_NAME/MOD_NAME_client.h>
-#include <MOD_NAME/MOD_NAME_tasks.h>
-#include <thread>
+#include <simple_test.h>
+
 #include <chrono>
+#include <thread>
 
 namespace {
 
@@ -54,7 +55,8 @@ TEST_CASE("FlushTask Basic Functionality", "[flush][admin]") {
   }
 }
 
-TEST_CASE("FlushTask with MOD_NAME Container and Async Tasks", "[flush][mod_name]") {
+TEST_CASE("FlushTask with MOD_NAME Container and Async Tasks",
+          "[flush][mod_name]") {
   ChimaeraTestFixture fixture;
 
   SECTION("Flush waits for MOD_NAME async Custom tasks to complete") {
@@ -62,26 +64,23 @@ TEST_CASE("FlushTask with MOD_NAME Container and Async Tasks", "[flush][mod_name
     const chi::PoolId mod_name_pool_id = static_cast<chi::PoolId>(4000);
     chimaera::MOD_NAME::Client mod_name_client(mod_name_pool_id);
 
-    // Create the MOD_NAME container with local pool query - this will create pool if needed
+    // Create the MOD_NAME container with local pool query - this will create
+    // pool if needed
     auto pool_query = chi::PoolQuery::Local();
     mod_name_client.Create(HSHM_MCTX, pool_query);
 
     // Send multiple async Custom tasks to the MOD_NAME runtime
     const int num_async_tasks = 5;
     std::vector<hipc::FullPtr<chimaera::MOD_NAME::CustomTask>> async_tasks;
-    
+
     for (int i = 0; i < num_async_tasks; i++) {
       std::string input_data = "test_data_" + std::to_string(i);
       chi::u32 operation_id = static_cast<chi::u32>(i + 1);
-      
+
       // Create async custom task
       auto async_task = mod_name_client.AsyncCustom(
-        HSHM_MCTX, 
-        chi::PoolQuery::Local(), 
-        input_data, 
-        operation_id
-      );
-      
+          HSHM_MCTX, chi::PoolQuery::Local(), input_data, operation_id);
+
       async_tasks.push_back(async_task);
     }
 
@@ -89,39 +88,40 @@ TEST_CASE("FlushTask with MOD_NAME Container and Async Tasks", "[flush][mod_name
     chimaera::admin::Client flush_admin_client(chi::kAdminPoolId);
     std::atomic<bool> flush_completed{false};
     std::atomic<chi::u32> flush_result_code{999};
-    
+
     std::thread flush_thread([&]() {
-      auto flush_task = flush_admin_client.AsyncFlush(HSHM_MCTX, chi::PoolQuery());
+      auto flush_task =
+          flush_admin_client.AsyncFlush(HSHM_MCTX, chi::PoolQuery::Local());
       flush_task->Wait();
-      
+
       flush_result_code.store(flush_task->result_code_);
       flush_completed.store(true);
-      
+
       // Clean up flush task
       auto* ipc_manager = CHI_IPC;
       ipc_manager->DelTask(flush_task);
     });
-    
+
     // Give the flush a moment to start
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    
+
     // Wait for all async operations to complete
     for (auto& async_task : async_tasks) {
       async_task->Wait();
       REQUIRE(async_task->result_code_ == 0);
     }
-    
+
     // Wait for flush to complete
     flush_thread.join();
     REQUIRE(flush_completed.load());
     REQUIRE(flush_result_code.load() == 0);
-    
+
     // Clean up async tasks
     auto* cleanup_ipc_manager = CHI_IPC;
     for (auto& async_task : async_tasks) {
       cleanup_ipc_manager->DelTask(async_task);
     }
-    
+
     INFO("MOD_NAME flush test completed - flush works with async Custom tasks");
   }
 }
