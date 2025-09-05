@@ -78,23 +78,8 @@ class Chimaera {
   bool is_initialized_ = false;
   bool is_client_mode_ = false;
   bool is_runtime_mode_ = false;
-  std::string current_hostname_;
 
-  /**
-   * Identify current host from hostfile by attempting TCP server binding
-   * @param hostfile_path Path to the hostfile containing host patterns
-   * @return true if host identification successful, false otherwise
-   */
-  bool IdentifyHost(const std::string& hostfile_path = "/etc/chimaera/hostfile");
   
-  
-  /**
-   * Try to start TCP server on specified hostname and port
-   * @param hostname Hostname to bind to
-   * @param port Port number to bind to
-   * @return unique_ptr to server if successful, nullptr if failed
-   */
-  std::unique_ptr<hshm::lbm::Server> TryStartTcpServer(const std::string& hostname, u32 port = 9999);
 };
 
 }  // namespace chi

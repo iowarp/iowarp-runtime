@@ -42,15 +42,18 @@ inline void Run(Runtime* runtime, chi::u32 method, hipc::FullPtr<chi::Task> task
 inline void SaveIn(Runtime* runtime, chi::u32 method, chi::TaskSaveInArchive& archive, hipc::FullPtr<chi::Task> task_ptr) {
   switch (method) {
     case Method::kCreate: {
-      runtime->SaveIn(Method::kCreate, archive, task_ptr);
+      auto typed_task = task_ptr.Cast<CreateTask>();
+      typed_task->SerializeIn(archive);
       break;
     }
     case Method::kDestroy: {
-      runtime->SaveIn(Method::kDestroy, archive, task_ptr);
+      auto typed_task = task_ptr.Cast<DestroyTask>();
+      typed_task->SerializeIn(archive);
       break;
     }
     case Method::kCustom: {
-      runtime->SaveIn(Method::kCustom, archive, task_ptr);
+      auto typed_task = task_ptr.Cast<CustomTask>();
+      typed_task->SerializeIn(archive);
       break;
     }
     default: {
@@ -66,15 +69,18 @@ inline void SaveIn(Runtime* runtime, chi::u32 method, chi::TaskSaveInArchive& ar
 inline void LoadIn(Runtime* runtime, chi::u32 method, chi::TaskLoadInArchive& archive, hipc::FullPtr<chi::Task> task_ptr) {
   switch (method) {
     case Method::kCreate: {
-      runtime->LoadIn(Method::kCreate, archive, task_ptr);
+      auto typed_task = task_ptr.Cast<CreateTask>();
+      typed_task->SerializeIn(archive);
       break;
     }
     case Method::kDestroy: {
-      runtime->LoadIn(Method::kDestroy, archive, task_ptr);
+      auto typed_task = task_ptr.Cast<DestroyTask>();
+      typed_task->SerializeIn(archive);
       break;
     }
     case Method::kCustom: {
-      runtime->LoadIn(Method::kCustom, archive, task_ptr);
+      auto typed_task = task_ptr.Cast<CustomTask>();
+      typed_task->SerializeIn(archive);
       break;
     }
     default: {
@@ -90,15 +96,18 @@ inline void LoadIn(Runtime* runtime, chi::u32 method, chi::TaskLoadInArchive& ar
 inline void SaveOut(Runtime* runtime, chi::u32 method, chi::TaskSaveOutArchive& archive, hipc::FullPtr<chi::Task> task_ptr) {
   switch (method) {
     case Method::kCreate: {
-      runtime->SaveOut(Method::kCreate, archive, task_ptr);
+      auto typed_task = task_ptr.Cast<CreateTask>();
+      typed_task->SerializeOut(archive);
       break;
     }
     case Method::kDestroy: {
-      runtime->SaveOut(Method::kDestroy, archive, task_ptr);
+      auto typed_task = task_ptr.Cast<DestroyTask>();
+      typed_task->SerializeOut(archive);
       break;
     }
     case Method::kCustom: {
-      runtime->SaveOut(Method::kCustom, archive, task_ptr);
+      auto typed_task = task_ptr.Cast<CustomTask>();
+      typed_task->SerializeOut(archive);
       break;
     }
     default: {
@@ -114,15 +123,18 @@ inline void SaveOut(Runtime* runtime, chi::u32 method, chi::TaskSaveOutArchive& 
 inline void LoadOut(Runtime* runtime, chi::u32 method, chi::TaskLoadOutArchive& archive, hipc::FullPtr<chi::Task> task_ptr) {
   switch (method) {
     case Method::kCreate: {
-      runtime->LoadOut(Method::kCreate, archive, task_ptr);
+      auto typed_task = task_ptr.Cast<CreateTask>();
+      typed_task->SerializeOut(archive);
       break;
     }
     case Method::kDestroy: {
-      runtime->LoadOut(Method::kDestroy, archive, task_ptr);
+      auto typed_task = task_ptr.Cast<DestroyTask>();
+      typed_task->SerializeOut(archive);
       break;
     }
     case Method::kCustom: {
-      runtime->LoadOut(Method::kCustom, archive, task_ptr);
+      auto typed_task = task_ptr.Cast<CustomTask>();
+      typed_task->SerializeOut(archive);
       break;
     }
     default: {
@@ -186,6 +198,66 @@ inline void Del(Runtime* runtime, chi::u32 method, hipc::FullPtr<chi::Task> task
   }
   
   (void)runtime; // Runtime not needed for IPC-managed deletion
+}
+
+/**
+ * Create a new copy of a task (deep copy for distributed execution)
+ */
+inline void NewCopy(Runtime* runtime, chi::u32 method,
+                    const hipc::FullPtr<chi::Task>& orig_task,
+                    hipc::FullPtr<chi::Task>& dup_task, bool deep) {
+  auto* ipc_manager = CHI_IPC;
+  if (!ipc_manager) {
+    return;
+  }
+  
+  switch (method) {
+    case Method::kCreate: {
+      // Allocate new task using SHM default constructor
+      auto typed_task = ipc_manager->NewTask<CreateTask>();
+      if (!typed_task.IsNull()) {
+        // Use HSHM strong copy method for actual copying
+        typed_task->shm_strong_copy_main(*orig_task.Cast<CreateTask>());
+        // Cast to base Task type for return
+        dup_task = typed_task.template Cast<chi::Task>();
+      }
+      break;
+    }
+    case Method::kDestroy: {
+      // Allocate new task using SHM default constructor
+      auto typed_task = ipc_manager->NewTask<DestroyTask>();
+      if (!typed_task.IsNull()) {
+        // Use HSHM strong copy method for actual copying
+        typed_task->shm_strong_copy_main(*orig_task.Cast<DestroyTask>());
+        // Cast to base Task type for return
+        dup_task = typed_task.template Cast<chi::Task>();
+      }
+      break;
+    }
+    case Method::kCustom: {
+      // Allocate new task using SHM default constructor
+      auto typed_task = ipc_manager->NewTask<CustomTask>();
+      if (!typed_task.IsNull()) {
+        // Use HSHM strong copy method for actual copying
+        typed_task->shm_strong_copy_main(*orig_task.Cast<CustomTask>());
+        // Cast to base Task type for return
+        dup_task = typed_task.template Cast<chi::Task>();
+      }
+      break;
+    }
+    default: {
+      // For unknown methods, create base Task copy
+      auto typed_task = ipc_manager->NewTask<chi::Task>();
+      if (!typed_task.IsNull()) {
+        typed_task->shm_strong_copy_main(*orig_task);
+        dup_task = typed_task;  // Already chi::Task type
+      }
+      break;
+    }
+  }
+  
+  (void)runtime; // Runtime not needed for IPC-managed allocation
+  (void)deep;    // Deep copy parameter reserved for future use
 }
 
 } // namespace chimaera::MOD_NAME

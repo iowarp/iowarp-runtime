@@ -131,6 +131,13 @@ public:
    * Deserialize task OUT parameters from network transfer
    */
   void LoadOut(chi::u32 method, chi::TaskLoadOutArchive& archive, hipc::FullPtr<chi::Task> task_ptr) override;
+
+  /**
+   * Create a new copy of a task (deep copy for distributed execution)
+   */
+  void NewCopy(chi::u32 method, 
+               const hipc::FullPtr<chi::Task> &orig_task,
+               hipc::FullPtr<chi::Task> &dup_task, bool deep) override;
 };
 
 } // namespace chimaera::MOD_NAME

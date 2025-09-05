@@ -249,9 +249,12 @@ bool Worker::IsTaskLocal(
     case RoutingMode::Local:
       return true;  // Always local
       
-    case RoutingMode::Physical:
-      // Physical mode is local only if targeting local node (node_id == 0)
-      return query.GetNodeId() == 0;
+    case RoutingMode::Physical: {
+      // Physical mode is local only if targeting local node
+      auto* ipc_manager = CHI_IPC;
+      u64 local_node_id = ipc_manager ? ipc_manager->GetNodeId() : 0;
+      return query.GetNodeId() == local_node_id;
+    }
       
     case RoutingMode::DirectId:
     case RoutingMode::DirectHash:

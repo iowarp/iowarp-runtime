@@ -120,7 +120,7 @@ TEST_CASE("TaskSaveInArchive - Basic Construction and Data Retrieval", "[task_ar
     chi::TaskSaveInArchive archive;
     
     // Should start with empty bulk transfers
-    REQUIRE(archive.GetBulkTransfers().empty());
+    REQUIRE(archive.GetDataTransfers().empty());
     
     // Should be able to get data (will be empty initially)
     std::string data = archive.GetData();
@@ -204,7 +204,7 @@ TEST_CASE("Bulk Transfer Recording", "[task_archive][bulk_transfer]") {
     
     archive.bulk(test_ptr, test_size, test_flags);
     
-    auto bulk_transfers = archive.GetBulkTransfers();
+    auto bulk_transfers = archive.GetDataTransfers();
     REQUIRE(bulk_transfers.size() == 1);
     REQUIRE(bulk_transfers[0].size == test_size);
     REQUIRE(bulk_transfers[0].flags == test_flags);
@@ -218,7 +218,7 @@ TEST_CASE("Bulk Transfer Recording", "[task_archive][bulk_transfer]") {
     archive.bulk(hipc::Pointer(), 200, kTestExposeFlag);
     archive.bulk(hipc::Pointer(), 300, kTestWriteFlag | kTestExposeFlag);
     
-    auto bulk_transfers = archive.GetBulkTransfers();
+    auto bulk_transfers = archive.GetDataTransfers();
     REQUIRE(bulk_transfers.size() == 3);
     REQUIRE(bulk_transfers[0].size == 100);
     REQUIRE(bulk_transfers[1].size == 200);
@@ -509,6 +509,19 @@ public:
     (void)method;
     archive >> *task_ptr;
   }
+  
+  void NewCopy(chi::u32 method, const hipc::FullPtr<chi::Task> &orig_task,
+               hipc::FullPtr<chi::Task> &dup_task, bool deep) override {
+    // Test implementation - create new task and copy
+    (void)method; (void)deep;
+    auto* ipc_manager = CHI_IPC;
+    if (ipc_manager) {
+      dup_task = ipc_manager->NewTask<chi::Task>();
+      if (!dup_task.IsNull()) {
+        dup_task->shm_strong_copy_main(*orig_task);
+      }
+    }
+  }
 };
 
 TEST_CASE("Container Serialization Methods", "[task_archive][container]") {
@@ -583,7 +596,7 @@ TEST_CASE("Error Handling and Edge Cases", "[task_archive][error_handling]") {
     
     REQUIRE_NOTHROW(archive.bulk(null_ptr, 0, 0));
     
-    auto bulk_transfers = archive.GetBulkTransfers();
+    auto bulk_transfers = archive.GetDataTransfers();
     REQUIRE(bulk_transfers.size() == 1);
     REQUIRE(bulk_transfers[0].size == 0);
     REQUIRE(bulk_transfers[0].flags == 0);
@@ -654,7 +667,7 @@ TEST_CASE("Complete Serialization Flow", "[task_archive][integration]") {
     chi::TaskSaveInArchive in_archive;
     in_archive << *original_task;
     std::string in_data = in_archive.GetData();
-    auto in_bulk_transfers = in_archive.GetBulkTransfers();
+    auto in_bulk_transfers = in_archive.GetDataTransfers();
     
     // Step 2: Simulate remote node receiving and deserializing IN parameters
     chi::TaskLoadInArchive recv_in_archive(in_data);

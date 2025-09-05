@@ -194,7 +194,8 @@ class ChiModGenerator:
             
             lines.extend([
                 f"    case Method::{constant_name}: {{",
-                f"      runtime->SaveIn(Method::{constant_name}, archive, task_ptr.Cast<{task_type}>());",
+                f"      auto typed_task = task_ptr.Cast<{task_type}>();",
+                f"      typed_task->SerializeIn(archive);",
                 "      break;",
                 "    }"
             ])
@@ -222,7 +223,8 @@ class ChiModGenerator:
             
             lines.extend([
                 f"    case Method::{constant_name}: {{",
-                f"      runtime->LoadIn(Method::{constant_name}, archive, task_ptr.Cast<{task_type}>());",
+                f"      auto typed_task = task_ptr.Cast<{task_type}>();",
+                f"      typed_task->SerializeIn(archive);",
                 "      break;",
                 "    }"
             ])
@@ -250,7 +252,8 @@ class ChiModGenerator:
             
             lines.extend([
                 f"    case Method::{constant_name}: {{",
-                f"      runtime->SaveOut(Method::{constant_name}, archive, task_ptr.Cast<{task_type}>());",
+                f"      auto typed_task = task_ptr.Cast<{task_type}>();",
+                f"      typed_task->SerializeOut(archive);",
                 "      break;",
                 "    }"
             ])
@@ -278,7 +281,8 @@ class ChiModGenerator:
             
             lines.extend([
                 f"    case Method::{constant_name}: {{",
-                f"      runtime->LoadOut(Method::{constant_name}, archive, task_ptr.Cast<{task_type}>());",
+                f"      auto typed_task = task_ptr.Cast<{task_type}>();",
+                f"      typed_task->SerializeOut(archive);",
                 "      break;",
                 "    }"
             ])
@@ -353,6 +357,56 @@ class ChiModGenerator:
             "  }",
             "  ",
             "  (void)runtime; // Runtime not needed for IPC-managed deletion",
+            "}",
+            "",
+            "/**",
+            " * Create a new copy of a task (deep copy for distributed execution)",
+            " */",
+            "inline void NewCopy(Runtime* runtime, chi::u32 method,",
+            "                    const hipc::FullPtr<chi::Task>& orig_task,",
+            "                    hipc::FullPtr<chi::Task>& dup_task, bool deep) {",
+            "  auto* ipc_manager = CHI_IPC;",
+            "  if (!ipc_manager) {",
+            "    return;",
+            "  }",
+            "  ",
+            "  switch (method) {"
+        ])
+        
+        # Add NewCopy switch cases
+        for method in methods:
+            method_name = method['method_name']
+            constant_name = method['constant_name']
+            task_type = self.get_task_type_name(method_name, chimod_name)
+            
+            lines.extend([
+                f"    case Method::{constant_name}: {{",
+                f"      // Allocate new task using SHM default constructor",
+                f"      auto typed_task = ipc_manager->NewTask<{task_type}>();",
+                f"      if (!typed_task.IsNull()) {{",
+                f"        // Use HSHM strong copy method for actual copying",
+                f"        typed_task->shm_strong_copy_main(*orig_task.Cast<{task_type}>());",
+                f"        // Cast to base Task type for return",
+                f"        dup_task = typed_task.template Cast<chi::Task>();",
+                f"      }}",
+                "      break;",
+                "    }"
+            ])
+        
+        lines.extend([
+            "    default: {",
+            "      // For unknown methods, create base Task copy",
+            "      auto typed_task = ipc_manager->NewTask<chi::Task>();",
+            "      if (!typed_task.IsNull()) {",
+            "        typed_task->shm_strong_copy_main(*orig_task);",
+            "        dup_task = typed_task;  // Already chi::Task type",
+            "      }",
+            "      break;",
+            "    }",
+            "  }",
+            "  ",
+            "  (void)runtime; // Runtime not needed for IPC-managed allocation",
+            "  (void)deep;    // Deep copy parameter reserved for future use",
             "}",
             "",
             f"}} // namespace {namespace}::{chimod_name}",

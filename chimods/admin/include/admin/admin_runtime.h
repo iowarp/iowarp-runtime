@@ -245,11 +245,25 @@ public:
    */
   void LoadOut(chi::u32 method, chi::TaskLoadOutArchive& archive, hipc::FullPtr<chi::Task> task_ptr) override;
 
+  /**
+   * Create a new copy of a task (deep copy for distributed execution)
+   */
+  void NewCopy(chi::u32 method, 
+               const hipc::FullPtr<chi::Task> &orig_task,
+               hipc::FullPtr<chi::Task> &dup_task, bool deep) override;
+
 private:
   /**
    * Initiate runtime shutdown sequence
    */
   void InitiateShutdown(chi::u32 grace_period_ms);
+
+  /**
+   * Create ZeroMQ client for network communication to a specific node
+   * @param node_id Target node ID for the connection
+   * @return Unique pointer to ZeroMQ client or nullptr if failed
+   */
+  std::unique_ptr<hshm::lbm::Client> CreateZmqClient(chi::u32 node_id);
 };
 
 } // namespace chimaera::admin

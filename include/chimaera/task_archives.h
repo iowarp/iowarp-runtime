@@ -21,7 +21,31 @@ namespace chi {
 class Task;
 
 /**
- * Bulk transfer metadata for handling large data transfers
+ * Data transfer object for handling bulk data transfers
+ * Stores char* instead of hipc::Pointer for network transfer compatibility
+ */
+struct DataTransfer {
+  char* data;             /**< Raw data pointer for transfer */
+  size_t size;            /**< Size of data */
+  uint32_t flags;         /**< Transfer flags (CHI_WRITE, CHI_EXPOSE) */
+  
+  DataTransfer() : data(nullptr), size(0), flags(0) {}
+  DataTransfer(char* d, size_t s, uint32_t f) : data(d), size(s), flags(f) {}
+  DataTransfer(hipc::Pointer ptr, size_t s, uint32_t f) : data(nullptr), size(s), flags(f) {
+    // TODO: Convert hipc::Pointer to char* when networking layer provides conversion method
+    // For now, data is set to nullptr as hipc::Pointer doesn't directly convert to char*
+  }
+  
+  // Serialization support for cereal
+  template<class Archive>
+  void serialize(Archive& ar) {
+    ar(size, flags);
+    // Note: data pointer is not serialized - handled separately by network layer
+  }
+};
+
+/**
+ * Bulk transfer metadata for handling large data transfers (deprecated - use DataTransfer)
  */
 struct BulkTransferInfo {
   hipc::Pointer ptr;      /**< Pointer to bulk data */
@@ -125,14 +149,28 @@ class TaskSaveInArchive {
 private:
   std::ostringstream stream_;
   std::unique_ptr<cereal::BinaryOutputArchive> archive_;
-  std::vector<BulkTransferInfo> bulk_transfers_;
+  std::vector<DataTransfer> data_transfers_;
+  size_t task_count_;
 
 public:
-  /** Default constructor */
-  TaskSaveInArchive() 
-      : archive_(std::make_unique<cereal::BinaryOutputArchive>(stream_)) {}
+  /** Constructor with task count - serializes task count first */
+  explicit TaskSaveInArchive(size_t task_count) 
+      : archive_(std::make_unique<cereal::BinaryOutputArchive>(stream_)),
+        task_count_(task_count) {
+    // Serialize task count first
+    (*archive_)(task_count_);
+  }
 
-  /** Constructor with allocator (for compatibility - allocator is unused for output archives) */
+  /** Constructor with allocator and task count */
+  TaskSaveInArchive(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T>& alloc, size_t task_count)
+      : TaskSaveInArchive(task_count) {}
+
+  /** Default constructor (deprecated - use task count constructor) */
+  TaskSaveInArchive() 
+      : archive_(std::make_unique<cereal::BinaryOutputArchive>(stream_)),
+        task_count_(0) {}
+
+  /** Constructor with allocator only (deprecated - use task count constructor) */
   explicit TaskSaveInArchive(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T>& alloc)
       : TaskSaveInArchive() {}
 
@@ -140,14 +178,16 @@ public:
   TaskSaveInArchive(TaskSaveInArchive&& other) noexcept
       : stream_(std::move(other.stream_)),
         archive_(std::move(other.archive_)),
-        bulk_transfers_(std::move(other.bulk_transfers_)) {}
+        data_transfers_(std::move(other.data_transfers_)),
+        task_count_(other.task_count_) {}
 
   /** Move assignment operator */
   TaskSaveInArchive& operator=(TaskSaveInArchive&& other) noexcept {
     if (this != &other) {
       stream_ = std::move(other.stream_);
       archive_ = std::move(other.archive_);
-      bulk_transfers_ = std::move(other.bulk_transfers_);
+      data_transfers_ = std::move(other.data_transfers_);
+      task_count_ = other.task_count_;
     }
     return *this;
   }
@@ -177,10 +217,12 @@ public:
 
   /** Bulk transfer support */
   void bulk(hipc::Pointer ptr, size_t size, uint32_t flags) {
-    bulk_transfers_.emplace_back(ptr, size, flags);
-    // For output archives with CHI_WRITE, we record the bulk transfer
-    // The actual data transfer would be handled by the networking layer
-    // which can convert the pointer to actual data when needed
+    // Create DataTransfer object and append to data_transfers_ vector
+    DataTransfer transfer(ptr, size, flags);
+    data_transfers_.push_back(transfer);
+    
+    // Serialize the DataTransfer object
+    (*archive_)(transfer);
   }
 
   /** Get serialized data */
@@ -188,9 +230,14 @@ public:
     return stream_.str();
   }
 
-  /** Get bulk transfer information */
-  const std::vector<BulkTransferInfo>& GetBulkTransfers() const {
-    return bulk_transfers_;
+  /** Get data transfer information */
+  const std::vector<DataTransfer>& GetDataTransfers() const {
+    return data_transfers_;
+  }
+
+  /** Get task count */
+  size_t GetTaskCount() const {
+    return task_count_;
   }
 
   /** Access underlying cereal archive */
