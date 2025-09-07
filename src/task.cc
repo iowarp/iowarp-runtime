@@ -11,6 +11,9 @@
 #include "chimaera/worker.h"
 #endif
 
+// Namespace alias for boost::context::detail
+namespace bctx = boost::context::detail;
+
 namespace chi {
 
 void Task::Wait() {
@@ -24,7 +27,7 @@ void Task::Wait() {
   if (!worker || !run_ctx) {
     // No worker or run context available, fall back to client implementation
     while (is_complete.load() == 0) {
-      Yield();
+      YieldBase();
     }
     return;
   }
@@ -60,17 +63,17 @@ void Task::Wait() {
   }
 
   // Yield execution back to worker
-  Yield();
+  YieldBase();
 
 #else
   // Client implementation: Wait loop using Yield()
   while (!IsComplete()) {
-    Yield();
+    YieldBase();
   }
 #endif
 }
 
-void Task::Yield() {
+void Task::YieldBase() {
 #ifdef CHIMAERA_RUNTIME
   // Get current run context from worker
   Worker* worker = CHI_CUR_WORKER;
@@ -88,12 +91,29 @@ void Task::Yield() {
   // Jump back to worker using boost::fiber
 
   // Jump back to worker - the task has been added to blocked queue
-  run_ctx->fiber_transfer = bctx::jump_fcontext(run_ctx->fiber_transfer.fctx,
-                                                run_ctx->fiber_transfer.data);
+  // Store the result (task's yield point) in resume_context for later resumption
+  // Use temporary variables to store the yield context before jumping
+  bctx::fcontext_t yield_fctx = run_ctx->yield_context.fctx;
+  void* yield_data = run_ctx->yield_context.data;
+  
+  // Jump back to worker and capture the result
+  bctx::transfer_t yield_result = bctx::jump_fcontext(yield_fctx, yield_data);
+  
+  // CRITICAL: Update yield_context with the new worker context from the resume operation
+  // This ensures that subsequent yields or completion returns to the correct worker location
+  run_ctx->yield_context = yield_result;
+  
+  // Store where we can resume from for the next yield cycle
+  run_ctx->resume_context = yield_result;
 #else
   // Outside CHIMAERA_RUNTIME, just yield
   HSHM_THREAD_MODEL->Yield();
 #endif
+}
+
+void Task::Yield() {
+  // New public Yield function that simply calls Wait
+  Wait();
 }
 
 #ifndef CHIMAERA_RUNTIME

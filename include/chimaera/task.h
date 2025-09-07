@@ -165,9 +165,7 @@ class Task : public hipc::ShmContainer {
 #endif
 
   /**
-   * Yield execution back to worker (runtime) or sleep briefly (non-runtime)
-   * In runtime: Jumps back to worker fiber context with estimated completion
-   * time Outside runtime: Uses SleepForUs when worker is null
+   * Yield execution back to worker by waiting for task completion
    */
   HSHM_CROSS_FUN void Yield();
 
@@ -361,6 +359,14 @@ class Task : public hipc::ShmContainer {
     // their OUT/INOUT fields
   }
 
+private:
+  /**
+   * Yield execution back to worker (runtime) or sleep briefly (non-runtime)
+   * In runtime: Jumps back to worker fiber context with estimated completion
+   * time Outside runtime: Uses SleepForUs when worker is null
+   */
+  HSHM_CROSS_FUN void YieldBase();
+
 };
 
 
@@ -377,8 +383,8 @@ struct RunContext {
   bool is_blocked;             // Task is waiting for completion
   double estimated_completion_time_us; // Estimated completion time in microseconds
   hshm::Timepoint block_time;          // Time when task was blocked (for timing measurements)
-  boost::context::detail::transfer_t fiber_transfer; // boost::context transfer data for fiber execution
-  boost::context::detail::fcontext_t fiber_context;  // boost::context fiber context for task execution
+  boost::context::detail::transfer_t yield_context;  // boost::context transfer from FiberExecutionFunction parameter - used for yielding back
+  boost::context::detail::transfer_t resume_context; // boost::context transfer for resuming into yield function
   Container* container;             // Current container being executed
   void* lane;        // Current lane being processed (TaskQueue::TaskLane*)
   void* route_lane_; // Lane pointer set by kLocalSchedule for task routing (TaskQueue::TaskLane*)
@@ -388,7 +394,7 @@ struct RunContext {
   RunContext() : stack_ptr(nullptr), stack_base_for_free(nullptr), stack_size(0), 
                  thread_type(kLowLatencyWorker), worker_id(0),
                  is_blocked(false), estimated_completion_time_us(0.0),
-                 fiber_transfer{}, fiber_context{}, container(nullptr), lane(nullptr), 
+                 yield_context{}, resume_context{}, container(nullptr), lane(nullptr), 
                  route_lane_(nullptr) {}
 
   /**

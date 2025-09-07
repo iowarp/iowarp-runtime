@@ -44,6 +44,9 @@ void Container::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& ctx) {
   // Get the creation parameters
   hipc::CtxAllocator<CHI_MAIN_ALLOC_T> ctx_alloc(HSHM_MCTX, main_allocator_);
   CreateParams params = task->GetParams(ctx_alloc);
+  
+  HELOG(kError, "DEBUG: Bdev runtime received params: file_path='{}', total_size={}, io_depth={}, alignment={}", 
+        params.file_path_, params.total_size_, params.io_depth_, params.alignment_);
 
   // Initialize the container with pool information and domain query
   chi::Container::Init(task->pool_id_, task->pool_query_);
@@ -88,6 +91,9 @@ void Container::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& ctx) {
   // Initialize other parameters
   alignment_ = params.alignment_;
   io_depth_ = params.io_depth_;
+  
+  HELOG(kError, "DEBUG: Setting alignment_={} from params.alignment_={}", 
+        alignment_, params.alignment_);
 
   // Initialize the data allocator
   InitializeAllocator();
@@ -538,6 +544,11 @@ void Container::AddToFreeList(const Block& block) {
 }
 
 chi::u64 Container::AlignSize(chi::u64 size) {
+  HELOG(kError, "DEBUG: AlignSize called with size={}, alignment_={}", size, alignment_);
+  if (alignment_ == 0) {
+    HELOG(kError, "AlignSize called with alignment_ = 0, using default 4096");
+    alignment_ = 4096;  // Set to default if somehow it's 0
+  }
   return ((size + alignment_ - 1) / alignment_) * alignment_;
 }
 

@@ -108,7 +108,7 @@ void Runtime::GetOrCreatePool(
     if (!pool_manager->CreatePool(task->chimod_name_.str(),
                                   task->pool_name_.str(),
                                   task->chimod_params_.str(), 1, task->pool_id_,
-                                  result_pool_id, was_created)) {
+                                  result_pool_id, was_created, task.Cast<chi::Task>(), &rctx)) {
       task->result_code_ = 2;
       task->error_message_ = "Failed to create or get pool via PoolManager";
       return;

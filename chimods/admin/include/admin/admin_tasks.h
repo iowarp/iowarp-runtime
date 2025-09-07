@@ -94,6 +94,36 @@ struct BaseCreateTask : public chi::Task {
     chi::Task::Serialize(alloc, chimod_params_, params);
   }
 
+  /** Emplace constructor with CreateParams arguments */
+  template<typename... CreateParamsArgs>
+  explicit BaseCreateTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
+                          const chi::TaskNode &task_node,
+                          const chi::PoolId &task_pool_id,
+                          const chi::PoolQuery &dom_query,
+                          const std::string &chimod_name,
+                          const std::string &pool_name,
+                          chi::u32 domain_flags,
+                          const chi::PoolId &target_pool_id,
+                          CreateParamsArgs&&... create_params_args)
+      : chi::Task(alloc, task_node, task_pool_id, dom_query, 0),
+        chimod_name_(alloc, chimod_name), pool_name_(alloc, pool_name), 
+        chimod_params_(alloc), domain_flags_(domain_flags),
+        pool_id_(target_pool_id), result_code_(0), error_message_(alloc), 
+        is_admin_(IS_ADMIN) {
+    // Initialize base task
+    task_node_ = task_node;
+    method_ = MethodId;
+    task_flags_.Clear();
+    pool_query_ = dom_query;
+
+    // Create and serialize the CreateParams with provided arguments
+    CreateParamsT params(alloc, std::forward<CreateParamsArgs>(create_params_args)...);
+    chi::Task::Serialize(alloc, chimod_params_, params);
+    
+    // Debug: Log that the new constructor was used
+    HELOG(kError, "DEBUG: BaseCreateTask constructed with CreateParams arguments");
+  }
+
   /**
    * Get the ChiMod library name for module manager
    */

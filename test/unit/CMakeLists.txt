@@ -24,6 +24,30 @@ set(FLUSH_TEST_SOURCES
   test_flush_correctness.cc
 )
 
+# Bdev ChiMod test executable (separate test for bdev functionality)
+set(BDEV_TEST_TARGET chimaera_bdev_chimod_tests)
+set(BDEV_TEST_SOURCES
+  test_bdev_chimod.cc
+)
+
+# Boost Fiber test executable (separate test for boost context validation)
+set(FIBER_TEST_TARGET chimaera_boost_fiber_tests)
+set(FIBER_TEST_SOURCES
+  test_boost_fiber.cc
+)
+
+# Worker Fiber Pattern test executable (test for worker.cc/task.cc pattern)
+set(WORKER_FIBER_TEST_TARGET chimaera_worker_fiber_pattern_tests)
+set(WORKER_FIBER_TEST_SOURCES
+  test_worker_fiber_pattern.cc
+)
+
+# Segfault Debug test executable (debug segfault in ExecTask is_started)
+set(SEGFAULT_DEBUG_TEST_TARGET chimaera_segfault_debug_tests)
+set(SEGFAULT_DEBUG_TEST_SOURCES
+  test_segfault_debug.cc
+)
+
 
 # Create task archive test executable
 add_executable(${TASK_ARCHIVE_TEST_TARGET} ${TASK_ARCHIVE_TEST_SOURCES})
@@ -97,6 +121,126 @@ target_compile_definitions(${FLUSH_TEST_TARGET} PRIVATE
 
 # Copy flush test executable to bin directory
 set_target_properties(${FLUSH_TEST_TARGET} PROPERTIES
+  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)
+
+# Create bdev test executable
+add_executable(${BDEV_TEST_TARGET} ${BDEV_TEST_SOURCES})
+
+# Include directories for bdev tests
+target_include_directories(${BDEV_TEST_TARGET} PRIVATE
+  ${CMAKE_SOURCE_DIR}/include
+  ${CMAKE_SOURCE_DIR}/test  # For simple_test.h
+  ${CMAKE_SOURCE_DIR}/chimods/admin/include  # For admin tasks
+  ${CMAKE_SOURCE_DIR}/chimods/bdev/include   # For bdev tasks and client
+  ${HermesShm_INCLUDE_DIRS}
+)
+
+# Link against required libraries for bdev tests
+target_link_libraries(${BDEV_TEST_TARGET}
+  chimaera                        # Main Chimaera library
+  chimaera_admin_runtime          # Admin module runtime
+  chimaera_admin_client           # Admin module client
+  chimaera_bdev_runtime           # Bdev module runtime
+  chimaera_bdev_client            # Bdev module client
+  ${HermesShm_LIBRARIES}          # HSHM libraries
+  ${CMAKE_THREAD_LIBS_INIT}       # Threading support
+)
+
+# Set C++ standard for bdev tests
+set_target_properties(${BDEV_TEST_TARGET} PROPERTIES
+  CXX_STANDARD 17
+  CXX_STANDARD_REQUIRED ON
+)
+
+# Compiler flags for bdev tests
+target_compile_definitions(${BDEV_TEST_TARGET} PRIVATE
+  CHIMAERA_RUNTIME=1  # Enable runtime-specific code paths in headers
+)
+
+# Copy bdev test executable to bin directory
+set_target_properties(${BDEV_TEST_TARGET} PROPERTIES
+  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)
+
+# Create boost fiber test executable
+add_executable(${FIBER_TEST_TARGET} ${FIBER_TEST_SOURCES})
+
+# Include directories for fiber tests
+target_include_directories(${FIBER_TEST_TARGET} PRIVATE
+  ${CMAKE_SOURCE_DIR}/include
+)
+
+# Find Boost context library for fiber tests
+find_package(Boost REQUIRED COMPONENTS context)
+
+# Link against hermes-shm target for fiber tests (which includes boost)
+target_link_libraries(${FIBER_TEST_TARGET}
+  hshm::cxx                       # Hermes-SHM target (includes boost dependencies)
+  Boost::context                  # Boost context library for fiber operations
+  ${CMAKE_THREAD_LIBS_INIT}       # Threading support
+)
+
+# Set C++ standard for fiber tests
+set_target_properties(${FIBER_TEST_TARGET} PROPERTIES
+  CXX_STANDARD 17
+  CXX_STANDARD_REQUIRED ON
+)
+
+# Copy fiber test executable to bin directory
+set_target_properties(${FIBER_TEST_TARGET} PROPERTIES
+  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)
+
+# Create worker fiber pattern test executable
+add_executable(${WORKER_FIBER_TEST_TARGET} ${WORKER_FIBER_TEST_SOURCES})
+
+# Include directories for worker fiber pattern tests
+target_include_directories(${WORKER_FIBER_TEST_TARGET} PRIVATE
+  ${CMAKE_SOURCE_DIR}/include
+)
+
+# Link against hermes-shm target for worker fiber pattern tests
+target_link_libraries(${WORKER_FIBER_TEST_TARGET}
+  hshm::cxx                       # Hermes-SHM target (includes boost dependencies)
+  Boost::context                  # Boost context library for fiber operations
+  ${CMAKE_THREAD_LIBS_INIT}       # Threading support
+)
+
+# Set C++ standard for worker fiber pattern tests
+set_target_properties(${WORKER_FIBER_TEST_TARGET} PROPERTIES
+  CXX_STANDARD 17
+  CXX_STANDARD_REQUIRED ON
+)
+
+# Copy worker fiber pattern test executable to bin directory
+set_target_properties(${WORKER_FIBER_TEST_TARGET} PROPERTIES
+  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)
+
+# Create segfault debug test executable
+add_executable(${SEGFAULT_DEBUG_TEST_TARGET} ${SEGFAULT_DEBUG_TEST_SOURCES})
+
+# Include directories for segfault debug tests
+target_include_directories(${SEGFAULT_DEBUG_TEST_TARGET} PRIVATE
+  ${CMAKE_SOURCE_DIR}/include
+)
+
+# Link against hermes-shm target for segfault debug tests
+target_link_libraries(${SEGFAULT_DEBUG_TEST_TARGET}
+  hshm::cxx                       # Hermes-SHM target (includes boost dependencies)
+  Boost::context                  # Boost context library for fiber operations
+  ${CMAKE_THREAD_LIBS_INIT}       # Threading support
+)
+
+# Set C++ standard for segfault debug tests
+set_target_properties(${SEGFAULT_DEBUG_TEST_TARGET} PROPERTIES
+  CXX_STANDARD 17
+  CXX_STANDARD_REQUIRED ON
+)
+
+# Copy segfault debug test executable to bin directory
+set_target_properties(${SEGFAULT_DEBUG_TEST_TARGET} PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
 )
 
@@ -273,6 +417,62 @@ if(CHIMAERA_ENABLE_TESTS)
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
   )
 
+  # Bdev ChiMod Tests
+  add_test(
+    NAME bdev_container_creation_tests
+    COMMAND ${BDEV_TEST_TARGET} "[bdev][create]"
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  )
+  
+  add_test(
+    NAME bdev_block_allocation_tests
+    COMMAND ${BDEV_TEST_TARGET} "[bdev][allocate]"
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  )
+  
+  add_test(
+    NAME bdev_io_operations_tests
+    COMMAND ${BDEV_TEST_TARGET} "[bdev][io]"
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  )
+  
+  add_test(
+    NAME bdev_async_operations_tests
+    COMMAND ${BDEV_TEST_TARGET} "[bdev][async]"
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  )
+  
+  add_test(
+    NAME bdev_free_management_tests
+    COMMAND ${BDEV_TEST_TARGET} "[bdev][free]"
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  )
+  
+  add_test(
+    NAME bdev_performance_tests
+    COMMAND ${BDEV_TEST_TARGET} "[bdev][performance]"
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  )
+  
+  add_test(
+    NAME bdev_error_handling_tests
+    COMMAND ${BDEV_TEST_TARGET} "[bdev][error]"
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  )
+  
+  add_test(
+    NAME bdev_cleanup_tests
+    COMMAND ${BDEV_TEST_TARGET} "[bdev][cleanup]"
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  )
+  
+  # Comprehensive bdev test
+  add_test(
+    NAME all_bdev_tests
+    COMMAND ${BDEV_TEST_TARGET}
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  )
+
   # Add a comprehensive test that runs all tests
   add_test(
     NAME all_chimaera_tests
@@ -304,9 +504,18 @@ if(CHIMAERA_ENABLE_TESTS)
     flush_work_orchestrator_tests
     flush_stress_tests
     all_flush_tests
+    bdev_container_creation_tests
+    bdev_block_allocation_tests
+    bdev_io_operations_tests
+    bdev_async_operations_tests
+    bdev_free_management_tests
+    bdev_performance_tests
+    bdev_error_handling_tests
+    bdev_cleanup_tests
+    all_bdev_tests
     all_chimaera_tests
     PROPERTIES
-      TIMEOUT 60  # 60 second timeout for each test
+      TIMEOUT 120  # 120 second timeout for each test (increased for I/O tests)
       ENVIRONMENT "CHIMAERA_TEST_MODE=1"
   )
 endif()
@@ -406,6 +615,56 @@ add_custom_target(test_flush_stress
   COMMENT "Running Chimaera flush stress tests"
 )
 
+# Custom targets for bdev tests
+add_custom_target(test_bdev
+  COMMAND ${BDEV_TEST_TARGET}
+  DEPENDS ${BDEV_TEST_TARGET}
+  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  COMMENT "Running Chimaera bdev ChiMod tests"
+)
+
+add_custom_target(test_bdev_create
+  COMMAND ${BDEV_TEST_TARGET} "[bdev][create]"
+  DEPENDS ${BDEV_TEST_TARGET}
+  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  COMMENT "Running Chimaera bdev container creation tests"
+)
+
+add_custom_target(test_bdev_allocate
+  COMMAND ${BDEV_TEST_TARGET} "[bdev][allocate]"
+  DEPENDS ${BDEV_TEST_TARGET}
+  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  COMMENT "Running Chimaera bdev block allocation tests"
+)
+
+add_custom_target(test_bdev_io
+  COMMAND ${BDEV_TEST_TARGET} "[bdev][io]"
+  DEPENDS ${BDEV_TEST_TARGET}
+  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  COMMENT "Running Chimaera bdev I/O operation tests"
+)
+
+add_custom_target(test_bdev_async
+  COMMAND ${BDEV_TEST_TARGET} "[bdev][async]"
+  DEPENDS ${BDEV_TEST_TARGET}
+  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  COMMENT "Running Chimaera bdev asynchronous I/O tests"
+)
+
+add_custom_target(test_bdev_performance
+  COMMAND ${BDEV_TEST_TARGET} "[bdev][performance]"
+  DEPENDS ${BDEV_TEST_TARGET}
+  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  COMMENT "Running Chimaera bdev performance metrics tests"
+)
+
+add_custom_target(test_bdev_error
+  COMMAND ${BDEV_TEST_TARGET} "[bdev][error]"
+  DEPENDS ${BDEV_TEST_TARGET}
+  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  COMMENT "Running Chimaera bdev error handling tests"
+)
+
 # Custom target to run all unit tests
 add_custom_target(test_all_unit
   COMMAND ${TEST_TARGET}
@@ -415,7 +674,7 @@ add_custom_target(test_all_unit
 )
 
 # Install test executables (optional)
-install(TARGETS ${TEST_TARGET} ${TASK_ARCHIVE_TEST_TARGET} ${FLUSH_TEST_TARGET}
+install(TARGETS ${TEST_TARGET} ${TASK_ARCHIVE_TEST_TARGET} ${FLUSH_TEST_TARGET} ${BDEV_TEST_TARGET} ${FIBER_TEST_TARGET} ${WORKER_FIBER_TEST_TARGET} ${SEGFAULT_DEBUG_TEST_TARGET}
   RUNTIME DESTINATION bin
 )
 
@@ -427,5 +686,7 @@ message(STATUS "  Task archive test target: ${TASK_ARCHIVE_TEST_TARGET}")
 message(STATUS "  Task archive test sources: ${TASK_ARCHIVE_TEST_SOURCES}")
 message(STATUS "  Flush test target: ${FLUSH_TEST_TARGET}")
 message(STATUS "  Flush test sources: ${FLUSH_TEST_SOURCES}")
+message(STATUS "  Bdev test target: ${BDEV_TEST_TARGET}")
+message(STATUS "  Bdev test sources: ${BDEV_TEST_SOURCES}")
 message(STATUS "  CTest enabled: ${CHIMAERA_ENABLE_TESTS}")
 message(STATUS "  Output directory: ${CMAKE_BINARY_DIR}/bin")

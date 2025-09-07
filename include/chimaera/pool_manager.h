@@ -11,6 +11,8 @@ namespace chi {
 // Forward declarations for ChiMod system
 // Container is always a class forward declaration (defined in container.h)
 class Container;
+class Task;
+struct RunContext;
 
 // Configuration constants for pool query resolution
 constexpr u32 MAX_RANGE_FOR_PHYSICAL_SPLITTING = 64;  // Maximum range size before using range splitting
@@ -233,10 +235,13 @@ class PoolManager {
    * @param chimod_params ChiMod parameters
    * @param num_containers Number of containers to create
    * @param[out] new_pool_id Generated pool ID
+   * @param task Task full pointer for container initialization (can be null FullPtr)
+   * @param run_ctx RunContext pointer for container initialization (can be nullptr)
    * @return true if pool creation successful, false otherwise
    */
   bool CreatePool(const std::string& chimod_name, const std::string& pool_name,
-                  const std::string& chimod_params, u32 num_containers, PoolId& new_pool_id);
+                  const std::string& chimod_params, u32 num_containers, PoolId& new_pool_id,
+                  FullPtr<Task> task = FullPtr<Task>(), RunContext* run_ctx = nullptr);
 
   /**
    * Create or get a complete pool with specific PoolId
@@ -247,11 +252,14 @@ class PoolManager {
    * @param requested_pool_id Specific pool ID to use (if GetNull(), generates new ID)
    * @param[out] result_pool_id The pool ID (existing or newly created)
    * @param[out] was_created True if pool was created, false if it already existed
+   * @param task Task full pointer for container initialization (can be null FullPtr)
+   * @param run_ctx RunContext pointer for container initialization (can be nullptr)
    * @return true if operation successful, false otherwise
    */
   bool CreatePool(const std::string& chimod_name, const std::string& pool_name,
                   const std::string& chimod_params, u32 num_containers, 
-                  const PoolId& requested_pool_id, PoolId& result_pool_id, bool& was_created);
+                  const PoolId& requested_pool_id, PoolId& result_pool_id, bool& was_created,
+                  FullPtr<Task> task = FullPtr<Task>(), RunContext* run_ctx = nullptr);
 
   /**
    * Create a local pool with containers on this node (simple version)
@@ -259,10 +267,13 @@ class PoolManager {
    * @param chimod_name ChiMod name for the pool
    * @param pool_name Pool name
    * @param num_containers Number of containers to create locally
+   * @param task Task full pointer for container initialization (can be null FullPtr)
+   * @param run_ctx RunContext pointer for container initialization (can be nullptr)
    * @return true if pool creation successful, false otherwise
    */
   bool CreateLocalPool(PoolId pool_id, const std::string& chimod_name, 
-                       const std::string& pool_name, u32 num_containers = 1);
+                       const std::string& pool_name, u32 num_containers = 1,
+                       FullPtr<Task> task = FullPtr<Task>(), RunContext* run_ctx = nullptr);
 
   /**
    * Destroy a complete pool including metadata and local containers

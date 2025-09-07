@@ -87,7 +87,11 @@ struct CreateParams {
                chi::u32 io_depth = 32,
                chi::u32 alignment = 4096)
       : file_path_(file_path), total_size_(total_size), 
-        io_depth_(io_depth), alignment_(alignment) {}
+        io_depth_(io_depth), alignment_(alignment) {
+    // Debug: Log what parameters were received
+    HELOG(kError, "DEBUG: CreateParams constructor called with: file_path='{}', total_size={}, io_depth={}, alignment={}", 
+          file_path_, total_size_, io_depth_, alignment_);
+  }
   
   // Serialization support for cereal
   template<class Archive>
