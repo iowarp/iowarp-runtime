@@ -6,7 +6,6 @@
  */
 
 #include "admin/admin_runtime.h"
-#include "admin/autogen/admin_lib_exec.h"
 
 #include <chimaera/chimaera_manager.h>
 #include <chimaera/module_manager.h>
@@ -15,16 +14,17 @@
 
 #include <chrono>
 #include <iostream>
+#include <memory>
+#include <sstream>
 #include <thread>
 #include <unordered_map>
 #include <vector>
-#include <sstream>
-#include <memory>
 
 #include "admin/autogen/admin_lib_exec.h"
 
 // ZeroMQ and lightbeam networking includes (through HSHM)
-// Note: lightbeam types are available through hermes_shm.h already included in types.h
+// Note: lightbeam types are available through hermes_shm.h already included in
+// types.h
 
 namespace chimaera::admin {
 
@@ -59,9 +59,6 @@ void Runtime::Del(chi::u32 method, hipc::FullPtr<chi::Task> task_ptr) {
 
 void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& rctx) {
   // Admin container creation logic (IS_ADMIN=true)
-  std::cout << "Admin: Executing Admin Create task for pool " << task->pool_id_
-            << std::endl;
-
   std::cout << "Admin: Initializing admin container" << std::endl;
 
   // Initialize the Admin container with pool information from the task
@@ -105,10 +102,10 @@ void Runtime::GetOrCreatePool(
     // 1 container)
     chi::PoolId result_pool_id;
     bool was_created;
-    if (!pool_manager->CreatePool(task->chimod_name_.str(),
-                                  task->pool_name_.str(),
-                                  task->chimod_params_.str(), 1, task->pool_id_,
-                                  result_pool_id, was_created, task.Cast<chi::Task>(), &rctx)) {
+    if (!pool_manager->CreatePool(
+            task->chimod_name_.str(), task->pool_name_.str(),
+            task->chimod_params_.str(), 1, task->pool_id_, result_pool_id,
+            was_created, task.Cast<chi::Task>(), &rctx)) {
       task->result_code_ = 2;
       task->error_message_ = "Failed to create or get pool via PoolManager";
       return;
@@ -256,7 +253,8 @@ void Runtime::DestroyPool(hipc::FullPtr<DestroyPoolTask> task,
 void Runtime::MonitorDestroy(chi::MonitorModeId mode,
                              hipc::FullPtr<DestroyTask> task_ptr,
                              chi::RunContext& rctx) {
-  // DestroyTask is aliased to DestroyPoolTask, so delegate to MonitorDestroyPool
+  // DestroyTask is aliased to DestroyPoolTask, so delegate to
+  // MonitorDestroyPool
   MonitorDestroyPool(mode, task_ptr, rctx);
 }
 
@@ -375,24 +373,26 @@ std::unique_ptr<hshm::lbm::Client> Runtime::CreateZmqClient(chi::u32 node_id) {
     // Get configuration for ZeroMQ connections
     chi::ConfigManager* config = CHI_CONFIG_MANAGER;
     if (!config) {
-      std::cerr << "Admin: Config manager not available for ZMQ client" << std::endl;
+      std::cerr << "Admin: Config manager not available for ZMQ client"
+                << std::endl;
       return nullptr;
     }
 
     // For now, use localhost with standard port + node_id offset
-    // In a real implementation, this would use a node registry/discovery service
+    // In a real implementation, this would use a node registry/discovery
+    // service
     std::string target_addr = "127.0.0.1";
     std::string protocol = "tcp";
     chi::u32 base_port = config->GetZmqPort();
     chi::u32 target_port = base_port + node_id;
 
-    std::cout << "Admin: Creating ZMQ client connection to node " << node_id 
+    std::cout << "Admin: Creating ZMQ client connection to node " << node_id
               << " at " << target_addr << ":" << target_port << std::endl;
 
     // Retry connection creation with exponential backoff
     const int max_retries = 3;
     const int base_delay_ms = 100;
-    
+
     for (int retry = 0; retry < max_retries; ++retry) {
       try {
         // Create ZeroMQ client using HSHM lightbeam
@@ -400,19 +400,20 @@ std::unique_ptr<hshm::lbm::Client> Runtime::CreateZmqClient(chi::u32 node_id) {
             target_addr, hshm::lbm::Transport::kZeroMq, protocol, target_port);
 
         if (zmq_client) {
-          std::cout << "Admin: Successfully created ZMQ client for node " << node_id 
-                    << " on attempt " << (retry + 1) << std::endl;
+          std::cout << "Admin: Successfully created ZMQ client for node "
+                    << node_id << " on attempt " << (retry + 1) << std::endl;
           return zmq_client;
         }
 
         if (retry < max_retries - 1) {
           int delay_ms = base_delay_ms * (1 << retry);  // Exponential backoff
-          std::cout << "Admin: ZMQ client creation attempt " << (retry + 1) 
-                    << " failed, retrying in " << delay_ms << "ms..." << std::endl;
+          std::cout << "Admin: ZMQ client creation attempt " << (retry + 1)
+                    << " failed, retrying in " << delay_ms << "ms..."
+                    << std::endl;
           std::this_thread::sleep_for(std::chrono::milliseconds(delay_ms));
         }
       } catch (const std::exception& retry_ex) {
-        std::cerr << "Admin: ZMQ client creation attempt " << (retry + 1) 
+        std::cerr << "Admin: ZMQ client creation attempt " << (retry + 1)
                   << " threw exception: " << retry_ex.what() << std::endl;
         if (retry == max_retries - 1) {
           throw;  // Re-throw on final attempt
@@ -420,12 +421,12 @@ std::unique_ptr<hshm::lbm::Client> Runtime::CreateZmqClient(chi::u32 node_id) {
       }
     }
 
-    std::cerr << "Admin: Failed to create ZMQ client for node " << node_id 
+    std::cerr << "Admin: Failed to create ZMQ client for node " << node_id
               << " after " << max_retries << " attempts" << std::endl;
     return nullptr;
 
   } catch (const std::exception& e) {
-    std::cerr << "Admin: Exception creating ZMQ client for node " << node_id 
+    std::cerr << "Admin: Exception creating ZMQ client for node " << node_id
               << ": " << e.what() << std::endl;
     return nullptr;
   }
@@ -526,37 +527,43 @@ void Runtime::AddTasksToMap(
 
     // Make a proper copy of the task using container's pool manager approach
     hipc::FullPtr<chi::Task> task_copy;
-    
+
     if (!task_to_copy.IsNull()) {
       try {
         // Get the container from the pool manager using the task's pool_id
         auto* pool_manager = CHI_POOL_MANAGER;
         if (!pool_manager || !pool_manager->IsInitialized()) {
-          std::cerr << "Admin: Pool manager not available for task copy" << std::endl;
-          continue; // Skip this pool_query iteration if pool manager not available
+          std::cerr << "Admin: Pool manager not available for task copy"
+                    << std::endl;
+          continue;  // Skip this pool_query iteration if pool manager not
+                     // available
         }
 
-        auto* source_container = pool_manager->GetContainer(task_to_copy->pool_id_);
+        auto* source_container =
+            pool_manager->GetContainer(task_to_copy->pool_id_);
         if (!source_container) {
-          std::cerr << "Admin: Container not found for pool_id " << task_to_copy->pool_id_ << std::endl;
-          continue; // Skip this pool_query iteration if container not found
+          std::cerr << "Admin: Container not found for pool_id "
+                    << task_to_copy->pool_id_ << std::endl;
+          continue;  // Skip this pool_query iteration if container not found
         }
 
         // Use the container's NewCopy method to properly copy the task
-        source_container->NewCopy(task_to_copy->method_, task_to_copy, task_copy, true);
-        
+        source_container->NewCopy(task_to_copy->method_, task_to_copy,
+                                  task_copy, true);
+
         if (task_copy.IsNull()) {
           std::cerr << "Admin: NewCopy failed to create task copy" << std::endl;
-          continue; // Skip this pool_query iteration if NewCopy failed
+          continue;  // Skip this pool_query iteration if NewCopy failed
         }
-        
+
       } catch (const std::exception& e) {
-        std::cerr << "Admin: Exception during task copy creation: " << e.what() << std::endl;
-        continue; // Skip this pool_query iteration if copy creation failed
+        std::cerr << "Admin: Exception during task copy creation: " << e.what()
+                  << std::endl;
+        continue;  // Skip this pool_query iteration if copy creation failed
       }
     } else {
       std::cerr << "Admin: Cannot copy null task" << std::endl;
-      continue; // Skip this pool_query iteration if source task is null
+      continue;  // Skip this pool_query iteration if source task is null
     }
 
     // Add entry to the unordered map
@@ -646,7 +653,7 @@ void Runtime::ClientSendTaskIn(hipc::FullPtr<ClientSendTaskInTask> task,
       size_t task_count = task_list.size();
       chi::TaskSaveInArchive archive(task_count);
 
-      std::cout << "Admin: Created TaskSaveInArchive with task count: " 
+      std::cout << "Admin: Created TaskSaveInArchive with task count: "
                 << task_count << std::endl;
 
       // Step 2: Serialize each task using ar << (*task)
@@ -671,12 +678,13 @@ void Runtime::ClientSendTaskIn(hipc::FullPtr<ClientSendTaskInTask> task,
 
       // Step 3: Get the serialized data string
       std::string serialized_data = archive.GetData();
-      std::cout << "Admin: Retrieved serialized data, size: " 
+      std::cout << "Admin: Retrieved serialized data, size: "
                 << serialized_data.size() << " bytes" << std::endl;
 
-      // Step 4: Get DataTransfer objects that were appended during serialization
+      // Step 4: Get DataTransfer objects that were appended during
+      // serialization
       const auto& data_transfers = archive.GetDataTransfers();
-      std::cout << "Admin: Found " << data_transfers.size() 
+      std::cout << "Admin: Found " << data_transfers.size()
                 << " DataTransfer objects for bulk transfer" << std::endl;
 
       // Step 5: Transfer serialized data with lightbeam
@@ -686,41 +694,47 @@ void Runtime::ClientSendTaskIn(hipc::FullPtr<ClientSendTaskInTask> task,
         if (!zmq_client) {
           task->result_code_ = 6;
           auto alloc = task->GetCtxAllocator();
-          task->error_message_ = hipc::string(
-              alloc, "Failed to create ZMQ client for node " + std::to_string(node_id));
-          std::cerr << "Admin: Failed to create ZMQ client for node " << node_id << std::endl;
+          task->error_message_ =
+              hipc::string(alloc, "Failed to create ZMQ client for node " +
+                                      std::to_string(node_id));
+          std::cerr << "Admin: Failed to create ZMQ client for node " << node_id
+                    << std::endl;
           return;
         }
 
-        std::cout << "Admin: Transferring serialized task data to node " 
-                  << node_id << " (size: " << serialized_data.size() 
+        std::cout << "Admin: Transferring serialized task data to node "
+                  << node_id << " (size: " << serialized_data.size()
                   << " bytes)" << std::endl;
 
         // Send serialized string data via ZeroMQ
-        // Use HSHM lightbeam to send the serialized task data using hshm::lbm::Bulk
+        // Use HSHM lightbeam to send the serialized task data using
+        // hshm::lbm::Bulk
         hshm::lbm::Bulk serialized_bulk;
         serialized_bulk.data = const_cast<char*>(serialized_data.data());
         serialized_bulk.size = serialized_data.size();
         serialized_bulk.flags = 0;
-        
+
         if (!zmq_client->Send(serialized_bulk)) {
           task->result_code_ = 7;
           auto alloc = task->GetCtxAllocator();
-          task->error_message_ = hipc::string(
-              alloc, "Failed to send serialized data to node " + std::to_string(node_id));
-          std::cerr << "Admin: Failed to send serialized data to node " << node_id << std::endl;
+          task->error_message_ =
+              hipc::string(alloc, "Failed to send serialized data to node " +
+                                      std::to_string(node_id));
+          std::cerr << "Admin: Failed to send serialized data to node "
+                    << node_id << std::endl;
           return;
         }
 
-        std::cout << "Admin: Successfully sent serialized data to node " << node_id << std::endl;
+        std::cout << "Admin: Successfully sent serialized data to node "
+                  << node_id << std::endl;
 
         // Step 6: Transfer each DataTransfer object individually
         for (size_t i = 0; i < data_transfers.size(); ++i) {
           const auto& transfer = data_transfers[i];
-          
+
           std::cout << "Admin: Transferring DataTransfer object " << (i + 1)
                     << " of " << data_transfers.size()
-                    << " - size: " << transfer.size 
+                    << " - size: " << transfer.size
                     << " bytes, flags: " << transfer.flags << std::endl;
 
           if (transfer.data != nullptr && transfer.size > 0) {
@@ -729,21 +743,23 @@ void Runtime::ClientSendTaskIn(hipc::FullPtr<ClientSendTaskInTask> task,
             hshm::lbm::Bulk bulk_data;
             bulk_data.data = transfer.data;
             bulk_data.size = transfer.size;
-            bulk_data.flags = transfer.flags;  // Use transfer flags (CHI_WRITE/CHI_EXPOSE)
-            
+            bulk_data.flags =
+                transfer.flags;  // Use transfer flags (CHI_WRITE/CHI_EXPOSE)
+
             // Send the bulk data via ZeroMQ
             if (!zmq_client->Send(bulk_data)) {
               task->result_code_ = 8;
               auto alloc = task->GetCtxAllocator();
-              task->error_message_ = hipc::string(
-                  alloc, "Failed to send bulk transfer data " + std::to_string(i + 1) + 
-                         " to node " + std::to_string(node_id));
-              std::cerr << "Admin: Failed to send bulk transfer data " << (i + 1) 
-                        << " to node " << node_id << std::endl;
+              task->error_message_ =
+                  hipc::string(alloc, "Failed to send bulk transfer data " +
+                                          std::to_string(i + 1) + " to node " +
+                                          std::to_string(node_id));
+              std::cerr << "Admin: Failed to send bulk transfer data "
+                        << (i + 1) << " to node " << node_id << std::endl;
               return;
             }
-            
-            std::cout << "Admin: Successfully transferred bulk data object " 
+
+            std::cout << "Admin: Successfully transferred bulk data object "
                       << (i + 1) << " to node " << node_id << std::endl;
           } else {
             std::cout << "Admin: Warning - DataTransfer object " << (i + 1)
@@ -753,23 +769,27 @@ void Runtime::ClientSendTaskIn(hipc::FullPtr<ClientSendTaskInTask> task,
 
         // Close ZeroMQ client connection after successful transfer
         zmq_client.reset();
-        std::cout << "Admin: Closed ZMQ client connection for node " << node_id << std::endl;
+        std::cout << "Admin: Closed ZMQ client connection for node " << node_id
+                  << std::endl;
 
       } catch (const std::exception& transfer_ex) {
         task->result_code_ = 9;
         auto alloc = task->GetCtxAllocator();
         task->error_message_ = hipc::string(
-            alloc, std::string("Network transfer exception for node ") + 
-                   std::to_string(node_id) + ": " + transfer_ex.what());
-        std::cerr << "Admin: Network transfer to node " << node_id 
-                  << " failed with exception: " << transfer_ex.what() << std::endl;
+            alloc, std::string("Network transfer exception for node ") +
+                       std::to_string(node_id) + ": " + transfer_ex.what());
+        std::cerr << "Admin: Network transfer to node " << node_id
+                  << " failed with exception: " << transfer_ex.what()
+                  << std::endl;
         return;
       } catch (...) {
         task->result_code_ = 10;
         auto alloc = task->GetCtxAllocator();
-        task->error_message_ = hipc::string(
-            alloc, "Unknown network transfer error for node " + std::to_string(node_id));
-        std::cerr << "Admin: Unknown network transfer error for node " << node_id << std::endl;
+        task->error_message_ =
+            hipc::string(alloc, "Unknown network transfer error for node " +
+                                    std::to_string(node_id));
+        std::cerr << "Admin: Unknown network transfer error for node "
+                  << node_id << std::endl;
         return;
       }
     }
@@ -1004,29 +1024,33 @@ chi::u64 Runtime::GetWorkRemaining() const {
 // Task Serialization Method Implementations
 //===========================================================================
 
-void Runtime::SaveIn(chi::u32 method, chi::TaskSaveInArchive& archive, hipc::FullPtr<chi::Task> task_ptr) {
+void Runtime::SaveIn(chi::u32 method, chi::TaskSaveInArchive& archive,
+                     hipc::FullPtr<chi::Task> task_ptr) {
   // Use the autogenerated SaveIn function from lib_exec
   chimaera::admin::SaveIn(this, method, archive, task_ptr);
 }
 
-void Runtime::LoadIn(chi::u32 method, chi::TaskLoadInArchive& archive, hipc::FullPtr<chi::Task> task_ptr) {
+void Runtime::LoadIn(chi::u32 method, chi::TaskLoadInArchive& archive,
+                     hipc::FullPtr<chi::Task> task_ptr) {
   // Use the autogenerated LoadIn function from lib_exec
   chimaera::admin::LoadIn(this, method, archive, task_ptr);
 }
 
-void Runtime::SaveOut(chi::u32 method, chi::TaskSaveOutArchive& archive, hipc::FullPtr<chi::Task> task_ptr) {
+void Runtime::SaveOut(chi::u32 method, chi::TaskSaveOutArchive& archive,
+                      hipc::FullPtr<chi::Task> task_ptr) {
   // Use the autogenerated SaveOut function from lib_exec
   chimaera::admin::SaveOut(this, method, archive, task_ptr);
 }
 
-void Runtime::LoadOut(chi::u32 method, chi::TaskLoadOutArchive& archive, hipc::FullPtr<chi::Task> task_ptr) {
+void Runtime::LoadOut(chi::u32 method, chi::TaskLoadOutArchive& archive,
+                      hipc::FullPtr<chi::Task> task_ptr) {
   // Use the autogenerated LoadOut function from lib_exec
   chimaera::admin::LoadOut(this, method, archive, task_ptr);
 }
 
-void Runtime::NewCopy(chi::u32 method, 
-                     const hipc::FullPtr<chi::Task> &orig_task,
-                     hipc::FullPtr<chi::Task> &dup_task, bool deep) {
+void Runtime::NewCopy(chi::u32 method,
+                      const hipc::FullPtr<chi::Task>& orig_task,
+                      hipc::FullPtr<chi::Task>& dup_task, bool deep) {
   // Use the autogenerated NewCopy function from lib_exec
   chimaera::admin::NewCopy(this, method, orig_task, dup_task, deep);
 }

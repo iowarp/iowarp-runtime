@@ -6,6 +6,7 @@
 #include "chimaera/container.h"
 #include "chimaera/singletons.h"
 #include "chimaera/task.h"
+#include "admin/admin_tasks.h"
 #include <iostream>
 
 // Global pointer variable definition for Pool manager singleton
@@ -143,35 +144,72 @@ bool PoolManager::CreateLocalPool(PoolId pool_id, const std::string& chimod_name
     // Initialize the container with pool information
     container->Init(pool_id);
     
-    // Run create method on container if task is provided
+    // Run create method on container
+    // Create proper task and run context if not provided
+    FullPtr<Task> actual_task;
+    RunContext* actual_run_ctx;
+    bool allocated_task = false;
+    bool allocated_run_ctx = false;
+    
     if (!task.IsNull()) {
-      if (run_ctx != nullptr) {
-        // Use the provided RunContext
-        run_ctx->container = container;
-        
-        // Call container->Run with Method::kCreate (which is 0)
-        try {
-          container->Run(0, task, *run_ctx); // Method::kCreate = 0
-          HILOG(kInfo, "PoolManager: Executed Create method on container for pool {}", pool_id);
-        } catch (const std::exception& e) {
-          std::cerr << "PoolManager: Warning - failed to run Create method on container: " << e.what() << std::endl;
-          // Continue anyway, the container is created even if Create method fails
-        }
-      } else {
-        // Create a temporary RunContext for task execution
-        RunContext temp_run_context;
-        temp_run_context.container = container;
-        
-        // Call container->Run with Method::kCreate (which is 0)
-        try {
-          container->Run(0, task, temp_run_context); // Method::kCreate = 0
-          HILOG(kInfo, "PoolManager: Executed Create method on container for pool {}", pool_id);
-        } catch (const std::exception& e) {
-          std::cerr << "PoolManager: Warning - failed to run Create method on container: " << e.what() << std::endl;
-          // Continue anyway, the container is created even if Create method fails
-        }
+      actual_task = task;
+    } else {
+      // Allocate Admin CreateTask using NewTask
+      auto* ipc_manager = CHI_IPC;
+      if (ipc_manager) {
+        auto create_task = ipc_manager->NewTask<chimaera::admin::CreateTask>(
+          CreateTaskNode(), 
+          kAdminPoolId,  // Use admin pool for creation
+          PoolQuery::Local(),
+          chimod_name,
+          pool_name
+        );
+        actual_task = create_task.Cast<Task>();
+        allocated_task = true;
       }
     }
+    
+    if (run_ctx != nullptr) {
+      actual_run_ctx = run_ctx;
+    } else {
+      // Allocate RunContext with new
+      actual_run_ctx = new RunContext();
+      allocated_run_ctx = true;
+    }
+    
+    if (!actual_task.IsNull() && actual_run_ctx) {
+      // Call container->Run with Method::kCreate (which is 0)
+      try {
+        container->Run(0, actual_task, *actual_run_ctx); // Method::kCreate = 0
+        
+        // Check if Create method succeeded by examining the result code
+        // Cast to BaseCreateTask to access result_code_ field
+        auto* create_task = reinterpret_cast<chimaera::admin::BaseCreateTask<chimaera::admin::CreateParams>*>(actual_task.ptr_);
+        if (create_task && create_task->result_code_ != 0) {
+          std::cerr << "PoolManager: Create method failed with result code: " << create_task->result_code_ << std::endl;
+          // Cleanup allocated resources
+          if (allocated_task && CHI_IPC) CHI_IPC->DelTask(actual_task);
+          if (allocated_run_ctx) delete actual_run_ctx;
+          // Cleanup container since creation failed
+          module_manager->DestroyContainer(chimod_name, container);
+          return false;
+        }
+        
+        HILOG(kInfo, "PoolManager: Executed Create method on container for pool {}", pool_id);
+      } catch (const std::exception& e) {
+        std::cerr << "PoolManager: Exception during Create method on container: " << e.what() << std::endl;
+        // Cleanup allocated resources
+        if (allocated_task && CHI_IPC) CHI_IPC->DelTask(actual_task);
+        if (allocated_run_ctx) delete actual_run_ctx;
+        // Cleanup container since creation failed
+        module_manager->DestroyContainer(chimod_name, container);
+        return false;
+      }
+    }
+    
+    // Cleanup allocated resources
+    if (allocated_task && CHI_IPC) CHI_IPC->DelTask(actual_task);
+    if (allocated_run_ctx) delete actual_run_ctx;
     
     // Register the container
     if (!RegisterContainer(pool_id, container)) {
