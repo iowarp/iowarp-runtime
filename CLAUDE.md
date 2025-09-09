@@ -141,8 +141,8 @@ External applications can link to installed ChiMod libraries using the dynamic C
 **Installation requirement:**
 ```bash
 cmake --preset debug
-cmake --build build-debug
-cmake --install build-debug --prefix /usr/local
+cmake --build build
+cmake --install build --prefix /usr/local
 ```
 
 **Dynamic module-based approach:**

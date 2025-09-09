@@ -7,10 +7,11 @@
 4. [Module Structure](#module-structure)
 5. [Configuration and Code Generation](#configuration-and-code-generation)
 6. [Task Development](#task-development)
-7. [Client-Server Communication](#client-server-communication)
-8. [Memory Management](#memory-management)
-9. [Build System Integration](#build-system-integration)
-10. [Example Module](#example-module)
+7. [Synchronization Primitives](#synchronization-primitives)
+8. [Client-Server Communication](#client-server-communication)
+9. [Memory Management](#memory-management)
+10. [Build System Integration](#build-system-integration)
+11. [Example Module](#example-module)
 
 ## Overview
 
@@ -763,6 +764,254 @@ inline void Del(Runtime* runtime, chi::u32 method, hipc::FullPtr<chi::Task> task
 ```
 
 This ensures proper shared memory deallocation without requiring module-specific cleanup code.
+
+## Synchronization Primitives
+
+Chimaera provides specialized cooperative synchronization primitives designed for the runtime's task-based architecture. **These should be used instead of standard synchronization primitives** like `std::mutex`, `std::shared_mutex`, or `pthread_mutex` when synchronizing access to module data structures.
+
+### Why Use Chimaera Synchronization Primitives?
+
+**Critical: Always use CoMutex and CoRwLock for module synchronization:**
+
+1. **Cooperative Design**: Compatible with Chimaera's fiber-based task execution
+2. **TaskNode Grouping**: Tasks sharing the same TaskNode can proceed together (bypassing locks)
+3. **Deadlock Prevention**: Designed to prevent deadlocks in the runtime environment
+4. **Runtime Integration**: Automatically integrate with CHI_CUR_WORKER and task context
+5. **Performance**: Optimized for the runtime's execution model
+
+**Do NOT use these standard synchronization primitives in module code:**
+- ❌ `std::mutex` - Can cause fiber blocking issues
+- ❌ `std::shared_mutex` - Not compatible with task execution model
+- ❌ `pthread_mutex_t` - Can deadlock with runtime scheduling
+- ❌ `std::condition_variable` - Incompatible with cooperative scheduling
+
+### CoMutex: Cooperative Mutual Exclusion
+
+CoMutex provides mutual exclusion with TaskNode grouping support. Tasks sharing the same TaskNode can bypass the lock and execute concurrently.
+
+#### Basic Usage
+
+```cpp
+#include <chimaera/comutex.h>
+
+class Runtime : public chi::Container {
+private:
+  // Static member for shared synchronization across all container instances
+  static chi::CoMutex shared_mutex_;
+  
+  // Instance member for per-container synchronization
+  chi::CoMutex instance_mutex_;
+
+public:
+  void SomeTask(hipc::FullPtr<SomeTaskType> task, chi::RunContext& rctx) {
+    // Manual lock/unlock
+    shared_mutex_.Lock();
+    // ... critical section ...
+    shared_mutex_.Unlock();
+    
+    // OR use RAII scoped lock (recommended)
+    chi::ScopedCoMutex lock(instance_mutex_);
+    // ... critical section ...
+    // Automatically unlocks when leaving scope
+  }
+};
+
+// Static member definition (required)
+chi::CoMutex Runtime::shared_mutex_;
+```
+
+#### Key Features
+
+1. **Automatic Task Context**: Uses CHI_CUR_WORKER internally - no task parameters needed
+2. **TaskNode Grouping**: Tasks with the same TaskNode bypass the mutex
+3. **RAII Support**: ScopedCoMutex for automatic lock management
+4. **Try-Lock Support**: Non-blocking lock attempts
+
+#### API Reference
+
+```cpp
+namespace chi {
+  class CoMutex {
+  public:
+    // Blocking operations
+    void Lock();                    // Block until lock acquired
+    void Unlock();                  // Release the lock
+    bool TryLock();                 // Non-blocking lock attempt
+    
+    // No task parameters needed - uses CHI_CUR_WORKER automatically
+  };
+  
+  // RAII wrapper (recommended)
+  class ScopedCoMutex {
+  public:
+    explicit ScopedCoMutex(CoMutex& mutex);  // Locks in constructor
+    ~ScopedCoMutex();                        // Unlocks in destructor
+  };
+}
+```
+
+### CoRwLock: Cooperative Reader-Writer Lock
+
+CoRwLock provides reader-writer semantics with TaskNode grouping. Multiple readers can proceed concurrently, but writers have exclusive access.
+
+#### Basic Usage
+
+```cpp
+#include <chimaera/corwlock.h>
+
+class Runtime : public chi::Container {
+private:
+  static chi::CoRwLock data_lock_;  // Protect shared data structures
+
+public:
+  void ReadTask(hipc::FullPtr<ReadTaskType> task, chi::RunContext& rctx) {
+    // Manual reader lock
+    data_lock_.ReadLock();
+    // ... read operations ...
+    data_lock_.ReadUnlock();
+    
+    // OR use RAII scoped reader lock (recommended)
+    chi::ScopedCoRwReadLock lock(data_lock_);
+    // ... read operations ...
+    // Automatically unlocks when leaving scope
+  }
+  
+  void WriteTask(hipc::FullPtr<WriteTaskType> task, chi::RunContext& rctx) {
+    // RAII scoped writer lock (recommended)
+    chi::ScopedCoRwWriteLock lock(data_lock_);
+    // ... write operations ...
+    // Automatically unlocks when leaving scope
+  }
+};
+
+// Static member definition
+chi::CoRwLock Runtime::data_lock_;
+```
+
+#### Key Features
+
+1. **Multiple Readers**: Concurrent read access when no writers are active
+2. **Exclusive Writers**: Writers get exclusive access, blocking all other operations
+3. **TaskNode Grouping**: Tasks with same TaskNode can bypass reader locks
+4. **Automatic Context**: Uses CHI_CUR_WORKER for task identification
+5. **RAII Support**: Scoped locks for both readers and writers
+
+#### API Reference
+
+```cpp
+namespace chi {
+  class CoRwLock {
+  public:
+    // Reader operations
+    void ReadLock();                // Acquire reader lock
+    void ReadUnlock();              // Release reader lock
+    bool TryReadLock();             // Non-blocking reader lock attempt
+    
+    // Writer operations  
+    void WriteLock();               // Acquire exclusive writer lock
+    void WriteUnlock();             // Release writer lock
+    bool TryWriteLock();            // Non-blocking writer lock attempt
+  };
+  
+  // RAII wrappers (recommended)
+  class ScopedCoRwReadLock {
+  public:
+    explicit ScopedCoRwReadLock(CoRwLock& lock);  // Acquire read lock
+    ~ScopedCoRwReadLock();                        // Release read lock
+  };
+  
+  class ScopedCoRwWriteLock {
+  public:
+    explicit ScopedCoRwWriteLock(CoRwLock& lock); // Acquire write lock
+    ~ScopedCoRwWriteLock();                       // Release write lock
+  };
+}
+```
+
+### TaskNode Grouping Behavior
+
+Both CoMutex and CoRwLock support TaskNode grouping, which allows related tasks to bypass synchronization:
+
+```cpp
+// Tasks created with the same TaskNode can proceed together
+auto task_node = chi::CreateTaskNode();
+
+// These tasks share the same TaskNode - they can bypass CoMutex/CoRwLock
+auto task1 = ipc_manager->NewTask<Task1>(task_node, pool_id, pool_query, ...);
+auto task2 = ipc_manager->NewTask<Task2>(task_node, pool_id, pool_query, ...);
+
+// This task has a different TaskNode - must respect locks normally
+auto task3 = ipc_manager->NewTask<Task3>(chi::CreateTaskNode(), pool_id, pool_query, ...);
+```
+
+**Key Points:**
+- Tasks with the same TaskNode are considered "grouped" and can bypass locks
+- Use TaskNode grouping for logically related operations that don't need mutual exclusion
+- Different TaskNodes must respect normal lock semantics
+
+### Best Practices
+
+1. **Use RAII Wrappers**: Always prefer `ScopedCoMutex` and `ScopedCoRw*Lock` over manual lock/unlock
+2. **Static vs Instance**: Use static members for cross-container synchronization, instance members for per-container data
+3. **Member Definition**: Don't forget to define static members in your .cc file
+4. **Choose Appropriate Lock**: Use CoRwLock for read-heavy workloads, CoMutex for simple mutual exclusion
+5. **Minimal Critical Sections**: Keep locked sections as small as possible
+6. **TaskNode Design**: Group related tasks that can safely bypass locks
+
+### Example: Module with Synchronized Data Structure
+
+```cpp
+// In MOD_NAME_runtime.h
+class Runtime : public chi::Container {
+private:
+  // Synchronized data structure
+  chi::hash_map<chi::u32, ModuleData> data_map_;
+  
+  // Synchronization primitives
+  static chi::CoRwLock data_lock_;        // For data_map_ access
+  static chi::CoMutex operation_mutex_;   // For exclusive operations
+
+public:
+  void ReadData(hipc::FullPtr<ReadDataTask> task, chi::RunContext& rctx);
+  void WriteData(hipc::FullPtr<WriteDataTask> task, chi::RunContext& rctx);
+  void ExclusiveOperation(hipc::FullPtr<ExclusiveTask> task, chi::RunContext& rctx);
+};
+
+// In MOD_NAME_runtime.cc  
+chi::CoRwLock Runtime::data_lock_;
+chi::CoMutex Runtime::operation_mutex_;
+
+void Runtime::ReadData(hipc::FullPtr<ReadDataTask> task, chi::RunContext& rctx) {
+  chi::ScopedCoRwReadLock lock(data_lock_);  // Multiple readers allowed
+  
+  // Safe to read data_map_ concurrently
+  auto it = data_map_.find(task->key_);
+  if (it != data_map_.end()) {
+    task->result_data_ = it->second;
+    task->result_ = 0;  // Success
+  } else {
+    task->result_ = 1;  // Not found
+  }
+}
+
+void Runtime::WriteData(hipc::FullPtr<WriteDataTask> task, chi::RunContext& rctx) {
+  chi::ScopedCoRwWriteLock lock(data_lock_);  // Exclusive writer access
+  
+  // Safe to modify data_map_ exclusively
+  data_map_[task->key_] = task->new_data_;
+  task->result_ = 0;  // Success
+}
+
+void Runtime::ExclusiveOperation(hipc::FullPtr<ExclusiveTask> task, chi::RunContext& rctx) {
+  chi::ScopedCoMutex lock(operation_mutex_);  // Exclusive operation
+  
+  // Perform operation that requires complete exclusivity
+  // ... complex operation ...
+  task->result_ = 0;  // Success
+}
+```
+
+This synchronization model ensures thread-safe access to module data structures while maintaining compatibility with Chimaera's cooperative task execution system.
 
 ## Client-Server Communication
 
