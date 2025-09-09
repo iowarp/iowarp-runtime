@@ -38,3 +38,6 @@ set_target_properties(chimaera PROPERTIES
 
 # Export target for parent scope
 set_target_properties(chimaera PROPERTIES EXPORT_NAME chimaera)
+
+# Create namespace alias for external consumption  
+add_library(${CHIMAERA_NAMESPACE}::chimaera ALIAS chimaera)

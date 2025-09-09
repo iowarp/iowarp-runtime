@@ -30,8 +30,8 @@ class Client : public chi::ContainerClient {
   /**
    * Create the Admin container (synchronous)
    */
-  void Create(const hipc::MemContext& mctx, const chi::PoolQuery& dom_query) {
-    auto task = AsyncCreate(mctx, dom_query);
+  void Create(const hipc::MemContext& mctx, const chi::PoolQuery& pool_query) {
+    auto task = AsyncCreate(mctx, pool_query);
     task->Wait();
 
     // Clean up task
@@ -43,12 +43,12 @@ class Client : public chi::ContainerClient {
    * Create the Admin container (asynchronous)
    */
   hipc::FullPtr<CreateTask> AsyncCreate(const hipc::MemContext& mctx,
-                                        const chi::PoolQuery& dom_query) {
+                                        const chi::PoolQuery& pool_query) {
     auto* ipc_manager = CHI_IPC;
 
     // Allocate CreateTask for admin container creation
     auto task = ipc_manager->NewTask<CreateTask>(chi::CreateTaskNode(),
-                                                 pool_id_, dom_query);
+                                                 pool_id_, pool_query);
 
     // Submit to runtime
     ipc_manager->Enqueue(task);
@@ -60,10 +60,10 @@ class Client : public chi::ContainerClient {
    * Destroy an existing ChiPool (synchronous)
    */
   void DestroyPool(const hipc::MemContext& mctx,
-                   const chi::PoolQuery& dom_query, chi::PoolId target_pool_id,
+                   const chi::PoolQuery& pool_query, chi::PoolId target_pool_id,
                    chi::u32 destruction_flags = 0) {
     auto task =
-        AsyncDestroyPool(mctx, dom_query, target_pool_id, destruction_flags);
+        AsyncDestroyPool(mctx, pool_query, target_pool_id, destruction_flags);
     task->Wait();
 
     // Check for errors
@@ -83,13 +83,13 @@ class Client : public chi::ContainerClient {
    * Destroy an existing ChiPool (asynchronous)
    */
   hipc::FullPtr<DestroyPoolTask> AsyncDestroyPool(
-      const hipc::MemContext& mctx, const chi::PoolQuery& dom_query,
+      const hipc::MemContext& mctx, const chi::PoolQuery& pool_query,
       chi::PoolId target_pool_id, chi::u32 destruction_flags = 0) {
     auto* ipc_manager = CHI_IPC;
 
     // Allocate DestroyPoolTask
     auto task = ipc_manager->NewTask<DestroyPoolTask>(
-        chi::CreateTaskNode(), pool_id_, dom_query, target_pool_id,
+        chi::CreateTaskNode(), pool_id_, pool_query, target_pool_id,
         destruction_flags);
 
     // Submit to runtime
@@ -102,10 +102,9 @@ class Client : public chi::ContainerClient {
    * Send task to remote node (synchronous)
    */
   template <typename TaskType>
-  void ClientSendTaskIn(
-      const hipc::MemContext& mctx,
-      const std::vector<chi::PoolQuery>& pool_queries,
-      const hipc::FullPtr<TaskType>& task_to_send) {
+  void ClientSendTaskIn(const hipc::MemContext& mctx,
+                        const std::vector<chi::PoolQuery>& pool_queries,
+                        const hipc::FullPtr<TaskType>& task_to_send) {
     auto task = AsyncClientSendTaskIn(mctx, pool_queries, task_to_send);
     task->Wait();
 
@@ -151,8 +150,8 @@ class Client : public chi::ContainerClient {
    * Periodic task that deserializes incoming tasks from remote nodes
    */
   void ServerRecvTaskIn(const hipc::MemContext& mctx,
-                        const chi::PoolQuery& dom_query) {
-    auto task = AsyncServerRecvTaskIn(mctx, dom_query);
+                        const chi::PoolQuery& pool_query) {
+    auto task = AsyncServerRecvTaskIn(mctx, pool_query);
     task->Wait();
 
     // Check for errors
@@ -173,12 +172,12 @@ class Client : public chi::ContainerClient {
    * Periodic task that deserializes incoming tasks from remote nodes
    */
   hipc::FullPtr<ServerRecvTaskInTask> AsyncServerRecvTaskIn(
-      const hipc::MemContext& mctx, const chi::PoolQuery& dom_query) {
+      const hipc::MemContext& mctx, const chi::PoolQuery& pool_query) {
     auto* ipc_manager = CHI_IPC;
 
     // Allocate ServerRecvTaskInTask for periodic polling
     auto task = ipc_manager->NewTask<ServerRecvTaskInTask>(
-        chi::CreateTaskNode(), pool_id_, dom_query, 0);
+        chi::CreateTaskNode(), pool_id_, pool_query, 0);
 
     // Submit to runtime
     ipc_manager->Enqueue(task);
@@ -191,11 +190,11 @@ class Client : public chi::ContainerClient {
    */
   template <typename TaskType>
   void ServerSendTaskOut(const hipc::MemContext& mctx,
-                         const chi::PoolQuery& dom_query,
+                         const chi::PoolQuery& pool_query,
                          chi::u32 target_node_id,
                          const hipc::FullPtr<TaskType>& completed_task) {
-    auto task =
-        AsyncServerSendTaskOut(mctx, dom_query, target_node_id, completed_task);
+    auto task = AsyncServerSendTaskOut(mctx, pool_query, target_node_id,
+                                       completed_task);
     task->Wait();
 
     // Check for errors
@@ -216,14 +215,14 @@ class Client : public chi::ContainerClient {
    */
   template <typename TaskType>
   hipc::FullPtr<ServerSendTaskOutTask> AsyncServerSendTaskOut(
-      const hipc::MemContext& mctx, const chi::PoolQuery& dom_query,
+      const hipc::MemContext& mctx, const chi::PoolQuery& pool_query,
       chi::u32 target_node_id, const hipc::FullPtr<TaskType>& completed_task) {
     auto* ipc_manager = CHI_IPC;
 
     // Allocate ServerSendTaskOutTask with the original completed task (no
     // serialization)
     auto task = ipc_manager->NewTask<ServerSendTaskOutTask>(
-        chi::CreateTaskNode(), pool_id_, dom_query,
+        chi::CreateTaskNode(), pool_id_, pool_query,
         static_cast<hipc::FullPtr<chi::Task>>(completed_task), 0);
 
     // Submit to runtime
@@ -237,8 +236,8 @@ class Client : public chi::ContainerClient {
    * Periodic task that deserializes incoming task results from remote nodes
    */
   void ClientRecvTaskOut(const hipc::MemContext& mctx,
-                         const chi::PoolQuery& dom_query) {
-    auto task = AsyncClientRecvTaskOut(mctx, dom_query);
+                         const chi::PoolQuery& pool_query) {
+    auto task = AsyncClientRecvTaskOut(mctx, pool_query);
     task->Wait();
 
     // Check for errors
@@ -259,12 +258,12 @@ class Client : public chi::ContainerClient {
    * Periodic task that deserializes incoming task results from remote nodes
    */
   hipc::FullPtr<ClientRecvTaskOutTask> AsyncClientRecvTaskOut(
-      const hipc::MemContext& mctx, const chi::PoolQuery& dom_query) {
+      const hipc::MemContext& mctx, const chi::PoolQuery& pool_query) {
     auto* ipc_manager = CHI_IPC;
 
     // Allocate ClientRecvTaskOutTask for periodic polling
     auto task = ipc_manager->NewTask<ClientRecvTaskOutTask>(
-        chi::CreateTaskNode(), pool_id_, dom_query, 0);
+        chi::CreateTaskNode(), pool_id_, pool_query, 0);
 
     // Submit to runtime
     ipc_manager->Enqueue(task);
@@ -275,15 +274,16 @@ class Client : public chi::ContainerClient {
   /**
    * Flush administrative operations (synchronous)
    */
-  void Flush(const hipc::MemContext& mctx, const chi::PoolQuery& dom_query) {
-    auto task = AsyncFlush(mctx, dom_query);
+  void Flush(const hipc::MemContext& mctx, const chi::PoolQuery& pool_query) {
+    auto task = AsyncFlush(mctx, pool_query);
     task->Wait();
 
     // Check for errors
     if (task->result_code_ != 0) {
       auto* ipc_manager = CHI_IPC;
       ipc_manager->DelTask(task);
-      throw std::runtime_error("Flush failed with result code: " + std::to_string(task->result_code_));
+      throw std::runtime_error("Flush failed with result code: " +
+                               std::to_string(task->result_code_));
     }
 
     // Clean up task
@@ -295,12 +295,12 @@ class Client : public chi::ContainerClient {
    * Flush administrative operations (asynchronous)
    */
   hipc::FullPtr<FlushTask> AsyncFlush(const hipc::MemContext& mctx,
-                                      const chi::PoolQuery& dom_query) {
+                                      const chi::PoolQuery& pool_query) {
     auto* ipc_manager = CHI_IPC;
 
     // Allocate FlushTask
     auto task = ipc_manager->NewTask<FlushTask>(chi::CreateTaskNode(), pool_id_,
-                                                dom_query);
+                                                pool_query);
 
     // Submit to runtime
     ipc_manager->Enqueue(task);
@@ -312,13 +312,13 @@ class Client : public chi::ContainerClient {
    * Stop the entire Chimaera runtime (asynchronous)
    */
   hipc::FullPtr<StopRuntimeTask> AsyncStopRuntime(
-      const hipc::MemContext& mctx, const chi::PoolQuery& dom_query,
+      const hipc::MemContext& mctx, const chi::PoolQuery& pool_query,
       chi::u32 shutdown_flags = 0, chi::u32 grace_period_ms = 5000) {
     auto* ipc_manager = CHI_IPC;
 
     // Allocate StopRuntimeTask
     auto task = ipc_manager->NewTask<StopRuntimeTask>(
-        chi::CreateTaskNode(), pool_id_, dom_query, shutdown_flags,
+        chi::CreateTaskNode(), pool_id_, pool_query, shutdown_flags,
         grace_period_ms);
 
     // Submit to runtime

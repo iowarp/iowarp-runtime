@@ -7,7 +7,7 @@ cmake_minimum_required(VERSION 3.10)
 #   - chimods_bdev_client:  Client-side API for user processes (shared library)
 add_chimod_both(
   CHIMOD_NAME bdev
-  RUNTIME_SOURCES src/bdev_runtime.cc
+  RUNTIME_SOURCES src/bdev_runtime.cc src/autogen/bdev_lib_exec.cc
   CLIENT_SOURCES src/bdev_client.cc
 )
 
@@ -18,7 +18,7 @@ get_property(CLIENT_TARGET GLOBAL PROPERTY bdev_CLIENT_TARGET)
 # Add admin module headers to include path for bdev runtime and client
 if(TARGET ${RUNTIME_TARGET})
   target_include_directories(${RUNTIME_TARGET} PUBLIC
-    ${CMAKE_SOURCE_DIR}/chimods/admin/include
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/chimods/admin/include>
   )
   # Add POSIX RT library dependency for async I/O
   target_link_libraries(${RUNTIME_TARGET} PRIVATE rt)
@@ -26,7 +26,7 @@ endif()
 
 if(TARGET ${CLIENT_TARGET})
   target_include_directories(${CLIENT_TARGET} PUBLIC
-    ${CMAKE_SOURCE_DIR}/chimods/admin/include
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/chimods/admin/include>
   )
 endif()
 

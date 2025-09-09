@@ -1,4 +1,3 @@
-#include <bdev/autogen/bdev_lib_exec.h>
 #include <bdev/bdev_runtime.h>
 #include <errno.h>
 #include <sys/mman.h>
@@ -20,7 +19,7 @@ const chi::u64 kBlockSizes[] = {
     1048576  // 1MB
 };
 
-Container::~Container() {
+Runtime::~Runtime() {
   // Clean up libaio
   CleanupAsyncIO();
 
@@ -40,7 +39,7 @@ Container::~Container() {
   }
 }
 
-void Container::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& ctx) {
+void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& ctx) {
   // Get the creation parameters
   hipc::CtxAllocator<CHI_MAIN_ALLOC_T> ctx_alloc(HSHM_MCTX, main_allocator_);
   CreateParams params = task->GetParams(ctx_alloc);
@@ -51,9 +50,9 @@ void Container::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& ctx) {
   // Initialize the container with pool information and domain query
   chi::Container::Init(task->pool_id_, task->pool_query_);
 
-  // Create local queues for different priorities
-  CreateLocalQueue(chi::kLowLatency, 4);   // 4 lanes for low latency tasks
-  CreateLocalQueue(chi::kHighLatency, 2);  // 2 lanes for high latency tasks
+  // Create local queues with explicit queue IDs and priorities
+  CreateLocalQueue(0, 4, chi::kLowLatency);   // Queue 0: 4 lanes for low latency tasks
+  CreateLocalQueue(1, 2, chi::kHighLatency);  // Queue 1: 2 lanes for high latency tasks
 
   // Open the file
   file_fd_ = open(params.file_path_.c_str(), O_RDWR | O_CREAT | O_DIRECT, 0644);
@@ -118,13 +117,13 @@ void Container::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& ctx) {
             << " (Size: " << file_size_ << " bytes)" << std::endl;
 }
 
-void Container::MonitorCreate(chi::MonitorModeId mode,
+void Runtime::MonitorCreate(chi::MonitorModeId mode,
                               hipc::FullPtr<CreateTask> task,
                               chi::RunContext& ctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule: {
       // REQUIRED: Route task to local queue
-      if (auto* lane = GetLane(chi::kLowLatency, 0)) {
+      if (auto* lane = GetLane(0, 0)) {  // Queue 0 (low latency), lane 0
         lane->emplace(task.shm_);
       }
       break;
@@ -140,7 +139,7 @@ void Container::MonitorCreate(chi::MonitorModeId mode,
   }
 }
 
-void Container::Allocate(hipc::FullPtr<AllocateTask> task,
+void Runtime::Allocate(hipc::FullPtr<AllocateTask> task,
                          chi::RunContext& ctx) {
   BlockSizeCategory category = DetermineBlockSizeCategory(task->size_);
   chi::u64 actual_size = GetBlockSize(category);
@@ -160,12 +159,12 @@ void Container::Allocate(hipc::FullPtr<AllocateTask> task,
   task->result_code_ = 0;
 }
 
-void Container::MonitorAllocate(chi::MonitorModeId mode,
+void Runtime::MonitorAllocate(chi::MonitorModeId mode,
                                 hipc::FullPtr<AllocateTask> task,
                                 chi::RunContext& ctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule: {
-      if (auto* lane = GetLane(chi::kLowLatency, 0)) {
+      if (auto* lane = GetLane(0, 0)) {  // Queue 0 (low latency), lane 0
         lane->emplace(task.shm_);
       }
       break;
@@ -180,7 +179,7 @@ void Container::MonitorAllocate(chi::MonitorModeId mode,
   }
 }
 
-void Container::Free(hipc::FullPtr<FreeTask> task, chi::RunContext& ctx) {
+void Runtime::Free(hipc::FullPtr<FreeTask> task, chi::RunContext& ctx) {
   // Add block back to the appropriate free list
   AddToFreeList(task->block_);
 
@@ -190,12 +189,12 @@ void Container::Free(hipc::FullPtr<FreeTask> task, chi::RunContext& ctx) {
   task->result_code_ = 0;
 }
 
-void Container::MonitorFree(chi::MonitorModeId mode,
+void Runtime::MonitorFree(chi::MonitorModeId mode,
                             hipc::FullPtr<FreeTask> task,
                             chi::RunContext& ctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule: {
-      if (auto* lane = GetLane(chi::kLowLatency, 0)) {
+      if (auto* lane = GetLane(0, 0)) {  // Queue 0 (low latency), lane 0
         lane->emplace(task.shm_);
       }
       break;
@@ -210,7 +209,7 @@ void Container::MonitorFree(chi::MonitorModeId mode,
   }
 }
 
-void Container::Write(hipc::FullPtr<WriteTask> task, chi::RunContext& ctx) {
+void Runtime::Write(hipc::FullPtr<WriteTask> task, chi::RunContext& ctx) {
   // Align buffer for direct I/O
   chi::u64 aligned_size = AlignSize(task->data_.size());
 
@@ -251,13 +250,13 @@ void Container::Write(hipc::FullPtr<WriteTask> task, chi::RunContext& ctx) {
   }
 }
 
-void Container::MonitorWrite(chi::MonitorModeId mode,
+void Runtime::MonitorWrite(chi::MonitorModeId mode,
                              hipc::FullPtr<WriteTask> task,
                              chi::RunContext& ctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule: {
       // Route to high latency queue for I/O operations
-      if (auto* lane = GetLane(chi::kHighLatency, 0)) {
+      if (auto* lane = GetLane(1, 0)) {  // Queue 1 (high latency), lane 0
         lane->emplace(task.shm_);
       }
       break;
@@ -272,7 +271,7 @@ void Container::MonitorWrite(chi::MonitorModeId mode,
   }
 }
 
-void Container::Read(hipc::FullPtr<ReadTask> task, chi::RunContext& ctx) {
+void Runtime::Read(hipc::FullPtr<ReadTask> task, chi::RunContext& ctx) {
   // Align buffer for direct I/O
   chi::u64 aligned_size = AlignSize(task->block_.size_);
 
@@ -312,13 +311,13 @@ void Container::Read(hipc::FullPtr<ReadTask> task, chi::RunContext& ctx) {
   total_bytes_read_.fetch_add(actual_bytes);
 }
 
-void Container::MonitorRead(chi::MonitorModeId mode,
+void Runtime::MonitorRead(chi::MonitorModeId mode,
                             hipc::FullPtr<ReadTask> task,
                             chi::RunContext& ctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule: {
       // Route to high latency queue for I/O operations
-      if (auto* lane = GetLane(chi::kHighLatency, 1)) {
+      if (auto* lane = GetLane(1, 1)) {  // Queue 1 (high latency), lane 1
         lane->emplace(task.shm_);
       }
       break;
@@ -333,7 +332,7 @@ void Container::MonitorRead(chi::MonitorModeId mode,
   }
 }
 
-void Container::Stat(hipc::FullPtr<StatTask> task, chi::RunContext& ctx) {
+void Runtime::Stat(hipc::FullPtr<StatTask> task, chi::RunContext& ctx) {
   auto current_time = std::chrono::high_resolution_clock::now();
   auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(current_time -
                                                                   start_time_);
@@ -370,12 +369,12 @@ void Container::Stat(hipc::FullPtr<StatTask> task, chi::RunContext& ctx) {
   task->result_code_ = 0;
 }
 
-void Container::MonitorStat(chi::MonitorModeId mode,
+void Runtime::MonitorStat(chi::MonitorModeId mode,
                             hipc::FullPtr<StatTask> task,
                             chi::RunContext& ctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule: {
-      if (auto* lane = GetLane(chi::kLowLatency, 0)) {
+      if (auto* lane = GetLane(0, 0)) {  // Queue 0 (low latency), lane 0
         lane->emplace(task.shm_);
       }
       break;
@@ -390,7 +389,7 @@ void Container::MonitorStat(chi::MonitorModeId mode,
   }
 }
 
-void Container::Destroy(hipc::FullPtr<DestroyTask> task, chi::RunContext& ctx) {
+void Runtime::Destroy(hipc::FullPtr<DestroyTask> task, chi::RunContext& ctx) {
   // Close file descriptor if open
   if (file_fd_ >= 0) {
     close(file_fd_);
@@ -414,12 +413,12 @@ void Container::Destroy(hipc::FullPtr<DestroyTask> task, chi::RunContext& ctx) {
   std::cout << "bdev container destroyed for pool: " << pool_id_ << std::endl;
 }
 
-void Container::MonitorDestroy(chi::MonitorModeId mode,
+void Runtime::MonitorDestroy(chi::MonitorModeId mode,
                                hipc::FullPtr<DestroyTask> task,
                                chi::RunContext& ctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule: {
-      if (auto* lane = GetLane(chi::kLowLatency, 0)) {
+      if (auto* lane = GetLane(0, 0)) {  // Queue 0 (low latency), lane 0
         lane->emplace(task.shm_);
       }
       break;
@@ -434,7 +433,7 @@ void Container::MonitorDestroy(chi::MonitorModeId mode,
   }
 }
 
-void Container::InitializeAllocator() {
+void Runtime::InitializeAllocator() {
   // Initialize free lists
   for (size_t i = 0; i < static_cast<size_t>(BlockSizeCategory::kMaxCategories);
        ++i) {
@@ -446,7 +445,7 @@ void Container::InitializeAllocator() {
   remaining_size_ = file_size_;
 }
 
-void Container::BenchmarkPerformance() {
+void Runtime::BenchmarkPerformance() {
   // Simple benchmark: write and read a small block
   const chi::u64 benchmark_size = 4096;
   void* aligned_buffer;
@@ -475,18 +474,18 @@ void Container::BenchmarkPerformance() {
   }
 }
 
-BlockSizeCategory Container::DetermineBlockSizeCategory(chi::u64 size) {
+BlockSizeCategory Runtime::DetermineBlockSizeCategory(chi::u64 size) {
   if (size <= kBlockSizes[0]) return BlockSizeCategory::k4KB;
   if (size <= kBlockSizes[1]) return BlockSizeCategory::k64KB;
   if (size <= kBlockSizes[2]) return BlockSizeCategory::k256KB;
   return BlockSizeCategory::k1MB;
 }
 
-chi::u64 Container::GetBlockSize(BlockSizeCategory category) {
+chi::u64 Runtime::GetBlockSize(BlockSizeCategory category) {
   return kBlockSizes[static_cast<size_t>(category)];
 }
 
-bool Container::AllocateFromFreeList(BlockSizeCategory category, chi::u64 size,
+bool Runtime::AllocateFromFreeList(BlockSizeCategory category, chi::u64 size,
                                      Block& block) {
   size_t idx = static_cast<size_t>(category);
   std::lock_guard<std::mutex> lock(free_list_mutexes_[idx]);
@@ -510,7 +509,7 @@ bool Container::AllocateFromFreeList(BlockSizeCategory category, chi::u64 size,
   return false;
 }
 
-bool Container::AllocateFromHeap(chi::u64 size, BlockSizeCategory category,
+bool Runtime::AllocateFromHeap(chi::u64 size, BlockSizeCategory category,
                                  Block& block) {
   std::lock_guard<std::mutex> lock(alloc_mutex_);
 
@@ -530,7 +529,7 @@ bool Container::AllocateFromHeap(chi::u64 size, BlockSizeCategory category,
   return true;
 }
 
-void Container::AddToFreeList(const Block& block) {
+void Runtime::AddToFreeList(const Block& block) {
   size_t idx = block.block_type_;
   if (idx >= static_cast<size_t>(BlockSizeCategory::kMaxCategories)) {
     return;  // Invalid block type
@@ -543,7 +542,7 @@ void Container::AddToFreeList(const Block& block) {
   free_lists_[idx] = node;
 }
 
-chi::u64 Container::AlignSize(chi::u64 size) {
+chi::u64 Runtime::AlignSize(chi::u64 size) {
   HELOG(kError, "DEBUG: AlignSize called with size={}, alignment_={}", size, alignment_);
   if (alignment_ == 0) {
     HELOG(kError, "AlignSize called with alignment_ = 0, using default 4096");
@@ -552,21 +551,21 @@ chi::u64 Container::AlignSize(chi::u64 size) {
   return ((size + alignment_ - 1) / alignment_) * alignment_;
 }
 
-void Container::UpdatePerformanceMetrics(bool is_write, chi::u64 bytes,
+void Runtime::UpdatePerformanceMetrics(bool is_write, chi::u64 bytes,
                                          double duration_us) {
   // This is a simplified implementation
   // In a real implementation, you'd maintain running averages or histograms
 }
 
-void Container::InitializeAsyncIO() {
+void Runtime::InitializeAsyncIO() {
   // No initialization needed - will create aiocb on-demand
 }
 
-void Container::CleanupAsyncIO() {
+void Runtime::CleanupAsyncIO() {
   // No cleanup needed - aiocb created on stack
 }
 
-chi::u32 Container::PerformAsyncIO(bool is_write, chi::u64 offset, void* buffer,
+chi::u32 Runtime::PerformAsyncIO(bool is_write, chi::u64 offset, void* buffer,
                                    chi::u64 size, chi::u64& bytes_transferred,
                                    hipc::FullPtr<chi::Task> task) {
   // Create aiocb on-demand
@@ -621,60 +620,11 @@ chi::u32 Container::PerformAsyncIO(bool is_write, chi::u64 offset, void* buffer,
   return 0;  // Success
 }
 
-// REQUIRED VIRTUAL METHOD IMPLEMENTATIONS
+// VIRTUAL METHOD IMPLEMENTATIONS (now in autogen/bdev_lib_exec.cc)
 
-void Container::Run(chi::u32 method, hipc::FullPtr<chi::Task> task_ptr,
-                    chi::RunContext& rctx) {
-  // Use the autogen dispatcher
-  chimaera::bdev::Run(this, method, task_ptr, rctx);
-}
-
-void Container::Monitor(chi::MonitorModeId mode, chi::u32 method,
-                        hipc::FullPtr<chi::Task> task_ptr,
-                        chi::RunContext& rctx) {
-  // Use the autogen dispatcher
-  chimaera::bdev::Monitor(this, mode, method, task_ptr, rctx);
-}
-
-void Container::Del(chi::u32 method, hipc::FullPtr<chi::Task> task_ptr) {
-  // Use the autogen dispatcher
-  chimaera::bdev::Del(this, method, task_ptr);
-}
-
-chi::u64 Container::GetWorkRemaining() const { return 0; }
-
-void Container::SaveIn(chi::u32 method, chi::TaskSaveInArchive& archive,
-                       hipc::FullPtr<chi::Task> task_ptr) {
-  // Use the autogen dispatcher
-  chimaera::bdev::SaveIn(this, method, archive, task_ptr);
-}
-
-void Container::LoadIn(chi::u32 method, chi::TaskLoadInArchive& archive,
-                       hipc::FullPtr<chi::Task> task_ptr) {
-  // Use the autogen dispatcher
-  chimaera::bdev::LoadIn(this, method, archive, task_ptr);
-}
-
-void Container::SaveOut(chi::u32 method, chi::TaskSaveOutArchive& archive,
-                        hipc::FullPtr<chi::Task> task_ptr) {
-  // Use the autogen dispatcher
-  chimaera::bdev::SaveOut(this, method, archive, task_ptr);
-}
-
-void Container::LoadOut(chi::u32 method, chi::TaskLoadOutArchive& archive,
-                        hipc::FullPtr<chi::Task> task_ptr) {
-  // Use the autogen dispatcher
-  chimaera::bdev::LoadOut(this, method, archive, task_ptr);
-}
-
-void Container::NewCopy(chi::u32 method,
-                        const hipc::FullPtr<chi::Task>& orig_task,
-                        hipc::FullPtr<chi::Task>& dup_task, bool deep) {
-  // Use the autogen dispatcher
-  chimaera::bdev::NewCopy(this, method, orig_task, dup_task, deep);
-}
+chi::u64 Runtime::GetWorkRemaining() const { return 0; }
 
 }  // namespace chimaera::bdev
 
 // Define ChiMod entry points using CHI_TASK_CC macro
-CHI_TASK_CC(chimaera::bdev::Container)
+CHI_TASK_CC(chimaera::bdev::Runtime)

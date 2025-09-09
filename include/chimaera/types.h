@@ -308,10 +308,10 @@ TaskNode CreateTaskNode();
 template<typename T>
 using FullPtr = hipc::FullPtr<T>;
 
+}  // namespace chi
+
 // Create HSHM data structures template for chi namespace
 HSHM_DATA_STRUCTURES_TEMPLATE(chi, CHI_MAIN_ALLOC_T);
-
-}  // namespace chi
 
 // Hash function specializations for std::unordered_map
 namespace std {

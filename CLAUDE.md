@@ -7,56 +7,7 @@ You should store the pointer returned by the singleton GetInstance method. Avoid
 
 NEVER use a null pool query. If you don't know, always use local.
 
-## Boost Context Stack Management
-
-The worker fiber context system requires properly aligned stacks for boost::context::detail operations. Key requirements:
-
-- Use `posix_memalign` for page-aligned stack allocation (not simple `malloc`)
-- Ensure 16-byte alignment for x86-64 ABI compatibility 
-- Zero-initialize stack memory for consistent behavior
-- Proper context field separation:
-  - `fiber_context`: Initial fiber entry point (created once with `make_fcontext`)
-  - `yield_context`: Worker context from FiberExecutionFunction parameter - used by task to yield back to worker
-  - `resume_context`: Task's yield point context - used by worker to resume the task
-
-Stack corruption from misaligned memory causes task->Wait() failures and fiber resume issues.
-
-### Context Jump Safety
-
-When resuming tasks with `jump_fcontext()`, avoid read/write conflicts on the same `fiber_transfer` field:
-
-**Problem**: 
-```cpp
-// UNSAFE - reading and writing same field simultaneously
-run_ctx->fiber_transfer = bctx::jump_fcontext(
-    run_ctx->fiber_transfer.fctx, run_ctx->fiber_transfer.data);
-```
-
-**Solution**:
-```cpp
-// SAFE - use separate context fields and temporary variables
-bctx::fcontext_t resume_fctx = run_ctx->resume_context.fctx;
-void* resume_data = run_ctx->resume_context.data;
-run_ctx->resume_context = bctx::jump_fcontext(resume_fctx, resume_data);
-```
-
-**Context Flow**:
-1. **FiberExecutionFunction**: Store parameter `t` as `yield_context`
-2. **Task YieldBase()**: Jump to `yield_context`, store result in `resume_context`
-3. **Worker ExecTask()**: Jump to `resume_context` to resume task
-
-This prevents segfaults when resuming tasks after `Wait()` operations.
-
-### Task Completion Race Condition
-
-**Critical**: Never set `task_ptr->is_complete.store(1)` until ALL cleanup is finished. Setting it too early creates a race condition where client code can immediately free the task memory with `DelTask()`, causing segfaults on subsequent `task_ptr` access.
-
-**Correct order**:
-1. Perform all task cleanup (deallocate stack, clear RunContext, etc.)
-2. Set `task_ptr->is_complete.store(1)` LAST
-3. Never access `task_ptr` after setting `is_complete`
-
-**Only mark non-periodic tasks as complete** - periodic tasks are rescheduled and should not be marked complete.
+Local QueueId should be named. NEVER use raw integers. This is the same for priorities. Please name them semantically.
 
 ## ChiMod Client Requirements
 
@@ -85,6 +36,181 @@ auto task = ipc_manager->NewTask<CreateTask>(
 
 This applies to all ChiMod clients including bdev, MOD_NAME, and any future ChiMods.
 
+## ChiMod Linking Requirements
+
+### Runtime Library Linking
+When linking against ChiMod runtime libraries, use the following pattern:
+
+```cmake
+target_link_libraries(your_target
+  chimaera                        # Main Chimaera library (always required)
+  chimaera_admin_runtime          # Admin module runtime (always required)
+  chimaera_admin_client           # Admin module client (always required)
+  chimaera_${CHIMOD}_runtime      # Specific ChiMod runtime library
+  chimaera_${CHIMOD}_client       # Specific ChiMod client library
+  ${HermesShm_LIBRARIES}          # HSHM libraries
+  ${CMAKE_THREAD_LIBS_INIT}       # Threading support
+)
+```
+
+### ChiMod Creation and Installation
+Use the ChimaeraCommon.cmake utilities for creating ChiMods:
+
+**Creating ChiMod libraries:**
+```cmake
+add_chimod_both(
+  CHIMOD_NAME your_chimod_name
+  RUNTIME_SOURCES src/your_chimod_runtime.cc src/autogen/your_chimod_lib_exec.cc
+  CLIENT_SOURCES src/your_chimod_client.cc
+)
+```
+
+**Installing ChiMod libraries:**
+```cmake
+install_chimod(
+  CHIMOD_NAME your_chimod_name
+)
+```
+
+### Include Directory Requirements
+When using ChiMods, include the necessary headers:
+
+```cmake
+target_include_directories(your_target PUBLIC
+  ${CMAKE_SOURCE_DIR}/chimods/admin/include     # Admin module headers (always required)
+  ${CMAKE_SOURCE_DIR}/chimods/your_chimod/include  # Your ChiMod headers
+)
+```
+
+### Compile Definitions
+For runtime code, define `CHIMAERA_RUNTIME=1`:
+
+```cmake
+target_compile_definitions(your_target PRIVATE CHIMAERA_RUNTIME=1)
+```
+
+### Runtime Object Dependencies
+The Chimaera runtime has several core objects that must be properly linked:
+
+**Core runtime libraries required:**
+- `chimaera`: Main Chimaera library containing core runtime objects
+- `chimaera_admin_runtime`: Admin module runtime (required for all runtime applications)
+- `chimaera_admin_client`: Admin module client (required for all runtime applications)
+
+**Runtime executable linking pattern:**
+```cmake
+target_link_libraries(chimaera_start_runtime
+  chimaera                    # Core runtime objects and initialization
+  ${HermesShm_LIBRARIES}      # HSHM shared memory framework
+  ${CMAKE_THREAD_LIBS_INIT}   # Threading support for runtime
+)
+```
+
+**Client executable linking pattern (no CHIMAERA_RUNTIME definition):**
+```cmake
+target_link_libraries(chimaera_stop_runtime
+  chimaera                    # Client-side objects only
+  ${HermesShm_LIBRARIES}      # HSHM libraries
+)
+```
+
+**Key runtime objects accessed via singletons:**
+- `CHI_CHIMAERA_MANAGER`: Main runtime manager
+- `CHI_WORK_ORCHESTRATOR`: Task scheduling and execution
+- `CHI_IPC_MANAGER`: Inter-process communication
+- `CHI_POOL_MANAGER`: Pool management
+
+**Runtime initialization pattern:**
+```cpp
+// Runtime initialization (server-side)
+bool CHIMAERA_RUNTIME_INIT() {
+  auto* chimaera_manager = CHI_CHIMAERA_MANAGER;
+  return chimaera_manager->ServerInit();
+}
+
+// Client initialization
+bool CHIMAERA_CLIENT_INIT() {
+  auto* chimaera_manager = CHI_CHIMAERA_MANAGER;
+  return chimaera_manager->ClientInit();
+}
+```
+
+### External Application Linking
+External applications can link to installed ChiMod libraries using the dynamic CMake export system:
+
+**Installation requirement:**
+```bash
+cmake --preset debug
+cmake --build build-debug
+cmake --install build-debug --prefix /usr/local
+```
+
+**Dynamic module-based approach:**
+Each ChiMod is automatically installed as a separate CMake package based on the namespace from `chimaera_repo.yaml`:
+
+**External CMakeLists.txt pattern:**
+```cmake
+# Find individual module packages (automatically created from namespace)
+find_package(chimaera::MOD_NAME REQUIRED)
+find_package(chimaera::admin REQUIRED) 
+find_package(chimaera::core REQUIRED)
+
+target_link_libraries(your_external_app
+  chimaera::MOD_NAME_client     # ChiMod client library
+  chimaera::admin_client        # Admin client (required)
+  chimaera::chimaera            # Main chimaera library
+)
+
+# Optional: Define client mode
+target_compile_definitions(your_external_app PRIVATE CHIMAERA_CLIENT=1)
+```
+
+**External application usage:**
+```cpp
+#include <chimaera/chimaera.h>
+#include <MOD_NAME/MOD_NAME_client.h>
+#include <admin/admin_client.h>
+
+int main() {
+  // Initialize Chimaera client
+  chi::CHIMAERA_CLIENT_INIT();
+  
+  // Create ChiMod client with pool ID
+  const chi::PoolId pool_id = static_cast<chi::PoolId>(7000);
+  chimaera::MOD_NAME::Client mod_client(pool_id);
+  
+  // Create container
+  auto pool_query = chi::PoolQuery::Local();
+  mod_client.Create(HSHM_MCTX, pool_query);
+}
+```
+
+**Dependency requirements:**
+External applications must have access to all dependencies:
+- HermesShm (with its MPI, Boost, and other dependencies)
+- cereal
+- Boost (fiber, context components)
+- Set `CMAKE_PREFIX_PATH` to include installation prefixes of all dependencies
+
+**Dynamic export system details:**
+- Package names: Automatically generated as `<namespace>::<module>` (e.g., `chimaera::MOD_NAME`)
+- Target format: `<namespace>::<module>_<type>` (e.g., `chimaera::MOD_NAME_client`)
+- Config files: `<namespace>::<module>Config.cmake` and `<namespace>::<module>ConfigVersion.cmake`
+- Installation paths: `lib/cmake/<namespace>::<module>/`
+- Namespace read from: `chimaera_repo.yaml` file
+- No hardcoded names: System adapts to any namespace automatically
+
+**Example external build:**
+```bash
+# Set environment for dependencies
+export CMAKE_PREFIX_PATH="/usr/local:/path/to/hermes-shm:/path/to/other/deps"
+
+# Configure and build external project
+mkdir build && cd build
+cmake ..
+make
+```
+
 ## Workflow
 Use the incremental logic builder agent when making code changes.
 
@@ -97,3 +223,219 @@ Whenever building unit tests, make sure to use the unit testing agent.
 Whenever performing filesystem queries or executing programs, use the filesystem ops script agent.
 
 NEVER DO MOCK CODE OR STUB CODE UNLESS SPECIFICALLY STATED OTHERWISE. ALWAYS IMPLEMENT REAL, WORKING CODE.
+
+# Locking and Synchronization
+
+## CoMutex and CoRwLock
+
+The chimaera runtime provides two specialized coroutine-aware mutex types for runtime code:
+
+### CoMutex (Coroutine Mutex)
+- **Header**: `chimaera/comutex.h`
+- **Purpose**: TaskNode-grouped mutex that allows multiple tasks from the same TaskNode to proceed together
+- **Key Features**:
+  - Tasks are grouped by TaskNode (ignoring minor number) to prevent deadlocks
+  - Uses `unordered_map[TaskNode] -> list<FullPtr<Task>>` internally
+  - Blocked tasks are sent back to their lane stored in `task->run_ctx_`
+  - Provides `ScopedCoMutex` for RAII-style locking
+
+### CoRwLock (Coroutine Reader-Writer Lock)
+- **Header**: `chimaera/corwlock.h`  
+- **Purpose**: TaskNode-grouped reader-writer lock with similar grouping semantics
+- **Key Features**:
+  - Multiple readers from any TaskNode group can proceed simultaneously
+  - Single writer TaskNode group can hold exclusive access
+  - Tasks from same TaskNode group as current lock holder can always proceed
+  - Provides `ScopedCoRwReadLock` and `ScopedCoRwWriteLock` for RAII-style locking
+
+### Usage Example
+```cpp
+#include "chimaera/comutex.h"
+#include "chimaera/corwlock.h"
+
+// CoMutex usage
+chi::CoMutex mutex;
+{
+  chi::ScopedCoMutex lock(mutex, current_task);
+  // Critical section - other TaskNodes blocked
+}
+
+// CoRwLock usage  
+chi::CoRwLock rwlock;
+{
+  chi::ScopedCoRwReadLock read_lock(rwlock, current_task);
+  // Multiple readers can proceed
+}
+{
+  chi::ScopedCoRwWriteLock write_lock(rwlock, current_task);
+  // Exclusive writer access
+}
+```
+
+**Note**: These locks are only for runtime code and have no client-side equivalents.
+
+# ChiMod Development Requirements
+
+## Container Initialization Pattern
+
+All ChiMod containers must implement proper initialization following these requirements:
+
+### 1. InitClient Method
+Every runtime container must implement `InitClient()` to initialize its client interface:
+
+```cpp
+void Runtime::InitClient(const chi::PoolId& pool_id) {
+  // Initialize the client for this ChiMod
+  client_ = Client(pool_id);
+}
+```
+
+**Purpose**: Enables the runtime container to make client calls to itself or other ChiMods during task execution.
+
+### 2. Create Method Implementation 
+The `Create()` method must initialize the container and create local queues:
+
+```cpp
+void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& rctx) {
+  // Initialize the container with pool information and domain query
+  chi::Container::Init(task->pool_id_, task->pool_query_);
+  
+  // Create local queues with semantic names and priorities
+  CreateLocalQueue(kMetadataQueue, 1, chi::kHighLatency);         // Metadata operations
+  CreateLocalQueue(kClientSendTaskInQueue, 1, chi::kHighLatency); // Client task input processing
+  CreateLocalQueue(kServerRecvTaskInQueue, 1, chi::kHighLatency); // Server task input reception
+  // Add more queues as needed for your container
+  
+  std::cout << "Container created and initialized for pool: " << pool_name_
+            << " (ID: " << task->pool_id_ << ")" << std::endl;
+}
+```
+
+**CreateLocalQueue Parameters**:
+- `queue_id`: Semantic constant (e.g., `kMetadataQueue`, not raw integers)
+- `num_lanes`: Number of concurrent processing lanes for this queue
+- `priority`: Either `chi::kLowLatency` or `chi::kHighLatency`
+
+### 3. Monitor Method Implementation
+Monitor methods handle task routing via `rctx.route_lane_` pointer assignment:
+
+```cpp
+void Runtime::MonitorCreate(chi::MonitorModeId mode,
+                           hipc::FullPtr<CreateTask> task_ptr,
+                           chi::RunContext& rctx) {
+  switch (mode) {
+    case chi::MonitorModeId::kLocalSchedule:
+      // CORRECT: Set route_lane_ to indicate where task should be routed
+      {
+        auto lane_ptr = GetLaneFullPtr(kMetadataQueue, 0);
+        if (!lane_ptr.IsNull()) {
+          rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
+        }
+      }
+      break;
+      
+    case chi::MonitorModeId::kGlobalSchedule:
+      // Coordinate global distribution
+      break;
+      
+    case chi::MonitorModeId::kEstLoad:
+      // Estimate task execution time
+      rctx.estimated_completion_time_us = 1000.0;  // 1ms example
+      break;
+  }
+}
+```
+
+## CRITICAL: Correct Lane Routing Pattern
+
+**NEVER directly enqueue tasks in Monitor methods**. The work orchestrator handles actual task enqueuing.
+
+### ❌ INCORRECT Pattern:
+```cpp
+// DON'T DO THIS - bypasses work orchestrator
+case chi::MonitorModeId::kLocalSchedule:
+  if (auto* lane = GetLane(chi::kLowLatency, 0)) {
+    lane->Enqueue(task_ptr.shm_);  // WRONG - direct enqueuing
+  }
+  break;
+```
+
+### ✅ CORRECT Pattern:
+```cpp
+// DO THIS - let work orchestrator handle enqueuing
+case chi::MonitorModeId::kLocalSchedule:
+  // Set route_lane_ to indicate where task should be routed
+  {
+    auto lane_ptr = GetLaneFullPtr(kMetadataQueue, 0);
+    if (!lane_ptr.IsNull()) {
+      rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
+    }
+  }
+  break;
+```
+
+**Why this matters**:
+- Work orchestrator manages task lifecycle and scheduling policies
+- Direct enqueuing bypasses load balancing and monitoring
+- `route_lane_` pointer tells the orchestrator where to place the task
+- Framework handles actual enqueuing after monitor returns
+
+### Queue ID Naming Requirements
+
+**NEVER use raw integers for queue IDs**. Always use semantic constants:
+
+```cpp
+// Define semantic queue IDs
+private:
+  static const chi::QueueId kMetadataQueue = 0;
+  static const chi::QueueId kProcessingQueue = 1;  
+  static const chi::QueueId kNetworkQueue = 2;
+
+// Use semantic names in CreateLocalQueue calls
+CreateLocalQueue(kMetadataQueue, 1, chi::kHighLatency);
+CreateLocalQueue(kProcessingQueue, 4, chi::kLowLatency);
+```
+
+## ChiMod Library Naming Requirements
+
+### CreateParams chimod_lib_name Convention
+
+When defining the `chimod_lib_name` in CreateParams structures, **DO NOT include the `_runtime` suffix**. The runtime system automatically appends `_runtime` when loading the library.
+
+**✅ CORRECT:**
+```cpp
+struct CreateParams {
+  // Other parameters...
+  
+  // Required: chimod library name WITHOUT _runtime suffix
+  static constexpr const char* chimod_lib_name = "chimaera_MOD_NAME";
+};
+```
+
+**❌ INCORRECT:**
+```cpp
+struct CreateParams {
+  // Other parameters...
+  
+  // WRONG - includes _runtime suffix
+  static constexpr const char* chimod_lib_name = "chimaera_MOD_NAME_runtime";
+};
+```
+
+**Why this matters:**
+- The module manager automatically appends `_runtime` to locate the runtime library
+- Including `_runtime` in the name would result in looking for `chimaera_MOD_NAME_runtime_runtime.so`
+- This convention keeps the library naming consistent and predictable
+
+## Build Configuration
+
+- Always use the debug CMakePreset when compiling code in this repo.
+- All compilation warnings have been resolved as of the current state
+
+## Code Quality Standards
+
+### Compilation Standards
+- All code must compile without warnings or errors
+- Use appropriate variable types to avoid sign comparison warnings (e.g., `size_t` for container sizes)
+- Mark unused variables with `(void)variable_name;` to suppress warnings when the variable is intentionally unused
+- Follow strict type safety to prevent implicit conversions that generate warnings

@@ -11,6 +11,15 @@
 
 namespace chimaera::admin {
 
+// Admin local queue indices
+enum AdminQueueIndex {
+  kMetadataQueue = 0,          // Queue for metadata operations
+  kClientSendTaskInQueue = 1,  // Queue for client task input processing
+  kServerRecvTaskInQueue = 2,  // Queue for server task input reception
+  kServerSendTaskOutQueue = 3, // Queue for server task output sending
+  kClientRecvTaskOutQueue = 4  // Queue for client task output reception
+};
+
 // Forward declarations
 // Note: CreateTask and GetOrCreatePoolTask are using aliases defined in admin_tasks.h
 // We cannot forward declare using aliases, so we rely on the include

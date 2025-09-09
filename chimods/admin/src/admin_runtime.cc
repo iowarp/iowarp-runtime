@@ -20,7 +20,6 @@
 #include <unordered_map>
 #include <vector>
 
-#include "admin/autogen/admin_lib_exec.h"
 
 // ZeroMQ and lightbeam networking includes (through HSHM)
 // Note: lightbeam types are available through hermes_shm.h already included in
@@ -35,23 +34,7 @@ void Runtime::InitClient(const chi::PoolId& pool_id) {
   client_ = Client(pool_id);
 }
 
-void Runtime::Run(chi::u32 method, hipc::FullPtr<chi::Task> task_ptr,
-                  chi::RunContext& rctx) {
-  // Dispatch to the appropriate method handler
-  chimaera::admin::Run(this, method, task_ptr, rctx);
-}
-
-void Runtime::Monitor(chi::MonitorModeId mode, chi::u32 method,
-                      hipc::FullPtr<chi::Task> task_ptr,
-                      chi::RunContext& rctx) {
-  // Dispatch to the appropriate monitor handler
-  chimaera::admin::Monitor(this, mode, method, task_ptr, rctx);
-}
-
-void Runtime::Del(chi::u32 method, hipc::FullPtr<chi::Task> task_ptr) {
-  // Dispatch to the appropriate delete handler
-  chimaera::admin::Del(this, method, task_ptr);
-}
+// Virtual method implementations now in autogen/admin_lib_exec.cc
 
 //===========================================================================
 // Method implementations
@@ -64,9 +47,13 @@ void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& rctx) {
   // Initialize the Admin container with pool information from the task
   // Note: Admin container is already initialized by the framework before Create
   // is called, but we can create local queues here for Admin operations
-  CreateLocalQueue(chi::kLowLatency, 4);  // 4 lanes for low latency admin tasks
-  CreateLocalQueue(chi::kHighLatency,
-                   2);  // 2 lanes for heavy operations like pool creation
+  
+  // Create specific local queues for admin operations (all high-latency priority, 1 lane each)
+  CreateLocalQueue(kMetadataQueue, 1, chi::kHighLatency);         // Metadata operations
+  CreateLocalQueue(kClientSendTaskInQueue, 1, chi::kHighLatency); // Client task input processing  
+  CreateLocalQueue(kServerRecvTaskInQueue, 1, chi::kHighLatency); // Server task input reception
+  CreateLocalQueue(kServerSendTaskOutQueue, 1, chi::kHighLatency);// Server task output sending
+  CreateLocalQueue(kClientRecvTaskOutQueue, 1, chi::kHighLatency);// Client task output reception
 
   create_count_++;
 
@@ -142,9 +129,9 @@ void Runtime::MonitorCreate(chi::MonitorModeId mode,
       // Set route_lane_ to indicate where task should be routed
       std::cout << "Admin: Setting route_lane_ for admin Create task"
                 << std::endl;
-      // Set route_lane_ to low latency queue lane 0
+      // Set route_lane_ to metadata queue lane 0
       {
-        auto lane_ptr = GetLaneFullPtr(chi::kLowLatency, 0);
+        auto lane_ptr = GetLaneFullPtr(kMetadataQueue, 0);
         if (!lane_ptr.IsNull()) {
           rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
         }
@@ -175,9 +162,9 @@ void Runtime::MonitorGetOrCreatePool(
       // Set route_lane_ to indicate where task should be routed
       std::cout << "Admin: Setting route_lane_ for GetOrCreatePool task"
                 << std::endl;
-      // Set route_lane_ to low latency queue lane 0
+      // Set route_lane_ to metadata queue lane 0
       {
-        auto lane_ptr = GetLaneFullPtr(chi::kLowLatency, 0);
+        auto lane_ptr = GetLaneFullPtr(kMetadataQueue, 0);
         if (!lane_ptr.IsNull()) {
           rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
         }
@@ -266,9 +253,9 @@ void Runtime::MonitorDestroyPool(chi::MonitorModeId mode,
       // Set route_lane_ to indicate where task should be routed
       std::cout << "Admin: Setting route_lane_ for DestroyPool task"
                 << std::endl;
-      // Set route_lane_ to low latency queue lane 0
+      // Set route_lane_ to metadata queue lane 0
       {
-        auto lane_ptr = GetLaneFullPtr(chi::kLowLatency, 0);
+        auto lane_ptr = GetLaneFullPtr(kMetadataQueue, 0);
         if (!lane_ptr.IsNull()) {
           rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
         }
@@ -325,9 +312,9 @@ void Runtime::MonitorStopRuntime(chi::MonitorModeId mode,
       // Set route_lane_ to indicate where task should be routed
       std::cout << "Admin: Setting route_lane_ for StopRuntime task"
                 << std::endl;
-      // Set route_lane_ to low latency queue lane 0
+      // Set route_lane_ to metadata queue lane 0
       {
-        auto lane_ptr = GetLaneFullPtr(chi::kLowLatency, 0);
+        auto lane_ptr = GetLaneFullPtr(kMetadataQueue, 0);
         if (!lane_ptr.IsNull()) {
           rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
         }
@@ -479,9 +466,9 @@ void Runtime::MonitorFlush(chi::MonitorModeId mode,
     case chi::MonitorModeId::kLocalSchedule:
       // Set route_lane_ to indicate where task should be routed
       std::cout << "Admin: Setting route_lane_ for Flush task" << std::endl;
-      // Set route_lane_ to low latency queue lane 0
+      // Set route_lane_ to metadata queue lane 0
       {
-        auto lane_ptr = GetLaneFullPtr(chi::kLowLatency, 0);
+        auto lane_ptr = GetLaneFullPtr(kMetadataQueue, 0);
         if (!lane_ptr.IsNull()) {
           rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
         }
@@ -816,9 +803,9 @@ void Runtime::MonitorClientSendTaskIn(
       // Set route_lane_ to indicate where task should be routed
       std::cout << "Admin: Setting route_lane_ for ClientSendTaskIn"
                 << std::endl;
-      // Set route_lane_ to low latency queue lane 0 for network operations
+      // Set route_lane_ to client send task input queue lane 0
       {
-        auto lane_ptr = GetLaneFullPtr(chi::kLowLatency, 0);
+        auto lane_ptr = GetLaneFullPtr(kClientSendTaskInQueue, 0);
         if (!lane_ptr.IsNull()) {
           rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
         }
@@ -874,9 +861,9 @@ void Runtime::MonitorServerRecvTaskIn(
       // Set route_lane_ to indicate where task should be routed
       std::cout << "Admin: Setting route_lane_ for ServerRecvTaskIn"
                 << std::endl;
-      // Set route_lane_ to low latency queue lane 0 for network operations
+      // Set route_lane_ to server receive task input queue lane 0
       {
-        auto lane_ptr = GetLaneFullPtr(chi::kLowLatency, 0);
+        auto lane_ptr = GetLaneFullPtr(kServerRecvTaskInQueue, 0);
         if (!lane_ptr.IsNull()) {
           rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
         }
@@ -932,9 +919,9 @@ void Runtime::MonitorServerSendTaskOut(
       // Set route_lane_ to indicate where task should be routed
       std::cout << "Admin: Setting route_lane_ for ServerSendTaskOut"
                 << std::endl;
-      // Set route_lane_ to low latency queue lane 0 for network operations
+      // Set route_lane_ to server send task output queue lane 0
       {
-        auto lane_ptr = GetLaneFullPtr(chi::kLowLatency, 0);
+        auto lane_ptr = GetLaneFullPtr(kServerSendTaskOutQueue, 0);
         if (!lane_ptr.IsNull()) {
           rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
         }
@@ -991,9 +978,9 @@ void Runtime::MonitorClientRecvTaskOut(
       // Set route_lane_ to indicate where task should be routed
       std::cout << "Admin: Setting route_lane_ for ClientRecvTaskOut"
                 << std::endl;
-      // Set route_lane_ to low latency queue lane 0 for network operations
+      // Set route_lane_ to client receive task output queue lane 0
       {
-        auto lane_ptr = GetLaneFullPtr(chi::kLowLatency, 0);
+        auto lane_ptr = GetLaneFullPtr(kClientRecvTaskOutQueue, 0);
         if (!lane_ptr.IsNull()) {
           rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
         }
@@ -1024,36 +1011,7 @@ chi::u64 Runtime::GetWorkRemaining() const {
 // Task Serialization Method Implementations
 //===========================================================================
 
-void Runtime::SaveIn(chi::u32 method, chi::TaskSaveInArchive& archive,
-                     hipc::FullPtr<chi::Task> task_ptr) {
-  // Use the autogenerated SaveIn function from lib_exec
-  chimaera::admin::SaveIn(this, method, archive, task_ptr);
-}
-
-void Runtime::LoadIn(chi::u32 method, chi::TaskLoadInArchive& archive,
-                     hipc::FullPtr<chi::Task> task_ptr) {
-  // Use the autogenerated LoadIn function from lib_exec
-  chimaera::admin::LoadIn(this, method, archive, task_ptr);
-}
-
-void Runtime::SaveOut(chi::u32 method, chi::TaskSaveOutArchive& archive,
-                      hipc::FullPtr<chi::Task> task_ptr) {
-  // Use the autogenerated SaveOut function from lib_exec
-  chimaera::admin::SaveOut(this, method, archive, task_ptr);
-}
-
-void Runtime::LoadOut(chi::u32 method, chi::TaskLoadOutArchive& archive,
-                      hipc::FullPtr<chi::Task> task_ptr) {
-  // Use the autogenerated LoadOut function from lib_exec
-  chimaera::admin::LoadOut(this, method, archive, task_ptr);
-}
-
-void Runtime::NewCopy(chi::u32 method,
-                      const hipc::FullPtr<chi::Task>& orig_task,
-                      hipc::FullPtr<chi::Task>& dup_task, bool deep) {
-  // Use the autogenerated NewCopy function from lib_exec
-  chimaera::admin::NewCopy(this, method, orig_task, dup_task, deep);
-}
+// Task Serialization Method Implementations now in autogen/admin_lib_exec.cc
 
 }  // namespace chimaera::admin
 

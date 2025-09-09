@@ -12,8 +12,13 @@
 #include "chimaera/pool_query.h"
 #include "chimaera/task.h"
 #include "chimaera/task_archives.h"
+#include "chimaera/task_queue.h"
 #include "chimaera/types.h"
-#include "chimaera/work_orchestrator.h"
+
+// Forward declarations to avoid circular dependencies
+namespace chi {
+class WorkOrchestrator;
+}
 
 /**
  * Container Base Class with Default Implementations
@@ -118,38 +123,28 @@ class Container {
   /**
    * Create a local queue with specified lanes
    */
-  void CreateLocalQueue(QueueId queue_id, u32 num_lanes = 1, u32 flags = 0) {
-    (void)flags;  // Suppress unused parameter warning - flags not used in
-                  // TaskQueue yet
-
+  void CreateLocalQueue(QueueId queue_id, u32 num_lanes, u32 priority) {
     if (local_queues_.find(queue_id) != local_queues_.end()) {
       return;  // Queue already exists
     }
 
-    // Create TaskQueue with configurable lanes (assume only one priority)
+    // Create TaskQueue with configurable lanes and priority
     if (main_allocator_) {
       hipc::CtxAllocator<CHI_MAIN_ALLOC_T> ctx_alloc(HSHM_MCTX,
                                                      main_allocator_);
 
       // Create TaskQueue (headers are managed internally by TaskQueue)
       auto task_queue = main_allocator_->template NewObj<::chi::TaskQueue>(
-          HSHM_MCTX, ctx_alloc, num_lanes, 1, 1024);
+          HSHM_MCTX, ctx_alloc, num_lanes, priority, 1024);
 
       if (!task_queue.IsNull()) {
         local_queues_[queue_id] = task_queue;
 
         // Schedule all lanes in the queue using round-robin scheduler
-        // TODO: Re-enable WorkOrchestrator scheduling once circular dependency
-        // is resolved auto* work_orchestrator = CHI_WORK_ORCHESTRATOR; if
-        // (work_orchestrator && work_orchestrator->IsInitialized()) {
-        //   work_orchestrator->RoundRobinTaskQueueScheduler(task_queue.ptr_);
-        //   std::cout << "Container: Scheduled lanes for queue " << queue_id
-        //             << " with WorkOrchestrator for pool " << pool_id_ <<
-        //             std::endl;
-        // } else {
-        //   std::cerr << "Container: WorkOrchestrator not available for lane
-        //   scheduling" << std::endl;
-        // }
+        // NOTE: WorkOrchestrator scheduling will be handled during container initialization
+        // to avoid circular dependency issues with header includes
+        ScheduleTaskQueueWithWorkOrchestrator(task_queue.ptr_, queue_id);
+        
         std::cout << "Container: Created queue " << queue_id << " for pool "
                   << pool_id_ << std::endl;
       }
@@ -302,6 +297,12 @@ class Container {
                                hipc::FullPtr<Task> &dup_task, bool deep) = 0;
 
  protected:
+  /**
+   * Helper to schedule a TaskQueue with WorkOrchestrator
+   * Can be overridden by derived classes if needed
+   */
+  virtual void ScheduleTaskQueueWithWorkOrchestrator(::chi::TaskQueue* task_queue, QueueId queue_id);
+
   /**
    * Helper to get queue priority from queue ID
    */

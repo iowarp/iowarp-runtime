@@ -46,13 +46,13 @@ enum class BlockSizeCategory : chi::u32 {
 /**
  * Runtime container for bdev operations
  */
-class Container : public chi::Container {
+class Runtime : public chi::Container {
  public:
   // Required typedef for CHI_TASK_CC macro
   using CreateParams = chimaera::bdev::CreateParams;
   
-  Container() = default;
-  ~Container() override;
+  Runtime() = default;
+  ~Runtime() override;
 
   /**
    * Create the container (Method::kCreate)

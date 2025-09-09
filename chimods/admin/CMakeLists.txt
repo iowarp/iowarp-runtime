@@ -7,7 +7,7 @@ cmake_minimum_required(VERSION 3.10)
 #   - chimods_admin_client:  Client-side API for user processes (shared library)
 add_chimod_both(
   CHIMOD_NAME admin
-  RUNTIME_SOURCES src/admin_runtime.cc
+  RUNTIME_SOURCES src/admin_runtime.cc src/autogen/admin_lib_exec.cc
   CLIENT_SOURCES src/admin_client.cc
 )
 

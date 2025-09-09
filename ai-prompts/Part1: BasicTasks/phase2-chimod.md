@@ -193,14 +193,14 @@ struct CompressTask : public chi::Task {
   /** Emplace constructor */
   explicit CompressTask(
       const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, const chi::TaskNode &task_node,
-      const chi::PoolId &pool_id, const chi::DomainQuery &dom_query)
+      const chi::PoolId &pool_id, const chi::DomainQuery &pool_query)
       : chi::Task(alloc) {
     // Initialize task
     task_node_ = task_node;
     pool_ = pool_id;
     method_ = Method::kCompress;
     task_flags_.SetBits(0);
-    dom_query_ = dom_query;
+    pool_query_ = pool_query;
 
     // Custom
   }
@@ -221,7 +221,7 @@ class Client : public ContainerClient {
   public:
     // Create a pool of mod_name
     void Compress(const hipc::MemContext &mctx,
-                const chi::DomainQuery &dom_query) {
+                const chi::DomainQuery &pool_query) {
         // allocate the Create
         auto *ipc_manager = CHI_IPC_MANAGER;
         hipc::FullPtr<CompressTask> task = AsyncCreate(args)
@@ -229,9 +229,9 @@ class Client : public ContainerClient {
         ipc_manager->DelTask<CompressTask>(task);
     }
     void AsyncCreate(const hipc::MemContext &mctx,
-                     const chi::DomainQuery &dom_query) {
+                     const chi::DomainQuery &pool_query) {
         auto *ipc_manager = CHI_IPC_MANAGER;
-        FullPtr<CompressTask> task = ipc_manager->NewTask<CompressTask>(mctx, dom_query, create_ctx);
+        FullPtr<CompressTask> task = ipc_manager->NewTask<CompressTask>(mctx, pool_query, create_ctx);
         ipc_manager->Enqueue(task);
     }
 }

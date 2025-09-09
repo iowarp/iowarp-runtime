@@ -80,14 +80,18 @@ function(add_chimod_both)
     add_library(${RUNTIME_TARGET_NAME} SHARED ${ARG_RUNTIME_SOURCES})
     target_link_libraries(${RUNTIME_TARGET_NAME} PUBLIC chimaera)
     target_include_directories(${RUNTIME_TARGET_NAME} PUBLIC
-      include
-      ${CMAKE_SOURCE_DIR}/include
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+      $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
+      $<INSTALL_INTERFACE:include>
     )
     target_compile_definitions(${RUNTIME_TARGET_NAME} PRIVATE
       CHI_CHIMOD_NAME="${ARG_CHIMOD_NAME}"
       CHI_NAMESPACE="${ARG_NAMESPACE}"
       CHIMAERA_RUNTIME=1
     )
+    
+    # Create namespace alias for external consumption
+    add_library(${ARG_NAMESPACE}::${ARG_CHIMOD_NAME}_runtime ALIAS ${RUNTIME_TARGET_NAME})
     
     # Set global property for referencing this target
     set_property(GLOBAL PROPERTY ${ARG_CHIMOD_NAME}_RUNTIME_TARGET ${RUNTIME_TARGET_NAME})
@@ -98,8 +102,9 @@ function(add_chimod_both)
     add_library(${CLIENT_TARGET_NAME} SHARED ${ARG_CLIENT_SOURCES})
     target_link_libraries(${CLIENT_TARGET_NAME} PUBLIC chimaera)
     target_include_directories(${CLIENT_TARGET_NAME} PUBLIC
-      include
-      ${CMAKE_SOURCE_DIR}/include
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+      $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
+      $<INSTALL_INTERFACE:include>
     )
     target_compile_definitions(${CLIENT_TARGET_NAME} PRIVATE
       CHI_CHIMOD_NAME="${ARG_CHIMOD_NAME}"
@@ -107,6 +112,9 @@ function(add_chimod_both)
       CHIMAERA_CLIENT=1
       CHIMAERA_RUNTIME=1
     )
+    
+    # Create namespace alias for external consumption
+    add_library(${ARG_NAMESPACE}::${ARG_CHIMOD_NAME}_client ALIAS ${CLIENT_TARGET_NAME})
     
     # Set global property for referencing this target
     set_property(GLOBAL PROPERTY ${ARG_CHIMOD_NAME}_CLIENT_TARGET ${CLIENT_TARGET_NAME})
@@ -174,10 +182,37 @@ function(install_chimod)
   endif()
   
   if(TARGETS_TO_INSTALL)
+    # Use the package name format that CMake expects for automatic config generation
+    set(MODULE_PACKAGE_NAME "${ARG_NAMESPACE}-${ARG_CHIMOD_NAME}")
+    set(MODULE_EXPORT_NAME "${MODULE_PACKAGE_NAME}")
+    
+    # Install targets with module-specific export set
     install(TARGETS ${TARGETS_TO_INSTALL}
-      LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-      ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+      EXPORT ${MODULE_EXPORT_NAME}
+      LIBRARY DESTINATION lib
+      ARCHIVE DESTINATION lib
       RUNTIME DESTINATION bin
+      INCLUDES DESTINATION include
     )
+    
+    # Install headers if they exist
+    set(CHIMOD_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
+    if(EXISTS "${CHIMOD_INCLUDE_DIR}")
+      install(DIRECTORY "${CHIMOD_INCLUDE_DIR}/"
+        DESTINATION include
+        FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp"
+      )
+    endif()
+    
+    # Export targets file - CMake will automatically generate config files
+    install(EXPORT ${MODULE_EXPORT_NAME}
+      FILE ${MODULE_EXPORT_NAME}.cmake
+      NAMESPACE ${ARG_NAMESPACE}::
+      DESTINATION cmake/${MODULE_PACKAGE_NAME}
+    )
+    
+    message(STATUS "Created module package: ${ARG_NAMESPACE}::${ARG_CHIMOD_NAME}")
+    message(STATUS "  Export set: ${MODULE_EXPORT_NAME}")
+    message(STATUS "  Config location: cmake/${MODULE_PACKAGE_NAME}")
   endif()
 endfunction()

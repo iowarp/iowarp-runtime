@@ -48,6 +48,12 @@ set(SEGFAULT_DEBUG_TEST_SOURCES
   test_segfault_debug.cc
 )
 
+# CoMutex test executable (test for CoMutex and CoRwLock synchronization primitives)
+set(COMUTEX_TEST_TARGET chimaera_comutex_tests)
+set(COMUTEX_TEST_SOURCES
+  test_comutex.cc
+)
+
 
 # Create task archive test executable
 add_executable(${TASK_ARCHIVE_TEST_TARGET} ${TASK_ARCHIVE_TEST_SOURCES})
@@ -241,6 +247,45 @@ set_target_properties(${SEGFAULT_DEBUG_TEST_TARGET} PROPERTIES
 
 # Copy segfault debug test executable to bin directory
 set_target_properties(${SEGFAULT_DEBUG_TEST_TARGET} PROPERTIES
+  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)
+
+# Create CoMutex test executable
+add_executable(${COMUTEX_TEST_TARGET} ${COMUTEX_TEST_SOURCES})
+
+# Include directories for CoMutex tests
+target_include_directories(${COMUTEX_TEST_TARGET} PRIVATE
+  ${CMAKE_SOURCE_DIR}/include
+  ${CMAKE_SOURCE_DIR}/test  # For simple_test.h
+  ${CMAKE_SOURCE_DIR}/chimods/admin/include  # For admin tasks
+  ${CMAKE_SOURCE_DIR}/chimods/MOD_NAME/include  # For MOD_NAME tasks and client
+  ${HermesShm_INCLUDE_DIRS}
+)
+
+# Link against required libraries for CoMutex tests
+target_link_libraries(${COMUTEX_TEST_TARGET}
+  chimaera                        # Main Chimaera library
+  chimaera_admin_runtime          # Admin module runtime
+  chimaera_admin_client           # Admin module client
+  chimaera_MOD_NAME_runtime       # MOD_NAME module runtime for CoMutex/CoRwLock
+  chimaera_MOD_NAME_client        # MOD_NAME module client
+  ${HermesShm_LIBRARIES}          # HSHM libraries
+  ${CMAKE_THREAD_LIBS_INIT}       # Threading support
+)
+
+# Set C++ standard for CoMutex tests
+set_target_properties(${COMUTEX_TEST_TARGET} PROPERTIES
+  CXX_STANDARD 17
+  CXX_STANDARD_REQUIRED ON
+)
+
+# Compiler flags for CoMutex tests
+target_compile_definitions(${COMUTEX_TEST_TARGET} PRIVATE
+  CHIMAERA_RUNTIME=1  # Enable runtime-specific code paths in headers
+)
+
+# Copy CoMutex test executable to bin directory
+set_target_properties(${COMUTEX_TEST_TARGET} PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
 )
 
@@ -473,6 +518,74 @@ if(CHIMAERA_ENABLE_TESTS)
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
   )
 
+  # CoMutex Tests
+  add_test(
+    NAME comutex_basic_tests
+    COMMAND ${COMUTEX_TEST_TARGET} "[comutex][basic]"
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  )
+  
+  add_test(
+    NAME comutex_concurrent_tests
+    COMMAND ${COMUTEX_TEST_TARGET} "[comutex][concurrent]"
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  )
+  
+  add_test(
+    NAME corwlock_basic_tests
+    COMMAND ${COMUTEX_TEST_TARGET} "[corwlock][basic]"
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  )
+  
+  add_test(
+    NAME corwlock_readers_tests
+    COMMAND ${COMUTEX_TEST_TARGET} "[corwlock][readers]"
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  )
+  
+  add_test(
+    NAME corwlock_writers_tests
+    COMMAND ${COMUTEX_TEST_TARGET} "[corwlock][writers]"
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  )
+  
+  add_test(
+    NAME corwlock_interaction_tests
+    COMMAND ${COMUTEX_TEST_TARGET} "[corwlock][interaction]"
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  )
+  
+  add_test(
+    NAME tasknode_grouping_tests
+    COMMAND ${COMUTEX_TEST_TARGET} "[tasknode][grouping]"
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  )
+  
+  add_test(
+    NAME comutex_error_tests
+    COMMAND ${COMUTEX_TEST_TARGET} "[comutex][error],[corwlock][error]"
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  )
+  
+  add_test(
+    NAME comutex_performance_tests
+    COMMAND ${COMUTEX_TEST_TARGET} "[comutex][performance],[corwlock][performance]"
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  )
+  
+  add_test(
+    NAME comutex_integration_tests
+    COMMAND ${COMUTEX_TEST_TARGET} "[integration]"
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  )
+  
+  # Comprehensive CoMutex test
+  add_test(
+    NAME all_comutex_tests
+    COMMAND ${COMUTEX_TEST_TARGET}
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  )
+
   # Add a comprehensive test that runs all tests
   add_test(
     NAME all_chimaera_tests
@@ -513,9 +626,20 @@ if(CHIMAERA_ENABLE_TESTS)
     bdev_error_handling_tests
     bdev_cleanup_tests
     all_bdev_tests
+    comutex_basic_tests
+    comutex_concurrent_tests
+    corwlock_basic_tests
+    corwlock_readers_tests
+    corwlock_writers_tests
+    corwlock_interaction_tests
+    tasknode_grouping_tests
+    comutex_error_tests
+    comutex_performance_tests
+    comutex_integration_tests
+    all_comutex_tests
     all_chimaera_tests
     PROPERTIES
-      TIMEOUT 120  # 120 second timeout for each test (increased for I/O tests)
+      TIMEOUT 180  # 180 second timeout for each test (increased for synchronization tests)
       ENVIRONMENT "CHIMAERA_TEST_MODE=1"
   )
 endif()
@@ -665,6 +789,42 @@ add_custom_target(test_bdev_error
   COMMENT "Running Chimaera bdev error handling tests"
 )
 
+# Custom targets for CoMutex tests
+add_custom_target(test_comutex
+  COMMAND ${COMUTEX_TEST_TARGET}
+  DEPENDS ${COMUTEX_TEST_TARGET}
+  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  COMMENT "Running Chimaera CoMutex and CoRwLock tests"
+)
+
+add_custom_target(test_comutex_basic
+  COMMAND ${COMUTEX_TEST_TARGET} "[comutex][basic]"
+  DEPENDS ${COMUTEX_TEST_TARGET}
+  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  COMMENT "Running Chimaera CoMutex basic tests"
+)
+
+add_custom_target(test_corwlock_basic
+  COMMAND ${COMUTEX_TEST_TARGET} "[corwlock][basic]"
+  DEPENDS ${COMUTEX_TEST_TARGET}
+  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  COMMENT "Running Chimaera CoRwLock basic tests"
+)
+
+add_custom_target(test_comutex_concurrent
+  COMMAND ${COMUTEX_TEST_TARGET} "[comutex][concurrent],[corwlock][readers],[corwlock][writers]"
+  DEPENDS ${COMUTEX_TEST_TARGET}
+  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  COMMENT "Running Chimaera concurrency tests"
+)
+
+add_custom_target(test_comutex_performance
+  COMMAND ${COMUTEX_TEST_TARGET} "[comutex][performance],[corwlock][performance]"
+  DEPENDS ${COMUTEX_TEST_TARGET}
+  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  COMMENT "Running Chimaera synchronization performance tests"
+)
+
 # Custom target to run all unit tests
 add_custom_target(test_all_unit
   COMMAND ${TEST_TARGET}
@@ -674,7 +834,7 @@ add_custom_target(test_all_unit
 )
 
 # Install test executables (optional)
-install(TARGETS ${TEST_TARGET} ${TASK_ARCHIVE_TEST_TARGET} ${FLUSH_TEST_TARGET} ${BDEV_TEST_TARGET} ${FIBER_TEST_TARGET} ${WORKER_FIBER_TEST_TARGET} ${SEGFAULT_DEBUG_TEST_TARGET}
+install(TARGETS ${TEST_TARGET} ${TASK_ARCHIVE_TEST_TARGET} ${FLUSH_TEST_TARGET} ${BDEV_TEST_TARGET} ${FIBER_TEST_TARGET} ${WORKER_FIBER_TEST_TARGET} ${SEGFAULT_DEBUG_TEST_TARGET} ${COMUTEX_TEST_TARGET}
   RUNTIME DESTINATION bin
 )
 
@@ -688,5 +848,7 @@ message(STATUS "  Flush test target: ${FLUSH_TEST_TARGET}")
 message(STATUS "  Flush test sources: ${FLUSH_TEST_SOURCES}")
 message(STATUS "  Bdev test target: ${BDEV_TEST_TARGET}")
 message(STATUS "  Bdev test sources: ${BDEV_TEST_SOURCES}")
+message(STATUS "  CoMutex test target: ${COMUTEX_TEST_TARGET}")
+message(STATUS "  CoMutex test sources: ${COMUTEX_TEST_SOURCES}")
 message(STATUS "  CTest enabled: ${CHIMAERA_ENABLE_TESTS}")
 message(STATUS "  Output directory: ${CMAKE_BINARY_DIR}/bin")

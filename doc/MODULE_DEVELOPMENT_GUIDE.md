@@ -36,11 +36,12 @@ ChiMod/
 │       ├── MOD_NAME_runtime.h    # Runtime container
 │       ├── MOD_NAME_tasks.h      # Task definitions
 │       └── autogen/
-│           ├── MOD_NAME_methods.h    # Method enums
-│           └── MOD_NAME_lib_exec.h   # Library exports
+│           └── MOD_NAME_methods.h    # Method constants
 ├── src/
 │   ├── MOD_NAME_client.cc        # Client implementation
-│   └── MOD_NAME_runtime.cc       # Runtime implementation
+│   ├── MOD_NAME_runtime.cc       # Runtime implementation
+│   └── autogen/
+│       └── MOD_NAME_lib_exec.cc  # Auto-generated virtual method implementations
 ├── chimaera_mod.yaml              # Module configuration
 └── CMakeLists.txt                 # Build configuration
 ```
@@ -88,10 +89,11 @@ class ExampleClass {
 
 ### Task Definition (MOD_NAME_tasks.h)
 
-Every task must include:
-1. **SHM Constructor**: For deserialization from shared memory
-2. **Emplace Constructor**: For creating new tasks with parameters
-3. **Data Members**: Using HSHM serializable types
+Task definition patterns:
+
+1. **CreateParams Structure**: Define configuration parameters for container creation
+2. **CreateTask Template**: Use GetOrCreatePoolTask template for container creation (non-admin modules)
+3. **Custom Tasks**: Define custom tasks with SHM/Emplace constructors and HSHM data members
 
 ```cpp
 #ifndef MOD_NAME_TASKS_H_
@@ -99,39 +101,55 @@ Every task must include:
 
 #include <chimaera/chimaera.h>
 #include "autogen/MOD_NAME_methods.h"
+// Include admin tasks for GetOrCreatePoolTask
+#include <admin/admin_tasks.h>
 
 namespace chimaera::MOD_NAME {
 
 /**
- * Task for Method::kCreate
- * Initializes the container
+ * CreateParams for MOD_NAME chimod
+ * Contains configuration parameters for MOD_NAME container creation
  */
-struct CreateTask : public chi::Task {
-  // Required: SHM default constructor
-  explicit CreateTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc)
-      : chi::Task(alloc) {}
-
-  // Required: Emplace constructor with parameters
-  explicit CreateTask(
-      const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
-      const chi::TaskNode &task_node,
-      const chi::PoolId &pool_id,
-      const chi::DomainQuery &dom_query)
-      : chi::Task(alloc, task_node, pool_id, dom_query, 0) {
-    task_node_ = task_node;
-    pool_id_ = pool_id;
-    method_ = Method::kCreate;
-    task_flags_.Clear();
-    dom_query_ = dom_query;
+struct CreateParams {
+  // MOD_NAME-specific parameters
+  std::string config_data_;
+  chi::u32 worker_count_;
+  
+  // Required: chimod library name for module manager
+  static constexpr const char* chimod_lib_name = "chimaera_MOD_NAME";
+  
+  // Default constructor
+  CreateParams() : worker_count_(1) {}
+  
+  // Constructor with allocator and parameters
+  CreateParams(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc, 
+               const std::string& config_data = "", 
+               chi::u32 worker_count = 1)
+      : config_data_(config_data), worker_count_(worker_count) {
+    // MOD_NAME parameters use standard types, so allocator isn't needed directly
+    // but it's available for future use with HSHM containers
+  }
+  
+  // Serialization support for cereal
+  template<class Archive>
+  void serialize(Archive& ar) {
+    ar(config_data_, worker_count_);
   }
 };
+
+/**
+ * CreateTask - Initialize the MOD_NAME container
+ * Type alias for GetOrCreatePoolTask with CreateParams (uses kGetOrCreatePool method)
+ * Non-admin modules should use GetOrCreatePoolTask instead of BaseCreateTask
+ */
+using CreateTask = chimaera::admin::GetOrCreatePoolTask<CreateParams>;
 
 /**
  * Custom operation task
  */
 struct CustomTask : public chi::Task {
   // Task-specific data using HSHM macros
-  INOUT hipc::string data_;      // Input/output string
+  INOUT chi::string data_;      // Input/output string
   IN chi::u32 operation_id_;     // Input parameter
   OUT chi::u32 result_code_;     // Output result
 
@@ -147,10 +165,10 @@ struct CustomTask : public chi::Task {
       const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
       const chi::TaskNode &task_node,
       const chi::PoolId &pool_id,
-      const chi::DomainQuery &dom_query,
+      const chi::DomainQuery &pool_query,
       const std::string &data,
       chi::u32 operation_id)
-      : chi::Task(alloc, task_node, pool_id, dom_query, 10),
+      : chi::Task(alloc, task_node, pool_id, pool_query, 10),
         data_(alloc, data),
         operation_id_(operation_id),
         result_code_(0) {
@@ -158,7 +176,7 @@ struct CustomTask : public chi::Task {
     pool_id_ = pool_id;
     method_ = Method::kCustom;
     task_flags_.Clear();
-    dom_query_ = dom_query;
+    pool_query_ = pool_query;
   }
 };
 
@@ -189,10 +207,11 @@ class Client : public chi::ChiContainerClient {
    * Synchronous operation - waits for completion
    */
   void Create(const hipc::MemContext& mctx, 
-              const chi::DomainQuery& dom_query) {
-    auto task = AsyncCreate(mctx, dom_query);
+              const chi::PoolQuery& pool_query,
+              const CreateParams& params = CreateParams()) {
+    auto task = AsyncCreate(mctx, pool_query, params);
     task->Wait();
-    CHI_IPC->DelTask(task, chi::kMainSegment);
+    CHI_IPC->DelTask(task);
   }
 
   /**
@@ -200,16 +219,18 @@ class Client : public chi::ChiContainerClient {
    */
   hipc::FullPtr<CreateTask> AsyncCreate(
       const hipc::MemContext& mctx,
-      const chi::DomainQuery& dom_query) {
+      const chi::PoolQuery& pool_query,
+      const CreateParams& params = CreateParams()) {
     auto* ipc_manager = CHI_IPC;
     
-    // Allocate task in shared memory
+    // CRITICAL: CreateTask MUST use admin pool for GetOrCreatePool processing
     auto task = ipc_manager->NewTask<CreateTask>(
-        chi::kMainSegment,
-        HSHM_MCTX,
-        chi::TaskNode(0),
-        pool_id_,
-        dom_query);
+        chi::CreateTaskNode(),
+        chi::kAdminPoolId,  // Always use admin pool for CreateTask
+        pool_query,
+        "chimaera_MOD_NAME",    // ChiMod name
+        pool_name_,             // Pool name from base client
+        params);                // CreateParams with configuration
     
     // Submit to runtime
     ipc_manager->Enqueue(task);
@@ -241,16 +262,25 @@ class Container : public chi::Container {
   ~Container() override = default;
 
   /**
+   * Initialize client for this container (REQUIRED)
+   */
+  void InitClient(const chi::PoolId& pool_id) {
+    // Initialize the client for this ChiMod
+    client_ = Client(pool_id);
+  }
+
+  /**
    * Create the container (Method::kCreate)
    * This method both creates and initializes the container
    */
   void Create(hipc::FullPtr<CreateTask> task, chi::RunContext& ctx) {
     // Initialize the container with pool information and domain query
-    chi::Container::Init(task->pool_id_, task->dom_query_);
+    chi::Container::Init(task->pool_id_, task->pool_query_);
     
-    // Create local queues for different priorities
-    CreateLocalQueue(chi::kLowLatency, 4);   // 4 lanes for low latency tasks
-    CreateLocalQueue(chi::kHighLatency, 2);  // 2 lanes for high latency tasks
+    // Create local queues with semantic names, lane counts, and priorities
+    CreateLocalQueue(kMetadataQueue, 1, chi::kHighLatency);      // 1 lane for metadata operations
+    CreateLocalQueue(kProcessingQueue, 4, chi::kLowLatency);     // 4 lanes for low latency tasks
+    CreateLocalQueue(kBatchQueue, 2, chi::kHighLatency);         // 2 lanes for batch processing
     
     // Additional container-specific initialization logic here
     std::cout << "Container created and initialized for pool: " << pool_name_
@@ -264,9 +294,10 @@ class Container : public chi::Container {
                      chi::RunContext& ctx) {
     switch (mode) {
       case chi::MonitorModeId::kLocalSchedule: {
-        // REQUIRED: Route task to local queue
-        if (auto* lane = GetLane(chi::kLowLatency, 0)) {
-          lane->Enqueue(task.shm_);
+        // CORRECT: Set route_lane_ to indicate where task should be routed
+        auto lane_ptr = GetLaneFullPtr(kMetadataQueue, 0);
+        if (!lane_ptr.IsNull()) {
+          ctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
         }
         break;
       }
@@ -274,8 +305,9 @@ class Container : public chi::Container {
         // Optional: Global coordination
         break;
       }
-      case chi::MonitorModeId::kCleanup: {
-        // Optional: Cleanup - framework handles most cleanup automatically
+      case chi::MonitorModeId::kEstLoad: {
+        // Estimate task execution time
+        ctx.estimated_completion_time_us = 1000.0;  // 1ms for container creation
         break;
       }
     }
@@ -299,22 +331,30 @@ class Container : public chi::Container {
   void MonitorCustom(chi::MonitorModeId mode, hipc::FullPtr<CustomTask> task,
                     chi::RunContext& ctx) {
     switch (mode) {
-      case chi::MonitorModeId::kLocalSchedule:
-        // Route task to appropriate lane based on operation type
-        if (auto* lane = GetLaneByHash(chi::kLowLatency, task->operation_id_)) {
-          lane->Enqueue(task.shm_);
+      case chi::MonitorModeId::kLocalSchedule: {
+        // CORRECT: Set route_lane_ based on task properties for load balancing
+        auto lane_ptr = GetLaneFullPtrByHash(kProcessingQueue, task->operation_id_);
+        if (!lane_ptr.IsNull()) {
+          ctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
         }
         break;
+      }
       case chi::MonitorModeId::kGlobalSchedule:
         // Global coordination logic
         break;
-      case chi::MonitorModeId::kCleanup:
-        // Cleanup logic
+      case chi::MonitorModeId::kEstLoad:
+        // Estimate execution time based on operation complexity
+        ctx.estimated_completion_time_us = task->operation_id_ * 100.0;  // Example calculation
         break;
     }
   }
 
  private:
+  // Queue ID constants (REQUIRED: Use semantic names, not raw integers)
+  static const chi::QueueId kMetadataQueue = 0;
+  static const chi::QueueId kProcessingQueue = 1;
+  static const chi::QueueId kBatchQueue = 2;
+
   std::string processData(const std::string& input, u32 op_id) {
     // Business logic here
     return input + "_processed";
@@ -334,7 +374,7 @@ CHI_TASK_CC(chimaera::MOD_NAME::Container)
 ### Task Requirements
 1. **Inherit from chi::Task**: All tasks must inherit the base Task class
 2. **Two Constructors**: SHM and emplace constructors are mandatory
-3. **Serializable Types**: Use HSHM types (hipc::string, hipc::vector, etc.)
+3. **Serializable Types**: Use HSHM types (chi::string, chi::vector, etc.) for member variables
 4. **Method Assignment**: Set the method_ field to identify the operation
 5. **FullPtr Usage**: All task method signatures use `hipc::FullPtr<TaskType>` instead of raw pointers
 6. **Monitor Methods**: Every task type MUST have a Monitor method that implements `kLocalSchedule`
@@ -400,7 +440,7 @@ struct CreateParams {
   chi::u32 worker_count_;
   
   // Required: chimod library name
-  static constexpr const char* chimod_lib_name = "chimaera_MOD_NAME_runtime";
+  static constexpr const char* chimod_lib_name = "chimaera_MOD_NAME";
   
   // Constructors
   CreateParams() : worker_count_(1) {}
@@ -479,15 +519,15 @@ BaseCreateTask provides a unified structure for container creation and pool oper
 template <typename CreateParamsT, chi::u32 MethodId, bool IS_ADMIN>
 struct BaseCreateTask : public chi::Task {
   // Pool operation parameters
-  INOUT hipc::string chimod_name_;     // ChiMod name for loading
-  IN hipc::string pool_name_;          // Target pool name
-  INOUT hipc::string chimod_params_;   // Serialized CreateParamsT
+  INOUT chi::string chimod_name_;     // ChiMod name for loading
+  IN chi::string pool_name_;          // Target pool name
+  INOUT chi::string chimod_params_;   // Serialized CreateParamsT
   IN chi::u32 domain_flags_;           // Domain configuration flags
   INOUT chi::PoolId pool_id_;          // Input: requested ID, Output: actual ID
   
   // Results
   OUT chi::u32 result_code_;           // 0 = success, non-zero = error
-  OUT hipc::string error_message_;     // Error description if failed
+  OUT chi::string error_message_;     // Error description if failed
   
   // Runtime flag set by template parameter
   volatile bool is_admin_;             // Set to IS_ADMIN template value
@@ -538,8 +578,8 @@ struct CreateTask : public chi::Task {
   explicit CreateTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
                       const chi::TaskNode &task_node,
                       const chi::PoolId &pool_id,
-                      const chi::DomainQuery &dom_query)
-      : chi::Task(alloc, task_node, pool_id, dom_query, 0) {
+                      const chi::DomainQuery &pool_query)
+      : chi::Task(alloc, task_node, pool_id, pool_query, 0) {
     method_ = Method::kCreate;  // Static casting required
     // ... initialization code ...
   }
@@ -550,7 +590,7 @@ struct CreateTask : public chi::Task {
 ```cpp
 // Create params structure
 struct CreateParams {
-  static constexpr const char* chimod_lib_name = "chimaera_mymodule_runtime";
+  static constexpr const char* chimod_lib_name = "chimaera_mymodule";
   // ... other params ...
   template<class Archive> void serialize(Archive& ar) { /* ... */ }
 };
@@ -633,10 +673,10 @@ hipc::Pointer task_ptr = ipc_manager->Dequeue(chi::kLowLatency);
 hipc::CtxAllocator<CHI_MAIN_ALLOC_T> ctx_alloc(HSHM_MCTX, allocator);
 
 // Allocate serializable string
-hipc::string my_string(ctx_alloc, "initial value");
+chi::string my_string(ctx_alloc, "initial value");
 
 // Allocate vector
-hipc::vector<u32> my_vector(ctx_alloc);
+chi::vector<u32> my_vector(ctx_alloc);
 my_vector.resize(100);
 ```
 
@@ -654,7 +694,7 @@ auto task = ipc_manager->NewTask<CustomTask>(
     HSHM_MCTX,
     chi::TaskNode(0),
     pool_id_,
-    dom_query,
+    pool_query,
     input_data,
     operation_id);
 
@@ -858,6 +898,8 @@ This macro automatically generates all required extern "C" functions and gets th
 1. Your runtime class must define a public typedef: `using CreateParams = your_namespace::CreateParams;`
 2. Your CreateParams struct must have: `static constexpr const char* chimod_lib_name = "your_module_name";`
 
+**IMPORTANT:** The `chimod_lib_name` should **NOT** include the `_runtime` suffix. The module manager automatically appends `_runtime` when loading the library. For example, use `"chimaera_mymodule"` not `"chimaera_mymodule_runtime"`.
+
 Example:
 ```cpp
 namespace chimaera::your_module {
@@ -876,6 +918,198 @@ public:
 }  // namespace chimaera::your_module
 ```
 - `is_chimaera_chimod_` - Module identification flag
+
+## Auto-Generated Code Pattern
+
+### Overview
+
+ChiMods use auto-generated source files to implement the Container virtual APIs (Run, Monitor, Del, SaveIn, LoadIn, SaveOut, LoadOut, NewCopy). This approach provides consistent dispatch logic and reduces boilerplate code.
+
+### New Pattern: Auto-Generated Source Files
+
+Instead of using inline functions in headers, ChiMods now use auto-generated `.cc` source files that implement the virtual methods directly. This pattern:
+
+- **Eliminates inline dispatchers**: Virtual methods are implemented directly in auto-generated source
+- **Reduces header dependencies**: No need to include autogen headers in runtime files
+- **Improves compilation**: Source files compile once, not in every including file
+- **Maintains consistency**: All ChiMods use the same dispatch pattern
+
+### File Structure
+
+```
+src/
+└── autogen/
+    └── MOD_NAME_lib_exec.cc    # Auto-generated virtual method implementations
+```
+
+The auto-generated source file contains:
+- Container virtual method implementations (Run, Monitor, Del, etc.)
+- Switch-case dispatch based on method IDs
+- Proper task type casting and method invocation
+- IPC manager integration for task lifecycle management
+
+### Auto-Generated Source Template
+
+```cpp
+/**
+ * Auto-generated execution implementation for MOD_NAME ChiMod
+ * Implements Container virtual APIs directly using switch-case dispatch
+ * 
+ * This file is autogenerated - do not edit manually.
+ * Changes should be made to the autogen tool or the YAML configuration.
+ */
+
+#include "MOD_NAME/MOD_NAME_runtime.h"
+#include "MOD_NAME/autogen/MOD_NAME_methods.h"
+#include <chimaera/chimaera.h>
+
+namespace chimaera::MOD_NAME {
+
+//==============================================================================
+// Runtime Virtual API Implementations
+//==============================================================================
+
+void Runtime::Run(chi::u32 method, hipc::FullPtr<chi::Task> task_ptr, chi::RunContext& rctx) {
+  switch (method) {
+    case Method::kCreate: {
+      Create(task_ptr.Cast<CreateTask>(), rctx);
+      break;
+    }
+    case Method::kDestroy: {
+      Destroy(task_ptr.Cast<DestroyTask>(), rctx);
+      break;
+    }
+    case Method::kCustom: {
+      Custom(task_ptr.Cast<CustomTask>(), rctx);
+      break;
+    }
+    default: {
+      // Unknown method - do nothing
+      break;
+    }
+  }
+}
+
+void Runtime::Monitor(chi::MonitorModeId mode, chi::u32 method, 
+                       hipc::FullPtr<chi::Task> task_ptr, chi::RunContext& rctx) {
+  switch (method) {
+    case Method::kCreate: {
+      MonitorCreate(mode, task_ptr.Cast<CreateTask>(), rctx);
+      break;
+    }
+    case Method::kDestroy: {
+      MonitorDestroy(mode, task_ptr.Cast<DestroyTask>(), rctx);
+      break;
+    }
+    case Method::kCustom: {
+      MonitorCustom(mode, task_ptr.Cast<CustomTask>(), rctx);
+      break;
+    }
+    default: {
+      // Unknown method - do nothing
+      break;
+    }
+  }
+}
+
+void Runtime::Del(chi::u32 method, hipc::FullPtr<chi::Task> task_ptr) {
+  // Use IPC manager to deallocate task from shared memory
+  auto* ipc_manager = CHI_IPC;
+  
+  switch (method) {
+    case Method::kCreate: {
+      ipc_manager->DelTask(task_ptr.Cast<CreateTask>());
+      break;
+    }
+    case Method::kDestroy: {
+      ipc_manager->DelTask(task_ptr.Cast<DestroyTask>());
+      break;
+    }
+    case Method::kCustom: {
+      ipc_manager->DelTask(task_ptr.Cast<CustomTask>());
+      break;
+    }
+    default: {
+      // For unknown methods, still try to delete from main segment
+      ipc_manager->DelTask(task_ptr);
+      break;
+    }
+  }
+}
+
+// SaveIn, LoadIn, SaveOut, LoadOut, and NewCopy follow similar patterns...
+
+} // namespace chimaera::MOD_NAME
+```
+
+### Runtime Implementation Changes
+
+With the new autogen pattern, runtime source files (`MOD_NAME_runtime.cc`) no longer include autogen headers or implement dispatcher methods:
+
+#### Before (Old Pattern):
+```cpp
+// No autogen header includes needed with new pattern
+
+void Runtime::Run(chi::u32 method, hipc::FullPtr<chi::Task> task_ptr, chi::RunContext& rctx) {
+  // Dispatch to the appropriate method handler
+  chimaera::MOD_NAME::Run(this, method, task_ptr, rctx);
+}
+
+void Runtime::Monitor(chi::MonitorModeId mode, chi::u32 method, 
+                     hipc::FullPtr<chi::Task> task_ptr, chi::RunContext& rctx) {
+  // Dispatch to the appropriate monitor handler
+  chimaera::MOD_NAME::Monitor(this, mode, method, task_ptr, rctx);
+}
+
+// Similar dispatcher implementations for Del, SaveIn, LoadIn, SaveOut, LoadOut, NewCopy...
+```
+
+#### After (New Pattern):
+```cpp
+// No autogen header includes needed
+// No dispatcher method implementations needed
+
+// Virtual method implementations are now in src/autogen/MOD_NAME_lib_exec.cc
+// Runtime source focuses only on business logic methods like Create(), Custom(), etc.
+```
+
+### CMake Integration
+
+The auto-generated source file must be included in the `RUNTIME_SOURCES`:
+
+```cmake
+add_chimod_both(
+  CHIMOD_NAME MOD_NAME
+  RUNTIME_SOURCES src/MOD_NAME_runtime.cc src/autogen/MOD_NAME_lib_exec.cc
+  CLIENT_SOURCES src/MOD_NAME_client.cc
+)
+```
+
+### Benefits of the New Pattern
+
+1. **Cleaner Runtime Code**: Runtime implementations focus on business logic, not dispatching
+2. **Better Compilation**: Source files compile once instead of being inlined in every header include
+3. **Consistent Pattern**: All ChiMods use identical dispatch logic
+4. **Header Simplification**: No need to include complex autogen headers
+5. **Better IDE Support**: Proper source files work better with IDEs than inline templates
+
+### Migration Guide
+
+To migrate from the old inline header pattern to the new source pattern:
+
+1. **Create autogen source directory**: `mkdir -p src/autogen/`
+2. **Generate new autogen source**: Create `src/autogen/MOD_NAME_lib_exec.cc` with virtual method implementations
+3. **Remove autogen header includes**: Delete `#include "autogen/MOD_NAME_lib_exec.h"` from runtime source (replaced by .cc files)
+4. **Remove dispatcher methods**: Delete all virtual method implementations from runtime source (Run, Monitor, Del, etc.)
+5. **Update CMakeLists.txt**: Add autogen source to `RUNTIME_SOURCES`
+6. **Keep business logic**: Retain the actual task processing methods (Create, Custom, etc.)
+
+### Important Notes
+
+- **Auto-generated files**: These files should be generated by tools, not hand-written
+- **Do not edit**: Manual changes to autogen files will be lost when regenerated
+- **Template consistency**: All ChiMods should follow the same autogen template pattern
+- **Build integration**: Autogen source files must be included in CMake build
 
 ## Example Module
 
@@ -937,7 +1171,7 @@ CHI_TASK_CC(chimaera::MOD_NAME::Runtime)
 ```cpp
 void Create(hipc::FullPtr<CreateTask> task, chi::RunContext& ctx) {
   // Initialize the container with data from the task
-  chi::Container::Init(task->pool_id_, task->dom_query_);
+  chi::Container::Init(task->pool_id_, task->pool_query_);
   
   // Set up queues and resources
   CreateLocalQueue(chi::kLowLatency, 4);
@@ -1119,6 +1353,62 @@ Runtime containers support various monitoring modes:
 
 **IMPORTANT**: All monitor methods MUST implement `kLocalSchedule` mode. This mode is responsible for routing tasks to the appropriate local queue lanes for execution. Failure to implement this will result in tasks not being processed.
 
+### CRITICAL: Correct Lane Routing vs Direct Enqueuing
+
+**NEVER directly enqueue tasks in Monitor methods**. The work orchestrator handles actual task enqueuing.
+
+#### ❌ INCORRECT Pattern (Direct Enqueuing):
+```cpp
+// DON'T DO THIS - bypasses work orchestrator
+case chi::MonitorModeId::kLocalSchedule:
+  if (auto* lane = GetLane(chi::kLowLatency, 0)) {
+    lane->Enqueue(task_ptr.shm_);  // WRONG - direct enqueuing
+  }
+  break;
+```
+
+#### ✅ CORRECT Pattern (Route Lane Setting):
+```cpp
+// DO THIS - let work orchestrator handle enqueuing
+case chi::MonitorModeId::kLocalSchedule:
+  // Set route_lane_ to indicate where task should be routed
+  {
+    auto lane_ptr = GetLaneFullPtr(kProcessingQueue, 0);
+    if (!lane_ptr.IsNull()) {
+      rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
+    }
+  }
+  break;
+```
+
+**Why this matters**:
+- Work orchestrator manages task lifecycle and scheduling policies
+- Direct enqueuing bypasses load balancing and monitoring
+- `route_lane_` pointer tells the orchestrator where to place the task
+- Framework handles actual enqueuing after monitor returns
+- Proper routing enables task migration, load balancing, and debugging
+
+### CreateLocalQueue Parameters
+
+The `CreateLocalQueue` method requires three parameters:
+
+```cpp
+void CreateLocalQueue(QueueId queue_id, u32 num_lanes, QueuePriority priority);
+```
+
+**Parameters:**
+- `queue_id`: Semantic constant (e.g., `kMetadataQueue`, never raw integers)
+- `num_lanes`: Number of concurrent processing lanes for this queue
+- `priority`: Either `chi::kLowLatency` or `chi::kHighLatency`
+
+**Example Usage:**
+```cpp
+// Create queues with different characteristics
+CreateLocalQueue(kMetadataQueue, 1, chi::kHighLatency);    // Single lane for sequential metadata
+CreateLocalQueue(kProcessingQueue, 4, chi::kLowLatency);   // 4 lanes for parallel low-latency work
+CreateLocalQueue(kBatchQueue, 2, chi::kHighLatency);       // 2 lanes for batch processing
+```
+
 ## Task Monitoring Requirements
 
 ### Mandatory kLocalSchedule Implementation
@@ -1129,19 +1419,21 @@ void MonitorCustom(chi::MonitorModeId mode,
                   hipc::FullPtr<CustomTask> task_ptr,
                   chi::RunContext& rctx) {
   switch (mode) {
-    case chi::MonitorModeId::kLocalSchedule:
-      // REQUIRED: Route task to appropriate lane
-      if (auto* lane = GetLaneByHash(chi::kLowLatency, task_ptr->operation_id_)) {
-        lane->Enqueue(task_ptr.shm_);
+    case chi::MonitorModeId::kLocalSchedule: {
+      // CORRECT: Set route_lane_ for work orchestrator
+      auto lane_ptr = GetLaneFullPtrByHash(kProcessingQueue, task_ptr->operation_id_);
+      if (!lane_ptr.IsNull()) {
+        rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
       }
       break;
-      
+    }
     case chi::MonitorModeId::kGlobalSchedule:
       // Optional: Global coordination logic
       break;
       
-    case chi::MonitorModeId::kCleanup:
-      // Optional: Cleanup logic
+    case chi::MonitorModeId::kEstLoad:
+      // Estimate execution time
+      rctx.estimated_completion_time_us = task_ptr->operation_id_ * 100.0;
       break;
   }
 }
@@ -1153,26 +1445,35 @@ When implementing `kLocalSchedule`, choose the appropriate lane selection strate
 1. **Fixed Lane Assignment**:
 ```cpp
 // Always use lane 0 for simple cases
-if (auto* lane = GetLane(chi::kLowLatency, 0)) {
-  lane->Enqueue(task_ptr.shm_);
+{
+  auto lane_ptr = GetLaneFullPtr(kProcessingQueue, 0);
+  if (!lane_ptr.IsNull()) {
+    rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
+  }
 }
 ```
 
 2. **Hash-Based Load Balancing**:
 ```cpp
 // Distribute based on task data for load balancing
-if (auto* lane = GetLaneByHash(chi::kLowLatency, task_ptr->operation_id_)) {
-  lane->Enqueue(task_ptr.shm_);
+{
+  auto lane_ptr = GetLaneFullPtrByHash(kProcessingQueue, task_ptr->operation_id_);
+  if (!lane_ptr.IsNull()) {
+    rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
+  }
 }
 ```
 
 3. **Priority-Based Routing**:
 ```cpp
 // Route to different queues based on task properties
-QueuePriority priority = (task_ptr->operation_id_ > 1000) ? 
-                        chi::kHighLatency : chi::kLowLatency;
-if (auto* lane = GetLane(priority, 0)) {
-  lane->Enqueue(task_ptr.shm_);
+{
+  QueueId queue_id = (task_ptr->operation_id_ > 1000) ? 
+                     kBatchQueue : kProcessingQueue;
+  auto lane_ptr = GetLaneFullPtr(queue_id, 0);
+  if (!lane_ptr.IsNull()) {
+    rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
+  }
 }
 ```
 
@@ -1183,20 +1484,20 @@ void MonitorTaskType(chi::MonitorModeId mode,
                     chi::RunContext& rctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule: {
-      // STEP 1: Choose appropriate queue and lane
-      QueuePriority queue_priority = DetermineQueuePriority(task_ptr);
+      // STEP 1: Choose appropriate queue and lane based on task properties
+      QueueId queue_id = DetermineQueueId(task_ptr);
       LaneId lane_id = DetermineLaneId(task_ptr);
       
-      // STEP 2: Get the lane
-      auto* lane = GetLane(queue_priority, lane_id);
-      if (!lane) {
+      // STEP 2: Get the lane using FullPtr
+      auto lane_ptr = GetLaneFullPtr(queue_id, lane_id);
+      if (lane_ptr.IsNull()) {
         // Fallback to default lane
-        lane = GetLane(chi::kLowLatency, 0);
+        lane_ptr = GetLaneFullPtr(kDefaultQueue, 0);
       }
       
-      // STEP 3: Enqueue the task
-      if (lane) {
-        lane->Enqueue(task_ptr.shm_);
+      // STEP 3: Set route_lane_ for work orchestrator
+      if (!lane_ptr.IsNull()) {
+        rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
       }
       break;
     }
@@ -1205,8 +1506,9 @@ void MonitorTaskType(chi::MonitorModeId mode,
       // Implement global coordination if needed
       break;
       
-    case chi::MonitorModeId::kCleanup:
-      // Implement cleanup if needed
+    case chi::MonitorModeId::kEstLoad:
+      // Estimate task execution time
+      rctx.estimated_completion_time_us = EstimateExecutionTime(task_ptr);
       break;
       
     default:
@@ -1224,7 +1526,7 @@ void Custom(hipc::FullPtr<CustomTask> task, chi::RunContext& ctx) {
     task->result_code_ = 0;
   } catch (const std::exception& e) {
     task->result_code_ = 1;
-    task->data_ = hipc::string(main_allocator_, e.what());
+    task->data_ = chi::string(main_allocator_, e.what());
   }
   // Framework handles task completion automatically
 }
@@ -1273,19 +1575,22 @@ When creating a new Chimaera module, ensure you have:
 - [ ] **Use BaseCreateTask with IS_ADMIN=true**: Only for admin module
 - [ ] SHM constructor with CtxAllocator parameter (if custom task)
 - [ ] Emplace constructor with all required parameters (if custom task)
-- [ ] Uses HSHM serializable types (hipc::string, hipc::vector, etc.)
+- [ ] Uses HSHM serializable types (chi::string, chi::vector, etc.)
 - [ ] Method constant assigned in constructor (e.g., `method_ = Method::kCreate;`)
 - [ ] **No static casting**: Use Method namespace constants directly
 - [ ] Include auto-generated methods file for Method constants
 
 ### Runtime Container Checklist (`_runtime.h/cc`)
 - [ ] Inherits from `chi::Container`
+- [ ] **InitClient() method implemented** - initializes client for this ChiMod
 - [ ] Create() method calls `chi::Container::Init()`
-- [ ] Create() method calls `CreateLocalQueue()` for needed priorities
+- [ ] Create() method calls `CreateLocalQueue()` with semantic queue IDs, lane counts, and priorities
+- [ ] **Queue ID constants defined** - use semantic names like `kMetadataQueue`, not raw integers
 - [ ] All task methods use `hipc::FullPtr<TaskType>` parameters
 - [ ] **CRITICAL**: Every Monitor method implements `kLocalSchedule` case
-- [ ] `kLocalSchedule` calls `GetLane()` or `GetLaneByHash()`
-- [ ] `kLocalSchedule` calls `lane->Enqueue(task_ptr.shm_)`
+- [ ] `kLocalSchedule` calls `GetLaneFullPtr()` to get lane pointer
+- [ ] `kLocalSchedule` sets `rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_)` 
+- [ ] **NEVER directly enqueue** - use route_lane_ assignment, let work orchestrator handle enqueuing
 - [ ] **NO custom Del methods needed** - framework calls `ipc_manager->DelTask()` automatically
 - [ ] Uses `CHI_TASK_CC(ClassName)` macro for entry points
 
@@ -1307,10 +1612,13 @@ When creating a new Chimaera module, ensure you have:
 
 ### Common Pitfalls to Avoid
 - [ ] ❌ Forgetting `kLocalSchedule` implementation (tasks won't execute)
+- [ ] ❌ **CRITICAL: Direct lane enqueuing** in Monitor methods (bypasses work orchestrator)
 - [ ] ❌ Using raw pointers instead of FullPtr in runtime methods
 - [ ] ❌ Not calling `chi::Container::Init()` in Create method
 - [ ] ❌ Using non-HSHM types in task data members
 - [ ] ❌ Forgetting to create local queues in Create method
+- [ ] ❌ **Using raw integers for queue IDs** (use semantic constants like `kMetadataQueue`)
+- [ ] ❌ **Forgetting InitClient() implementation** (prevents client calls within runtime)
 - [ ] ❌ Implementing custom Del methods (framework calls `ipc_manager->DelTask()` automatically)
 - [ ] ❌ Writing complex extern "C" blocks (use `CHI_TASK_CC` macro instead)
 - [ ] ❌ **Using static_cast with Method values** (use Method::kName directly)

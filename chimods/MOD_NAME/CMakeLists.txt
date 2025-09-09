@@ -7,7 +7,7 @@ cmake_minimum_required(VERSION 3.10)
 #   - chimods_MOD_NAME_client:  Client-side API for user processes (shared library)
 add_chimod_both(
   CHIMOD_NAME MOD_NAME
-  RUNTIME_SOURCES src/MOD_NAME_runtime.cc
+  RUNTIME_SOURCES src/MOD_NAME_runtime.cc src/autogen/MOD_NAME_lib_exec.cc
   CLIENT_SOURCES src/MOD_NAME_client.cc
 )
 
@@ -18,13 +18,13 @@ get_property(CLIENT_TARGET GLOBAL PROPERTY MOD_NAME_CLIENT_TARGET)
 # Add admin module headers to include path for MOD_NAME runtime and client
 if(TARGET ${RUNTIME_TARGET})
   target_include_directories(${RUNTIME_TARGET} PUBLIC
-    ${CMAKE_SOURCE_DIR}/chimods/admin/include
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/chimods/admin/include>
   )
 endif()
 
 if(TARGET ${CLIENT_TARGET})
   target_include_directories(${CLIENT_TARGET} PUBLIC
-    ${CMAKE_SOURCE_DIR}/chimods/admin/include
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/chimods/admin/include>
   )
 endif()
 

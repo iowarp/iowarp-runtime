@@ -3,6 +3,8 @@
 
 #include <chimaera/chimaera.h>
 #include <chimaera/container.h>
+#include <chimaera/comutex.h>
+#include <chimaera/corwlock.h>
 #include "MOD_NAME_tasks.h"
 #include "autogen/MOD_NAME_methods.h"
 #include "MOD_NAME_client.h"
@@ -11,6 +13,8 @@ namespace chimaera::MOD_NAME {
 
 // Forward declarations (CustomTask only, CreateTask is a using alias in MOD_NAME_tasks.h)
 struct CustomTask;
+struct CoMutexTestTask;
+struct CoRwLockTestTask;
 
 /**
  * Runtime implementation for MOD_NAME container
@@ -27,6 +31,10 @@ private:
 
   // Client for making calls to this ChiMod
   Client client_;
+
+  // Static synchronization objects for testing
+  static chi::CoMutex test_comutex_;
+  static chi::CoRwLock test_corwlock_;
 
 public:
   /**
@@ -89,6 +97,30 @@ public:
   void MonitorCustom(chi::MonitorModeId mode, 
                     hipc::FullPtr<CustomTask> task_ptr,
                     chi::RunContext& rctx);
+
+  /**
+   * Handle CoMutexTest task
+   */
+  void CoMutexTest(hipc::FullPtr<CoMutexTestTask> task, chi::RunContext& rctx);
+
+  /**
+   * Monitor CoMutexTest task
+   */
+  void MonitorCoMutexTest(chi::MonitorModeId mode, 
+                         hipc::FullPtr<CoMutexTestTask> task_ptr,
+                         chi::RunContext& rctx);
+
+  /**
+   * Handle CoRwLockTest task
+   */
+  void CoRwLockTest(hipc::FullPtr<CoRwLockTestTask> task, chi::RunContext& rctx);
+
+  /**
+   * Monitor CoRwLockTest task
+   */
+  void MonitorCoRwLockTest(chi::MonitorModeId mode, 
+                          hipc::FullPtr<CoRwLockTestTask> task_ptr,
+                          chi::RunContext& rctx);
 
   /**
    * Handle Destroy task - Alias for DestroyPool (DestroyTask = DestroyPoolTask)

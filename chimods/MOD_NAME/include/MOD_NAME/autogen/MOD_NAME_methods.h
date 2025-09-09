@@ -16,6 +16,8 @@ GLOBAL_CONST chi::u32 kDestroy = 1;
 
 // MOD_NAME-specific methods
 GLOBAL_CONST chi::u32 kCustom = 10;
+GLOBAL_CONST chi::u32 kCoMutexTest = 20;
+GLOBAL_CONST chi::u32 kCoRwLockTest = 21;
 }  // namespace Method
 
 }  // namespace chimaera::MOD_NAME

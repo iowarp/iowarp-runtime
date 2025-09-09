@@ -101,13 +101,18 @@ endif()
 #------------------------------------------------------------------------------
 # SECTION 6: INSTALL CODE
 #------------------------------------------------------------------------------
-# Install library
+# Install the main chimaera library using the same dynamic system as modules
+set(MAIN_EXPORT_NAME "${CHIMAERA_NAMESPACE}_coreTargets")
+set(MAIN_PACKAGE_NAME "${CHIMAERA_NAMESPACE}-core")
+
+# Install main library
 install(TARGETS chimaera
-  EXPORT ChimaeraTargets
+  EXPORT ${MAIN_EXPORT_NAME}
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib
   RUNTIME DESTINATION bin
   PUBLIC_HEADER DESTINATION include/chimaera
+  INCLUDES DESTINATION include
 )
 
 # Install headers
@@ -116,38 +121,64 @@ install(DIRECTORY include/chimaera
   FILES_MATCHING PATTERN "*.h"
 )
 
-# Install executables (handled by util/CMakeLists.txt)
-
 # Install config files
 install(DIRECTORY config/
   DESTINATION etc/chimaera
   FILES_MATCHING PATTERN "*"
 )
 
-# Create and install export targets
-install(EXPORT ChimaeraTargets
-  FILE ChimaeraTargets.cmake
-  NAMESPACE Chimaera::
-  DESTINATION lib/cmake/chimaera
+# Export targets file for main library
+install(EXPORT ${MAIN_EXPORT_NAME}
+  FILE ${MAIN_EXPORT_NAME}.cmake
+  NAMESPACE ${CHIMAERA_NAMESPACE}::
+  DESTINATION cmake/${MAIN_PACKAGE_NAME}
 )
 
-# Configure and install config file
+# Generate and install package config file for main library
 include(CMakePackageConfigHelpers)
+
+set(CORE_CONFIG_CONTENT "
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+# Find required dependencies
+find_dependency(HermesShm CONFIG REQUIRED)
+find_dependency(cereal REQUIRED)
+find_dependency(Boost REQUIRED COMPONENTS fiber context)
+
+# Include the exported targets
+include(\"\${CMAKE_CURRENT_LIST_DIR}/${MAIN_EXPORT_NAME}.cmake\")
+
+# Create convenience alias
+if(NOT TARGET ${MAIN_PACKAGE_NAME})
+  add_library(${MAIN_PACKAGE_NAME} ALIAS ${CHIMAERA_NAMESPACE}::chimaera)
+endif()
+
+check_required_components(${MAIN_PACKAGE_NAME})
+")
+
+# Write the config file
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/${MAIN_PACKAGE_NAME}Config.cmake.in" "${CORE_CONFIG_CONTENT}")
+
 configure_package_config_file(
-  cmake/ChimaeraConfig.cmake.in
-  ${CMAKE_CURRENT_BINARY_DIR}/ChimaeraConfig.cmake
-  INSTALL_DESTINATION lib/cmake/chimaera
+  "${CMAKE_CURRENT_BINARY_DIR}/${MAIN_PACKAGE_NAME}Config.cmake.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/${MAIN_PACKAGE_NAME}Config.cmake"
+  INSTALL_DESTINATION cmake/${MAIN_PACKAGE_NAME}
 )
 
 write_basic_package_version_file(
-  ${CMAKE_CURRENT_BINARY_DIR}/ChimaeraConfigVersion.cmake
+  "${CMAKE_CURRENT_BINARY_DIR}/${MAIN_PACKAGE_NAME}ConfigVersion.cmake"
   VERSION ${PROJECT_VERSION}
   COMPATIBILITY SameMajorVersion
 )
 
 install(FILES
-  ${CMAKE_CURRENT_BINARY_DIR}/ChimaeraConfig.cmake
-  ${CMAKE_CURRENT_BINARY_DIR}/ChimaeraConfigVersion.cmake
-  cmake/ChimaeraCommon.cmake
-  DESTINATION lib/cmake/chimaera
+  "${CMAKE_CURRENT_BINARY_DIR}/${MAIN_PACKAGE_NAME}Config.cmake"
+  "${CMAKE_CURRENT_BINARY_DIR}/${MAIN_PACKAGE_NAME}ConfigVersion.cmake"
+  DESTINATION cmake/${MAIN_PACKAGE_NAME}
 )
+
+message(STATUS "Created core package: ${MAIN_PACKAGE_NAME}")
+message(STATUS "  Export set: ${MAIN_EXPORT_NAME}")
+message(STATUS "  Config location: cmake/${MAIN_PACKAGE_NAME}")

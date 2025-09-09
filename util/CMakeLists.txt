@@ -24,7 +24,16 @@ target_include_directories(chimaera_stop_runtime PRIVATE
   ${CMAKE_SOURCE_DIR}/chimods/admin/include
 )
 
+# Build chi_refresh_repo
+add_executable(chi_refresh_repo
+  ${CMAKE_CURRENT_SOURCE_DIR}/chi_refresh_repo.cc
+)
+# chi_refresh_repo is a standalone utility, no need for CHIMAERA_RUNTIME
+target_link_libraries(chi_refresh_repo
+  PUBLIC yaml-cpp
+)
+
 # Install utilities
-install(TARGETS chimaera_start_runtime chimaera_stop_runtime
+install(TARGETS chimaera_start_runtime chimaera_stop_runtime chi_refresh_repo
   RUNTIME DESTINATION bin
 )

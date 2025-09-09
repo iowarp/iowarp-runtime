@@ -335,6 +335,90 @@
             ]
         },
         {
+            "name": "test_comutex_all",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/bin/chimaera_comutex_tests",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [
+                {
+                    "name": "CHI_REPO_PATH",
+                    "value": "build/bin"
+                },
+                {
+                    "name": "CHIMAERA_TEST_MODE",
+                    "value": "1"
+                }
+            ],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "test_comutex_basic",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/bin/chimaera_comutex_tests",
+            "args": ["[comutex][basic]"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [
+                {
+                    "name": "CHI_REPO_PATH",
+                    "value": "build/bin"
+                },
+                {
+                    "name": "CHIMAERA_TEST_MODE",
+                    "value": "1"
+                }
+            ],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "test_corwlock_basic",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/bin/chimaera_comutex_tests",
+            "args": ["[corwlock][basic]"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [
+                {
+                    "name": "CHI_REPO_PATH",
+                    "value": "build/bin"
+                },
+                {
+                    "name": "CHIMAERA_TEST_MODE",
+                    "value": "1"
+                }
+            ],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
             "name": "test_boost_fiber",
             "type": "cppdbg",
             "request": "launch",

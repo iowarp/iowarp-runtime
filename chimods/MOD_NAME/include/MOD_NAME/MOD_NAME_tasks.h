@@ -24,7 +24,7 @@ struct CreateParams {
   chi::u32 worker_count_;
   
   // Required: chimod library name for module manager
-  static constexpr const char* chimod_lib_name = "chimaera_MOD_NAME_runtime";
+  static constexpr const char* chimod_lib_name = "chimaera_MOD_NAME";
   
   // Default constructor
   CreateParams() : worker_count_(1) {}
@@ -58,7 +58,7 @@ using CreateTask = chimaera::admin::GetOrCreatePoolTask<CreateParams>;
  */
 struct CustomTask : public chi::Task {
   // Task-specific data
-  INOUT hipc::string data_;
+  INOUT chi::ipc::string data_;
   IN chi::u32 operation_id_;
   OUT chi::u32 result_code_;
 
@@ -101,6 +101,90 @@ struct CustomTask : public chi::Task {
   template<typename Archive>
   void SerializeOut(Archive& ar) {
     ar(data_, result_code_);
+  }
+};
+
+/**
+ * CoMutexTestTask - Test CoMutex functionality
+ */
+struct CoMutexTestTask : public chi::Task {
+  IN chi::u32 test_id_;         // Test identifier
+  IN chi::u32 hold_duration_ms_; // How long to hold the mutex
+  OUT chi::u32 result_;         // Test result
+
+  /** SHM default constructor */
+  explicit CoMutexTestTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc) 
+      : chi::Task(alloc), test_id_(0), hold_duration_ms_(0), result_(0) {}
+
+  /** Emplace constructor */
+  explicit CoMutexTestTask(
+      const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
+      const chi::TaskNode &task_node,
+      const chi::PoolId &pool_id, 
+      const chi::PoolQuery &pool_query,
+      chi::u32 test_id,
+      chi::u32 hold_duration_ms)
+      : chi::Task(alloc, task_node, pool_id, pool_query, 20),
+        test_id_(test_id), hold_duration_ms_(hold_duration_ms), result_(0) {
+    // Initialize task
+    task_node_ = task_node;
+    pool_id_ = pool_id;
+    method_ = Method::kCoMutexTest;
+    task_flags_.Clear();
+    pool_query_ = pool_query;
+  }
+
+  template<typename Archive>
+  void SerializeIn(Archive& ar) {
+    ar(test_id_, hold_duration_ms_);
+  }
+  
+  template<typename Archive>
+  void SerializeOut(Archive& ar) {
+    ar(result_);
+  }
+};
+
+/**
+ * CoRwLockTestTask - Test CoRwLock functionality
+ */
+struct CoRwLockTestTask : public chi::Task {
+  IN chi::u32 test_id_;         // Test identifier
+  IN bool is_writer_;           // True for write lock, false for read lock
+  IN chi::u32 hold_duration_ms_; // How long to hold the lock
+  OUT chi::u32 result_;         // Test result
+
+  /** SHM default constructor */
+  explicit CoRwLockTestTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc) 
+      : chi::Task(alloc), test_id_(0), is_writer_(false), hold_duration_ms_(0), result_(0) {}
+
+  /** Emplace constructor */
+  explicit CoRwLockTestTask(
+      const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
+      const chi::TaskNode &task_node,
+      const chi::PoolId &pool_id, 
+      const chi::PoolQuery &pool_query,
+      chi::u32 test_id,
+      bool is_writer,
+      chi::u32 hold_duration_ms)
+      : chi::Task(alloc, task_node, pool_id, pool_query, 21),
+        test_id_(test_id), is_writer_(is_writer), hold_duration_ms_(hold_duration_ms), result_(0) {
+    // Initialize task
+    task_node_ = task_node;
+    pool_id_ = pool_id;
+    method_ = Method::kCoRwLockTest;
+    task_flags_.Clear();
+    pool_query_ = pool_query;
+  }
+
+  template<typename Archive>
+  void SerializeIn(Archive& ar) {
+    ar(test_id_, is_writer_, hold_duration_ms_);
+  }
+  
+  template<typename Archive>
+  void SerializeOut(Archive& ar) {
+    ar(result_);
   }
 };
 

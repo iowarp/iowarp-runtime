@@ -69,7 +69,7 @@ public:
   // Base serialization for common Task fields
   template<typename Archive>
   void BaseSerializeIn(Archive& ar) {
-    ar(pool_id_, task_node_, dom_query_, method_, task_flags_, period_ns_);
+    ar(pool_id_, task_node_, pool_query_, method_, task_flags_, period_ns_);
   }
   
   template<typename Archive>
@@ -119,7 +119,7 @@ struct NetworkForwardTask : public SerializableTask<NetworkForwardTask> {
       const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
       const chi::TaskNode &task_node,
       const chi::PoolId &pool_id,
-      const chi::DomainQuery &dom_query,
+      const chi::DomainQuery &pool_query,
       chi::u32 dest_node,
       chi::u64 net_key,
       const std::string &task_data,
@@ -133,7 +133,7 @@ struct NetworkForwardTask : public SerializableTask<NetworkForwardTask> {
     method_ = Method::kNetworkForward;
     task_node_ = task_node;
     pool_id_ = pool_id;
-    dom_query_ = dom_query;
+    pool_query_ = pool_query;
   }
   
   // Serialization methods (not virtual!)
@@ -280,7 +280,7 @@ public:
       auto* base_task = task_ptr.Cast<Task>().ptr_;
       
       // Extract destination from domain query (static resolution)
-      u32 dest_node = base_task->dom_query_.GetTargetNode();
+      u32 dest_node = base_task->pool_query_.GetTargetNode();
       
       // Assign unique network key
       base_task->net_key_ = reinterpret_cast<u64>(base_task);
@@ -357,13 +357,13 @@ public:
     switch (method) {
       case Method::kCreate: {
         auto task = ar.DeserializeTask<CreateTask>(alloc);
-        task->dom_query_.SetLocal();  // Execute locally
+        task->pool_query_.SetLocal();  // Execute locally
         CHI_IPC->Enqueue(task);
         break;
       }
       case Method::kCustom: {
         auto task = ar.DeserializeTask<CustomTask>(alloc);
-        task->dom_query_.SetLocal();
+        task->pool_query_.SetLocal();
         CHI_IPC->Enqueue(task);
         break;
       }
@@ -397,7 +397,7 @@ public:
 // In admin runtime initialization
 
 void Container::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& ctx) {
-  chi::Container::Init(task->pool_id_, task->dom_query_);
+  chi::Container::Init(task->pool_id_, task->pool_query_);
   
   // Initialize queues
   CreateLocalQueue(chi::kLowLatency, 4);
@@ -426,17 +426,17 @@ void Container::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& ctx) {
 // In worker.cc
 
 void Worker::ResolveTask(hipc::FullPtr<Task> task) {
-  auto& dom_query = task->dom_query_;
+  auto& pool_query = task->pool_query_;
   
   // Case 1: Dynamic domain resolution
-  if (dom_query.IsDynamic()) {
+  if (pool_query.IsDynamic()) {
     auto* container = pool_manager_->GetContainer(task->pool_id_);
     container->Monitor(chi::MonitorModeId::kGlobalSchedule, task->method_, task, *run_ctx_);
     // Fall through to check if now resolved
   }
   
   // Case 2: Remote task - forward to admin for networking
-  if (!dom_query.IsLocal()) {
+  if (!pool_query.IsLocal()) {
     // Get admin container
     auto admin_pool_id = pool_manager_->GetAdminPoolId();
     auto* admin_container = pool_manager_->GetContainer(admin_pool_id);
@@ -448,7 +448,7 @@ void Worker::ResolveTask(hipc::FullPtr<Task> task) {
         task->task_node_,
         admin_pool_id,
         chi::DomainQuery::Local(),
-        dom_query.GetTargetNode(),
+        pool_query.GetTargetNode(),
         reinterpret_cast<u64>(task.ptr_),
         SerializeTaskToString(task),  // Helper function
         task->method_

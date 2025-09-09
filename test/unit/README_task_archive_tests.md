@@ -152,7 +152,7 @@ make chimaera_task_archive_tests
 
 1. **Automatic Method Dispatch**: Archives automatically detect Task inheritance using `std::is_base_of_v<Task, T>` and call appropriate serialization methods.
 
-2. **BaseSerialize Integration**: All Task-derived objects automatically have BaseSerializeIn/Out called to handle common task fields (pool_id_, method_, dom_query_, etc.).
+2. **BaseSerialize Integration**: All Task-derived objects automatically have BaseSerializeIn/Out called to handle common task fields (pool_id_, method_, pool_query_, etc.).
 
 3. **IN/OUT Parameter Separation**: 
    - IN archives handle input parameters for remote execution

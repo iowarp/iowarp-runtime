@@ -383,7 +383,7 @@ struct CompressTask : public Task, TaskFlags<TF_SRL_SYM> {
   /** Emplace constructor */
   HSHM_INLINE explicit CompressTask(
       const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, const TaskNode &task_node,
-      const PoolId &pool_id, const DomainQuery &dom_query)
+      const PoolId &pool_id, const DomainQuery &pool_query)
       : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
@@ -391,7 +391,7 @@ struct CompressTask : public Task, TaskFlags<TF_SRL_SYM> {
     pool_ = pool_id;
     method_ = Method::kCompress;
     task_flags_.SetBits(0);
-    dom_query_ = dom_query;
+    pool_query_ = pool_query;
 
     // Custom
   }
@@ -420,7 +420,7 @@ struct DecompresssTask : public Task, TaskFlags<TF_SRL_SYM> {
   /** Emplace constructor */
   HSHM_INLINE explicit DecompresssTask(
       const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, const TaskNode &task_node,
-      const PoolId &pool_id, const DomainQuery &dom_query)
+      const PoolId &pool_id, const DomainQuery &pool_query)
       : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
@@ -428,7 +428,7 @@ struct DecompresssTask : public Task, TaskFlags<TF_SRL_SYM> {
     pool_ = pool_id;
     method_ = Method::kDecompresss;
     task_flags_.SetBits(0);
-    dom_query_ = dom_query;
+    pool_query_ = pool_query;
 
     // Custom
   }
@@ -464,7 +464,7 @@ struct DecompresssTask : public Task, TaskFlags<TF_SRL_SYM> {
   /** Emplace constructor */
   HSHM_INLINE explicit DecompresssTask(
       const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, const TaskNode &task_node,
-      const PoolId &pool_id, const DomainQuery &dom_query)
+      const PoolId &pool_id, const DomainQuery &pool_query)
       : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
@@ -472,7 +472,7 @@ struct DecompresssTask : public Task, TaskFlags<TF_SRL_SYM> {
     pool_ = pool_id;
     method_ = Method::kDecompresss;
     task_flags_.SetBits(0);
-    dom_query_ = dom_query;
+    pool_query_ = pool_query;
 
     // Custom
   }
@@ -522,11 +522,11 @@ class Client : public ModuleClient {
   CHI_BEGIN(Create)
   /** Create a pool */
   HSHM_INLINE_CROSS_FUN
-  void Create(const hipc::MemContext &mctx, const DomainQuery &dom_query,
+  void Create(const hipc::MemContext &mctx, const DomainQuery &pool_query,
               const DomainQuery &affinity, const chi::string &pool_name,
               const CreateContext &ctx = CreateContext()) {
     FullPtr<CreateTask> task =
-        AsyncCreate(mctx, dom_query, affinity, pool_name, ctx);
+        AsyncCreate(mctx, pool_query, affinity, pool_name, ctx);
     task->Wait();
     Init(task->ctx_.id_);
     CHI_CLIENT->DelTask(mctx, task);
@@ -537,15 +537,15 @@ class Client : public ModuleClient {
   CHI_BEGIN(Destroy)
   /** Destroy pool + queue */
   HSHM_INLINE_CROSS_FUN
-  void Destroy(const hipc::MemContext &mctx, const DomainQuery &dom_query) {
-    CHI_ADMIN->DestroyContainer(mctx, dom_query, id_);
+  void Destroy(const hipc::MemContext &mctx, const DomainQuery &pool_query) {
+    CHI_ADMIN->DestroyContainer(mctx, pool_query, id_);
   }
   CHI_END(Destroy)
 
   CHI_BEGIN(Compress)
   /** Compress task */
-  void Compress(const hipc::MemContext &mctx, const DomainQuery &dom_query) {
-    FullPtr<CompressTask> task = AsyncCompress(mctx, dom_query);
+  void Compress(const hipc::MemContext &mctx, const DomainQuery &pool_query) {
+    FullPtr<CompressTask> task = AsyncCompress(mctx, pool_query);
     task->Wait();
     CHI_CLIENT->DelTask(mctx, task);
   }
@@ -554,8 +554,8 @@ class Client : public ModuleClient {
 
   CHI_BEGIN(Decompress)
   /** Decompresss task */
-  void Decompresss(const hipc::MemContext &mctx, const DomainQuery &dom_query) {
-    FullPtr<DecompresssTask> task = AsyncDecompresss(mctx, dom_query);
+  void Decompresss(const hipc::MemContext &mctx, const DomainQuery &pool_query) {
+    FullPtr<DecompresssTask> task = AsyncDecompresss(mctx, pool_query);
     task->Wait();
     CHI_CLIENT->DelTask(mctx, task);
   }
@@ -579,9 +579,9 @@ submitting tasks.
 template <typename... Args>   
 HSHM_CROSS_FUN hipc::FullPtr<CreateTask> AsyncCreateAlloc(        
     const hipc::MemContext &mctx, const TaskNode &task_node,            
-    const DomainQuery &dom_query, Args &&...args) {                     
+    const DomainQuery &pool_query, Args &&...args) {                     
   hipc::FullPtr<CUSTOM##Task> task = CHI_CLIENT->NewTask<CUSTOM##Task>( 
-      mctx, task_node, id_, dom_query, std::forward<Args>(args)...);    
+      mctx, task_node, id_, pool_query, std::forward<Args>(args)...);    
   return task;                                                          
 }                                              
 
@@ -751,7 +751,7 @@ struct CompressTask : public Task, TaskFlags<TF_SRL_SYM> {
   /** Emplace constructor */
   HSHM_INLINE explicit CompressTask(
       const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, const TaskNode &task_node,
-      const PoolId &pool_id, const DomainQuery &dom_query,
+      const PoolId &pool_id, const DomainQuery &pool_query,
       const hipc::Pointer &data, size_t data_size)
       : Task(alloc) {
     // Initialize task
@@ -760,7 +760,7 @@ struct CompressTask : public Task, TaskFlags<TF_SRL_SYM> {
     pool_ = pool_id;
     method_ = Method::kCompress;
     task_flags_.SetBits(0);
-    dom_query_ = dom_query;
+    pool_query_ = pool_query;
 
     // Custom
     data_ = data;
@@ -844,7 +844,7 @@ The emplace constructor for our CompressTask is below:
   /** Emplace constructor */
   HSHM_INLINE explicit CompressTask(
       const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, const TaskNode &task_node,
-      const PoolId &pool_id, const DomainQuery &dom_query,
+      const PoolId &pool_id, const DomainQuery &pool_query,
       const hipc::Pointer &data, size_t data_size);
 ```
 
@@ -857,7 +857,7 @@ to allocate this task. Automatically generated by higher-level APIs.
 * ``const TaskNode &task_node``: The unique identifier of this task in the
 system. Automatically passed by higher-level APIs.
 * ``const PoolId &pool_id``: The ChiPool this task belongs to.
-* ``const DomainQuery &dom_query``: The set of ChiContainers in the ChiPool
+* ``const DomainQuery &pool_query``: The set of ChiContainers in the ChiPool
 the task can be sent to. More discussion on domains will be later
 
 We then have our two custom variables that come afterwards:
@@ -870,7 +870,7 @@ data.
   /** Emplace constructor */
   HSHM_INLINE explicit CompressTask(
       const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, const TaskNode &task_node,
-      const PoolId &pool_id, const DomainQuery &dom_query,
+      const PoolId &pool_id, const DomainQuery &pool_query,
       const hipc::Pointer &data, size_t data_size)
       : Task(alloc) {
     // Initialize task
@@ -879,7 +879,7 @@ data.
     pool_ = pool_id;
     method_ = Method::kCompress;
     task_flags_.SetBits(0);
-    dom_query_ = dom_query;
+    pool_query_ = pool_query;
 ```
 
 Next we look at the basic parameters being set. The main things
@@ -897,7 +897,7 @@ that can go here -- most of which are related to performance.
 ```cpp
 HSHM_INLINE explicit CompressTask(
       const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, const TaskNode &task_node,
-      const PoolId &pool_id, const DomainQuery &dom_query,
+      const PoolId &pool_id, const DomainQuery &pool_query,
       const hipc::Pointer &data, size_t data_size)
       : Task(alloc) {
     // Initialize task
@@ -906,7 +906,7 @@ HSHM_INLINE explicit CompressTask(
     pool_ = pool_id;
     method_ = Method::kCompress;
     task_flags_.SetBits(0);
-    dom_query_ = dom_query;
+    pool_query_ = pool_query;
 
     // Custom
     data_ = data;
@@ -988,7 +988,7 @@ struct DecompressTask : public Task, TaskFlags<TF_SRL_SYM> {
   /** Emplace constructor */
   HSHM_INLINE explicit DecompressTask(
       const hipc::CtxAllocator<CHI_ALLOC_T> &alloc, const TaskNode &task_node,
-      const PoolId &pool_id, const DomainQuery &dom_query,
+      const PoolId &pool_id, const DomainQuery &pool_query,
       const hipc::Pointer &data, size_t data_size)
       : Task(alloc) {
     // Initialize task
@@ -997,7 +997,7 @@ struct DecompressTask : public Task, TaskFlags<TF_SRL_SYM> {
     pool_ = pool_id;
     method_ = Method::kDecompress;
     task_flags_.SetBits(0);
-    dom_query_ = dom_query;
+    pool_query_ = pool_query;
 
     // Custom
     data_ = data;
@@ -1064,11 +1064,11 @@ they will use.
 ```cpp
   /** Create a pool */
   HSHM_INLINE_CROSS_FUN
-  void Create(const hipc::MemContext &mctx, const DomainQuery &dom_query,
+  void Create(const hipc::MemContext &mctx, const DomainQuery &pool_query,
               const DomainQuery &affinity, const chi::string &pool_name,
               const CreateContext &ctx = CreateContext(), int compress_id = 0) {
     FullPtr<CreateTask> task =
-        AsyncCreate(mctx, dom_query, affinity, pool_name, ctx, compress_id);
+        AsyncCreate(mctx, pool_query, affinity, pool_name, ctx, compress_id);
     task->Wait();
     Init(task->ctx_.id_);
     CHI_CLIENT->DelTask(mctx, task);
@@ -1085,10 +1085,10 @@ in the chapter.
 
 ```cpp
 /** Compress task */
-void Compress(const hipc::MemContext &mctx, const DomainQuery &dom_query,
+void Compress(const hipc::MemContext &mctx, const DomainQuery &pool_query,
               const hipc::Pointer &data, size_t data_size) {
   FullPtr<CompressTask> task =
-      AsyncCompress(mctx, dom_query, data, data_size);
+      AsyncCompress(mctx, pool_query, data, data_size);
   task->Wait();
   CHI_CLIENT->DelTask(mctx, task);
 }
@@ -1097,10 +1097,10 @@ CHI_TASK_METHODS(Compress);
 
 ```cpp
 /** Decompress task */
-void Decompress(const hipc::MemContext &mctx, const DomainQuery &dom_query,
+void Decompress(const hipc::MemContext &mctx, const DomainQuery &pool_query,
                 const hipc::Pointer &data, size_t data_size) {
   FullPtr<DecompressTask> task =
-      AsyncDecompress(mctx, dom_query, data, data_size);
+      AsyncDecompress(mctx, pool_query, data, data_size);
   task->Wait();
   CHI_CLIENT->DelTask(mctx, task);
 }
@@ -1785,21 +1785,21 @@ Below is a snippet of the APIs the block device exposes:
 /** Allocate a section of the block device */
   HSHM_INLINE_CROSS_FUN
   std::vector<Block> Allocate(const hipc::MemContext &mctx,
-                              const DomainQuery &dom_query, size_t size);
+                              const DomainQuery &pool_query, size_t size);
 
   /** Free a section of the block device */
   HSHM_INLINE_CROSS_FUN
-  void Free(const hipc::MemContext &mctx, const DomainQuery &dom_query,
+  void Free(const hipc::MemContext &mctx, const DomainQuery &pool_query,
             const Block &block);
 
   /** Write to the block device */
   HSHM_INLINE_CROSS_FUN
-  void Write(const hipc::MemContext &mctx, const DomainQuery &dom_query,
+  void Write(const hipc::MemContext &mctx, const DomainQuery &pool_query,
              const hipc::Pointer &data, Block block);
 
   /** Read from the block device */
   HSHM_INLINE_CROSS_FUN
-  void Read(const hipc::MemContext &mctx, const DomainQuery &dom_query,
+  void Read(const hipc::MemContext &mctx, const DomainQuery &pool_query,
             const hipc::Pointer &data, Block &block);
 ```
 
@@ -1876,7 +1876,7 @@ of how it is can be used for dynamic scheduling callbacks.
   template <typename TaskT>
   void IoRoute(TaskT *task) {
     // Concretize the domain to map the task
-    task->dom_query_ = chi::DomainQuery::GetDirectHash(
+    task->pool_query_ = chi::DomainQuery::GetDirectHash(
         chi::SubDomainId::kGlobalContainers, 0);
     task->SetDirect();
     task->UnsetRouted();
@@ -1917,7 +1917,7 @@ struct PollStatsTask : public Task, TaskFlags<TF_SRL_SYM> {
   HSHM_INLINE_CROSS_FUN
   explicit PollStatsTask(const hipc::CtxAllocator<CHI_ALLOC_T> &alloc,
                          const TaskNode &task_node, const PoolId &pool_id,
-                         const DomainQuery &dom_query, u32 period_ms)
+                         const DomainQuery &pool_query, u32 period_ms)
       : Task(alloc) {
     // Initialize task
     task_node_ = task_node;
@@ -1930,7 +1930,7 @@ struct PollStatsTask : public Task, TaskFlags<TF_SRL_SYM> {
       task_flags_.SetBits(0);
       prio_ = TaskPrioOpt::kLowLatency;
     }
-    dom_query_ = dom_query;
+    pool_query_ = pool_query;
 
     SetPeriodMs(period_ms);
     HILOG(kInfo, "PollStatsTask: period_ms={}", period_ms);
