@@ -182,7 +182,7 @@ void Runtime::CoMutexTest(hipc::FullPtr<CoMutexTestTask> task, chi::RunContext& 
     }
   }
 
-  task->result_ = 1;  // Success
+  task->result_ = 0;  // Success (0 means success in most conventions)
   std::cout << "MOD_NAME: CoMutexTest " << task->test_id_ << " completed" << std::endl;
 }
 
@@ -239,7 +239,7 @@ void Runtime::CoRwLockTest(hipc::FullPtr<CoRwLockTestTask> task, chi::RunContext
     }
   }
 
-  task->result_ = 1;  // Success
+  task->result_ = 0;  // Success (0 means success in most conventions)
   std::cout << "MOD_NAME: CoRwLockTest " << task->test_id_ << " completed" << std::endl;
 }
 
