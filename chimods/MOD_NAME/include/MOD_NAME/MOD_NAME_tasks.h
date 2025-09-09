@@ -24,7 +24,7 @@ struct CreateParams {
   chi::u32 worker_count_;
   
   // Required: chimod library name for module manager
-  static constexpr const char* chimod_lib_name = "chimaera_MOD_NAME";
+  static constexpr const char* chimod_lib_name = "chimaera_MOD_NAME_runtime";
   
   // Default constructor
   CreateParams() : worker_count_(1) {}

@@ -36,8 +36,15 @@ namespace {
   constexpr chi::u32 kMaxRetries = 100;
   constexpr chi::u32 kRetryDelayMs = 50;
   
-  // Test pool IDs
-  constexpr chi::PoolId kTestModNamePoolId = 200;
+  // Test pool ID generator - avoid hardcoding, use dynamic generation
+  chi::PoolId generateTestPoolId() {
+    // Generate pool ID based on current time to avoid conflicts
+    auto now = std::chrono::high_resolution_clock::now();
+    auto duration = now.time_since_epoch();
+    auto microseconds = std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
+    // Use lower 32 bits to avoid overflow, add offset to avoid admin pool range
+    return chi::PoolId(static_cast<chi::u32>(microseconds & 0xFFFFFFFF) + 1000);
+  }
   
   // Test parameters
   constexpr chi::u32 kShortHoldMs = 100;     // Short hold duration
@@ -59,7 +66,7 @@ namespace {
  */
 class CoMutexTestFixture {
 public:
-  CoMutexTestFixture() = default;
+  CoMutexTestFixture() : test_pool_id_(generateTestPoolId()) {}
   
   ~CoMutexTestFixture() {
     cleanup();
@@ -206,11 +213,11 @@ public:
       chi::PoolQuery pool_query;
       admin_client.Create(HSHM_MCTX, pool_query);
       
-      // Create MOD_NAME client and container directly
-      chimaera::MOD_NAME::Client mod_name_client(kTestModNamePoolId);
+      // Create MOD_NAME client and container directly with dynamic pool ID
+      chimaera::MOD_NAME::Client mod_name_client(test_pool_id_);
       mod_name_client.Create(HSHM_MCTX, pool_query);
       
-      INFO("MOD_NAME pool created successfully with ID: " << kTestModNamePoolId);
+      INFO("MOD_NAME pool created successfully with dynamic ID: " << test_pool_id_.ToU64());
       return true;
       
     } catch (const std::exception& e) {
@@ -228,11 +235,21 @@ public:
   }
   
   /**
+   * Get the dynamically generated test pool ID
+   */
+  chi::PoolId getTestPoolId() const {
+    return test_pool_id_;
+  }
+  
+  /**
    * Clean up test resources
    */
   void cleanup() {
     INFO("CoMutex test cleanup completed");
   }
+  
+private:
+  chi::PoolId test_pool_id_;  // Dynamically generated pool ID for this test run
 };
 
 //------------------------------------------------------------------------------
@@ -246,7 +263,7 @@ TEST_CASE("CoMutex Basic Locking", "[comutex][basic]") {
     REQUIRE(fixture.initializeBoth());
     REQUIRE(fixture.createModNamePool());
     
-    chimaera::MOD_NAME::Client mod_name_client(kTestModNamePoolId);
+    chimaera::MOD_NAME::Client mod_name_client(fixture.getTestPoolId());
     chi::PoolQuery pool_query;
     mod_name_client.Create(HSHM_MCTX, pool_query);
     
@@ -264,7 +281,7 @@ TEST_CASE("CoMutex Basic Locking", "[comutex][basic]") {
     REQUIRE(fixture.initializeBoth());
     REQUIRE(fixture.createModNamePool());
     
-    chimaera::MOD_NAME::Client mod_name_client(kTestModNamePoolId);
+    chimaera::MOD_NAME::Client mod_name_client(fixture.getTestPoolId());
     chi::PoolQuery pool_query;
     mod_name_client.Create(HSHM_MCTX, pool_query);
     
@@ -304,7 +321,7 @@ TEST_CASE("CoMutex Concurrent Access", "[comutex][concurrent]") {
     REQUIRE(fixture.initializeBoth());
     REQUIRE(fixture.createModNamePool());
     
-    chimaera::MOD_NAME::Client mod_name_client(kTestModNamePoolId);
+    chimaera::MOD_NAME::Client mod_name_client(fixture.getTestPoolId());
     chi::PoolQuery pool_query;
     mod_name_client.Create(HSHM_MCTX, pool_query);
     
@@ -360,7 +377,7 @@ TEST_CASE("CoMutex Concurrent Access", "[comutex][concurrent]") {
     REQUIRE(fixture.initializeBoth());
     REQUIRE(fixture.createModNamePool());
     
-    chimaera::MOD_NAME::Client mod_name_client(kTestModNamePoolId);
+    chimaera::MOD_NAME::Client mod_name_client(fixture.getTestPoolId());
     chi::PoolQuery pool_query;
     mod_name_client.Create(HSHM_MCTX, pool_query);
     
@@ -406,7 +423,7 @@ TEST_CASE("CoRwLock Basic Reader-Writer Semantics", "[corwlock][basic]") {
     REQUIRE(fixture.initializeBoth());
     REQUIRE(fixture.createModNamePool());
     
-    chimaera::MOD_NAME::Client mod_name_client(kTestModNamePoolId);
+    chimaera::MOD_NAME::Client mod_name_client(fixture.getTestPoolId());
     chi::PoolQuery pool_query;
     mod_name_client.Create(HSHM_MCTX, pool_query);
     
@@ -422,7 +439,7 @@ TEST_CASE("CoRwLock Basic Reader-Writer Semantics", "[corwlock][basic]") {
     REQUIRE(fixture.initializeBoth());
     REQUIRE(fixture.createModNamePool());
     
-    chimaera::MOD_NAME::Client mod_name_client(kTestModNamePoolId);
+    chimaera::MOD_NAME::Client mod_name_client(fixture.getTestPoolId());
     chi::PoolQuery pool_query;
     mod_name_client.Create(HSHM_MCTX, pool_query);
     
@@ -438,7 +455,7 @@ TEST_CASE("CoRwLock Basic Reader-Writer Semantics", "[corwlock][basic]") {
     REQUIRE(fixture.initializeBoth());
     REQUIRE(fixture.createModNamePool());
     
-    chimaera::MOD_NAME::Client mod_name_client(kTestModNamePoolId);
+    chimaera::MOD_NAME::Client mod_name_client(fixture.getTestPoolId());
     chi::PoolQuery pool_query;
     mod_name_client.Create(HSHM_MCTX, pool_query);
     
@@ -473,7 +490,7 @@ TEST_CASE("CoRwLock Multiple Readers", "[corwlock][readers]") {
     REQUIRE(fixture.initializeBoth());
     REQUIRE(fixture.createModNamePool());
     
-    chimaera::MOD_NAME::Client mod_name_client(kTestModNamePoolId);
+    chimaera::MOD_NAME::Client mod_name_client(fixture.getTestPoolId());
     chi::PoolQuery pool_query;
     mod_name_client.Create(HSHM_MCTX, pool_query);
     
@@ -532,7 +549,7 @@ TEST_CASE("CoRwLock Writer Exclusivity", "[corwlock][writers]") {
     REQUIRE(fixture.initializeBoth());
     REQUIRE(fixture.createModNamePool());
     
-    chimaera::MOD_NAME::Client mod_name_client(kTestModNamePoolId);
+    chimaera::MOD_NAME::Client mod_name_client(fixture.getTestPoolId());
     chi::PoolQuery pool_query;
     mod_name_client.Create(HSHM_MCTX, pool_query);
     
@@ -588,7 +605,7 @@ TEST_CASE("CoRwLock Reader-Writer Interaction", "[corwlock][interaction]") {
     REQUIRE(fixture.initializeBoth());
     REQUIRE(fixture.createModNamePool());
     
-    chimaera::MOD_NAME::Client mod_name_client(kTestModNamePoolId);
+    chimaera::MOD_NAME::Client mod_name_client(fixture.getTestPoolId());
     chi::PoolQuery pool_query;
     mod_name_client.Create(HSHM_MCTX, pool_query);
     
@@ -636,7 +653,7 @@ TEST_CASE("TaskNode Grouping", "[tasknode][grouping]") {
     REQUIRE(fixture.initializeBoth());
     REQUIRE(fixture.createModNamePool());
     
-    chimaera::MOD_NAME::Client mod_name_client(kTestModNamePoolId);
+    chimaera::MOD_NAME::Client mod_name_client(fixture.getTestPoolId());
     chi::PoolQuery pool_query;
     mod_name_client.Create(HSHM_MCTX, pool_query);
     
@@ -677,7 +694,7 @@ TEST_CASE("TaskNode Grouping", "[tasknode][grouping]") {
     REQUIRE(fixture.initializeBoth());
     REQUIRE(fixture.createModNamePool());
     
-    chimaera::MOD_NAME::Client mod_name_client(kTestModNamePoolId);
+    chimaera::MOD_NAME::Client mod_name_client(fixture.getTestPoolId());
     chi::PoolQuery pool_query;
     mod_name_client.Create(HSHM_MCTX, pool_query);
     
@@ -725,7 +742,7 @@ TEST_CASE("CoMutex Error Handling", "[comutex][error]") {
     REQUIRE(fixture.initializeBoth());
     REQUIRE(fixture.createModNamePool());
     
-    chimaera::MOD_NAME::Client mod_name_client(kTestModNamePoolId);
+    chimaera::MOD_NAME::Client mod_name_client(fixture.getTestPoolId());
     chi::PoolQuery pool_query;
     mod_name_client.Create(HSHM_MCTX, pool_query);
     
@@ -741,7 +758,7 @@ TEST_CASE("CoMutex Error Handling", "[comutex][error]") {
     REQUIRE(fixture.initializeBoth());
     REQUIRE(fixture.createModNamePool());
     
-    chimaera::MOD_NAME::Client mod_name_client(kTestModNamePoolId);
+    chimaera::MOD_NAME::Client mod_name_client(fixture.getTestPoolId());
     chi::PoolQuery pool_query;
     mod_name_client.Create(HSHM_MCTX, pool_query);
     
@@ -777,7 +794,7 @@ TEST_CASE("CoRwLock Error Handling", "[corwlock][error]") {
     REQUIRE(fixture.initializeBoth());
     REQUIRE(fixture.createModNamePool());
     
-    chimaera::MOD_NAME::Client mod_name_client(kTestModNamePoolId);
+    chimaera::MOD_NAME::Client mod_name_client(fixture.getTestPoolId());
     chi::PoolQuery pool_query;
     mod_name_client.Create(HSHM_MCTX, pool_query);
     
@@ -804,7 +821,7 @@ TEST_CASE("CoMutex Performance", "[comutex][performance]") {
     REQUIRE(fixture.initializeBoth());
     REQUIRE(fixture.createModNamePool());
     
-    chimaera::MOD_NAME::Client mod_name_client(kTestModNamePoolId);
+    chimaera::MOD_NAME::Client mod_name_client(fixture.getTestPoolId());
     chi::PoolQuery pool_query;
     mod_name_client.Create(HSHM_MCTX, pool_query);
     
@@ -847,7 +864,7 @@ TEST_CASE("CoRwLock Performance", "[corwlock][performance]") {
     REQUIRE(fixture.initializeBoth());
     REQUIRE(fixture.createModNamePool());
     
-    chimaera::MOD_NAME::Client mod_name_client(kTestModNamePoolId);
+    chimaera::MOD_NAME::Client mod_name_client(fixture.getTestPoolId());
     chi::PoolQuery pool_query;
     mod_name_client.Create(HSHM_MCTX, pool_query);
     
@@ -886,7 +903,7 @@ TEST_CASE("CoMutex and CoRwLock Integration", "[integration]") {
     REQUIRE(fixture.initializeBoth());
     REQUIRE(fixture.createModNamePool());
     
-    chimaera::MOD_NAME::Client mod_name_client(kTestModNamePoolId);
+    chimaera::MOD_NAME::Client mod_name_client(fixture.getTestPoolId());
     chi::PoolQuery pool_query;
     mod_name_client.Create(HSHM_MCTX, pool_query);
     

@@ -5,11 +5,12 @@
 2. [Architecture](#architecture)
 3. [Coding Style](#coding-style)
 4. [Module Structure](#module-structure)
-5. [Task Development](#task-development)
-6. [Client-Server Communication](#client-server-communication)
-7. [Memory Management](#memory-management)
-8. [Build System Integration](#build-system-integration)
-9. [Example Module](#example-module)
+5. [Configuration and Code Generation](#configuration-and-code-generation)
+6. [Task Development](#task-development)
+7. [Client-Server Communication](#client-server-communication)
+8. [Memory Management](#memory-management)
+9. [Build System Integration](#build-system-integration)
+10. [Example Module](#example-module)
 
 ## Overview
 
@@ -368,6 +369,123 @@ CHI_TASK_CC(chimaera::MOD_NAME::Container)
 
 #endif  // MOD_NAME_RUNTIME_H_
 ```
+
+## Configuration and Code Generation
+
+### Overview
+Chimaera uses a two-level configuration system with automated code generation:
+
+1. **chimaera_repo.yaml**: Repository-wide configuration (namespace, version, etc.)
+2. **chimaera_mod.yaml**: Module-specific configuration (method IDs, metadata)
+3. **chi_refresh_repo**: Utility script that generates autogen files from YAML configurations
+
+### chimaera_repo.yaml
+Located at `chimods/chimaera_repo.yaml`, this file defines repository-wide settings:
+
+```yaml
+# Repository Configuration
+namespace: chimaera        # MUST match namespace in all chimaera_mod.yaml files
+version: 1.0.0
+description: "Chimaera Runtime ChiMod Repository"
+
+# Module discovery - directories to scan for ChiMods
+modules:
+  - MOD_NAME
+  - admin  
+  - bdev
+```
+
+**Key Requirements:**
+- The `namespace` field MUST be identical in both chimaera_repo.yaml and all chimaera_mod.yaml files
+- Used by build system for CMake package generation and installation paths
+- Determines export target names: `${namespace}::${module}_runtime`, `${namespace}::${module}_client`
+
+### chimaera_mod.yaml
+Each ChiMod must have its own configuration file specifying methods and metadata:
+
+```yaml
+# MOD_NAME ChiMod Configuration
+module_name: MOD_NAME
+namespace: chimaera        # MUST match chimaera_repo.yaml namespace
+version: 1.0.0
+
+# Inherited Methods (fixed IDs)
+kCreate: 0        # Container creation (required)
+kDestroy: 1       # Container destruction (required)
+kNodeFailure: -1  # Not implemented (-1 means disabled)
+kRecover: -1      # Not implemented 
+kMigrate: -1      # Not implemented
+kUpgrade: -1      # Not implemented
+
+# Custom Methods (start from 10, use sequential IDs)
+kCustom: 10       # Custom operation method
+kCoMutexTest: 20  # CoMutex synchronization testing method
+kCoRwLockTest: 21 # CoRwLock reader-writer synchronization testing method
+```
+
+**Method ID Assignment Rules:**
+- **0-9**: Reserved for system methods (kCreate=0, kDestroy=1, etc.)
+- **10+**: Custom methods (assign sequential IDs starting from 10)
+- **Disabled methods**: Use -1 to disable inherited methods not implemented
+- **Consistency**: Once assigned, never change method IDs (breaks compatibility)
+
+### chi_refresh_repo Utility
+
+The `chi_refresh_repo` utility automatically generates autogen files from YAML configurations.
+
+#### Usage
+```bash
+# From project root, regenerate all autogen files
+./build/bin/chi_refresh_repo chimods
+
+# The utility will:
+# 1. Read chimaera_repo.yaml for global settings
+# 2. Scan each module's chimaera_mod.yaml 
+# 3. Generate MOD_NAME_methods.h with method constants
+# 4. Generate MOD_NAME_lib_exec.cc with virtual method dispatch
+```
+
+#### Generated Files
+For each ChiMod, the utility generates:
+
+1. **`include/MOD_NAME/autogen/MOD_NAME_methods.h`**:
+   ```cpp
+   namespace chimaera::MOD_NAME {
+   namespace Method {
+   GLOBAL_CONST chi::u32 kCreate = 0;
+   GLOBAL_CONST chi::u32 kDestroy = 1;
+   GLOBAL_CONST chi::u32 kCustom = 10;
+   GLOBAL_CONST chi::u32 kCoMutexTest = 20;
+   }  // namespace Method
+   }  // namespace chimaera::MOD_NAME
+   ```
+
+2. **`src/autogen/MOD_NAME_lib_exec.cc`**: 
+   - Virtual method dispatch (Runtime::Run, Runtime::Monitor, etc.)
+   - Task serialization support (SaveIn/Out, LoadIn/Out)
+   - Memory management (Del, NewCopy)
+
+#### When to Run chi_refresh_repo
+**ALWAYS** run chi_refresh_repo when:
+- Adding new methods to chimaera_mod.yaml
+- Changing method IDs or names
+- Adding new ChiMods to the repository
+- Modifying namespace or version information
+
+#### Important Notes
+- **Never manually edit autogen files** - they are overwritten by chi_refresh_repo
+- **Run chi_refresh_repo before building** after YAML changes
+- **Commit autogen files to git** so other developers don't need to regenerate
+- **Method IDs are permanent** - changing them breaks binary compatibility
+
+### Workflow Summary
+1. Define methods in `chimaera_mod.yaml` with sequential IDs
+2. Implement corresponding methods in `MOD_NAME_runtime.h/cc`
+3. Run `./build/bin/chi_refresh_repo chimods` to generate autogen files
+4. Build project with `make` - autogen files provide the dispatch logic
+5. Autogen files handle virtual method routing, serialization, and memory management
+
+This automated approach ensures consistency across all ChiMods and reduces boilerplate code maintenance.
 
 ## Task Development
 

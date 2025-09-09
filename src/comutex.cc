@@ -2,10 +2,18 @@
 #include "chimaera/task.h"
 #include "chimaera/work_orchestrator.h"
 #include "chimaera/task_queue.h"
+#include "chimaera/worker.h"
 
 namespace chi {
 
-void CoMutex::Lock(FullPtr<Task> task) {
+void CoMutex::Lock() {
+  // Get current task from the current worker
+  auto* worker = CHI_CUR_WORKER;
+  if (!worker) {
+    return; // No worker context
+  }
+  
+  FullPtr<Task> task = worker->GetCurrentTask();
   if (task.IsNull()) {
     return;
   }
@@ -37,7 +45,14 @@ void CoMutex::Lock(FullPtr<Task> task) {
   AddTaskToLane(task);
 }
 
-void CoMutex::Unlock(FullPtr<Task> task) {
+void CoMutex::Unlock() {
+  // Get current task from the current worker
+  auto* worker = CHI_CUR_WORKER;
+  if (!worker) {
+    return; // No worker context
+  }
+  
+  FullPtr<Task> task = worker->GetCurrentTask();
   if (task.IsNull()) {
     return;
   }
@@ -56,7 +71,14 @@ void CoMutex::Unlock(FullPtr<Task> task) {
   UnblockNextGroup();
 }
 
-bool CoMutex::TryLock(FullPtr<Task> task) {
+bool CoMutex::TryLock() {
+  // Get current task from the current worker
+  auto* worker = CHI_CUR_WORKER;
+  if (!worker) {
+    return false; // No worker context
+  }
+  
+  FullPtr<Task> task = worker->GetCurrentTask();
   if (task.IsNull()) {
     return false;
   }

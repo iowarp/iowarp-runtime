@@ -48,26 +48,25 @@ public:
   CoMutex() : current_holder_(), is_locked_(false) {}
 
   /**
-   * Acquire the mutex for the given task
+   * Acquire the mutex for the current task (retrieved from CHI_CUR_WORKER)
    * If the mutex is free, the task's TaskNode group acquires it
    * If the mutex is held by the same TaskNode group, the task proceeds
    * If the mutex is held by a different TaskNode group, the task is blocked
-   * @param task Task attempting to acquire the mutex
    */
-  void Lock(FullPtr<Task> task);
+  void Lock();
 
   /**
    * Release the mutex and unblock the next waiting TaskNode group
-   * @param task Task releasing the mutex (must be from current holder group)
+   * (uses current task from CHI_CUR_WORKER, must be from current holder group)
    */
-  void Unlock(FullPtr<Task> task);
+  void Unlock();
 
   /**
    * Try to acquire the mutex without blocking
-   * @param task Task attempting to acquire the mutex
+   * (uses current task from CHI_CUR_WORKER)
    * @return true if acquired successfully, false otherwise
    */
-  bool TryLock(FullPtr<Task> task);
+  bool TryLock();
 
 private:
   std::mutex internal_mutex_;  // Guards the internal state
@@ -104,18 +103,17 @@ public:
   /**
    * Constructor that acquires the mutex
    * @param mutex CoMutex to acquire
-   * @param task Task that will hold the mutex
    */
-  explicit ScopedCoMutex(CoMutex& mutex, FullPtr<Task> task) 
-      : mutex_(mutex), task_(task) {
-    mutex_.Lock(task_);
+  explicit ScopedCoMutex(CoMutex& mutex) 
+      : mutex_(mutex) {
+    mutex_.Lock();
   }
 
   /**
    * Destructor that releases the mutex
    */
   ~ScopedCoMutex() {
-    mutex_.Unlock(task_);
+    mutex_.Unlock();
   }
 
   // Non-copyable
@@ -128,7 +126,6 @@ public:
 
 private:
   CoMutex& mutex_;
-  FullPtr<Task> task_;
 };
 
 }  // namespace chi

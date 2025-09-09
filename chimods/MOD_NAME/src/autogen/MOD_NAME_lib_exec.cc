@@ -30,6 +30,14 @@ void Runtime::Run(chi::u32 method, hipc::FullPtr<chi::Task> task_ptr, chi::RunCo
       Custom(task_ptr.Cast<CustomTask>(), rctx);
       break;
     }
+    case Method::kCoMutexTest: {
+      CoMutexTest(task_ptr.Cast<CoMutexTestTask>(), rctx);
+      break;
+    }
+    case Method::kCoRwLockTest: {
+      CoRwLockTest(task_ptr.Cast<CoRwLockTestTask>(), rctx);
+      break;
+    }
     default: {
       // Unknown method - do nothing
       break;
@@ -50,6 +58,14 @@ void Runtime::Monitor(chi::MonitorModeId mode, chi::u32 method,
     }
     case Method::kCustom: {
       MonitorCustom(mode, task_ptr.Cast<CustomTask>(), rctx);
+      break;
+    }
+    case Method::kCoMutexTest: {
+      MonitorCoMutexTest(mode, task_ptr.Cast<CoMutexTestTask>(), rctx);
+      break;
+    }
+    case Method::kCoRwLockTest: {
+      MonitorCoRwLockTest(mode, task_ptr.Cast<CoRwLockTestTask>(), rctx);
       break;
     }
     default: {
@@ -74,6 +90,14 @@ void Runtime::Del(chi::u32 method, hipc::FullPtr<chi::Task> task_ptr) {
     }
     case Method::kCustom: {
       ipc_manager->DelTask(task_ptr.Cast<CustomTask>());
+      break;
+    }
+    case Method::kCoMutexTest: {
+      ipc_manager->DelTask(task_ptr.Cast<CoMutexTestTask>());
+      break;
+    }
+    case Method::kCoRwLockTest: {
+      ipc_manager->DelTask(task_ptr.Cast<CoRwLockTestTask>());
       break;
     }
     default: {
@@ -102,6 +126,16 @@ void Runtime::SaveIn(chi::u32 method, chi::TaskSaveInArchive& archive,
       typed_task->SerializeIn(archive);
       break;
     }
+    case Method::kCoMutexTest: {
+      auto typed_task = task_ptr.Cast<CoMutexTestTask>();
+      typed_task->SerializeIn(archive);
+      break;
+    }
+    case Method::kCoRwLockTest: {
+      auto typed_task = task_ptr.Cast<CoRwLockTestTask>();
+      typed_task->SerializeIn(archive);
+      break;
+    }
     default: {
       // Unknown method - do nothing
       break;
@@ -124,6 +158,16 @@ void Runtime::LoadIn(chi::u32 method, chi::TaskLoadInArchive& archive,
     }
     case Method::kCustom: {
       auto typed_task = task_ptr.Cast<CustomTask>();
+      typed_task->SerializeIn(archive);
+      break;
+    }
+    case Method::kCoMutexTest: {
+      auto typed_task = task_ptr.Cast<CoMutexTestTask>();
+      typed_task->SerializeIn(archive);
+      break;
+    }
+    case Method::kCoRwLockTest: {
+      auto typed_task = task_ptr.Cast<CoRwLockTestTask>();
       typed_task->SerializeIn(archive);
       break;
     }
@@ -152,6 +196,16 @@ void Runtime::SaveOut(chi::u32 method, chi::TaskSaveOutArchive& archive,
       typed_task->SerializeOut(archive);
       break;
     }
+    case Method::kCoMutexTest: {
+      auto typed_task = task_ptr.Cast<CoMutexTestTask>();
+      typed_task->SerializeOut(archive);
+      break;
+    }
+    case Method::kCoRwLockTest: {
+      auto typed_task = task_ptr.Cast<CoRwLockTestTask>();
+      typed_task->SerializeOut(archive);
+      break;
+    }
     default: {
       // Unknown method - do nothing
       break;
@@ -174,6 +228,16 @@ void Runtime::LoadOut(chi::u32 method, chi::TaskLoadOutArchive& archive,
     }
     case Method::kCustom: {
       auto typed_task = task_ptr.Cast<CustomTask>();
+      typed_task->SerializeOut(archive);
+      break;
+    }
+    case Method::kCoMutexTest: {
+      auto typed_task = task_ptr.Cast<CoMutexTestTask>();
+      typed_task->SerializeOut(archive);
+      break;
+    }
+    case Method::kCoRwLockTest: {
+      auto typed_task = task_ptr.Cast<CoRwLockTestTask>();
       typed_task->SerializeOut(archive);
       break;
     }
@@ -220,6 +284,28 @@ void Runtime::NewCopy(chi::u32 method, const hipc::FullPtr<chi::Task>& orig_task
       if (!typed_task.IsNull()) {
         // Use HSHM strong copy method for actual copying
         typed_task->shm_strong_copy_main(*orig_task.Cast<CustomTask>());
+        // Cast to base Task type for return
+        dup_task = typed_task.template Cast<chi::Task>();
+      }
+      break;
+    }
+    case Method::kCoMutexTest: {
+      // Allocate new task using SHM default constructor
+      auto typed_task = ipc_manager->NewTask<CoMutexTestTask>();
+      if (!typed_task.IsNull()) {
+        // Use HSHM strong copy method for actual copying
+        typed_task->shm_strong_copy_main(*orig_task.Cast<CoMutexTestTask>());
+        // Cast to base Task type for return
+        dup_task = typed_task.template Cast<chi::Task>();
+      }
+      break;
+    }
+    case Method::kCoRwLockTest: {
+      // Allocate new task using SHM default constructor
+      auto typed_task = ipc_manager->NewTask<CoRwLockTestTask>();
+      if (!typed_task.IsNull()) {
+        // Use HSHM strong copy method for actual copying
+        typed_task->shm_strong_copy_main(*orig_task.Cast<CoRwLockTestTask>());
         // Cast to base Task type for return
         dup_task = typed_task.template Cast<chi::Task>();
       }

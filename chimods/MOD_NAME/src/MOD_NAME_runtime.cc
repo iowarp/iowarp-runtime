@@ -168,7 +168,7 @@ void Runtime::CoMutexTest(hipc::FullPtr<CoMutexTestTask> task, chi::RunContext& 
             << " (hold: " << task->hold_duration_ms_ << "ms)" << std::endl;
 
   // Use actual CoMutex synchronization primitive
-  chi::ScopedCoMutex lock(test_comutex_, rctx.task);
+  chi::ScopedCoMutex lock(test_comutex_);
 
   // Hold the mutex for the specified duration
   if (task->hold_duration_ms_ > 0) {
@@ -210,7 +210,7 @@ void Runtime::CoRwLockTest(hipc::FullPtr<CoRwLockTestTask> task, chi::RunContext
 
   // Use actual CoRwLock synchronization primitive with appropriate lock type
   if (task->is_writer_) {
-    chi::ScopedCoRwWriteLock lock(test_corwlock_, rctx.task);
+    chi::ScopedCoRwWriteLock lock(test_corwlock_);
     
     // Hold the write lock for the specified duration
     if (task->hold_duration_ms_ > 0) {
@@ -224,7 +224,7 @@ void Runtime::CoRwLockTest(hipc::FullPtr<CoRwLockTestTask> task, chi::RunContext
       }
     }
   } else {
-    chi::ScopedCoRwReadLock lock(test_corwlock_, rctx.task);
+    chi::ScopedCoRwReadLock lock(test_corwlock_);
     
     // Hold the read lock for the specified duration
     if (task->hold_duration_ms_ > 0) {

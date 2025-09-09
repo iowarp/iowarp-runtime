@@ -2,10 +2,18 @@
 #include "chimaera/task.h"
 #include "chimaera/work_orchestrator.h"
 #include "chimaera/task_queue.h"
+#include "chimaera/worker.h"
 
 namespace chi {
 
-void CoRwLock::ReadLock(FullPtr<Task> task) {
+void CoRwLock::ReadLock() {
+  // Get current task from the current worker
+  auto* worker = CHI_CUR_WORKER;
+  if (!worker) {
+    return; // No worker context
+  }
+  
+  FullPtr<Task> task = worker->GetCurrentTask();
   if (task.IsNull()) {
     return;
   }
@@ -42,7 +50,14 @@ void CoRwLock::ReadLock(FullPtr<Task> task) {
   }
 }
 
-void CoRwLock::ReadUnlock(FullPtr<Task> task) {
+void CoRwLock::ReadUnlock() {
+  // Get current task from the current worker
+  auto* worker = CHI_CUR_WORKER;
+  if (!worker) {
+    return; // No worker context
+  }
+  
+  FullPtr<Task> task = worker->GetCurrentTask();
   if (task.IsNull()) {
     return;
   }
@@ -64,7 +79,14 @@ void CoRwLock::ReadUnlock(FullPtr<Task> task) {
   // If write-locked, read unlock doesn't change state (upgrade scenario)
 }
 
-void CoRwLock::WriteLock(FullPtr<Task> task) {
+void CoRwLock::WriteLock() {
+  // Get current task from the current worker
+  auto* worker = CHI_CUR_WORKER;
+  if (!worker) {
+    return; // No worker context
+  }
+  
+  FullPtr<Task> task = worker->GetCurrentTask();
   if (task.IsNull()) {
     return;
   }
@@ -113,7 +135,14 @@ void CoRwLock::WriteLock(FullPtr<Task> task) {
   }
 }
 
-void CoRwLock::WriteUnlock(FullPtr<Task> task) {
+void CoRwLock::WriteUnlock() {
+  // Get current task from the current worker
+  auto* worker = CHI_CUR_WORKER;
+  if (!worker) {
+    return; // No worker context
+  }
+  
+  FullPtr<Task> task = worker->GetCurrentTask();
   if (task.IsNull()) {
     return;
   }
@@ -146,7 +175,14 @@ void CoRwLock::WriteUnlock(FullPtr<Task> task) {
   }
 }
 
-bool CoRwLock::TryReadLock(FullPtr<Task> task) {
+bool CoRwLock::TryReadLock() {
+  // Get current task from the current worker
+  auto* worker = CHI_CUR_WORKER;
+  if (!worker) {
+    return false; // No worker context
+  }
+  
+  FullPtr<Task> task = worker->GetCurrentTask();
   if (task.IsNull()) {
     return false;
   }
@@ -180,7 +216,14 @@ bool CoRwLock::TryReadLock(FullPtr<Task> task) {
   return false;
 }
 
-bool CoRwLock::TryWriteLock(FullPtr<Task> task) {
+bool CoRwLock::TryWriteLock() {
+  // Get current task from the current worker
+  auto* worker = CHI_CUR_WORKER;
+  if (!worker) {
+    return false; // No worker context
+  }
+  
+  FullPtr<Task> task = worker->GetCurrentTask();
   if (task.IsNull()) {
     return false;
   }

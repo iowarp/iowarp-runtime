@@ -31,48 +31,45 @@ public:
   CoRwLock() : state_(CoRwLockState::kUnlocked), write_holder_() {}
 
   /**
-   * Acquire a read lock for the given task
+   * Acquire a read lock for the current task (retrieved from CHI_CUR_WORKER)
    * If unlocked or read-locked: task's TaskNode group can proceed
    * If write-locked by different TaskNode group: task is blocked
    * If write-locked by same TaskNode group: task can proceed (upgrade scenario)
-   * @param task Task attempting to acquire the read lock
    */
-  void ReadLock(FullPtr<Task> task);
+  void ReadLock();
 
   /**
-   * Release a read lock
-   * @param task Task releasing the read lock
+   * Release a read lock (uses current task from CHI_CUR_WORKER)
    */
-  void ReadUnlock(FullPtr<Task> task);
+  void ReadUnlock();
 
   /**
-   * Acquire a write lock for the given task
+   * Acquire a write lock for the current task (retrieved from CHI_CUR_WORKER)
    * If unlocked: task's TaskNode group acquires write lock
    * If locked by same TaskNode group: task can proceed
    * If locked by different TaskNode group: task is blocked
-   * @param task Task attempting to acquire the write lock
    */
-  void WriteLock(FullPtr<Task> task);
+  void WriteLock();
 
   /**
    * Release a write lock and unblock the next waiting TaskNode group
-   * @param task Task releasing the write lock
+   * (uses current task from CHI_CUR_WORKER)
    */
-  void WriteUnlock(FullPtr<Task> task);
+  void WriteUnlock();
 
   /**
    * Try to acquire a read lock without blocking
-   * @param task Task attempting to acquire the read lock
+   * (uses current task from CHI_CUR_WORKER)
    * @return true if acquired successfully, false otherwise
    */
-  bool TryReadLock(FullPtr<Task> task);
+  bool TryReadLock();
 
   /**
    * Try to acquire a write lock without blocking
-   * @param task Task attempting to acquire the write lock
+   * (uses current task from CHI_CUR_WORKER)
    * @return true if acquired successfully, false otherwise
    */
-  bool TryWriteLock(FullPtr<Task> task);
+  bool TryWriteLock();
 
 private:
   std::mutex internal_mutex_;  // Guards the internal state
@@ -134,18 +131,17 @@ public:
   /**
    * Constructor that acquires the read lock
    * @param rwlock CoRwLock to acquire read lock on
-   * @param task Task that will hold the read lock
    */
-  explicit ScopedCoRwReadLock(CoRwLock& rwlock, FullPtr<Task> task)
-      : rwlock_(rwlock), task_(task) {
-    rwlock_.ReadLock(task_);
+  explicit ScopedCoRwReadLock(CoRwLock& rwlock)
+      : rwlock_(rwlock) {
+    rwlock_.ReadLock();
   }
 
   /**
    * Destructor that releases the read lock
    */
   ~ScopedCoRwReadLock() {
-    rwlock_.ReadUnlock(task_);
+    rwlock_.ReadUnlock();
   }
 
   // Non-copyable
@@ -158,7 +154,6 @@ public:
 
 private:
   CoRwLock& rwlock_;
-  FullPtr<Task> task_;
 };
 
 /**
@@ -169,18 +164,17 @@ public:
   /**
    * Constructor that acquires the write lock
    * @param rwlock CoRwLock to acquire write lock on
-   * @param task Task that will hold the write lock
    */
-  explicit ScopedCoRwWriteLock(CoRwLock& rwlock, FullPtr<Task> task)
-      : rwlock_(rwlock), task_(task) {
-    rwlock_.WriteLock(task_);
+  explicit ScopedCoRwWriteLock(CoRwLock& rwlock)
+      : rwlock_(rwlock) {
+    rwlock_.WriteLock();
   }
 
   /**
    * Destructor that releases the write lock
    */
   ~ScopedCoRwWriteLock() {
-    rwlock_.WriteUnlock(task_);
+    rwlock_.WriteUnlock();
   }
 
   // Non-copyable
@@ -193,7 +187,6 @@ public:
 
 private:
   CoRwLock& rwlock_;
-  FullPtr<Task> task_;
 };
 
 }  // namespace chi
