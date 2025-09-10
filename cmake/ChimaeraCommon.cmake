@@ -78,7 +78,12 @@ function(add_chimod_both)
   # Create runtime library
   if(ARG_RUNTIME_SOURCES)
     add_library(${RUNTIME_TARGET_NAME} SHARED ${ARG_RUNTIME_SOURCES})
-    target_link_libraries(${RUNTIME_TARGET_NAME} PUBLIC cxx)
+    # Link to chimaera::cxx for external builds, fallback to cxx for internal builds
+    if(TARGET chimaera::cxx)
+      target_link_libraries(${RUNTIME_TARGET_NAME} PUBLIC chimaera::cxx)
+    else()
+      target_link_libraries(${RUNTIME_TARGET_NAME} PUBLIC cxx)
+    endif()
     target_include_directories(${RUNTIME_TARGET_NAME} PUBLIC
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
       $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
@@ -99,7 +104,12 @@ function(add_chimod_both)
   # Create client library
   if(ARG_CLIENT_SOURCES)
     add_library(${CLIENT_TARGET_NAME} SHARED ${ARG_CLIENT_SOURCES})
-    target_link_libraries(${CLIENT_TARGET_NAME} PUBLIC cxx)
+    # Link to chimaera::cxx for external builds, fallback to cxx for internal builds
+    if(TARGET chimaera::cxx)
+      target_link_libraries(${CLIENT_TARGET_NAME} PUBLIC chimaera::cxx)
+    else()
+      target_link_libraries(${CLIENT_TARGET_NAME} PUBLIC cxx)
+    endif()
     target_include_directories(${CLIENT_TARGET_NAME} PUBLIC
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
       $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
@@ -235,7 +245,7 @@ check_required_components(${ARG_NAMESPACE}_${ARG_CHIMOD_NAME})
     configure_package_config_file(
       "${CONFIG_IN_FILE}"
       "${CMAKE_CURRENT_BINARY_DIR}/${MODULE_PACKAGE_NAME}Config.cmake"
-      INSTALL_DESTINATION cmake
+      INSTALL_DESTINATION cmake/${MODULE_PACKAGE_NAME}
     )
     
     # Generate ConfigVersion.cmake
@@ -245,11 +255,11 @@ check_required_components(${ARG_NAMESPACE}_${ARG_CHIMOD_NAME})
       COMPATIBILITY SameMajorVersion
     )
     
-    # Install Config and ConfigVersion files in cmake/ directory
+    # Install Config and ConfigVersion files in cmake/${MODULE_PACKAGE_NAME}/ directory
     install(FILES
       "${CMAKE_CURRENT_BINARY_DIR}/${MODULE_PACKAGE_NAME}Config.cmake"
       "${CMAKE_CURRENT_BINARY_DIR}/${MODULE_PACKAGE_NAME}ConfigVersion.cmake"
-      DESTINATION cmake
+      DESTINATION cmake/${MODULE_PACKAGE_NAME}
     )
     
     message(STATUS "Created module package: ${ARG_NAMESPACE}::${ARG_CHIMOD_NAME}")

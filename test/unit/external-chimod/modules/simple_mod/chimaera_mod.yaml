@@ -1,0 +1,13 @@
+name: simple_mod
+description: Simple test ChiMod for external development
+version: 1.0.0
+
+tasks:
+  - name: Create
+    description: Create simple_mod container
+    task_type: LongRunningTask
+    params: []
+    
+methods: []
+
+singleton: true

@@ -11,7 +11,15 @@ find_dependency(cereal REQUIRED)
 find_dependency(Boost REQUIRED COMPONENTS fiber context)
 
 # Include the exported targets
-include("${CMAKE_CURRENT_LIST_DIR}/ChimaeraTargets.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/@MAIN_EXPORT_NAME@.cmake")
+
+# Include ChimaeraCommon.cmake for ChiMod utilities (add_chimod_both, install_chimod)
+include("${CMAKE_CURRENT_LIST_DIR}/ChimaeraCommon.cmake")
+
+# Create convenience alias
+if(NOT TARGET @MAIN_PACKAGE_NAME@)
+  add_library(@MAIN_PACKAGE_NAME@ ALIAS @CHIMAERA_NAMESPACE@::cxx)
+endif()
 
 # Provide components
-check_required_components(Chimaera)
+check_required_components(@MAIN_PACKAGE_NAME@)

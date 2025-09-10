@@ -137,32 +137,8 @@ install(EXPORT ${MAIN_EXPORT_NAME}
 # Generate and install package config file for main library
 include(CMakePackageConfigHelpers)
 
-set(CORE_CONFIG_CONTENT "
-@PACKAGE_INIT@
-
-include(CMakeFindDependencyMacro)
-
-# Find required dependencies
-find_dependency(HermesShm CONFIG REQUIRED)
-find_dependency(cereal REQUIRED)
-find_dependency(Boost REQUIRED COMPONENTS fiber context)
-
-# Include the exported targets
-include(\"\${CMAKE_CURRENT_LIST_DIR}/${MAIN_EXPORT_NAME}.cmake\")
-
-# Create convenience alias
-if(NOT TARGET ${MAIN_PACKAGE_NAME})
-  add_library(${MAIN_PACKAGE_NAME} ALIAS ${CHIMAERA_NAMESPACE}::cxx)
-endif()
-
-check_required_components(${MAIN_PACKAGE_NAME})
-")
-
-# Write the config file
-file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/${MAIN_PACKAGE_NAME}Config.cmake.in" "${CORE_CONFIG_CONTENT}")
-
 configure_package_config_file(
-  "${CMAKE_CURRENT_BINARY_DIR}/${MAIN_PACKAGE_NAME}Config.cmake.in"
+  "${CMAKE_CURRENT_SOURCE_DIR}/cmake/ChimaeraConfig.cmake.in"
   "${CMAKE_CURRENT_BINARY_DIR}/${MAIN_PACKAGE_NAME}Config.cmake"
   INSTALL_DESTINATION cmake/${MAIN_PACKAGE_NAME}
 )
@@ -176,6 +152,7 @@ write_basic_package_version_file(
 install(FILES
   "${CMAKE_CURRENT_BINARY_DIR}/${MAIN_PACKAGE_NAME}Config.cmake"
   "${CMAKE_CURRENT_BINARY_DIR}/${MAIN_PACKAGE_NAME}ConfigVersion.cmake"
+  "${CMAKE_CURRENT_SOURCE_DIR}/cmake/ChimaeraCommon.cmake"
   DESTINATION cmake/${MAIN_PACKAGE_NAME}
 )
 

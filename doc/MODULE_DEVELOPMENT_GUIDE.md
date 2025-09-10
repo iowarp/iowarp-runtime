@@ -58,6 +58,7 @@ ChiMod/
 - Example: Admin headers are in `include/chimaera/admin/`
 - Headers follow naming pattern: `[module_name]_[type].h`
 - Auto-generated headers are in the `autogen/` subdirectory
+- **Note**: The chimod directory name (e.g., `chimods/`, `modules/`) is flexible and doesn't need to match the namespace
 
 ## Coding Style
 
@@ -211,7 +212,7 @@ The client provides a simple API for task submission:
 
 namespace chimaera::MOD_NAME {
 
-class Client : public chi::ChiContainerClient {
+class Client : public chi::ContainerClient {
  public:
   Client() = default;
   explicit Client(const chi::PoolId& pool_id) { Init(pool_id); }
@@ -1520,7 +1521,7 @@ Your external ChiMod repository should follow this structure:
 my_external_chimod/
 ├── chimaera_repo.yaml          # Repository namespace configuration
 ├── CMakeLists.txt              # Root CMake configuration
-├── chimods/                    # ChiMod modules directory
+├── modules/                    # ChiMod modules directory (name is flexible)
 │   └── my_module/
 │       ├── chimaera_mod.yaml   # Module configuration
 │       ├── CMakeLists.txt      # Module build configuration  
@@ -1538,6 +1539,8 @@ my_external_chimod/
 │           └── autogen/
 │               └── my_module_lib_exec.cc
 ```
+
+**Note**: The directory name for modules (shown here as `modules/`) is flexible. You can use `chimods/`, `components/`, `plugins/`, or any other name that fits your project structure. The directory name doesn't need to match the namespace.
 
 ### Repository Configuration (chimaera_repo.yaml)
 
@@ -1577,7 +1580,7 @@ find_package(chimaera-admin REQUIRED)       # Admin ChiMod (required for all Chi
 include(ChimaeraCommon)
 
 # Add subdirectories containing your ChiMods
-add_subdirectory(chimods/my_module)
+add_subdirectory(modules/my_module)  # Use your actual directory name
 ```
 
 ### ChiMod CMakeLists.txt
@@ -2221,7 +2224,7 @@ When creating a new Chimaera module, ensure you have:
 - [ ] Uses `CHI_TASK_CC(ClassName)` macro for entry points
 
 ### Client API Checklist (`_client.h/cc`)
-- [ ] Inherits from `chi::ChiContainerClient`
+- [ ] Inherits from `chi::ContainerClient`
 - [ ] Uses `CHI_IPC->NewTask<TaskType>()` for allocation
 - [ ] Uses `CHI_IPC->Enqueue()` for task submission
 - [ ] Uses `CHI_IPC->DelTask()` for cleanup
