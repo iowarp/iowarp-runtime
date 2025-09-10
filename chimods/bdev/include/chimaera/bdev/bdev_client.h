@@ -19,23 +19,45 @@ class Client : public chi::ContainerClient {
   explicit Client(const chi::PoolId& pool_id) { Init(pool_id); }
 
   /**
-   * Create bdev container - synchronous
+   * Create bdev container - synchronous (file-based, for backward compatibility)
    */
   void Create(const hipc::MemContext& mctx, const chi::PoolQuery& pool_query,
               const std::string& file_path, chi::u64 total_size = 0,
               chi::u32 io_depth = 32, chi::u32 alignment = 4096) {
-    auto task = AsyncCreate(mctx, pool_query, file_path, total_size, io_depth,
+    auto task = AsyncCreate(mctx, pool_query, BdevType::kFile, file_path, total_size, io_depth,
+                            alignment);
+    task->Wait();
+    CHI_IPC->DelTask(task);
+  }
+  
+  /**
+   * Create bdev container - synchronous (with explicit bdev type)
+   */
+  void Create(const hipc::MemContext& mctx, const chi::PoolQuery& pool_query,
+              BdevType bdev_type, const std::string& file_path = "", chi::u64 total_size = 0,
+              chi::u32 io_depth = 32, chi::u32 alignment = 4096) {
+    auto task = AsyncCreate(mctx, pool_query, bdev_type, file_path, total_size, io_depth,
                             alignment);
     task->Wait();
     CHI_IPC->DelTask(task);
   }
 
   /**
-   * Create bdev container - asynchronous
+   * Create bdev container - asynchronous (file-based, for backward compatibility)
    */
   hipc::FullPtr<chimaera::bdev::CreateTask> AsyncCreate(
       const hipc::MemContext& mctx, const chi::PoolQuery& pool_query,
       const std::string& file_path, chi::u64 total_size = 0,
+      chi::u32 io_depth = 32, chi::u32 alignment = 4096) {
+    return AsyncCreate(mctx, pool_query, BdevType::kFile, file_path, total_size, io_depth, alignment);
+  }
+  
+  /**
+   * Create bdev container - asynchronous (with explicit bdev type)
+   */
+  hipc::FullPtr<chimaera::bdev::CreateTask> AsyncCreate(
+      const hipc::MemContext& mctx, const chi::PoolQuery& pool_query,
+      BdevType bdev_type, const std::string& file_path = "", chi::u64 total_size = 0,
       chi::u32 io_depth = 32, chi::u32 alignment = 4096) {
     auto* ipc_manager = CHI_IPC;
 
@@ -51,7 +73,7 @@ class Client : public chi::ContainerClient {
         0,   // domain flags
         pool_id_,  // target pool ID to create
         // CreateParams arguments:
-        file_path, total_size, io_depth, safe_alignment
+        bdev_type, file_path, total_size, io_depth, safe_alignment
     );
 
     // Submit to runtime

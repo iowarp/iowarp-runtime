@@ -20,11 +20,17 @@ const chi::u64 kBlockSizes[] = {
 };
 
 Runtime::~Runtime() {
-  // Clean up libaio
-  CleanupAsyncIO();
+  // Clean up libaio (only for file-based storage)
+  if (bdev_type_ == BdevType::kFile) {
+    CleanupAsyncIO();
+  }
 
-  if (file_fd_ >= 0) {
+  // Clean up storage backend
+  if (bdev_type_ == BdevType::kFile && file_fd_ >= 0) {
     close(file_fd_);
+  } else if (bdev_type_ == BdevType::kRam && ram_buffer_ != nullptr) {
+    free(ram_buffer_);
+    ram_buffer_ = nullptr;
   }
 
   // Clean up free lists
@@ -44,8 +50,8 @@ void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& ctx) {
   hipc::CtxAllocator<CHI_MAIN_ALLOC_T> ctx_alloc(HSHM_MCTX, main_allocator_);
   CreateParams params = task->GetParams(ctx_alloc);
   
-  HELOG(kError, "DEBUG: Bdev runtime received params: file_path='{}', total_size={}, io_depth={}, alignment={}", 
-        params.file_path_, params.total_size_, params.io_depth_, params.alignment_);
+  HELOG(kError, "DEBUG: Bdev runtime received params: bdev_type={}, file_path='{}', total_size={}, io_depth={}, alignment={}", 
+        static_cast<chi::u32>(params.bdev_type_), params.file_path_, params.total_size_, params.io_depth_, params.alignment_);
 
   // Initialize the container with pool information and domain query
   chi::Container::Init(task->pool_id_, task->pool_query_);
@@ -54,40 +60,70 @@ void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& ctx) {
   CreateLocalQueue(0, 4, chi::kLowLatency);   // Queue 0: 4 lanes for low latency tasks
   CreateLocalQueue(1, 2, chi::kHighLatency);  // Queue 1: 2 lanes for high latency tasks
 
-  // Open the file
-  file_fd_ = open(params.file_path_.c_str(), O_RDWR | O_CREAT | O_DIRECT, 0644);
-  if (file_fd_ < 0) {
-    task->result_code_ = 1;
-    return;
-  }
+  // Store backend type
+  bdev_type_ = params.bdev_type_;
+  
+  // Initialize storage backend based on type
+  if (bdev_type_ == BdevType::kFile) {
+    // File-based storage initialization
+    file_fd_ = open(params.file_path_.c_str(), O_RDWR | O_CREAT | O_DIRECT, 0644);
+    if (file_fd_ < 0) {
+      task->result_code_ = 1;
+      return;
+    }
 
-  // Get file size
-  struct stat st;
-  if (fstat(file_fd_, &st) != 0) {
-    task->result_code_ = 2;
-    close(file_fd_);
-    file_fd_ = -1;
-    return;
-  }
-
-  file_size_ = st.st_size;
-  if (params.total_size_ > 0 && params.total_size_ < file_size_) {
-    file_size_ = params.total_size_;
-  }
-
-  // If file is empty, create it with default size (1GB)
-  if (file_size_ == 0) {
-    file_size_ = (params.total_size_ > 0) ? params.total_size_
-                                          : (1ULL << 30);  // 1GB default
-    if (ftruncate(file_fd_, file_size_) != 0) {
-      task->result_code_ = 3;
+    // Get file size
+    struct stat st;
+    if (fstat(file_fd_, &st) != 0) {
+      task->result_code_ = 2;
       close(file_fd_);
       file_fd_ = -1;
       return;
     }
+
+    file_size_ = st.st_size;
+    if (params.total_size_ > 0 && params.total_size_ < file_size_) {
+      file_size_ = params.total_size_;
+    }
+
+    // If file is empty, create it with default size (1GB)
+    if (file_size_ == 0) {
+      file_size_ = (params.total_size_ > 0) ? params.total_size_
+                                            : (1ULL << 30);  // 1GB default
+      if (ftruncate(file_fd_, file_size_) != 0) {
+        task->result_code_ = 3;
+        close(file_fd_);
+        file_fd_ = -1;
+        return;
+      }
+    }
+    
+    // Initialize async I/O for file backend
+    InitializeAsyncIO();
+    
+  } else if (bdev_type_ == BdevType::kRam) {
+    // RAM-based storage initialization
+    if (params.total_size_ == 0) {
+      // RAM backend requires explicit size
+      task->result_code_ = 4;
+      return;
+    }
+    
+    ram_size_ = params.total_size_;
+    ram_buffer_ = static_cast<char*>(malloc(ram_size_));
+    if (ram_buffer_ == nullptr) {
+      task->result_code_ = 5;
+      return;
+    }
+    
+    // Initialize RAM buffer to zero
+    memset(ram_buffer_, 0, ram_size_);
+    file_size_ = ram_size_;  // Use file_size_ for common allocation logic
+    
+    HELOG(kError, "DEBUG: Initialized RAM backend with size {}", ram_size_);
   }
 
-  // Initialize other parameters
+  // Initialize common parameters
   alignment_ = params.alignment_;
   io_depth_ = params.io_depth_;
   
@@ -96,9 +132,6 @@ void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& ctx) {
 
   // Initialize the data allocator
   InitializeAllocator();
-
-  // Initialize async I/O
-  InitializeAsyncIO();
 
   // Initialize performance tracking
   start_time_ = std::chrono::high_resolution_clock::now();
@@ -122,9 +155,10 @@ void Runtime::MonitorCreate(chi::MonitorModeId mode,
                               chi::RunContext& ctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule: {
-      // REQUIRED: Route task to local queue
-      if (auto* lane = GetLane(0, 0)) {  // Queue 0 (low latency), lane 0
-        lane->emplace(task.shm_);
+      // REQUIRED: Set route_lane_ to indicate where task should be routed
+      auto lane_ptr = GetLaneFullPtr(0, 0);  // Queue 0 (low latency), lane 0
+      if (!lane_ptr.IsNull()) {
+        ctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
       }
       break;
     }
@@ -164,8 +198,9 @@ void Runtime::MonitorAllocate(chi::MonitorModeId mode,
                                 chi::RunContext& ctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule: {
-      if (auto* lane = GetLane(0, 0)) {  // Queue 0 (low latency), lane 0
-        lane->emplace(task.shm_);
+      auto lane_ptr = GetLaneFullPtr(0, 0);  // Queue 0 (low latency), lane 0
+      if (!lane_ptr.IsNull()) {
+        ctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
       }
       break;
     }
@@ -194,8 +229,9 @@ void Runtime::MonitorFree(chi::MonitorModeId mode,
                             chi::RunContext& ctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule: {
-      if (auto* lane = GetLane(0, 0)) {  // Queue 0 (low latency), lane 0
-        lane->emplace(task.shm_);
+      auto lane_ptr = GetLaneFullPtr(0, 0);  // Queue 0 (low latency), lane 0
+      if (!lane_ptr.IsNull()) {
+        ctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
       }
       break;
     }
@@ -210,43 +246,17 @@ void Runtime::MonitorFree(chi::MonitorModeId mode,
 }
 
 void Runtime::Write(hipc::FullPtr<WriteTask> task, chi::RunContext& ctx) {
-  // Align buffer for direct I/O
-  chi::u64 aligned_size = AlignSize(task->data_.size());
-
-  // Allocate aligned buffer
-  void* aligned_buffer;
-  if (posix_memalign(&aligned_buffer, alignment_, aligned_size) != 0) {
-    task->result_code_ = 1;
-    task->bytes_written_ = 0;
-    return;
-  }
-
-  // Copy data to aligned buffer
-  memcpy(aligned_buffer, task->data_.data(), task->data_.size());
-  if (aligned_size > task->data_.size()) {
-    memset(static_cast<char*>(aligned_buffer) + task->data_.size(), 0,
-           aligned_size - task->data_.size());
-  }
-
-  // Perform async write using POSIX AIO
-  chi::u64 bytes_written;
-  chi::u32 result =
-      PerformAsyncIO(true, task->block_.offset_, aligned_buffer, aligned_size,
-                     bytes_written, task.Cast<chi::Task>());
-
-  free(aligned_buffer);
-
-  if (result != 0) {
-    task->result_code_ = result;
-    task->bytes_written_ = 0;
-  } else {
-    task->result_code_ = 0;
-    task->bytes_written_ =
-        std::min(bytes_written, static_cast<chi::u64>(task->data_.size()));
-
-    // Update performance metrics
-    total_writes_.fetch_add(1);
-    total_bytes_written_.fetch_add(task->bytes_written_);
+  switch (bdev_type_) {
+    case BdevType::kFile:
+      WriteToFile(task);
+      break;
+    case BdevType::kRam:
+      WriteToRam(task);
+      break;
+    default:
+      task->result_code_ = 1;  // Unknown backend type
+      task->bytes_written_ = 0;
+      break;
   }
 }
 
@@ -256,8 +266,9 @@ void Runtime::MonitorWrite(chi::MonitorModeId mode,
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule: {
       // Route to high latency queue for I/O operations
-      if (auto* lane = GetLane(1, 0)) {  // Queue 1 (high latency), lane 0
-        lane->emplace(task.shm_);
+      auto lane_ptr = GetLaneFullPtr(1, 0);  // Queue 1 (high latency), lane 0
+      if (!lane_ptr.IsNull()) {
+        ctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
       }
       break;
     }
@@ -272,43 +283,18 @@ void Runtime::MonitorWrite(chi::MonitorModeId mode,
 }
 
 void Runtime::Read(hipc::FullPtr<ReadTask> task, chi::RunContext& ctx) {
-  // Align buffer for direct I/O
-  chi::u64 aligned_size = AlignSize(task->block_.size_);
-
-  // Allocate aligned buffer
-  void* aligned_buffer;
-  if (posix_memalign(&aligned_buffer, alignment_, aligned_size) != 0) {
-    task->result_code_ = 1;
-    task->bytes_read_ = 0;
-    return;
+  switch (bdev_type_) {
+    case BdevType::kFile:
+      ReadFromFile(task);
+      break;
+    case BdevType::kRam:
+      ReadFromRam(task);
+      break;
+    default:
+      task->result_code_ = 1;  // Unknown backend type
+      task->bytes_read_ = 0;
+      break;
   }
-
-  // Perform async read using POSIX AIO
-  chi::u64 bytes_read;
-  chi::u32 result =
-      PerformAsyncIO(false, task->block_.offset_, aligned_buffer, aligned_size,
-                     bytes_read, task.Cast<chi::Task>());
-
-  if (result != 0) {
-    task->result_code_ = result;
-    task->bytes_read_ = 0;
-    free(aligned_buffer);
-    return;
-  }
-
-  // Copy data to task output
-  chi::u64 actual_bytes = std::min(bytes_read, task->block_.size_);
-  task->data_.resize(actual_bytes);
-  memcpy(task->data_.data(), aligned_buffer, actual_bytes);
-
-  free(aligned_buffer);
-
-  task->result_code_ = 0;
-  task->bytes_read_ = actual_bytes;
-
-  // Update performance metrics
-  total_reads_.fetch_add(1);
-  total_bytes_read_.fetch_add(actual_bytes);
 }
 
 void Runtime::MonitorRead(chi::MonitorModeId mode,
@@ -317,8 +303,9 @@ void Runtime::MonitorRead(chi::MonitorModeId mode,
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule: {
       // Route to high latency queue for I/O operations
-      if (auto* lane = GetLane(1, 1)) {  // Queue 1 (high latency), lane 1
-        lane->emplace(task.shm_);
+      auto lane_ptr = GetLaneFullPtr(1, 1);  // Queue 1 (high latency), lane 1
+      if (!lane_ptr.IsNull()) {
+        ctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
       }
       break;
     }
@@ -374,8 +361,9 @@ void Runtime::MonitorStat(chi::MonitorModeId mode,
                             chi::RunContext& ctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule: {
-      if (auto* lane = GetLane(0, 0)) {  // Queue 0 (low latency), lane 0
-        lane->emplace(task.shm_);
+      auto lane_ptr = GetLaneFullPtr(0, 0);  // Queue 0 (low latency), lane 0
+      if (!lane_ptr.IsNull()) {
+        ctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
       }
       break;
     }
@@ -418,8 +406,9 @@ void Runtime::MonitorDestroy(chi::MonitorModeId mode,
                                chi::RunContext& ctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule: {
-      if (auto* lane = GetLane(0, 0)) {  // Queue 0 (low latency), lane 0
-        lane->emplace(task.shm_);
+      auto lane_ptr = GetLaneFullPtr(0, 0);  // Queue 0 (low latency), lane 0
+      if (!lane_ptr.IsNull()) {
+        ctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
       }
       break;
     }
@@ -446,7 +435,13 @@ void Runtime::InitializeAllocator() {
 }
 
 void Runtime::BenchmarkPerformance() {
-  // Simple benchmark: write and read a small block
+  // Skip benchmarking for RAM backend (very fast operations)
+  if (bdev_type_ == BdevType::kRam) {
+    std::cout << "Skipping benchmark for RAM backend (operations < 1us)" << std::endl;
+    return;
+  }
+  
+  // Simple benchmark for file backend: write and read a small block
   const chi::u64 benchmark_size = 4096;
   void* aligned_buffer;
 
@@ -618,6 +613,128 @@ chi::u32 Runtime::PerformAsyncIO(bool is_write, chi::u64 offset, void* buffer,
 
   bytes_transferred = bytes_result;
   return 0;  // Success
+}
+
+// Backend-specific write operations
+void Runtime::WriteToFile(hipc::FullPtr<WriteTask> task) {
+  // Align buffer for direct I/O
+  chi::u64 aligned_size = AlignSize(task->data_.size());
+
+  // Allocate aligned buffer
+  void* aligned_buffer;
+  if (posix_memalign(&aligned_buffer, alignment_, aligned_size) != 0) {
+    task->result_code_ = 1;
+    task->bytes_written_ = 0;
+    return;
+  }
+
+  // Copy data to aligned buffer
+  memcpy(aligned_buffer, task->data_.data(), task->data_.size());
+  if (aligned_size > task->data_.size()) {
+    memset(static_cast<char*>(aligned_buffer) + task->data_.size(), 0,
+           aligned_size - task->data_.size());
+  }
+
+  // Perform async write using POSIX AIO
+  chi::u64 bytes_written;
+  chi::u32 result =
+      PerformAsyncIO(true, task->block_.offset_, aligned_buffer, aligned_size,
+                     bytes_written, task.Cast<chi::Task>());
+
+  free(aligned_buffer);
+
+  if (result != 0) {
+    task->result_code_ = result;
+    task->bytes_written_ = 0;
+  } else {
+    task->result_code_ = 0;
+    task->bytes_written_ =
+        std::min(bytes_written, static_cast<chi::u64>(task->data_.size()));
+
+    // Update performance metrics
+    total_writes_.fetch_add(1);
+    total_bytes_written_.fetch_add(task->bytes_written_);
+  }
+}
+
+void Runtime::WriteToRam(hipc::FullPtr<WriteTask> task) {
+  // Check bounds
+  if (task->block_.offset_ + task->data_.size() > ram_size_) {
+    task->result_code_ = 1;  // Write beyond buffer bounds
+    task->bytes_written_ = 0;
+    return;
+  }
+  
+  // Simple memory copy
+  memcpy(ram_buffer_ + task->block_.offset_, task->data_.data(), task->data_.size());
+  
+  task->result_code_ = 0;
+  task->bytes_written_ = task->data_.size();
+  
+  // Update performance metrics
+  total_writes_.fetch_add(1);
+  total_bytes_written_.fetch_add(task->bytes_written_);
+}
+
+// Backend-specific read operations
+void Runtime::ReadFromFile(hipc::FullPtr<ReadTask> task) {
+  // Align buffer for direct I/O
+  chi::u64 aligned_size = AlignSize(task->block_.size_);
+
+  // Allocate aligned buffer
+  void* aligned_buffer;
+  if (posix_memalign(&aligned_buffer, alignment_, aligned_size) != 0) {
+    task->result_code_ = 1;
+    task->bytes_read_ = 0;
+    return;
+  }
+
+  // Perform async read using POSIX AIO
+  chi::u64 bytes_read;
+  chi::u32 result =
+      PerformAsyncIO(false, task->block_.offset_, aligned_buffer, aligned_size,
+                     bytes_read, task.Cast<chi::Task>());
+
+  if (result != 0) {
+    task->result_code_ = result;
+    task->bytes_read_ = 0;
+    free(aligned_buffer);
+    return;
+  }
+
+  // Copy data to task output
+  chi::u64 actual_bytes = std::min(bytes_read, task->block_.size_);
+  task->data_.resize(actual_bytes);
+  memcpy(task->data_.data(), aligned_buffer, actual_bytes);
+
+  free(aligned_buffer);
+
+  task->result_code_ = 0;
+  task->bytes_read_ = actual_bytes;
+
+  // Update performance metrics
+  total_reads_.fetch_add(1);
+  total_bytes_read_.fetch_add(actual_bytes);
+}
+
+void Runtime::ReadFromRam(hipc::FullPtr<ReadTask> task) {
+  // Check bounds
+  if (task->block_.offset_ + task->block_.size_ > ram_size_) {
+    task->result_code_ = 1;  // Read beyond buffer bounds
+    task->bytes_read_ = 0;
+    return;
+  }
+  
+  // Copy data from RAM buffer to task output
+  task->data_.resize(task->block_.size_);
+  memcpy(task->data_.data(), ram_buffer_ + task->block_.offset_, task->block_.size_);
+  
+  task->result_code_ = 0;
+  task->bytes_read_ = task->block_.size_;
+  
+  // Update performance metrics
+  total_reads_.fetch_add(1);
+  total_bytes_read_.fetch_add(task->bytes_read_);
 }
 
 // VIRTUAL METHOD IMPLEMENTATIONS (now in autogen/bdev_lib_exec.cc)

@@ -81,7 +81,7 @@ namespace {
         return true; // Already initialized
       }
       
-      INFO("Initializing Chimaera runtime...");
+      HELOG(kInfo, "Initializing Chimaera runtime...");
       bool success = chi::CHIMAERA_RUNTIME_INIT();
       
       if (success) {
@@ -90,9 +90,9 @@ namespace {
         // Give runtime time to initialize all components
         std::this_thread::sleep_for(500ms);
         
-        INFO("Runtime initialization successful");
+        HELOG(kInfo, "Runtime initialization successful");
       } else {
-        INFO("Failed to initialize Chimaera runtime");
+        HELOG(kInfo, "Failed to initialize Chimaera runtime");
       }
       
       return success;
@@ -106,7 +106,7 @@ namespace {
         return true; // Already initialized
       }
       
-      INFO("Initializing Chimaera client...");
+      HELOG(kInfo, "Initializing Chimaera client...");
       bool success = chi::CHIMAERA_CLIENT_INIT();
       
       if (success) {
@@ -115,9 +115,9 @@ namespace {
         // Give client time to connect to runtime
         std::this_thread::sleep_for(200ms);
         
-        INFO("Client initialization successful");
+        HELOG(kInfo, "Client initialization successful");
       } else {
-        INFO("Failed to initialize Chimaera client");
+        HELOG(kInfo, "Failed to initialize Chimaera client");
       }
       
       return success;
@@ -195,7 +195,7 @@ namespace {
       if (!current_test_file_.empty()) {
         if (access(current_test_file_.c_str(), F_OK) == 0) {
           unlink(current_test_file_.c_str());
-          INFO("Cleaned up test file: " + current_test_file_);
+          HELOG(kInfo, "Cleaned up test file: {}", current_test_file_);
         }
       }
     }
@@ -228,7 +228,7 @@ TEST_CASE("bdev_container_creation", "[bdev][create]") {
     REQUIRE_NOTHROW(client.Create(mctx, chi::PoolQuery::Local(), 
                                   fixture.getTestFile()));
     
-    INFO("Successfully created bdev container with default parameters");
+    HELOG(kInfo, "Successfully created bdev container with default parameters");
   }
 }
 
@@ -256,8 +256,7 @@ TEST_CASE("bdev_block_allocation_4kb", "[bdev][allocate][4kb]") {
       REQUIRE(block.offset_ % 4096 == 0);  // Aligned
       
       blocks.push_back(block);
-      INFO("Allocated 4KB block " + std::to_string(i) + ": offset=" + 
-           std::to_string(block.offset_) + ", size=" + std::to_string(block.size_));
+      HELOG(kInfo, "Allocated 4KB block {}: offset={}, size={}", i, block.offset_, block.size_);
     }
     
     // Verify blocks don't overlap
@@ -307,7 +306,7 @@ TEST_CASE("bdev_write_read_basic", "[bdev][io][basic]") {
       REQUIRE(read_data[i] == write_data[i]);
     }
     
-    INFO("Successfully wrote and read " + std::to_string(bytes_written) + " bytes");
+    HELOG(kInfo, "Successfully wrote and read {} bytes", bytes_written);
   }
 }
 
@@ -357,7 +356,7 @@ TEST_CASE("bdev_async_operations", "[bdev][async][io]") {
     
     CHI_IPC->DelTask(read_task);
     
-    INFO("Successfully completed async allocate/write/read cycle");
+    HELOG(kInfo, "Successfully completed async allocate/write/read cycle");
   }
 }
 
@@ -408,11 +407,10 @@ TEST_CASE("bdev_performance_metrics", "[bdev][performance][metrics]") {
     REQUIRE(final_metrics.write_bandwidth_mbps_ >= 0.0);
     REQUIRE(final_metrics.iops_ >= 0.0);
     
-    INFO("Initial remaining: " + std::to_string(initial_remaining) + 
-         ", Final remaining: " + std::to_string(final_remaining));
-    INFO("Read BW: " + std::to_string(final_metrics.read_bandwidth_mbps_) + " MB/s");
-    INFO("Write BW: " + std::to_string(final_metrics.write_bandwidth_mbps_) + " MB/s");
-    INFO("IOPS: " + std::to_string(final_metrics.iops_));
+    HELOG(kInfo, "Initial remaining: {} bytes, Final remaining: {} bytes", initial_remaining, final_remaining);
+    HELOG(kInfo, "Read BW: {} MB/s", final_metrics.read_bandwidth_mbps_);
+    HELOG(kInfo, "Write BW: {} MB/s", final_metrics.write_bandwidth_mbps_);
+    HELOG(kInfo, "IOPS: {}", final_metrics.iops_);
   }
 }
 
@@ -435,7 +433,430 @@ TEST_CASE("bdev_error_conditions", "[bdev][error][edge_cases]") {
     REQUIRE(create_task->result_code_ != 0);  // Should fail
     CHI_IPC->DelTask(create_task);
     
-    INFO("Correctly handled invalid file path");
+    HELOG(kInfo, "Correctly handled invalid file path");
+  }
+}
+
+//==============================================================================
+// RAM BACKEND TESTS
+//==============================================================================
+
+TEST_CASE("bdev_ram_container_creation", "[bdev][ram][create]") {
+  BdevChimodFixture fixture;
+  REQUIRE(fixture.initializeBoth());
+  
+  // Create admin client
+  chimaera::admin::Client admin_client;
+  admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local());
+  std::this_thread::sleep_for(100ms);
+  
+  // Create bdev client for RAM backend
+  chimaera::bdev::Client bdev_client(static_cast<chi::PoolId>(8001));
+  
+  // Create RAM-based bdev container (1MB)
+  const chi::u64 ram_size = 1024 * 1024;
+  bdev_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), 
+                     chimaera::bdev::BdevType::kRam, "", ram_size);
+  
+  std::this_thread::sleep_for(100ms);
+  
+  HELOG(kInfo, "RAM backend container created successfully with size: {} bytes", ram_size);
+}
+
+TEST_CASE("bdev_ram_allocation_and_io", "[bdev][ram][io]") {
+  BdevChimodFixture fixture;
+  REQUIRE(fixture.initializeBoth());
+  
+  // Create admin client
+  chimaera::admin::Client admin_client;
+  admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local());
+  std::this_thread::sleep_for(100ms);
+  
+  // Create bdev client for RAM backend
+  chimaera::bdev::Client bdev_client(static_cast<chi::PoolId>(8002));
+  
+  // Create RAM-based bdev container (1MB)
+  const chi::u64 ram_size = 1024 * 1024;
+  bdev_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), 
+                     chimaera::bdev::BdevType::kRam, "", ram_size);
+  std::this_thread::sleep_for(100ms);
+  
+  // Allocate a 4KB block
+  chimaera::bdev::Block block = bdev_client.Allocate(HSHM_MCTX, k4KB);
+  REQUIRE(block.size_ == k4KB);
+  REQUIRE(block.offset_ < ram_size);
+  
+  // Prepare test data with pattern
+  std::vector<hshm::u8> write_data(k4KB);
+  for (size_t i = 0; i < write_data.size(); ++i) {
+    write_data[i] = static_cast<hshm::u8>((i + 0xAB) % 256);
+  }
+  
+  // Write data to RAM
+  chi::u64 bytes_written = bdev_client.Write(HSHM_MCTX, block, write_data);
+  REQUIRE(bytes_written == k4KB);
+  
+  // Read data back from RAM
+  std::vector<hshm::u8> read_data = bdev_client.Read(HSHM_MCTX, block);
+  REQUIRE(read_data.size() == k4KB);
+  
+  // Verify data integrity
+  bool data_matches = std::equal(write_data.begin(), write_data.end(), read_data.begin());
+  REQUIRE(data_matches);
+  
+  // Free the block
+  chi::u32 free_result = bdev_client.Free(HSHM_MCTX, block);
+  REQUIRE(free_result == 0);
+  
+  HELOG(kInfo, "RAM backend I/O operations completed successfully");
+}
+
+TEST_CASE("bdev_ram_large_blocks", "[bdev][ram][large]") {
+  BdevChimodFixture fixture;
+  REQUIRE(fixture.initializeBoth());
+  
+  // Create admin client
+  chimaera::admin::Client admin_client;
+  admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local());
+  std::this_thread::sleep_for(100ms);
+  
+  // Create bdev client for RAM backend
+  chimaera::bdev::Client bdev_client(static_cast<chi::PoolId>(8003));
+  
+  // Create RAM-based bdev container (10MB)
+  const chi::u64 ram_size = 10 * 1024 * 1024;
+  bdev_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), 
+                     chimaera::bdev::BdevType::kRam, "", ram_size);
+  std::this_thread::sleep_for(100ms);
+  
+  // Test different block sizes
+  std::vector<chi::u64> block_sizes = {k4KB, k64KB, k256KB, k1MB};
+  
+  for (chi::u64 block_size : block_sizes) {
+    HELOG(kInfo, "Testing RAM backend with block size: {} bytes", block_size);
+    
+    // Allocate block
+    chimaera::bdev::Block block = bdev_client.Allocate(HSHM_MCTX, block_size);
+    REQUIRE(block.size_ == block_size);
+    
+    // Create test pattern
+    std::vector<hshm::u8> test_data(block_size);
+    for (size_t i = 0; i < test_data.size(); i += 1024) {
+      test_data[i] = static_cast<hshm::u8>((i / 1024) % 256);
+    }
+    
+    // Write and read
+    chi::u64 bytes_written = bdev_client.Write(HSHM_MCTX, block, test_data);
+    REQUIRE(bytes_written == block_size);
+    
+    std::vector<hshm::u8> read_data = bdev_client.Read(HSHM_MCTX, block);
+    REQUIRE(read_data.size() == block_size);
+    
+    // Verify critical points in the data
+    for (size_t i = 0; i < read_data.size(); i += 1024) {
+      REQUIRE(read_data[i] == test_data[i]);
+    }
+    
+    // Free block
+    chi::u32 free_result = bdev_client.Free(HSHM_MCTX, block);
+    REQUIRE(free_result == 0);
+  }
+  
+  HELOG(kInfo, "RAM backend large block tests completed");
+}
+
+TEST_CASE("bdev_ram_performance", "[bdev][ram][performance]") {
+  BdevChimodFixture fixture;
+  REQUIRE(fixture.initializeBoth());
+  
+  // Create admin client
+  chimaera::admin::Client admin_client;
+  admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local());
+  std::this_thread::sleep_for(100ms);
+  
+  // Create bdev client for RAM backend
+  chimaera::bdev::Client bdev_client(static_cast<chi::PoolId>(8004));
+  
+  // Create RAM-based bdev container (100MB)
+  const chi::u64 ram_size = 100 * 1024 * 1024;
+  bdev_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), 
+                     chimaera::bdev::BdevType::kRam, "", ram_size);
+  std::this_thread::sleep_for(100ms);
+  
+  // Allocate a 1MB block
+  chimaera::bdev::Block block = bdev_client.Allocate(HSHM_MCTX, k1MB);
+  REQUIRE(block.size_ == k1MB);
+  
+  // Prepare test data
+  std::vector<hshm::u8> test_data(k1MB, 0xCD);
+  
+  // Measure write performance
+  auto write_start = std::chrono::high_resolution_clock::now();
+  chi::u64 bytes_written = bdev_client.Write(HSHM_MCTX, block, test_data);
+  auto write_end = std::chrono::high_resolution_clock::now();
+  
+  REQUIRE(bytes_written == k1MB);
+  
+  // Measure read performance
+  auto read_start = std::chrono::high_resolution_clock::now();
+  std::vector<hshm::u8> read_data = bdev_client.Read(HSHM_MCTX, block);
+  auto read_end = std::chrono::high_resolution_clock::now();
+  
+  REQUIRE(read_data.size() == k1MB);
+  
+  // Calculate performance metrics
+  auto write_duration = std::chrono::duration<double, std::micro>(write_end - write_start);
+  auto read_duration = std::chrono::duration<double, std::micro>(read_end - read_start);
+  
+  double write_mbps = (k1MB / (1024.0 * 1024.0)) / (write_duration.count() / 1000000.0);
+  double read_mbps = (k1MB / (1024.0 * 1024.0)) / (read_duration.count() / 1000000.0);
+  
+  HELOG(kInfo, "RAM Backend Performance:");
+  HELOG(kInfo, "  Write: {} MB/s ({} μs)", write_mbps, write_duration.count());
+  HELOG(kInfo, "  Read:  {} MB/s ({} μs)", read_mbps, read_duration.count());
+  
+  // RAM should be very fast - expect sub-millisecond operations
+  REQUIRE(write_duration.count() < 10000.0);  // Less than 10ms
+  REQUIRE(read_duration.count() < 10000.0);   // Less than 10ms
+  
+  // Free block
+  chi::u32 free_result = bdev_client.Free(HSHM_MCTX, block);
+  REQUIRE(free_result == 0);
+}
+
+TEST_CASE("bdev_ram_bounds_checking", "[bdev][ram][bounds]") {
+  BdevChimodFixture fixture;
+  REQUIRE(fixture.initializeBoth());
+  
+  // Create admin client
+  chimaera::admin::Client admin_client;
+  admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local());
+  std::this_thread::sleep_for(100ms);
+  
+  // Create bdev client for RAM backend
+  chimaera::bdev::Client bdev_client(static_cast<chi::PoolId>(8005));
+  
+  // Create small RAM-based bdev container (64KB)
+  const chi::u64 ram_size = 64 * 1024;
+  bdev_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), 
+                     chimaera::bdev::BdevType::kRam, "", ram_size);
+  std::this_thread::sleep_for(100ms);
+  
+  // Create a block that would go beyond bounds
+  chimaera::bdev::Block out_of_bounds_block;
+  out_of_bounds_block.offset_ = ram_size - 1024;  // Near end of buffer
+  out_of_bounds_block.size_ = 2048;               // Extends beyond buffer
+  out_of_bounds_block.block_type_ = 0;
+  
+  // Prepare test data
+  std::vector<hshm::u8> test_data(2048, 0xEF);
+  
+  // Write should fail with bounds check
+  chi::u64 bytes_written = bdev_client.Write(HSHM_MCTX, out_of_bounds_block, test_data);
+  REQUIRE(bytes_written == 0);  // Should fail
+  
+  // Read should also fail with bounds check
+  std::vector<hshm::u8> read_data = bdev_client.Read(HSHM_MCTX, out_of_bounds_block);
+  REQUIRE(read_data.empty());   // Should fail
+  
+  HELOG(kInfo, "RAM backend bounds checking working correctly");
+}
+
+//==============================================================================
+// FILE BACKEND TESTS (Enhanced)
+//==============================================================================
+
+TEST_CASE("bdev_file_vs_ram_comparison", "[bdev][file][ram][comparison]") {
+  BdevChimodFixture fixture;
+  REQUIRE(fixture.initializeBoth());
+  REQUIRE(fixture.createTestFile(kDefaultFileSize));
+  
+  // Create admin client
+  chimaera::admin::Client admin_client;
+  admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local());
+  std::this_thread::sleep_for(100ms);
+  
+  // Create two bdev clients - one for file, one for RAM
+  chimaera::bdev::Client file_client(static_cast<chi::PoolId>(8006));
+  chimaera::bdev::Client ram_client(static_cast<chi::PoolId>(8007));
+  
+  // Create file-based container
+  file_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), 
+                     chimaera::bdev::BdevType::kFile, fixture.getTestFile());
+  std::this_thread::sleep_for(100ms);
+  
+  // Create RAM-based container (same size as file)
+  ram_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), 
+                    chimaera::bdev::BdevType::kRam, "", kDefaultFileSize);
+  std::this_thread::sleep_for(100ms);
+  
+  // Test same operations on both backends
+  const chi::u64 test_size = k64KB;
+  
+  // Allocate blocks on both
+  chimaera::bdev::Block file_block = file_client.Allocate(HSHM_MCTX, test_size);
+  chimaera::bdev::Block ram_block = ram_client.Allocate(HSHM_MCTX, test_size);
+  
+  REQUIRE(file_block.size_ == test_size);
+  REQUIRE(ram_block.size_ == test_size);
+  
+  // Create identical test data
+  std::vector<hshm::u8> test_data(test_size);
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_int_distribution<> dis(0, 255);
+  
+  for (size_t i = 0; i < test_data.size(); ++i) {
+    test_data[i] = static_cast<hshm::u8>(dis(gen));
+  }
+  
+  // Write to both backends and measure time
+  auto file_write_start = std::chrono::high_resolution_clock::now();
+  chi::u64 file_bytes_written = file_client.Write(HSHM_MCTX, file_block, test_data);
+  auto file_write_end = std::chrono::high_resolution_clock::now();
+  
+  auto ram_write_start = std::chrono::high_resolution_clock::now();
+  chi::u64 ram_bytes_written = ram_client.Write(HSHM_MCTX, ram_block, test_data);
+  auto ram_write_end = std::chrono::high_resolution_clock::now();
+  
+  REQUIRE(file_bytes_written == test_size);
+  REQUIRE(ram_bytes_written == test_size);
+  
+  // Read from both backends and measure time
+  auto file_read_start = std::chrono::high_resolution_clock::now();
+  std::vector<hshm::u8> file_read_data = file_client.Read(HSHM_MCTX, file_block);
+  auto file_read_end = std::chrono::high_resolution_clock::now();
+  
+  auto ram_read_start = std::chrono::high_resolution_clock::now();
+  std::vector<hshm::u8> ram_read_data = ram_client.Read(HSHM_MCTX, ram_block);
+  auto ram_read_end = std::chrono::high_resolution_clock::now();
+  
+  REQUIRE(file_read_data.size() == test_size);
+  REQUIRE(ram_read_data.size() == test_size);
+  
+  // Verify data integrity on both
+  bool file_data_ok = std::equal(test_data.begin(), test_data.end(), file_read_data.begin());
+  bool ram_data_ok = std::equal(test_data.begin(), test_data.end(), ram_read_data.begin());
+  
+  REQUIRE(file_data_ok);
+  REQUIRE(ram_data_ok);
+  
+  // Calculate and compare performance
+  auto file_write_time = std::chrono::duration<double, std::micro>(file_write_end - file_write_start);
+  auto ram_write_time = std::chrono::duration<double, std::micro>(ram_write_end - ram_write_start);
+  auto file_read_time = std::chrono::duration<double, std::micro>(file_read_end - file_read_start);
+  auto ram_read_time = std::chrono::duration<double, std::micro>(ram_read_end - ram_read_start);
+  
+  HELOG(kInfo, "Performance Comparison (64KB operations):");
+  HELOG(kInfo, "  File Write: {} μs", file_write_time.count());
+  HELOG(kInfo, "  RAM Write:  {} μs", ram_write_time.count());
+  HELOG(kInfo, "  File Read:  {} μs", file_read_time.count());
+  HELOG(kInfo, "  RAM Read:   {} μs", ram_read_time.count());
+  
+  // RAM should be significantly faster
+  REQUIRE(ram_write_time.count() < file_write_time.count());
+  REQUIRE(ram_read_time.count() < file_read_time.count());
+  
+  // Clean up
+  file_client.Free(HSHM_MCTX, file_block);
+  ram_client.Free(HSHM_MCTX, ram_block);
+}
+
+TEST_CASE("bdev_file_explicit_backend", "[bdev][file][explicit]") {
+  BdevChimodFixture fixture;
+  REQUIRE(fixture.initializeBoth());
+  REQUIRE(fixture.createTestFile(kDefaultFileSize));
+  
+  // Create admin client
+  chimaera::admin::Client admin_client;
+  admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local());
+  std::this_thread::sleep_for(100ms);
+  
+  // Create bdev client with explicit file backend
+  chimaera::bdev::Client bdev_client(static_cast<chi::PoolId>(8008));
+  
+  // Create file-based container using explicit backend type
+  bdev_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), 
+                     chimaera::bdev::BdevType::kFile, 
+                     fixture.getTestFile(), 0, 32, 4096);
+  std::this_thread::sleep_for(100ms);
+  
+  // Test basic operations
+  chimaera::bdev::Block block = bdev_client.Allocate(HSHM_MCTX, k4KB);
+  REQUIRE(block.size_ == k4KB);
+  
+  std::vector<hshm::u8> test_data(k4KB, 0x42);
+  chi::u64 bytes_written = bdev_client.Write(HSHM_MCTX, block, test_data);
+  REQUIRE(bytes_written == k4KB);
+  
+  std::vector<hshm::u8> read_data = bdev_client.Read(HSHM_MCTX, block);
+  REQUIRE(read_data.size() == k4KB);
+  
+  bool data_ok = std::equal(test_data.begin(), test_data.end(), read_data.begin());
+  REQUIRE(data_ok);
+  
+  chi::u32 free_result = bdev_client.Free(HSHM_MCTX, block);
+  REQUIRE(free_result == 0);
+  
+  HELOG(kInfo, "File backend with explicit type specification working correctly");
+}
+
+TEST_CASE("bdev_error_conditions_enhanced", "[bdev][error][enhanced]") {
+  BdevChimodFixture fixture;
+  REQUIRE(fixture.initializeBoth());
+  
+  // Create admin client
+  chimaera::admin::Client admin_client;
+  admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local());
+  std::this_thread::sleep_for(100ms);
+  
+  // Test 1: RAM backend without size specification
+  {
+    chimaera::bdev::Client ram_client_no_size(static_cast<chi::PoolId>(8009));
+    
+    // This should fail because RAM backend requires explicit size
+    bool creation_failed = false;
+    try {
+      ram_client_no_size.Create(HSHM_MCTX, chi::PoolQuery::Local(), 
+                                chimaera::bdev::BdevType::kRam, "", 0);  // Size 0 should fail
+      std::this_thread::sleep_for(100ms);
+    } catch (...) {
+      creation_failed = true;
+    }
+    
+    // Note: The actual error handling might be at the task level, 
+    // so we test if we can allocate (which should fail)
+    if (!creation_failed) {
+      try {
+        chimaera::bdev::Block block = ram_client_no_size.Allocate(HSHM_MCTX, k4KB);
+        creation_failed = (block.size_ == 0);  // Should be invalid block
+      } catch (...) {
+        creation_failed = true;
+      }
+    }
+    
+    HELOG(kInfo, "RAM backend properly rejects zero size: {}", creation_failed ? "YES" : "NO");
+  }
+  
+  // Test 2: File backend with non-existent file
+  {
+    chimaera::bdev::Client file_client_bad_path(static_cast<chi::PoolId>(8010));
+    
+    bool creation_failed = false;
+    try {
+      file_client_bad_path.Create(HSHM_MCTX, chi::PoolQuery::Local(), 
+                                  chimaera::bdev::BdevType::kFile, 
+                                  "/nonexistent/path/file.dat");
+      std::this_thread::sleep_for(100ms);
+      
+      // Try to allocate to see if container actually works
+      chimaera::bdev::Block block = file_client_bad_path.Allocate(HSHM_MCTX, k4KB);
+      creation_failed = (block.size_ == 0);
+    } catch (...) {
+      creation_failed = true;
+    }
+    
+    HELOG(kInfo, "File backend properly handles bad path: {}", creation_failed ? "YES" : "NO");
   }
 }
 

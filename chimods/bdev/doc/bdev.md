@@ -2,14 +2,15 @@
 
 ## Overview
 
-The Bdev (Block Device) ChiMod provides a high-performance interface for block device operations with asynchronous I/O support. It manages block allocation, read/write operations, and performance monitoring for storage devices using libaio for optimal I/O throughput.
+The Bdev (Block Device) ChiMod provides a high-performance interface for block device operations supporting both file-based and RAM-based storage backends. It manages block allocation, read/write operations, and performance monitoring with flexible storage options.
 
 **Key Features:**
-- Asynchronous block device I/O operations using libaio
-- Hierarchical block allocation with multiple size categories (4KB, 64KB, 256KB, 1MB)
-- Performance monitoring and statistics collection
-- Memory-aligned I/O operations for optimal performance
-- Block allocation and deallocation management
+- **Dual Backend Support**: File-based storage (using libaio) and RAM-based storage (using malloc)
+- **Asynchronous I/O**: For file-based storage using libaio, synchronous operations for RAM-based storage
+- **Hierarchical block allocation** with multiple size categories (4KB, 64KB, 256KB, 1MB)
+- **Performance monitoring** and statistics collection for both backends
+- **Memory-aligned I/O operations** for optimal file-based performance
+- **Block allocation and deallocation management** with unified API
 
 ## CMake Integration
 
@@ -58,8 +59,8 @@ explicit Client(const chi::PoolId& pool_id)
 
 #### Container Management
 
-##### `Create()` - Synchronous
-Creates and initializes the bdev container with specified device parameters.
+##### `Create()` - Synchronous (File-based, Backward Compatible)
+Creates and initializes the bdev container with file-based storage.
 
 ```cpp
 void Create(const hipc::MemContext& mctx, const chi::PoolQuery& pool_query,
@@ -67,31 +68,60 @@ void Create(const hipc::MemContext& mctx, const chi::PoolQuery& pool_query,
            chi::u32 io_depth = 32, chi::u32 alignment = 4096)
 ```
 
+##### `Create()` - Synchronous (With Backend Type Selection)
+Creates and initializes the bdev container with specified backend type.
+
+```cpp
+void Create(const hipc::MemContext& mctx, const chi::PoolQuery& pool_query,
+           BdevType bdev_type, const std::string& file_path = "", chi::u64 total_size = 0,
+           chi::u32 io_depth = 32, chi::u32 alignment = 4096)
+```
+
 **Parameters:**
 - `mctx`: Memory context for task allocation
 - `pool_query`: Pool domain query (typically `chi::PoolQuery::Local()`)
-- `file_path`: Path to the block device file or regular file to use for storage
-- `total_size`: Total size available for allocation (0 = use file size)
-- `io_depth`: libaio queue depth for asynchronous operations (default: 32)
+- `bdev_type`: Backend type (`BdevType::kFile` or `BdevType::kRam`)
+- `file_path`: Path to the block device file (required for kFile, ignored for kRam)
+- `total_size`: Total size available for allocation (0 = use file size for kFile, required for kRam)
+- `io_depth`: libaio queue depth for asynchronous operations (ignored for kRam, default: 32)
 - `alignment`: I/O alignment in bytes for optimal performance (default: 4096)
 
-**Usage:**
+**Usage Examples:**
+
+*File-based storage:*
 ```cpp
 chi::CHIMAERA_CLIENT_INIT();
 const chi::PoolId pool_id = static_cast<chi::PoolId>(8000);
 chimaera::bdev::Client bdev_client(pool_id);
 
 auto pool_query = chi::PoolQuery::Local();
-bdev_client.Create(HSHM_MCTX, pool_query, "/dev/nvme0n1", 0, 64, 4096);
+// Traditional file-based storage
+bdev_client.Create(HSHM_MCTX, pool_query, BdevType::kFile, "/dev/nvme0n1", 0, 64, 4096);
 ```
 
-##### `AsyncCreate()` - Asynchronous
-Creates and initializes the bdev container asynchronously.
+*RAM-based storage:*
+```cpp
+// RAM-based storage (1GB)
+bdev_client.Create(HSHM_MCTX, pool_query, BdevType::kRam, "", 1024*1024*1024);
+```
+
+##### `AsyncCreate()` - Asynchronous (File-based, Backward Compatible)
+Creates and initializes the bdev container asynchronously with file-based storage.
 
 ```cpp
 hipc::FullPtr<chimaera::bdev::CreateTask> AsyncCreate(
     const hipc::MemContext& mctx, const chi::PoolQuery& pool_query,
     const std::string& file_path, chi::u64 total_size = 0,
+    chi::u32 io_depth = 32, chi::u32 alignment = 4096)
+```
+
+##### `AsyncCreate()` - Asynchronous (With Backend Type Selection)
+Creates and initializes the bdev container asynchronously with specified backend type.
+
+```cpp
+hipc::FullPtr<chimaera::bdev::CreateTask> AsyncCreate(
+    const hipc::MemContext& mctx, const chi::PoolQuery& pool_query,
+    BdevType bdev_type, const std::string& file_path = "", chi::u64 total_size = 0,
     chi::u32 io_depth = 32, chi::u32 alignment = 4096)
 ```
 
@@ -245,6 +275,20 @@ hipc::FullPtr<chimaera::bdev::StatTask> AsyncGetStats(
 
 ## Data Structures
 
+### BdevType Enum
+Specifies the storage backend type.
+
+```cpp
+enum class BdevType : chi::u32 {
+  kFile = 0,  // File-based block device (default)
+  kRam = 1    // RAM-based block device
+};
+```
+
+**Backend Characteristics:**
+- **kFile**: Uses file-based storage with libaio for asynchronous I/O, supports alignment requirements, persistent data
+- **kRam**: Uses malloc-allocated RAM buffer, synchronous operations, volatile data (lost on restart)
+
 ### Block Structure
 Represents an allocated block of storage.
 
@@ -333,9 +377,10 @@ Configuration parameters for bdev container creation:
 
 ```cpp
 struct CreateParams {
-  std::string file_path_;       // Path to block device file
-  chi::u64 total_size_;        // Total size for allocation (0 = file size)
-  chi::u32 io_depth_;          // libaio queue depth (default: 32)
+  BdevType bdev_type_;         // Block device type (file or RAM)
+  std::string file_path_;      // Path to block device file (for kFile type)
+  chi::u64 total_size_;        // Total size for allocation (0 = file size for kFile, required for kRam)
+  chi::u32 io_depth_;          // libaio queue depth (ignored for kRam, default: 32)
   chi::u32 alignment_;         // I/O alignment in bytes (default: 4096)
   
   // Required: chimod library name for module manager
@@ -344,16 +389,19 @@ struct CreateParams {
 ```
 
 **Parameter Guidelines:**
-- **file_path_**: Can be a block device (`/dev/nvme0n1`) or regular file
-- **total_size_**: Set to 0 to use the full file/device size
-- **io_depth_**: Higher values improve parallelism but use more memory (typical: 16-128)
-- **alignment_**: Must match device requirements (typically 512 or 4096 bytes)
+- **bdev_type_**: Choose `BdevType::kFile` for persistent storage or `BdevType::kRam` for high-speed volatile storage
+- **file_path_**: Required for kFile (can be block device `/dev/nvme0n1` or regular file), ignored for kRam
+- **total_size_**: 
+  - For kFile: Set to 0 to use full file/device size, or specify limit
+  - For kRam: **Required** - specifies the RAM buffer size to allocate
+- **io_depth_**: Higher values improve parallelism for kFile but use more memory (typical: 16-128), ignored for kRam
+- **alignment_**: Must match device requirements for kFile (typically 512 or 4096 bytes), less critical for kRam
 
 **Important:** The `chimod_lib_name` does NOT include the `_runtime` suffix as it is automatically appended by the module manager.
 
 ## Usage Examples
 
-### Complete Block Device Workflow
+### File-based Block Device Workflow
 ```cpp
 #include <chimaera/chimaera.h>
 #include <chimaera/bdev/bdev_client.h>
@@ -373,9 +421,9 @@ int main() {
     const chi::PoolId bdev_pool_id = static_cast<chi::PoolId>(8000);
     chimaera::bdev::Client bdev_client(bdev_pool_id);
     
-    // Initialize bdev container with NVMe device
+    // Initialize bdev container with NVMe device (file-based)
     bdev_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), 
-                      "/dev/nvme0n1", 0, 64, 4096);
+                      BdevType::kFile, "/dev/nvme0n1", 0, 64, 4096);
     
     // Allocate a 1MB block
     Block large_block = bdev_client.Allocate(HSHM_MCTX, 1024 * 1024);
@@ -407,6 +455,72 @@ int main() {
     std::cout << "  Read: " << perf.read_bandwidth_mbps_ << " MB/s" << std::endl;
     std::cout << "  Write: " << perf.write_bandwidth_mbps_ << " MB/s" << std::endl;
     std::cout << "  IOPS: " << perf.iops_ << std::endl;
+    
+    // Free the allocated block
+    chi::u32 free_result = bdev_client.Free(HSHM_MCTX, large_block);
+    std::cout << "Block freed: " << (free_result == 0 ? "SUCCESS" : "FAILED") << std::endl;
+    
+    return 0;
+    
+  } catch (const std::exception& e) {
+    std::cerr << "Error: " << e.what() << std::endl;
+    return 1;
+  }
+}
+```
+
+### RAM-based Block Device Workflow
+```cpp
+#include <chimaera/chimaera.h>
+#include <chimaera/bdev/bdev_client.h>
+#include <chimaera/admin/admin_client.h>
+
+int main() {
+  try {
+    // Initialize Chimaera client
+    chi::CHIMAERA_CLIENT_INIT();
+    
+    // Create admin client first (always required)
+    const chi::PoolId admin_pool_id = static_cast<chi::PoolId>(7000);
+    chimaera::admin::Client admin_client(admin_pool_id);
+    admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local());
+    
+    // Create bdev client
+    const chi::PoolId bdev_pool_id = static_cast<chi::PoolId>(8000);
+    chimaera::bdev::Client bdev_client(bdev_pool_id);
+    
+    // Initialize bdev container with RAM backend (1GB)
+    bdev_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), 
+                      BdevType::kRam, "", 1024*1024*1024);
+    
+    // Allocate a 1MB block (from RAM)
+    Block large_block = bdev_client.Allocate(HSHM_MCTX, 1024 * 1024);
+    
+    // Prepare test data
+    std::vector<hshm::u8> test_data(large_block.size_, 0xAB);
+    
+    // Write data to RAM (very fast)
+    auto start = std::chrono::high_resolution_clock::now();
+    chi::u64 bytes_written = bdev_client.Write(HSHM_MCTX, large_block, test_data);
+    auto write_end = std::chrono::high_resolution_clock::now();
+    
+    // Read data from RAM (very fast)
+    std::vector<hshm::u8> read_data = bdev_client.Read(HSHM_MCTX, large_block);
+    auto read_end = std::chrono::high_resolution_clock::now();
+    
+    // Calculate performance
+    double write_time_ms = std::chrono::duration<double, std::milli>(write_end - start).count();
+    double read_time_ms = std::chrono::duration<double, std::milli>(read_end - write_end).count();
+    
+    std::cout << "RAM Backend Performance:" << std::endl;
+    std::cout << "  Write time: " << write_time_ms << " ms" << std::endl;
+    std::cout << "  Read time: " << read_time_ms << " ms" << std::endl;
+    std::cout << "  Write bandwidth: " << (bytes_written / 1024.0 / 1024.0) / (write_time_ms / 1000.0) << " MB/s" << std::endl;
+    
+    // Verify data integrity
+    bool integrity_ok = (read_data.size() == test_data.size()) &&
+                       std::equal(test_data.begin(), test_data.end(), read_data.begin());
+    std::cout << "Data integrity: " << (integrity_ok ? "PASS" : "FAIL") << std::endl;
     
     // Free the allocated block
     chi::u32 free_result = bdev_client.Free(HSHM_MCTX, large_block);
@@ -553,17 +667,48 @@ CHI_IPC->DelTask(task);
 
 ## Performance Considerations
 
+### Backend Selection
+
+**Use RAM Backend (`BdevType::kRam`) when:**
+- Maximum performance is critical
+- Data persistence is not required
+- Working with temporary data or caching
+- Testing and benchmarking scenarios
+- Sufficient system RAM is available
+
+**Use File Backend (`BdevType::kFile`) when:**
+- Data persistence is required
+- Working with datasets larger than available RAM
+- Integration with existing storage infrastructure
+- Need for data durability across restarts
+
+### Performance Tuning
+
 1. **Block Size Selection**: Choose appropriate block sizes based on I/O patterns
    - Small blocks (4KB): Random access patterns
    - Large blocks (1MB): Sequential operations
 
-2. **I/O Depth**: Higher io_depth values improve parallelism but consume more memory
+2. **I/O Depth** (File backend only): Higher io_depth values improve parallelism but consume more memory
 
-3. **Alignment**: Ensure data is properly aligned to device boundaries (typically 4096 bytes)
+3. **Alignment** (File backend): Ensure data is properly aligned to device boundaries (typically 4096 bytes)
 
 4. **Async Operations**: Use async methods for better parallelism in I/O-intensive applications
 
 5. **Batch Operations**: Group multiple allocations/deallocations when possible to reduce overhead
+
+### Expected Performance Characteristics
+
+**RAM Backend:**
+- **Latency**: ~1-10 microseconds for read/write operations
+- **Bandwidth**: Limited by memory bandwidth (~10-50 GB/s typical)
+- **IOPS**: Very high (>1M IOPS)
+- **Scalability**: Excellent for concurrent access
+
+**File Backend:**
+- **Latency**: Device-dependent (~10-100 microseconds for NVMe)
+- **Bandwidth**: Device-dependent (~1-7 GB/s for high-end NVMe)
+- **IOPS**: Device-dependent (~100K-1M IOPS for NVMe)
+- **Scalability**: Good with proper io_depth tuning
 
 ## Important Notes
 

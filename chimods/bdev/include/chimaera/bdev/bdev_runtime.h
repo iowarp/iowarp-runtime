@@ -51,7 +51,16 @@ class Runtime : public chi::Container {
   // Required typedef for CHI_TASK_CC macro
   using CreateParams = chimaera::bdev::CreateParams;
   
-  Runtime() = default;
+  Runtime() : bdev_type_(BdevType::kFile), file_fd_(-1), file_size_(0), alignment_(4096), 
+              io_depth_(32), ram_buffer_(nullptr), ram_size_(0), remaining_size_(0), 
+              next_offset_(0), total_reads_(0), total_writes_(0), 
+              total_bytes_read_(0), total_bytes_written_(0) {
+    // Initialize free lists
+    for (size_t i = 0; i < static_cast<size_t>(BlockSizeCategory::kMaxCategories); ++i) {
+      free_lists_[i] = nullptr;
+    }
+    start_time_ = std::chrono::high_resolution_clock::now();
+  }
   ~Runtime() override;
 
   /**
@@ -189,11 +198,18 @@ class Runtime : public chi::Container {
                hipc::FullPtr<chi::Task>& dup_task, bool deep) override;
 
  private:
-  // File and I/O management
+  // Storage backend configuration
+  BdevType bdev_type_;                            // Backend type (file or RAM)
+  
+  // File-based storage (kFile)
   int file_fd_;                                    // File descriptor
   chi::u64 file_size_;                            // Total file size
   chi::u32 alignment_;                            // I/O alignment requirement
   chi::u32 io_depth_;                             // Max concurrent I/O operations
+  
+  // RAM-based storage (kRam)
+  char* ram_buffer_;                              // RAM storage buffer
+  chi::u64 ram_size_;                            // Total RAM buffer size
   
   // Data allocator state
   std::atomic<chi::u64> remaining_size_;          // Remaining allocatable space
@@ -267,6 +283,18 @@ class Runtime : public chi::Container {
    * Align size to required boundary
    */
   chi::u64 AlignSize(chi::u64 size);
+  
+  /**
+   * Backend-specific write operations
+   */
+  void WriteToFile(hipc::FullPtr<WriteTask> task);
+  void WriteToRam(hipc::FullPtr<WriteTask> task);
+  
+  /**
+   * Backend-specific read operations
+   */
+  void ReadFromFile(hipc::FullPtr<ReadTask> task);
+  void ReadFromRam(hipc::FullPtr<ReadTask> task);
   
   /**
    * Update performance metrics
