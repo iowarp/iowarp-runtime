@@ -12,8 +12,8 @@
 #include <iostream>
 #include <memory>
 #include <chimaera/chimaera.h>
-#include <MOD_NAME/MOD_NAME_client.h>
-#include <admin/admin_client.h>
+#include <chimaera/MOD_NAME/MOD_NAME_client.h>
+#include <chimaera/admin/admin_client.h>
 
 namespace {
 constexpr chi::PoolId kExternalTestPoolId = static_cast<chi::PoolId>(7000);

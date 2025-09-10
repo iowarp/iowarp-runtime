@@ -1,4 +1,4 @@
-#include <bdev/bdev_client.h>
+#include <chimaera/bdev/bdev_client.h>
 
 /**
  * Client implementation for bdev ChiMod

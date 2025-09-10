@@ -5,10 +5,10 @@
  * to verify proper runtime setup and flush operations.
  */
 
-#include <MOD_NAME/MOD_NAME_client.h>
-#include <MOD_NAME/MOD_NAME_tasks.h>
-#include <admin/admin_client.h>
-#include <admin/admin_tasks.h>
+#include <chimaera/MOD_NAME/MOD_NAME_client.h>
+#include <chimaera/MOD_NAME/MOD_NAME_tasks.h>
+#include <chimaera/admin/admin_client.h>
+#include <chimaera/admin/admin_tasks.h>
 #include <chimaera/chimaera.h>
 #include <chimaera/ipc_manager.h>
 #include <chimaera/pool_manager.h>

@@ -54,6 +54,12 @@ set(COMUTEX_TEST_SOURCES
   test_comutex.cc
 )
 
+# Fire-and-Forget test executable (test for fire-and-forget task functionality)
+set(FIRE_AND_FORGET_TEST_TARGET chimaera_fire_and_forget_tests)
+set(FIRE_AND_FORGET_TEST_SOURCES
+  test_fire_and_forget.cc
+)
+
 
 # Create task archive test executable
 add_executable(${TASK_ARCHIVE_TEST_TARGET} ${TASK_ARCHIVE_TEST_SOURCES})
@@ -68,7 +74,7 @@ target_include_directories(${TASK_ARCHIVE_TEST_TARGET} PRIVATE
 
 # Link against required libraries for task archive tests
 target_link_libraries(${TASK_ARCHIVE_TEST_TARGET}
-  chimaera                        # Main Chimaera library
+  cxx                        # Main Chimaera library
   chimaera_admin_runtime          # Admin module runtime for task types
   chimaera_admin_client           # Admin module client for task types
   ${HermesShm_LIBRARIES}          # HSHM libraries
@@ -81,10 +87,7 @@ set_target_properties(${TASK_ARCHIVE_TEST_TARGET} PROPERTIES
   CXX_STANDARD_REQUIRED ON
 )
 
-# Compiler flags for task archive tests
-target_compile_definitions(${TASK_ARCHIVE_TEST_TARGET} PRIVATE
-  CHIMAERA_RUNTIME=1  # Enable runtime-specific code paths in headers
-)
+# Removed CHIMAERA_RUNTIME compile definition - using runtime IsRuntime() checks instead
 
 # Copy task archive test executable to bin directory
 set_target_properties(${TASK_ARCHIVE_TEST_TARGET} PROPERTIES
@@ -105,7 +108,7 @@ target_include_directories(${FLUSH_TEST_TARGET} PRIVATE
 
 # Link against required libraries for flush tests
 target_link_libraries(${FLUSH_TEST_TARGET}
-  chimaera                        # Main Chimaera library
+  cxx                        # Main Chimaera library
   chimaera_admin_runtime          # Admin module runtime
   chimaera_admin_client           # Admin module client
   chimaera_MOD_NAME_runtime       # MOD_NAME module runtime for work tracking
@@ -120,10 +123,7 @@ set_target_properties(${FLUSH_TEST_TARGET} PROPERTIES
   CXX_STANDARD_REQUIRED ON
 )
 
-# Compiler flags for flush tests
-target_compile_definitions(${FLUSH_TEST_TARGET} PRIVATE
-  CHIMAERA_RUNTIME=1  # Enable runtime-specific code paths in headers
-)
+# Removed CHIMAERA_RUNTIME compile definition - using runtime IsRuntime() checks instead
 
 # Copy flush test executable to bin directory
 set_target_properties(${FLUSH_TEST_TARGET} PROPERTIES
@@ -144,7 +144,7 @@ target_include_directories(${BDEV_TEST_TARGET} PRIVATE
 
 # Link against required libraries for bdev tests
 target_link_libraries(${BDEV_TEST_TARGET}
-  chimaera                        # Main Chimaera library
+  cxx                        # Main Chimaera library
   chimaera_admin_runtime          # Admin module runtime
   chimaera_admin_client           # Admin module client
   chimaera_bdev_runtime           # Bdev module runtime
@@ -159,10 +159,7 @@ set_target_properties(${BDEV_TEST_TARGET} PROPERTIES
   CXX_STANDARD_REQUIRED ON
 )
 
-# Compiler flags for bdev tests
-target_compile_definitions(${BDEV_TEST_TARGET} PRIVATE
-  CHIMAERA_RUNTIME=1  # Enable runtime-specific code paths in headers
-)
+# Removed CHIMAERA_RUNTIME compile definition - using runtime IsRuntime() checks instead
 
 # Copy bdev test executable to bin directory
 set_target_properties(${BDEV_TEST_TARGET} PROPERTIES
@@ -264,7 +261,7 @@ target_include_directories(${COMUTEX_TEST_TARGET} PRIVATE
 
 # Link against required libraries for CoMutex tests
 target_link_libraries(${COMUTEX_TEST_TARGET}
-  chimaera                        # Main Chimaera library
+  cxx                        # Main Chimaera library
   chimaera_admin_runtime          # Admin module runtime
   chimaera_admin_client           # Admin module client
   chimaera_MOD_NAME_runtime       # MOD_NAME module runtime for CoMutex/CoRwLock
@@ -279,13 +276,46 @@ set_target_properties(${COMUTEX_TEST_TARGET} PROPERTIES
   CXX_STANDARD_REQUIRED ON
 )
 
-# Compiler flags for CoMutex tests
-target_compile_definitions(${COMUTEX_TEST_TARGET} PRIVATE
-  CHIMAERA_RUNTIME=1  # Enable runtime-specific code paths in headers
-)
+# Removed CHIMAERA_RUNTIME compile definition - using runtime IsRuntime() checks instead
 
 # Copy CoMutex test executable to bin directory
 set_target_properties(${COMUTEX_TEST_TARGET} PROPERTIES
+  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)
+
+# Create Fire-and-Forget test executable
+add_executable(${FIRE_AND_FORGET_TEST_TARGET} ${FIRE_AND_FORGET_TEST_SOURCES})
+
+# Include directories for Fire-and-Forget tests
+target_include_directories(${FIRE_AND_FORGET_TEST_TARGET} PRIVATE
+  ${CMAKE_SOURCE_DIR}/include
+  ${CMAKE_SOURCE_DIR}/test  # For simple_test.h
+  ${CMAKE_SOURCE_DIR}/chimods/admin/include  # For admin tasks
+  ${CMAKE_SOURCE_DIR}/chimods/MOD_NAME/include  # For MOD_NAME tasks and client
+  ${HermesShm_INCLUDE_DIRS}
+)
+
+# Link against required libraries for Fire-and-Forget tests
+target_link_libraries(${FIRE_AND_FORGET_TEST_TARGET}
+  cxx                        # Main Chimaera library
+  chimaera_admin_runtime          # Admin module runtime
+  chimaera_admin_client           # Admin module client
+  chimaera_MOD_NAME_runtime       # MOD_NAME module runtime for fire-and-forget tasks
+  chimaera_MOD_NAME_client        # MOD_NAME module client
+  ${HermesShm_LIBRARIES}          # HSHM libraries
+  ${CMAKE_THREAD_LIBS_INIT}       # Threading support
+)
+
+# Set C++ standard for Fire-and-Forget tests
+set_target_properties(${FIRE_AND_FORGET_TEST_TARGET} PROPERTIES
+  CXX_STANDARD 17
+  CXX_STANDARD_REQUIRED ON
+)
+
+# Removed CHIMAERA_RUNTIME compile definition - using runtime IsRuntime() checks instead
+
+# Copy Fire-and-Forget test executable to bin directory
+set_target_properties(${FIRE_AND_FORGET_TEST_TARGET} PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
 )
 
@@ -302,7 +332,7 @@ target_include_directories(${TEST_TARGET} PRIVATE
 
 # Link against required libraries
 target_link_libraries(${TEST_TARGET}
-  chimaera                        # Main Chimaera library
+  cxx                        # Main Chimaera library
   ${HermesShm_LIBRARIES}          # HSHM libraries
   ${CMAKE_THREAD_LIBS_INIT}       # Threading support
 )
@@ -313,10 +343,7 @@ set_target_properties(${TEST_TARGET} PROPERTIES
   CXX_STANDARD_REQUIRED ON
 )
 
-# Compiler flags for tests (enable runtime macros)
-target_compile_definitions(${TEST_TARGET} PRIVATE
-  CHIMAERA_RUNTIME=1  # Enable runtime-specific code paths in headers
-)
+# Removed CHIMAERA_RUNTIME compile definition - using runtime IsRuntime() checks instead
 
 # Copy test executable to bin directory for easier access
 set_target_properties(${TEST_TARGET} PROPERTIES
@@ -586,6 +613,56 @@ if(CHIMAERA_ENABLE_TESTS)
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
   )
 
+  # Fire-and-Forget Tests
+  add_test(
+    NAME fire_and_forget_flag_tests
+    COMMAND ${FIRE_AND_FORGET_TEST_TARGET} "[fire_and_forget][flag_detection]"
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  )
+  
+  add_test(
+    NAME fire_and_forget_client_api_tests
+    COMMAND ${FIRE_AND_FORGET_TEST_TARGET} "[fire_and_forget][client_api]"
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  )
+  
+  add_test(
+    NAME fire_and_forget_execution_tests
+    COMMAND ${FIRE_AND_FORGET_TEST_TARGET} "[fire_and_forget][execution]"
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  )
+  
+  add_test(
+    NAME fire_and_forget_memory_cleanup_tests
+    COMMAND ${FIRE_AND_FORGET_TEST_TARGET} "[fire_and_forget][memory_cleanup]"
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  )
+  
+  add_test(
+    NAME fire_and_forget_comparison_tests
+    COMMAND ${FIRE_AND_FORGET_TEST_TARGET} "[fire_and_forget][comparison]"
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  )
+  
+  add_test(
+    NAME fire_and_forget_error_handling_tests
+    COMMAND ${FIRE_AND_FORGET_TEST_TARGET} "[fire_and_forget][error_handling]"
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  )
+  
+  add_test(
+    NAME fire_and_forget_integration_tests
+    COMMAND ${FIRE_AND_FORGET_TEST_TARGET} "[fire_and_forget][integration]"
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  )
+  
+  # Comprehensive Fire-and-Forget test
+  add_test(
+    NAME all_fire_and_forget_tests
+    COMMAND ${FIRE_AND_FORGET_TEST_TARGET}
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  )
+
   # Add a comprehensive test that runs all tests
   add_test(
     NAME all_chimaera_tests
@@ -637,6 +714,14 @@ if(CHIMAERA_ENABLE_TESTS)
     comutex_performance_tests
     comutex_integration_tests
     all_comutex_tests
+    fire_and_forget_flag_tests
+    fire_and_forget_client_api_tests
+    fire_and_forget_execution_tests
+    fire_and_forget_memory_cleanup_tests
+    fire_and_forget_comparison_tests
+    fire_and_forget_error_handling_tests
+    fire_and_forget_integration_tests
+    all_fire_and_forget_tests
     all_chimaera_tests
     PROPERTIES
       TIMEOUT 180  # 180 second timeout for each test (increased for synchronization tests)
@@ -825,6 +910,63 @@ add_custom_target(test_comutex_performance
   COMMENT "Running Chimaera synchronization performance tests"
 )
 
+# Custom targets for Fire-and-Forget tests
+add_custom_target(test_fire_and_forget
+  COMMAND ${FIRE_AND_FORGET_TEST_TARGET}
+  DEPENDS ${FIRE_AND_FORGET_TEST_TARGET}
+  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  COMMENT "Running Chimaera Fire-and-Forget task tests"
+)
+
+add_custom_target(test_fire_and_forget_flag
+  COMMAND ${FIRE_AND_FORGET_TEST_TARGET} "[fire_and_forget][flag_detection]"
+  DEPENDS ${FIRE_AND_FORGET_TEST_TARGET}
+  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  COMMENT "Running Chimaera Fire-and-Forget flag detection tests"
+)
+
+add_custom_target(test_fire_and_forget_client_api
+  COMMAND ${FIRE_AND_FORGET_TEST_TARGET} "[fire_and_forget][client_api]"
+  DEPENDS ${FIRE_AND_FORGET_TEST_TARGET}
+  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  COMMENT "Running Chimaera Fire-and-Forget client API tests"
+)
+
+add_custom_target(test_fire_and_forget_execution
+  COMMAND ${FIRE_AND_FORGET_TEST_TARGET} "[fire_and_forget][execution]"
+  DEPENDS ${FIRE_AND_FORGET_TEST_TARGET}
+  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  COMMENT "Running Chimaera Fire-and-Forget task execution tests"
+)
+
+add_custom_target(test_fire_and_forget_memory_cleanup
+  COMMAND ${FIRE_AND_FORGET_TEST_TARGET} "[fire_and_forget][memory_cleanup]"
+  DEPENDS ${FIRE_AND_FORGET_TEST_TARGET}
+  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  COMMENT "Running Chimaera Fire-and-Forget memory cleanup tests"
+)
+
+add_custom_target(test_fire_and_forget_comparison
+  COMMAND ${FIRE_AND_FORGET_TEST_TARGET} "[fire_and_forget][comparison]"
+  DEPENDS ${FIRE_AND_FORGET_TEST_TARGET}
+  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  COMMENT "Running Chimaera Fire-and-Forget vs regular task comparison tests"
+)
+
+add_custom_target(test_fire_and_forget_error_handling
+  COMMAND ${FIRE_AND_FORGET_TEST_TARGET} "[fire_and_forget][error_handling]"
+  DEPENDS ${FIRE_AND_FORGET_TEST_TARGET}
+  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  COMMENT "Running Chimaera Fire-and-Forget error handling tests"
+)
+
+add_custom_target(test_fire_and_forget_integration
+  COMMAND ${FIRE_AND_FORGET_TEST_TARGET} "[fire_and_forget][integration]"
+  DEPENDS ${FIRE_AND_FORGET_TEST_TARGET}
+  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  COMMENT "Running Chimaera Fire-and-Forget integration tests"
+)
+
 # Custom target to run all unit tests
 add_custom_target(test_all_unit
   COMMAND ${TEST_TARGET}
@@ -834,7 +976,7 @@ add_custom_target(test_all_unit
 )
 
 # Install test executables (optional)
-install(TARGETS ${TEST_TARGET} ${TASK_ARCHIVE_TEST_TARGET} ${FLUSH_TEST_TARGET} ${BDEV_TEST_TARGET} ${FIBER_TEST_TARGET} ${WORKER_FIBER_TEST_TARGET} ${SEGFAULT_DEBUG_TEST_TARGET} ${COMUTEX_TEST_TARGET}
+install(TARGETS ${TEST_TARGET} ${TASK_ARCHIVE_TEST_TARGET} ${FLUSH_TEST_TARGET} ${BDEV_TEST_TARGET} ${FIBER_TEST_TARGET} ${WORKER_FIBER_TEST_TARGET} ${SEGFAULT_DEBUG_TEST_TARGET} ${COMUTEX_TEST_TARGET} ${FIRE_AND_FORGET_TEST_TARGET}
   RUNTIME DESTINATION bin
 )
 
@@ -850,5 +992,7 @@ message(STATUS "  Bdev test target: ${BDEV_TEST_TARGET}")
 message(STATUS "  Bdev test sources: ${BDEV_TEST_SOURCES}")
 message(STATUS "  CoMutex test target: ${COMUTEX_TEST_TARGET}")
 message(STATUS "  CoMutex test sources: ${COMUTEX_TEST_SOURCES}")
+message(STATUS "  Fire-and-Forget test target: ${FIRE_AND_FORGET_TEST_TARGET}")
+message(STATUS "  Fire-and-Forget test sources: ${FIRE_AND_FORGET_TEST_SOURCES}")
 message(STATUS "  CTest enabled: ${CHIMAERA_ENABLE_TESTS}")
 message(STATUS "  Output directory: ${CMAKE_BINARY_DIR}/bin")

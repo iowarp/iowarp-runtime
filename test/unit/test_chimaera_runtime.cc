@@ -20,12 +20,12 @@ using namespace std::chrono_literals;
 #include <chimaera/types.h>
 
 // Include MOD_NAME client and tasks for custom task testing
-#include <MOD_NAME/MOD_NAME_client.h>
-#include <MOD_NAME/MOD_NAME_tasks.h>
+#include <chimaera/MOD_NAME/MOD_NAME_client.h>
+#include <chimaera/MOD_NAME/MOD_NAME_tasks.h>
 
 // Include admin client for pool management
-#include <admin/admin_client.h>
-#include <admin/admin_tasks.h>
+#include <chimaera/admin/admin_client.h>
+#include <chimaera/admin/admin_tasks.h>
 
 namespace {
 // Test configuration constants

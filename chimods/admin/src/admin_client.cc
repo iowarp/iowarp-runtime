@@ -5,7 +5,7 @@
  * Contains global variables and singletons for client-side code.
  */
 
-#include "admin/admin_client.h"
+#include "chimaera/admin/admin_client.h"
 
 namespace chimaera::admin {
 

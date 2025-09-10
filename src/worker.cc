@@ -11,7 +11,7 @@
 
 // Include task_queue.h before other chimaera headers to ensure proper
 // resolution
-#include "admin/admin_client.h"
+#include "chimaera/admin/admin_client.h"
 #include "chimaera/container.h"
 #include "chimaera/pool_manager.h"
 #include "chimaera/singletons.h"
@@ -801,6 +801,7 @@ void Worker::ExecTask(const FullPtr<Task>& task_ptr, RunContext* run_ctx,
 
   // Determine if task should be completed and cleaned up
   bool should_complete_task = !task_ptr->IsPeriodic();
+  bool is_fire_and_forget = task_ptr->IsFireAndForget();
 
   if (should_complete_task) {
     // Clear RunContext pointer and deallocate stack for non-periodic tasks
@@ -810,6 +811,11 @@ void Worker::ExecTask(const FullPtr<Task>& task_ptr, RunContext* run_ctx,
     // Mark task as complete LAST - after all cleanup is done
     // This prevents race condition with client DelTask
     task_ptr->is_complete.store(1);
+
+    // For fire-and-forget tasks, automatically delete them after completion
+    if (is_fire_and_forget && run_ctx->container) {
+      run_ctx->container->Del(task_ptr->method_, task_ptr);
+    }
   }
   // Periodic tasks keep their resources and are not marked complete
 }

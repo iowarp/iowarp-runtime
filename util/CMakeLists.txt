@@ -7,9 +7,9 @@ cmake_minimum_required(VERSION 3.10)
 add_executable(chimaera_start_runtime
   ${CMAKE_CURRENT_SOURCE_DIR}/chimaera_start_runtime.cc
 )
-target_compile_definitions(chimaera_start_runtime PRIVATE CHIMAERA_RUNTIME=1)
+# Removed CHIMAERA_RUNTIME compile definition - using runtime IsRuntime() checks instead
 target_link_libraries(chimaera_start_runtime
-  PUBLIC chimaera
+  PUBLIC cxx
 )
 
 # Build chimaera_stop_runtime  
@@ -18,7 +18,7 @@ add_executable(chimaera_stop_runtime
 )
 # chimaera_stop_runtime is client-only code, so do not define CHIMAERA_RUNTIME
 target_link_libraries(chimaera_stop_runtime
-  PUBLIC chimaera
+  PUBLIC cxx
 )
 target_include_directories(chimaera_stop_runtime PRIVATE
   ${CMAKE_SOURCE_DIR}/chimods/admin/include

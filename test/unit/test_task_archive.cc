@@ -25,7 +25,7 @@
 #include <chimaera/pool_query.h>
 
 // Include admin tasks for testing concrete task types
-#include "../../chimods/admin/include/admin/admin_tasks.h"
+#include <chimaera/admin/admin_tasks.h>
 
 // Include cereal for comparison tests
 #include <cereal/cereal.hpp>

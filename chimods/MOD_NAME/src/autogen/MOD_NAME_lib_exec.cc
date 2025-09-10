@@ -6,8 +6,8 @@
  * Changes should be made to the autogen tool or the YAML configuration.
  */
 
-#include "MOD_NAME/MOD_NAME_runtime.h"
-#include "MOD_NAME/autogen/MOD_NAME_methods.h"
+#include "chimaera/MOD_NAME/MOD_NAME_runtime.h"
+#include "chimaera/MOD_NAME/autogen/MOD_NAME_methods.h"
 #include <chimaera/chimaera.h>
 
 namespace chimaera::MOD_NAME {
@@ -36,6 +36,10 @@ void Runtime::Run(chi::u32 method, hipc::FullPtr<chi::Task> task_ptr, chi::RunCo
     }
     case Method::kCoRwLockTest: {
       CoRwLockTest(task_ptr.Cast<CoRwLockTestTask>(), rctx);
+      break;
+    }
+    case Method::kFireAndForgetTest: {
+      FireAndForgetTest(task_ptr.Cast<FireAndForgetTestTask>(), rctx);
       break;
     }
     default: {
@@ -68,6 +72,10 @@ void Runtime::Monitor(chi::MonitorModeId mode, chi::u32 method,
       MonitorCoRwLockTest(mode, task_ptr.Cast<CoRwLockTestTask>(), rctx);
       break;
     }
+    case Method::kFireAndForgetTest: {
+      MonitorFireAndForgetTest(mode, task_ptr.Cast<FireAndForgetTestTask>(), rctx);
+      break;
+    }
     default: {
       // Unknown method - do nothing
       break;
@@ -98,6 +106,10 @@ void Runtime::Del(chi::u32 method, hipc::FullPtr<chi::Task> task_ptr) {
     }
     case Method::kCoRwLockTest: {
       ipc_manager->DelTask(task_ptr.Cast<CoRwLockTestTask>());
+      break;
+    }
+    case Method::kFireAndForgetTest: {
+      ipc_manager->DelTask(task_ptr.Cast<FireAndForgetTestTask>());
       break;
     }
     default: {
@@ -136,6 +148,11 @@ void Runtime::SaveIn(chi::u32 method, chi::TaskSaveInArchive& archive,
       typed_task->SerializeIn(archive);
       break;
     }
+    case Method::kFireAndForgetTest: {
+      auto typed_task = task_ptr.Cast<FireAndForgetTestTask>();
+      typed_task->SerializeIn(archive);
+      break;
+    }
     default: {
       // Unknown method - do nothing
       break;
@@ -168,6 +185,11 @@ void Runtime::LoadIn(chi::u32 method, chi::TaskLoadInArchive& archive,
     }
     case Method::kCoRwLockTest: {
       auto typed_task = task_ptr.Cast<CoRwLockTestTask>();
+      typed_task->SerializeIn(archive);
+      break;
+    }
+    case Method::kFireAndForgetTest: {
+      auto typed_task = task_ptr.Cast<FireAndForgetTestTask>();
       typed_task->SerializeIn(archive);
       break;
     }
@@ -206,6 +228,11 @@ void Runtime::SaveOut(chi::u32 method, chi::TaskSaveOutArchive& archive,
       typed_task->SerializeOut(archive);
       break;
     }
+    case Method::kFireAndForgetTest: {
+      auto typed_task = task_ptr.Cast<FireAndForgetTestTask>();
+      typed_task->SerializeOut(archive);
+      break;
+    }
     default: {
       // Unknown method - do nothing
       break;
@@ -238,6 +265,11 @@ void Runtime::LoadOut(chi::u32 method, chi::TaskLoadOutArchive& archive,
     }
     case Method::kCoRwLockTest: {
       auto typed_task = task_ptr.Cast<CoRwLockTestTask>();
+      typed_task->SerializeOut(archive);
+      break;
+    }
+    case Method::kFireAndForgetTest: {
+      auto typed_task = task_ptr.Cast<FireAndForgetTestTask>();
       typed_task->SerializeOut(archive);
       break;
     }
@@ -306,6 +338,17 @@ void Runtime::NewCopy(chi::u32 method, const hipc::FullPtr<chi::Task>& orig_task
       if (!typed_task.IsNull()) {
         // Use HSHM strong copy method for actual copying
         typed_task->shm_strong_copy_main(*orig_task.Cast<CoRwLockTestTask>());
+        // Cast to base Task type for return
+        dup_task = typed_task.template Cast<chi::Task>();
+      }
+      break;
+    }
+    case Method::kFireAndForgetTest: {
+      // Allocate new task using SHM default constructor
+      auto typed_task = ipc_manager->NewTask<FireAndForgetTestTask>();
+      if (!typed_task.IsNull()) {
+        // Use HSHM strong copy method for actual copying
+        typed_task->shm_strong_copy_main(*orig_task.Cast<FireAndForgetTestTask>());
         // Cast to base Task type for return
         dup_task = typed_task.template Cast<chi::Task>();
       }

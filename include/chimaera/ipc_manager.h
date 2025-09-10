@@ -7,6 +7,7 @@
 #include <string>
 #include "chimaera/types.h"
 #include "chimaera/task_queue.h"
+#include "chimaera/chimaera_manager.h"
 
 namespace chi {
 
@@ -142,19 +143,20 @@ class IpcManager {
    */
   template<typename T>
   FullPtr<T> AllocateBuffer(size_t size) {
-    #ifdef CHIMAERA_RUNTIME
-    // Runtime uses rdata segment
-    if (!runtime_data_allocator_) {
-      return FullPtr<T>();
+    auto* chimaera_manager = CHI_CHIMAERA_MANAGER;
+    if (chimaera_manager && chimaera_manager->IsRuntime()) {
+      // Runtime uses rdata segment
+      if (!runtime_data_allocator_) {
+        return FullPtr<T>();
+      }
+      return runtime_data_allocator_->template AllocateObjs<T>(size);
+    } else {
+      // Client uses cdata segment
+      if (!client_data_allocator_) {
+        return FullPtr<T>();
+      }
+      return client_data_allocator_->template AllocateObjs<T>(size);
     }
-    return runtime_data_allocator_->template AllocateObjs<T>(size);
-    #else
-    // Client uses cdata segment
-    if (!client_data_allocator_) {
-      return FullPtr<T>();
-    }
-    return client_data_allocator_->template AllocateObjs<T>(size);
-    #endif
   }
 
   /**

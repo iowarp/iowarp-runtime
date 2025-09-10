@@ -4,7 +4,7 @@
  * Contains global variables and singletons for client-side code.
  */
 
-#include "MOD_NAME/MOD_NAME_client.h"
+#include "chimaera/MOD_NAME/MOD_NAME_client.h"
 
 namespace chimaera::MOD_NAME {
 

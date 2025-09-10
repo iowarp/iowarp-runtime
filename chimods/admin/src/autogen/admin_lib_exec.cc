@@ -6,8 +6,8 @@
  * Changes should be made to the autogen tool or the YAML configuration.
  */
 
-#include "admin/admin_runtime.h"
-#include "admin/autogen/admin_methods.h"
+#include "chimaera/admin/admin_runtime.h"
+#include "chimaera/admin/autogen/admin_methods.h"
 #include <chimaera/chimaera.h>
 
 namespace chimaera::admin {

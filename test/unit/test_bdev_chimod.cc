@@ -26,12 +26,12 @@ using namespace std::chrono_literals;
 #include <chimaera/pool_query.h>
 
 // Include bdev client and tasks
-#include <bdev/bdev_client.h>
-#include <bdev/bdev_tasks.h>
+#include <chimaera/bdev/bdev_client.h>
+#include <chimaera/bdev/bdev_tasks.h>
 
 // Include admin client for pool management
-#include <admin/admin_client.h>
-#include <admin/admin_tasks.h>
+#include <chimaera/admin/admin_client.h>
+#include <chimaera/admin/admin_tasks.h>
 
 namespace {
   // Test configuration constants

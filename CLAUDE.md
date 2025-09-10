@@ -82,6 +82,12 @@ target_include_directories(your_target PUBLIC
 )
 ```
 
+**Note**: All ChiMod headers are now organized under the `chimaera` namespace in include directories:
+- Structure: `chimods/[module_name]/include/chimaera/[module_name]/`
+- Example: Admin headers are in `chimods/admin/include/chimaera/admin/`
+- Headers include: `[module_name]_client.h`, `[module_name]_runtime.h`, `[module_name]_tasks.h`
+- Auto-generated headers are in the `autogen/` subdirectory
+
 ### Compile Definitions
 For runtime code, define `CHIMAERA_RUNTIME=1`:
 
@@ -100,7 +106,7 @@ The Chimaera runtime has several core objects that must be properly linked:
 **Runtime executable linking pattern:**
 ```cmake
 target_link_libraries(chimaera_start_runtime
-  chimaera                    # Core runtime objects and initialization
+  cxx                    # Core runtime objects and initialization
   ${HermesShm_LIBRARIES}      # HSHM shared memory framework
   ${CMAKE_THREAD_LIBS_INIT}   # Threading support for runtime
 )
@@ -109,7 +115,7 @@ target_link_libraries(chimaera_start_runtime
 **Client executable linking pattern (no CHIMAERA_RUNTIME definition):**
 ```cmake
 target_link_libraries(chimaera_stop_runtime
-  chimaera                    # Client-side objects only
+  cxx                    # Client-side objects only
   ${HermesShm_LIBRARIES}      # HSHM libraries
 )
 ```
@@ -158,18 +164,17 @@ find_package(chimaera::core REQUIRED)
 target_link_libraries(your_external_app
   chimaera::MOD_NAME_client     # ChiMod client library
   chimaera::admin_client        # Admin client (required)
-  chimaera::chimaera            # Main chimaera library
+  chimaera::cxx            # Main chimaera library
 )
 
-# Optional: Define client mode
-target_compile_definitions(your_external_app PRIVATE CHIMAERA_CLIENT=1)
+# Client mode is determined at runtime using IsClient() method
 ```
 
 **External application usage:**
 ```cpp
 #include <chimaera/chimaera.h>
-#include <MOD_NAME/MOD_NAME_client.h>
-#include <admin/admin_client.h>
+#include <chimaera/MOD_NAME/MOD_NAME_client.h>
+#include <chimaera/admin/admin_client.h>
 
 int main() {
   // Initialize Chimaera client
@@ -184,6 +189,13 @@ int main() {
   mod_client.Create(HSHM_MCTX, pool_query);
 }
 ```
+
+**Header Include Structure:**
+All ChiMod headers follow the consistent pattern: `#include <chimaera/[module_name]/[module_name]_[type].h>`
+- Admin client: `#include <chimaera/admin/admin_client.h>`
+- MOD_NAME client: `#include <chimaera/MOD_NAME/MOD_NAME_client.h>`
+- Runtime headers: `#include <chimaera/[module_name]/[module_name]_runtime.h>`
+- Task headers: `#include <chimaera/[module_name]/[module_name]_tasks.h>`
 
 **Dependency requirements:**
 External applications must have access to all dependencies:
@@ -210,6 +222,16 @@ mkdir build && cd build
 cmake ..
 make
 ```
+
+**For comprehensive external ChiMod development guidance, see:**
+`doc/MODULE_DEVELOPMENT_GUIDE.md` - Section "External ChiMod Development"
+
+This section provides complete step-by-step instructions for:
+- Setting up external ChiMod repositories
+- Repository structure and configuration (`chimaera_repo.yaml`)
+- CMake package discovery (`find_package` usage)
+- Custom namespace configuration
+- Build system integration and troubleshooting
 
 ## Workflow
 Use the incremental logic builder agent when making code changes.
@@ -439,3 +461,194 @@ struct CreateParams {
 - Use appropriate variable types to avoid sign comparison warnings (e.g., `size_t` for container sizes)
 - Mark unused variables with `(void)variable_name;` to suppress warnings when the variable is intentionally unused
 - Follow strict type safety to prevent implicit conversions that generate warnings
+
+## ChiMod Documentation Requirements
+
+### Documentation Structure
+Every ChiMod MUST include a `doc/` directory with comprehensive API documentation and integration guides:
+
+```
+chimods/MOD_NAME/
+├── doc/
+│   ├── README.md           # Overview and quick start
+│   ├── API.md             # Detailed API reference
+│   └── INTEGRATION.md     # CMake linking and build integration
+├── include/chimaera/MOD_NAME/
+├── src/
+└── CMakeLists.txt
+```
+
+### Required Documentation Files
+
+#### 1. README.md - Module Overview
+Must contain:
+- **Purpose**: What the ChiMod does and its use cases
+- **Quick Start**: Basic usage example with client initialization
+- **Dependencies**: Required libraries and runtime components
+- **Installation**: Building and installing the ChiMod
+- **Configuration**: Any module-specific configuration options
+
+#### 2. API.md - Complete API Reference
+Must document:
+- **Client API**: All public methods in the Client class
+  - Method signatures with parameter descriptions
+  - Return values and error conditions
+  - Usage examples for each method
+  - Sync vs async method pairs
+- **Task Types**: All task structures and their fields
+  - Input/output parameter descriptions
+  - Required vs optional fields
+  - Serialization requirements
+- **Configuration Parameters**: CreateParams structure fields
+  - Default values and valid ranges
+  - Impact of different parameter choices
+- **Error Handling**: Error codes and their meanings
+
+#### 3. INTEGRATION.md - CMake and Build Integration
+Must provide:
+- **CMake Integration**: Complete find_package examples
+- **Include Paths**: Required header includes with full paths
+- **Linking Requirements**: Target linking examples for different use cases
+- **Build Dependencies**: External library requirements
+- **Installation Instructions**: Step-by-step installation guide
+- **Troubleshooting**: Common build and runtime issues
+
+### Documentation Template Structure
+
+#### README.md Template:
+```markdown
+# ModuleName ChiMod
+
+## Overview
+Brief description of what this ChiMod provides...
+
+## Quick Start
+```cpp
+#include <chimaera/chimaera.h>
+#include <chimaera/module_name/module_name_client.h>
+
+int main() {
+  chi::CHIMAERA_CLIENT_INIT();
+  const chi::PoolId pool_id = static_cast<chi::PoolId>(7000);
+  chimaera::module_name::Client client(pool_id);
+  
+  // Basic usage example
+  auto pool_query = chi::PoolQuery::Local();
+  client.Create(HSHM_MCTX, pool_query);
+}
+```
+
+## Dependencies
+- HermesShm
+- Chimaera core runtime
+- Admin ChiMod (always required)
+
+## Installation
+See [INTEGRATION.md](INTEGRATION.md) for complete build instructions.
+```
+
+#### API.md Template:
+```markdown
+# ModuleName API Reference
+
+## Client Class: `chimaera::module_name::Client`
+
+### Container Management
+#### `Create()`
+Creates and initializes the module container.
+
+**Signature:**
+```cpp
+void Create(const hipc::MemContext& mctx, 
+           const chi::PoolQuery& pool_query,
+           const CreateParams& params = CreateParams())
+```
+
+**Parameters:**
+- `mctx`: Memory context for task allocation
+- `pool_query`: Pool domain query (typically `chi::PoolQuery::Local()`)
+- `params`: Configuration parameters (optional)
+
+**Example:**
+```cpp
+auto pool_query = chi::PoolQuery::Local();
+client.Create(HSHM_MCTX, pool_query);
+```
+
+### Custom Operations
+Document each custom method...
+
+## Task Types
+
+### CreateTask
+Container creation task with module-specific parameters.
+
+### CustomTask
+Document each custom task type...
+
+## Configuration
+
+### CreateParams Structure
+Document all configuration fields...
+```
+
+#### INTEGRATION.md Template:
+```markdown
+# ModuleName Integration Guide
+
+## CMake Integration
+
+### External Projects
+```cmake
+find_package(chimaera::module_name REQUIRED)
+find_package(chimaera::admin REQUIRED)
+find_package(chimaera::core REQUIRED)
+
+target_link_libraries(your_app
+  chimaera::module_name_client
+  chimaera::admin_client
+  chimaera::cxx
+)
+```
+
+### Include Requirements
+```cpp
+#include <chimaera/chimaera.h>
+#include <chimaera/module_name/module_name_client.h>
+#include <chimaera/admin/admin_client.h>
+```
+
+## Build Dependencies
+- HermesShm with MPI and Boost support
+- cereal serialization library
+- Boost.Fiber and Boost.Context
+
+## Installation
+1. Build Chimaera with this module
+2. Install to system or custom prefix
+3. Set CMAKE_PREFIX_PATH for external projects
+
+## Troubleshooting
+Common issues and solutions...
+```
+
+### Documentation Standards
+- **Completeness**: Every public API must be documented
+- **Accuracy**: Keep documentation synchronized with code changes
+- **Examples**: Include working code examples for all major features
+- **Format**: Use consistent Markdown formatting and code blocks
+- **Links**: Cross-reference between documentation files
+- **Updates**: Update documentation as part of code review process
+
+### Integration with Build System
+Documentation should be included in CMake installation:
+
+```cmake
+# Install documentation
+install(DIRECTORY doc/
+  DESTINATION share/doc/chimaera-${CHIMOD_NAME}
+  COMPONENT documentation
+)
+```
+
+This ensures documentation is available to users of installed ChiMods and maintains consistency across all modules in the Chimaera ecosystem.

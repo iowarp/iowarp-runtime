@@ -6,8 +6,8 @@
  * Changes should be made to the autogen tool or the YAML configuration.
  */
 
-#include "bdev/bdev_runtime.h"
-#include "bdev/autogen/bdev_methods.h"
+#include "chimaera/bdev/bdev_runtime.h"
+#include "chimaera/bdev/autogen/bdev_methods.h"
 #include <chimaera/chimaera.h>
 
 namespace chimaera::bdev {

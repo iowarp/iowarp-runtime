@@ -78,7 +78,7 @@ function(add_chimod_both)
   # Create runtime library
   if(ARG_RUNTIME_SOURCES)
     add_library(${RUNTIME_TARGET_NAME} SHARED ${ARG_RUNTIME_SOURCES})
-    target_link_libraries(${RUNTIME_TARGET_NAME} PUBLIC chimaera)
+    target_link_libraries(${RUNTIME_TARGET_NAME} PUBLIC cxx)
     target_include_directories(${RUNTIME_TARGET_NAME} PUBLIC
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
       $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
@@ -87,7 +87,6 @@ function(add_chimod_both)
     target_compile_definitions(${RUNTIME_TARGET_NAME} PRIVATE
       CHI_CHIMOD_NAME="${ARG_CHIMOD_NAME}"
       CHI_NAMESPACE="${ARG_NAMESPACE}"
-      CHIMAERA_RUNTIME=1
     )
     
     # Create namespace alias for external consumption
@@ -100,7 +99,7 @@ function(add_chimod_both)
   # Create client library
   if(ARG_CLIENT_SOURCES)
     add_library(${CLIENT_TARGET_NAME} SHARED ${ARG_CLIENT_SOURCES})
-    target_link_libraries(${CLIENT_TARGET_NAME} PUBLIC chimaera)
+    target_link_libraries(${CLIENT_TARGET_NAME} PUBLIC cxx)
     target_include_directories(${CLIENT_TARGET_NAME} PUBLIC
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
       $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
@@ -109,8 +108,6 @@ function(add_chimod_both)
     target_compile_definitions(${CLIENT_TARGET_NAME} PRIVATE
       CHI_CHIMOD_NAME="${ARG_CHIMOD_NAME}"
       CHI_NAMESPACE="${ARG_NAMESPACE}"
-      CHIMAERA_CLIENT=1
-      CHIMAERA_RUNTIME=1
     )
     
     # Create namespace alias for external consumption
@@ -204,11 +201,55 @@ function(install_chimod)
       )
     endif()
     
-    # Export targets file - CMake will automatically generate config files
+    # Export targets file
     install(EXPORT ${MODULE_EXPORT_NAME}
       FILE ${MODULE_EXPORT_NAME}.cmake
       NAMESPACE ${ARG_NAMESPACE}::
       DESTINATION cmake/${MODULE_PACKAGE_NAME}
+    )
+    
+    # Generate Config.cmake file
+    set(CONFIG_CONTENT "
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+# Find required dependencies for external projects
+find_dependency(HermesShm CONFIG REQUIRED)
+find_dependency(cereal REQUIRED)
+find_dependency(Boost REQUIRED COMPONENTS fiber context)
+
+# Include the exported targets
+include(\"\${CMAKE_CURRENT_LIST_DIR}/${MODULE_EXPORT_NAME}.cmake\")
+
+# Provide components
+check_required_components(${ARG_NAMESPACE}_${ARG_CHIMOD_NAME})
+")
+    
+    # Write Config.cmake template
+    set(CONFIG_IN_FILE "${CMAKE_CURRENT_BINARY_DIR}/${MODULE_PACKAGE_NAME}Config.cmake.in")
+    file(WRITE "${CONFIG_IN_FILE}" "${CONFIG_CONTENT}")
+    
+    # Configure and install Config.cmake
+    include(CMakePackageConfigHelpers)
+    configure_package_config_file(
+      "${CONFIG_IN_FILE}"
+      "${CMAKE_CURRENT_BINARY_DIR}/${MODULE_PACKAGE_NAME}Config.cmake"
+      INSTALL_DESTINATION cmake
+    )
+    
+    # Generate ConfigVersion.cmake
+    write_basic_package_version_file(
+      "${CMAKE_CURRENT_BINARY_DIR}/${MODULE_PACKAGE_NAME}ConfigVersion.cmake"
+      VERSION 1.0.0
+      COMPATIBILITY SameMajorVersion
+    )
+    
+    # Install Config and ConfigVersion files in cmake/ directory
+    install(FILES
+      "${CMAKE_CURRENT_BINARY_DIR}/${MODULE_PACKAGE_NAME}Config.cmake"
+      "${CMAKE_CURRENT_BINARY_DIR}/${MODULE_PACKAGE_NAME}ConfigVersion.cmake"
+      DESTINATION cmake
     )
     
     message(STATUS "Created module package: ${ARG_NAMESPACE}::${ARG_CHIMOD_NAME}")

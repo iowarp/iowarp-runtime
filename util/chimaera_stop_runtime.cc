@@ -9,7 +9,7 @@
 #include <iostream>
 #include <thread>
 
-#include "admin/admin_client.h"
+#include "chimaera/admin/admin_client.h"
 #include "chimaera/chimaera.h"
 #include "chimaera/pool_query.h"
 #include "chimaera/types.h"

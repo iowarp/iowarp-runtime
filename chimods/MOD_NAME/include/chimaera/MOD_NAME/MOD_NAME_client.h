@@ -51,7 +51,7 @@ class Client : public chi::ContainerClient {
         chi::CreateTaskNode(),
         chi::kAdminPoolId,  // Send to admin pool for GetOrCreatePool processing
         pool_query,
-        "chimaera_MOD_NAME_runtime",                          // chimod name
+        "chimaera_MOD_NAME",                          // chimod name
         "mod_name_pool_" + std::to_string(pool_id_.ToU64()),  // pool name
         0,                                                    // domain flags
         pool_id_  // target pool ID to create
@@ -177,6 +177,25 @@ class Client : public chi::ContainerClient {
     ipc_manager->Enqueue(task);
 
     return task;
+  }
+
+  /**
+   * Submit fire-and-forget test task
+   * This task will be automatically deleted after completion, so no return value is provided
+   */
+  void FireAndForgetTest(const hipc::MemContext& mctx,
+                        const chi::PoolQuery& pool_query, 
+                        chi::u32 test_id,
+                        chi::u32 processing_time_ms,
+                        const std::string& log_message) {
+    auto* ipc_manager = CHI_IPC;
+
+    // Allocate FireAndForgetTestTask - task will be auto-deleted, so we don't return it
+    auto task = ipc_manager->NewTask<FireAndForgetTestTask>(
+        chi::CreateTaskNode(), pool_id_, pool_query, test_id, processing_time_ms, log_message);
+
+    // Submit to runtime - task will be deleted automatically when completed
+    ipc_manager->Enqueue(task);
   }
 };
 

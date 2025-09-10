@@ -6,7 +6,7 @@
 #include "chimaera/container.h"
 #include "chimaera/singletons.h"
 #include "chimaera/task.h"
-#include "admin/admin_tasks.h"
+#include "chimaera/admin/admin_tasks.h"
 #include <iostream>
 
 // Global pointer variable definition for Pool manager singleton

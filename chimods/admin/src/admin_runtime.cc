@@ -5,7 +5,7 @@
  * Contains the server-side task processing logic with PoolManager integration.
  */
 
-#include "admin/admin_runtime.h"
+#include "chimaera/admin/admin_runtime.h"
 
 #include <chimaera/chimaera_manager.h>
 #include <chimaera/module_manager.h>

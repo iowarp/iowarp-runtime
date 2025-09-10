@@ -156,13 +156,11 @@ class Task : public hipc::ShmContainer {
    */
   HSHM_CROSS_FUN void Wait();
 
-#ifndef CHIMAERA_RUNTIME
   /**
-   * Check if task is complete (client-side implementation)
+   * Check if task is complete
    * @return true if task is complete, false otherwise
    */
   HSHM_CROSS_FUN bool IsComplete() const;
-#endif
 
   /**
    * Yield execution back to worker by waiting for task completion
@@ -176,11 +174,9 @@ class Task : public hipc::ShmContainer {
   template <typename TaskT>
   HSHM_CROSS_FUN void Wait(TaskT* subtask) {
     if (subtask) {
-#ifdef CHIMAERA_RUNTIME
       // Add to waiting_for_tasks vector before calling Wait()
       // This will be handled in the actual Wait() implementation in task.cc
       // to avoid circular include issues
-#endif
       subtask->Wait();
     }
   }
@@ -191,10 +187,8 @@ class Task : public hipc::ShmContainer {
    */
   template <typename TaskT>
   HSHM_CROSS_FUN void Wait(std::vector<FullPtr<TaskT>>& subtasks) {
-#ifdef CHIMAERA_RUNTIME
     // Add all subtasks to waiting_for_tasks vector in task.cc implementation
     // This will be handled to avoid circular includes
-#endif
     // Iterate through and wait for each
     for (auto& subtask : subtasks) {
       if (!subtask.IsNull()) {

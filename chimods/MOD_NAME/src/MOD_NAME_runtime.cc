@@ -4,7 +4,7 @@
  * Contains the server-side task processing logic.
  */
 
-#include "../include/MOD_NAME/MOD_NAME_runtime.h"
+#include "../include/chimaera/MOD_NAME/MOD_NAME_runtime.h"
 
 #include <iostream>
 #include <chrono>
@@ -246,6 +246,44 @@ void Runtime::CoRwLockTest(hipc::FullPtr<CoRwLockTestTask> task, chi::RunContext
 void Runtime::MonitorCoRwLockTest(chi::MonitorModeId mode,
                                  hipc::FullPtr<CoRwLockTestTask> task_ptr,
                                  chi::RunContext& rctx) {
+  switch (mode) {
+    case chi::MonitorModeId::kLocalSchedule:
+      {
+        auto lane_ptr = GetLaneFullPtr(0, 0);
+        if (!lane_ptr.IsNull()) {
+          rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
+        }
+      }
+      break;
+    default:
+      break;
+  }
+}
+
+void Runtime::FireAndForgetTest(hipc::FullPtr<FireAndForgetTestTask> task, chi::RunContext& rctx) {
+  std::cout << "MOD_NAME: Executing FireAndForgetTest task " << task->test_id_
+            << " (processing: " << task->processing_time_ms_ << "ms, message: '"
+            << task->log_message_.c_str() << "')" << std::endl;
+
+  // Simulate processing time
+  if (task->processing_time_ms_ > 0) {
+    auto start = std::chrono::high_resolution_clock::now();
+    while (true) {
+      auto now = std::chrono::high_resolution_clock::now();
+      auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count();
+      if (duration >= task->processing_time_ms_) {
+        break;
+      }
+    }
+  }
+
+  std::cout << "MOD_NAME: FireAndForgetTest " << task->test_id_ 
+            << " completed and will be auto-deleted" << std::endl;
+}
+
+void Runtime::MonitorFireAndForgetTest(chi::MonitorModeId mode,
+                                      hipc::FullPtr<FireAndForgetTestTask> task_ptr,
+                                      chi::RunContext& rctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule:
       {

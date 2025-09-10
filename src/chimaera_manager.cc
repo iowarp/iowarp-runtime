@@ -21,20 +21,21 @@ hshm::ThreadLocalKey chi_task_counter_key_;
  * Create a new TaskNode with current process/thread info and next major counter
  */
 TaskNode CreateTaskNode() {
-#if CHIMAERA_RUNTIME
   // In runtime mode, check if we have a current worker
-  Worker* current_worker = CHI_CUR_WORKER;
-  if (current_worker) {
-    // Get current task from worker
-    FullPtr<Task> current_task = current_worker->GetCurrentTask();
-    if (!current_task.IsNull()) {
-      // Copy TaskNode from current task and increment minor by 1
-      TaskNode new_node = current_task->task_node_;
-      new_node.minor_ += 1;
-      return new_node;
+  auto* chimaera_manager = CHI_CHIMAERA_MANAGER;
+  if (chimaera_manager && chimaera_manager->IsRuntime()) {
+    Worker* current_worker = CHI_CUR_WORKER;
+    if (current_worker) {
+      // Get current task from worker
+      FullPtr<Task> current_task = current_worker->GetCurrentTask();
+      if (!current_task.IsNull()) {
+        // Copy TaskNode from current task and increment minor by 1
+        TaskNode new_node = current_task->task_node_;
+        new_node.minor_ += 1;
+        return new_node;
+      }
     }
   }
-#endif
 
   // Fallback: Create new TaskNode using counter (client mode or no current
   // task) Get system information singleton (avoid direct dereferencing)
@@ -61,18 +62,20 @@ TaskNode CreateTaskNode() {
 
 Chimaera::~Chimaera() {
   if (is_initialized_) {
-    // Always finalize client components
-    ClientFinalize();
+    // Always finalize client components if client mode was initialized
+    if (is_client_mode_) {
+      ClientFinalize();
+    }
 
-#ifdef CHIMAERA_RUNTIME
-    // Only finalize server components if compiled as runtime
-    ServerFinalize();
-#endif
+    // Only finalize server components if runtime mode was initialized
+    if (is_runtime_mode_) {
+      ServerFinalize();
+    }
   }
 }
 
 bool Chimaera::ClientInit() {
-  if (is_initialized_) {
+  if (is_client_mode_) {
     return true;
   }
 
@@ -92,14 +95,13 @@ bool Chimaera::ClientInit() {
   // It's only needed for server/runtime mode
 
   is_client_mode_ = true;
-  is_runtime_mode_ = false;
   is_initialized_ = true;
 
   return true;
 }
 
 bool Chimaera::ServerInit() {
-  if (is_initialized_) {
+  if (is_runtime_mode_) {
     return true;
   }
 
@@ -141,7 +143,6 @@ bool Chimaera::ServerInit() {
     return false;
   }
 
-  is_client_mode_ = false;
   is_runtime_mode_ = true;
   is_initialized_ = true;
 
@@ -159,8 +160,11 @@ void Chimaera::ClientFinalize() {
   auto* ipc_manager = CHI_IPC;
   ipc_manager->ClientFinalize();
 
-  is_initialized_ = false;
   is_client_mode_ = false;
+  // Only set is_initialized_ = false if both modes are inactive
+  if (!is_runtime_mode_) {
+    is_initialized_ = false;
+  }
 }
 
 void Chimaera::ServerFinalize() {
@@ -181,8 +185,11 @@ void Chimaera::ServerFinalize() {
   auto* ipc_manager = CHI_IPC;
   ipc_manager->ServerFinalize();
 
-  is_initialized_ = false;
   is_runtime_mode_ = false;
+  // Only set is_initialized_ = false if both modes are inactive
+  if (!is_client_mode_) {
+    is_initialized_ = false;
+  }
 }
 
 bool Chimaera::IsInitialized() const { return is_initialized_; }

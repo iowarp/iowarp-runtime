@@ -4,7 +4,7 @@
 #include <chimaera/chimaera.h>
 #include "autogen/MOD_NAME_methods.h"
 // Include admin tasks for BaseCreateTask
-#include <admin/admin_tasks.h>
+#include <chimaera/admin/admin_tasks.h>
 
 /**
  * Task struct definitions for MOD_NAME
@@ -24,7 +24,7 @@ struct CreateParams {
   chi::u32 worker_count_;
   
   // Required: chimod library name for module manager
-  static constexpr const char* chimod_lib_name = "chimaera_MOD_NAME_runtime";
+  static constexpr const char* chimod_lib_name = "chimaera_MOD_NAME";
   
   // Default constructor
   CreateParams() : worker_count_(1) {}
@@ -185,6 +185,50 @@ struct CoRwLockTestTask : public chi::Task {
   template<typename Archive>
   void SerializeOut(Archive& ar) {
     ar(result_);
+  }
+};
+
+/**
+ * FireAndForgetTestTask - Test fire-and-forget task functionality
+ * This task will be automatically deleted after completion
+ */
+struct FireAndForgetTestTask : public chi::Task {
+  IN chi::u32 test_id_;         // Test identifier
+  IN chi::u32 processing_time_ms_; // How long to process
+  IN chi::ipc::string log_message_; // Message to log
+
+  /** SHM default constructor */
+  explicit FireAndForgetTestTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc) 
+      : chi::Task(alloc), test_id_(0), processing_time_ms_(0), log_message_(alloc) {}
+
+  /** Emplace constructor */
+  explicit FireAndForgetTestTask(
+      const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
+      const chi::TaskNode &task_node,
+      const chi::PoolId &pool_id, 
+      const chi::PoolQuery &pool_query,
+      chi::u32 test_id,
+      chi::u32 processing_time_ms,
+      const std::string &log_message)
+      : chi::Task(alloc, task_node, pool_id, pool_query, 22),
+        test_id_(test_id), processing_time_ms_(processing_time_ms), log_message_(alloc, log_message) {
+    // Initialize task
+    task_node_ = task_node;
+    pool_id_ = pool_id;
+    method_ = Method::kFireAndForgetTest;
+    task_flags_.Clear();
+    task_flags_.SetBits(TASK_FIRE_AND_FORGET);
+    pool_query_ = pool_query;
+  }
+
+  template<typename Archive>
+  void SerializeIn(Archive& ar) {
+    ar(test_id_, processing_time_ms_, log_message_);
+  }
+  
+  template<typename Archive>
+  void SerializeOut(Archive& ar) {
+    // Fire-and-forget tasks typically don't have output parameters
   }
 };
 

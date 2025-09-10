@@ -106,7 +106,7 @@ set(MAIN_EXPORT_NAME "${CHIMAERA_NAMESPACE}_coreTargets")
 set(MAIN_PACKAGE_NAME "${CHIMAERA_NAMESPACE}-core")
 
 # Install main library
-install(TARGETS chimaera
+install(TARGETS cxx
   EXPORT ${MAIN_EXPORT_NAME}
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib
@@ -152,7 +152,7 @@ include(\"\${CMAKE_CURRENT_LIST_DIR}/${MAIN_EXPORT_NAME}.cmake\")
 
 # Create convenience alias
 if(NOT TARGET ${MAIN_PACKAGE_NAME})
-  add_library(${MAIN_PACKAGE_NAME} ALIAS ${CHIMAERA_NAMESPACE}::chimaera)
+  add_library(${MAIN_PACKAGE_NAME} ALIAS ${CHIMAERA_NAMESPACE}::cxx)
 endif()
 
 check_required_components(${MAIN_PACKAGE_NAME})

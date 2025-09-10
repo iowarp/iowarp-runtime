@@ -20,14 +20,11 @@ add_executable(external_mod_name_test
 target_link_libraries(external_mod_name_test
   chimaera::MOD_NAME_client     # MOD_NAME client library 
   chimaera::admin_client        # Admin client library (required for all ChiMod clients)
-  chimaera::chimaera            # Main chimaera library
+  chimaera::cxx            # Main chimaera library
 )
 
-# Optional: Define client mode (not runtime)
-target_compile_definitions(external_mod_name_test PRIVATE
-  CHIMAERA_CLIENT=1
-)
+# Removed CHIMAERA_CLIENT compile definition - using runtime IsClient() checks instead
 
 message(STATUS "External ChiMod test configured")
 message(STATUS "  Target: external_mod_name_test")
-message(STATUS "  Links to: chimaera::MOD_NAME_client, chimaera::admin_client, chimaera::chimaera")
+message(STATUS "  Links to: chimaera::MOD_NAME_client, chimaera::admin_client, chimaera::cxx")

@@ -15,6 +15,7 @@ namespace chimaera::MOD_NAME {
 struct CustomTask;
 struct CoMutexTestTask;
 struct CoRwLockTestTask;
+struct FireAndForgetTestTask;
 
 /**
  * Runtime implementation for MOD_NAME container
@@ -121,6 +122,18 @@ public:
   void MonitorCoRwLockTest(chi::MonitorModeId mode, 
                           hipc::FullPtr<CoRwLockTestTask> task_ptr,
                           chi::RunContext& rctx);
+
+  /**
+   * Handle FireAndForgetTest task
+   */
+  void FireAndForgetTest(hipc::FullPtr<FireAndForgetTestTask> task, chi::RunContext& rctx);
+
+  /**
+   * Monitor FireAndForgetTest task
+   */
+  void MonitorFireAndForgetTest(chi::MonitorModeId mode, 
+                               hipc::FullPtr<FireAndForgetTestTask> task_ptr,
+                               chi::RunContext& rctx);
 
   /**
    * Handle Destroy task - Alias for DestroyPool (DestroyTask = DestroyPoolTask)

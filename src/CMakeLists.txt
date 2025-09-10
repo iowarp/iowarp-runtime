@@ -14,13 +14,13 @@ file(GLOB_RECURSE CHIMAERA_SOURCES
 )
 
 # Create main library
-add_library(chimaera SHARED ${CHIMAERA_SOURCES})
+add_library(cxx SHARED ${CHIMAERA_SOURCES})
 
 # Add runtime definition
-target_compile_definitions(chimaera PRIVATE CHIMAERA_RUNTIME=1)
+# Removed CHIMAERA_RUNTIME compile definition - using runtime IsRuntime() checks instead
 
 # Link libraries
-target_link_libraries(chimaera
+target_link_libraries(cxx
   PUBLIC
     hshm::cxx
     cereal::cereal
@@ -30,14 +30,14 @@ target_link_libraries(chimaera
 )
 
 # Set target properties
-set_target_properties(chimaera PROPERTIES
+set_target_properties(cxx PROPERTIES
   VERSION ${PROJECT_VERSION}
   SOVERSION 1
   PUBLIC_HEADER "${CMAKE_SOURCE_DIR}/include/chimaera/chimaera.h"
 )
 
 # Export target for parent scope
-set_target_properties(chimaera PROPERTIES EXPORT_NAME chimaera)
+set_target_properties(cxx PROPERTIES EXPORT_NAME cxx)
 
 # Create namespace alias for external consumption  
-add_library(${CHIMAERA_NAMESPACE}::chimaera ALIAS chimaera)
+add_library(${CHIMAERA_NAMESPACE}::cxx ALIAS cxx)

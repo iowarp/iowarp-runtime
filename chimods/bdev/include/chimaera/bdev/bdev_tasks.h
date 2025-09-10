@@ -4,7 +4,7 @@
 #include <chimaera/chimaera.h>
 #include "autogen/bdev_methods.h"
 // Include admin tasks for BaseCreateTask
-#include <admin/admin_tasks.h>
+#include <chimaera/admin/admin_tasks.h>
 
 /**
  * Task struct definitions for bdev
@@ -66,7 +66,7 @@ struct CreateParams {
   chi::u32 alignment_;             // I/O alignment (default 4096)
   
   // Required: chimod library name for module manager
-  static constexpr const char* chimod_lib_name = "chimaera_bdev_runtime";
+  static constexpr const char* chimod_lib_name = "chimaera_bdev";
   
   // Default constructor
   CreateParams() : total_size_(0), io_depth_(32), alignment_(4096) {}
