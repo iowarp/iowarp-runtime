@@ -195,6 +195,13 @@ class PoolManager {
   bool HasPool(PoolId pool_id) const;
 
   /**
+   * Find pool by name (globally unique)
+   * @param pool_name Pool name
+   * @return PoolId if found, PoolId::GetNull() if not found
+   */
+  PoolId FindPoolByName(const std::string& pool_name) const;
+
+  /**
    * Get number of registered pools
    * @return Count of registered pools on this node
    */

@@ -223,8 +223,8 @@ class ChiModGenerator {
     oss << " * Changes should be made to the autogen tool or the YAML configuration.\n";
     oss << " */\n";
     oss << "\n";
-    oss << "#include \"" << chimod_name << "/" << chimod_name << "_runtime.h\"\n";
-    oss << "#include \"" << chimod_name << "/autogen/" << chimod_name << "_methods.h\"\n";
+    oss << "#include \"chimaera/" << module_name << "/" << chimod_name << "_runtime.h\"\n";
+    oss << "#include \"chimaera/" << module_name << "/autogen/" << chimod_name << "_methods.h\"\n";
     oss << "#include <chimaera/chimaera.h>\n";
     oss << "\n";
     oss << "namespace " << namespace_name << "::" << chimod_name << " {\n";
@@ -233,7 +233,7 @@ class ChiModGenerator {
     oss << "// Container Virtual API Implementations\n";
     oss << "//==============================================================================\n";
     oss << "\n";
-    oss << "void Container::Run(chi::u32 method, hipc::FullPtr<chi::Task> task_ptr, chi::RunContext& rctx) {\n";
+    oss << "void Runtime::Run(chi::u32 method, hipc::FullPtr<chi::Task> task_ptr, chi::RunContext& rctx) {\n";
     oss << "  switch (method) {\n";
 
     // Add Run switch cases for each method
@@ -252,7 +252,7 @@ class ChiModGenerator {
     oss << "  }\n";
     oss << "}\n";
     oss << "\n";
-    oss << "void Container::Monitor(chi::MonitorModeId mode, chi::u32 method, \n";
+    oss << "void Runtime::Monitor(chi::MonitorModeId mode, chi::u32 method, \n";
     oss << "                       hipc::FullPtr<chi::Task> task_ptr, chi::RunContext& rctx) {\n";
     oss << "  switch (method) {\n";
 
@@ -272,7 +272,7 @@ class ChiModGenerator {
     oss << "  }\n";
     oss << "}\n";
     oss << "\n";
-    oss << "void Container::Del(chi::u32 method, hipc::FullPtr<chi::Task> task_ptr) {\n";
+    oss << "void Runtime::Del(chi::u32 method, hipc::FullPtr<chi::Task> task_ptr) {\n";
     oss << "  // Use IPC manager to deallocate task from shared memory\n";
     oss << "  auto* ipc_manager = CHI_IPC;\n";
     oss << "  \n";
@@ -295,7 +295,7 @@ class ChiModGenerator {
     oss << "  }\n";
     oss << "}\n";
     oss << "\n";
-    oss << "void Container::SaveIn(chi::u32 method, chi::TaskSaveInArchive& archive, \n";
+    oss << "void Runtime::SaveIn(chi::u32 method, chi::TaskSaveInArchive& archive, \n";
     oss << "                      hipc::FullPtr<chi::Task> task_ptr) {\n";
     oss << "  switch (method) {\n";
 
@@ -316,7 +316,7 @@ class ChiModGenerator {
     oss << "  }\n";
     oss << "}\n";
     oss << "\n";
-    oss << "void Container::LoadIn(chi::u32 method, chi::TaskLoadInArchive& archive, \n";
+    oss << "void Runtime::LoadIn(chi::u32 method, chi::TaskLoadInArchive& archive, \n";
     oss << "                      hipc::FullPtr<chi::Task> task_ptr) {\n";
     oss << "  switch (method) {\n";
 
@@ -337,7 +337,7 @@ class ChiModGenerator {
     oss << "  }\n";
     oss << "}\n";
     oss << "\n";
-    oss << "void Container::SaveOut(chi::u32 method, chi::TaskSaveOutArchive& archive, \n";
+    oss << "void Runtime::SaveOut(chi::u32 method, chi::TaskSaveOutArchive& archive, \n";
     oss << "                       hipc::FullPtr<chi::Task> task_ptr) {\n";
     oss << "  switch (method) {\n";
 
@@ -358,7 +358,7 @@ class ChiModGenerator {
     oss << "  }\n";
     oss << "}\n";
     oss << "\n";
-    oss << "void Container::LoadOut(chi::u32 method, chi::TaskLoadOutArchive& archive, \n";
+    oss << "void Runtime::LoadOut(chi::u32 method, chi::TaskLoadOutArchive& archive, \n";
     oss << "                       hipc::FullPtr<chi::Task> task_ptr) {\n";
     oss << "  switch (method) {\n";
 
@@ -379,7 +379,7 @@ class ChiModGenerator {
     oss << "  }\n";
     oss << "}\n";
     oss << "\n";
-    oss << "void Container::NewCopy(chi::u32 method, const hipc::FullPtr<chi::Task>& orig_task,\n";
+    oss << "void Runtime::NewCopy(chi::u32 method, const hipc::FullPtr<chi::Task>& orig_task,\n";
     oss << "                       hipc::FullPtr<chi::Task>& dup_task, bool deep) {\n";
     oss << "  auto* ipc_manager = CHI_IPC;\n";
     oss << "  if (!ipc_manager) {\n";
@@ -439,7 +439,9 @@ class ChiModGenerator {
     }
 
     // Create include autogen directory for methods header
-    fs::path include_autogen_dir = repo_path_ / chimod_name / "include" / chimod_name / "autogen";
+    // Structure: [chimod_directory]/include/chimaera/[module_name]/autogen/
+    std::string module_name = config["module_name"] ? config["module_name"].as<std::string>() : chimod_name;
+    fs::path include_autogen_dir = repo_path_ / chimod_name / "include" / "chimaera" / module_name / "autogen";
     fs::create_directories(include_autogen_dir);
 
     // Create src autogen directory for lib_exec source

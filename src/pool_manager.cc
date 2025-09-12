@@ -4,7 +4,6 @@
 
 #include "chimaera/pool_manager.h"
 #include "chimaera/container.h"
-#include "chimaera/singletons.h"
 #include "chimaera/task.h"
 #include "chimaera/admin/admin_tasks.h"
 #include <iostream>
@@ -89,6 +88,22 @@ bool PoolManager::HasPool(PoolId pool_id) const {
   }
 
   return pool_container_map_.find(pool_id) != pool_container_map_.end();
+}
+
+PoolId PoolManager::FindPoolByName(const std::string& pool_name) const {
+  if (!is_initialized_) {
+    return PoolId::GetNull();
+  }
+
+  // Iterate through pool metadata to find matching pool_name (globally unique)
+  for (const auto& pair : pool_metadata_) {
+    const PoolInfo& pool_info = pair.second;
+    if (pool_info.pool_name_ == pool_name) {
+      return pair.first; // Return the PoolId
+    }
+  }
+  
+  return PoolId::GetNull(); // Not found
 }
 
 size_t PoolManager::GetPoolCount() const {
@@ -366,6 +381,17 @@ bool PoolManager::CreatePool(const std::string& chimod_name, const std::string& 
     return false;
   }
   
+  // Check if pool already exists by name (get-or-create semantics)
+  PoolId existing_pool_id = FindPoolByName(pool_name);
+  if (!existing_pool_id.IsNull()) {
+    // Pool with this name already exists, return existing pool ID
+    result_pool_id = existing_pool_id;
+    was_created = false;
+    HILOG(kInfo, "PoolManager: Pool with name '{}' for ChiMod '{}' already exists with PoolId {}, returning existing pool", 
+          pool_name, chimod_name, existing_pool_id);
+    return true;
+  }
+  
   // Determine the target pool ID
   PoolId target_pool_id;
   if (requested_pool_id.IsNull()) {
@@ -379,12 +405,12 @@ bool PoolManager::CreatePool(const std::string& chimod_name, const std::string& 
     target_pool_id = requested_pool_id;
   }
   
-  // Check if pool already exists
+  // Check if pool already exists by ID (should not happen with proper generation, but safety check)
   if (HasPool(target_pool_id)) {
-    // Pool already exists, return existing pool ID
+    // Pool already exists by ID, return existing pool ID
     result_pool_id = target_pool_id;
     was_created = false;
-    HILOG(kInfo, "PoolManager: Pool {} already exists, returning existing pool", target_pool_id);
+    HILOG(kInfo, "PoolManager: Pool {} already exists by ID, returning existing pool", target_pool_id);
     return true;
   }
   
