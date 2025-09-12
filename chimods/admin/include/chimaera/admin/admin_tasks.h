@@ -55,7 +55,6 @@ struct BaseCreateTask : public chi::Task {
   IN hipc::string pool_name_;
   INOUT hipc::string
       chimod_params_;  // Serialized parameters for the specific ChiMod
-  IN chi::u32 domain_flags_;
   INOUT chi::PoolId pool_id_;
 
   // Results for pool operations
@@ -71,7 +70,6 @@ struct BaseCreateTask : public chi::Task {
         chimod_name_(alloc),
         pool_name_(alloc),
         chimod_params_(alloc),
-        domain_flags_(0),
         pool_id_(chi::PoolId::GetNull()),
         result_code_(0),
         error_message_(alloc),
@@ -82,13 +80,12 @@ struct BaseCreateTask : public chi::Task {
       const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
       const chi::TaskNode &task_node, const chi::PoolId &task_pool_id,
       const chi::PoolQuery &pool_query, const std::string &chimod_name = "",
-      const std::string &pool_name = "", chi::u32 domain_flags = 0,
+      const std::string &pool_name = "",
       const chi::PoolId &target_pool_id = chi::PoolId::GetNull())
       : chi::Task(alloc, task_node, task_pool_id, pool_query, 0),
         chimod_name_(alloc, chimod_name),
         pool_name_(alloc, pool_name),
         chimod_params_(alloc),
-        domain_flags_(domain_flags),
         pool_id_(target_pool_id),
         result_code_(0),
         error_message_(alloc),
@@ -111,14 +108,13 @@ struct BaseCreateTask : public chi::Task {
                           const chi::PoolId &task_pool_id,
                           const chi::PoolQuery &pool_query,
                           const std::string &chimod_name,
-                          const std::string &pool_name, chi::u32 domain_flags,
+                          const std::string &pool_name,
                           const chi::PoolId &target_pool_id,
                           CreateParamsArgs &&...create_params_args)
       : chi::Task(alloc, task_node, task_pool_id, pool_query, 0),
         chimod_name_(alloc, chimod_name),
         pool_name_(alloc, pool_name),
         chimod_params_(alloc),
-        domain_flags_(domain_flags),
         pool_id_(target_pool_id),
         result_code_(0),
         error_message_(alloc),
@@ -166,12 +162,11 @@ struct BaseCreateTask : public chi::Task {
 
   /**
    * Serialize IN and INOUT parameters for network transfer
-   * This includes: chimod_name_, pool_name_, chimod_params_, domain_flags_,
-   * pool_id_
+   * This includes: chimod_name_, pool_name_, chimod_params_, pool_id_
    */
   template <typename Archive>
   void SerializeIn(Archive &ar) {
-    ar(chimod_name_, pool_name_, chimod_params_, domain_flags_, pool_id_);
+    ar(chimod_name_, pool_name_, chimod_params_, pool_id_);
   }
 
   /**

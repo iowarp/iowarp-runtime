@@ -329,7 +329,9 @@ TEST_CASE("bdev_async_operations", "[bdev][async][io]") {
     alloc_task->Wait();
     REQUIRE(alloc_task->result_code_ == 0);
     
-    chimaera::bdev::Block block = alloc_task->block_;
+    chimaera::bdev::Block block;
+    REQUIRE(alloc_task->block_list_.GetBlockCount() > 0);
+    block = alloc_task->block_list_.blocks_[0];
     CHI_IPC->DelTask(alloc_task);
     
     // Prepare test data

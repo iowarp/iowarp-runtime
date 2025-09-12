@@ -176,7 +176,7 @@ The client discovers existing queues by accessing the shared header from the mai
 The task allocation template function creates a context allocator from the main allocator and uses it to construct a new task object of the specified type with forwarded arguments in shared memory.
 
 **Example Client Usage** (`chimods/admin/include/admin/admin_client.h:45-59`):
-Clients allocate tasks in shared memory by specifying the task type, node ID, target pool, and domain query, then submit the task to the runtime for processing.
+Clients allocate tasks in shared memory by specifying the task type, node ID, target pool, and pool query, then submit the task to the runtime for processing.
 
 #### 3.2 Task Enqueueing (`include/chimaera/ipc_manager.h:106-124`)
 

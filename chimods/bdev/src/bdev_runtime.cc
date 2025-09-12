@@ -175,21 +175,15 @@ void Runtime::MonitorCreate(chi::MonitorModeId mode,
 
 void Runtime::Allocate(hipc::FullPtr<AllocateTask> task,
                          chi::RunContext& ctx) {
-  BlockSizeCategory category = DetermineBlockSizeCategory(task->size_);
-  chi::u64 actual_size = GetBlockSize(category);
-
-  Block block;
-
-  // Try to allocate from free list first
-  if (!AllocateFromFreeList(category, actual_size, block)) {
-    // Allocate from heap if no free blocks available
-    if (!AllocateFromHeap(actual_size, category, block)) {
-      task->result_code_ = 1;  // Out of space
-      return;
-    }
+  // Clear the block list first
+  task->block_list_.Clear();
+  
+  // Allocate multiple blocks to satisfy the requested size
+  if (!AllocateMultipleBlocks(task->size_, task->block_list_)) {
+    task->result_code_ = 1;  // Out of space
+    return;
   }
-
-  task->block_ = block;
+  
   task->result_code_ = 0;
 }
 
@@ -215,11 +209,14 @@ void Runtime::MonitorAllocate(chi::MonitorModeId mode,
 }
 
 void Runtime::Free(hipc::FullPtr<FreeTask> task, chi::RunContext& ctx) {
-  // Add block back to the appropriate free list
-  AddToFreeList(task->block_);
-
-  // Update remaining size counter
-  remaining_size_.fetch_add(task->block_.size_);
+  // Free all blocks in the list
+  for (size_t i = 0; i < task->block_list_.blocks_.size(); ++i) {
+    const Block& block = task->block_list_.blocks_[i];
+    // Add block back to the appropriate free list
+    AddToFreeList(block);
+    // Update remaining size counter
+    remaining_size_.fetch_add(block.size_);
+  }
 
   task->result_code_ = 0;
 }
@@ -544,6 +541,82 @@ chi::u64 Runtime::AlignSize(chi::u64 size) {
     alignment_ = 4096;  // Set to default if somehow it's 0
   }
   return ((size + alignment_ - 1) / alignment_) * alignment_;
+}
+
+chi::u32 Runtime::CalculateBlocksNeeded(chi::u64 total_size) {
+  if (total_size == 0) {
+    return 0;
+  }
+  
+  chi::u32 blocks_needed = 0;
+  chi::u64 remaining_size = total_size;
+  
+  // Start with largest blocks and work down
+  for (int i = static_cast<int>(BlockSizeCategory::kMaxCategories) - 1; i >= 0; --i) {
+    BlockSizeCategory category = static_cast<BlockSizeCategory>(i);
+    chi::u64 block_size = GetBlockSize(category);
+    
+    chi::u32 blocks_of_this_size = static_cast<chi::u32>(remaining_size / block_size);
+    blocks_needed += blocks_of_this_size;
+    remaining_size -= blocks_of_this_size * block_size;
+    
+    if (remaining_size == 0) {
+      break;
+    }
+  }
+  
+  // If there's still remaining size, we need one more block of smallest size
+  if (remaining_size > 0) {
+    blocks_needed += 1;
+  }
+  
+  return blocks_needed;
+}
+
+bool Runtime::AllocateMultipleBlocks(chi::u64 total_size, BlockList& block_list) {
+  if (total_size == 0) {
+    return true;  // Nothing to allocate
+  }
+  
+  chi::u64 remaining_size = total_size;
+  
+  // Start with largest blocks and work down to minimize fragmentation
+  for (int i = static_cast<int>(BlockSizeCategory::kMaxCategories) - 1; i >= 0; --i) {
+    BlockSizeCategory category = static_cast<BlockSizeCategory>(i);
+    chi::u64 block_size = GetBlockSize(category);
+    
+    // Allocate as many blocks of this size as needed
+    while (remaining_size >= block_size) {
+      Block block;
+      
+      // Try to allocate from free list first
+      if (!AllocateFromFreeList(category, block_size, block)) {
+        // Allocate from heap if no free blocks available
+        if (!AllocateFromHeap(block_size, category, block)) {
+          // If we can't allocate this block, try smaller blocks
+          break;
+        }
+      }
+      
+      // Add the allocated block to the list
+      block_list.AddBlock(block);
+      remaining_size -= block.size_;
+    }
+  }
+  
+  // Check if we successfully allocated enough space
+  if (remaining_size > 0) {
+    // We couldn't allocate enough space - need to free what we allocated and return false
+    for (size_t i = 0; i < block_list.blocks_.size(); ++i) {
+      const Block& block = block_list.blocks_[i];
+      AddToFreeList(block);
+      remaining_size_.fetch_add(block.size_);
+    }
+    block_list.Clear();
+    return false;
+  }
+  
+  return true;
 }
 
 void Runtime::UpdatePerformanceMetrics(bool is_write, chi::u64 bytes,

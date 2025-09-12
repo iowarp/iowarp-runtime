@@ -59,7 +59,7 @@ namespace {
     auto alloc = GetTestAllocator();
     auto task = std::make_unique<chimaera::admin::CreateTask>(
         alloc, chi::TaskNode(2), chi::PoolId(200), chi::PoolQuery(),
-        "test_chimod", "test_pool", 0, chi::PoolId(300));
+        "test_chimod", "test_pool", chi::PoolId(300));
     task->result_code_ = 42;
     task->error_message_ = hipc::string(alloc, "test error message");
     return task;

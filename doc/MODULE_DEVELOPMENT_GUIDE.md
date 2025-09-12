@@ -8,11 +8,12 @@
 5. [Configuration and Code Generation](#configuration-and-code-generation)
 6. [Task Development](#task-development)
 7. [Synchronization Primitives](#synchronization-primitives)
-8. [Client-Server Communication](#client-server-communication)
-9. [Memory Management](#memory-management)
-10. [Build System Integration](#build-system-integration)
-11. [External ChiMod Development](#external-chimod-development)
-12. [Example Module](#example-module)
+8. [Pool Query and Task Routing](#pool-query-and-task-routing)
+9. [Client-Server Communication](#client-server-communication)
+10. [Memory Management](#memory-management)
+11. [Build System Integration](#build-system-integration)
+12. [External ChiMod Development](#external-chimod-development)
+13. [Example Module](#example-module)
 
 ## Overview
 
@@ -179,7 +180,7 @@ struct CustomTask : public chi::Task {
       const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
       const chi::TaskNode &task_node,
       const chi::PoolId &pool_id,
-      const chi::DomainQuery &pool_query,
+      const chi::PoolQuery &pool_query,
       const std::string &data,
       chi::u32 operation_id)
       : chi::Task(alloc, task_node, pool_id, pool_query, 10),
@@ -288,7 +289,7 @@ class Container : public chi::Container {
    * This method both creates and initializes the container
    */
   void Create(hipc::FullPtr<CreateTask> task, chi::RunContext& ctx) {
-    // Initialize the container with pool information and domain query
+    // Initialize the container with pool information and pool query
     chi::Container::Init(task->pool_id_, task->pool_query_);
     
     // Create local queues with semantic names, lane counts, and priorities
@@ -653,7 +654,6 @@ struct BaseCreateTask : public chi::Task {
   INOUT chi::string chimod_name_;     // ChiMod name for loading
   IN chi::string pool_name_;          // Target pool name
   INOUT chi::string chimod_params_;   // Serialized CreateParamsT
-  IN chi::u32 domain_flags_;           // Domain configuration flags
   INOUT chi::PoolId pool_id_;          // Input: requested ID, Output: actual ID
   
   // Results
@@ -709,7 +709,7 @@ struct CreateTask : public chi::Task {
   explicit CreateTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
                       const chi::TaskNode &task_node,
                       const chi::PoolId &pool_id,
-                      const chi::DomainQuery &pool_query)
+                      const chi::PoolQuery &pool_query)
       : chi::Task(alloc, task_node, pool_id, pool_query, 0) {
     method_ = Method::kCreate;  // Static casting required
     // ... initialization code ...
@@ -1024,6 +1024,215 @@ void Runtime::ExclusiveOperation(hipc::FullPtr<ExclusiveTask> task, chi::RunCont
 ```
 
 This synchronization model ensures thread-safe access to module data structures while maintaining compatibility with Chimaera's cooperative task execution system.
+
+## Pool Query and Task Routing
+
+### Overview of PoolQuery
+
+PoolQuery is a fundamental component of Chimaera's task routing system that determines where and how tasks are executed across the distributed runtime. It provides flexible routing strategies for load balancing, locality optimization, and distributed execution patterns.
+
+### PoolQuery Types
+
+The `chi::PoolQuery` class provides six different routing modes through static factory methods:
+
+#### 1. Local Mode
+```cpp
+chi::PoolQuery::Local()
+```
+- **Purpose**: Routes tasks to the local node only
+- **Use Case**: Operations that must execute on the calling node
+- **Example**: Local file system operations, node-specific diagnostics
+```cpp
+// Client usage
+client.Create(HSHM_MCTX, chi::PoolQuery::Local());
+```
+
+#### 2. Direct ID Mode
+```cpp
+chi::PoolQuery::DirectId(ContainerId container_id)
+```
+- **Purpose**: Routes to a specific container by its unique ID
+- **Use Case**: Targeted operations on known containers
+- **Example**: Container-specific configuration changes
+```cpp
+// Route to container with ID 42
+auto query = chi::PoolQuery::DirectId(ContainerId(42));
+client.UpdateConfig(HSHM_MCTX, query, new_config);
+```
+
+#### 3. Direct Hash Mode
+```cpp
+chi::PoolQuery::DirectHash(u32 hash)
+```
+- **Purpose**: Routes using consistent hash-based load balancing
+- **Use Case**: Distributing operations across containers deterministically
+- **Example**: Key-value store operations where keys map to specific containers
+```cpp
+// Hash-based routing for a key
+u32 hash = std::hash<std::string>{}(key);
+auto query = chi::PoolQuery::DirectHash(hash);
+client.Put(HSHM_MCTX, query, key, value);
+```
+
+#### 4. Range Mode
+```cpp
+chi::PoolQuery::Range(u32 offset, u32 count)
+```
+- **Purpose**: Routes to a range of containers
+- **Use Case**: Batch operations across multiple containers
+- **Example**: Parallel scan operations, bulk updates
+```cpp
+// Process containers 10-19 (10 containers starting at offset 10)
+auto query = chi::PoolQuery::Range(10, 10);
+client.BulkUpdate(HSHM_MCTX, query, update_data);
+```
+
+#### 5. Broadcast Mode
+```cpp
+chi::PoolQuery::Broadcast()
+```
+- **Purpose**: Routes to all containers in the pool
+- **Use Case**: Global operations affecting all containers
+- **Example**: Configuration updates, global cache invalidation
+```cpp
+// Broadcast configuration change to all containers
+auto query = chi::PoolQuery::Broadcast();
+client.InvalidateCache(HSHM_MCTX, query);
+```
+
+#### 6. Physical Mode
+```cpp
+chi::PoolQuery::Physical(u32 node_id)
+```
+- **Purpose**: Routes to a specific physical node by ID
+- **Use Case**: Node-specific operations in distributed deployments
+- **Example**: Remote node administration, cross-node data migration
+```cpp
+// Execute on physical node 3
+auto query = chi::PoolQuery::Physical(3);
+client.NodeDiagnostics(HSHM_MCTX, query);
+```
+
+### PoolQuery Usage Guidelines
+
+#### Best Practices
+
+1. **Never use null queries**: Always specify an explicit PoolQuery type
+2. **Default to Local**: When in doubt, use `PoolQuery::Local()`
+3. **Consider locality**: Prefer local execution to minimize network overhead
+4. **Use appropriate granularity**: Match routing mode to operation scope
+
+#### Common Patterns
+
+**Client Creation Pattern**:
+```cpp
+// Always use PoolQuery::Local() for container creation
+client.Create(HSHM_MCTX, chi::PoolQuery::Local());
+```
+
+**Load-Balanced Operations**:
+```cpp
+// Use hash-based routing for even distribution
+for (const auto& item : items) {
+  u32 hash = ComputeHash(item.id);
+  auto query = chi::PoolQuery::DirectHash(hash);
+  client.Process(HSHM_MCTX, query, item);
+}
+```
+
+**Batch Processing**:
+```cpp
+// Process containers in chunks
+const u32 total_containers = pool_info->num_containers_;
+const u32 batch_size = 10;
+for (u32 offset = 0; offset < total_containers; offset += batch_size) {
+  u32 count = std::min(batch_size, total_containers - offset);
+  auto query = chi::PoolQuery::Range(offset, count);
+  client.BatchProcess(HSHM_MCTX, query, batch_data);
+}
+```
+
+### Runtime Routing Implementation
+
+The runtime uses PoolQuery to determine task routing through several stages:
+
+1. **Query Validation**: Ensures the query parameters are valid
+2. **Container Resolution**: Maps query to specific container(s)
+3. **Task Distribution**: Routes task to appropriate worker queues
+4. **Load Balancing**: Applies distribution strategies for multi-container queries
+
+### PoolQuery in Task Definitions
+
+Tasks must include PoolQuery in their constructors:
+
+```cpp
+class CustomTask : public chi::Task {
+ public:
+  CustomTask(hipc::Allocator *alloc,
+             const chi::TaskNode &task_node,
+             const chi::PoolId &pool_id,
+             const chi::PoolQuery &pool_query,  // Required parameter
+             /* custom parameters */)
+      : chi::Task(alloc, task_node, pool_id, pool_query, method_id) {
+    // Task initialization
+  }
+};
+```
+
+### Advanced PoolQuery Features
+
+#### Query Introspection
+```cpp
+PoolQuery query = PoolQuery::Range(0, 10);
+
+// Check routing mode
+if (query.IsRangeMode()) {
+  u32 offset = query.GetRangeOffset();
+  u32 count = query.GetRangeCount();
+  // Process range parameters
+}
+
+// Get routing mode enum
+RoutingMode mode = query.GetRoutingMode();
+switch (mode) {
+  case RoutingMode::Local:
+    // Handle local routing
+    break;
+  case RoutingMode::Broadcast:
+    // Handle broadcast
+    break;
+  // ... other cases
+}
+```
+
+#### Combining with Task Priorities
+```cpp
+// High-priority broadcast
+auto query = chi::PoolQuery::Broadcast();
+auto task = ipc_manager->NewTask<UpdateTask>(
+    chi::CreateTaskNode(),
+    pool_id,
+    query,
+    update_data
+);
+ipc_manager->Enqueue(task, chi::kHighPriority);
+```
+
+### Troubleshooting PoolQuery Issues
+
+**Common Errors**:
+
+1. **Null Query Error**: "NEVER use a null pool query"
+   - Solution: Always use a factory method like `PoolQuery::Local()`
+
+2. **Invalid Container ID**: Container not found for DirectId query
+   - Solution: Verify container exists before using DirectId
+
+3. **Range Out of Bounds**: Range exceeds available containers
+   - Solution: Check pool size before creating Range queries
+
+4. **Node ID Invalid**: Physical node ID doesn't exist
+   - Solution: Validate node IDs against cluster configuration
 
 ## Client-Server Communication
 
@@ -1767,7 +1976,7 @@ Starting with the latest version, container initialization has been simplified:
 
 1. **No Separate Init Method**: The `Init` method has been merged with `Create`
 2. **Create Does Everything**: The `Create` method now handles both container creation and initialization
-3. **Access to Task Data**: Since `Create` receives the CreateTask, you have access to pool_id and domain_query from the task
+3. **Access to Task Data**: Since `Create` receives the CreateTask, you have access to pool_id and pool_query from the task
 
 ### Framework-Managed Task Cleanup
 Task cleanup is handled by the framework using the IPC manager:
@@ -2193,6 +2402,19 @@ void Custom(hipc::FullPtr<CustomTask> task, chi::RunContext& ctx) {
 3. **Use Appropriate Segments**: Put large data in client_data_segment
 4. **Avoid Blocking**: Use async operations when possible
 5. **Profile First**: Measure before optimizing
+
+## Unit Testing
+
+Unit testing for ChiMods is covered in the separate [Module Test Guide](module_test_guide.md). This guide provides comprehensive information on:
+
+- Test environment setup and configuration
+- Environment variables and module discovery
+- Test framework integration patterns
+- Complete test examples with fixtures
+- CMake integration and build setup
+- Best practices for ChiMod testing
+
+The test guide demonstrates how to test both runtime and client components in the same process, enabling comprehensive integration testing without complex multi-process coordination.
 
 ## Quick Reference Checklist
 

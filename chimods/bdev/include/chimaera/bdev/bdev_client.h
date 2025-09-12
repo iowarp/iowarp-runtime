@@ -13,6 +13,38 @@
 
 namespace chimaera::bdev {
 
+/**
+ * Client-side block list (uses std::vector instead of hipc::vector)
+ */
+struct ClientBlockList {
+  std::vector<Block> blocks_;    // List of allocated blocks
+  chi::u64 total_size_;          // Total size covered by all blocks
+  
+  ClientBlockList() : total_size_(0) {}
+  
+  // Add a block to the list
+  void AddBlock(const Block& block) {
+    blocks_.push_back(block);
+    total_size_ += block.size_;
+  }
+  
+  // Get number of blocks
+  size_t GetBlockCount() const {
+    return blocks_.size();
+  }
+  
+  // Get total size covered
+  chi::u64 GetTotalSize() const {
+    return total_size_;
+  }
+  
+  // Clear all blocks
+  void Clear() {
+    blocks_.clear();
+    total_size_ = 0;
+  }
+};
+
 class Client : public chi::ContainerClient {
  public:
   Client() = default;
@@ -70,7 +102,6 @@ class Client : public chi::ContainerClient {
         pool_query,
         "chimaera_bdev_runtime",  // chimod name
         "bdev_pool_" + std::to_string(pool_id_.ToU64()),  // pool name  
-        0,   // domain flags
         pool_id_,  // target pool ID to create
         // CreateParams arguments:
         bdev_type, file_path, total_size, io_depth, safe_alignment
@@ -82,12 +113,30 @@ class Client : public chi::ContainerClient {
   }
 
   /**
-   * Allocate data block - synchronous
+   * Allocate multiple blocks - synchronous
+   */
+  ClientBlockList AllocateBlocks(const hipc::MemContext& mctx, chi::u64 size) {
+    auto task = AsyncAllocate(mctx, size);
+    task->Wait();
+    ClientBlockList result;
+    for (size_t i = 0; i < task->block_list_.blocks_.size(); ++i) {
+      result.AddBlock(task->block_list_.blocks_[i]);
+    }
+    CHI_IPC->DelTask(task);
+    return result;
+  }
+  
+  /**
+   * Allocate single block - synchronous (backward compatibility)
+   * Returns the first block if multiple blocks were allocated
    */
   Block Allocate(const hipc::MemContext& mctx, chi::u64 size) {
     auto task = AsyncAllocate(mctx, size);
     task->Wait();
-    Block result = task->block_;
+    Block result;
+    if (task->block_list_.GetBlockCount() > 0) {
+      result = task->block_list_.blocks_[0];
+    }
     CHI_IPC->DelTask(task);
     return result;
   }
@@ -107,7 +156,39 @@ class Client : public chi::ContainerClient {
   }
 
   /**
-   * Free data block - synchronous
+   * Free multiple blocks - synchronous
+   */
+  chi::u32 FreeBlocks(const hipc::MemContext& mctx, const ClientBlockList& client_block_list) {
+    auto task = AsyncFreeBlocks(mctx, client_block_list);
+    task->Wait();
+    chi::u32 result = task->result_code_;
+    CHI_IPC->DelTask(task);
+    return result;
+  }
+  
+  /**
+   * Free multiple blocks - asynchronous
+   */
+  hipc::FullPtr<chimaera::bdev::FreeTask> AsyncFreeBlocks(
+      const hipc::MemContext& mctx, const ClientBlockList& client_block_list) {
+    auto* ipc_manager = CHI_IPC;
+
+    // Create a task with empty block list, then populate it
+    auto task = ipc_manager->NewTask<chimaera::bdev::FreeTask>(
+        chi::CreateTaskNode(), pool_id_, chi::PoolQuery::Local(), Block{});
+    
+    // Clear the single block and add all blocks from client list
+    task->block_list_.Clear();
+    for (size_t i = 0; i < client_block_list.blocks_.size(); ++i) {
+      task->block_list_.AddBlock(client_block_list.blocks_[i]);
+    }
+
+    ipc_manager->Enqueue(task);
+    return task;
+  }
+  
+  /**
+   * Free single block - synchronous (backward compatibility)
    */
   chi::u32 Free(const hipc::MemContext& mctx, const Block& block) {
     auto task = AsyncFree(mctx, block);
@@ -118,7 +199,7 @@ class Client : public chi::ContainerClient {
   }
 
   /**
-   * Free data block - asynchronous
+   * Free single block - asynchronous (backward compatibility)
    */
   hipc::FullPtr<chimaera::bdev::FreeTask> AsyncFree(
       const hipc::MemContext& mctx, const Block& block) {

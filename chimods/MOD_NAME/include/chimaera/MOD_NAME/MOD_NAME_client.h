@@ -53,7 +53,6 @@ class Client : public chi::ContainerClient {
         pool_query,
         "chimaera_MOD_NAME",                          // chimod name
         "mod_name_pool_" + std::to_string(pool_id_.ToU64()),  // pool name
-        0,                                                    // domain flags
         pool_id_  // target pool ID to create
     );
 

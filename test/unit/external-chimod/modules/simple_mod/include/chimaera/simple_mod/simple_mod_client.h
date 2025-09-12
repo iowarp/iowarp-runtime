@@ -56,7 +56,7 @@ class Client : public chi::ContainerClient {
     // Use admin pool for CreateTask as per CLAUDE.md requirements
     auto task = ipc_manager->NewTask<CreateTask>(
         chi::CreateTaskNode(), chi::kAdminPoolId, pool_query,
-        "external_test_simple_mod", "simple_mod_pool", 0, pool_id_);
+        "external_test_simple_mod", "simple_mod_pool", pool_id_);
 
     // Submit to runtime
     ipc_manager->Enqueue(task);

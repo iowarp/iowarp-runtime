@@ -242,7 +242,6 @@ Container creation task for the admin module.
 - `chimod_name_`: Name of the ChiMod being created
 - `pool_name_`: Name of the pool
 - `chimod_params_`: Serialized parameters
-- `domain_flags_`: Domain-specific flags
 - `pool_id_`: Pool identifier
 - `result_code_`: Operation result (0 = success)
 - `error_message_`: Error description if creation failed
