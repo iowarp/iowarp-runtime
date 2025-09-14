@@ -60,12 +60,11 @@ struct CustomTask : public chi::Task {
   // Task-specific data
   INOUT chi::ipc::string data_;
   IN chi::u32 operation_id_;
-  OUT chi::u32 result_code_;
 
   /** SHM default constructor */
   explicit CustomTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc) 
       : chi::Task(alloc), 
-        data_(alloc), operation_id_(0), result_code_(0) {}
+        data_(alloc), operation_id_(0) {}
 
   /** Emplace constructor */
   explicit CustomTask(
@@ -76,7 +75,7 @@ struct CustomTask : public chi::Task {
       const std::string &data,
       chi::u32 operation_id)
       : chi::Task(alloc, task_node, pool_id, pool_query, 10),
-        data_(alloc, data), operation_id_(operation_id), result_code_(0) {
+        data_(alloc, data), operation_id_(operation_id) {
     // Initialize task
     task_node_ = task_node;
     pool_id_ = pool_id;
@@ -96,11 +95,11 @@ struct CustomTask : public chi::Task {
   
   /**
    * Serialize OUT and INOUT parameters for network transfer
-   * This includes: data_, result_code_
+   * This includes: data_
    */
   template<typename Archive>
   void SerializeOut(Archive& ar) {
-    ar(data_, result_code_);
+    ar(data_);
   }
 };
 
@@ -110,11 +109,10 @@ struct CustomTask : public chi::Task {
 struct CoMutexTestTask : public chi::Task {
   IN chi::u32 test_id_;         // Test identifier
   IN chi::u32 hold_duration_ms_; // How long to hold the mutex
-  OUT chi::u32 result_;         // Test result
 
   /** SHM default constructor */
   explicit CoMutexTestTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc) 
-      : chi::Task(alloc), test_id_(0), hold_duration_ms_(0), result_(0) {}
+      : chi::Task(alloc), test_id_(0), hold_duration_ms_(0) {}
 
   /** Emplace constructor */
   explicit CoMutexTestTask(
@@ -125,7 +123,7 @@ struct CoMutexTestTask : public chi::Task {
       chi::u32 test_id,
       chi::u32 hold_duration_ms)
       : chi::Task(alloc, task_node, pool_id, pool_query, 20),
-        test_id_(test_id), hold_duration_ms_(hold_duration_ms), result_(0) {
+        test_id_(test_id), hold_duration_ms_(hold_duration_ms) {
     // Initialize task
     task_node_ = task_node;
     pool_id_ = pool_id;
@@ -141,7 +139,7 @@ struct CoMutexTestTask : public chi::Task {
   
   template<typename Archive>
   void SerializeOut(Archive& ar) {
-    ar(result_);
+    // No output parameters for this task
   }
 };
 
@@ -152,11 +150,10 @@ struct CoRwLockTestTask : public chi::Task {
   IN chi::u32 test_id_;         // Test identifier
   IN bool is_writer_;           // True for write lock, false for read lock
   IN chi::u32 hold_duration_ms_; // How long to hold the lock
-  OUT chi::u32 result_;         // Test result
 
   /** SHM default constructor */
   explicit CoRwLockTestTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc) 
-      : chi::Task(alloc), test_id_(0), is_writer_(false), hold_duration_ms_(0), result_(0) {}
+      : chi::Task(alloc), test_id_(0), is_writer_(false), hold_duration_ms_(0) {}
 
   /** Emplace constructor */
   explicit CoRwLockTestTask(
@@ -168,7 +165,7 @@ struct CoRwLockTestTask : public chi::Task {
       bool is_writer,
       chi::u32 hold_duration_ms)
       : chi::Task(alloc, task_node, pool_id, pool_query, 21),
-        test_id_(test_id), is_writer_(is_writer), hold_duration_ms_(hold_duration_ms), result_(0) {
+        test_id_(test_id), is_writer_(is_writer), hold_duration_ms_(hold_duration_ms) {
     // Initialize task
     task_node_ = task_node;
     pool_id_ = pool_id;
@@ -184,7 +181,7 @@ struct CoRwLockTestTask : public chi::Task {
   
   template<typename Archive>
   void SerializeOut(Archive& ar) {
-    ar(result_);
+    // No output parameters for this task
   }
 };
 

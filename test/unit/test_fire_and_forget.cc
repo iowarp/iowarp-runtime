@@ -605,7 +605,7 @@ TEST_CASE("fire_and_forget_vs_regular_task_behavior", "[fire_and_forget][compari
     task->Wait();
     
     // Verify task completed
-    REQUIRE(task->result_code_ == 0);
+    REQUIRE(task->return_code_ == 0);
     
     // Manual cleanup is required for regular tasks
     ipc_manager->DelTask(task);

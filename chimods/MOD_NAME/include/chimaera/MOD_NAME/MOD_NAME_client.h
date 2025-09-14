@@ -77,7 +77,7 @@ class Client : public chi::ContainerClient {
 
     // Get results
     output_data = task->data_.str();
-    chi::u32 result_code = task->result_code_;
+    chi::u32 result_code = task->return_code_;
 
     // Clean up task
     auto* ipc_manager = CHI_IPC;
@@ -115,7 +115,7 @@ class Client : public chi::ContainerClient {
     task->Wait();
 
     // Get result
-    chi::u32 result = task->result_;
+    chi::u32 result = task->return_code_;
 
     // Clean up task
     auto* ipc_manager = CHI_IPC;
@@ -153,7 +153,7 @@ class Client : public chi::ContainerClient {
     task->Wait();
 
     // Get result
-    chi::u32 result = task->result_;
+    chi::u32 result = task->return_code_;
 
     // Clean up task
     auto* ipc_manager = CHI_IPC;

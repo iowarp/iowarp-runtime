@@ -34,7 +34,7 @@ class Client : public chi::ContainerClient {
     task->Wait();
 
     // Check for errors
-    if (task->result_code_ != 0) {
+    if (task->return_code_ != 0) {
       std::string error = task->error_message_.str();
       auto* ipc_manager = CHI_IPC;
       ipc_manager->DelTask(task);
@@ -72,7 +72,7 @@ class Client : public chi::ContainerClient {
     task->Wait();
 
     // Check for errors
-    if (task->result_code_ != 0) {
+    if (task->return_code_ != 0) {
       std::string error = task->error_message_.str();
       auto* ipc_manager = CHI_IPC;
       ipc_manager->DelTask(task);
@@ -109,11 +109,11 @@ class Client : public chi::ContainerClient {
     task->Wait();
 
     // Check for errors
-    if (task->result_code_ != 0) {
+    if (task->return_code_ != 0) {
       auto* ipc_manager = CHI_IPC;
       ipc_manager->DelTask(task);
       throw std::runtime_error("Flush failed with result code: " +
-                               std::to_string(task->result_code_));
+                               std::to_string(task->return_code_));
     }
 
     // Clean up task

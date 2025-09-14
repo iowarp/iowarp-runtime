@@ -169,7 +169,7 @@ class Client : public chi::ContainerClient {
   chi::u32 FreeBlocks(const hipc::MemContext& mctx, const ClientBlockList& client_block_list) {
     auto task = AsyncFreeBlocks(mctx, client_block_list);
     task->Wait();
-    chi::u32 result = task->result_code_;
+    chi::u32 result = task->return_code_;
     CHI_IPC->DelTask(task);
     return result;
   }
@@ -201,7 +201,7 @@ class Client : public chi::ContainerClient {
   chi::u32 Free(const hipc::MemContext& mctx, const Block& block) {
     auto task = AsyncFree(mctx, block);
     task->Wait();
-    chi::u32 result = task->result_code_;
+    chi::u32 result = task->return_code_;
     CHI_IPC->DelTask(task);
     return result;
   }

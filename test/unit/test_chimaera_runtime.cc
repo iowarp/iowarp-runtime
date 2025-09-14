@@ -319,7 +319,7 @@ TEST_CASE("MOD_NAME Async Task Execution", "[task][mod_name][async]") {
     REQUIRE(fixture.waitForTaskCompletion(task));
 
     // Verify results
-    REQUIRE(task->result_code_ == 0);
+    REQUIRE(task->return_code_ == 0);
     std::string output_data = task->data_.str();
     REQUIRE_FALSE(output_data.empty());
 
@@ -422,7 +422,7 @@ TEST_CASE("Concurrent Task Execution", "[concurrent][stress]") {
     for (auto& task : tasks) {
       if (fixture.waitForTaskCompletion(task)) {
         completed_tasks++;
-        REQUIRE(task->result_code_ == 0);
+        REQUIRE(task->return_code_ == 0);
       }
     }
 

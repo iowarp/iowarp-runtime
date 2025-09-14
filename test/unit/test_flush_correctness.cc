@@ -50,7 +50,7 @@ TEST_CASE("FlushTask Basic Functionality", "[flush][admin]") {
     flush_task->Wait();
 
     // Verify results
-    REQUIRE(flush_task->result_code_ == 0);
+    REQUIRE(flush_task->return_code_ == 0);
     REQUIRE(flush_task->total_work_done_ == 0);
   }
 }
@@ -94,7 +94,7 @@ TEST_CASE("FlushTask with MOD_NAME Container and Async Tasks",
           flush_admin_client.AsyncFlush(HSHM_MCTX, chi::PoolQuery::Local());
       flush_task->Wait();
 
-      flush_result_code.store(flush_task->result_code_);
+      flush_result_code.store(flush_task->return_code_);
       flush_completed.store(true);
 
       // Clean up flush task
@@ -108,7 +108,7 @@ TEST_CASE("FlushTask with MOD_NAME Container and Async Tasks",
     // Wait for all async operations to complete
     for (auto& async_task : async_tasks) {
       async_task->Wait();
-      REQUIRE(async_task->result_code_ == 0);
+      REQUIRE(async_task->return_code_ == 0);
     }
 
     // Wait for flush to complete

@@ -353,7 +353,7 @@ TEST_CASE("CoMutex Concurrent Access", "[comutex][concurrent]") {
     // Verify all tasks succeeded
     int successful_tasks = 0;
     for (auto& task : tasks) {
-      if (task->result_ == 0) {
+      if (task->return_code_ == 0) {
         successful_tasks++;
       }
     }
@@ -521,7 +521,7 @@ TEST_CASE("CoRwLock Multiple Readers", "[corwlock][readers]") {
     // Verify all tasks succeeded
     int successful_tasks = 0;
     for (auto& task : tasks) {
-      if (task->result_ == 0) {
+      if (task->return_code_ == 0) {
         successful_tasks++;
       }
     }
@@ -577,7 +577,7 @@ TEST_CASE("CoRwLock Writer Exclusivity", "[corwlock][writers]") {
     // Verify all tasks succeeded
     int successful_tasks = 0;
     for (auto& task : tasks) {
-      if (task->result_ == 0) {
+      if (task->return_code_ == 0) {
         successful_tasks++;
       }
     }
@@ -630,7 +630,7 @@ TEST_CASE("CoRwLock Reader-Writer Interaction", "[corwlock][interaction]") {
     
     // Verify all tasks succeeded
     for (auto& task : tasks) {
-      REQUIRE(task->result_ == 0);
+      REQUIRE(task->return_code_ == 0);
     }
     
     INFO("Reader-writer interaction test completed in " << duration.count() << "ms");
@@ -679,7 +679,7 @@ TEST_CASE("TaskNode Grouping", "[tasknode][grouping]") {
     REQUIRE(completed == kNumGroupedTasks);
     
     for (auto& task : tasks) {
-      REQUIRE(task->result_ == 0);
+      REQUIRE(task->return_code_ == 0);
     }
     
     INFO("TaskNode grouped CoMutex tasks completed in " << duration.count() << "ms");
@@ -719,7 +719,7 @@ TEST_CASE("TaskNode Grouping", "[tasknode][grouping]") {
     REQUIRE(completed == kNumGroupedReaders);
     
     for (auto& task : tasks) {
-      REQUIRE(task->result_ == 0);
+      REQUIRE(task->return_code_ == 0);
     }
     
     INFO("TaskNode grouped readers completed in " << duration.count() << "ms");

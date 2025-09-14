@@ -118,7 +118,7 @@ void Runtime::Destroy(hipc::FullPtr<DestroyTask> task, chi::RunContext& rctx) {
             << task->target_pool_id_ << std::endl;
 
   // Initialize output values
-  task->result_code_ = 0;
+  task->return_code_ = 0;
   task->error_message_ = "";
 
   // In a real implementation, this would clean up MOD_NAME-specific resources
@@ -182,7 +182,7 @@ void Runtime::CoMutexTest(hipc::FullPtr<CoMutexTestTask> task, chi::RunContext& 
     }
   }
 
-  task->result_ = 0;  // Success (0 means success in most conventions)
+  task->return_code_ = 0;  // Success (0 means success in most conventions)
   std::cout << "MOD_NAME: CoMutexTest " << task->test_id_ << " completed" << std::endl;
 }
 
@@ -239,7 +239,7 @@ void Runtime::CoRwLockTest(hipc::FullPtr<CoRwLockTestTask> task, chi::RunContext
     }
   }
 
-  task->result_ = 0;  // Success (0 means success in most conventions)
+  task->return_code_ = 0;  // Success (0 means success in most conventions)
   std::cout << "MOD_NAME: CoRwLockTest " << task->test_id_ << " completed" << std::endl;
 }
 

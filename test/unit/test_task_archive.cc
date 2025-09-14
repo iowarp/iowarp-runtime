@@ -60,7 +60,7 @@ namespace {
     auto task = std::make_unique<chimaera::admin::CreateTask>(
         alloc, chi::TaskNode(2), chi::PoolId(200, 0), chi::PoolQuery(),
         "test_chimod", "test_pool", chi::PoolId(300, 0));
-    task->result_code_ = 42;
+    task->return_code_ = 42;
     task->error_message_ = hipc::string(alloc, "test error message");
     return task;
   }
@@ -343,12 +343,12 @@ TEST_CASE("Admin Task Serialization", "[task_archive][admin_tasks]") {
     
     chi::TaskLoadOutArchive in_archive_out(out_data);
     auto new_task_out = CreateTestAdminTask();
-    new_task_out->result_code_ = 0;  // Clear
+    new_task_out->return_code_ = 0;  // Clear
     new_task_out->error_message_ = hipc::string(GetTestAllocator(), "");
     REQUIRE_NOTHROW(in_archive_out >> *new_task_out);
     
     // Verify OUT/INOUT parameters were preserved
-    REQUIRE(new_task_out->result_code_ == original_task->result_code_);
+    REQUIRE(new_task_out->return_code_ == original_task->return_code_);
     REQUIRE(new_task_out->error_message_.str() == original_task->error_message_.str());
     REQUIRE(new_task_out->pool_id_ == original_task->pool_id_);  // INOUT parameter
   }
@@ -358,7 +358,7 @@ TEST_CASE("Admin Task Serialization", "[task_archive][admin_tasks]") {
     chimaera::admin::DestroyPoolTask original_task(
         alloc, chi::TaskNode(3), chi::PoolId(400, 0), chi::PoolQuery(),
         chi::PoolId(500, 0), 0x123);
-    original_task.result_code_ = 99;
+    original_task.return_code_ = 99;
     original_task.error_message_ = hipc::string(alloc, "destroy error");
     
     // Test round-trip IN parameters
@@ -380,7 +380,7 @@ TEST_CASE("Admin Task Serialization", "[task_archive][admin_tasks]") {
     chimaera::admin::DestroyPoolTask new_task_out(alloc);
     in_archive_out >> new_task_out;
     
-    REQUIRE(new_task_out.result_code_ == original_task.result_code_);
+    REQUIRE(new_task_out.return_code_ == original_task.return_code_);
     REQUIRE(new_task_out.error_message_.str() == original_task.error_message_.str());
   }
   
@@ -389,7 +389,7 @@ TEST_CASE("Admin Task Serialization", "[task_archive][admin_tasks]") {
     chimaera::admin::StopRuntimeTask original_task(
         alloc, chi::TaskNode(4), chi::PoolId(600, 0), chi::PoolQuery(),
         0x456, 10000);
-    original_task.result_code_ = 777;
+    original_task.return_code_ = 777;
     original_task.error_message_ = hipc::string(alloc, "shutdown error");
     
     // Test IN parameters
@@ -411,7 +411,7 @@ TEST_CASE("Admin Task Serialization", "[task_archive][admin_tasks]") {
     chimaera::admin::StopRuntimeTask new_task_out(alloc);
     in_archive_out >> new_task_out;
     
-    REQUIRE(new_task_out.result_code_ == original_task.result_code_);
+    REQUIRE(new_task_out.return_code_ == original_task.return_code_);
     REQUIRE(new_task_out.error_message_.str() == original_task.error_message_.str());
   }
 }
@@ -682,7 +682,7 @@ TEST_CASE("Complete Serialization Flow", "[task_archive][integration]") {
     REQUIRE(remote_task->pool_id_ == original_task->pool_id_);
     
     // Step 3: Simulate task execution and result generation on remote node
-    remote_task->result_code_ = 123;
+    remote_task->return_code_ = 123;
     remote_task->error_message_ = hipc::string(GetTestAllocator(), "remote execution result");
     
     // Step 4: Serialize OUT parameters (for sending results back)
@@ -694,12 +694,12 @@ TEST_CASE("Complete Serialization Flow", "[task_archive][integration]") {
     // Step 5: Simulate client receiving and deserializing OUT parameters
     chi::TaskLoadOutArchive recv_out_archive(out_data);
     auto final_task = CreateTestAdminTask();
-    final_task->result_code_ = 0;  // Clear
+    final_task->return_code_ = 0;  // Clear
     final_task->error_message_ = hipc::string(GetTestAllocator(), "");
     recv_out_archive >> *final_task;
     
     // Verify OUT parameters were transferred back
-    REQUIRE(final_task->result_code_ == 123);
+    REQUIRE(final_task->return_code_ == 123);
     REQUIRE(final_task->error_message_.str() == "remote execution result");
     REQUIRE(final_task->pool_id_ == original_task->pool_id_);  // INOUT parameter preserved
     

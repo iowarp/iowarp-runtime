@@ -74,14 +74,14 @@ void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& ctx) {
     file_fd_ =
         open(params.file_path_.c_str(), O_RDWR | O_CREAT | O_DIRECT, 0644);
     if (file_fd_ < 0) {
-      task->result_code_ = 1;
+      task->return_code_ = 1;
       return;
     }
 
     // Get file size
     struct stat st;
     if (fstat(file_fd_, &st) != 0) {
-      task->result_code_ = 2;
+      task->return_code_ = 2;
       close(file_fd_);
       file_fd_ = -1;
       return;
@@ -97,7 +97,7 @@ void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& ctx) {
       file_size_ = (params.total_size_ > 0) ? params.total_size_
                                             : (1ULL << 30);  // 1GB default
       if (ftruncate(file_fd_, file_size_) != 0) {
-        task->result_code_ = 3;
+        task->return_code_ = 3;
         close(file_fd_);
         file_fd_ = -1;
         return;
@@ -111,14 +111,14 @@ void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& ctx) {
     // RAM-based storage initialization
     if (params.total_size_ == 0) {
       // RAM backend requires explicit size
-      task->result_code_ = 4;
+      task->return_code_ = 4;
       return;
     }
 
     ram_size_ = params.total_size_;
     ram_buffer_ = static_cast<char*>(malloc(ram_size_));
     if (ram_buffer_ == nullptr) {
-      task->result_code_ = 5;
+      task->return_code_ = 5;
       return;
     }
 
@@ -150,7 +150,7 @@ void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& ctx) {
   BenchmarkPerformance();
 
   // Set success result
-  task->result_code_ = 0;
+  task->return_code_ = 0;
 
   std::cout << "bdev container created for file: " << params.file_path_
             << " (Size: " << file_size_ << " bytes)" << std::endl;
@@ -185,11 +185,11 @@ void Runtime::Allocate(hipc::FullPtr<AllocateTask> task, chi::RunContext& ctx) {
 
   // Allocate multiple blocks to satisfy the requested size
   if (!AllocateMultipleBlocks(task->size_, task->block_list_)) {
-    task->result_code_ = 1;  // Out of space
+    task->return_code_ = 1;  // Out of space
     return;
   }
 
-  task->result_code_ = 0;
+  task->return_code_ = 0;
 }
 
 void Runtime::MonitorAllocate(chi::MonitorModeId mode,
@@ -223,7 +223,7 @@ void Runtime::Free(hipc::FullPtr<FreeTask> task, chi::RunContext& ctx) {
     remaining_size_.fetch_add(block.size_);
   }
 
-  task->result_code_ = 0;
+  task->return_code_ = 0;
 }
 
 void Runtime::MonitorFree(chi::MonitorModeId mode, hipc::FullPtr<FreeTask> task,
@@ -255,7 +255,7 @@ void Runtime::Write(hipc::FullPtr<WriteTask> task, chi::RunContext& ctx) {
       WriteToRam(task);
       break;
     default:
-      task->result_code_ = 1;  // Unknown backend type
+      task->return_code_ = 1;  // Unknown backend type
       task->bytes_written_ = 0;
       break;
   }
@@ -292,7 +292,7 @@ void Runtime::Read(hipc::FullPtr<ReadTask> task, chi::RunContext& ctx) {
       ReadFromRam(task);
       break;
     default:
-      task->result_code_ = 1;  // Unknown backend type
+      task->return_code_ = 1;  // Unknown backend type
       task->bytes_read_ = 0;
       break;
   }
@@ -353,7 +353,7 @@ void Runtime::Stat(hipc::FullPtr<StatTask> task, chi::RunContext& ctx) {
 
   task->metrics_ = metrics;
   task->remaining_size_ = remaining_size_.load();
-  task->result_code_ = 0;
+  task->return_code_ = 0;
 }
 
 void Runtime::MonitorStat(chi::MonitorModeId mode, hipc::FullPtr<StatTask> task,
@@ -396,7 +396,7 @@ void Runtime::Destroy(hipc::FullPtr<DestroyTask> task, chi::RunContext& ctx) {
     free_lists_[i] = nullptr;
   }
 
-  task->result_code_ = 0;
+  task->return_code_ = 0;
   std::cout << "bdev container destroyed for pool: " << pool_id_ << std::endl;
 }
 
@@ -705,7 +705,7 @@ void Runtime::WriteToFile(hipc::FullPtr<WriteTask> task) {
   // Allocate aligned buffer
   void* aligned_buffer;
   if (posix_memalign(&aligned_buffer, alignment_, aligned_size) != 0) {
-    task->result_code_ = 1;
+    task->return_code_ = 1;
     task->bytes_written_ = 0;
     return;
   }
@@ -726,10 +726,10 @@ void Runtime::WriteToFile(hipc::FullPtr<WriteTask> task) {
   free(aligned_buffer);
 
   if (result != 0) {
-    task->result_code_ = result;
+    task->return_code_ = result;
     task->bytes_written_ = 0;
   } else {
-    task->result_code_ = 0;
+    task->return_code_ = 0;
     task->bytes_written_ =
         std::min(bytes_written, static_cast<chi::u64>(task->data_.size()));
 
@@ -742,7 +742,7 @@ void Runtime::WriteToFile(hipc::FullPtr<WriteTask> task) {
 void Runtime::WriteToRam(hipc::FullPtr<WriteTask> task) {
   // Check bounds
   if (task->block_.offset_ + task->data_.size() > ram_size_) {
-    task->result_code_ = 1;  // Write beyond buffer bounds
+    task->return_code_ = 1;  // Write beyond buffer bounds
     task->bytes_written_ = 0;
     return;
   }
@@ -751,7 +751,7 @@ void Runtime::WriteToRam(hipc::FullPtr<WriteTask> task) {
   memcpy(ram_buffer_ + task->block_.offset_, task->data_.data(),
          task->data_.size());
 
-  task->result_code_ = 0;
+  task->return_code_ = 0;
   task->bytes_written_ = task->data_.size();
 
   // Update performance metrics
@@ -767,7 +767,7 @@ void Runtime::ReadFromFile(hipc::FullPtr<ReadTask> task) {
   // Allocate aligned buffer
   void* aligned_buffer;
   if (posix_memalign(&aligned_buffer, alignment_, aligned_size) != 0) {
-    task->result_code_ = 1;
+    task->return_code_ = 1;
     task->bytes_read_ = 0;
     return;
   }
@@ -779,7 +779,7 @@ void Runtime::ReadFromFile(hipc::FullPtr<ReadTask> task) {
                      bytes_read, task.Cast<chi::Task>());
 
   if (result != 0) {
-    task->result_code_ = result;
+    task->return_code_ = result;
     task->bytes_read_ = 0;
     free(aligned_buffer);
     return;
@@ -792,7 +792,7 @@ void Runtime::ReadFromFile(hipc::FullPtr<ReadTask> task) {
 
   free(aligned_buffer);
 
-  task->result_code_ = 0;
+  task->return_code_ = 0;
   task->bytes_read_ = actual_bytes;
 
   // Update performance metrics
@@ -803,7 +803,7 @@ void Runtime::ReadFromFile(hipc::FullPtr<ReadTask> task) {
 void Runtime::ReadFromRam(hipc::FullPtr<ReadTask> task) {
   // Check bounds
   if (task->block_.offset_ + task->block_.size_ > ram_size_) {
-    task->result_code_ = 1;  // Read beyond buffer bounds
+    task->return_code_ = 1;  // Read beyond buffer bounds
     task->bytes_read_ = 0;
     return;
   }
@@ -813,7 +813,7 @@ void Runtime::ReadFromRam(hipc::FullPtr<ReadTask> task) {
   memcpy(task->data_.data(), ram_buffer_ + task->block_.offset_,
          task->block_.size_);
 
-  task->result_code_ = 0;
+  task->return_code_ = 0;
   task->bytes_read_ = task->block_.size_;
 
   // Update performance metrics

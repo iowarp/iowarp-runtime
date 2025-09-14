@@ -57,19 +57,17 @@ using DestroyTask = chimaera::admin::DestroyTask;
  */
 struct FlushTask : public chi::Task {
   // Output results
-  OUT chi::u32 result_code_;      ///< Result code (0 = success)
   OUT chi::u64 total_work_done_;  ///< Total amount of work completed
 
   /** SHM default constructor */
   explicit FlushTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc)
-      : chi::Task(alloc), result_code_(0), total_work_done_(0) {}
+      : chi::Task(alloc), total_work_done_(0) {}
 
   /** Emplace constructor */
   explicit FlushTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
                      const chi::TaskNode &task_node, const chi::PoolId &pool_id,
                      const chi::PoolQuery &pool_query)
       : chi::Task(alloc, task_node, pool_id, pool_query, 10),
-        result_code_(0),
         total_work_done_(0) {
     // Initialize task
     task_node_ = task_node;
@@ -91,11 +89,11 @@ struct FlushTask : public chi::Task {
 
   /**
    * Serialize OUT and INOUT parameters for network transfer
-   * This includes: result_code_, total_work_done_
+   * This includes: total_work_done_
    */
   template <typename Archive>
   void SerializeOut(Archive &ar) {
-    ar(result_code_, total_work_done_);
+    ar(total_work_done_);
   }
 };
 

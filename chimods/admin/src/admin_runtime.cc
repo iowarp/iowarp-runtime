@@ -73,27 +73,27 @@ void Runtime::GetOrCreatePool(
             << std::endl;
 
   // Initialize output values
-  task->result_code_ = 0;
+  task->return_code_ = 0;
   task->error_message_ = "";
 
   try {
     // Get pool manager to handle pool creation
     auto* pool_manager = CHI_POOL_MANAGER;
     if (!pool_manager || !pool_manager->IsInitialized()) {
-      task->result_code_ = 1;
+      task->return_code_ = 1;
       task->error_message_ = "Pool manager not available";
       return;
     }
 
     // Use the simplified PoolManager API that extracts all parameters from the task
     if (!pool_manager->CreatePool(task.Cast<chi::Task>(), &rctx)) {
-      task->result_code_ = 2;
+      task->return_code_ = 2;
       task->error_message_ = "Failed to create or get pool via PoolManager";
       return;
     }
 
     // Set success results (task->new_pool_id_ is already updated by CreatePool)
-    task->result_code_ = 0;
+    task->return_code_ = 0;
     pools_created_++;
 
     std::cout << "Admin: Pool operation completed successfully - ID: " 
@@ -102,7 +102,7 @@ void Runtime::GetOrCreatePool(
               << std::endl;
 
   } catch (const std::exception& e) {
-    task->result_code_ = 99;
+    task->return_code_ = 99;
     auto alloc = task->GetCtxAllocator();
     task->error_message_ = hipc::string(
         alloc, std::string("Exception during pool creation: ") + e.what());
@@ -189,7 +189,7 @@ void Runtime::DestroyPool(hipc::FullPtr<DestroyPoolTask> task,
             << task->target_pool_id_ << std::endl;
 
   // Initialize output values
-  task->result_code_ = 0;
+  task->return_code_ = 0;
   task->error_message_ = "";
 
   try {
@@ -198,20 +198,20 @@ void Runtime::DestroyPool(hipc::FullPtr<DestroyPoolTask> task,
     // Get pool manager to handle pool destruction
     auto* pool_manager = CHI_POOL_MANAGER;
     if (!pool_manager || !pool_manager->IsInitialized()) {
-      task->result_code_ = 1;
+      task->return_code_ = 1;
       task->error_message_ = "Pool manager not available";
       return;
     }
 
     // Use PoolManager to destroy the complete pool including metadata
     if (!pool_manager->DestroyPool(target_pool)) {
-      task->result_code_ = 2;
+      task->return_code_ = 2;
       task->error_message_ = "Failed to destroy pool via PoolManager";
       return;
     }
 
     // Set success results
-    task->result_code_ = 0;
+    task->return_code_ = 0;
     pools_destroyed_++;
 
     std::cout << "Admin: Pool destroyed successfully - ID: " << target_pool
@@ -219,7 +219,7 @@ void Runtime::DestroyPool(hipc::FullPtr<DestroyPoolTask> task,
               << std::endl;
 
   } catch (const std::exception& e) {
-    task->result_code_ = 99;
+    task->return_code_ = 99;
     task->error_message_ =
         std::string("Exception during pool destruction: ") + e.what();
     std::cerr << "Admin: Pool destruction failed with exception: " << e.what()
@@ -270,7 +270,7 @@ void Runtime::StopRuntime(hipc::FullPtr<StopRuntimeTask> task,
             << task->grace_period_ms_ << "ms" << std::endl;
 
   // Initialize output values
-  task->result_code_ = 0;
+  task->return_code_ = 0;
   task->error_message_ = "";
 
   try {
@@ -281,12 +281,12 @@ void Runtime::StopRuntime(hipc::FullPtr<StopRuntimeTask> task,
     InitiateShutdown(task->grace_period_ms_);
 
     // Set success results
-    task->result_code_ = 0;
+    task->return_code_ = 0;
 
     std::cout << "Admin: Runtime shutdown initiated successfully" << std::endl;
 
   } catch (const std::exception& e) {
-    task->result_code_ = 99;
+    task->return_code_ = 99;
     task->error_message_ =
         std::string("Exception during runtime shutdown: ") + e.what();
     std::cerr << "Admin: Runtime shutdown failed with exception: " << e.what()
@@ -413,14 +413,14 @@ void Runtime::Flush(hipc::FullPtr<FlushTask> task, chi::RunContext& rctx) {
   std::cout << "Admin: Executing Flush task" << std::endl;
 
   // Initialize output values
-  task->result_code_ = 0;
+  task->return_code_ = 0;
   task->total_work_done_ = 0;
 
   try {
     // Get WorkOrchestrator to check work remaining across all containers
     auto* work_orchestrator = CHI_WORK_ORCHESTRATOR;
     if (!work_orchestrator || !work_orchestrator->IsInitialized()) {
-      task->result_code_ = 1;
+      task->return_code_ = 1;
       return;
     }
 
@@ -436,14 +436,14 @@ void Runtime::Flush(hipc::FullPtr<FlushTask> task, chi::RunContext& rctx) {
 
     // Store the final work count (should be 0)
     task->total_work_done_ = total_work_remaining;
-    task->result_code_ = 0;  // Success - all work completed
+    task->return_code_ = 0;  // Success - all work completed
 
     std::cout
         << "Admin: Flush completed - no work remaining across all containers"
         << std::endl;
 
   } catch (const std::exception& e) {
-    task->result_code_ = 99;
+    task->return_code_ = 99;
     std::cerr << "Admin: Flush failed with exception: " << e.what()
               << std::endl;
   }
@@ -554,7 +554,7 @@ void Runtime::ClientSendTaskIn(hipc::FullPtr<ClientSendTaskInTask> task,
             << std::endl;
 
   // Initialize output values
-  task->result_code_ = 0;
+  task->return_code_ = 0;
   task->error_message_ = "";
 
   try {
@@ -562,14 +562,14 @@ void Runtime::ClientSendTaskIn(hipc::FullPtr<ClientSendTaskInTask> task,
     chi::Worker* worker =
         (HSHM_THREAD_MODEL->GetTls<chi::Worker>(chi::chi_cur_worker_key_));
     if (!worker) {
-      task->result_code_ = 1;
+      task->return_code_ = 1;
       task->error_message_ = "No current worker available";
       return;
     }
 
     auto* current_lane = worker->GetCurrentLane();
     if (!current_lane) {
-      task->result_code_ = 2;
+      task->return_code_ = 2;
       task->error_message_ = "No current lane available";
       return;
     }
@@ -577,14 +577,14 @@ void Runtime::ClientSendTaskIn(hipc::FullPtr<ClientSendTaskInTask> task,
     // Get the container for the task_to_send_
     auto* pool_manager = CHI_POOL_MANAGER;
     if (!pool_manager) {
-      task->result_code_ = 3;
+      task->return_code_ = 3;
       task->error_message_ = "Pool manager not available";
       return;
     }
 
     auto* container = pool_manager->GetContainer(task->task_to_send_->pool_id_);
     if (!container) {
-      task->result_code_ = 4;
+      task->return_code_ = 4;
       task->error_message_ = "Container not found for task pool";
       return;
     }
@@ -614,7 +614,7 @@ void Runtime::ClientSendTaskIn(hipc::FullPtr<ClientSendTaskInTask> task,
     // Get IPC manager for lightbeam transfer
     auto* ipc = CHI_IPC;
     if (!ipc || !ipc->IsInitialized()) {
-      task->result_code_ = 5;
+      task->return_code_ = 5;
       task->error_message_ = "IPC manager not available";
       return;
     }
@@ -669,7 +669,7 @@ void Runtime::ClientSendTaskIn(hipc::FullPtr<ClientSendTaskInTask> task,
         // Create ZeroMQ client connection for this node
         auto zmq_client = CreateZmqClient(node_id);
         if (!zmq_client) {
-          task->result_code_ = 6;
+          task->return_code_ = 6;
           auto alloc = task->GetCtxAllocator();
           task->error_message_ =
               hipc::string(alloc, "Failed to create ZMQ client for node " +
@@ -692,7 +692,7 @@ void Runtime::ClientSendTaskIn(hipc::FullPtr<ClientSendTaskInTask> task,
         serialized_bulk.flags = 0;
 
         if (!zmq_client->Send(serialized_bulk)) {
-          task->result_code_ = 7;
+          task->return_code_ = 7;
           auto alloc = task->GetCtxAllocator();
           task->error_message_ =
               hipc::string(alloc, "Failed to send serialized data to node " +
@@ -725,7 +725,7 @@ void Runtime::ClientSendTaskIn(hipc::FullPtr<ClientSendTaskInTask> task,
 
             // Send the bulk data via ZeroMQ
             if (!zmq_client->Send(bulk_data)) {
-              task->result_code_ = 8;
+              task->return_code_ = 8;
               auto alloc = task->GetCtxAllocator();
               task->error_message_ =
                   hipc::string(alloc, "Failed to send bulk transfer data " +
@@ -750,7 +750,7 @@ void Runtime::ClientSendTaskIn(hipc::FullPtr<ClientSendTaskInTask> task,
                   << std::endl;
 
       } catch (const std::exception& transfer_ex) {
-        task->result_code_ = 9;
+        task->return_code_ = 9;
         auto alloc = task->GetCtxAllocator();
         task->error_message_ = hipc::string(
             alloc, std::string("Network transfer exception for node ") +
@@ -760,7 +760,7 @@ void Runtime::ClientSendTaskIn(hipc::FullPtr<ClientSendTaskInTask> task,
                   << std::endl;
         return;
       } catch (...) {
-        task->result_code_ = 10;
+        task->return_code_ = 10;
         auto alloc = task->GetCtxAllocator();
         task->error_message_ =
             hipc::string(alloc, "Unknown network transfer error for node " +
@@ -774,10 +774,10 @@ void Runtime::ClientSendTaskIn(hipc::FullPtr<ClientSendTaskInTask> task,
     std::cout << "Admin: Task input data sent successfully to "
               << node_task_map.size() << " nodes" << std::endl;
 
-    task->result_code_ = 0;
+    task->return_code_ = 0;
 
   } catch (const std::exception& e) {
-    task->result_code_ = 1;
+    task->return_code_ = 1;
     auto alloc = task->GetCtxAllocator();
     task->error_message_ = hipc::string(
         alloc, std::string("Exception during task send: ") + e.what());
@@ -820,7 +820,7 @@ void Runtime::ServerRecvTaskIn(hipc::FullPtr<ServerRecvTaskInTask> task,
             << std::endl;
 
   // Initialize output values
-  task->result_code_ = 0;
+  task->return_code_ = 0;
   task->error_message_ = "";
 
   try {
@@ -832,10 +832,10 @@ void Runtime::ServerRecvTaskIn(hipc::FullPtr<ServerRecvTaskInTask> task,
 
     std::cout << "Admin: Task input data received successfully" << std::endl;
 
-    task->result_code_ = 0;
+    task->return_code_ = 0;
 
   } catch (const std::exception& e) {
-    task->result_code_ = 1;
+    task->return_code_ = 1;
     auto alloc = task->GetCtxAllocator();
     task->error_message_ = hipc::string(
         alloc, std::string("Exception during task receive: ") + e.what());
@@ -878,7 +878,7 @@ void Runtime::ServerSendTaskOut(hipc::FullPtr<ServerSendTaskOutTask> task,
             << std::endl;
 
   // Initialize output values
-  task->result_code_ = 0;
+  task->return_code_ = 0;
   task->error_message_ = "";
 
   try {
@@ -890,10 +890,10 @@ void Runtime::ServerSendTaskOut(hipc::FullPtr<ServerSendTaskOutTask> task,
 
     std::cout << "Admin: Task results sent successfully" << std::endl;
 
-    task->result_code_ = 0;
+    task->return_code_ = 0;
 
   } catch (const std::exception& e) {
-    task->result_code_ = 1;
+    task->return_code_ = 1;
     auto alloc = task->GetCtxAllocator();
     task->error_message_ = hipc::string(
         alloc, std::string("Exception during result send: ") + e.what());
@@ -937,7 +937,7 @@ void Runtime::ClientRecvTaskOut(hipc::FullPtr<ClientRecvTaskOutTask> task,
             << std::endl;
 
   // Initialize output values
-  task->result_code_ = 0;
+  task->return_code_ = 0;
   task->error_message_ = "";
 
   try {
@@ -949,10 +949,10 @@ void Runtime::ClientRecvTaskOut(hipc::FullPtr<ClientRecvTaskOutTask> task,
 
     std::cout << "Admin: Task results received successfully" << std::endl;
 
-    task->result_code_ = 0;
+    task->return_code_ = 0;
 
   } catch (const std::exception& e) {
-    task->result_code_ = 1;
+    task->return_code_ = 1;
     auto alloc = task->GetCtxAllocator();
     task->error_message_ = hipc::string(
         alloc, std::string("Exception during result receive: ") + e.what());

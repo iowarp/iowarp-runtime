@@ -325,7 +325,7 @@ TEST_CASE("bdev_async_operations", "[bdev][async][io]") {
     // Async allocate
     auto alloc_task = client.AsyncAllocate(mctx, k64KB);
     alloc_task->Wait();
-    REQUIRE(alloc_task->result_code_ == 0);
+    REQUIRE(alloc_task->return_code_ == 0);
 
     chimaera::bdev::Block block;
     REQUIRE(alloc_task->block_list_.GetBlockCount() > 0);
@@ -338,14 +338,14 @@ TEST_CASE("bdev_async_operations", "[bdev][async][io]") {
     // Async write
     auto write_task = client.AsyncWrite(mctx, block, write_data);
     write_task->Wait();
-    REQUIRE(write_task->result_code_ == 0);
+    REQUIRE(write_task->return_code_ == 0);
     REQUIRE(write_task->bytes_written_ == write_data.size());
     CHI_IPC->DelTask(write_task);
 
     // Async read
     auto read_task = client.AsyncRead(mctx, block);
     read_task->Wait();
-    REQUIRE(read_task->result_code_ == 0);
+    REQUIRE(read_task->return_code_ == 0);
     REQUIRE(read_task->bytes_read_ == write_data.size());
 
     // Verify data
@@ -434,7 +434,7 @@ TEST_CASE("bdev_error_conditions", "[bdev][error][edge_cases]") {
     auto create_task = client.AsyncCreate(mctx, chi::PoolQuery::Local(),
                                           "/nonexistent/path/file.dat");
     create_task->Wait();
-    REQUIRE(create_task->result_code_ != 0);  // Should fail
+    REQUIRE(create_task->return_code_ != 0);  // Should fail
     CHI_IPC->DelTask(create_task);
 
     HILOG(kInfo, "Correctly handled invalid file path");

@@ -58,7 +58,6 @@ struct BaseCreateTask : public chi::Task {
   INOUT chi::PoolId new_pool_id_;
 
   // Results for pool operations
-  OUT chi::u32 result_code_;
   OUT hipc::string error_message_;
 
   // Volatile admin flag set by template parameter
@@ -71,7 +70,6 @@ struct BaseCreateTask : public chi::Task {
         pool_name_(alloc),
         chimod_params_(alloc),
         new_pool_id_(chi::PoolId::GetNull()),
-        result_code_(0),
         error_message_(alloc),
         is_admin_(IS_ADMIN) {}
 
@@ -87,7 +85,6 @@ struct BaseCreateTask : public chi::Task {
         pool_name_(alloc, pool_name),
         chimod_params_(alloc),
         new_pool_id_(target_pool_id),
-        result_code_(0),
         error_message_(alloc),
         is_admin_(IS_ADMIN) {
     // Initialize base task
@@ -116,7 +113,6 @@ struct BaseCreateTask : public chi::Task {
         pool_name_(alloc, pool_name),
         chimod_params_(alloc),
         new_pool_id_(target_pool_id),
-        result_code_(0),
         error_message_(alloc),
         is_admin_(IS_ADMIN) {
     // Initialize base task
@@ -167,13 +163,11 @@ struct BaseCreateTask : public chi::Task {
 
   /**
    * Serialize OUT and INOUT parameters for network transfer
-   * This includes: chimod_name_, chimod_params_, new_pool_id_, result_code_,
-   * error_message_
+   * This includes: chimod_name_, chimod_params_, new_pool_id_, error_message_
    */
   template <typename Archive>
   void SerializeOut(Archive &ar) {
-    ar(chimod_name_, chimod_params_, new_pool_id_, result_code_,
-       error_message_);
+    ar(chimod_name_, chimod_params_, new_pool_id_, error_message_);
   }
 };
 
@@ -201,7 +195,6 @@ struct DestroyPoolTask : public chi::Task {
   IN chi::u32 destruction_flags_;  ///< Flags controlling destruction behavior
 
   // Output results
-  OUT chi::u32 result_code_;        ///< Result code (0 = success)
   OUT hipc::string error_message_;  ///< Error description if destruction failed
 
   /** SHM default constructor */
@@ -209,7 +202,6 @@ struct DestroyPoolTask : public chi::Task {
       : chi::Task(alloc),
         target_pool_id_(),
         destruction_flags_(0),
-        result_code_(0),
         error_message_(alloc) {}
 
   /** Emplace constructor */
@@ -222,7 +214,6 @@ struct DestroyPoolTask : public chi::Task {
       : chi::Task(alloc, task_node, pool_id, pool_query, 10),
         target_pool_id_(target_pool_id),
         destruction_flags_(destruction_flags),
-        result_code_(0),
         error_message_(alloc) {
     // Initialize task
     task_node_ = task_node;
@@ -243,11 +234,11 @@ struct DestroyPoolTask : public chi::Task {
 
   /**
    * Serialize OUT and INOUT parameters for network transfer
-   * This includes: result_code_, error_message_
+   * This includes: error_message_
    */
   template <typename Archive>
   void SerializeOut(Archive &ar) {
-    ar(result_code_, error_message_);
+    ar(error_message_);
   }
 };
 
@@ -260,7 +251,6 @@ struct StopRuntimeTask : public chi::Task {
   IN chi::u32 grace_period_ms_;  ///< Grace period for clean shutdown
 
   // Output results
-  OUT chi::u32 result_code_;        ///< Result code (0 = success)
   OUT hipc::string error_message_;  ///< Error description if shutdown failed
 
   /** SHM default constructor */
@@ -268,7 +258,6 @@ struct StopRuntimeTask : public chi::Task {
       : chi::Task(alloc),
         shutdown_flags_(0),
         grace_period_ms_(5000),
-        result_code_(0),
         error_message_(alloc) {}
 
   /** Emplace constructor */
@@ -281,7 +270,6 @@ struct StopRuntimeTask : public chi::Task {
       : chi::Task(alloc, task_node, pool_id, pool_query, 10),
         shutdown_flags_(shutdown_flags),
         grace_period_ms_(grace_period_ms),
-        result_code_(0),
         error_message_(alloc) {
     // Initialize task
     task_node_ = task_node;
@@ -302,11 +290,11 @@ struct StopRuntimeTask : public chi::Task {
 
   /**
    * Serialize OUT and INOUT parameters for network transfer
-   * This includes: result_code_, error_message_
+   * This includes: error_message_
    */
   template <typename Archive>
   void SerializeOut(Archive &ar) {
-    ar(result_code_, error_message_);
+    ar(error_message_);
   }
 };
 
@@ -316,20 +304,18 @@ struct StopRuntimeTask : public chi::Task {
  */
 struct FlushTask : public chi::Task {
   // Output results
-  OUT chi::u32 result_code_;      ///< Result code (0 = success)
   OUT chi::u64 total_work_done_;  ///< Total amount of work remaining across all
                                   ///< containers
 
   /** SHM default constructor */
   explicit FlushTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc)
-      : chi::Task(alloc), result_code_(0), total_work_done_(0) {}
+      : chi::Task(alloc), total_work_done_(0) {}
 
   /** Emplace constructor */
   explicit FlushTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
                      const chi::TaskNode &task_node, const chi::PoolId &pool_id,
                      const chi::PoolQuery &pool_query)
       : chi::Task(alloc, task_node, pool_id, pool_query, 10),
-        result_code_(0),
         total_work_done_(0) {
     // Initialize task
     task_node_ = task_node;
@@ -351,11 +337,11 @@ struct FlushTask : public chi::Task {
 
   /**
    * Serialize OUT and INOUT parameters for network transfer
-   * This includes: result_code_, total_work_done_
+   * This includes: total_work_done_
    */
   template <typename Archive>
   void SerializeOut(Archive &ar) {
-    ar(result_code_, total_work_done_);
+    ar(total_work_done_);
   }
 };
 
@@ -381,7 +367,6 @@ struct ClientSendTaskInTask : public chi::Task {
                                 ///< (CHI_WRITE/CHI_EXPOSE)
 
   // Results
-  OUT chi::u32 result_code_;        ///< Result code (0 = success)
   OUT hipc::string error_message_;  ///< Error description if transfer failed
 
   /** SHM default constructor */
@@ -391,7 +376,6 @@ struct ClientSendTaskInTask : public chi::Task {
         pool_queries_(),
         task_to_send_(hipc::FullPtr<chi::Task>()),
         transfer_flags_(0),
-        result_code_(0),
         error_message_(alloc) {}
 
   /** Emplace constructor */
@@ -406,7 +390,6 @@ struct ClientSendTaskInTask : public chi::Task {
         pool_queries_(pool_queries),
         task_to_send_(task_to_send),
         transfer_flags_(transfer_flags),
-        result_code_(0),
         error_message_(alloc) {
     // Initialize task
     task_node_ = task_node;
@@ -427,11 +410,11 @@ struct ClientSendTaskInTask : public chi::Task {
 
   /**
    * Serialize OUT and INOUT parameters for network transfer
-   * This includes: pool_queries_, task_to_send_, result_code_, error_message_
+   * This includes: pool_queries_, task_to_send_, error_message_
    */
   template <typename Archive>
   void SerializeOut(Archive &ar) {
-    ar(pool_queries_, task_to_send_, result_code_, error_message_);
+    ar(pool_queries_, task_to_send_, error_message_);
   }
 };
 
@@ -446,7 +429,6 @@ struct ServerRecvTaskInTask : public chi::Task {
                                 ///< (CHI_WRITE/CHI_EXPOSE)
 
   // Results
-  OUT chi::u32 result_code_;        ///< Result code (0 = success)
   OUT hipc::string error_message_;  ///< Error description if transfer failed
 
   /** SHM default constructor */
@@ -454,7 +436,6 @@ struct ServerRecvTaskInTask : public chi::Task {
       const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc)
       : chi::Task(alloc),
         transfer_flags_(0),
-        result_code_(0),
         error_message_(alloc) {}
 
   /** Emplace constructor */
@@ -465,7 +446,6 @@ struct ServerRecvTaskInTask : public chi::Task {
       : chi::Task(alloc, task_node, pool_id, pool_query,
                   Method::kServerRecvTaskIn),
         transfer_flags_(transfer_flags),
-        result_code_(0),
         error_message_(alloc) {
     // Initialize task
     task_node_ = task_node;
@@ -486,11 +466,11 @@ struct ServerRecvTaskInTask : public chi::Task {
 
   /**
    * Serialize OUT and INOUT parameters for network transfer
-   * This includes: result_code_, error_message_
+   * This includes: error_message_
    */
   template <typename Archive>
   void SerializeOut(Archive &ar) {
-    ar(result_code_, error_message_);
+    ar(error_message_);
   }
 };
 
@@ -507,7 +487,6 @@ struct ServerSendTaskOutTask : public chi::Task {
                                 ///< (CHI_WRITE/CHI_EXPOSE)
 
   // Results
-  OUT chi::u32 result_code_;        ///< Result code (0 = success)
   OUT hipc::string error_message_;  ///< Error description if transfer failed
 
   /** SHM default constructor */
@@ -516,7 +495,6 @@ struct ServerSendTaskOutTask : public chi::Task {
       : chi::Task(alloc),
         completed_task_(hipc::FullPtr<chi::Task>()),
         transfer_flags_(0),
-        result_code_(0),
         error_message_(alloc) {}
 
   /** Emplace constructor */
@@ -529,7 +507,6 @@ struct ServerSendTaskOutTask : public chi::Task {
                   Method::kServerSendTaskOut),
         completed_task_(completed_task),
         transfer_flags_(transfer_flags),
-        result_code_(0),
         error_message_(alloc) {
     // Initialize task
     task_node_ = task_node;
@@ -550,11 +527,11 @@ struct ServerSendTaskOutTask : public chi::Task {
 
   /**
    * Serialize OUT and INOUT parameters for network transfer
-   * This includes: completed_task_, result_code_, error_message_
+   * This includes: completed_task_, error_message_
    */
   template <typename Archive>
   void SerializeOut(Archive &ar) {
-    ar(completed_task_, result_code_, error_message_);
+    ar(completed_task_, error_message_);
   }
 };
 
@@ -569,7 +546,6 @@ struct ClientRecvTaskOutTask : public chi::Task {
                                 ///< (CHI_WRITE/CHI_EXPOSE)
 
   // Results
-  OUT chi::u32 result_code_;        ///< Result code (0 = success)
   OUT hipc::string error_message_;  ///< Error description if transfer failed
 
   /** SHM default constructor */
@@ -577,7 +553,6 @@ struct ClientRecvTaskOutTask : public chi::Task {
       const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc)
       : chi::Task(alloc),
         transfer_flags_(0),
-        result_code_(0),
         error_message_(alloc) {}
 
   /** Emplace constructor */
@@ -588,7 +563,6 @@ struct ClientRecvTaskOutTask : public chi::Task {
       : chi::Task(alloc, task_node, pool_id, pool_query,
                   Method::kClientRecvTaskOut),
         transfer_flags_(transfer_flags),
-        result_code_(0),
         error_message_(alloc) {
     // Initialize task
     task_node_ = task_node;
@@ -609,11 +583,11 @@ struct ClientRecvTaskOutTask : public chi::Task {
 
   /**
    * Serialize OUT and INOUT parameters for network transfer
-   * This includes: result_code_, error_message_
+   * This includes: error_message_
    */
   template <typename Archive>
   void SerializeOut(Archive &ar) {
-    ar(result_code_, error_message_);
+    ar(error_message_);
   }
 };
 

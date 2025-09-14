@@ -40,7 +40,7 @@ void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& rctx) {
   create_count_++;
 
   // Set success result
-  task->result_code_ = 0;
+  task->return_code_ = 0;
   task->error_message_ = "";
 
   std::cout << "SimpleMod: Container created and initialized for pool: "
@@ -83,7 +83,7 @@ void Runtime::Destroy(hipc::FullPtr<DestroyTask> task, chi::RunContext& rctx) {
             << task->target_pool_id_ << std::endl;
 
   // Initialize output values
-  task->result_code_ = 0;
+  task->return_code_ = 0;
   task->error_message_ = "";
 
   try {
@@ -92,10 +92,10 @@ void Runtime::Destroy(hipc::FullPtr<DestroyTask> task, chi::RunContext& rctx) {
               << task->target_pool_id_ << std::endl;
 
     // Set success result
-    task->result_code_ = 0;
+    task->return_code_ = 0;
 
   } catch (const std::exception& e) {
-    task->result_code_ = 99;
+    task->return_code_ = 99;
     auto alloc = task->GetCtxAllocator();
     task->error_message_ = hipc::string(
         alloc, std::string("Exception during simple_mod destruction: ") + e.what());
@@ -133,7 +133,7 @@ void Runtime::Flush(hipc::FullPtr<FlushTask> task, chi::RunContext& rctx) {
   std::cout << "SimpleMod: Executing Flush task" << std::endl;
 
   // Simple flush implementation - just report no work remaining
-  task->result_code_ = 0;
+  task->return_code_ = 0;
   task->total_work_done_ = GetWorkRemaining();
 
   std::cout << "SimpleMod: Flush completed - work done: " 
