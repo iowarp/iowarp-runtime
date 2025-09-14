@@ -91,7 +91,7 @@ void Create(const hipc::MemContext& mctx, const chi::PoolQuery& pool_query,
 *File-based storage:*
 ```cpp
 chi::CHIMAERA_CLIENT_INIT();
-const chi::PoolId pool_id = static_cast<chi::PoolId>(8000);
+const chi::PoolId pool_id = chi::PoolId(8000, 0);
 chimaera::bdev::Client bdev_client(pool_id);
 
 auto pool_query = chi::PoolQuery::Local();
@@ -413,12 +413,12 @@ int main() {
     chi::CHIMAERA_CLIENT_INIT();
     
     // Create admin client first (always required)
-    const chi::PoolId admin_pool_id = static_cast<chi::PoolId>(7000);
+    const chi::PoolId admin_pool_id = chi::PoolId(7000, 0);
     chimaera::admin::Client admin_client(admin_pool_id);
     admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local());
     
     // Create bdev client
-    const chi::PoolId bdev_pool_id = static_cast<chi::PoolId>(8000);
+    const chi::PoolId bdev_pool_id = chi::PoolId(8000, 0);
     chimaera::bdev::Client bdev_client(bdev_pool_id);
     
     // Initialize bdev container with NVMe device (file-based)
@@ -481,12 +481,12 @@ int main() {
     chi::CHIMAERA_CLIENT_INIT();
     
     // Create admin client first (always required)
-    const chi::PoolId admin_pool_id = static_cast<chi::PoolId>(7000);
+    const chi::PoolId admin_pool_id = chi::PoolId(7000, 0);
     chimaera::admin::Client admin_client(admin_pool_id);
     admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local());
     
     // Create bdev client
-    const chi::PoolId bdev_pool_id = static_cast<chi::PoolId>(8000);
+    const chi::PoolId bdev_pool_id = chi::PoolId(8000, 0);
     chimaera::bdev::Client bdev_client(bdev_pool_id);
     
     // Initialize bdev container with RAM backend (1GB)

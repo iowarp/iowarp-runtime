@@ -34,15 +34,18 @@ void CoMutex::Lock() {
     return;
   }
 
-  // Different TaskNode group - must block this task
+  // Different TaskNode group - must block this task  
   // Add task to the waiting list for its TaskNode group
   waiting_tasks_[task_node].push_back(task);
   
-  // Set task as blocked and add it back to its lane for later processing
-  if (task->run_ctx_) {
-    task->run_ctx_->is_blocked = true;
-  }
-  AddTaskToLane(task);
+  // Release the lock while blocking to allow other operations
+  internal_mutex_.unlock();
+  
+  // Mark task as blocked and yield control back to the scheduler
+  task->YieldBase();
+  
+  // When we return, the unblock method has already delegated the lock to us
+  // No need to check - we can assume the lock is now ours
 }
 
 void CoMutex::Unlock() {
@@ -112,59 +115,26 @@ bool CoMutex::BelongsToCurrentHolder(const TaskNode& task_node) const {
 }
 
 void CoMutex::UnblockNextGroup() {
-  if (waiting_tasks_.empty()) {
-    return;
-  }
-
-  // Get the first waiting TaskNode group
-  auto it = waiting_tasks_.begin();
-  TaskNode next_holder = it->first;
-  auto& waiting_list = it->second;
-
-  if (waiting_list.empty()) {
-    waiting_tasks_.erase(it);
-    UnblockNextGroup(); // Try the next group
-    return;
-  }
-
-  // Set the new holder
-  is_locked_ = true;
-  current_holder_ = next_holder;
-
-  // Unblock all tasks from this TaskNode group
-  for (auto& waiting_task : waiting_list) {
-    if (!waiting_task.IsNull() && waiting_task->run_ctx_) {
-      waiting_task->run_ctx_->is_blocked = false;
-      AddTaskToLane(waiting_task);
+  // Delegate the lock to the first waiting TaskNode group
+  if (!waiting_tasks_.empty()) {
+    auto it = waiting_tasks_.begin();
+    const TaskNode& next_holder = it->first;
+    
+    // Transfer lock to the next group
+    is_locked_ = true;
+    current_holder_ = next_holder;
+    
+    // Notify the work orchestrator that tasks from this group can now proceed
+    auto* worker = CHI_CUR_WORKER;
+    if (worker) {
+      for (auto& waiting_task : it->second) {
+        if (!waiting_task.IsNull() && waiting_task->run_ctx_) {
+          worker->AddToBlockedQueue(waiting_task->run_ctx_, 0.0);
+        }
+      }
     }
   }
-
-  // Remove this group from waiting list
-  waiting_tasks_.erase(it);
 }
 
-void CoMutex::AddTaskToLane(FullPtr<Task> task) {
-  if (task.IsNull() || !task->run_ctx_) {
-    return;
-  }
-
-  // Get the lane from the task's run context
-  auto* lane = static_cast<TaskQueue::TaskLane*>(task->run_ctx_->lane);
-  if (!lane) {
-    return;
-  }
-
-  // Create a FullPtr to the lane for the EmplaceTask call
-  hipc::FullPtr<TaskQueue::TaskLane> lane_ptr(lane);
-
-  // Convert task to TypedPointer for queue insertion
-  hipc::TypedPointer<Task> task_typed_ptr(task.shm_);
-
-  // Emplace the task back into its lane
-  if (TaskQueue::EmplaceTask(lane_ptr, task_typed_ptr)) {
-    // Notify the work orchestrator that this lane has work available
-    WorkOrchestrator::NotifyWorkerLaneReady(lane_ptr);
-  }
-}
 
 }  // namespace chi

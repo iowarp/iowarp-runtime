@@ -49,24 +49,30 @@ void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& ctx) {
   // Get the creation parameters
   hipc::CtxAllocator<CHI_MAIN_ALLOC_T> ctx_alloc(HSHM_MCTX, main_allocator_);
   CreateParams params = task->GetParams(ctx_alloc);
-  
-  HELOG(kError, "DEBUG: Bdev runtime received params: bdev_type={}, file_path='{}', total_size={}, io_depth={}, alignment={}", 
-        static_cast<chi::u32>(params.bdev_type_), params.file_path_, params.total_size_, params.io_depth_, params.alignment_);
+
+  HILOG(kInfo,
+        "DEBUG: Bdev runtime received params: bdev_type={}, file_path='{}', "
+        "total_size={}, io_depth={}, alignment={}",
+        static_cast<chi::u32>(params.bdev_type_), params.file_path_,
+        params.total_size_, params.io_depth_, params.alignment_);
 
   // Initialize the container with pool information and domain query
   chi::Container::Init(task->pool_id_, task->pool_query_);
 
   // Create local queues with explicit queue IDs and priorities
-  CreateLocalQueue(0, 4, chi::kLowLatency);   // Queue 0: 4 lanes for low latency tasks
-  CreateLocalQueue(1, 2, chi::kHighLatency);  // Queue 1: 2 lanes for high latency tasks
+  CreateLocalQueue(0, 4,
+                   chi::kLowLatency);  // Queue 0: 4 lanes for low latency tasks
+  CreateLocalQueue(
+      1, 2, chi::kHighLatency);  // Queue 1: 2 lanes for high latency tasks
 
   // Store backend type
   bdev_type_ = params.bdev_type_;
-  
+
   // Initialize storage backend based on type
   if (bdev_type_ == BdevType::kFile) {
     // File-based storage initialization
-    file_fd_ = open(params.file_path_.c_str(), O_RDWR | O_CREAT | O_DIRECT, 0644);
+    file_fd_ =
+        open(params.file_path_.c_str(), O_RDWR | O_CREAT | O_DIRECT, 0644);
     if (file_fd_ < 0) {
       task->result_code_ = 1;
       return;
@@ -97,10 +103,10 @@ void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& ctx) {
         return;
       }
     }
-    
+
     // Initialize async I/O for file backend
     InitializeAsyncIO();
-    
+
   } else if (bdev_type_ == BdevType::kRam) {
     // RAM-based storage initialization
     if (params.total_size_ == 0) {
@@ -108,26 +114,26 @@ void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& ctx) {
       task->result_code_ = 4;
       return;
     }
-    
+
     ram_size_ = params.total_size_;
     ram_buffer_ = static_cast<char*>(malloc(ram_size_));
     if (ram_buffer_ == nullptr) {
       task->result_code_ = 5;
       return;
     }
-    
+
     // Initialize RAM buffer to zero
     memset(ram_buffer_, 0, ram_size_);
     file_size_ = ram_size_;  // Use file_size_ for common allocation logic
-    
-    HELOG(kError, "DEBUG: Initialized RAM backend with size {}", ram_size_);
+
+    HILOG(kInfo, "DEBUG: Initialized RAM backend with size {}", ram_size_);
   }
 
   // Initialize common parameters
   alignment_ = params.alignment_;
   io_depth_ = params.io_depth_;
-  
-  HELOG(kError, "DEBUG: Setting alignment_={} from params.alignment_={}", 
+
+  HILOG(kInfo, "DEBUG: Setting alignment_={} from params.alignment_={}",
         alignment_, params.alignment_);
 
   // Initialize the data allocator
@@ -151,8 +157,8 @@ void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& ctx) {
 }
 
 void Runtime::MonitorCreate(chi::MonitorModeId mode,
-                              hipc::FullPtr<CreateTask> task,
-                              chi::RunContext& ctx) {
+                            hipc::FullPtr<CreateTask> task,
+                            chi::RunContext& ctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule: {
       // REQUIRED: Set route_lane_ to indicate where task should be routed
@@ -173,23 +179,22 @@ void Runtime::MonitorCreate(chi::MonitorModeId mode,
   }
 }
 
-void Runtime::Allocate(hipc::FullPtr<AllocateTask> task,
-                         chi::RunContext& ctx) {
+void Runtime::Allocate(hipc::FullPtr<AllocateTask> task, chi::RunContext& ctx) {
   // Clear the block list first
   task->block_list_.Clear();
-  
+
   // Allocate multiple blocks to satisfy the requested size
   if (!AllocateMultipleBlocks(task->size_, task->block_list_)) {
     task->result_code_ = 1;  // Out of space
     return;
   }
-  
+
   task->result_code_ = 0;
 }
 
 void Runtime::MonitorAllocate(chi::MonitorModeId mode,
-                                hipc::FullPtr<AllocateTask> task,
-                                chi::RunContext& ctx) {
+                              hipc::FullPtr<AllocateTask> task,
+                              chi::RunContext& ctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule: {
       auto lane_ptr = GetLaneFullPtr(0, 0);  // Queue 0 (low latency), lane 0
@@ -221,9 +226,8 @@ void Runtime::Free(hipc::FullPtr<FreeTask> task, chi::RunContext& ctx) {
   task->result_code_ = 0;
 }
 
-void Runtime::MonitorFree(chi::MonitorModeId mode,
-                            hipc::FullPtr<FreeTask> task,
-                            chi::RunContext& ctx) {
+void Runtime::MonitorFree(chi::MonitorModeId mode, hipc::FullPtr<FreeTask> task,
+                          chi::RunContext& ctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule: {
       auto lane_ptr = GetLaneFullPtr(0, 0);  // Queue 0 (low latency), lane 0
@@ -258,8 +262,8 @@ void Runtime::Write(hipc::FullPtr<WriteTask> task, chi::RunContext& ctx) {
 }
 
 void Runtime::MonitorWrite(chi::MonitorModeId mode,
-                             hipc::FullPtr<WriteTask> task,
-                             chi::RunContext& ctx) {
+                           hipc::FullPtr<WriteTask> task,
+                           chi::RunContext& ctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule: {
       // Route to high latency queue for I/O operations
@@ -294,9 +298,8 @@ void Runtime::Read(hipc::FullPtr<ReadTask> task, chi::RunContext& ctx) {
   }
 }
 
-void Runtime::MonitorRead(chi::MonitorModeId mode,
-                            hipc::FullPtr<ReadTask> task,
-                            chi::RunContext& ctx) {
+void Runtime::MonitorRead(chi::MonitorModeId mode, hipc::FullPtr<ReadTask> task,
+                          chi::RunContext& ctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule: {
       // Route to high latency queue for I/O operations
@@ -353,9 +356,8 @@ void Runtime::Stat(hipc::FullPtr<StatTask> task, chi::RunContext& ctx) {
   task->result_code_ = 0;
 }
 
-void Runtime::MonitorStat(chi::MonitorModeId mode,
-                            hipc::FullPtr<StatTask> task,
-                            chi::RunContext& ctx) {
+void Runtime::MonitorStat(chi::MonitorModeId mode, hipc::FullPtr<StatTask> task,
+                          chi::RunContext& ctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule: {
       auto lane_ptr = GetLaneFullPtr(0, 0);  // Queue 0 (low latency), lane 0
@@ -399,8 +401,8 @@ void Runtime::Destroy(hipc::FullPtr<DestroyTask> task, chi::RunContext& ctx) {
 }
 
 void Runtime::MonitorDestroy(chi::MonitorModeId mode,
-                               hipc::FullPtr<DestroyTask> task,
-                               chi::RunContext& ctx) {
+                             hipc::FullPtr<DestroyTask> task,
+                             chi::RunContext& ctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule: {
       auto lane_ptr = GetLaneFullPtr(0, 0);  // Queue 0 (low latency), lane 0
@@ -434,10 +436,11 @@ void Runtime::InitializeAllocator() {
 void Runtime::BenchmarkPerformance() {
   // Skip benchmarking for RAM backend (very fast operations)
   if (bdev_type_ == BdevType::kRam) {
-    std::cout << "Skipping benchmark for RAM backend (operations < 1us)" << std::endl;
+    std::cout << "Skipping benchmark for RAM backend (operations < 1us)"
+              << std::endl;
     return;
   }
-  
+
   // Simple benchmark for file backend: write and read a small block
   const chi::u64 benchmark_size = 4096;
   void* aligned_buffer;
@@ -478,7 +481,7 @@ chi::u64 Runtime::GetBlockSize(BlockSizeCategory category) {
 }
 
 bool Runtime::AllocateFromFreeList(BlockSizeCategory category, chi::u64 size,
-                                     Block& block) {
+                                   Block& block) {
   size_t idx = static_cast<size_t>(category);
   std::lock_guard<std::mutex> lock(free_list_mutexes_[idx]);
 
@@ -502,7 +505,7 @@ bool Runtime::AllocateFromFreeList(BlockSizeCategory category, chi::u64 size,
 }
 
 bool Runtime::AllocateFromHeap(chi::u64 size, BlockSizeCategory category,
-                                 Block& block) {
+                               Block& block) {
   std::lock_guard<std::mutex> lock(alloc_mutex_);
 
   chi::u64 aligned_size = AlignSize(size);
@@ -535,9 +538,10 @@ void Runtime::AddToFreeList(const Block& block) {
 }
 
 chi::u64 Runtime::AlignSize(chi::u64 size) {
-  HELOG(kError, "DEBUG: AlignSize called with size={}, alignment_={}", size, alignment_);
+  HILOG(kInfo, "DEBUG: AlignSize called with size={}, alignment_={}", size,
+        alignment_);
   if (alignment_ == 0) {
-    HELOG(kError, "AlignSize called with alignment_ = 0, using default 4096");
+    HILOG(kInfo, "AlignSize called with alignment_ = 0, using default 4096");
     alignment_ = 4096;  // Set to default if somehow it's 0
   }
   return ((size + alignment_ - 1) / alignment_) * alignment_;
@@ -547,48 +551,52 @@ chi::u32 Runtime::CalculateBlocksNeeded(chi::u64 total_size) {
   if (total_size == 0) {
     return 0;
   }
-  
+
   chi::u32 blocks_needed = 0;
   chi::u64 remaining_size = total_size;
-  
+
   // Start with largest blocks and work down
-  for (int i = static_cast<int>(BlockSizeCategory::kMaxCategories) - 1; i >= 0; --i) {
+  for (int i = static_cast<int>(BlockSizeCategory::kMaxCategories) - 1; i >= 0;
+       --i) {
     BlockSizeCategory category = static_cast<BlockSizeCategory>(i);
     chi::u64 block_size = GetBlockSize(category);
-    
-    chi::u32 blocks_of_this_size = static_cast<chi::u32>(remaining_size / block_size);
+
+    chi::u32 blocks_of_this_size =
+        static_cast<chi::u32>(remaining_size / block_size);
     blocks_needed += blocks_of_this_size;
     remaining_size -= blocks_of_this_size * block_size;
-    
+
     if (remaining_size == 0) {
       break;
     }
   }
-  
+
   // If there's still remaining size, we need one more block of smallest size
   if (remaining_size > 0) {
     blocks_needed += 1;
   }
-  
+
   return blocks_needed;
 }
 
-bool Runtime::AllocateMultipleBlocks(chi::u64 total_size, BlockList& block_list) {
+bool Runtime::AllocateMultipleBlocks(chi::u64 total_size,
+                                     BlockList& block_list) {
   if (total_size == 0) {
     return true;  // Nothing to allocate
   }
-  
+
   chi::u64 remaining_size = total_size;
-  
+
   // Start with largest blocks and work down to minimize fragmentation
-  for (int i = static_cast<int>(BlockSizeCategory::kMaxCategories) - 1; i >= 0; --i) {
+  for (int i = static_cast<int>(BlockSizeCategory::kMaxCategories) - 1; i >= 0;
+       --i) {
     BlockSizeCategory category = static_cast<BlockSizeCategory>(i);
     chi::u64 block_size = GetBlockSize(category);
-    
+
     // Allocate as many blocks of this size as needed
     while (remaining_size >= block_size) {
       Block block;
-      
+
       // Try to allocate from free list first
       if (!AllocateFromFreeList(category, block_size, block)) {
         // Allocate from heap if no free blocks available
@@ -597,16 +605,17 @@ bool Runtime::AllocateMultipleBlocks(chi::u64 total_size, BlockList& block_list)
           break;
         }
       }
-      
+
       // Add the allocated block to the list
       block_list.AddBlock(block);
       remaining_size -= block.size_;
     }
   }
-  
+
   // Check if we successfully allocated enough space
   if (remaining_size > 0) {
-    // We couldn't allocate enough space - need to free what we allocated and return false
+    // We couldn't allocate enough space - need to free what we allocated and
+    // return false
     for (size_t i = 0; i < block_list.blocks_.size(); ++i) {
       const Block& block = block_list.blocks_[i];
       AddToFreeList(block);
@@ -615,12 +624,12 @@ bool Runtime::AllocateMultipleBlocks(chi::u64 total_size, BlockList& block_list)
     block_list.Clear();
     return false;
   }
-  
+
   return true;
 }
 
 void Runtime::UpdatePerformanceMetrics(bool is_write, chi::u64 bytes,
-                                         double duration_us) {
+                                       double duration_us) {
   // This is a simplified implementation
   // In a real implementation, you'd maintain running averages or histograms
 }
@@ -634,8 +643,8 @@ void Runtime::CleanupAsyncIO() {
 }
 
 chi::u32 Runtime::PerformAsyncIO(bool is_write, chi::u64 offset, void* buffer,
-                                   chi::u64 size, chi::u64& bytes_transferred,
-                                   hipc::FullPtr<chi::Task> task) {
+                                 chi::u64 size, chi::u64& bytes_transferred,
+                                 hipc::FullPtr<chi::Task> task) {
   // Create aiocb on-demand
   struct aiocb aiocb_storage;
   struct aiocb* aiocb = &aiocb_storage;
@@ -737,13 +746,14 @@ void Runtime::WriteToRam(hipc::FullPtr<WriteTask> task) {
     task->bytes_written_ = 0;
     return;
   }
-  
+
   // Simple memory copy
-  memcpy(ram_buffer_ + task->block_.offset_, task->data_.data(), task->data_.size());
-  
+  memcpy(ram_buffer_ + task->block_.offset_, task->data_.data(),
+         task->data_.size());
+
   task->result_code_ = 0;
   task->bytes_written_ = task->data_.size();
-  
+
   // Update performance metrics
   total_writes_.fetch_add(1);
   total_bytes_written_.fetch_add(task->bytes_written_);
@@ -797,14 +807,15 @@ void Runtime::ReadFromRam(hipc::FullPtr<ReadTask> task) {
     task->bytes_read_ = 0;
     return;
   }
-  
+
   // Copy data from RAM buffer to task output
   task->data_.resize(task->block_.size_);
-  memcpy(task->data_.data(), ram_buffer_ + task->block_.offset_, task->block_.size_);
-  
+  memcpy(task->data_.data(), ram_buffer_ + task->block_.offset_,
+         task->block_.size_);
+
   task->result_code_ = 0;
   task->bytes_read_ = task->block_.size_;
-  
+
   // Update performance metrics
   total_reads_.fetch_add(1);
   total_bytes_read_.fetch_add(task->bytes_read_);

@@ -16,7 +16,7 @@
 #include <chimaera/admin/admin_client.h>
 
 namespace {
-constexpr chi::PoolId kExternalTestPoolId = static_cast<chi::PoolId>(7000);
+constexpr chi::PoolId kExternalTestPoolId = chi::PoolId(7000, 0);
 }
 
 int main() {

@@ -5,6 +5,8 @@ Use the Google C++ style guide for C++.
 You should store the pointer returned by the singleton GetInstance method. Avoid dereferencing GetInstance method directly using either -> or *. E.g., do not do ``hshm::Singleton<T>::GetInstance()->var_``. You should do ``auto *x = hshm::Singleton<T>::GetInstance(); x->var_;``.
 
 
+Whenever you build a new function, always create a docstring for it. It should document what the parameters mean and the point of the function. It should be something easily parsed by doxygen.
+
 NEVER use a null pool query. If you don't know, always use local.
 
 Local QueueId should be named. NEVER use raw integers. This is the same for priorities. Please name them semantically.
@@ -182,7 +184,7 @@ int main() {
   chi::CHIMAERA_CLIENT_INIT();
   
   // Create ChiMod client with pool ID
-  const chi::PoolId pool_id = static_cast<chi::PoolId>(7000);
+  const chi::PoolId pool_id = chi::PoolId(7000, 0);
   chimaera::MOD_NAME::Client mod_client(pool_id);
   
   // Create container

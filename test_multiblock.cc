@@ -54,7 +54,7 @@ int main() {
         
         // Create RAM-based bdev client for testing
         std::cout << "4. Creating bdev client (RAM backend)..." << std::endl;
-        chimaera::bdev::Client bdev_client(static_cast<chi::PoolId>(9000));
+        chimaera::bdev::Client bdev_client(chi::PoolId(9000, 0));
         
         // Create RAM-based bdev container (10MB)
         const chi::u64 ram_size = 10 * 1024 * 1024;

@@ -88,11 +88,6 @@ private:
    */
   void UnblockNextGroup();
 
-  /**
-   * Add a task to its corresponding lane for execution
-   * @param task Task to add back to its lane
-   */
-  void AddTaskToLane(FullPtr<Task> task);
 };
 
 /**

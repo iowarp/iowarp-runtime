@@ -42,10 +42,15 @@ void CoRwLock::ReadLock() {
       }
       // Different group - must block
       waiting_readers_[task_node].push_back(task);
-      if (task->run_ctx_) {
-        task->run_ctx_->is_blocked = true;
-      }
-      AddTaskToLane(task);
+      
+      // Release the lock while blocking to allow other operations
+      internal_mutex_.unlock();
+      
+      // Mark task as blocked and yield control back to the scheduler
+      task->YieldBase();
+      
+      // When we return, the unblock method has already delegated the lock to us
+      // No need to check - we can assume the lock is now ours
       return;
   }
 }
@@ -113,10 +118,15 @@ void CoRwLock::WriteLock() {
       }
       // Different group - must block
       waiting_writers_[task_node].push_back(task);
-      if (task->run_ctx_) {
-        task->run_ctx_->is_blocked = true;
-      }
-      AddTaskToLane(task);
+      
+      // Release the lock while blocking to allow other operations
+      internal_mutex_.unlock();
+      
+      // Mark task as blocked and yield control back to the scheduler
+      task->YieldBase();
+      
+      // When we return, the unblock method has already delegated the lock to us
+      // No need to check - we can assume the lock is now ours
       return;
 
     case CoRwLockState::kWriteLocked:
@@ -127,10 +137,15 @@ void CoRwLock::WriteLock() {
       }
       // Different group - must block
       waiting_writers_[task_node].push_back(task);
-      if (task->run_ctx_) {
-        task->run_ctx_->is_blocked = true;
-      }
-      AddTaskToLane(task);
+      
+      // Release the lock while blocking to allow other operations
+      internal_mutex_.unlock();
+      
+      // Mark task as blocked and yield control back to the scheduler
+      task->YieldBase();
+      
+      // When we return, the unblock method has already delegated the lock to us
+      // No need to check - we can assume the lock is now ours
       return;
   }
 }
@@ -286,83 +301,49 @@ void CoRwLock::UnblockNextGroup() {
 }
 
 void CoRwLock::UnblockWaitingReaders() {
-  if (waiting_readers_.empty()) {
-    return;
-  }
-
-  // Transition to read-locked state
-  state_ = CoRwLockState::kReadLocked;
-
-  // Unblock all waiting reader groups
-  for (auto& [reader_group, waiting_list] : waiting_readers_) {
-    read_holders_.insert(reader_group);
+  // Delegate read access to all waiting reader groups
+  if (!waiting_readers_.empty()) {
+    // Transition to read-locked state and add all waiting reader groups to holders
+    state_ = CoRwLockState::kReadLocked;
+    for (auto& [task_node, task_list] : waiting_readers_) {
+      read_holders_.insert(task_node);
+    }
     
-    for (auto& waiting_task : waiting_list) {
-      if (!waiting_task.IsNull() && waiting_task->run_ctx_) {
-        waiting_task->run_ctx_->is_blocked = false;
-        AddTaskToLane(waiting_task);
+    // Notify the work orchestrator that all waiting reader tasks can now proceed
+    auto* worker = CHI_CUR_WORKER;
+    if (worker) {
+      for (auto& [task_node, task_list] : waiting_readers_) {
+        for (auto& waiting_task : task_list) {
+          if (!waiting_task.IsNull() && waiting_task->run_ctx_) {
+            worker->AddToBlockedQueue(waiting_task->run_ctx_, 0.0);
+          }
+        }
       }
     }
   }
-
-  // Clear all waiting readers
-  waiting_readers_.clear();
 }
 
 void CoRwLock::UnblockOneWaitingWriter() {
-  if (waiting_writers_.empty()) {
-    return;
-  }
-
-  // Get the first waiting writer group
-  auto it = waiting_writers_.begin();
-  TaskNode writer_group = it->first;
-  auto& waiting_list = it->second;
-
-  if (waiting_list.empty()) {
-    waiting_writers_.erase(it);
-    UnblockOneWaitingWriter(); // Try the next group
-    return;
-  }
-
-  // Set the new write holder
-  state_ = CoRwLockState::kWriteLocked;
-  write_holder_ = writer_group;
-
-  // Unblock all tasks from this writer TaskNode group
-  for (auto& waiting_task : waiting_list) {
-    if (!waiting_task.IsNull() && waiting_task->run_ctx_) {
-      waiting_task->run_ctx_->is_blocked = false;
-      AddTaskToLane(waiting_task);
+  // Delegate write access to the first waiting writer group
+  if (!waiting_writers_.empty() && state_ == CoRwLockState::kUnlocked) {
+    auto it = waiting_writers_.begin();
+    const TaskNode& next_holder = it->first;
+    
+    // Transfer write lock to the next group
+    state_ = CoRwLockState::kWriteLocked;
+    write_holder_ = next_holder;
+    
+    // Notify the work orchestrator that tasks from this writer group can now proceed
+    auto* worker = CHI_CUR_WORKER;
+    if (worker) {
+      for (auto& waiting_task : it->second) {
+        if (!waiting_task.IsNull() && waiting_task->run_ctx_) {
+          worker->AddToBlockedQueue(waiting_task->run_ctx_, 0.0);
+        }
+      }
     }
   }
-
-  // Remove this group from waiting list
-  waiting_writers_.erase(it);
 }
 
-void CoRwLock::AddTaskToLane(FullPtr<Task> task) {
-  if (task.IsNull() || !task->run_ctx_) {
-    return;
-  }
-
-  // Get the lane from the task's run context
-  auto* lane = static_cast<TaskQueue::TaskLane*>(task->run_ctx_->lane);
-  if (!lane) {
-    return;
-  }
-
-  // Create a FullPtr to the lane for the EmplaceTask call
-  hipc::FullPtr<TaskQueue::TaskLane> lane_ptr(lane);
-
-  // Convert task to TypedPointer for queue insertion
-  hipc::TypedPointer<Task> task_typed_ptr(task.shm_);
-
-  // Emplace the task back into its lane
-  if (TaskQueue::EmplaceTask(lane_ptr, task_typed_ptr)) {
-    // Notify the work orchestrator that this lane has work available
-    WorkOrchestrator::NotifyWorkerLaneReady(lane_ptr);
-  }
-}
 
 }  // namespace chi

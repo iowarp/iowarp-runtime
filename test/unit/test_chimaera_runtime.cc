@@ -34,7 +34,7 @@ constexpr chi::u32 kMaxRetries = 50;
 constexpr chi::u32 kRetryDelayMs = 100;
 
 // Test pool IDs
-constexpr chi::PoolId kTestModNamePoolId = 100;
+constexpr chi::PoolId kTestModNamePoolId = chi::PoolId(100, 0);
 
 // Global test state
 bool g_runtime_initialized = false;
@@ -353,7 +353,7 @@ TEST_CASE("Error Handling Tests", "[error][edge_cases]") {
     REQUIRE(fixture.initializeBoth());
 
     // Try to use an invalid pool ID
-    constexpr chi::PoolId kInvalidPoolId = 9999;
+    constexpr chi::PoolId kInvalidPoolId = chi::PoolId(9999, 0);
     chimaera::MOD_NAME::Client invalid_client(kInvalidPoolId);
 
     chi::DomainQuery pool_query;

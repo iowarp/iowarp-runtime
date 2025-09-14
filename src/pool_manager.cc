@@ -3,10 +3,12 @@
  */
 
 #include "chimaera/pool_manager.h"
+
+#include <iostream>
+
+#include "chimaera/admin/admin_tasks.h"
 #include "chimaera/container.h"
 #include "chimaera/task.h"
-#include "chimaera/admin/admin_tasks.h"
-#include <iostream>
 
 // Global pointer variable definition for Pool manager singleton
 HSHM_DEFINE_GLOBAL_PTR_VAR_CC(chi::PoolManager, g_pool_manager);
@@ -28,15 +30,41 @@ bool PoolManager::ServerInit() {
 
   // Create the admin chimod pool (kAdminPoolId = 1)
   // This is required for flush operations and other admin tasks
-  u32 num_nodes = 1; // TODO: Get actual node count from configuration
   PoolId admin_pool_id;
-  bool was_created;
-  if (!CreatePool("chimaera_admin", "admin", "", num_nodes, kAdminPoolId, admin_pool_id, was_created, FullPtr<Task>(), nullptr)) {
-    std::cerr << "PoolManager: Failed to create admin chimod pool during ServerInit" << std::endl;
+
+  // Create proper admin task and RunContext for pool creation
+  auto* ipc_manager = CHI_IPC;
+  if (!ipc_manager) {
+    std::cerr << "PoolManager: IPC manager not available during ServerInit"
+              << std::endl;
     return false;
   }
 
-  HILOG(kInfo, "PoolManager: Admin chimod pool created successfully with PoolId {}", admin_pool_id);
+  auto admin_task = ipc_manager->NewTask<chimaera::admin::CreateTask>(
+      CreateTaskNode(),
+      kAdminPoolId,  // Use admin pool for admin container creation
+      PoolQuery::Local(), "chimaera_admin", "admin", kAdminPoolId);
+
+  RunContext run_ctx;
+
+  if (!CreatePool(admin_task.Cast<Task>(), &run_ctx)) {
+    // Cleanup the task we created
+    ipc_manager->DelTask(admin_task);
+    std::cerr
+        << "PoolManager: Failed to create admin chimod pool during ServerInit"
+        << std::endl;
+    return false;
+  }
+
+  // Get the pool ID from the updated task
+  admin_pool_id = admin_task->new_pool_id_;
+
+  // Cleanup the task after successful pool creation
+  ipc_manager->DelTask(admin_task);
+
+  HILOG(kInfo,
+        "PoolManager: Admin chimod pool created successfully with PoolId {}",
+        admin_pool_id);
   return true;
 }
 
@@ -99,11 +127,11 @@ PoolId PoolManager::FindPoolByName(const std::string& pool_name) const {
   for (const auto& pair : pool_metadata_) {
     const PoolInfo& pool_info = pair.second;
     if (pool_info.pool_name_ == pool_name) {
-      return pair.first; // Return the PoolId
+      return pair.first;  // Return the PoolId
     }
   }
-  
-  return PoolId::GetNull(); // Not found
+
+  return PoolId::GetNull();  // Not found
 }
 
 size_t PoolManager::GetPoolCount() const {
@@ -123,345 +151,294 @@ std::vector<PoolId> PoolManager::GetAllPoolIds() const {
   return pool_ids;
 }
 
-bool PoolManager::IsInitialized() const {
-  return is_initialized_;
-}
-
-bool PoolManager::CreateLocalPool(PoolId pool_id, const std::string& chimod_name,
-                                  const std::string& pool_name, u32 num_containers,
-                                  FullPtr<Task> task, RunContext* run_ctx) {
-  if (!is_initialized_) {
-    std::cerr << "PoolManager: Not initialized for pool creation" << std::endl;
-    return false;
-  }
-  
-  // Check if pool already exists
-  if (HasPool(pool_id)) {
-    std::cerr << "PoolManager: Pool " << pool_id << " already exists on this node" << std::endl;
-    return false;
-  }
-  
-  // Get module manager to create containers
-  auto* module_manager = CHI_MODULE_MANAGER;
-  if (!module_manager) {
-    std::cerr << "PoolManager: Module manager not available" << std::endl;
-    return false;
-  }
-  
-  try {
-    // For now, create only one container (num_containers parameter for future use)
-    auto* container = module_manager->CreateContainer(chimod_name, pool_id, pool_name);
-    if (!container) {
-      std::cerr << "PoolManager: Failed to create container for ChiMod: " << chimod_name << std::endl;
-      return false;
-    }
-    
-    // Initialize the container with pool information
-    container->Init(pool_id);
-    
-    // Run create method on container
-    // Create proper task and run context if not provided
-    FullPtr<Task> actual_task;
-    RunContext* actual_run_ctx;
-    bool allocated_task = false;
-    bool allocated_run_ctx = false;
-    
-    if (!task.IsNull()) {
-      actual_task = task;
-    } else {
-      // Allocate Admin CreateTask using NewTask
-      auto* ipc_manager = CHI_IPC;
-      if (ipc_manager) {
-        auto create_task = ipc_manager->NewTask<chimaera::admin::CreateTask>(
-          CreateTaskNode(), 
-          kAdminPoolId,  // Use admin pool for creation
-          PoolQuery::Local(),
-          chimod_name,
-          pool_name
-        );
-        actual_task = create_task.Cast<Task>();
-        allocated_task = true;
-      }
-    }
-    
-    if (run_ctx != nullptr) {
-      actual_run_ctx = run_ctx;
-    } else {
-      // Allocate RunContext with new
-      actual_run_ctx = new RunContext();
-      allocated_run_ctx = true;
-    }
-    
-    if (!actual_task.IsNull() && actual_run_ctx) {
-      // Call container->Run with Method::kCreate (which is 0)
-      try {
-        container->Run(0, actual_task, *actual_run_ctx); // Method::kCreate = 0
-        
-        // Check if Create method succeeded by examining the result code
-        // Cast to BaseCreateTask to access result_code_ field
-        auto* create_task = reinterpret_cast<chimaera::admin::BaseCreateTask<chimaera::admin::CreateParams>*>(actual_task.ptr_);
-        if (create_task && create_task->result_code_ != 0) {
-          std::cerr << "PoolManager: Create method failed with result code: " << create_task->result_code_ << std::endl;
-          // Cleanup allocated resources
-          if (allocated_task && CHI_IPC) CHI_IPC->DelTask(actual_task);
-          if (allocated_run_ctx) delete actual_run_ctx;
-          // Cleanup container since creation failed
-          module_manager->DestroyContainer(chimod_name, container);
-          return false;
-        }
-        
-        HILOG(kInfo, "PoolManager: Executed Create method on container for pool {}", pool_id);
-      } catch (const std::exception& e) {
-        std::cerr << "PoolManager: Exception during Create method on container: " << e.what() << std::endl;
-        // Cleanup allocated resources
-        if (allocated_task && CHI_IPC) CHI_IPC->DelTask(actual_task);
-        if (allocated_run_ctx) delete actual_run_ctx;
-        // Cleanup container since creation failed
-        module_manager->DestroyContainer(chimod_name, container);
-        return false;
-      }
-    }
-    
-    // Cleanup allocated resources
-    if (allocated_task && CHI_IPC) CHI_IPC->DelTask(actual_task);
-    if (allocated_run_ctx) delete actual_run_ctx;
-    
-    // Register the container
-    if (!RegisterContainer(pool_id, container)) {
-      std::cerr << "PoolManager: Failed to register container" << std::endl;
-      module_manager->DestroyContainer(chimod_name, container);
-      return false;
-    }
-    
-    // Initialize client after registration (when system is more stable)
-    try {
-      container->InitClient(pool_id);
-    } catch (const std::exception& e) {
-      std::cerr << "PoolManager: Warning - failed to initialize client: " << e.what() << std::endl;
-      // Continue anyway, client initialization is not critical for basic container functionality
-    }
-    
-    HILOG(kInfo, "PoolManager: Created local pool {} with ChiMod {}", pool_id, chimod_name);
-    return true;
-    
-  } catch (const std::exception& e) {
-    std::cerr << "PoolManager: Exception during local pool creation: " << e.what() << std::endl;
-    return false;
-  }
-}
+bool PoolManager::IsInitialized() const { return is_initialized_; }
 
 bool PoolManager::DestroyLocalPool(PoolId pool_id) {
   if (!is_initialized_) {
-    std::cerr << "PoolManager: Not initialized for pool destruction" << std::endl;
+    std::cerr << "PoolManager: Not initialized for pool destruction"
+              << std::endl;
     return false;
   }
-  
+
   // Check if pool exists
   if (!HasPool(pool_id)) {
-    std::cerr << "PoolManager: Pool " << pool_id << " not found on this node" << std::endl;
+    std::cerr << "PoolManager: Pool " << pool_id << " not found on this node"
+              << std::endl;
     return false;
   }
-  
+
   // Get the container before unregistering
   auto* container = GetContainer(pool_id);
   if (!container) {
-    std::cerr << "PoolManager: Container for pool " << pool_id << " is null" << std::endl;
+    std::cerr << "PoolManager: Container for pool " << pool_id << " is null"
+              << std::endl;
     return false;
   }
-  
+
   // Get module manager to destroy the container
   auto* module_manager = CHI_MODULE_MANAGER;
   if (!module_manager) {
     std::cerr << "PoolManager: Module manager not available" << std::endl;
     return false;
   }
-  
+
   try {
     // Unregister first
     if (!UnregisterContainer(pool_id)) {
-      std::cerr << "PoolManager: Failed to unregister container for pool " << pool_id << std::endl;
+      std::cerr << "PoolManager: Failed to unregister container for pool "
+                << pool_id << std::endl;
       return false;
     }
-    
-    // TODO: Determine ChiMod name for destruction - for now assume it's stored in container
-    // This would require extending ChiContainer interface to store chimod_name
-    // For now, we'll skip the destruction call and rely on container cleanup
-    
+
+    // TODO: Determine ChiMod name for destruction - for now assume it's stored
+    // in container This would require extending ChiContainer interface to store
+    // chimod_name For now, we'll skip the destruction call and rely on
+    // container cleanup
+
     HILOG(kInfo, "PoolManager: Destroyed local pool {}", pool_id);
     return true;
-    
+
   } catch (const std::exception& e) {
-    std::cerr << "PoolManager: Exception during local pool destruction: " << e.what() << std::endl;
+    std::cerr << "PoolManager: Exception during local pool destruction: "
+              << e.what() << std::endl;
     return false;
   }
 }
 
 PoolId PoolManager::GeneratePoolId() {
   if (!is_initialized_) {
-    return 0;
+    return PoolId::GetNull();
   }
-  
-  return next_pool_id_++;
+
+  // Use atomic fetch_add to get unique minor number, then construct PoolId
+  u32 minor = next_pool_minor_.fetch_add(1);
+  auto* ipc_manager = CHI_IPC;
+  u32 major = ipc_manager->GetNodeId();  // Use this node's ID as major number
+  return PoolId(major, minor);
 }
 
-bool PoolManager::ValidatePoolParams(const std::string& chimod_name, const std::string& pool_name) {
+bool PoolManager::ValidatePoolParams(const std::string& chimod_name,
+                                     const std::string& pool_name) {
   if (!is_initialized_) {
     return false;
   }
-  
+
   // Check for empty or invalid names
   if (chimod_name.empty() || pool_name.empty()) {
-    std::cerr << "PoolManager: ChiMod name and pool name cannot be empty" << std::endl;
+    std::cerr << "PoolManager: ChiMod name and pool name cannot be empty"
+              << std::endl;
     return false;
   }
-  
+
   // Check if the ChiMod exists
   auto* module_manager = CHI_MODULE_MANAGER;
   if (!module_manager) {
-    std::cerr << "PoolManager: Module manager not available for validation" << std::endl;
+    std::cerr << "PoolManager: Module manager not available for validation"
+              << std::endl;
     return false;
   }
-  
+
   auto* chimod = module_manager->GetChiMod(chimod_name);
   if (!chimod) {
-    std::cerr << "PoolManager: ChiMod '" << chimod_name << "' not found" << std::endl;
+    std::cerr << "PoolManager: ChiMod '" << chimod_name << "' not found"
+              << std::endl;
     return false;
   }
-  
+
   return true;
 }
 
-AddressTable PoolManager::CreateAddressTable(PoolId pool_id, u32 num_containers) {
+AddressTable PoolManager::CreateAddressTable(PoolId pool_id,
+                                             u32 num_containers) {
   AddressTable address_table;
-  
+
   if (!is_initialized_) {
     return address_table;
   }
-  
+
   // Create one address per container in the global table
   for (u32 container_idx = 0; container_idx < num_containers; ++container_idx) {
     Address global_address(pool_id, Group::kGlobal, container_idx);
     Address physical_address(pool_id, Group::kPhysical, container_idx);
-    
+
     // Map each global address to its corresponding physical address
     address_table.AddGlobalToPhysicalMapping(global_address, physical_address);
   }
-  
-  // Create exactly one local address that maps to the global address of the container on this node
-  // Assuming this node gets container 0 (this could be made configurable)
-  Address local_address(pool_id, Group::kLocal, 0); // One local address for this node
-  Address global_address(pool_id, Group::kGlobal, 0); // Maps to container 0 globally
-  
+
+  // Create exactly one local address that maps to the global address of the
+  // container on this node Assuming this node gets container 0 (this could be
+  // made configurable)
+  Address local_address(pool_id, Group::kLocal,
+                        0);  // One local address for this node
+  Address global_address(pool_id, Group::kGlobal,
+                         0);  // Maps to container 0 globally
+
   // Map the single local address to its global counterpart
   address_table.AddLocalToGlobalMapping(local_address, global_address);
-  
+
   return address_table;
 }
 
-bool PoolManager::CreatePool(const std::string& chimod_name, const std::string& pool_name,
-                            const std::string& chimod_params, u32 num_containers, PoolId& new_pool_id,
-                            FullPtr<Task> task, RunContext* run_ctx) {
-  // Use the new overloaded method with auto-generated ID
-  bool was_created;
-  return CreatePool(chimod_name, pool_name, chimod_params, num_containers, 
-                   PoolId::GetNull(), new_pool_id, was_created, task, run_ctx);
-}
-
-bool PoolManager::CreatePool(const std::string& chimod_name, const std::string& pool_name,
-                            const std::string& chimod_params, u32 num_containers, 
-                            const PoolId& requested_pool_id, PoolId& result_pool_id, bool& was_created,
-                            FullPtr<Task> task, RunContext* run_ctx) {
+bool PoolManager::CreatePool(FullPtr<Task> task, RunContext* run_ctx) {
   if (!is_initialized_) {
     std::cerr << "PoolManager: Not initialized for pool creation" << std::endl;
     return false;
   }
+
+  // Cast generic Task to BaseCreateTask to access pool operation parameters
+  auto* create_task = reinterpret_cast<
+      chimaera::admin::BaseCreateTask<chimaera::admin::CreateParams>*>(
+      task.ptr_);
+
+  // Extract parameters from the task
+  const std::string chimod_name = create_task->chimod_name_.str();
+  const std::string pool_name = create_task->pool_name_.str();
+  const std::string chimod_params = create_task->chimod_params_.str();
   
+  // Set num_containers to 1 for now (can be changed later)
+  const u32 num_containers = 1;
+  
+  // Make was_created a local variable
+  bool was_created;
+
   // Validate pool parameters
   if (!ValidatePoolParams(chimod_name, pool_name)) {
     return false;
   }
-  
+
   // Check if pool already exists by name (get-or-create semantics)
   PoolId existing_pool_id = FindPoolByName(pool_name);
   if (!existing_pool_id.IsNull()) {
-    // Pool with this name already exists, return existing pool ID
-    result_pool_id = existing_pool_id;
+    // Pool with this name already exists, update task with existing pool ID
+    create_task->new_pool_id_ = existing_pool_id;
     was_created = false;
-    HILOG(kInfo, "PoolManager: Pool with name '{}' for ChiMod '{}' already exists with PoolId {}, returning existing pool", 
+    HILOG(kInfo,
+          "PoolManager: Pool with name '{}' for ChiMod '{}' already exists "
+          "with PoolId {}, returning existing pool",
           pool_name, chimod_name, existing_pool_id);
     return true;
   }
-  
-  // Determine the target pool ID
-  PoolId target_pool_id;
-  if (requested_pool_id.IsNull()) {
+
+  // Use task's pool ID or generate new one if null
+  PoolId target_pool_id = create_task->new_pool_id_;
+  if (target_pool_id.IsNull()) {
     // Generate new pool ID
     target_pool_id = GeneratePoolId();
     if (target_pool_id.IsNull()) {
       std::cerr << "PoolManager: Failed to generate pool ID" << std::endl;
       return false;
     }
-  } else {
-    target_pool_id = requested_pool_id;
+    // Update the task with the generated pool ID
+    create_task->new_pool_id_ = target_pool_id;
   }
-  
-  // Check if pool already exists by ID (should not happen with proper generation, but safety check)
+
+  // Check if pool already exists by ID (should not happen with proper
+  // generation, but safety check)
   if (HasPool(target_pool_id)) {
-    // Pool already exists by ID, return existing pool ID
-    result_pool_id = target_pool_id;
+    // Pool already exists by ID, task already has correct new_pool_id_
     was_created = false;
-    HILOG(kInfo, "PoolManager: Pool {} already exists by ID, returning existing pool", target_pool_id);
+    HILOG(kInfo,
+          "PoolManager: Pool {} already exists by ID, returning existing pool",
+          target_pool_id);
     return true;
   }
-  
+
   // Create address table for the pool
-  AddressTable address_table = CreateAddressTable(target_pool_id, num_containers);
-  
+  AddressTable address_table =
+      CreateAddressTable(target_pool_id, num_containers);
+
   // Create pool metadata
-  PoolInfo pool_info(target_pool_id, pool_name, chimod_name, chimod_params, num_containers);
+  PoolInfo pool_info(target_pool_id, pool_name, chimod_name, chimod_params,
+                     num_containers);
   pool_info.address_table_ = address_table;
-  
+
   // Store pool metadata
   UpdatePoolMetadata(target_pool_id, pool_info);
-  
-  // Create local pool with containers
-  if (!CreateLocalPool(target_pool_id, chimod_name, pool_name, num_containers, task, run_ctx)) {
-    // Clean up metadata on failure
+
+  // Create local pool with containers (merged from CreateLocalPool)
+  // Get module manager to create containers
+  auto* module_manager = CHI_MODULE_MANAGER;
+  if (!module_manager) {
+    std::cerr << "PoolManager: Module manager not available" << std::endl;
     pool_metadata_.erase(target_pool_id);
-    std::cerr << "PoolManager: Failed to create local pool components" << std::endl;
     return false;
   }
-  
+
+  Container* container = nullptr;
+  try {
+    // For now, create only one container (num_containers parameter for future
+    // use)
+    container =
+        module_manager->CreateContainer(chimod_name, target_pool_id, pool_name);
+    if (!container) {
+      std::cerr << "PoolManager: Failed to create container for ChiMod: "
+                << chimod_name << std::endl;
+      pool_metadata_.erase(target_pool_id);
+      return false;
+    }
+
+    // Initialize container (this will call InitClient internally)
+    container->Init(target_pool_id);
+
+    // Run create method on container (task and run_ctx guaranteed by
+    // CHIMAERA_RUNTIME_INIT)
+    container->Run(0, task, *run_ctx);  // Method::kCreate = 0
+
+    // Register the container
+    if (!RegisterContainer(target_pool_id, container)) {
+      std::cerr << "PoolManager: Failed to register container" << std::endl;
+      module_manager->DestroyContainer(chimod_name, container);
+      pool_metadata_.erase(target_pool_id);
+      return false;
+    }
+
+  } catch (const std::exception& e) {
+    std::cerr << "PoolManager: Exception during pool creation: " << e.what()
+              << std::endl;
+    if (container) {
+      module_manager->DestroyContainer(chimod_name, container);
+    }
+    pool_metadata_.erase(target_pool_id);
+    return false;
+  }
+
   // Set success results
-  result_pool_id = target_pool_id;
   was_created = true;
-  
-  HILOG(kInfo, "PoolManager: Created complete pool {} with {} containers", target_pool_id, num_containers);
+  (void)was_created;  // Suppress unused variable warning
+  // Note: create_task->new_pool_id_ already contains target_pool_id
+
+  HILOG(kInfo,
+        "PoolManager: Created complete pool {} with ChiMod {} ({} containers)",
+        target_pool_id, chimod_name, num_containers);
   return true;
 }
 
 bool PoolManager::DestroyPool(PoolId pool_id) {
   if (!is_initialized_) {
-    std::cerr << "PoolManager: Not initialized for pool destruction" << std::endl;
+    std::cerr << "PoolManager: Not initialized for pool destruction"
+              << std::endl;
     return false;
   }
-  
+
   // Check if pool exists in metadata
   auto metadata_it = pool_metadata_.find(pool_id);
   if (metadata_it == pool_metadata_.end()) {
-    std::cerr << "PoolManager: Pool " << pool_id << " metadata not found" << std::endl;
+    std::cerr << "PoolManager: Pool " << pool_id << " metadata not found"
+              << std::endl;
     return false;
   }
-  
+
   // Destroy local pool components
   if (!DestroyLocalPool(pool_id)) {
-    std::cerr << "PoolManager: Failed to destroy local pool components for pool " << pool_id << std::endl;
+    std::cerr
+        << "PoolManager: Failed to destroy local pool components for pool "
+        << pool_id << std::endl;
     return false;
   }
-  
+
   // Remove pool metadata
   pool_metadata_.erase(metadata_it);
-  
+
   HILOG(kInfo, "PoolManager: Destroyed complete pool {}", pool_id);
   return true;
 }
@@ -470,7 +447,7 @@ const PoolInfo* PoolManager::GetPoolInfo(PoolId pool_id) const {
   if (!is_initialized_) {
     return nullptr;
   }
-  
+
   auto it = pool_metadata_.find(pool_id);
   return (it != pool_metadata_.end()) ? &it->second : nullptr;
 }
@@ -479,34 +456,35 @@ void PoolManager::UpdatePoolMetadata(PoolId pool_id, const PoolInfo& info) {
   if (!is_initialized_) {
     return;
   }
-  
+
   pool_metadata_[pool_id] = info;
 }
 
-u32 PoolManager::GetContainerNodeId(PoolId pool_id, ContainerId container_id) const {
+u32 PoolManager::GetContainerNodeId(PoolId pool_id,
+                                    ContainerId container_id) const {
   if (!is_initialized_) {
     return 0;  // Default to local node
   }
-  
+
   // Get pool metadata
   const PoolInfo* pool_info = GetPoolInfo(pool_id);
   if (!pool_info) {
     return 0;  // Pool not found, assume local
   }
-  
+
   // Create global address for the container
   Address global_address(pool_id, Group::kGlobal, container_id);
-  
+
   // Look up physical address from the address table
   Address physical_address;
-  if (pool_info->address_table_.GlobalToPhysical(global_address, physical_address)) {
+  if (pool_info->address_table_.GlobalToPhysical(global_address,
+                                                 physical_address)) {
     // Return the minor_id which represents the node ID
     return physical_address.minor_id_;
   }
-  
+
   // Default to local node if mapping not found
   return 0;
 }
-
 
 }  // namespace chi

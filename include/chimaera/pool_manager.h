@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <string>
 #include <vector>
+#include <atomic>
 #include "chimaera/types.h"
 
 namespace chi {
@@ -135,7 +136,7 @@ struct PoolInfo {
   AddressTable address_table_;
   bool is_active_;
   
-  PoolInfo() : pool_id_(0), num_containers_(0), is_active_(false) {}
+  PoolInfo() : pool_id_(), num_containers_(0), is_active_(false) {}
   
   PoolInfo(PoolId pool_id, const std::string& pool_name, 
            const std::string& chimod_name, const std::string& chimod_params,
@@ -236,51 +237,14 @@ class PoolManager {
   AddressTable CreateAddressTable(PoolId pool_id, u32 num_containers);
 
   /**
-   * Create a complete pool with metadata, domain tables, and local containers
-   * @param chimod_name ChiMod name for the pool
-   * @param pool_name Pool name
-   * @param chimod_params ChiMod parameters
-   * @param num_containers Number of containers to create
-   * @param[out] new_pool_id Generated pool ID
-   * @param task Task full pointer for container initialization (can be null FullPtr)
-   * @param run_ctx RunContext pointer for container initialization (can be nullptr)
-   * @return true if pool creation successful, false otherwise
-   */
-  bool CreatePool(const std::string& chimod_name, const std::string& pool_name,
-                  const std::string& chimod_params, u32 num_containers, PoolId& new_pool_id,
-                  FullPtr<Task> task = FullPtr<Task>(), RunContext* run_ctx = nullptr);
-
-  /**
-   * Create or get a complete pool with specific PoolId
-   * @param chimod_name ChiMod name for the pool
-   * @param pool_name Pool name
-   * @param chimod_params ChiMod parameters
-   * @param num_containers Number of containers to create
-   * @param requested_pool_id Specific pool ID to use (if GetNull(), generates new ID)
-   * @param[out] result_pool_id The pool ID (existing or newly created)
-   * @param[out] was_created True if pool was created, false if it already existed
-   * @param task Task full pointer for container initialization (can be null FullPtr)
-   * @param run_ctx RunContext pointer for container initialization (can be nullptr)
+   * Create or get a complete pool with get-or-create semantics
+   * Extracts all parameters from the task (chimod_name, pool_name, chimod_params)
+   * @param task Task containing pool creation parameters (updated with final pool ID)
+   * @param run_ctx RunContext for container initialization
    * @return true if operation successful, false otherwise
    */
-  bool CreatePool(const std::string& chimod_name, const std::string& pool_name,
-                  const std::string& chimod_params, u32 num_containers, 
-                  const PoolId& requested_pool_id, PoolId& result_pool_id, bool& was_created,
-                  FullPtr<Task> task = FullPtr<Task>(), RunContext* run_ctx = nullptr);
+  bool CreatePool(FullPtr<Task> task, RunContext* run_ctx);
 
-  /**
-   * Create a local pool with containers on this node (simple version)
-   * @param pool_id Pool identifier
-   * @param chimod_name ChiMod name for the pool
-   * @param pool_name Pool name
-   * @param num_containers Number of containers to create locally
-   * @param task Task full pointer for container initialization (can be null FullPtr)
-   * @param run_ctx RunContext pointer for container initialization (can be nullptr)
-   * @return true if pool creation successful, false otherwise
-   */
-  bool CreateLocalPool(PoolId pool_id, const std::string& chimod_name, 
-                       const std::string& pool_name, u32 num_containers = 1,
-                       FullPtr<Task> task = FullPtr<Task>(), RunContext* run_ctx = nullptr);
 
   /**
    * Destroy a complete pool including metadata and local containers
@@ -335,8 +299,8 @@ class PoolManager {
   // Map PoolId to pool metadata
   std::unordered_map<PoolId, PoolInfo> pool_metadata_;
   
-  // Pool ID counter for generating unique IDs
-  PoolId next_pool_id_ = 2; // Start at 2, since 1 is reserved for admin
+  // Pool ID counter for generating unique IDs (used as minor number)
+  std::atomic<u32> next_pool_minor_{5}; // Start at 5 for safety, 1 reserved for admin
 
 };
 

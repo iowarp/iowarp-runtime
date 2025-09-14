@@ -43,7 +43,7 @@ namespace {
     auto duration = now.time_since_epoch();
     auto microseconds = std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
     // Use lower 32 bits to avoid overflow, add offset to avoid admin pool range
-    return chi::PoolId(static_cast<chi::u32>(microseconds & 0xFFFFFFFF) + 1000);
+    return chi::PoolId(static_cast<chi::u32>(microseconds & 0xFFFFFFFF) + 1000, 0);
   }
   
   // Test parameters

@@ -2,7 +2,7 @@
 name: codebase-documenter
 description: Use this agent when you need comprehensive documentation of code features, design patterns, and implementation details. Examples: <example>Context: User has just completed implementing a new authentication system with multiple classes and wants documentation that would allow another developer to understand and extend it. user: 'I've finished implementing the OAuth2 authentication flow with token refresh and user session management. Can you document this system?' assistant: 'I'll use the codebase-documenter agent to create comprehensive documentation of your authentication system.' <commentary>The user needs detailed documentation of a complex system, so use the codebase-documenter agent to analyze and document the implementation.</commentary></example> <example>Context: User is working on a data processing pipeline and wants documentation before handing off to another team. user: 'We need documentation for our data transformation pipeline that processes customer events and generates analytics reports.' assistant: 'Let me use the codebase-documenter agent to create thorough documentation of your data pipeline architecture and implementation.' <commentary>This requires detailed technical documentation that explains both the design and implementation, perfect for the codebase-documenter agent.</commentary></example>
 tools: Glob, Grep, LS, Read, Edit, MultiEdit, Write, NotebookEdit, WebFetch, TodoWrite, WebSearch, mcp__ide__getDiagnostics, mcp__ide__executeCode
-model: opus
+model: sonnet
 color: cyan
 ---
 

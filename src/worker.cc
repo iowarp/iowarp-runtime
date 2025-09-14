@@ -367,7 +367,7 @@ bool Worker::RouteGlobal(const FullPtr<Task>& task_ptr,
 std::vector<PoolQuery> Worker::ResolvePoolQuery(const PoolQuery& query,
                                                 PoolId pool_id) {
   // Basic validation
-  if (pool_id == 0) {
+  if (pool_id.IsNull()) {
     return {};  // Invalid pool ID
   }
 

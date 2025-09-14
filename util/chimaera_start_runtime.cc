@@ -61,15 +61,11 @@ bool InitializeAdminChiMod() {
   }
 
   try {
-    // Use PoolManager to create the admin pool locally
-    if (!pool_manager->CreateLocalPool(
-            chi::kAdminPoolId,  // Pool ID (compile-time constant)
-            "chimaera_admin",   // ChiMod name (matches get_chimod_name())
-            "admin"             // Pool name
-            )) {
-      std::cerr << "Failed to create admin pool using PoolManager" << std::endl;
-      return false;
-    }
+    // Use PoolManager to create the admin pool
+    // This functionality is now handled by PoolManager::ServerInit()
+    // which calls CreatePool internally with proper task and RunContext
+    // No need to manually create admin pool here anymore
+    std::cout << "Admin pool creation handled by PoolManager::ServerInit()" << std::endl;
 
     // Verify the pool was created successfully
     if (!pool_manager->HasPool(chi::kAdminPoolId)) {

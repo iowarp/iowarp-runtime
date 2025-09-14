@@ -55,7 +55,7 @@ struct BaseCreateTask : public chi::Task {
   IN hipc::string pool_name_;
   INOUT hipc::string
       chimod_params_;  // Serialized parameters for the specific ChiMod
-  INOUT chi::PoolId pool_id_;
+  INOUT chi::PoolId new_pool_id_;
 
   // Results for pool operations
   OUT chi::u32 result_code_;
@@ -70,7 +70,7 @@ struct BaseCreateTask : public chi::Task {
         chimod_name_(alloc),
         pool_name_(alloc),
         chimod_params_(alloc),
-        pool_id_(chi::PoolId::GetNull()),
+        new_pool_id_(chi::PoolId::GetNull()),
         result_code_(0),
         error_message_(alloc),
         is_admin_(IS_ADMIN) {}
@@ -86,7 +86,7 @@ struct BaseCreateTask : public chi::Task {
         chimod_name_(alloc, chimod_name),
         pool_name_(alloc, pool_name),
         chimod_params_(alloc),
-        pool_id_(target_pool_id),
+        new_pool_id_(target_pool_id),
         result_code_(0),
         error_message_(alloc),
         is_admin_(IS_ADMIN) {
@@ -115,7 +115,7 @@ struct BaseCreateTask : public chi::Task {
         chimod_name_(alloc, chimod_name),
         pool_name_(alloc, pool_name),
         chimod_params_(alloc),
-        pool_id_(target_pool_id),
+        new_pool_id_(target_pool_id),
         result_code_(0),
         error_message_(alloc),
         is_admin_(IS_ADMIN) {
@@ -129,10 +129,6 @@ struct BaseCreateTask : public chi::Task {
     CreateParamsT params(alloc,
                          std::forward<CreateParamsArgs>(create_params_args)...);
     chi::Task::Serialize(alloc, chimod_params_, params);
-
-    // Debug: Log that the new constructor was used
-    HELOG(kError,
-          "DEBUG: BaseCreateTask constructed with CreateParams arguments");
   }
 
   /**
@@ -162,21 +158,22 @@ struct BaseCreateTask : public chi::Task {
 
   /**
    * Serialize IN and INOUT parameters for network transfer
-   * This includes: chimod_name_, pool_name_, chimod_params_, pool_id_
+   * This includes: chimod_name_, pool_name_, chimod_params_, new_pool_id_
    */
   template <typename Archive>
   void SerializeIn(Archive &ar) {
-    ar(chimod_name_, pool_name_, chimod_params_, pool_id_);
+    ar(chimod_name_, pool_name_, chimod_params_, new_pool_id_);
   }
 
   /**
    * Serialize OUT and INOUT parameters for network transfer
-   * This includes: chimod_name_, chimod_params_, pool_id_, result_code_,
+   * This includes: chimod_name_, chimod_params_, new_pool_id_, result_code_,
    * error_message_
    */
   template <typename Archive>
   void SerializeOut(Archive &ar) {
-    ar(chimod_name_, chimod_params_, pool_id_, result_code_, error_message_);
+    ar(chimod_name_, chimod_params_, new_pool_id_, result_code_,
+       error_message_);
   }
 };
 
@@ -210,7 +207,7 @@ struct DestroyPoolTask : public chi::Task {
   /** SHM default constructor */
   explicit DestroyPoolTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc)
       : chi::Task(alloc),
-        target_pool_id_(0),
+        target_pool_id_(),
         destruction_flags_(0),
         result_code_(0),
         error_message_(alloc) {}

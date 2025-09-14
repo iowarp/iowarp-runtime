@@ -68,7 +68,7 @@ void Create(const hipc::MemContext& mctx, const chi::PoolQuery& pool_query)
 **Usage:**
 ```cpp
 chi::CHIMAERA_CLIENT_INIT();
-const chi::PoolId pool_id = static_cast<chi::PoolId>(7000);
+const chi::PoolId pool_id = chi::PoolId(7000, 0);
 chimaera::admin::Client admin_client(pool_id);
 
 auto pool_query = chi::PoolQuery::Local();
@@ -330,7 +330,7 @@ int main() {
   chi::CHIMAERA_CLIENT_INIT();
   
   // Create admin client
-  const chi::PoolId pool_id = static_cast<chi::PoolId>(7000);
+  const chi::PoolId pool_id = chi::PoolId(7000, 0);
   chimaera::admin::Client admin_client(pool_id);
   
   // Create admin container
@@ -347,7 +347,7 @@ int main() {
 ### Pool Management
 ```cpp
 // Destroy a specific pool
-chi::PoolId target_pool = static_cast<chi::PoolId>(8000);
+chi::PoolId target_pool = chi::PoolId(8000, 0);
 try {
   admin_client.DestroyPool(HSHM_MCTX, pool_query, target_pool);
   std::cout << "Pool destroyed successfully" << std::endl;

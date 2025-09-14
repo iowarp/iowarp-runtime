@@ -5,6 +5,7 @@
 #include <memory>
 #include <vector>
 #include <thread>
+#include <iostream>
 
 // Main HSHM include
 #include <hermes_shm/hermes_shm.h>
@@ -107,9 +108,27 @@ struct PoolId : public UniqueId {
   constexpr PoolId(u32 major, u32 minor) : UniqueId(major, minor) {}
   constexpr PoolId(const UniqueId& uid) : UniqueId(uid) {}
 
-  // Backward compatibility with u32
-  constexpr PoolId(u32 simple_id) : UniqueId(simple_id, 0) {}
-  operator u32() const { return major_; }  // For backward compatibility
+  // Explicitly delete single-parameter constructors to prevent implicit conversions
+  PoolId(u32) = delete;
+  PoolId(int) = delete;
+  PoolId(u64) = delete;
+
+  // Delete implicit conversions to integers
+  operator u32() const = delete;
+  operator int() const = delete;
+  operator u64() const = delete;
+
+  // Bring in the parent equality operators for PoolId-to-PoolId comparison
+  using UniqueId::operator==;
+  using UniqueId::operator!=;
+
+  // Delete equality operators with integers
+  bool operator==(u32) const = delete;
+  bool operator==(int) const = delete;
+  bool operator==(u64) const = delete;
+  bool operator!=(u32) const = delete;
+  bool operator!=(int) const = delete;
+  bool operator!=(u64) const = delete;
 
   // Increment operators for pool ID generation
   PoolId& operator++() {  // prefix ++
@@ -128,6 +147,12 @@ struct PoolId : public UniqueId {
     return PoolId(UniqueId::GetNull());
   }
 };
+
+// Stream output operator for PoolId
+inline std::ostream& operator<<(std::ostream& os, const PoolId& pool_id) {
+  os << "PoolId(major:" << pool_id.major_ << ", minor:" << pool_id.minor_ << ")";
+  return os;
+}
 
 /**
  * Task node identifier containing process, thread, and sequence information
@@ -201,7 +226,7 @@ struct Address {
   GroupId group_id_;
   MinorId minor_id_;
 
-  Address() : pool_id_(0), group_id_(Group::kLocal), minor_id_(0) {}
+  Address() : pool_id_(), group_id_(Group::kLocal), minor_id_(0) {}
   Address(PoolId pool_id, GroupId group_id, MinorId minor_id)
       : pool_id_(pool_id), group_id_(group_id), minor_id_(minor_id) {}
 
@@ -259,7 +284,7 @@ enum ThreadType {
 };
 
 // Special pool IDs
-constexpr PoolId kAdminPoolId = 1;  // Admin ChiMod pool ID (reserved)
+constexpr PoolId kAdminPoolId = PoolId(1, 0);  // Admin ChiMod pool ID (reserved)
 
 // Allocator type aliases using HSHM conventions
 #define CHI_MAIN_ALLOC_T hipc::ThreadLocalAllocator

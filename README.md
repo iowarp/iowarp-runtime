@@ -149,11 +149,11 @@ int main() {
   chi::CHIMAERA_CLIENT_INIT();
   
   // Create admin client (always required)
-  chimaera::admin::Client admin_client(static_cast<chi::PoolId>(7000));
+  chimaera::admin::Client admin_client(chi::PoolId(7000, 0));
   admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local());
   
   // Create bdev client for high-speed RAM storage
-  chimaera::bdev::Client bdev_client(static_cast<chi::PoolId>(8000));
+  chimaera::bdev::Client bdev_client(chi::PoolId(8000, 0));
   bdev_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), 
                     chimaera::bdev::BdevType::kRam, "", 1024*1024*1024); // 1GB RAM
   

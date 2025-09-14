@@ -166,7 +166,7 @@ using namespace std::chrono_literals;
 namespace {
   // Test constants
   constexpr chi::u32 kTestTimeoutMs = 10000;
-  constexpr chi::PoolId kTestPoolId = static_cast<chi::PoolId>(500);
+  constexpr chi::PoolId kTestPoolId = chi::PoolId(500, 0);
   
   // Global state
   bool g_runtime_initialized = false;

@@ -58,7 +58,7 @@ void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& rctx) {
   create_count_++;
 
   std::cout << "Admin: Container created and initialized for pool: "
-            << pool_name_ << " (ID: " << task->pool_id_
+            << pool_name_ << " (ID: " << task->new_pool_id_
             << ", count: " << create_count_ << ")" << std::endl;
 }
 
@@ -85,29 +85,19 @@ void Runtime::GetOrCreatePool(
       return;
     }
 
-    // Use the new PoolManager API that supports get-or-create semantics (always
-    // 1 container)
-    chi::PoolId result_pool_id;
-    bool was_created;
-    if (!pool_manager->CreatePool(
-            task->chimod_name_.str(), task->pool_name_.str(),
-            task->chimod_params_.str(), 1, task->pool_id_, result_pool_id,
-            was_created, task.Cast<chi::Task>(), &rctx)) {
+    // Use the simplified PoolManager API that extracts all parameters from the task
+    if (!pool_manager->CreatePool(task.Cast<chi::Task>(), &rctx)) {
       task->result_code_ = 2;
       task->error_message_ = "Failed to create or get pool via PoolManager";
       return;
     }
 
-    // Set success results - update the INOUT pool_id_
-    task->pool_id_ = result_pool_id;
+    // Set success results (task->new_pool_id_ is already updated by CreatePool)
     task->result_code_ = 0;
-    if (was_created) {
-      pools_created_++;
-    }
+    pools_created_++;
 
-    std::cout << "Admin: Pool " << (was_created ? "created" : "found")
-              << " successfully - ID: " << result_pool_id
-              << ", Name: " << task->pool_name_.str()
+    std::cout << "Admin: Pool operation completed successfully - ID: " 
+              << task->new_pool_id_ << ", Name: " << task->pool_name_.str()
               << " (Total pools created: " << pools_created_ << ")"
               << std::endl;
 

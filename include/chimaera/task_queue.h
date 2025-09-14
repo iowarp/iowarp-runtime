@@ -22,7 +22,7 @@ struct TaskQueueHeader {
   u32 task_count;        // Number of tasks currently in the queue
   bool is_enqueued;      // Whether this queue is currently enqueued in worker
   
-  TaskQueueHeader() : pool_id(0), assigned_worker_id(0), task_count(0), is_enqueued(false) {}
+  TaskQueueHeader() : pool_id(), assigned_worker_id(0), task_count(0), is_enqueued(false) {}
   TaskQueueHeader(PoolId pid, WorkerId wid = 0) 
     : pool_id(pid), assigned_worker_id(wid), task_count(0), is_enqueued(false) {}
 };

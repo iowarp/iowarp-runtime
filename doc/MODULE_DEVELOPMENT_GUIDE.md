@@ -226,6 +226,10 @@ class Client : public chi::ContainerClient {
               const CreateParams& params = CreateParams()) {
     auto task = AsyncCreate(mctx, pool_query, params);
     task->Wait();
+    
+    // CRITICAL: Update client pool_id_ with the actual pool ID from the task
+    pool_id_ = task->new_pool_id_;
+    
     CHI_IPC->DelTask(task);
   }
 
@@ -1236,6 +1240,76 @@ ipc_manager->Enqueue(task, chi::kHighPriority);
 
 ## Client-Server Communication
 
+### Client Implementation Patterns
+
+#### Critical Pool ID Update Pattern
+
+**IMPORTANT**: All ChiMod clients that implement Create methods MUST update their `pool_id_` field with the actual pool ID returned from completed CreateTask operations. This is essential because:
+
+1. CreateTask operations may return a different pool ID than initially specified
+2. Pool creation may reuse existing pools with different IDs
+3. Subsequent client operations depend on the correct pool ID
+
+**Required Pattern for All Client Create Methods:**
+
+```cpp
+void Create(const hipc::MemContext& mctx, const chi::PoolQuery& pool_query, ...) {
+    auto task = AsyncCreate(mctx, pool_query, ...);
+    task->Wait();
+    
+    // CRITICAL: Update client pool_id_ with the actual pool ID from the task
+    pool_id_ = task->new_pool_id_;
+    
+    CHI_IPC->DelTask(task);
+}
+```
+
+**Why This Is Required:**
+
+- **Pool Reuse**: CreateTask is actually a GetOrCreatePoolTask that may return an existing pool
+- **ID Assignment**: The admin ChiMod may assign a different pool ID than requested
+- **Client Consistency**: All subsequent operations must use the correct pool ID
+- **Distributed Operation**: Pool IDs must be consistent across all client instances
+
+**Examples of Correct Implementation:**
+
+```cpp
+// Admin client Create method
+void Create(const hipc::MemContext& mctx, const chi::PoolQuery& pool_query) {
+    auto task = AsyncCreate(mctx, pool_query);
+    task->Wait();
+
+    // CRITICAL: Update client pool_id_ with the actual pool ID from the task
+    pool_id_ = task->new_pool_id_;
+
+    auto* ipc_manager = CHI_IPC;
+    ipc_manager->DelTask(task);
+}
+
+// Bdev client Create method (with parameters)
+void Create(const hipc::MemContext& mctx, const chi::PoolQuery& pool_query,
+            BdevType bdev_type, const std::string& file_path, 
+            chi::u64 total_size, chi::u32 io_depth, chi::u32 alignment) {
+    auto task = AsyncCreate(mctx, pool_query, bdev_type, file_path, 
+                           total_size, io_depth, alignment);
+    task->Wait();
+    
+    // CRITICAL: Update client pool_id_ with the actual pool ID from the task
+    pool_id_ = task->new_pool_id_;
+    
+    CHI_IPC->DelTask(task);
+}
+```
+
+**Common Mistakes to Avoid:**
+
+- ❌ **Forgetting to update pool_id_**: Leads to incorrect pool ID for subsequent operations
+- ❌ **Using original pool_id_**: The task may return a different pool ID than initially specified
+- ❌ **Updating before task completion**: Always wait for task completion before reading new_pool_id_
+- ❌ **Not implementing this pattern**: All synchronous Create methods must follow this pattern
+
+This pattern is mandatory for all ChiMod clients and ensures correct pool ID management throughout the client lifecycle.
+
 ### Memory Segments
 Three shared memory segments are used:
 1. **Main Segment**: Tasks and control structures
@@ -1897,7 +1971,7 @@ int main() {
   chi::CHIMAERA_CLIENT_INIT();
   
   // Create your ChiMod client
-  const chi::PoolId pool_id = static_cast<chi::PoolId>(7000);
+  const chi::PoolId pool_id = chi::PoolId(7000, 0);
   myproject::my_module::Client client(pool_id);
   
   // Use your ChiMod
@@ -2451,6 +2525,7 @@ When creating a new Chimaera module, ensure you have:
 - [ ] Uses `CHI_IPC->Enqueue()` for task submission
 - [ ] Uses `CHI_IPC->DelTask()` for cleanup
 - [ ] Provides both sync and async methods
+- [ ] **CRITICAL**: Create methods update `pool_id_ = task->new_pool_id_` after task completion
 
 ### Build System Checklist
 - [ ] CMakeLists.txt creates both client and runtime libraries
@@ -2464,6 +2539,7 @@ When creating a new Chimaera module, ensure you have:
 ### Common Pitfalls to Avoid
 - [ ] ❌ Forgetting `kLocalSchedule` implementation (tasks won't execute)
 - [ ] ❌ **CRITICAL: Direct lane enqueuing** in Monitor methods (bypasses work orchestrator)
+- [ ] ❌ **CRITICAL: Not updating pool_id_ in Create methods** (leads to incorrect pool ID for subsequent operations)
 - [ ] ❌ Using raw pointers instead of FullPtr in runtime methods
 - [ ] ❌ Not calling `chi::Container::Init()` in Create method
 - [ ] ❌ Using non-HSHM types in task data members

@@ -46,7 +46,7 @@ namespace {
   // Helper to create test task with sample data
   std::unique_ptr<chi::Task> CreateTestTask() {
     auto alloc = GetTestAllocator();
-    auto task = std::make_unique<chi::Task>(alloc, chi::TaskNode(1), chi::PoolId(100), 
+    auto task = std::make_unique<chi::Task>(alloc, chi::TaskNode(1), chi::PoolId(100, 0), 
                                            chi::PoolQuery(), chi::MethodId(42));
     task->period_ns_ = 1000000.0;  // 1ms
     task->net_key_ = 0x12345678;
@@ -58,8 +58,8 @@ namespace {
   std::unique_ptr<chimaera::admin::CreateTask> CreateTestAdminTask() {
     auto alloc = GetTestAllocator();
     auto task = std::make_unique<chimaera::admin::CreateTask>(
-        alloc, chi::TaskNode(2), chi::PoolId(200), chi::PoolQuery(),
-        "test_chimod", "test_pool", chi::PoolId(300));
+        alloc, chi::TaskNode(2), chi::PoolId(200, 0), chi::PoolQuery(),
+        "test_chimod", "test_pool", chi::PoolId(300, 0));
     task->result_code_ = 42;
     task->error_message_ = hipc::string(alloc, "test error message");
     return task;
@@ -356,8 +356,8 @@ TEST_CASE("Admin Task Serialization", "[task_archive][admin_tasks]") {
   SECTION("DestroyPoolTask serialization") {
     auto alloc = GetTestAllocator();
     chimaera::admin::DestroyPoolTask original_task(
-        alloc, chi::TaskNode(3), chi::PoolId(400), chi::PoolQuery(),
-        chi::PoolId(500), 0x123);
+        alloc, chi::TaskNode(3), chi::PoolId(400, 0), chi::PoolQuery(),
+        chi::PoolId(500, 0), 0x123);
     original_task.result_code_ = 99;
     original_task.error_message_ = hipc::string(alloc, "destroy error");
     
@@ -387,7 +387,7 @@ TEST_CASE("Admin Task Serialization", "[task_archive][admin_tasks]") {
   SECTION("StopRuntimeTask serialization") {
     auto alloc = GetTestAllocator();
     chimaera::admin::StopRuntimeTask original_task(
-        alloc, chi::TaskNode(4), chi::PoolId(600), chi::PoolQuery(),
+        alloc, chi::TaskNode(4), chi::PoolId(600, 0), chi::PoolQuery(),
         0x456, 10000);
     original_task.result_code_ = 777;
     original_task.error_message_ = hipc::string(alloc, "shutdown error");

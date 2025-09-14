@@ -2,9 +2,9 @@
 #define CHIMAERA_INCLUDE_CHIMAERA_TASK_H_
 
 #include <atomic>
+#include <boost/context/detail/fcontext.hpp>
 #include <sstream>
 #include <vector>
-#include <boost/context/detail/fcontext.hpp>
 
 #include "chimaera/pool_query.h"
 #include "chimaera/types.h"
@@ -15,7 +15,8 @@
 #include <cereal/types/string.hpp>
 #include <cereal/types/vector.hpp>
 
-// TaskQueue types are now forward declared as void* to avoid circular dependencies
+// TaskQueue types are now forward declared as void* to avoid circular
+// dependencies
 
 namespace chi {
 
@@ -23,7 +24,6 @@ namespace chi {
 class Task;
 class Container;
 struct RunContext;
-
 
 // Define macros for container template
 #define CLASS_NAME Task
@@ -48,6 +48,7 @@ class Task : public hipc::ShmContainer {
   IN u32 net_key_; /**< Network identification key for distributed scheduling */
   std::atomic<u32> is_complete; /**< Atomic flag indicating task completion
                                    (0=not complete, 1=complete) */
+  u32 return_code_; /**< Task return code (0=success, non-zero=error) */
 
   /**
    * SHM default constructor
@@ -74,6 +75,7 @@ class Task : public hipc::ShmContainer {
     run_ctx_ = nullptr;
     net_key_ = 0;
     is_complete.store(0);  // Initialize as not complete
+    return_code_ = 0;      // Initialize as success
   }
 
   /**
@@ -97,6 +99,9 @@ class Task : public hipc::ShmContainer {
     period_ns_ = other.period_ns_;
     run_ctx_ = other.run_ctx_;
     net_key_ = other.net_key_;
+    return_code_ = other.return_code_;
+    // Explicitly initialize as not complete for copied tasks
+    is_complete.store(0);
   }
 
   /**
@@ -128,7 +133,7 @@ class Task : public hipc::ShmContainer {
    * SetNull implementation
    */
   HSHM_INLINE_CROSS_FUN void SetNull() {
-    pool_id_ = 0;
+    pool_id_ = PoolId::GetNull();
     task_node_ = 0;
     pool_query_ = PoolQuery();
     method_ = 0;
@@ -137,6 +142,7 @@ class Task : public hipc::ShmContainer {
     run_ctx_ = nullptr;
     net_key_ = 0;
     is_complete.store(0);  // Initialize as not complete
+    return_code_ = 0;      // Initialize as success
   }
 
   /**
@@ -313,7 +319,7 @@ class Task : public hipc::ShmContainer {
   template <typename Archive>
   void BaseSerializeIn(Archive& ar) {
     ar(pool_id_, task_node_, pool_query_, method_, task_flags_, period_ns_,
-       net_key_);
+       net_key_, return_code_);
   }
 
   /**
@@ -326,7 +332,7 @@ class Task : public hipc::ShmContainer {
   template <typename Archive>
   void BaseSerializeOut(Archive& ar) {
     ar(pool_id_, task_node_, pool_query_, method_, task_flags_, period_ns_,
-       net_key_);
+       net_key_, return_code_);
   }
 
   /**
@@ -353,7 +359,6 @@ class Task : public hipc::ShmContainer {
     // their OUT/INOUT fields
   }
 
-private:
   /**
    * Yield execution back to worker (runtime) or sleep briefly (non-runtime)
    * In runtime: Jumps back to worker fiber context with estimated completion
@@ -361,35 +366,64 @@ private:
    */
   HSHM_CROSS_FUN void YieldBase();
 
-};
+  /**
+   * Get the task return code
+   * @return Return code (0=success, non-zero=error)
+   */
+  HSHM_CROSS_FUN u32 GetReturnCode() const { return return_code_; }
 
+  /**
+   * Set the task return code
+   * @param return_code Return code to set (0=success, non-zero=error)
+   */
+  HSHM_CROSS_FUN void SetReturnCode(u32 return_code) {
+    return_code_ = return_code;
+  }
+};
 
 /**
  * Context passed to task execution methods
  */
 struct RunContext {
-  void* stack_ptr;              // Stack pointer (positioned for boost::context based on stack growth)
-  void* stack_base_for_free;    // Original malloc pointer for freeing
+  void* stack_ptr;  // Stack pointer (positioned for boost::context based on
+                    // stack growth)
+  void* stack_base_for_free;  // Original malloc pointer for freeing
   size_t stack_size;
   ThreadType thread_type;
   u32 worker_id;
-  FullPtr<Task> task;  // Task being executed by this context
-  bool is_blocked;             // Task is waiting for completion
-  double estimated_completion_time_us; // Estimated completion time in microseconds
-  hshm::Timepoint block_time;          // Time when task was blocked (for timing measurements)
-  boost::context::detail::transfer_t yield_context;  // boost::context transfer from FiberExecutionFunction parameter - used for yielding back
-  boost::context::detail::transfer_t resume_context; // boost::context transfer for resuming into yield function
-  Container* container;             // Current container being executed
-  void* lane;        // Current lane being processed (TaskQueue::TaskLane*)
-  void* route_lane_; // Lane pointer set by kLocalSchedule for task routing (TaskQueue::TaskLane*)
-  std::vector<FullPtr<Task>> waiting_for_tasks; // Tasks this task is waiting for completion
-  std::vector<PoolQuery> pool_queries; // Pool queries for task distribution
-  
-  RunContext() : stack_ptr(nullptr), stack_base_for_free(nullptr), stack_size(0), 
-                 thread_type(kLowLatencyWorker), worker_id(0),
-                 is_blocked(false), estimated_completion_time_us(0.0),
-                 yield_context{}, resume_context{}, container(nullptr), lane(nullptr), 
-                 route_lane_(nullptr) {}
+  FullPtr<Task> task;                   // Task being executed by this context
+  bool is_blocked;                      // Task is waiting for completion
+  double estimated_completion_time_us;  // Estimated completion time in
+                                        // microseconds
+  hshm::Timepoint
+      block_time;  // Time when task was blocked (for timing measurements)
+  boost::context::detail::transfer_t
+      yield_context;  // boost::context transfer from FiberExecutionFunction
+                      // parameter - used for yielding back
+  boost::context::detail::transfer_t
+      resume_context;    // boost::context transfer for resuming into yield
+                         // function
+  Container* container;  // Current container being executed
+  void* lane;            // Current lane being processed (TaskQueue::TaskLane*)
+  void* route_lane_;     // Lane pointer set by kLocalSchedule for task routing
+                         // (TaskQueue::TaskLane*)
+  std::vector<FullPtr<Task>>
+      waiting_for_tasks;  // Tasks this task is waiting for completion
+  std::vector<PoolQuery> pool_queries;  // Pool queries for task distribution
+
+  RunContext()
+      : stack_ptr(nullptr),
+        stack_base_for_free(nullptr),
+        stack_size(0),
+        thread_type(kLowLatencyWorker),
+        worker_id(0),
+        is_blocked(false),
+        estimated_completion_time_us(0.0),
+        yield_context{},
+        resume_context{},
+        container(nullptr),
+        lane(nullptr),
+        route_lane_(nullptr) {}
 
   /**
    * Check if all subtasks this task is waiting for are completed
@@ -401,11 +435,11 @@ struct RunContext {
       if (!waiting_task.IsNull()) {
         // Check if the waiting task is completed using atomic flag
         if (waiting_task->is_complete.load() == 0) {
-          return false; // Found a subtask that's not completed yet
+          return false;  // Found a subtask that's not completed yet
         }
       }
     }
-    return true; // All subtasks are completed (or no subtasks)
+    return true;  // All subtasks are completed (or no subtasks)
   }
 };
 

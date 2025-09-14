@@ -61,7 +61,7 @@ TEST_CASE("FlushTask with MOD_NAME Container and Async Tasks",
 
   SECTION("Flush waits for MOD_NAME async Custom tasks to complete") {
     // Create MOD_NAME client and container - CreateTask will auto-create pool
-    const chi::PoolId mod_name_pool_id = static_cast<chi::PoolId>(4000);
+    const chi::PoolId mod_name_pool_id = chi::PoolId(4000, 0);
     chimaera::MOD_NAME::Client mod_name_client(mod_name_pool_id);
 
     // Create the MOD_NAME container with local pool query - this will create

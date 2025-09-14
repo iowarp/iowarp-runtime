@@ -80,7 +80,7 @@ class Container {
   void Init(const PoolId& pool_id, const PoolQuery& pool_query) {
     pool_id_ = pool_id;
     pool_query_ = pool_query;
-    pool_name_ = "pool_" + std::to_string(pool_id);
+    pool_name_ = "pool_" + std::to_string(pool_id.ToU64());
 
     // Get main allocator for creating lanes
     auto mem_manager = HSHM_MEMORY_MANAGER;
@@ -92,12 +92,12 @@ class Container {
   }
 
   /**
-   * Simple initialization without client initialization
+   * Simple initialization with client initialization
    * Used when we only have a PoolId available
    */
   void Init(const PoolId& pool_id) {
     pool_id_ = pool_id;
-    pool_name_ = "pool_" + std::to_string(pool_id);
+    pool_name_ = "pool_" + std::to_string(pool_id.ToU64());
     container_id_ = 0;
     pool_query_ = PoolQuery();  // Default pool query
 
@@ -106,8 +106,8 @@ class Container {
     main_allocator_ =
         mem_manager->GetAllocator<CHI_MAIN_ALLOC_T>(hipc::AllocatorId(1, 0));
 
-    // Note: InitClient should be called separately after system is fully
-    // initialized
+    // Initialize client for this container
+    InitClient(pool_id);
   }
 
   /**
@@ -328,6 +328,14 @@ class Container {
   hipc::CtxAllocator<CHI_MAIN_ALLOC_T> GetAllocator() const {
     return HSHM_MEMORY_MANAGER->GetDefaultAllocator<CHI_MAIN_ALLOC_T>();
   }
+
+  /**
+   * Check if the container's pool ID is null/invalid
+   * @return true if pool_id_ is null, false otherwise
+   */
+  bool IsNull() const {
+    return pool_id_.IsNull();
+  }
 };
 
 /**
@@ -343,7 +351,7 @@ class ContainerClient {
   /**
    * Default constructor
    */
-  ContainerClient() : pool_id_(0) {}
+  ContainerClient() : pool_id_() {}
 
   /**
    * Initialize client with pool ID
@@ -362,6 +370,14 @@ class ContainerClient {
   template <typename Ar>
   void serialize(Ar& ar) {
     ar(pool_id_);
+  }
+
+  /**
+   * Check if the client's pool ID is null/invalid
+   * @return true if pool_id_ is null, false otherwise
+   */
+  bool IsNull() const {
+    return pool_id_.IsNull();
   }
 
  protected:

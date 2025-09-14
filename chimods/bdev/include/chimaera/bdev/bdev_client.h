@@ -59,6 +59,10 @@ class Client : public chi::ContainerClient {
     auto task = AsyncCreate(mctx, pool_query, BdevType::kFile, file_path, total_size, io_depth,
                             alignment);
     task->Wait();
+    
+    // CRITICAL: Update client pool_id_ with the actual pool ID from the task
+    pool_id_ = task->new_pool_id_;
+    
     CHI_IPC->DelTask(task);
   }
   
@@ -71,6 +75,10 @@ class Client : public chi::ContainerClient {
     auto task = AsyncCreate(mctx, pool_query, bdev_type, file_path, total_size, io_depth,
                             alignment);
     task->Wait();
+    
+    // CRITICAL: Update client pool_id_ with the actual pool ID from the task
+    pool_id_ = task->new_pool_id_;
+    
     CHI_IPC->DelTask(task);
   }
 

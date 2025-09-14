@@ -45,9 +45,9 @@ namespace {
   constexpr chi::u32 kRetryDelayMs = 25;
   
   // Pool IDs for different test scenarios
-  constexpr chi::PoolId kFireAndForgetPoolId = static_cast<chi::PoolId>(8000);
-  constexpr chi::PoolId kRegularTaskPoolId = static_cast<chi::PoolId>(8001);
-  constexpr chi::PoolId kComparisonPoolId = static_cast<chi::PoolId>(8002);
+  constexpr chi::PoolId kFireAndForgetPoolId = chi::PoolId(8000, 0);
+  constexpr chi::PoolId kRegularTaskPoolId = chi::PoolId(8001, 0);
+  constexpr chi::PoolId kComparisonPoolId = chi::PoolId(8002, 0);
   
   // Global test state
   bool g_runtime_initialized = false;

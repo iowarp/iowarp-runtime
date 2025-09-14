@@ -34,6 +34,9 @@ class Client : public chi::ContainerClient {
     auto task = AsyncCreate(mctx, pool_query);
     task->Wait();
 
+    // CRITICAL: Update client pool_id_ with the actual pool ID from the task
+    pool_id_ = task->new_pool_id_;
+
     // Clean up task
     auto* ipc_manager = CHI_IPC;
     ipc_manager->DelTask(task);
