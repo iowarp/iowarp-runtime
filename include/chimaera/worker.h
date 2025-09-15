@@ -15,6 +15,9 @@
 
 namespace chi {
 
+// Forward declaration to avoid circular dependency
+using WorkQueue = chi::ipc::mpsc_queue<hipc::TypedPointer<TaskLane>>;
+
 // Forward declarations  
 class Task;
 
@@ -117,7 +120,7 @@ class Worker {
    * Get current lane from the current RunContext
    * @return Pointer to current lane or nullptr if no RunContext
    */
-  ::chi::TaskQueue::TaskLane* GetCurrentLane() const;
+  TaskLane* GetCurrentLane() const;
 
   /**
    * Set this worker as the current worker in thread-local storage
@@ -151,7 +154,7 @@ class Worker {
    * @param lane_ptr FullPtr to lane (as returned by GetLane) that has work
    * available
    */
-  void EnqueueLane(hipc::TypedPointer<::chi::TaskQueue::TaskLane> lane_ptr);
+  void EnqueueLane(hipc::TypedPointer<TaskLane> lane_ptr);
 
   /**
    * Route a task by calling ResolvePoolQuery and determining local vs global scheduling
@@ -160,7 +163,7 @@ class Worker {
    * @param container Output parameter for the container to use for task execution
    * @return true if task was successfully routed, false otherwise
    */
-  bool RouteTask(const FullPtr<Task>& task_ptr, ::chi::TaskQueue::TaskLane* lane, Container*& container);
+  bool RouteTask(const FullPtr<Task>& task_ptr, TaskLane* lane, Container*& container);
 
   /**
    * Resolve a pool query into concrete physical addresses
@@ -195,7 +198,7 @@ public:
    * @param container Output parameter for the container to use for task execution
    * @return true if local routing successful, false otherwise
    */
-  bool RouteLocal(const FullPtr<Task>& task_ptr, ::chi::TaskQueue::TaskLane* lane, Container*& container);
+  bool RouteLocal(const FullPtr<Task>& task_ptr, TaskLane* lane, Container*& container);
 
   /**
    * Route task globally using admin client's ClientSendTaskIn method
@@ -239,7 +242,7 @@ public:
    * @param lane Lane for the task (can be nullptr)
    */
   void BeginTask(const FullPtr<Task>& task_ptr, Container* container,
-                 ::chi::TaskQueue::TaskLane* lane);
+                 TaskLane* lane);
 
   /**
    * Continue processing blocked tasks that are ready to resume
@@ -275,8 +278,7 @@ public:
 
   // Active queue of lanes for processing
   // GetLane returns a lane reference, so we store lane TypedPointers
-  hipc::FullPtr<chi::ipc::mpsc_queue<hipc::TypedPointer<::chi::TaskQueue::TaskLane>>>
-      active_queue_;  // Queue of lane TypedPointers from GetLane
+  hipc::FullPtr<WorkQueue> active_queue_;  // Queue of lane TypedPointers from GetLane
 
   // Stack management simplified - allocate/free directly with malloc
 

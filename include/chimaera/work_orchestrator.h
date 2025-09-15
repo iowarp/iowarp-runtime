@@ -111,7 +111,7 @@ class WorkOrchestrator {
    * @param lane Raw pointer to the TaskLane
    * @param worker_id Worker ID to assign to this lane
    */
-  void MapLaneToWorker(::chi::TaskQueue::TaskLane* lane, WorkerId worker_id);
+  void MapLaneToWorker(TaskLane* lane, WorkerId worker_id);
 
   /**
    * Round-robin scheduler for TaskQueue lanes
@@ -128,7 +128,7 @@ class WorkOrchestrator {
    * @param lane_ptr FullPtr to the TaskLane that has work available
    */
   static void NotifyWorkerLaneReady(
-      hipc::FullPtr<::chi::TaskQueue::TaskLane> lane_ptr);
+      hipc::FullPtr<TaskLane> lane_ptr);
 
   /**
    * Check if there is any work remaining across all containers in the system

@@ -170,8 +170,7 @@ class ChimaeraRuntimeFixture {
 
       // Create the admin container first if needed
       chi::DomainQuery pool_query;  // Default domain query
-      std::string admin_pool_name = "test_admin_pool";
-      admin_client.Create(HSHM_MCTX, pool_query, admin_pool_name);
+      admin_client.Create(HSHM_MCTX, pool_query, "admin");
 
       // Create MOD_NAME pool parameters
       chimaera::MOD_NAME::CreateParams params;

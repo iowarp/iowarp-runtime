@@ -211,8 +211,7 @@ public:
       
       // Create the admin container first if needed
       chi::PoolQuery pool_query;
-      std::string admin_pool_name = "test_admin_pool";
-      admin_client.Create(HSHM_MCTX, pool_query, admin_pool_name);
+      admin_client.Create(HSHM_MCTX, pool_query, "admin");
       
       // Create MOD_NAME client and container directly with dynamic pool ID
       chimaera::MOD_NAME::Client mod_name_client(test_pool_id_);

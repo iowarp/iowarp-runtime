@@ -390,7 +390,7 @@ WorkerId WorkOrchestrator::GetNextAvailableWorker() {
   return worker ? worker->GetId() : 0;
 }
 
-void WorkOrchestrator::MapLaneToWorker(::chi::TaskQueue::TaskLane* lane,
+void WorkOrchestrator::MapLaneToWorker(TaskLane* lane,
                                        WorkerId worker_id) {
   if (!lane) {
     return;
@@ -436,7 +436,7 @@ void WorkOrchestrator::RoundRobinTaskQueueScheduler(TaskQueue* task_queue) {
 }
 
 /*static*/ void WorkOrchestrator::NotifyWorkerLaneReady(
-    hipc::FullPtr<::chi::TaskQueue::TaskLane> lane_ptr) {
+    hipc::FullPtr<TaskLane> lane_ptr) {
   if (lane_ptr.IsNull()) {
     return;
   }
@@ -455,7 +455,7 @@ void WorkOrchestrator::RoundRobinTaskQueueScheduler(TaskQueue* task_queue) {
   auto worker_queue = ipc->GetWorkerQueue(worker_id);
   if (!worker_queue.IsNull()) {
     // Convert FullPtr to TypedPointer for worker queue
-    hipc::TypedPointer<::chi::TaskQueue::TaskLane> lane_typed_ptr(lane_ptr.shm_);
+    hipc::TypedPointer<TaskLane> lane_typed_ptr(lane_ptr.shm_);
     worker_queue->push(lane_typed_ptr);
   }
 }

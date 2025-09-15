@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "chimaera/pool_query.h"
+#include "chimaera/task_queue.h"
 #include "chimaera/types.h"
 
 // Include cereal for serialization
@@ -15,8 +16,7 @@
 #include <cereal/types/string.hpp>
 #include <cereal/types/vector.hpp>
 
-// TaskQueue types are now forward declared as void* to avoid circular
-// dependencies
+// TaskQueue types are now available via include
 
 namespace chi {
 
@@ -404,9 +404,8 @@ struct RunContext {
       resume_context;    // boost::context transfer for resuming into yield
                          // function
   Container* container;  // Current container being executed
-  void* lane;            // Current lane being processed (TaskQueue::TaskLane*)
-  void* route_lane_;     // Lane pointer set by kLocalSchedule for task routing
-                         // (TaskQueue::TaskLane*)
+  TaskLane* lane;        // Current lane being processed
+  TaskLane* route_lane_; // Lane pointer set by kLocalSchedule for task routing
   std::vector<FullPtr<Task>>
       waiting_for_tasks;  // Tasks this task is waiting for completion
   std::vector<PoolQuery> pool_queries;  // Pool queries for task distribution

@@ -452,8 +452,7 @@ TEST_CASE("bdev_ram_container_creation", "[bdev][ram][create]") {
 
   // Create admin client
   chimaera::admin::Client admin_client;
-  std::string admin_pool_name = "test_admin_pool";
-  admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), admin_pool_name);
+  admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), "admin");
   std::this_thread::sleep_for(100ms);
 
   // Create bdev client for RAM backend
@@ -477,8 +476,7 @@ TEST_CASE("bdev_ram_allocation_and_io", "[bdev][ram][io]") {
 
   // Create admin client
   chimaera::admin::Client admin_client;
-  std::string admin_pool_name = "test_admin_pool";
-  admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), admin_pool_name);
+  admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), "admin");
   std::this_thread::sleep_for(100ms);
 
   // Create bdev client for RAM backend
@@ -528,8 +526,7 @@ TEST_CASE("bdev_ram_large_blocks", "[bdev][ram][large]") {
 
   // Create admin client
   chimaera::admin::Client admin_client;
-  std::string admin_pool_name = "test_admin_pool";
-  admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), admin_pool_name);
+  admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), "admin");
   std::this_thread::sleep_for(100ms);
 
   // Create bdev client for RAM backend
@@ -584,8 +581,7 @@ TEST_CASE("bdev_ram_performance", "[bdev][ram][performance]") {
 
   // Create admin client
   chimaera::admin::Client admin_client;
-  std::string admin_pool_name = "test_admin_pool";
-  admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), admin_pool_name);
+  admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), "admin");
   std::this_thread::sleep_for(100ms);
 
   // Create bdev client for RAM backend
@@ -649,8 +645,7 @@ TEST_CASE("bdev_ram_bounds_checking", "[bdev][ram][bounds]") {
 
   // Create admin client
   chimaera::admin::Client admin_client;
-  std::string admin_pool_name = "test_admin_pool";
-  admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), admin_pool_name);
+  admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), "admin");
   std::this_thread::sleep_for(100ms);
 
   // Create bdev client for RAM backend
@@ -696,8 +691,7 @@ TEST_CASE("bdev_file_vs_ram_comparison", "[bdev][file][ram][comparison]") {
 
   // Create admin client
   chimaera::admin::Client admin_client;
-  std::string admin_pool_name = "test_admin_pool";
-  admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), admin_pool_name);
+  admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), "admin");
   std::this_thread::sleep_for(100ms);
 
   // Create two bdev clients - one for file, one for RAM
@@ -803,8 +797,7 @@ TEST_CASE("bdev_file_explicit_backend", "[bdev][file][explicit]") {
 
   // Create admin client
   chimaera::admin::Client admin_client;
-  std::string admin_pool_name = "test_admin_pool";
-  admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), admin_pool_name);
+  admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), "admin");
   std::this_thread::sleep_for(100ms);
 
   // Create bdev client with explicit file backend
@@ -844,8 +837,7 @@ TEST_CASE("bdev_error_conditions_enhanced", "[bdev][error][enhanced]") {
 
   // Create admin client
   chimaera::admin::Client admin_client;
-  std::string admin_pool_name = "test_admin_pool";
-  admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), admin_pool_name);
+  admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), "admin");
   std::this_thread::sleep_for(100ms);
 
   // Test 1: RAM backend without size specification

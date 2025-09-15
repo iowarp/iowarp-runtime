@@ -60,7 +60,7 @@ void Runtime::MonitorCreate(chi::MonitorModeId mode,
       {
         auto lane_ptr = GetLaneFullPtr(kMetadataQueue, 0);
         if (!lane_ptr.IsNull()) {
-          rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
+          rctx.route_lane_ = lane_ptr.ptr_;
         }
       }
       break;
@@ -113,7 +113,7 @@ void Runtime::MonitorDestroy(chi::MonitorModeId mode,
       {
         auto lane_ptr = GetLaneFullPtr(kMetadataQueue, 0);
         if (!lane_ptr.IsNull()) {
-          rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
+          rctx.route_lane_ = lane_ptr.ptr_;
         }
       }
       break;
@@ -149,7 +149,7 @@ void Runtime::MonitorFlush(chi::MonitorModeId mode,
       {
         auto lane_ptr = GetLaneFullPtr(kMetadataQueue, 0);
         if (!lane_ptr.IsNull()) {
-          rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
+          rctx.route_lane_ = lane_ptr.ptr_;
         }
       }
       break;

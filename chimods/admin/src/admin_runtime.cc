@@ -123,7 +123,7 @@ void Runtime::MonitorCreate(chi::MonitorModeId mode,
       {
         auto lane_ptr = GetLaneFullPtr(kMetadataQueue, 0);
         if (!lane_ptr.IsNull()) {
-          rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
+          rctx.route_lane_ = lane_ptr.ptr_;
         }
       }
       break;
@@ -156,7 +156,7 @@ void Runtime::MonitorGetOrCreatePool(
       {
         auto lane_ptr = GetLaneFullPtr(kMetadataQueue, 0);
         if (!lane_ptr.IsNull()) {
-          rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
+          rctx.route_lane_ = lane_ptr.ptr_;
         }
       }
       break;
@@ -247,7 +247,7 @@ void Runtime::MonitorDestroyPool(chi::MonitorModeId mode,
       {
         auto lane_ptr = GetLaneFullPtr(kMetadataQueue, 0);
         if (!lane_ptr.IsNull()) {
-          rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
+          rctx.route_lane_ = lane_ptr.ptr_;
         }
       }
       break;
@@ -306,7 +306,7 @@ void Runtime::MonitorStopRuntime(chi::MonitorModeId mode,
       {
         auto lane_ptr = GetLaneFullPtr(kMetadataQueue, 0);
         if (!lane_ptr.IsNull()) {
-          rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
+          rctx.route_lane_ = lane_ptr.ptr_;
         }
       }
       break;
@@ -460,7 +460,7 @@ void Runtime::MonitorFlush(chi::MonitorModeId mode,
       {
         auto lane_ptr = GetLaneFullPtr(kMetadataQueue, 0);
         if (!lane_ptr.IsNull()) {
-          rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
+          rctx.route_lane_ = lane_ptr.ptr_;
         }
       }
       break;
@@ -595,7 +595,7 @@ void Runtime::ClientSendTaskIn(hipc::FullPtr<ClientSendTaskInTask> task,
         node_task_map;
 
     // Convert current lane to FullPtr for TaskQueue operations
-    hipc::FullPtr<chi::TaskQueue::TaskLane> lane_full_ptr(current_lane);
+    hipc::FullPtr<chi::TaskLane> lane_full_ptr(current_lane);
 
     // Add the input task to the map
     AddTasksToMap(task->task_to_send_, task->pool_queries_, node_task_map,
@@ -797,7 +797,7 @@ void Runtime::MonitorClientSendTaskIn(
       {
         auto lane_ptr = GetLaneFullPtr(kClientSendTaskInQueue, 0);
         if (!lane_ptr.IsNull()) {
-          rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
+          rctx.route_lane_ = lane_ptr.ptr_;
         }
       }
       break;
@@ -855,7 +855,7 @@ void Runtime::MonitorServerRecvTaskIn(
       {
         auto lane_ptr = GetLaneFullPtr(kServerRecvTaskInQueue, 0);
         if (!lane_ptr.IsNull()) {
-          rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
+          rctx.route_lane_ = lane_ptr.ptr_;
         }
       }
       break;
@@ -913,7 +913,7 @@ void Runtime::MonitorServerSendTaskOut(
       {
         auto lane_ptr = GetLaneFullPtr(kServerSendTaskOutQueue, 0);
         if (!lane_ptr.IsNull()) {
-          rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
+          rctx.route_lane_ = lane_ptr.ptr_;
         }
       }
       break;
@@ -972,7 +972,7 @@ void Runtime::MonitorClientRecvTaskOut(
       {
         auto lane_ptr = GetLaneFullPtr(kClientRecvTaskOutQueue, 0);
         if (!lane_ptr.IsNull()) {
-          rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
+          rctx.route_lane_ = lane_ptr.ptr_;
         }
       }
       break;

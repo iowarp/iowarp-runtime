@@ -61,7 +61,6 @@ class Container {
   // Local queue management using TaskQueue
   std::unordered_map<QueueId, hipc::FullPtr<::chi::TaskQueue>> local_queues_;
   PoolQuery pool_query_;
-  std::string name_;
 
   // Default allocator for creating lanes
   CHI_MAIN_ALLOC_T* main_allocator_ = nullptr;
@@ -165,7 +164,7 @@ class Container {
   /**
    * Get specific lane by ID
    */
-  virtual ::chi::TaskQueue::TaskLane* GetLane(QueueId queue_id,
+  virtual TaskLane* GetLane(QueueId queue_id,
                                               LaneId lane_id) {
     auto* task_queue = GetTaskQueue(queue_id);
     if (task_queue && lane_id < task_queue->GetNumLanes()) {
@@ -178,7 +177,7 @@ class Container {
   /**
    * Get lane by hash for load balancing
    */
-  virtual ::chi::TaskQueue::TaskLane* GetLaneByHash(QueueId queue_id,
+  virtual TaskLane* GetLaneByHash(QueueId queue_id,
                                                     u32 hash) {
     auto* task_queue = GetTaskQueue(queue_id);
     if (task_queue) {
@@ -195,25 +194,25 @@ class Container {
   /**
    * Get FullPtr to specific lane by ID for task emplacement
    */
-  hipc::FullPtr<::chi::TaskQueue::TaskLane> GetLaneFullPtr(QueueId queue_id,
+  hipc::FullPtr<TaskLane> GetLaneFullPtr(QueueId queue_id,
                                                            LaneId lane_id) {
     auto* lane = GetLane(queue_id, lane_id);
     if (lane) {
-      return hipc::FullPtr<::chi::TaskQueue::TaskLane>(lane);
+      return hipc::FullPtr<TaskLane>(lane);
     }
-    return hipc::FullPtr<::chi::TaskQueue::TaskLane>();
+    return hipc::FullPtr<TaskLane>();
   }
 
   /**
    * Get FullPtr to lane by hash for task emplacement
    */
-  hipc::FullPtr<::chi::TaskQueue::TaskLane> GetLaneByHashFullPtr(
+  hipc::FullPtr<TaskLane> GetLaneByHashFullPtr(
       QueueId queue_id, u32 hash) {
     auto* lane = GetLaneByHash(queue_id, hash);
     if (lane) {
-      return hipc::FullPtr<::chi::TaskQueue::TaskLane>(lane);
+      return hipc::FullPtr<TaskLane>(lane);
     }
-    return hipc::FullPtr<::chi::TaskQueue::TaskLane>();
+    return hipc::FullPtr<TaskLane>();
   }
 
   /**

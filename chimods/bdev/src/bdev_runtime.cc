@@ -164,7 +164,7 @@ void Runtime::MonitorCreate(chi::MonitorModeId mode,
       // REQUIRED: Set route_lane_ to indicate where task should be routed
       auto lane_ptr = GetLaneFullPtr(0, 0);  // Queue 0 (low latency), lane 0
       if (!lane_ptr.IsNull()) {
-        ctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
+        ctx.route_lane_ = lane_ptr.ptr_;
       }
       break;
     }
@@ -199,7 +199,7 @@ void Runtime::MonitorAllocate(chi::MonitorModeId mode,
     case chi::MonitorModeId::kLocalSchedule: {
       auto lane_ptr = GetLaneFullPtr(0, 0);  // Queue 0 (low latency), lane 0
       if (!lane_ptr.IsNull()) {
-        ctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
+        ctx.route_lane_ = lane_ptr.ptr_;
       }
       break;
     }
@@ -232,7 +232,7 @@ void Runtime::MonitorFree(chi::MonitorModeId mode, hipc::FullPtr<FreeTask> task,
     case chi::MonitorModeId::kLocalSchedule: {
       auto lane_ptr = GetLaneFullPtr(0, 0);  // Queue 0 (low latency), lane 0
       if (!lane_ptr.IsNull()) {
-        ctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
+        ctx.route_lane_ = lane_ptr.ptr_;
       }
       break;
     }
@@ -269,7 +269,7 @@ void Runtime::MonitorWrite(chi::MonitorModeId mode,
       // Route to high latency queue for I/O operations
       auto lane_ptr = GetLaneFullPtr(1, 0);  // Queue 1 (high latency), lane 0
       if (!lane_ptr.IsNull()) {
-        ctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
+        ctx.route_lane_ = lane_ptr.ptr_;
       }
       break;
     }
@@ -305,7 +305,7 @@ void Runtime::MonitorRead(chi::MonitorModeId mode, hipc::FullPtr<ReadTask> task,
       // Route to high latency queue for I/O operations
       auto lane_ptr = GetLaneFullPtr(1, 1);  // Queue 1 (high latency), lane 1
       if (!lane_ptr.IsNull()) {
-        ctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
+        ctx.route_lane_ = lane_ptr.ptr_;
       }
       break;
     }
@@ -362,7 +362,7 @@ void Runtime::MonitorStat(chi::MonitorModeId mode, hipc::FullPtr<StatTask> task,
     case chi::MonitorModeId::kLocalSchedule: {
       auto lane_ptr = GetLaneFullPtr(0, 0);  // Queue 0 (low latency), lane 0
       if (!lane_ptr.IsNull()) {
-        ctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
+        ctx.route_lane_ = lane_ptr.ptr_;
       }
       break;
     }
@@ -407,7 +407,7 @@ void Runtime::MonitorDestroy(chi::MonitorModeId mode,
     case chi::MonitorModeId::kLocalSchedule: {
       auto lane_ptr = GetLaneFullPtr(0, 0);  // Queue 0 (low latency), lane 0
       if (!lane_ptr.IsNull()) {
-        ctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
+        ctx.route_lane_ = lane_ptr.ptr_;
       }
       break;
     }

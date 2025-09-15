@@ -27,6 +27,9 @@ struct TaskQueueHeader {
     : pool_id(pid), assigned_worker_id(wid), task_count(0), is_enqueued(false) {}
 };
 
+// Type alias for individual lanes with per-lane headers (moved outside TaskQueue class)
+using TaskLane = chi::ipc::multi_mpsc_queue<hipc::TypedPointer<Task>, TaskQueueHeader>::queue_t;
+
 /**
  * Simple wrapper around hipc::multi_mpsc_queue
  * 
@@ -35,8 +38,6 @@ struct TaskQueueHeader {
  */
 class TaskQueue {
 public:
-  // Type alias for individual lanes with per-lane headers
-  using TaskLane = chi::ipc::multi_mpsc_queue<hipc::TypedPointer<Task>, TaskQueueHeader>::queue_t;
   /**
    * Constructor using CtxAllocator (preferred pattern)
    * @param alloc Context allocator containing memory context

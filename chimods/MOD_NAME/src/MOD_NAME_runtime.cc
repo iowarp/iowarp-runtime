@@ -54,7 +54,7 @@ void Runtime::MonitorCreate(chi::MonitorModeId mode,
       {
         auto lane_ptr = GetLaneFullPtr(0, 0);
         if (!lane_ptr.IsNull()) {
-          rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
+          rctx.route_lane_ = lane_ptr.ptr_;
         }
       }
       break;
@@ -96,7 +96,7 @@ void Runtime::MonitorCustom(chi::MonitorModeId mode,
       {
         auto lane_ptr = GetLaneFullPtr(0, 0);
         if (!lane_ptr.IsNull()) {
-          rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
+          rctx.route_lane_ = lane_ptr.ptr_;
         }
       }
       break;
@@ -137,7 +137,7 @@ void Runtime::MonitorDestroy(chi::MonitorModeId mode,
       {
         auto lane_ptr = GetLaneFullPtr(0, 0);
         if (!lane_ptr.IsNull()) {
-          rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
+          rctx.route_lane_ = lane_ptr.ptr_;
         }
       }
       break;
@@ -194,7 +194,7 @@ void Runtime::MonitorCoMutexTest(chi::MonitorModeId mode,
       {
         auto lane_ptr = GetLaneFullPtr(0, 0);
         if (!lane_ptr.IsNull()) {
-          rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
+          rctx.route_lane_ = lane_ptr.ptr_;
         }
       }
       break;
@@ -251,7 +251,7 @@ void Runtime::MonitorCoRwLockTest(chi::MonitorModeId mode,
       {
         auto lane_ptr = GetLaneFullPtr(0, 0);
         if (!lane_ptr.IsNull()) {
-          rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
+          rctx.route_lane_ = lane_ptr.ptr_;
         }
       }
       break;
@@ -289,7 +289,7 @@ void Runtime::MonitorFireAndForgetTest(chi::MonitorModeId mode,
       {
         auto lane_ptr = GetLaneFullPtr(0, 0);
         if (!lane_ptr.IsNull()) {
-          rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
+          rctx.route_lane_ = lane_ptr.ptr_;
         }
       }
       break;
@@ -337,7 +337,7 @@ void Runtime::MonitorWaitTest(chi::MonitorModeId mode,
       {
         auto lane_ptr = GetLaneFullPtr(0, 0);
         if (!lane_ptr.IsNull()) {
-          rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
+          rctx.route_lane_ = lane_ptr.ptr_;
         }
       }
       break;

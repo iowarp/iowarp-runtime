@@ -67,7 +67,7 @@ void Worker::Finalize() {
 
   // Clear active queue reference (don't delete - it's in shared memory)
   active_queue_ = hipc::FullPtr<
-      chi::ipc::mpsc_queue<hipc::TypedPointer<::chi::TaskQueue::TaskLane>>>();
+      chi::ipc::mpsc_queue<hipc::TypedPointer<TaskLane>>>();
 
   is_initialized_ = false;
 }
@@ -84,13 +84,13 @@ void Worker::Run() {
   // Main worker loop - pop lanes from active queue and process tasks
   while (is_running_) {
     did_work_ = false;  // Reset work tracker at start of each loop iteration
-    hipc::TypedPointer<::chi::TaskQueue::TaskLane> lane_ptr;
+    hipc::TypedPointer<TaskLane> lane_ptr;
 
     // Pop a lane from the active queue
     if (!active_queue_.IsNull() && !active_queue_->pop(lane_ptr).IsNull()) {
       if (!lane_ptr.IsNull()) {
         // Convert TypedPointer to FullPtr by passing to constructor
-        hipc::FullPtr<::chi::TaskQueue::TaskLane> lane_full_ptr(lane_ptr);
+        hipc::FullPtr<TaskLane> lane_full_ptr(lane_ptr);
         did_work_ = true;  // Mark that we attempted to process work
 
         // Process up to 64 tasks from this specific lane
@@ -149,7 +149,7 @@ void Worker::Run() {
 void Worker::Stop() { is_running_ = false; }
 
 void Worker::EnqueueLane(
-    hipc::TypedPointer<::chi::TaskQueue::TaskLane> lane_ptr) {
+    hipc::TypedPointer<TaskLane> lane_ptr) {
   if (lane_ptr.IsNull() || active_queue_.IsNull()) {
     return;
   }
@@ -189,12 +189,12 @@ Container* Worker::GetCurrentContainer() const {
   return run_ctx->container;
 }
 
-::chi::TaskQueue::TaskLane* Worker::GetCurrentLane() const {
+TaskLane* Worker::GetCurrentLane() const {
   RunContext* run_ctx = GetCurrentRunContext();
   if (!run_ctx) {
     return nullptr;
   }
-  return static_cast<::chi::TaskQueue::TaskLane*>(run_ctx->lane);
+  return run_ctx->lane;
 }
 
 void Worker::SetAsCurrentWorker() {
@@ -208,7 +208,7 @@ void Worker::ClearCurrentWorker() {
 }
 
 bool Worker::RouteTask(const FullPtr<Task>& task_ptr,
-                       ::chi::TaskQueue::TaskLane* lane,
+                       TaskLane* lane,
                        Container*& container) {
   if (task_ptr.IsNull()) {
     return false;
@@ -287,7 +287,7 @@ bool Worker::IsTaskLocal(const std::vector<PoolQuery>& pool_queries) {
 }
 
 bool Worker::RouteLocal(const FullPtr<Task>& task_ptr,
-                        ::chi::TaskQueue::TaskLane* lane,
+                        TaskLane* lane,
                         Container*& container) {
   auto* pool_manager = CHI_POOL_MANAGER;
   container = pool_manager->GetContainer(task_ptr->pool_id_);
@@ -303,12 +303,11 @@ bool Worker::RouteLocal(const FullPtr<Task>& task_ptr,
                        task_ptr, run_ctx);
 
     // Check if the route_lane_ is different from the input lane
-    ::chi::TaskQueue::TaskLane* route_lane =
-        static_cast<::chi::TaskQueue::TaskLane*>(run_ctx.route_lane_);
+    TaskLane* route_lane = run_ctx.route_lane_;
     if (route_lane && route_lane != lane) {
       // Task should be routed to a different lane - enqueue it there
       hipc::TypedPointer<Task> task_typed_ptr(task_ptr.shm_);
-      hipc::FullPtr<::chi::TaskQueue::TaskLane> route_lane_full_ptr(route_lane);
+      hipc::FullPtr<TaskLane> route_lane_full_ptr(route_lane);
       ::chi::TaskQueue::EmplaceTask(route_lane_full_ptr, task_typed_ptr);
 
       // Set TASK_ROUTED flag to indicate this task has been routed
@@ -607,7 +606,7 @@ void Worker::DeallocateStackAndContext(RunContext* run_ctx) {
 }
 
 void Worker::BeginTask(const FullPtr<Task>& task_ptr, Container* container,
-                       ::chi::TaskQueue::TaskLane* lane) {
+                       TaskLane* lane) {
   if (task_ptr.IsNull()) {
     return;
   }
@@ -840,8 +839,7 @@ void Worker::ReschedulePeriodicTask(RunContext* run_ctx,
   }
 
   // Get the lane from the run context
-  ::chi::TaskQueue::TaskLane* lane =
-      static_cast<::chi::TaskQueue::TaskLane*>(run_ctx->lane);
+  TaskLane* lane = run_ctx->lane;
   if (!lane) {
     // No lane information, cannot reschedule
     return;
@@ -857,7 +855,7 @@ void Worker::ReschedulePeriodicTask(RunContext* run_ctx,
     // Lane has been reassigned to a different worker - reschedule task in the
     // lane Convert task FullPtr to TypedPointer for lane enqueueing
     hipc::TypedPointer<Task> task_typed_ptr(task_ptr.shm_);
-    hipc::FullPtr<::chi::TaskQueue::TaskLane> lane_full_ptr(lane);
+    hipc::FullPtr<TaskLane> lane_full_ptr(lane);
     ::chi::TaskQueue::EmplaceTask(lane_full_ptr, task_typed_ptr);
   }
 }

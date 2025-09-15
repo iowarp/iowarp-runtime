@@ -2,6 +2,23 @@
 
 Use the Google C++ style guide for C++.
 
+### Type Aliases
+
+Use the `WorkQueue` typedef for worker queue types:
+```cpp
+using WorkQueue = chi::ipc::mpsc_queue<hipc::TypedPointer<TaskLane>>;
+```
+
+This simplifies code readability and maintenance for worker queue operations.
+
+**TaskLane Typedef:**
+The `TaskLane` typedef is defined globally in the `chi` namespace:
+```cpp
+using TaskLane = chi::ipc::multi_mpsc_queue<hipc::TypedPointer<Task>, TaskQueueHeader>::queue_t;
+```
+
+Use `TaskLane*` for all lane pointers in RunContext and other interfaces. Avoid `void*` and explicit type casts.
+
 You should store the pointer returned by the singleton GetInstance method. Avoid dereferencing GetInstance method directly using either -> or *. E.g., do not do ``hshm::Singleton<T>::GetInstance()->var_``. You should do ``auto *x = hshm::Singleton<T>::GetInstance(); x->var_;``.
 
 
@@ -72,6 +89,22 @@ This requirement ensures namespace flexibility and maintains a single source of 
 ### Pool Name Requirements
 All ChiMod Create functions MUST require a user-provided `pool_name` parameter. Never auto-generate pool names using `pool_id_` during Create operations, as `pool_id_` is not set until after Create completes.
 
+**Admin Pool Name Requirement:**
+The admin pool name MUST always be "admin". Multiple admin pools are NOT supported.
+
+**Correct Admin Usage:**
+```cpp
+// Admin container - MUST use "admin" as pool name
+admin_client.Create(mctx, pool_query, "admin");
+```
+
+**Incorrect Admin Usage:**
+```cpp
+// WRONG - Any other pool name for admin
+admin_client.Create(mctx, pool_query, "pool_1234");
+admin_client.Create(mctx, pool_query, "my_admin_container");
+```
+
 **Pool Name Guidelines:**
 - Use descriptive, unique names that identify the purpose or content
 - For file-based devices (like BDev), the `pool_name` serves as the file path
@@ -92,9 +125,8 @@ bdev_client.Create(mctx, pool_query, pool_name, chimaera::bdev::BdevType::kRam, 
 std::string pool_name = "my_modname_container";
 mod_name_client.Create(mctx, pool_query, pool_name);
 
-// Admin container
-std::string pool_name = "my_admin_container";
-admin_client.Create(mctx, pool_query, pool_name);
+// Admin container - MUST always use "admin"
+admin_client.Create(mctx, pool_query, "admin");
 ```
 
 **Incorrect Usage:**
