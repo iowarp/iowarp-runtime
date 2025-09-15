@@ -101,54 +101,11 @@ struct UniqueId {
 };
 
 /**
- * Pool identifier inheriting from UniqueId
+ * Pool identifier - typedef of UniqueId for semantic clarity
  */
-struct PoolId : public UniqueId {
-  constexpr PoolId() : UniqueId() {}
-  constexpr PoolId(u32 major, u32 minor) : UniqueId(major, minor) {}
-  constexpr PoolId(const UniqueId& uid) : UniqueId(uid) {}
+using PoolId = UniqueId;
 
-  // Explicitly delete single-parameter constructors to prevent implicit conversions
-  PoolId(u32) = delete;
-  PoolId(int) = delete;
-  PoolId(u64) = delete;
-
-  // Delete implicit conversions to integers
-  operator u32() const = delete;
-  operator int() const = delete;
-  operator u64() const = delete;
-
-  // Bring in the parent equality operators for PoolId-to-PoolId comparison
-  using UniqueId::operator==;
-  using UniqueId::operator!=;
-
-  // Delete equality operators with integers
-  bool operator==(u32) const = delete;
-  bool operator==(int) const = delete;
-  bool operator==(u64) const = delete;
-  bool operator!=(u32) const = delete;
-  bool operator!=(int) const = delete;
-  bool operator!=(u64) const = delete;
-
-  // Increment operators for pool ID generation
-  PoolId& operator++() {  // prefix ++
-    ++major_;
-    return *this;
-  }
-  
-  PoolId operator++(int) {  // postfix ++
-    PoolId temp(*this);
-    ++major_;
-    return temp;
-  }
-
-  // Static methods
-  static constexpr PoolId GetNull() {
-    return PoolId(UniqueId::GetNull());
-  }
-};
-
-// Stream output operator for PoolId
+// Stream output operator for PoolId (typedef of UniqueId)
 inline std::ostream& operator<<(std::ostream& os, const PoolId& pool_id) {
   os << "PoolId(major:" << pool_id.major_ << ", minor:" << pool_id.minor_ << ")";
   return os;
@@ -284,7 +241,7 @@ enum ThreadType {
 };
 
 // Special pool IDs
-constexpr PoolId kAdminPoolId = PoolId(1, 0);  // Admin ChiMod pool ID (reserved)
+constexpr PoolId kAdminPoolId = UniqueId(1, 0);  // Admin ChiMod pool ID (reserved)
 
 // Allocator type aliases using HSHM conventions
 #define CHI_MAIN_ALLOC_T hipc::ThreadLocalAllocator
@@ -348,12 +305,6 @@ namespace std {
     }
   };
 
-  template <>
-  struct hash<chi::PoolId> {
-    size_t operator()(const chi::PoolId& id) const {
-      return hash<chi::UniqueId>()(id);
-    }
-  };
 
   template <>
   struct hash<chi::TaskNode> {
