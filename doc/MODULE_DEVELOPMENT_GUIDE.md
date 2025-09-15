@@ -1424,44 +1424,50 @@ ipc_manager->DelTask(task, chi::kMainSegment);
 // Framework Del dispatcher calls ipc_manager->DelTask() automatically
 ```
 
-### CHI_CLIENT Buffer Allocation
+### CHI_IPC Buffer Allocation
 
-The `CHI_CLIENT` singleton provides centralized buffer allocation for shared memory operations in client code. Use this for allocating temporary buffers that need to be shared between client and runtime processes.
+The `CHI_IPC` singleton provides centralized buffer allocation for shared memory operations in client code. Use this for allocating temporary buffers that need to be shared between client and runtime processes.
+
+**Important**: `AllocateBuffer` is a template function that returns `hipc::FullPtr<T>`, not `hipc::Pointer`. You must specify the template type parameter when calling it.
 
 #### Basic Usage
 ```cpp
 #include <chimaera/chimaera.h>
 
-// Get the client singleton
-auto* client = CHI_CLIENT;
+// Get the IPC manager singleton
+auto* ipc_manager = CHI_IPC;
 
-// Allocate a buffer in shared memory
+// Allocate a buffer in shared memory (returns FullPtr<T>, not hipc::Pointer)
 size_t buffer_size = 1024;
-hipc::Pointer buffer_ptr = client->AllocateBuffer(buffer_size);
+hipc::FullPtr<void> buffer_ptr = ipc_manager->AllocateBuffer<void>(buffer_size);
 
 // Use the buffer (example: copy data into it)
-void* buffer_data = buffer_ptr.get();
+void* buffer_data = buffer_ptr.ptr_;
 memcpy(buffer_data, source_data, data_size);
+
+// Alternative: Allocate typed buffer
+hipc::FullPtr<char> char_buffer = ipc_manager->AllocateBuffer<char>(buffer_size);
+strncpy(char_buffer.ptr_, "example data", buffer_size);
 
 // The buffer will be automatically freed when buffer_ptr goes out of scope
 // or when explicitly deallocated by the framework
 ```
 
-#### Use Cases for CHI_CLIENT Buffers
+#### Use Cases for CHI_IPC Buffers
 - **Temporary data transfer**: When passing large data to tasks
 - **Intermediate storage**: For computations that need shared memory
 - **I/O operations**: Reading/writing data that needs to be accessible by runtime
 
 #### Best Practices
 ```cpp
-// ✅ Good: Use CHI_CLIENT for temporary shared buffers
-auto* client = CHI_CLIENT;
-hipc::Pointer temp_buffer = client->AllocateBuffer(data_size);
+// ✅ Good: Use CHI_IPC for temporary shared buffers
+auto* ipc_manager = CHI_IPC;
+hipc::FullPtr<void> temp_buffer = ipc_manager->AllocateBuffer<void>(data_size);
 
 // ✅ Good: Use chi::ipc types for persistent task data
 chi::ipc::string task_string(ctx_alloc, "persistent data");
 
-// ❌ Avoid: Don't use CHI_CLIENT for small, simple task parameters
+// ❌ Avoid: Don't use CHI_IPC for small, simple task parameters
 // Use chi::ipc types directly in task definitions instead
 ```
 

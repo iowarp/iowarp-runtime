@@ -301,7 +301,7 @@ target_link_libraries(chimaera_your_module_tests
   chimaera_admin_runtime
   chimaera_admin_client
   chimaera
-  ${HermesShm_LIBRARIES}
+  hshm::cxx
   ${CMAKE_THREAD_LIBS_INIT}
 )
 

@@ -23,7 +23,7 @@ find_package(chimaera-core REQUIRED)
 target_link_libraries(your_application
   chimaera::admin_client        # Admin client library
   chimaera::cxx                 # Main chimaera library
-  ${HermesShm_LIBRARIES}        # HSHM libraries
+  hshm::cxx                     # HermesShm library
   ${CMAKE_THREAD_LIBS_INIT}     # Threading support
 )
 ```

@@ -160,7 +160,7 @@ target_link_libraries(your_target
   chimaera_admin_client           # Admin module client (always required)
   chimaera_${CHIMOD}_runtime      # Specific ChiMod runtime library
   chimaera_${CHIMOD}_client       # Specific ChiMod client library
-  ${HermesShm_LIBRARIES}          # HSHM libraries
+  hshm::cxx                       # HermesShm library
   ${CMAKE_THREAD_LIBS_INIT}       # Threading support
 )
 ```
@@ -220,7 +220,7 @@ The Chimaera runtime has several core objects that must be properly linked:
 ```cmake
 target_link_libraries(chimaera_start_runtime
   cxx                    # Core runtime objects and initialization
-  ${HermesShm_LIBRARIES}      # HSHM shared memory framework
+  hshm::cxx              # HermesShm shared memory framework
   ${CMAKE_THREAD_LIBS_INIT}   # Threading support for runtime
 )
 ```
@@ -229,7 +229,7 @@ target_link_libraries(chimaera_start_runtime
 ```cmake
 target_link_libraries(chimaera_stop_runtime
   cxx                    # Client-side objects only
-  ${HermesShm_LIBRARIES}      # HSHM libraries
+  hshm::cxx              # HermesShm libraries
 )
 ```
 

@@ -27,7 +27,7 @@ target_link_libraries(your_application
   chimaera::MOD_NAME_client     # MOD_NAME client library
   chimaera::admin_client        # Admin client (required)
   chimaera::cxx                 # Main chimaera library
-  ${HermesShm_LIBRARIES}        # HSHM libraries
+  hshm::cxx                     # HermesShm library
   ${CMAKE_THREAD_LIBS_INIT}     # Threading support
 )
 ```

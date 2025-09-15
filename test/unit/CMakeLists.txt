@@ -66,6 +66,12 @@ set(WAIT_FUNCTIONALITY_TEST_SOURCES
   test_wait_functionality.cc
 )
 
+# IPC AllocateBuffer test executable (test for CHI_IPC->AllocateBuffer functionality)
+set(IPC_ALLOCATE_BUFFER_TEST_TARGET chimaera_ipc_allocate_buffer_tests)
+set(IPC_ALLOCATE_BUFFER_TEST_SOURCES
+  test_ipc_allocate_buffer.cc
+)
+
 
 # Create task archive test executable
 add_executable(${TASK_ARCHIVE_TEST_TARGET} ${TASK_ARCHIVE_TEST_SOURCES})
@@ -75,7 +81,6 @@ target_include_directories(${TASK_ARCHIVE_TEST_TARGET} PRIVATE
   ${CMAKE_SOURCE_DIR}/include
   ${CMAKE_SOURCE_DIR}/test  # For simple_test.h
   ${CMAKE_SOURCE_DIR}/chimods/admin/include  # For admin tasks
-  ${HermesShm_INCLUDE_DIRS}
 )
 
 # Link against required libraries for task archive tests
@@ -83,7 +88,7 @@ target_link_libraries(${TASK_ARCHIVE_TEST_TARGET}
   cxx                        # Main Chimaera library
   chimaera_admin_runtime          # Admin module runtime for task types
   chimaera_admin_client           # Admin module client for task types
-  ${HermesShm_LIBRARIES}          # HSHM libraries
+  hshm::cxx                       # HermesShm library
   ${CMAKE_THREAD_LIBS_INIT}       # Threading support
 )
 
@@ -109,7 +114,6 @@ target_include_directories(${FLUSH_TEST_TARGET} PRIVATE
   ${CMAKE_SOURCE_DIR}/test  # For test utilities
   ${CMAKE_SOURCE_DIR}/chimods/admin/include  # For admin tasks
   ${CMAKE_SOURCE_DIR}/chimods/MOD_NAME/include  # For MOD_NAME tasks
-  ${HermesShm_INCLUDE_DIRS}
 )
 
 # Link against required libraries for flush tests
@@ -119,7 +123,7 @@ target_link_libraries(${FLUSH_TEST_TARGET}
   chimaera_admin_client           # Admin module client
   chimaera_MOD_NAME_runtime       # MOD_NAME module runtime for work tracking
   chimaera_MOD_NAME_client        # MOD_NAME module client
-  ${HermesShm_LIBRARIES}          # HSHM libraries
+  hshm::cxx                       # HermesShm library
   ${CMAKE_THREAD_LIBS_INIT}       # Threading support
 )
 
@@ -145,7 +149,6 @@ target_include_directories(${BDEV_TEST_TARGET} PRIVATE
   ${CMAKE_SOURCE_DIR}/test  # For simple_test.h
   ${CMAKE_SOURCE_DIR}/chimods/admin/include  # For admin tasks
   ${CMAKE_SOURCE_DIR}/chimods/bdev/include   # For bdev tasks and client
-  ${HermesShm_INCLUDE_DIRS}
 )
 
 # Link against required libraries for bdev tests
@@ -155,7 +158,7 @@ target_link_libraries(${BDEV_TEST_TARGET}
   chimaera_admin_client           # Admin module client
   chimaera_bdev_runtime           # Bdev module runtime
   chimaera_bdev_client            # Bdev module client
-  ${HermesShm_LIBRARIES}          # HSHM libraries
+  hshm::cxx                       # HermesShm library
   ${CMAKE_THREAD_LIBS_INIT}       # Threading support
 )
 
@@ -262,7 +265,6 @@ target_include_directories(${COMUTEX_TEST_TARGET} PRIVATE
   ${CMAKE_SOURCE_DIR}/test  # For simple_test.h
   ${CMAKE_SOURCE_DIR}/chimods/admin/include  # For admin tasks
   ${CMAKE_SOURCE_DIR}/chimods/MOD_NAME/include  # For MOD_NAME tasks and client
-  ${HermesShm_INCLUDE_DIRS}
 )
 
 # Link against required libraries for CoMutex tests
@@ -272,7 +274,7 @@ target_link_libraries(${COMUTEX_TEST_TARGET}
   chimaera_admin_client           # Admin module client
   chimaera_MOD_NAME_runtime       # MOD_NAME module runtime for CoMutex/CoRwLock
   chimaera_MOD_NAME_client        # MOD_NAME module client
-  ${HermesShm_LIBRARIES}          # HSHM libraries
+  hshm::cxx                       # HermesShm library
   ${CMAKE_THREAD_LIBS_INIT}       # Threading support
 )
 
@@ -298,7 +300,6 @@ target_include_directories(${FIRE_AND_FORGET_TEST_TARGET} PRIVATE
   ${CMAKE_SOURCE_DIR}/test  # For simple_test.h
   ${CMAKE_SOURCE_DIR}/chimods/admin/include  # For admin tasks
   ${CMAKE_SOURCE_DIR}/chimods/MOD_NAME/include  # For MOD_NAME tasks and client
-  ${HermesShm_INCLUDE_DIRS}
 )
 
 # Link against required libraries for Fire-and-Forget tests
@@ -308,7 +309,7 @@ target_link_libraries(${FIRE_AND_FORGET_TEST_TARGET}
   chimaera_admin_client           # Admin module client
   chimaera_MOD_NAME_runtime       # MOD_NAME module runtime for fire-and-forget tasks
   chimaera_MOD_NAME_client        # MOD_NAME module client
-  ${HermesShm_LIBRARIES}          # HSHM libraries
+  hshm::cxx                       # HermesShm library
   ${CMAKE_THREAD_LIBS_INIT}       # Threading support
 )
 
@@ -334,7 +335,6 @@ target_include_directories(${WAIT_FUNCTIONALITY_TEST_TARGET} PRIVATE
   ${CMAKE_SOURCE_DIR}/test  # For simple_test.h
   ${CMAKE_SOURCE_DIR}/chimods/admin/include  # For admin tasks
   ${CMAKE_SOURCE_DIR}/chimods/MOD_NAME/include  # For MOD_NAME tasks and client
-  ${HermesShm_INCLUDE_DIRS}
 )
 
 # Link against required libraries for Wait Functionality tests
@@ -344,7 +344,7 @@ target_link_libraries(${WAIT_FUNCTIONALITY_TEST_TARGET}
   chimaera_admin_client           # Admin module client
   chimaera_MOD_NAME_runtime       # MOD_NAME module runtime for WaitTest tasks
   chimaera_MOD_NAME_client        # MOD_NAME module client
-  ${HermesShm_LIBRARIES}          # HSHM libraries
+  hshm::cxx                       # HermesShm library
   ${CMAKE_THREAD_LIBS_INIT}       # Threading support
 )
 
@@ -359,6 +359,33 @@ set_target_properties(${WAIT_FUNCTIONALITY_TEST_TARGET} PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
 )
 
+# Create IPC AllocateBuffer test executable
+add_executable(${IPC_ALLOCATE_BUFFER_TEST_TARGET} ${IPC_ALLOCATE_BUFFER_TEST_SOURCES})
+
+# Include directories for IPC AllocateBuffer tests
+target_include_directories(${IPC_ALLOCATE_BUFFER_TEST_TARGET} PRIVATE
+  ${CMAKE_SOURCE_DIR}/include
+  ${CMAKE_SOURCE_DIR}/test  # For test utilities
+)
+
+# Link against required libraries for IPC AllocateBuffer tests
+target_link_libraries(${IPC_ALLOCATE_BUFFER_TEST_TARGET}
+  cxx                        # Main Chimaera library
+  hshm::cxx                  # HermesShm library
+  ${CMAKE_THREAD_LIBS_INIT}  # Threading support
+)
+
+# Set C++ standard for IPC AllocateBuffer tests
+set_target_properties(${IPC_ALLOCATE_BUFFER_TEST_TARGET} PROPERTIES
+  CXX_STANDARD 17
+  CXX_STANDARD_REQUIRED ON
+)
+
+# Copy IPC AllocateBuffer test executable to bin directory
+set_target_properties(${IPC_ALLOCATE_BUFFER_TEST_TARGET} PROPERTIES
+  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)
+
 
 # Create test executable
 add_executable(${TEST_TARGET} ${TEST_SOURCES})
@@ -367,13 +394,12 @@ add_executable(${TEST_TARGET} ${TEST_SOURCES})
 target_include_directories(${TEST_TARGET} PRIVATE
   ${CMAKE_SOURCE_DIR}/include
   ${CMAKE_SOURCE_DIR}/test  # For simple_test.h
-  ${HermesShm_INCLUDE_DIRS}
 )
 
 # Link against required libraries
 target_link_libraries(${TEST_TARGET}
   cxx                        # Main Chimaera library
-  ${HermesShm_LIBRARIES}          # HSHM libraries
+  hshm::cxx                       # HermesShm library
   ${CMAKE_THREAD_LIBS_INIT}       # Threading support
 )
 
@@ -734,6 +760,62 @@ if(CHIMAERA_ENABLE_TESTS)
     COMMAND ${WAIT_FUNCTIONALITY_TEST_TARGET}
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
   )
+  
+  # IPC AllocateBuffer Tests
+  add_test(
+    NAME ipc_allocate_buffer_basic_tests
+    COMMAND ${IPC_ALLOCATE_BUFFER_TEST_TARGET} "[ipc][allocate_buffer][basic]"
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  )
+  
+  add_test(
+    NAME ipc_allocate_buffer_types_tests
+    COMMAND ${IPC_ALLOCATE_BUFFER_TEST_TARGET} "[ipc][allocate_buffer][types]"
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  )
+  
+  add_test(
+    NAME ipc_allocate_buffer_sizes_tests
+    COMMAND ${IPC_ALLOCATE_BUFFER_TEST_TARGET} "[ipc][allocate_buffer][sizes]"
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  )
+  
+  add_test(
+    NAME ipc_allocate_buffer_multiple_tests
+    COMMAND ${IPC_ALLOCATE_BUFFER_TEST_TARGET} "[ipc][allocate_buffer][multiple]"
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  )
+  
+  add_test(
+    NAME ipc_allocate_buffer_client_runtime_tests
+    COMMAND ${IPC_ALLOCATE_BUFFER_TEST_TARGET} "[ipc][allocate_buffer][client_runtime]"
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  )
+  
+  add_test(
+    NAME ipc_allocate_buffer_error_tests
+    COMMAND ${IPC_ALLOCATE_BUFFER_TEST_TARGET} "[ipc][allocate_buffer][error]"
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  )
+  
+  add_test(
+    NAME ipc_allocate_buffer_alignment_tests
+    COMMAND ${IPC_ALLOCATE_BUFFER_TEST_TARGET} "[ipc][allocate_buffer][alignment]"
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  )
+  
+  add_test(
+    NAME ipc_allocate_buffer_documentation_tests
+    COMMAND ${IPC_ALLOCATE_BUFFER_TEST_TARGET} "[ipc][allocate_buffer][documentation]"
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  )
+  
+  # Comprehensive IPC AllocateBuffer test
+  add_test(
+    NAME all_ipc_allocate_buffer_tests
+    COMMAND ${IPC_ALLOCATE_BUFFER_TEST_TARGET}
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  )
 
   # Add a comprehensive test that runs all tests
   add_test(
@@ -1048,7 +1130,7 @@ add_custom_target(test_all_unit
 )
 
 # Install test executables (optional)
-install(TARGETS ${TEST_TARGET} ${TASK_ARCHIVE_TEST_TARGET} ${FLUSH_TEST_TARGET} ${BDEV_TEST_TARGET} ${FIBER_TEST_TARGET} ${WORKER_FIBER_TEST_TARGET} ${SEGFAULT_DEBUG_TEST_TARGET} ${COMUTEX_TEST_TARGET} ${FIRE_AND_FORGET_TEST_TARGET} ${WAIT_FUNCTIONALITY_TEST_TARGET}
+install(TARGETS ${TEST_TARGET} ${TASK_ARCHIVE_TEST_TARGET} ${FLUSH_TEST_TARGET} ${BDEV_TEST_TARGET} ${FIBER_TEST_TARGET} ${WORKER_FIBER_TEST_TARGET} ${SEGFAULT_DEBUG_TEST_TARGET} ${COMUTEX_TEST_TARGET} ${FIRE_AND_FORGET_TEST_TARGET} ${WAIT_FUNCTIONALITY_TEST_TARGET} ${IPC_ALLOCATE_BUFFER_TEST_TARGET}
   RUNTIME DESTINATION bin
 )
 
@@ -1068,5 +1150,7 @@ message(STATUS "  Fire-and-Forget test target: ${FIRE_AND_FORGET_TEST_TARGET}")
 message(STATUS "  Fire-and-Forget test sources: ${FIRE_AND_FORGET_TEST_SOURCES}")
 message(STATUS "  Wait Functionality test target: ${WAIT_FUNCTIONALITY_TEST_TARGET}")
 message(STATUS "  Wait Functionality test sources: ${WAIT_FUNCTIONALITY_TEST_SOURCES}")
+message(STATUS "  IPC AllocateBuffer test target: ${IPC_ALLOCATE_BUFFER_TEST_TARGET}")
+message(STATUS "  IPC AllocateBuffer test sources: ${IPC_ALLOCATE_BUFFER_TEST_SOURCES}")
 message(STATUS "  CTest enabled: ${CHIMAERA_ENABLE_TESTS}")
 message(STATUS "  Output directory: ${CMAKE_BINARY_DIR}/bin")

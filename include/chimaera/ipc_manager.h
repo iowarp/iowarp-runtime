@@ -154,13 +154,13 @@ class IpcManager {
       if (!runtime_data_allocator_) {
         return FullPtr<T>();
       }
-      return runtime_data_allocator_->template AllocateObjs<T>(size);
+      return runtime_data_allocator_->template AllocateObjs<T>(HSHM_MCTX, size);
     } else {
       // Client uses cdata segment
       if (!client_data_allocator_) {
         return FullPtr<T>();
       }
-      return client_data_allocator_->template AllocateObjs<T>(size);
+      return client_data_allocator_->template AllocateObjs<T>(HSHM_MCTX, size);
     }
   }
 
