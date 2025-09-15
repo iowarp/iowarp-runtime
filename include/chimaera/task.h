@@ -162,6 +162,8 @@ class Task : public hipc::ShmContainer {
    */
   HSHM_CROSS_FUN void Wait();
 
+
+
   /**
    * Check if task is complete
    * @return true if task is complete, false otherwise
@@ -173,35 +175,7 @@ class Task : public hipc::ShmContainer {
    */
   HSHM_CROSS_FUN void Yield();
 
-  /**
-   * Wait for specific subtask completion
-   * @param subtask Pointer to subtask to wait for
-   */
-  template <typename TaskT>
-  HSHM_CROSS_FUN void Wait(TaskT* subtask) {
-    if (subtask) {
-      // Add to waiting_for_tasks vector before calling Wait()
-      // This will be handled in the actual Wait() implementation in task.cc
-      // to avoid circular include issues
-      subtask->Wait();
-    }
-  }
 
-  /**
-   * Wait for multiple subtasks completion
-   * @param subtasks Vector of subtask pointers to wait for
-   */
-  template <typename TaskT>
-  HSHM_CROSS_FUN void Wait(std::vector<FullPtr<TaskT>>& subtasks) {
-    // Add all subtasks to waiting_for_tasks vector in task.cc implementation
-    // This will be handled to avoid circular includes
-    // Iterate through and wait for each
-    for (auto& subtask : subtasks) {
-      if (!subtask.IsNull()) {
-        subtask->Wait();
-      }
-    }
-  }
 
   /**
    * Check if task is periodic

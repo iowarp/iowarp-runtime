@@ -142,10 +142,11 @@ bdev_client.Create(mctx, pool_query, "", chimaera::bdev::BdevType::kRam);
 ```
 
 **BDev Interface Requirements:**
-- Use single `Create()` and `AsyncCreate()` methods (not multiple overloads)
-- For file-based BDev: `pool_name` parameter serves as the file path
+- Use single `Create()` and `AsyncCreate()` methods (not multiple overloads)  
+- For file-based BDev: `pool_name` parameter IS the file path
 - For RAM-based BDev: `pool_name` parameter serves as unique identifier
 - Signature: `Create(mctx, pool_query, pool_name, bdev_type, total_size, io_depth, alignment)`
+- No separate `file_path` parameter - the `pool_name` serves dual purpose
 
 ## ChiMod Linking Requirements
 
@@ -355,19 +356,37 @@ This section provides complete step-by-step instructions for:
 
 ## BDev ChiMod Requirements
 
-### Pool Naming Convention
-For BDev ChiMods, the pool name MUST be the file_path parameter. Do not use separate artificial pool names.
+### Unified Pool Name Interface
+BDev ChiMods use a simplified interface where the `pool_name` parameter serves dual purposes:
+- **For file-based BDev**: The `pool_name` IS the file path
+- **For RAM-based BDev**: The `pool_name` is a unique identifier
 
 **Correct Usage:**
 ```cpp
-// Use file_path directly as pool name
-std::string pool_name = file_path.empty() ? "bdev_ram_" + std::to_string(pool_id_.ToU64()) : file_path;
+// File-based BDev - pool_name is the file path
+std::string file_path = "/path/to/my/device.dat";
+bdev_client.Create(mctx, pool_query, file_path, chimaera::bdev::BdevType::kFile, 
+                   total_size, io_depth, alignment);
+
+// RAM-based BDev - pool_name is unique identifier  
+std::string pool_name = "my_ram_device_" + std::to_string(timestamp);
+bdev_client.Create(mctx, pool_query, pool_name, chimaera::bdev::BdevType::kRam,
+                   total_size, io_depth, alignment);
 ```
 
-**Incorrect Usage:**
+**Key Benefits:**
+- **Simplified interface**: No separate `file_path` parameter needed
+- **Unified approach**: Single `pool_name` parameter serves both purposes
+- **Direct correspondence**: Pool name directly maps to file path for file-based operations
+- **Clear semantics**: Pool identification and file access use the same parameter
+
+**CreateParams Structure:**
+The BDev CreateParams no longer includes a separate `file_path_` field. The runtime extracts the pool name from the task and uses it directly as the file path when needed:
+
 ```cpp
-// WRONG - Don't create artificial pool names
-std::string pool_name = "bdev_pool_" + std::to_string(pool_id_.ToU64());
+// Runtime implementation uses pool_name directly
+std::string pool_name = task->pool_name_.str();
+file_fd_ = open(pool_name.c_str(), O_RDWR | O_CREAT | O_DIRECT, 0644);
 ```
 
 This ensures that the pool name directly corresponds to the file being accessed, making pool identification and management more intuitive.
@@ -454,6 +473,36 @@ chi::CoRwLock rwlock;
 ```
 
 **Note**: These locks are only for runtime code and have no client-side equivalents.
+
+## Task Wait Functionality
+
+### Critical Fix for Infinite Loops
+The task `Wait()` function has been fixed to prevent infinite loops in the blocked task system. When a task calls `Wait()`, it automatically adds itself to the current task's `waiting_for_tasks` list in `RunContext`.
+
+### How It Works
+When `task->Wait()` is called:
+1. The task adds itself to the current `RunContext::waiting_for_tasks` vector
+2. This ensures `AreSubtasksCompleted()` properly tracks the task completion
+3. The worker's blocked queue system can correctly determine when to resume blocked tasks
+4. Prevents infinite loops where tasks continuously get added to `AddToBlockedQueue` but `AreSubtasksCompleted()` always returns `true`
+
+### Implementation
+The fix is implemented in the main `Wait()` function in `task.cc`:
+```cpp
+// Add this task to the current task's waiting_for_tasks list
+// This ensures AreSubtasksCompleted() properly tracks this subtask
+auto alloc = HSHM_MEMORY_MANAGER->GetDefaultAllocator<CHI_MAIN_ALLOC_T>();
+hipc::FullPtr<Task> this_task_ptr(alloc, this);
+run_ctx->waiting_for_tasks.push_back(this_task_ptr);
+```
+
+### Usage
+Simply call `Wait()` on any task - the tracking is automatic:
+```cpp
+task->Wait();  // Automatically tracked in parent task's waiting list
+```
+
+This change ensures that the worker's `ContinueBlockedTasks()` function properly detects when subtasks are completed and can resume blocked parent tasks without infinite loops.
 
 # ChiMod Development
 

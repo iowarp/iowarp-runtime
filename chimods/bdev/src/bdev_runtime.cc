@@ -50,10 +50,13 @@ void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& ctx) {
   hipc::CtxAllocator<CHI_MAIN_ALLOC_T> ctx_alloc(HSHM_MCTX, main_allocator_);
   CreateParams params = task->GetParams(ctx_alloc);
 
+  // Get the pool name which serves as the file path for file-based operations
+  std::string pool_name = task->pool_name_.str();
+
   HILOG(kInfo,
-        "DEBUG: Bdev runtime received params: bdev_type={}, file_path='{}', "
+        "DEBUG: Bdev runtime received params: bdev_type={}, pool_name='{}', "
         "total_size={}, io_depth={}, alignment={}",
-        static_cast<chi::u32>(params.bdev_type_), params.file_path_,
+        static_cast<chi::u32>(params.bdev_type_), pool_name,
         params.total_size_, params.io_depth_, params.alignment_);
 
   // Initialize the container with pool information and domain query
@@ -70,9 +73,9 @@ void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& ctx) {
 
   // Initialize storage backend based on type
   if (bdev_type_ == BdevType::kFile) {
-    // File-based storage initialization
+    // File-based storage initialization - use pool_name as file path
     file_fd_ =
-        open(params.file_path_.c_str(), O_RDWR | O_CREAT | O_DIRECT, 0644);
+        open(pool_name.c_str(), O_RDWR | O_CREAT | O_DIRECT, 0644);
     if (file_fd_ < 0) {
       task->return_code_ = 1;
       return;
@@ -152,7 +155,7 @@ void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& ctx) {
   // Set success result
   task->return_code_ = 0;
 
-  std::cout << "bdev container created for file: " << params.file_path_
+  std::cout << "bdev container created for pool: " << pool_name
             << " (Size: " << file_size_ << " bytes)" << std::endl;
 }
 

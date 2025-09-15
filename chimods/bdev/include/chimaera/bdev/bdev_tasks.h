@@ -123,7 +123,6 @@ struct PerfMetrics {
 struct CreateParams {
   // bdev-specific parameters
   BdevType bdev_type_;             // Block device type (file or RAM)
-  std::string file_path_;          // Path to block device file (for kFile type)
   chi::u64 total_size_;            // Total size for allocation (0 = file size for kFile, required for kRam)
   chi::u32 io_depth_;              // libaio queue depth (ignored for kRam)
   chi::u32 alignment_;             // I/O alignment (default 4096)
@@ -140,27 +139,26 @@ struct CreateParams {
   
   // Copy constructor with allocator (for template system)
   CreateParams(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc, const CreateParams& other)
-      : bdev_type_(other.bdev_type_), file_path_(other.file_path_), total_size_(other.total_size_), 
+      : bdev_type_(other.bdev_type_), total_size_(other.total_size_), 
         io_depth_(other.io_depth_), alignment_(other.alignment_) {}
   
   // Constructor with allocator and parameters
   CreateParams(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
                BdevType bdev_type,
-               const std::string& file_path,
                chi::u64 total_size = 0,
                chi::u32 io_depth = 32,
                chi::u32 alignment = 4096)
-      : bdev_type_(bdev_type), file_path_(file_path), total_size_(total_size), 
+      : bdev_type_(bdev_type), total_size_(total_size), 
         io_depth_(io_depth), alignment_(alignment) {
     // Debug: Log what parameters were received
-    HELOG(kError, "DEBUG: CreateParams constructor called with: bdev_type={}, file_path='{}', total_size={}, io_depth={}, alignment={}", 
-          static_cast<chi::u32>(bdev_type_), file_path_, total_size_, io_depth_, alignment_);
+    HELOG(kError, "DEBUG: CreateParams constructor called with: bdev_type={}, total_size={}, io_depth={}, alignment={}", 
+          static_cast<chi::u32>(bdev_type_), total_size_, io_depth_, alignment_);
   }
   
   // Serialization support for cereal
   template<class Archive>
   void serialize(Archive& ar) {
-    ar(bdev_type_, file_path_, total_size_, io_depth_, alignment_);
+    ar(bdev_type_, total_size_, io_depth_, alignment_);
   }
 };
 

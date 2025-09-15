@@ -47,6 +47,12 @@ void Task::Wait() {
       run_ctx->estimated_completion_time_us = 1000.0;  // Default 1ms estimate
     }
 
+    // Add this task to the current task's waiting_for_tasks list
+    // This ensures AreSubtasksCompleted() properly tracks this subtask
+    auto alloc = HSHM_MEMORY_MANAGER->GetDefaultAllocator<CHI_MAIN_ALLOC_T>();
+    hipc::FullPtr<Task> this_task_ptr(alloc, this);
+    run_ctx->waiting_for_tasks.push_back(this_task_ptr);
+
     // Yield execution back to worker in loop until task completes
     // Add to blocked queue before each yield
     while (!IsComplete()) {
@@ -112,5 +118,6 @@ bool Task::IsComplete() const {
   // Completion check (works for both client and runtime modes)
   return is_complete.load() != 0;
 }
+
 
 }  // namespace chi

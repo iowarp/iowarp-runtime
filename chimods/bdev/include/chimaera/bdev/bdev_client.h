@@ -86,9 +86,6 @@ class Client : public chi::ContainerClient {
     // Pass all arguments directly to NewTask constructor including CreateParams arguments
     chi::u32 safe_alignment = (alignment == 0) ? 4096 : alignment;  // Ensure non-zero alignment
     
-    // For file-based bdev, pool_name is used as the file_path
-    std::string file_path = (bdev_type == BdevType::kFile) ? pool_name : "";
-    
     auto task = ipc_manager->NewTask<chimaera::bdev::CreateTask>(
         chi::CreateTaskNode(), 
         chi::kAdminPoolId,  // Send to admin pool for GetOrCreatePool processing
@@ -97,7 +94,7 @@ class Client : public chi::ContainerClient {
         pool_name,  // user-provided pool name (file path for files, unique name for RAM)
         pool_id_,  // target pool ID to create
         // CreateParams arguments:
-        bdev_type, file_path, total_size, io_depth, safe_alignment
+        bdev_type, total_size, io_depth, safe_alignment
     );
 
     // Submit to runtime
