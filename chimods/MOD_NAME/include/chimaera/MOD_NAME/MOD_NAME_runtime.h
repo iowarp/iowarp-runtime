@@ -16,6 +16,7 @@ struct CustomTask;
 struct CoMutexTestTask;
 struct CoRwLockTestTask;
 struct FireAndForgetTestTask;
+struct WaitTestTask;
 
 /**
  * Runtime implementation for MOD_NAME container
@@ -134,6 +135,18 @@ public:
   void MonitorFireAndForgetTest(chi::MonitorModeId mode, 
                                hipc::FullPtr<FireAndForgetTestTask> task_ptr,
                                chi::RunContext& rctx);
+
+  /**
+   * Handle WaitTest task
+   */
+  void WaitTest(hipc::FullPtr<WaitTestTask> task, chi::RunContext& rctx);
+
+  /**
+   * Monitor WaitTest task
+   */
+  void MonitorWaitTest(chi::MonitorModeId mode, 
+                      hipc::FullPtr<WaitTestTask> task_ptr,
+                      chi::RunContext& rctx);
 
   /**
    * Handle Destroy task - Alias for DestroyPool (DestroyTask = DestroyPoolTask)

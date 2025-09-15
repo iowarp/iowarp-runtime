@@ -2,6 +2,8 @@
 #define MOD_NAME_CLIENT_H_
 
 #include <chimaera/chimaera.h>
+#include <chrono>
+#include <unistd.h>
 
 #include "MOD_NAME_tasks.h"
 
@@ -27,13 +29,20 @@ class Client : public chi::ContainerClient {
 
   /**
    * Create the container (synchronous)
+   * @param mctx Memory context for the operation
+   * @param pool_query Pool routing information
+   * @param pool_name Unique name for the pool (user-provided)
    */
-  void Create(const hipc::MemContext& mctx, const chi::PoolQuery& pool_query) {
-    auto task = AsyncCreate(mctx, pool_query);
+  void Create(const hipc::MemContext& mctx, const chi::PoolQuery& pool_query,
+              const std::string& pool_name) {
+    auto task = AsyncCreate(mctx, pool_query, pool_name);
     task->Wait();
 
     // CRITICAL: Update client pool_id_ with the actual pool ID from the task
     pool_id_ = task->new_pool_id_;
+
+    // Store the return code from the Create task in the client
+    return_code_ = task->return_code_;
 
     // Clean up task
     auto* ipc_manager = CHI_IPC;
@@ -42,9 +51,13 @@ class Client : public chi::ContainerClient {
 
   /**
    * Create the container (asynchronous)
+   * @param mctx Memory context for the operation
+   * @param pool_query Pool routing information  
+   * @param pool_name Unique name for the pool (user-provided)
    */
   hipc::FullPtr<CreateTask> AsyncCreate(const hipc::MemContext& mctx,
-                                        const chi::PoolQuery& pool_query) {
+                                        const chi::PoolQuery& pool_query,
+                                        const std::string& pool_name) {
     auto* ipc_manager = CHI_IPC;
 
     // CreateTask is a GetOrCreatePoolTask, which must be handled by admin pool
@@ -54,9 +67,9 @@ class Client : public chi::ContainerClient {
         chi::CreateTaskNode(),
         chi::kAdminPoolId,  // Send to admin pool for GetOrCreatePool processing
         pool_query,
-        "chimaera_MOD_NAME",                          // chimod name
-        "mod_name_pool_" + std::to_string(pool_id_.ToU64()),  // pool name
-        pool_id_  // target pool ID to create
+        CreateParams::chimod_lib_name,  // chimod name from CreateParams
+        pool_name,  // user-provided pool name
+        pool_id_    // target pool ID to create
     );
 
     // Submit to runtime
@@ -198,6 +211,65 @@ class Client : public chi::ContainerClient {
 
     // Submit to runtime - task will be deleted automatically when completed
     ipc_manager->Enqueue(task);
+  }
+
+  /**
+   * Submit Wait test task (asynchronous)
+   * Tests recursive task->Wait() functionality with specified depth
+   * @param mctx Memory context for the operation
+   * @param pool_query Pool routing information  
+   * @param depth Number of recursive calls to make
+   * @param test_id Test identifier for tracking
+   * @return Task handle for waiting and result retrieval
+   */
+  hipc::FullPtr<WaitTestTask> AsyncWaitTest(const hipc::MemContext& mctx,
+                                           const chi::PoolQuery& pool_query,
+                                           chi::u32 depth,
+                                           chi::u32 test_id) {
+    auto* ipc_manager = CHI_IPC;
+
+    auto task = ipc_manager->NewTask<WaitTestTask>(
+        chi::CreateTaskNode(), pool_id_, pool_query, depth, test_id);
+
+    // Submit to runtime
+    ipc_manager->Enqueue(task);
+    return task;
+  }
+
+  /**
+   * Submit Wait test task (synchronous)
+   * Tests recursive task->Wait() functionality with specified depth
+   * @param mctx Memory context for the operation
+   * @param pool_query Pool routing information
+   * @param depth Number of recursive calls to make  
+   * @param test_id Test identifier for tracking
+   * @return The final depth reached by the recursive calls
+   */
+  chi::u32 WaitTest(const hipc::MemContext& mctx,
+                   const chi::PoolQuery& pool_query,
+                   chi::u32 depth,
+                   chi::u32 test_id) {
+    auto task = AsyncWaitTest(mctx, pool_query, depth, test_id);
+    task->Wait();
+    
+    chi::u32 final_depth = task->current_depth_;
+    auto* ipc_manager = CHI_IPC;
+    ipc_manager->DelTask(task);
+    
+    return final_depth;
+  }
+
+private:
+  /**
+   * Generate a unique pool name with a given prefix
+   * Uses timestamp and process ID to ensure uniqueness
+   */
+  static std::string GeneratePoolName(const std::string& prefix) {
+    auto now = std::chrono::system_clock::now();
+    auto timestamp = std::chrono::duration_cast<std::chrono::microseconds>(
+        now.time_since_epoch()).count();
+    pid_t pid = getpid();
+    return prefix + "_" + std::to_string(timestamp) + "_" + std::to_string(pid);
   }
 };
 

@@ -94,6 +94,19 @@ function(add_chimod_both)
       CHI_NAMESPACE="${ARG_NAMESPACE}"
     )
     
+    # Add global include_directories and link_directories for clangd support
+    include_directories(
+      ${CMAKE_CURRENT_SOURCE_DIR}/include
+      ${CMAKE_SOURCE_DIR}/include
+      ${CMAKE_SOURCE_DIR}/chimods/admin/include
+      ${CMAKE_SOURCE_DIR}/chimods/bdev/include
+      ${CMAKE_SOURCE_DIR}/chimods/MOD_NAME/include
+    )
+    link_directories(
+      ${CMAKE_BINARY_DIR}/bin
+      ${CMAKE_BINARY_DIR}/lib
+    )
+    
     # Create namespace alias for external consumption
     add_library(${ARG_NAMESPACE}::${ARG_CHIMOD_NAME}_runtime ALIAS ${RUNTIME_TARGET_NAME})
     
@@ -118,6 +131,19 @@ function(add_chimod_both)
     target_compile_definitions(${CLIENT_TARGET_NAME} PRIVATE
       CHI_CHIMOD_NAME="${ARG_CHIMOD_NAME}"
       CHI_NAMESPACE="${ARG_NAMESPACE}"
+    )
+    
+    # Add global include_directories and link_directories for clangd support  
+    include_directories(
+      ${CMAKE_CURRENT_SOURCE_DIR}/include
+      ${CMAKE_SOURCE_DIR}/include
+      ${CMAKE_SOURCE_DIR}/chimods/admin/include
+      ${CMAKE_SOURCE_DIR}/chimods/bdev/include
+      ${CMAKE_SOURCE_DIR}/chimods/MOD_NAME/include
+    )
+    link_directories(
+      ${CMAKE_BINARY_DIR}/bin
+      ${CMAKE_BINARY_DIR}/lib
     )
     
     # Create namespace alias for external consumption

@@ -230,6 +230,48 @@ struct FireAndForgetTestTask : public chi::Task {
 };
 
 /**
+ * WaitTestTask - Test recursive task->Wait() functionality
+ * This task calls itself recursively "depth" times to test nested Wait() calls
+ */
+struct WaitTestTask : public chi::Task {
+  IN chi::u32 depth_;              // Number of recursive calls to make
+  IN chi::u32 test_id_;            // Test identifier for tracking
+  INOUT chi::u32 current_depth_;   // Current recursion level (starts at 0)
+
+  /** SHM default constructor */
+  explicit WaitTestTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc) 
+      : chi::Task(alloc), depth_(0), test_id_(0), current_depth_(0) {}
+
+  /** Emplace constructor */
+  explicit WaitTestTask(
+      const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
+      const chi::TaskNode &task_node,
+      const chi::PoolId &pool_id, 
+      const chi::PoolQuery &pool_query,
+      chi::u32 depth,
+      chi::u32 test_id)
+      : chi::Task(alloc, task_node, pool_id, pool_query, 23),
+        depth_(depth), test_id_(test_id), current_depth_(0) {
+    // Initialize task
+    task_node_ = task_node;
+    pool_id_ = pool_id;
+    method_ = Method::kWaitTest;
+    task_flags_.Clear();
+    pool_query_ = pool_query;
+  }
+
+  template<typename Archive>
+  void SerializeIn(Archive& ar) {
+    ar(depth_, test_id_, current_depth_);
+  }
+  
+  template<typename Archive>
+  void SerializeOut(Archive& ar) {
+    ar(current_depth_);  // Return the final depth reached
+  }
+};
+
+/**
  * Standard DestroyTask for MOD_NAME
  * All ChiMods should use the same DestroyTask structure from admin
  */

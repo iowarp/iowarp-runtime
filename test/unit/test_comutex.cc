@@ -211,11 +211,13 @@ public:
       
       // Create the admin container first if needed
       chi::PoolQuery pool_query;
-      admin_client.Create(HSHM_MCTX, pool_query);
+      std::string admin_pool_name = "test_admin_pool";
+      admin_client.Create(HSHM_MCTX, pool_query, admin_pool_name);
       
       // Create MOD_NAME client and container directly with dynamic pool ID
       chimaera::MOD_NAME::Client mod_name_client(test_pool_id_);
-      mod_name_client.Create(HSHM_MCTX, pool_query);
+      std::string mod_pool_name = "test_mod_name_pool";
+      mod_name_client.Create(HSHM_MCTX, pool_query, mod_pool_name);
       
       INFO("MOD_NAME pool created successfully with dynamic ID: " << test_pool_id_.ToU64());
       return true;
@@ -265,7 +267,8 @@ TEST_CASE("CoMutex Basic Locking", "[comutex][basic]") {
     
     chimaera::MOD_NAME::Client mod_name_client(fixture.getTestPoolId());
     chi::PoolQuery pool_query;
-    mod_name_client.Create(HSHM_MCTX, pool_query);
+    std::string pool_name = "test_mod_name_pool";
+    mod_name_client.Create(HSHM_MCTX, pool_query, pool_name);
     
     // Execute single CoMutex test
     chi::u32 test_id = 1;
@@ -283,7 +286,8 @@ TEST_CASE("CoMutex Basic Locking", "[comutex][basic]") {
     
     chimaera::MOD_NAME::Client mod_name_client(fixture.getTestPoolId());
     chi::PoolQuery pool_query;
-    mod_name_client.Create(HSHM_MCTX, pool_query);
+    std::string pool_name = "test_mod_name_pool";
+    mod_name_client.Create(HSHM_MCTX, pool_query, pool_name);
     
     // Execute multiple sequential CoMutex tests
     const int kNumSequentialTasks = 5;
@@ -323,7 +327,8 @@ TEST_CASE("CoMutex Concurrent Access", "[comutex][concurrent]") {
     
     chimaera::MOD_NAME::Client mod_name_client(fixture.getTestPoolId());
     chi::PoolQuery pool_query;
-    mod_name_client.Create(HSHM_MCTX, pool_query);
+    std::string pool_name = "test_mod_name_pool";
+    mod_name_client.Create(HSHM_MCTX, pool_query, pool_name);
     
     fixture.resetCounters();
     
@@ -379,7 +384,8 @@ TEST_CASE("CoMutex Concurrent Access", "[comutex][concurrent]") {
     
     chimaera::MOD_NAME::Client mod_name_client(fixture.getTestPoolId());
     chi::PoolQuery pool_query;
-    mod_name_client.Create(HSHM_MCTX, pool_query);
+    std::string pool_name = "test_mod_name_pool";
+    mod_name_client.Create(HSHM_MCTX, pool_query, pool_name);
     
     // This test would require creating tasks with different TaskNode characteristics
     // For now, we'll test that tasks do serialize when expected
@@ -425,7 +431,8 @@ TEST_CASE("CoRwLock Basic Reader-Writer Semantics", "[corwlock][basic]") {
     
     chimaera::MOD_NAME::Client mod_name_client(fixture.getTestPoolId());
     chi::PoolQuery pool_query;
-    mod_name_client.Create(HSHM_MCTX, pool_query);
+    std::string pool_name = "test_mod_name_pool";
+    mod_name_client.Create(HSHM_MCTX, pool_query, pool_name);
     
     // Execute single reader test
     chi::u32 result = mod_name_client.CoRwLockTest(
@@ -441,7 +448,8 @@ TEST_CASE("CoRwLock Basic Reader-Writer Semantics", "[corwlock][basic]") {
     
     chimaera::MOD_NAME::Client mod_name_client(fixture.getTestPoolId());
     chi::PoolQuery pool_query;
-    mod_name_client.Create(HSHM_MCTX, pool_query);
+    std::string pool_name = "test_mod_name_pool";
+    mod_name_client.Create(HSHM_MCTX, pool_query, pool_name);
     
     // Execute single writer test
     chi::u32 result = mod_name_client.CoRwLockTest(
@@ -457,7 +465,8 @@ TEST_CASE("CoRwLock Basic Reader-Writer Semantics", "[corwlock][basic]") {
     
     chimaera::MOD_NAME::Client mod_name_client(fixture.getTestPoolId());
     chi::PoolQuery pool_query;
-    mod_name_client.Create(HSHM_MCTX, pool_query);
+    std::string pool_name = "test_mod_name_pool";
+    mod_name_client.Create(HSHM_MCTX, pool_query, pool_name);
     
     // Execute sequential reader-writer pattern
     std::vector<chi::u32> results;
@@ -492,7 +501,8 @@ TEST_CASE("CoRwLock Multiple Readers", "[corwlock][readers]") {
     
     chimaera::MOD_NAME::Client mod_name_client(fixture.getTestPoolId());
     chi::PoolQuery pool_query;
-    mod_name_client.Create(HSHM_MCTX, pool_query);
+    std::string pool_name = "test_mod_name_pool";
+    mod_name_client.Create(HSHM_MCTX, pool_query, pool_name);
     
     fixture.resetCounters();
     
@@ -551,7 +561,8 @@ TEST_CASE("CoRwLock Writer Exclusivity", "[corwlock][writers]") {
     
     chimaera::MOD_NAME::Client mod_name_client(fixture.getTestPoolId());
     chi::PoolQuery pool_query;
-    mod_name_client.Create(HSHM_MCTX, pool_query);
+    std::string pool_name = "test_mod_name_pool";
+    mod_name_client.Create(HSHM_MCTX, pool_query, pool_name);
     
     // Submit multiple async writer tasks
     const int kNumWriters = 3;
@@ -607,7 +618,8 @@ TEST_CASE("CoRwLock Reader-Writer Interaction", "[corwlock][interaction]") {
     
     chimaera::MOD_NAME::Client mod_name_client(fixture.getTestPoolId());
     chi::PoolQuery pool_query;
-    mod_name_client.Create(HSHM_MCTX, pool_query);
+    std::string pool_name = "test_mod_name_pool";
+    mod_name_client.Create(HSHM_MCTX, pool_query, pool_name);
     
     // Submit mixed reader-writer tasks
     std::vector<hipc::FullPtr<chimaera::MOD_NAME::CoRwLockTestTask>> tasks;
@@ -655,7 +667,8 @@ TEST_CASE("TaskNode Grouping", "[tasknode][grouping]") {
     
     chimaera::MOD_NAME::Client mod_name_client(fixture.getTestPoolId());
     chi::PoolQuery pool_query;
-    mod_name_client.Create(HSHM_MCTX, pool_query);
+    std::string pool_name = "test_mod_name_pool";
+    mod_name_client.Create(HSHM_MCTX, pool_query, pool_name);
     
     // This test validates the TaskNode grouping concept
     // Tasks with same pid/tid/major but different minor should proceed together
@@ -696,7 +709,8 @@ TEST_CASE("TaskNode Grouping", "[tasknode][grouping]") {
     
     chimaera::MOD_NAME::Client mod_name_client(fixture.getTestPoolId());
     chi::PoolQuery pool_query;
-    mod_name_client.Create(HSHM_MCTX, pool_query);
+    std::string pool_name = "test_mod_name_pool";
+    mod_name_client.Create(HSHM_MCTX, pool_query, pool_name);
     
     // Test TaskNode grouping for readers
     const int kNumGroupedReaders = 4;
@@ -744,7 +758,8 @@ TEST_CASE("CoMutex Error Handling", "[comutex][error]") {
     
     chimaera::MOD_NAME::Client mod_name_client(fixture.getTestPoolId());
     chi::PoolQuery pool_query;
-    mod_name_client.Create(HSHM_MCTX, pool_query);
+    std::string pool_name = "test_mod_name_pool";
+    mod_name_client.Create(HSHM_MCTX, pool_query, pool_name);
     
     // Test with zero hold duration
     chi::u32 result = mod_name_client.CoMutexTest(HSHM_MCTX, pool_query, 100, 0);
@@ -760,7 +775,8 @@ TEST_CASE("CoMutex Error Handling", "[comutex][error]") {
     
     chimaera::MOD_NAME::Client mod_name_client(fixture.getTestPoolId());
     chi::PoolQuery pool_query;
-    mod_name_client.Create(HSHM_MCTX, pool_query);
+    std::string pool_name = "test_mod_name_pool";
+    mod_name_client.Create(HSHM_MCTX, pool_query, pool_name);
     
     // Stress test with many concurrent tasks
     const int kManyTasks = 10;
@@ -796,7 +812,8 @@ TEST_CASE("CoRwLock Error Handling", "[corwlock][error]") {
     
     chimaera::MOD_NAME::Client mod_name_client(fixture.getTestPoolId());
     chi::PoolQuery pool_query;
-    mod_name_client.Create(HSHM_MCTX, pool_query);
+    std::string pool_name = "test_mod_name_pool";
+    mod_name_client.Create(HSHM_MCTX, pool_query, pool_name);
     
     // Test reader with zero hold duration
     chi::u32 result1 = mod_name_client.CoRwLockTest(HSHM_MCTX, pool_query, 300, false, 0);
@@ -823,7 +840,8 @@ TEST_CASE("CoMutex Performance", "[comutex][performance]") {
     
     chimaera::MOD_NAME::Client mod_name_client(fixture.getTestPoolId());
     chi::PoolQuery pool_query;
-    mod_name_client.Create(HSHM_MCTX, pool_query);
+    std::string pool_name = "test_mod_name_pool";
+    mod_name_client.Create(HSHM_MCTX, pool_query, pool_name);
     
     // Measure task execution time vs hold duration
     const int kNumPerfTests = 5;
@@ -866,7 +884,8 @@ TEST_CASE("CoRwLock Performance", "[corwlock][performance]") {
     
     chimaera::MOD_NAME::Client mod_name_client(fixture.getTestPoolId());
     chi::PoolQuery pool_query;
-    mod_name_client.Create(HSHM_MCTX, pool_query);
+    std::string pool_name = "test_mod_name_pool";
+    mod_name_client.Create(HSHM_MCTX, pool_query, pool_name);
     
     // Measure reader performance
     auto start_time = std::chrono::high_resolution_clock::now();
@@ -905,7 +924,8 @@ TEST_CASE("CoMutex and CoRwLock Integration", "[integration]") {
     
     chimaera::MOD_NAME::Client mod_name_client(fixture.getTestPoolId());
     chi::PoolQuery pool_query;
-    mod_name_client.Create(HSHM_MCTX, pool_query);
+    std::string pool_name = "test_mod_name_pool";
+    mod_name_client.Create(HSHM_MCTX, pool_query, pool_name);
     
     // Execute mixed operations
     std::vector<chi::u32> results;

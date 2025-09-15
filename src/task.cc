@@ -5,7 +5,6 @@
 #include "chimaera/task.h"
 
 #include "chimaera/container.h"
-
 #include "chimaera/singletons.h"
 #include "chimaera/worker.h"
 
@@ -25,7 +24,7 @@ void Task::Wait() {
 
     if (!worker || !run_ctx) {
       // No worker or run context available, fall back to client implementation
-      while (is_complete.load() == 0) {
+      while (!IsComplete()) {
         YieldBase();
       }
       return;
@@ -36,33 +35,24 @@ void Task::Wait() {
     if (container) {
       // Estimate completion time using Monitor with kEstLoad
       RunContext est_ctx = *run_ctx;  // Copy run context for estimation
-      try {
-        container->Monitor(MonitorModeId::kEstLoad, method_, run_ctx->task,
-                           est_ctx);
+      container->Monitor(MonitorModeId::kEstLoad, method_, run_ctx->task,
+                         est_ctx);
 
-        // The estimated time should be stored in
-        // est_ctx.estimated_completion_time_us
-        run_ctx->estimated_completion_time_us =
-            est_ctx.estimated_completion_time_us;
-
-      } catch (const std::exception& e) {
-        // Estimation failed, fall back to default estimate
-        run_ctx->estimated_completion_time_us = 1000.0;  // Default 1ms estimate
-      }
+      // The estimated time should be stored in
+      // est_ctx.estimated_completion_time_us
+      run_ctx->estimated_completion_time_us =
+          est_ctx.estimated_completion_time_us;
     } else {
       // No container available, use default estimate
       run_ctx->estimated_completion_time_us = 1000.0;  // Default 1ms estimate
     }
 
-    // Add task to worker's blocked queue and yield
-    // Note: worker variable already retrieved above
-    if (worker) {
-      worker->AddToBlockedQueue(run_ctx, 
-                                run_ctx->estimated_completion_time_us);
+    // Yield execution back to worker in loop until task completes
+    // Add to blocked queue before each yield
+    while (!IsComplete()) {
+      worker->AddToBlockedQueue(run_ctx, run_ctx->estimated_completion_time_us);
+      YieldBase();
     }
-
-    // Yield execution back to worker
-    YieldBase();
 
   } else {
     // Client implementation: Wait loop using Yield()
@@ -91,18 +81,20 @@ void Task::YieldBase() {
     // Jump back to worker using boost::fiber
 
     // Jump back to worker - the task has been added to blocked queue
-    // Store the result (task's yield point) in resume_context for later resumption
-    // Use temporary variables to store the yield context before jumping
+    // Store the result (task's yield point) in resume_context for later
+    // resumption Use temporary variables to store the yield context before
+    // jumping
     bctx::fcontext_t yield_fctx = run_ctx->yield_context.fctx;
     void* yield_data = run_ctx->yield_context.data;
-    
+
     // Jump back to worker and capture the result
     bctx::transfer_t yield_result = bctx::jump_fcontext(yield_fctx, yield_data);
-    
-    // CRITICAL: Update yield_context with the new worker context from the resume operation
-    // This ensures that subsequent yields or completion returns to the correct worker location
+
+    // CRITICAL: Update yield_context with the new worker context from the
+    // resume operation This ensures that subsequent yields or completion
+    // returns to the correct worker location
     run_ctx->yield_context = yield_result;
-    
+
     // Store where we can resume from for the next yield cycle
     run_ctx->resume_context = yield_result;
   } else {

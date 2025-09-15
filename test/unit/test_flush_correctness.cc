@@ -67,7 +67,8 @@ TEST_CASE("FlushTask with MOD_NAME Container and Async Tasks",
     // Create the MOD_NAME container with local pool query - this will create
     // pool if needed
     auto pool_query = chi::PoolQuery::Local();
-    mod_name_client.Create(HSHM_MCTX, pool_query);
+    std::string pool_name = "flush_test_mod_name_pool";
+    mod_name_client.Create(HSHM_MCTX, pool_query, pool_name);
 
     // Send multiple async Custom tasks to the MOD_NAME runtime
     const int num_async_tasks = 5;

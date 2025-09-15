@@ -141,7 +141,8 @@ namespace {
       hipc::MemContext mctx;
       
       try {
-        client.Create(mctx, chi::PoolQuery::Local());
+        std::string pool_name = "fire_and_forget_test_pool";
+        client.Create(mctx, chi::PoolQuery::Local(), pool_name);
         
         // Give container time to initialize
         std::this_thread::sleep_for(100ms);

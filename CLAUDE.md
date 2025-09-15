@@ -38,6 +38,83 @@ auto task = ipc_manager->NewTask<CreateTask>(
 
 This applies to all ChiMod clients including bdev, MOD_NAME, and any future ChiMods.
 
+### ChiMod Name Parameter
+ChiMod clients MUST use `CreateParams::chimod_lib_name` instead of hardcoded module names in CreateTask operations.
+
+**Correct Usage:**
+```cpp
+auto task = ipc_manager->NewTask<CreateTask>(
+    chi::CreateTaskNode(),
+    chi::kAdminPoolId,  // Always use admin pool for CreateTask
+    pool_query,
+    CreateParams::chimod_lib_name,  // Use static member from CreateParams
+    pool_name,
+    pool_id,
+    // ... other parameters
+);
+```
+
+**Incorrect Usage:**
+```cpp
+auto task = ipc_manager->NewTask<CreateTask>(
+    chi::CreateTaskNode(),
+    chi::kAdminPoolId,
+    pool_query,
+    "chimaera_modulename_runtime",  // WRONG - hardcoded string
+    pool_name,
+    pool_id,
+    // ... other parameters
+);
+```
+
+This requirement ensures namespace flexibility and maintains a single source of truth for module names.
+
+### Pool Name Requirements
+All ChiMod Create functions MUST require a user-provided `pool_name` parameter. Never auto-generate pool names using `pool_id_` during Create operations, as `pool_id_` is not set until after Create completes.
+
+**Pool Name Guidelines:**
+- Use descriptive, unique names that identify the purpose or content
+- For file-based devices (like BDev), the `pool_name` serves as the file path
+- For RAM-based devices, the `pool_name` should be a unique identifier
+- Consider using timestamp + PID combinations for uniqueness when needed
+
+**Correct Usage:**
+```cpp
+// BDev file-based device
+std::string file_path = "/path/to/my/device.dat";
+bdev_client.Create(mctx, pool_query, file_path, chimaera::bdev::BdevType::kFile);
+
+// BDev RAM-based device  
+std::string pool_name = "my_ram_device_" + std::to_string(timestamp);
+bdev_client.Create(mctx, pool_query, pool_name, chimaera::bdev::BdevType::kRam, ram_size);
+
+// MOD_NAME container
+std::string pool_name = "my_modname_container";
+mod_name_client.Create(mctx, pool_query, pool_name);
+
+// Admin container
+std::string pool_name = "my_admin_container";
+admin_client.Create(mctx, pool_query, pool_name);
+```
+
+**Incorrect Usage:**
+```cpp
+// WRONG - Using pool_id_ before it's set
+std::string pool_name = "pool_" + std::to_string(pool_id_.ToU64());
+
+// WRONG - Using empty string for pool names
+bdev_client.Create(mctx, pool_query, "", chimaera::bdev::BdevType::kRam);
+
+// WRONG - Auto-generating instead of requiring user input
+// Create functions should not auto-generate names internally
+```
+
+**BDev Interface Requirements:**
+- Use single `Create()` and `AsyncCreate()` methods (not multiple overloads)
+- For file-based BDev: `pool_name` parameter serves as the file path
+- For RAM-based BDev: `pool_name` parameter serves as unique identifier
+- Signature: `Create(mctx, pool_query, pool_name, bdev_type, total_size, io_depth, alignment)`
+
 ## ChiMod Linking Requirements
 
 ### Runtime Library Linking
@@ -243,6 +320,25 @@ This section provides complete step-by-step instructions for:
 - Build system integration and troubleshooting
 
 **Key Point**: The `chimaera_repo.yaml` file defines the chimod repo boundary and must be placed in the directory that contains your chimods. This can be either the project root or a subdirectory like `chimods/`.
+
+## BDev ChiMod Requirements
+
+### Pool Naming Convention
+For BDev ChiMods, the pool name MUST be the file_path parameter. Do not use separate artificial pool names.
+
+**Correct Usage:**
+```cpp
+// Use file_path directly as pool name
+std::string pool_name = file_path.empty() ? "bdev_ram_" + std::to_string(pool_id_.ToU64()) : file_path;
+```
+
+**Incorrect Usage:**
+```cpp
+// WRONG - Don't create artificial pool names
+std::string pool_name = "bdev_pool_" + std::to_string(pool_id_.ToU64());
+```
+
+This ensures that the pool name directly corresponds to the file being accessed, making pool identification and management more intuitive.
 
 ## Workflow
 Use the incremental logic builder agent when making code changes.

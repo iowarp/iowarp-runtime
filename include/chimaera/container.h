@@ -347,17 +347,21 @@ class Container {
 class ContainerClient {
  public:
   PoolId pool_id_;  ///< The unique ID of the pool this client connects to
+  u32 return_code_; ///< Return code from the last Create operation (0=success, non-zero=error)
 
   /**
    * Default constructor
    */
-  ContainerClient() : pool_id_() {}
+  ContainerClient() : pool_id_(), return_code_(0) {}
 
   /**
    * Initialize client with pool ID
    * @param pool_id Pool identifier to connect to
    */
-  virtual void Init(const PoolId& pool_id) { pool_id_ = pool_id; }
+  virtual void Init(const PoolId& pool_id) { 
+    pool_id_ = pool_id; 
+    return_code_ = 0;
+  }
 
   /**
    * Virtual destructor
@@ -369,7 +373,7 @@ class ContainerClient {
    */
   template <typename Ar>
   void serialize(Ar& ar) {
-    ar(pool_id_);
+    ar(pool_id_, return_code_);
   }
 
   /**
@@ -378,6 +382,22 @@ class ContainerClient {
    */
   bool IsNull() const {
     return pool_id_.IsNull();
+  }
+
+  /**
+   * Get the return code from the last Create operation
+   * @return Return code (0=success, non-zero=error)
+   */
+  u32 GetReturnCode() const {
+    return return_code_;
+  }
+
+  /**
+   * Set the return code for the client
+   * @param return_code Return code to set (0=success, non-zero=error)
+   */
+  void SetReturnCode(u32 return_code) {
+    return_code_ = return_code;
   }
 
  protected:

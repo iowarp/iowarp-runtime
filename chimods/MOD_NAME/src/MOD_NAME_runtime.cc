@@ -298,6 +298,58 @@ void Runtime::MonitorFireAndForgetTest(chi::MonitorModeId mode,
   }
 }
 
+void Runtime::WaitTest(hipc::FullPtr<WaitTestTask> task, chi::RunContext& rctx) {
+  std::cout << "MOD_NAME: Executing WaitTest task " << task->test_id_
+            << " (depth: " << task->depth_ << ", current_depth: " << task->current_depth_ << ")"
+            << std::endl;
+
+  // Increment current depth
+  task->current_depth_++;
+
+  // If we haven't reached the target depth, create a subtask and wait for it
+  if (task->current_depth_ < task->depth_) {
+    std::cout << "MOD_NAME: WaitTest " << task->test_id_ 
+              << " creating recursive subtask at depth " << task->current_depth_ << std::endl;
+    
+    // Use the client API for recursive calls - this tests the Wait() functionality properly
+    // Create a subtask with remaining depth
+    hipc::MemContext mctx;
+    chi::u32 remaining_depth = task->depth_ - task->current_depth_;
+    chi::u32 subtask_final_depth = client_.WaitTest(mctx, task->pool_query_, 
+                                                   remaining_depth, task->test_id_);
+    
+    // The subtask returns the final depth it reached, so we set our depth to that
+    task->current_depth_ = task->depth_;
+    
+    std::cout << "MOD_NAME: WaitTest " << task->test_id_ 
+              << " subtask completed via client API, final depth: " << task->current_depth_ << std::endl;
+  }
+
+  std::cout << "MOD_NAME: WaitTest " << task->test_id_ << " completed at depth " 
+            << task->current_depth_ << std::endl;
+}
+
+void Runtime::MonitorWaitTest(chi::MonitorModeId mode,
+                             hipc::FullPtr<WaitTestTask> task_ptr,
+                             chi::RunContext& rctx) {
+  switch (mode) {
+    case chi::MonitorModeId::kLocalSchedule:
+      {
+        auto lane_ptr = GetLaneFullPtr(0, 0);
+        if (!lane_ptr.IsNull()) {
+          rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
+        }
+      }
+      break;
+    case chi::MonitorModeId::kEstLoad:
+      // Estimate completion time based on depth
+      rctx.estimated_completion_time_us = task_ptr->depth_ * 1000.0;  // 1ms per depth level
+      break;
+    default:
+      break;
+  }
+}
+
 // Static member definitions
 chi::CoMutex Runtime::test_comutex_;
 chi::CoRwLock Runtime::test_corwlock_;

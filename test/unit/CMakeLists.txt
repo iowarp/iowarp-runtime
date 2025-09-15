@@ -60,6 +60,12 @@ set(FIRE_AND_FORGET_TEST_SOURCES
   test_fire_and_forget.cc
 )
 
+# Wait Functionality test executable (test for task->Wait() recursive functionality)
+set(WAIT_FUNCTIONALITY_TEST_TARGET chimaera_wait_functionality_tests)
+set(WAIT_FUNCTIONALITY_TEST_SOURCES
+  test_wait_functionality.cc
+)
+
 
 # Create task archive test executable
 add_executable(${TASK_ARCHIVE_TEST_TARGET} ${TASK_ARCHIVE_TEST_SOURCES})
@@ -316,6 +322,40 @@ set_target_properties(${FIRE_AND_FORGET_TEST_TARGET} PROPERTIES
 
 # Copy Fire-and-Forget test executable to bin directory
 set_target_properties(${FIRE_AND_FORGET_TEST_TARGET} PROPERTIES
+  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)
+
+# Create Wait Functionality test executable
+add_executable(${WAIT_FUNCTIONALITY_TEST_TARGET} ${WAIT_FUNCTIONALITY_TEST_SOURCES})
+
+# Include directories for Wait Functionality tests
+target_include_directories(${WAIT_FUNCTIONALITY_TEST_TARGET} PRIVATE
+  ${CMAKE_SOURCE_DIR}/include
+  ${CMAKE_SOURCE_DIR}/test  # For simple_test.h
+  ${CMAKE_SOURCE_DIR}/chimods/admin/include  # For admin tasks
+  ${CMAKE_SOURCE_DIR}/chimods/MOD_NAME/include  # For MOD_NAME tasks and client
+  ${HermesShm_INCLUDE_DIRS}
+)
+
+# Link against required libraries for Wait Functionality tests
+target_link_libraries(${WAIT_FUNCTIONALITY_TEST_TARGET}
+  cxx                        # Main Chimaera library
+  chimaera_admin_runtime          # Admin module runtime
+  chimaera_admin_client           # Admin module client
+  chimaera_MOD_NAME_runtime       # MOD_NAME module runtime for WaitTest tasks
+  chimaera_MOD_NAME_client        # MOD_NAME module client
+  ${HermesShm_LIBRARIES}          # HSHM libraries
+  ${CMAKE_THREAD_LIBS_INIT}       # Threading support
+)
+
+# Set C++ standard for Wait Functionality tests
+set_target_properties(${WAIT_FUNCTIONALITY_TEST_TARGET} PROPERTIES
+  CXX_STANDARD 17
+  CXX_STANDARD_REQUIRED ON
+)
+
+# Copy Wait Functionality test executable to bin directory
+set_target_properties(${WAIT_FUNCTIONALITY_TEST_TARGET} PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
 )
 
@@ -662,6 +702,38 @@ if(CHIMAERA_ENABLE_TESTS)
     COMMAND ${FIRE_AND_FORGET_TEST_TARGET}
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
   )
+  
+  # Wait Functionality Tests
+  add_test(
+    NAME wait_test_basic_tests
+    COMMAND ${WAIT_FUNCTIONALITY_TEST_TARGET} "[wait_test][basic]"
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  )
+  
+  add_test(
+    NAME wait_test_recursive_tests
+    COMMAND ${WAIT_FUNCTIONALITY_TEST_TARGET} "[wait_test][recursive]"
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  )
+  
+  add_test(
+    NAME wait_test_async_tests
+    COMMAND ${WAIT_FUNCTIONALITY_TEST_TARGET} "[wait_test][async]"
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  )
+  
+  add_test(
+    NAME wait_test_edge_cases_tests
+    COMMAND ${WAIT_FUNCTIONALITY_TEST_TARGET} "[wait_test][edge_cases]"
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  )
+  
+  # Comprehensive Wait functionality test
+  add_test(
+    NAME all_wait_functionality_tests
+    COMMAND ${WAIT_FUNCTIONALITY_TEST_TARGET}
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  )
 
   # Add a comprehensive test that runs all tests
   add_test(
@@ -976,7 +1048,7 @@ add_custom_target(test_all_unit
 )
 
 # Install test executables (optional)
-install(TARGETS ${TEST_TARGET} ${TASK_ARCHIVE_TEST_TARGET} ${FLUSH_TEST_TARGET} ${BDEV_TEST_TARGET} ${FIBER_TEST_TARGET} ${WORKER_FIBER_TEST_TARGET} ${SEGFAULT_DEBUG_TEST_TARGET} ${COMUTEX_TEST_TARGET} ${FIRE_AND_FORGET_TEST_TARGET}
+install(TARGETS ${TEST_TARGET} ${TASK_ARCHIVE_TEST_TARGET} ${FLUSH_TEST_TARGET} ${BDEV_TEST_TARGET} ${FIBER_TEST_TARGET} ${WORKER_FIBER_TEST_TARGET} ${SEGFAULT_DEBUG_TEST_TARGET} ${COMUTEX_TEST_TARGET} ${FIRE_AND_FORGET_TEST_TARGET} ${WAIT_FUNCTIONALITY_TEST_TARGET}
   RUNTIME DESTINATION bin
 )
 
@@ -994,5 +1066,7 @@ message(STATUS "  CoMutex test target: ${COMUTEX_TEST_TARGET}")
 message(STATUS "  CoMutex test sources: ${COMUTEX_TEST_SOURCES}")
 message(STATUS "  Fire-and-Forget test target: ${FIRE_AND_FORGET_TEST_TARGET}")
 message(STATUS "  Fire-and-Forget test sources: ${FIRE_AND_FORGET_TEST_SOURCES}")
+message(STATUS "  Wait Functionality test target: ${WAIT_FUNCTIONALITY_TEST_TARGET}")
+message(STATUS "  Wait Functionality test sources: ${WAIT_FUNCTIONALITY_TEST_SOURCES}")
 message(STATUS "  CTest enabled: ${CHIMAERA_ENABLE_TESTS}")
 message(STATUS "  Output directory: ${CMAKE_BINARY_DIR}/bin")

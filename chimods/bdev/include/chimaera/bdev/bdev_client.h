@@ -2,6 +2,8 @@
 #define BDEV_CLIENT_H_
 
 #include <chimaera/chimaera.h>
+#include <chrono>
+#include <unistd.h>
 
 #include "bdev_tasks.h"
 
@@ -51,65 +53,48 @@ class Client : public chi::ContainerClient {
   explicit Client(const chi::PoolId& pool_id) { Init(pool_id); }
 
   /**
-   * Create bdev container - synchronous (file-based, for backward compatibility)
+   * Create bdev container - synchronous
+   * For file-based bdev, pool_name is the file path; for RAM, pool_name is a unique identifier
    */
   void Create(const hipc::MemContext& mctx, const chi::PoolQuery& pool_query,
-              const std::string& file_path, chi::u64 total_size = 0,
+              const std::string& pool_name, BdevType bdev_type, chi::u64 total_size = 0,
               chi::u32 io_depth = 32, chi::u32 alignment = 4096) {
-    auto task = AsyncCreate(mctx, pool_query, BdevType::kFile, file_path, total_size, io_depth,
+    auto task = AsyncCreate(mctx, pool_query, pool_name, bdev_type, total_size, io_depth,
                             alignment);
     task->Wait();
     
     // CRITICAL: Update client pool_id_ with the actual pool ID from the task
     pool_id_ = task->new_pool_id_;
     
-    CHI_IPC->DelTask(task);
-  }
-  
-  /**
-   * Create bdev container - synchronous (with explicit bdev type)
-   */
-  void Create(const hipc::MemContext& mctx, const chi::PoolQuery& pool_query,
-              BdevType bdev_type, const std::string& file_path = "", chi::u64 total_size = 0,
-              chi::u32 io_depth = 32, chi::u32 alignment = 4096) {
-    auto task = AsyncCreate(mctx, pool_query, bdev_type, file_path, total_size, io_depth,
-                            alignment);
-    task->Wait();
-    
-    // CRITICAL: Update client pool_id_ with the actual pool ID from the task
-    pool_id_ = task->new_pool_id_;
+    // Store the return code from the Create task in the client
+    return_code_ = task->return_code_;
     
     CHI_IPC->DelTask(task);
   }
 
   /**
-   * Create bdev container - asynchronous (file-based, for backward compatibility)
+   * Create bdev container - asynchronous 
+   * For file-based bdev, pool_name is the file path; for RAM, pool_name is a unique identifier
    */
   hipc::FullPtr<chimaera::bdev::CreateTask> AsyncCreate(
       const hipc::MemContext& mctx, const chi::PoolQuery& pool_query,
-      const std::string& file_path, chi::u64 total_size = 0,
-      chi::u32 io_depth = 32, chi::u32 alignment = 4096) {
-    return AsyncCreate(mctx, pool_query, BdevType::kFile, file_path, total_size, io_depth, alignment);
-  }
-  
-  /**
-   * Create bdev container - asynchronous (with explicit bdev type)
-   */
-  hipc::FullPtr<chimaera::bdev::CreateTask> AsyncCreate(
-      const hipc::MemContext& mctx, const chi::PoolQuery& pool_query,
-      BdevType bdev_type, const std::string& file_path = "", chi::u64 total_size = 0,
+      const std::string& pool_name, BdevType bdev_type, chi::u64 total_size = 0,
       chi::u32 io_depth = 32, chi::u32 alignment = 4096) {
     auto* ipc_manager = CHI_IPC;
 
     // CreateTask should always use admin pool, never the client's pool_id_
     // Pass all arguments directly to NewTask constructor including CreateParams arguments
     chi::u32 safe_alignment = (alignment == 0) ? 4096 : alignment;  // Ensure non-zero alignment
+    
+    // For file-based bdev, pool_name is used as the file_path
+    std::string file_path = (bdev_type == BdevType::kFile) ? pool_name : "";
+    
     auto task = ipc_manager->NewTask<chimaera::bdev::CreateTask>(
         chi::CreateTaskNode(), 
         chi::kAdminPoolId,  // Send to admin pool for GetOrCreatePool processing
         pool_query,
-        "chimaera_bdev_runtime",  // chimod name
-        "bdev_pool_" + std::to_string(pool_id_.ToU64()),  // pool name  
+        CreateParams::chimod_lib_name,  // chimod name from CreateParams
+        pool_name,  // user-provided pool name (file path for files, unique name for RAM)
         pool_id_,  // target pool ID to create
         // CreateParams arguments:
         bdev_type, file_path, total_size, io_depth, safe_alignment
@@ -300,6 +285,19 @@ class Client : public chi::ContainerClient {
 
     ipc_manager->Enqueue(task);
     return task;
+  }
+
+private:
+  /**
+   * Generate a unique pool name with a given prefix
+   * Uses timestamp and process ID to ensure uniqueness
+   */
+  static std::string GeneratePoolName(const std::string& prefix) {
+    auto now = std::chrono::system_clock::now();
+    auto timestamp = std::chrono::duration_cast<std::chrono::microseconds>(
+        now.time_since_epoch()).count();
+    pid_t pid = getpid();
+    return prefix + "_" + std::to_string(timestamp) + "_" + std::to_string(pid);
   }
 };
 

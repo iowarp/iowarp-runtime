@@ -54,7 +54,8 @@ int main() {
     
     try {
       // This will create the pool if it doesn't exist
-      mod_name_client.Create(HSHM_MCTX, pool_query);
+      std::string pool_name = "external_test_mod_name_pool";
+      mod_name_client.Create(HSHM_MCTX, pool_query, pool_name);
       std::cout << "SUCCESS: MOD_NAME container created!" << std::endl;
       
       // Step 5: Demonstrate basic operation

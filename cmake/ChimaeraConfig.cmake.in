@@ -21,5 +21,16 @@ if(NOT TARGET @MAIN_PACKAGE_NAME@)
   add_library(@MAIN_PACKAGE_NAME@ ALIAS @CHIMAERA_NAMESPACE@::cxx)
 endif()
 
+# Provide convenience variables for include directories
+# These are particularly useful for IDEs and external build systems
+set(CHIMAERA_INCLUDE_DIRS 
+    "${CMAKE_CURRENT_LIST_DIR}/../../include"
+    "${CMAKE_CURRENT_LIST_DIR}/../../chimods/admin/include"
+    "${CMAKE_CURRENT_LIST_DIR}/../../chimods/bdev/include"
+    "${CMAKE_CURRENT_LIST_DIR}/../../chimods/MOD_NAME/include")
+
+# Also export as cache variables for CMake GUI users
+set(CHIMAERA_INCLUDE_DIRS "${CHIMAERA_INCLUDE_DIRS}" CACHE STRING "Chimaera include directories")
+
 # Provide components
 check_required_components(@MAIN_PACKAGE_NAME@)

@@ -11,6 +11,8 @@
 8. [Pool Query and Task Routing](#pool-query-and-task-routing)
 9. [Client-Server Communication](#client-server-communication)
 10. [Memory Management](#memory-management)
+    - [CHI_CLIENT Buffer Allocation](#chi_client-buffer-allocation)
+    - [Shared-Memory Compatible Data Structures](#shared-memory-compatible-data-structures)
 11. [Build System Integration](#build-system-integration)
 12. [External ChiMod Development](#external-chimod-development)
 13. [Example Module](#example-module)
@@ -247,7 +249,7 @@ class Client : public chi::ContainerClient {
         chi::CreateTaskNode(),
         chi::kAdminPoolId,  // Always use admin pool for CreateTask
         pool_query,
-        "chimaera_MOD_NAME",    // ChiMod name
+        CreateParams::chimod_lib_name,  // ChiMod name from CreateParams
         pool_name_,             // Pool name from base client
         params);                // CreateParams with configuration
     
@@ -261,6 +263,61 @@ class Client : public chi::ContainerClient {
 
 #endif  // MOD_NAME_CLIENT_H_
 ```
+
+### ChiMod Name Requirements
+
+**CRITICAL**: All ChiMod clients MUST use `CreateParams::chimod_lib_name` instead of hardcoding module names.
+
+#### Correct Usage
+```cpp
+// CORRECT: Use CreateParams::chimod_lib_name
+auto task = ipc_manager->NewTask<CreateTask>(
+    chi::CreateTaskNode(),
+    chi::kAdminPoolId,
+    pool_query,
+    CreateParams::chimod_lib_name,  // Dynamic reference to CreateParams
+    pool_name,
+    pool_id,
+    params);
+```
+
+#### Incorrect Usage
+```cpp
+// WRONG: Never hardcode module names
+auto task = ipc_manager->NewTask<CreateTask>(
+    chi::CreateTaskNode(),
+    chi::kAdminPoolId,
+    pool_query,
+    "chimaera_MOD_NAME",  // Hardcoded name breaks flexibility
+    pool_name,
+    pool_id,
+    params);
+```
+
+#### Why This is Required
+
+1. **Namespace Flexibility**: Allows ChiMods to work with different namespace configurations
+2. **Single Source of Truth**: The module name is defined once in CreateParams
+3. **External ChiMods**: Essential for external ChiMods using custom namespaces
+4. **Maintainability**: Changes to module names only require updating CreateParams
+
+#### Implementation Pattern
+
+All non-admin ChiMods using `GetOrCreatePoolTask` must follow this pattern:
+
+```cpp
+// In AsyncCreate method
+auto task = ipc_manager->NewTask<CreateTask>(
+    chi::CreateTaskNode(),
+    chi::kAdminPoolId,                    // Always use admin pool
+    pool_query,
+    CreateParams::chimod_lib_name,        // REQUIRED: Use static member
+    pool_name,                            // Pool identifier
+    pool_id,                              // Target pool ID
+    /* ...CreateParams arguments... */);
+```
+
+**Note**: The admin ChiMod uses `BaseCreateTask` directly and doesn't require the chimod name parameter.
 
 ### Runtime Container (MOD_NAME_runtime.h/cc)
 
@@ -1365,6 +1422,139 @@ ipc_manager->DelTask(task, chi::kMainSegment);
 
 // Runtime side - automatic cleanup (no code needed)
 // Framework Del dispatcher calls ipc_manager->DelTask() automatically
+```
+
+### CHI_CLIENT Buffer Allocation
+
+The `CHI_CLIENT` singleton provides centralized buffer allocation for shared memory operations in client code. Use this for allocating temporary buffers that need to be shared between client and runtime processes.
+
+#### Basic Usage
+```cpp
+#include <chimaera/chimaera.h>
+
+// Get the client singleton
+auto* client = CHI_CLIENT;
+
+// Allocate a buffer in shared memory
+size_t buffer_size = 1024;
+hipc::Pointer buffer_ptr = client->AllocateBuffer(buffer_size);
+
+// Use the buffer (example: copy data into it)
+void* buffer_data = buffer_ptr.get();
+memcpy(buffer_data, source_data, data_size);
+
+// The buffer will be automatically freed when buffer_ptr goes out of scope
+// or when explicitly deallocated by the framework
+```
+
+#### Use Cases for CHI_CLIENT Buffers
+- **Temporary data transfer**: When passing large data to tasks
+- **Intermediate storage**: For computations that need shared memory
+- **I/O operations**: Reading/writing data that needs to be accessible by runtime
+
+#### Best Practices
+```cpp
+// ✅ Good: Use CHI_CLIENT for temporary shared buffers
+auto* client = CHI_CLIENT;
+hipc::Pointer temp_buffer = client->AllocateBuffer(data_size);
+
+// ✅ Good: Use chi::ipc types for persistent task data
+chi::ipc::string task_string(ctx_alloc, "persistent data");
+
+// ❌ Avoid: Don't use CHI_CLIENT for small, simple task parameters
+// Use chi::ipc types directly in task definitions instead
+```
+
+### Shared-Memory Compatible Data Structures
+
+For task definitions and any data that needs to be shared between client and runtime processes, always use shared-memory compatible types instead of standard C++ containers.
+
+#### chi::ipc::string
+Use `chi::ipc::string` or `hipc::string` instead of `std::string` in task definitions:
+
+```cpp
+#include <chimaera/types.h>
+
+// Task definition using shared-memory string
+struct CustomTask : public chi::Task {
+  INOUT hipc::string input_data_;     // Shared-memory compatible string
+  INOUT hipc::string output_data_;    // Results stored in shared memory
+  
+  CustomTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T>& alloc,
+             const std::string& input) 
+    : input_data_(alloc, input),      // Initialize from std::string
+      output_data_(alloc) {}          // Empty initialization
+      
+  // Conversion to std::string when needed
+  std::string getResult() const {
+    return std::string(output_data_.data(), output_data_.size());
+  }
+};
+```
+
+#### chi::ipc::vector
+Use `chi::ipc::vector` instead of `std::vector` for arrays in task definitions:
+
+```cpp
+// Task definition using shared-memory vector
+struct ProcessArrayTask : public chi::Task {
+  INOUT chi::ipc::vector<chi::u32> data_array_;
+  INOUT chi::ipc::vector<chi::f32> result_array_;
+  
+  ProcessArrayTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T>& alloc,
+                   const std::vector<chi::u32>& input_data)
+    : data_array_(alloc),
+      result_array_(alloc) {
+    // Copy from std::vector to shared-memory vector
+    data_array_.resize(input_data.size());
+    std::copy(input_data.begin(), input_data.end(), data_array_.begin());
+  }
+};
+```
+
+#### When to Use Each Type
+
+**Use shared-memory types (chi::ipc::string, hipc::string, chi::ipc::vector, etc.) for:**
+- Task input/output parameters
+- Data that persists across task execution
+- Any data structure that needs serialization
+- Data shared between client and runtime
+
+**Use std::string/vector for:**
+- Local variables in client code
+- Temporary computations
+- Converting to/from shared-memory types
+
+#### Type Conversion Examples
+```cpp
+// Converting between std::string and shared-memory string types
+std::string std_str = "example data";
+hipc::string shm_str(ctx_alloc, std_str);          // std -> shared memory
+std::string result = std::string(shm_str);         // shared memory -> std
+
+// Converting between std::vector and shared-memory vector types
+std::vector<int> std_vec = {1, 2, 3, 4, 5};
+chi::ipc::vector<int> shm_vec(ctx_alloc);
+shm_vec.assign(std_vec.begin(), std_vec.end());    // std -> shared memory
+
+std::vector<int> result_vec(shm_vec.begin(), shm_vec.end());  // shared memory -> std
+```
+
+#### Serialization Support
+Both `chi::ipc::string` and `chi::ipc::vector` automatically support serialization for task communication:
+
+```cpp
+// Task definition - no manual serialization needed
+struct SerializableTask : public chi::Task {
+  INOUT hipc::string message_;
+  INOUT chi::ipc::vector<chi::u64> timestamps_;
+  
+  // Cereal automatically handles chi::ipc types
+  template<class Archive>
+  void serialize(Archive& ar) {
+    ar(message_, timestamps_);  // Works automatically
+  }
+};
 ```
 
 ## Build System Integration
@@ -2555,3 +2745,98 @@ When creating a new Chimaera module, ensure you have:
 - [ ] ❌ **Forgetting GetOrCreatePoolTask template** for container creation (reduces boilerplate)
 
 Remember: **kLocalSchedule is mandatory** - without it, your tasks will never be executed!
+
+## Pool Name Requirements
+**CRITICAL**: All ChiMod Create functions MUST require a user-provided `pool_name` parameter. Never auto-generate pool names using `pool_id_` during Create operations.
+
+### Why Pool Names Are Required
+1. **pool_id_ Not Available**: `pool_id_` is not set until after Create completes
+2. **User Intent**: Users should explicitly name their pools for better organization
+3. **Uniqueness**: Users can ensure uniqueness better than auto-generation
+4. **Debugging**: Named pools are easier to identify during debugging
+
+### Pool Naming Guidelines
+- **Descriptive Names**: Use names that identify purpose or content
+- **File-based Devices**: For BDev file devices, `pool_name` serves as the file path
+- **RAM-based Devices**: For BDev RAM devices, `pool_name` should be unique identifier
+- **Unique Identifiers**: Consider timestamp + PID combinations when needed
+
+### Correct Pool Naming Usage
+```cpp
+// BDev file-based device - pool_name is the file path
+std::string file_path = "/path/to/device.dat";
+bdev_client.Create(mctx, pool_query, file_path, chimaera::bdev::BdevType::kFile);
+
+// BDev RAM-based device - pool_name is unique identifier
+std::string pool_name = "my_ram_device_" + std::to_string(timestamp);
+bdev_client.Create(mctx, pool_query, pool_name, chimaera::bdev::BdevType::kRam, ram_size);
+
+// Other ChiMods - pool_name is descriptive identifier
+std::string pool_name = "my_container_" + user_identifier;
+mod_client.Create(mctx, pool_query, pool_name);
+```
+
+### Incorrect Pool Naming Usage
+```cpp
+// WRONG: Using pool_id_ before it's set (will be 0 or garbage)
+std::string bad_name = "pool_" + std::to_string(pool_id_.ToU64());
+
+// WRONG: Using empty strings
+client.Create(mctx, pool_query, "");
+
+// WRONG: Auto-generating inside Create function
+// Create functions should not auto-generate names
+void Create(mctx, pool_query) {
+    std::string auto_name = "pool_" + generate_id();  // Wrong approach
+}
+```
+
+### Client Interface Pattern
+All ChiMod clients should follow this interface pattern:
+```cpp
+class Client : public chi::ContainerClient {
+ public:
+  // Synchronous Create with required pool_name
+  void Create(const hipc::MemContext& mctx, 
+              const chi::PoolQuery& pool_query,
+              const std::string& pool_name /* user-provided name */) {
+    auto task = AsyncCreate(mctx, pool_query, pool_name);
+    task->Wait();
+    pool_id_ = task->new_pool_id_;  // Set AFTER Create completes
+    // ... cleanup
+  }
+  
+  // Asynchronous Create with required pool_name  
+  hipc::FullPtr<CreateTask> AsyncCreate(
+      const hipc::MemContext& mctx,
+      const chi::PoolQuery& pool_query, 
+      const std::string& pool_name /* user-provided name */) {
+    // Use pool_name directly, never generate internally
+    auto task = ipc_manager->NewTask<CreateTask>(
+        chi::CreateTaskNode(),
+        chi::kAdminPoolId,  // Always use admin pool
+        pool_query,
+        CreateParams::chimod_lib_name,  // Never hardcode
+        pool_name,  // User-provided name
+        pool_id_    // Target pool ID (unset during Create)
+    );
+    return task;
+  }
+ 
+private:
+  // Utility for generating unique names when users need it
+  static std::string GeneratePoolName(const std::string& prefix) {
+    auto now = std::chrono::system_clock::now();
+    auto timestamp = std::chrono::duration_cast<std::chrono::microseconds>(
+        now.time_since_epoch()).count();
+    pid_t pid = getpid();
+    return prefix + "_" + std::to_string(timestamp) + "_" + std::to_string(pid);
+  }
+};
+```
+
+### BDev-Specific Requirements
+- **Single Interface**: Use only one `Create()` and `AsyncCreate()` method (no multiple overloads)
+- **File Devices**: `pool_name` parameter serves as the file path
+- **RAM Devices**: `pool_name` parameter serves as unique identifier
+- **Method Signature**: `Create(mctx, pool_query, pool_name, bdev_type, total_size=0, io_depth=32, alignment=4096)`

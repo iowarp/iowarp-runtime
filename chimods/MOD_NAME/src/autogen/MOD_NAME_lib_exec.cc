@@ -42,6 +42,10 @@ void Runtime::Run(chi::u32 method, hipc::FullPtr<chi::Task> task_ptr, chi::RunCo
       FireAndForgetTest(task_ptr.Cast<FireAndForgetTestTask>(), rctx);
       break;
     }
+    case Method::kWaitTest: {
+      WaitTest(task_ptr.Cast<WaitTestTask>(), rctx);
+      break;
+    }
     default: {
       // Unknown method - do nothing
       break;
@@ -74,6 +78,10 @@ void Runtime::Monitor(chi::MonitorModeId mode, chi::u32 method,
     }
     case Method::kFireAndForgetTest: {
       MonitorFireAndForgetTest(mode, task_ptr.Cast<FireAndForgetTestTask>(), rctx);
+      break;
+    }
+    case Method::kWaitTest: {
+      MonitorWaitTest(mode, task_ptr.Cast<WaitTestTask>(), rctx);
       break;
     }
     default: {
@@ -110,6 +118,10 @@ void Runtime::Del(chi::u32 method, hipc::FullPtr<chi::Task> task_ptr) {
     }
     case Method::kFireAndForgetTest: {
       ipc_manager->DelTask(task_ptr.Cast<FireAndForgetTestTask>());
+      break;
+    }
+    case Method::kWaitTest: {
+      ipc_manager->DelTask(task_ptr.Cast<WaitTestTask>());
       break;
     }
     default: {
@@ -153,6 +165,11 @@ void Runtime::SaveIn(chi::u32 method, chi::TaskSaveInArchive& archive,
       typed_task->SerializeIn(archive);
       break;
     }
+    case Method::kWaitTest: {
+      auto typed_task = task_ptr.Cast<WaitTestTask>();
+      typed_task->SerializeIn(archive);
+      break;
+    }
     default: {
       // Unknown method - do nothing
       break;
@@ -190,6 +207,11 @@ void Runtime::LoadIn(chi::u32 method, chi::TaskLoadInArchive& archive,
     }
     case Method::kFireAndForgetTest: {
       auto typed_task = task_ptr.Cast<FireAndForgetTestTask>();
+      typed_task->SerializeIn(archive);
+      break;
+    }
+    case Method::kWaitTest: {
+      auto typed_task = task_ptr.Cast<WaitTestTask>();
       typed_task->SerializeIn(archive);
       break;
     }
@@ -233,6 +255,11 @@ void Runtime::SaveOut(chi::u32 method, chi::TaskSaveOutArchive& archive,
       typed_task->SerializeOut(archive);
       break;
     }
+    case Method::kWaitTest: {
+      auto typed_task = task_ptr.Cast<WaitTestTask>();
+      typed_task->SerializeOut(archive);
+      break;
+    }
     default: {
       // Unknown method - do nothing
       break;
@@ -270,6 +297,11 @@ void Runtime::LoadOut(chi::u32 method, chi::TaskLoadOutArchive& archive,
     }
     case Method::kFireAndForgetTest: {
       auto typed_task = task_ptr.Cast<FireAndForgetTestTask>();
+      typed_task->SerializeOut(archive);
+      break;
+    }
+    case Method::kWaitTest: {
+      auto typed_task = task_ptr.Cast<WaitTestTask>();
       typed_task->SerializeOut(archive);
       break;
     }
@@ -349,6 +381,17 @@ void Runtime::NewCopy(chi::u32 method, const hipc::FullPtr<chi::Task>& orig_task
       if (!typed_task.IsNull()) {
         // Use HSHM strong copy method for actual copying
         typed_task->shm_strong_copy_main(*orig_task.Cast<FireAndForgetTestTask>());
+        // Cast to base Task type for return
+        dup_task = typed_task.template Cast<chi::Task>();
+      }
+      break;
+    }
+    case Method::kWaitTest: {
+      // Allocate new task using SHM default constructor
+      auto typed_task = ipc_manager->NewTask<WaitTestTask>();
+      if (!typed_task.IsNull()) {
+        // Use HSHM strong copy method for actual copying
+        typed_task->shm_strong_copy_main(*orig_task.Cast<WaitTestTask>());
         // Cast to base Task type for return
         dup_task = typed_task.template Cast<chi::Task>();
       }

@@ -2,6 +2,8 @@
 #define ADMIN_CLIENT_H_
 
 #include <chimaera/chimaera.h>
+#include <chrono>
+#include <unistd.h>
 
 #include "admin_tasks.h"
 
@@ -29,13 +31,20 @@ class Client : public chi::ContainerClient {
 
   /**
    * Create the Admin container (synchronous)
+   * @param mctx Memory context for the operation
+   * @param pool_query Pool routing information
+   * @param pool_name Unique name for the admin pool (user-provided)
    */
-  void Create(const hipc::MemContext& mctx, const chi::PoolQuery& pool_query) {
-    auto task = AsyncCreate(mctx, pool_query);
+  void Create(const hipc::MemContext& mctx, const chi::PoolQuery& pool_query,
+              const std::string& pool_name) {
+    auto task = AsyncCreate(mctx, pool_query, pool_name);
     task->Wait();
 
     // CRITICAL: Update client pool_id_ with the actual pool ID from the task
     pool_id_ = task->new_pool_id_;
+
+    // Store the return code from the Create task in the client
+    return_code_ = task->return_code_;
 
     // Clean up task
     auto* ipc_manager = CHI_IPC;
@@ -44,14 +53,20 @@ class Client : public chi::ContainerClient {
 
   /**
    * Create the Admin container (asynchronous)
+   * @param mctx Memory context for the operation
+   * @param pool_query Pool routing information
+   * @param pool_name Unique name for the admin pool (user-provided)
    */
   hipc::FullPtr<CreateTask> AsyncCreate(const hipc::MemContext& mctx,
-                                        const chi::PoolQuery& pool_query) {
+                                        const chi::PoolQuery& pool_query,
+                                        const std::string& pool_name) {
     auto* ipc_manager = CHI_IPC;
 
     // Allocate CreateTask for admin container creation
+    // Note: Admin uses BaseCreateTask pattern, not GetOrCreatePoolTask
+    // The pool_name parameter is stored but may not be used the same way as other ChiMods
     auto task = ipc_manager->NewTask<CreateTask>(chi::CreateTaskNode(),
-                                                 pool_id_, pool_query);
+                                                 pool_id_, pool_query, "", pool_name);
 
     // Submit to runtime
     ipc_manager->Enqueue(task);
@@ -328,6 +343,19 @@ class Client : public chi::ContainerClient {
     ipc_manager->Enqueue(task);
 
     return task;
+  }
+
+private:
+  /**
+   * Generate a unique pool name with a given prefix
+   * Uses timestamp and process ID to ensure uniqueness
+   */
+  static std::string GeneratePoolName(const std::string& prefix) {
+    auto now = std::chrono::system_clock::now();
+    auto timestamp = std::chrono::duration_cast<std::chrono::microseconds>(
+        now.time_since_epoch()).count();
+    pid_t pid = getpid();
+    return prefix + "_" + std::to_string(timestamp) + "_" + std::to_string(pid);
   }
 };
 

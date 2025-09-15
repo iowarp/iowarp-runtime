@@ -1,0 +1,28 @@
+---
+CompileFlags:
+  Add: 
+    - -I/mnt/home/Projects/iowarp/iowarp-runtime/include
+    - -I/mnt/home/Projects/iowarp/iowarp-runtime/chimods/admin/include
+    - -I/mnt/home/Projects/iowarp/iowarp-runtime/chimods/bdev/include
+    - -I/mnt/home/Projects/iowarp/iowarp-runtime/chimods/MOD_NAME/include
+  CompilationDatabase: ./build
+
+Index:
+  Background: Build
+
+Diagnostics:
+  ClangTidy:
+    Add:
+      - readability-*
+      - bugprone-*
+    Remove:
+      - readability-magic-numbers
+      - readability-identifier-length
+
+InlayHints:
+  Enabled: true
+  ParameterNames: true
+  DeducedTypes: true
+
+Hover:
+  ShowAKA: true
