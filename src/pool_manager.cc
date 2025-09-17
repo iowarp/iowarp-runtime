@@ -294,10 +294,10 @@ bool PoolManager::CreatePool(FullPtr<Task> task, RunContext* run_ctx) {
   const std::string chimod_name = create_task->chimod_name_.str();
   const std::string pool_name = create_task->pool_name_.str();
   const std::string chimod_params = create_task->chimod_params_.str();
-  
+
   // Set num_containers to 1 for now (can be changed later)
   const u32 num_containers = 1;
-  
+
   // Make was_created a local variable
   bool was_created;
 
@@ -383,6 +383,14 @@ bool PoolManager::CreatePool(FullPtr<Task> task, RunContext* run_ctx) {
     // Run create method on container (task and run_ctx guaranteed by
     // CHIMAERA_RUNTIME_INIT)
     container->Run(0, task, *run_ctx);  // Method::kCreate = 0
+
+    if (!task->GetReturnCode() == 0) {
+      std::cerr << "PoolManager: Failed to create container for ChiMod: "
+                << chimod_name << std::endl;
+      module_manager->DestroyContainer(chimod_name, container);
+      pool_metadata_.erase(target_pool_id);
+      return false;
+    }
 
     // Register the container
     if (!RegisterContainer(target_pool_id, container)) {

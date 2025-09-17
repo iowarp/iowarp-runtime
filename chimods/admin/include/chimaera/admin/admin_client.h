@@ -34,8 +34,9 @@ class Client : public chi::ContainerClient {
    * @param mctx Memory context for the operation
    * @param pool_query Pool routing information
    * @param pool_name Unique name for the admin pool (user-provided)
+   * @return true if creation succeeded, false if it failed
    */
-  void Create(const hipc::MemContext& mctx, const chi::PoolQuery& pool_query,
+  bool Create(const hipc::MemContext& mctx, const chi::PoolQuery& pool_query,
               const std::string& pool_name) {
     auto task = AsyncCreate(mctx, pool_query, pool_name);
     task->Wait();
@@ -49,6 +50,9 @@ class Client : public chi::ContainerClient {
     // Clean up task
     auto* ipc_manager = CHI_IPC;
     ipc_manager->DelTask(task);
+    
+    // Return true for success (return_code_ == 0), false for failure
+    return return_code_ == 0;
   }
 
   /**
@@ -66,7 +70,7 @@ class Client : public chi::ContainerClient {
     // Note: Admin uses BaseCreateTask pattern, not GetOrCreatePoolTask
     // The pool_name parameter is stored but may not be used the same way as other ChiMods
     auto task = ipc_manager->NewTask<CreateTask>(chi::CreateTaskNode(),
-                                                 pool_id_, pool_query, "", pool_name);
+                                                 chi::kAdminPoolId, pool_query, "", pool_name, pool_id_);
 
     // Submit to runtime
     ipc_manager->Enqueue(task);

@@ -264,6 +264,47 @@ class Client : public chi::ContainerClient {
 #endif  // MOD_NAME_CLIENT_H_
 ```
 
+### ChiMod CreateTask Pool Assignment Requirements
+
+**CRITICAL**: All ChiMod clients implementing Create functions MUST use the explicit `chi::kAdminPoolId` variable when constructing CreateTask operations. You CANNOT use `pool_id_` for CreateTask operations.
+
+#### Why This is Required
+
+CreateTask operations are actually GetOrCreatePoolTask operations that must be processed by the admin ChiMod to create or find the target pool. The `pool_id_` variable is not initialized until after the Create operation completes successfully.
+
+#### Correct Usage
+```cpp
+// CORRECT: Always use chi::kAdminPoolId for CreateTask
+auto task = ipc_manager->NewTask<CreateTask>(
+    chi::CreateTaskNode(),
+    chi::kAdminPoolId,          // REQUIRED: Use admin pool for CreateTask
+    pool_query,
+    CreateParams::chimod_lib_name,
+    pool_name,
+    pool_id_,                   // Target pool ID to create
+    params);
+```
+
+#### Incorrect Usage
+```cpp
+// WRONG: Never use pool_id_ for CreateTask operations
+auto task = ipc_manager->NewTask<CreateTask>(
+    chi::CreateTaskNode(),
+    pool_id_,                   // WRONG: pool_id_ is not initialized yet
+    pool_query,
+    CreateParams::chimod_lib_name,
+    pool_name,
+    pool_id_,
+    params);
+```
+
+#### Key Points
+
+1. **Admin Pool Processing**: CreateTask is a GetOrCreatePoolTask that must be handled by the admin pool
+2. **Uninitialized Variable**: `pool_id_` is not set until after Create completes
+3. **Universal Requirement**: This applies to ALL ChiMod clients, including admin, bdev, and custom modules
+4. **Create Responsibility**: Create operations are responsible for allocating new pool IDs using the admin pool
+
 ### ChiMod Name Requirements
 
 **CRITICAL**: All ChiMod clients MUST use `CreateParams::chimod_lib_name` instead of hardcoding module names.

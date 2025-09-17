@@ -491,16 +491,23 @@ The fix is implemented in the main `Wait()` function in `task.cc`:
 ```cpp
 // Add this task to the current task's waiting_for_tasks list
 // This ensures AreSubtasksCompleted() properly tracks this subtask
-auto alloc = HSHM_MEMORY_MANAGER->GetDefaultAllocator<CHI_MAIN_ALLOC_T>();
-hipc::FullPtr<Task> this_task_ptr(alloc, this);
-run_ctx->waiting_for_tasks.push_back(this_task_ptr);
+// Skip if called from yield to avoid double tracking
+if (!from_yield) {
+  auto alloc = HSHM_MEMORY_MANAGER->GetDefaultAllocator<CHI_MAIN_ALLOC_T>();
+  hipc::FullPtr<Task> this_task_ptr(alloc, this);
+  run_ctx->waiting_for_tasks.push_back(this_task_ptr);
+}
 ```
 
 ### Usage
-Simply call `Wait()` on any task - the tracking is automatic:
+Call `Wait()` on any task - the tracking is automatic:
 ```cpp
 task->Wait();  // Automatically tracked in parent task's waiting list
+task->Wait(false);  // Same as above - explicitly tracked
+task->Wait(true);   // Called from yield - not tracked to avoid double tracking
 ```
+
+The `from_yield` parameter defaults to `false`. When set to `true`, it prevents adding subtasks to the RunContext, which is used by the `Yield()` function to avoid duplicate tracking.
 
 This change ensures that the worker's `ContinueBlockedTasks()` function properly detects when subtasks are completed and can resume blocked parent tasks without infinite loops.
 
@@ -532,4 +539,120 @@ This guide covers:
 - Use appropriate variable types to avoid sign comparison warnings (e.g., `size_t` for container sizes)
 - Mark unused variables with `(void)variable_name;` to suppress warnings when the variable is intentionally unused
 - Follow strict type safety to prevent implicit conversions that generate warnings
+
+### Thread Safety Standards
+
+#### Atomic Task Fields
+Critical task fields that may be accessed from multiple threads should use atomic types for thread safety:
+
+**Task Return Code:**
+The `return_code_` field in the Task structure is implemented as `std::atomic<u32>` to ensure thread-safe access:
+
+```cpp
+std::atomic<u32> return_code_; /**< Task return code (0=success, non-zero=error) */
+```
+
+**Usage:**
+- **Reading**: Use `task->GetReturnCode()` or `task->return_code_.load()`
+- **Writing**: Use `task->SetReturnCode(value)` or `task->return_code_.store(value)`
+- **Initialization**: Use `task->return_code_.store(0)` in constructors
+
+**Examples:**
+```cpp
+// Reading return code
+u32 code = task->GetReturnCode();  // Preferred method
+u32 code = task->return_code_.load();  // Direct atomic access
+
+// Setting return code  
+task->SetReturnCode(0);  // Preferred method
+task->return_code_.store(42);  // Direct atomic access
+
+// Copy operations
+new_task->return_code_.store(old_task->return_code_.load());
+```
+
+This ensures that return codes can be safely read and written from different threads without data races, particularly important in the multi-threaded runtime environment where tasks may be processed by different workers.
+
+## Unit Testing Standards
+
+### Create Method Success Validation
+**CRITICAL**: Always check if Create methods completed successfully in unit tests. Many test failures occur because Create operations fail but tests continue executing against invalid or uninitialized objects.
+
+**Success Criteria**: Create methods succeed when the return code is 0.
+
+**Required Pattern for All Unit Tests:**
+```cpp
+// After any Create operation in unit tests
+ASSERT_EQ(client.GetReturnCode(), 0) << "Create operation failed with return code: " << client.GetReturnCode();
+
+// Or for individual task-based creates
+auto create_task = client.AsyncCreate(mctx, pool_query, pool_name, /* other params */);
+create_task->Wait();
+ASSERT_EQ(create_task->GetReturnCode(), 0) << "Create task failed with return code: " << create_task->GetReturnCode();
+```
+
+**Why This Is Critical:**
+1. **Early Failure Detection**: Create failures should be caught immediately, not later when dependent operations fail
+2. **Clear Error Messages**: Tests should show the actual Create failure, not cryptic downstream errors
+3. **Debugging Efficiency**: Helps identify the root cause (Create failure) rather than symptoms
+4. **Test Reliability**: Prevents tests from continuing with invalid state and producing misleading results
+
+**Common Failure Scenarios:**
+- Pool creation fails due to naming conflicts
+- ChiMod runtime not properly initialized
+- File path issues for file-based BDev
+- Memory allocation failures
+- Admin pool not accessible
+
+**Examples of Correct Test Patterns:**
+```cpp
+TEST(BDevTest, CreateAndUse) {
+  chimaera::bdev::Client bdev_client(pool_id);
+  
+  // Create BDev container
+  bdev_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), "test_device.dat", 
+                     chimaera::bdev::BdevType::kFile, 1024*1024);
+  
+  // CRITICAL: Check Create success before proceeding
+  ASSERT_EQ(bdev_client.GetReturnCode(), 0) 
+    << "BDev Create failed with return code: " << bdev_client.GetReturnCode();
+  
+  // Now safe to proceed with BDev operations
+  auto blocks = bdev_client.AllocateBlocks(HSHM_MCTX, 10);
+  // ... rest of test
+}
+
+TEST(AdminTest, CreateContainer) {
+  chimaera::admin::Client admin_client(chi::kAdminPoolId);
+  
+  // Create admin container
+  admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), "admin");
+  
+  // CRITICAL: Validate admin creation succeeded
+  ASSERT_EQ(admin_client.GetReturnCode(), 0)
+    << "Admin Create failed with return code: " << admin_client.GetReturnCode();
+  
+  // Safe to use admin operations
+  // ... rest of test
+}
+```
+
+**Incorrect Test Pattern (Common Mistake):**
+```cpp
+TEST(BadTest, MissingCreateCheck) {
+  chimaera::bdev::Client bdev_client(pool_id);
+  
+  // Create BDev container
+  bdev_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), "test_device.dat", 
+                     chimaera::bdev::BdevType::kFile, 1024*1024);
+  
+  // WRONG: No check for Create success!
+  
+  // This will fail cryptically if Create failed
+  auto blocks = bdev_client.AllocateBlocks(HSHM_MCTX, 10);  // May crash or return errors
+  ASSERT_GT(blocks.size(), 0);  // Misleading test failure message
+}
+```
+
+This requirement applies to ALL ChiMod Create operations in unit tests including admin, bdev, MOD_NAME, and any custom ChiMods.
 

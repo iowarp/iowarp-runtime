@@ -13,7 +13,7 @@ namespace bctx = boost::context::detail;
 
 namespace chi {
 
-void Task::Wait() {
+void Task::Wait(bool from_yield) {
   auto* chimaera_manager = CHI_CHIMAERA_MANAGER;
   if (chimaera_manager && chimaera_manager->IsRuntime()) {
     // Runtime implementation: Estimate load and yield execution
@@ -49,17 +49,19 @@ void Task::Wait() {
 
     // Add this task to the current task's waiting_for_tasks list
     // This ensures AreSubtasksCompleted() properly tracks this subtask
-    auto alloc = HSHM_MEMORY_MANAGER->GetDefaultAllocator<CHI_MAIN_ALLOC_T>();
-    hipc::FullPtr<Task> this_task_ptr(alloc, this);
-    run_ctx->waiting_for_tasks.push_back(this_task_ptr);
+    // Skip if called from yield to avoid double tracking
+    if (!from_yield) {
+      auto alloc = HSHM_MEMORY_MANAGER->GetDefaultAllocator<CHI_MAIN_ALLOC_T>();
+      hipc::FullPtr<Task> this_task_ptr(alloc, this);
+      run_ctx->waiting_for_tasks.push_back(this_task_ptr);
+    }
 
     // Yield execution back to worker in loop until task completes
     // Add to blocked queue before each yield
-    while (!IsComplete()) {
-      worker->AddToBlockedQueue(run_ctx, run_ctx->estimated_completion_time_us);
-      YieldBase();
-    }
-
+    // NOTE(llogan): This will only be unblocked when all subtasks are complete
+    // No need for a while loop here.
+    worker->AddToBlockedQueue(run_ctx, run_ctx->estimated_completion_time_us);
+    YieldBase();
   } else {
     // Client implementation: Wait loop using Yield()
     while (!IsComplete()) {
@@ -110,14 +112,14 @@ void Task::YieldBase() {
 }
 
 void Task::Yield() {
-  // New public Yield function that simply calls Wait
-  Wait();
+  // New public Yield function that calls Wait with from_yield=true
+  // to avoid adding subtasks to RunContext
+  Wait(true);
 }
 
 bool Task::IsComplete() const {
   // Completion check (works for both client and runtime modes)
   return is_complete.load() != 0;
 }
-
 
 }  // namespace chi

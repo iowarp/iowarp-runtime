@@ -26,8 +26,9 @@ class Client : public chi::ContainerClient {
    * Create bdev container - synchronous
    * For file-based bdev, pool_name is the file path; for RAM, pool_name is a
    * unique identifier
+   * @return true if creation succeeded, false if it failed
    */
-  void Create(const hipc::MemContext& mctx, const chi::PoolQuery& pool_query,
+  bool Create(const hipc::MemContext& mctx, const chi::PoolQuery& pool_query,
               const std::string& pool_name, BdevType bdev_type,
               chi::u64 total_size = 0, chi::u32 io_depth = 32,
               chi::u32 alignment = 4096) {
@@ -42,6 +43,9 @@ class Client : public chi::ContainerClient {
     return_code_ = task->return_code_;
 
     CHI_IPC->DelTask(task);
+    
+    // Return true for success (return_code_ == 0), false for failure
+    return return_code_ == 0;
   }
 
   /**

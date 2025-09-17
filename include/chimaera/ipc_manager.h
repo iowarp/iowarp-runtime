@@ -134,7 +134,7 @@ class IpcManager {
    * @param task_ptr FullPtr to task to delete
    */
   template<typename TaskT>
-  void DelTask(FullPtr<TaskT>& task_ptr) {
+  void DelTask(FullPtr<TaskT> task_ptr) {
     if (task_ptr.IsNull() || !main_allocator_) return;
     
     main_allocator_->template DelObj(HSHM_MCTX, task_ptr);

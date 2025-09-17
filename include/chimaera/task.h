@@ -48,7 +48,7 @@ class Task : public hipc::ShmContainer {
   IN u32 net_key_; /**< Network identification key for distributed scheduling */
   std::atomic<u32> is_complete; /**< Atomic flag indicating task completion
                                    (0=not complete, 1=complete) */
-  u32 return_code_; /**< Task return code (0=success, non-zero=error) */
+  std::atomic<u32> return_code_; /**< Task return code (0=success, non-zero=error) */
 
   /**
    * SHM default constructor
@@ -75,7 +75,7 @@ class Task : public hipc::ShmContainer {
     run_ctx_ = nullptr;
     net_key_ = 0;
     is_complete.store(0);  // Initialize as not complete
-    return_code_ = 0;      // Initialize as success
+    return_code_.store(0); // Initialize as success
   }
 
   /**
@@ -99,7 +99,7 @@ class Task : public hipc::ShmContainer {
     period_ns_ = other.period_ns_;
     run_ctx_ = other.run_ctx_;
     net_key_ = other.net_key_;
-    return_code_ = other.return_code_;
+    return_code_.store(other.return_code_.load());
     // Explicitly initialize as not complete for copied tasks
     is_complete.store(0);
   }
@@ -142,7 +142,7 @@ class Task : public hipc::ShmContainer {
     run_ctx_ = nullptr;
     net_key_ = 0;
     is_complete.store(0);  // Initialize as not complete
-    return_code_ = 0;      // Initialize as success
+    return_code_.store(0); // Initialize as success
   }
 
   /**
@@ -159,8 +159,9 @@ class Task : public hipc::ShmContainer {
 
   /**
    * Wait for task completion (blocking)
+   * @param from_yield If true, do not add subtasks to RunContext (default: false)
    */
-  HSHM_CROSS_FUN void Wait();
+  HSHM_CROSS_FUN void Wait(bool from_yield = false);
 
 
 
@@ -292,8 +293,11 @@ class Task : public hipc::ShmContainer {
    */
   template <typename Archive>
   void BaseSerializeIn(Archive& ar) {
+    // Handle atomic return_code_ by loading/storing its value
+    u32 return_code_value = return_code_.load();
     ar(pool_id_, task_node_, pool_query_, method_, task_flags_, period_ns_,
-       net_key_, return_code_);
+       net_key_, return_code_value);
+    return_code_.store(return_code_value);
   }
 
   /**
@@ -305,8 +309,11 @@ class Task : public hipc::ShmContainer {
    */
   template <typename Archive>
   void BaseSerializeOut(Archive& ar) {
+    // Handle atomic return_code_ by loading/storing its value
+    u32 return_code_value = return_code_.load();
     ar(pool_id_, task_node_, pool_query_, method_, task_flags_, period_ns_,
-       net_key_, return_code_);
+       net_key_, return_code_value);
+    return_code_.store(return_code_value);
   }
 
   /**
@@ -344,14 +351,14 @@ class Task : public hipc::ShmContainer {
    * Get the task return code
    * @return Return code (0=success, non-zero=error)
    */
-  HSHM_CROSS_FUN u32 GetReturnCode() const { return return_code_; }
+  HSHM_CROSS_FUN u32 GetReturnCode() const { return return_code_.load(); }
 
   /**
    * Set the task return code
    * @param return_code Return code to set (0=success, non-zero=error)
    */
   HSHM_CROSS_FUN void SetReturnCode(u32 return_code) {
-    return_code_ = return_code;
+    return_code_.store(return_code);
   }
 };
 

@@ -58,7 +58,11 @@ int main() {
     
     try {
       // This will create the pool if it doesn't exist
-      simple_mod_client.Create(HSHM_MCTX, pool_query);
+      bool success = simple_mod_client.Create(HSHM_MCTX, pool_query);
+      if (!success) {
+        std::cerr << "ERROR: Failed to create simple mod container!" << std::endl;
+        return 1;
+      }
       std::cout << "SUCCESS: Simple mod container created!" << std::endl;
       
       // Step 5: Demonstrate flush operation

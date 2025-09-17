@@ -73,31 +73,6 @@ struct BaseCreateTask : public chi::Task {
         error_message_(alloc),
         is_admin_(IS_ADMIN) {}
 
-  /** Emplace constructor */
-  explicit BaseCreateTask(
-      const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
-      const chi::TaskNode &task_node, const chi::PoolId &task_pool_id,
-      const chi::PoolQuery &pool_query, const std::string &chimod_name = "",
-      const std::string &pool_name = "",
-      const chi::PoolId &target_pool_id = chi::PoolId::GetNull())
-      : chi::Task(alloc, task_node, task_pool_id, pool_query, 0),
-        chimod_name_(alloc, chimod_name),
-        pool_name_(alloc, pool_name),
-        chimod_params_(alloc),
-        new_pool_id_(target_pool_id),
-        error_message_(alloc),
-        is_admin_(IS_ADMIN) {
-    // Initialize base task
-    task_node_ = task_node;
-    method_ = MethodId;
-    task_flags_.Clear();
-    pool_query_ = pool_query;
-
-    // Create and serialize the CreateParams into chimod_params_
-    CreateParamsT params(alloc);
-    chi::Task::Serialize(alloc, chimod_params_, params);
-  }
-
   /** Emplace constructor with CreateParams arguments */
   template <typename... CreateParamsArgs>
   explicit BaseCreateTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
@@ -434,9 +409,7 @@ struct ServerRecvTaskInTask : public chi::Task {
   /** SHM default constructor */
   explicit ServerRecvTaskInTask(
       const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc)
-      : chi::Task(alloc),
-        transfer_flags_(0),
-        error_message_(alloc) {}
+      : chi::Task(alloc), transfer_flags_(0), error_message_(alloc) {}
 
   /** Emplace constructor */
   explicit ServerRecvTaskInTask(
@@ -551,9 +524,7 @@ struct ClientRecvTaskOutTask : public chi::Task {
   /** SHM default constructor */
   explicit ClientRecvTaskOutTask(
       const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc)
-      : chi::Task(alloc),
-        transfer_flags_(0),
-        error_message_(alloc) {}
+      : chi::Task(alloc), transfer_flags_(0), error_message_(alloc) {}
 
   /** Emplace constructor */
   explicit ClientRecvTaskOutTask(

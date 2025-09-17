@@ -66,8 +66,8 @@ void Worker::Finalize() {
   // complete
 
   // Clear active queue reference (don't delete - it's in shared memory)
-  active_queue_ = hipc::FullPtr<
-      chi::ipc::mpsc_queue<hipc::TypedPointer<TaskLane>>>();
+  active_queue_ =
+      hipc::FullPtr<chi::ipc::mpsc_queue<hipc::TypedPointer<TaskLane>>>();
 
   is_initialized_ = false;
 }
@@ -115,6 +115,8 @@ void Worker::Run() {
                 // Routing successful, execute the task
                 BeginTask(task_full_ptr, container, lane_full_ptr.ptr_);
               }
+              // Note: RouteTask returning false doesn't always indicate an error
+              // Real errors are handled within RouteTask itself
             }
           } else {
             // No more tasks in this lane
@@ -148,8 +150,7 @@ void Worker::Run() {
 
 void Worker::Stop() { is_running_ = false; }
 
-void Worker::EnqueueLane(
-    hipc::TypedPointer<TaskLane> lane_ptr) {
+void Worker::EnqueueLane(hipc::TypedPointer<TaskLane> lane_ptr) {
   if (lane_ptr.IsNull() || active_queue_.IsNull()) {
     return;
   }
@@ -207,8 +208,7 @@ void Worker::ClearCurrentWorker() {
                             static_cast<class Worker*>(nullptr));
 }
 
-bool Worker::RouteTask(const FullPtr<Task>& task_ptr,
-                       TaskLane* lane,
+bool Worker::RouteTask(const FullPtr<Task>& task_ptr, TaskLane* lane,
                        Container*& container) {
   if (task_ptr.IsNull()) {
     return false;
@@ -286,8 +286,7 @@ bool Worker::IsTaskLocal(const std::vector<PoolQuery>& pool_queries) {
   return false;
 }
 
-bool Worker::RouteLocal(const FullPtr<Task>& task_ptr,
-                        TaskLane* lane,
+bool Worker::RouteLocal(const FullPtr<Task>& task_ptr, TaskLane* lane,
                         Container*& container) {
   auto* pool_manager = CHI_POOL_MANAGER;
   container = pool_manager->GetContainer(task_ptr->pool_id_);
@@ -325,7 +324,10 @@ bool Worker::RouteLocal(const FullPtr<Task>& task_ptr,
       return true;
     }
   } catch (const std::exception& e) {
-    // Monitor function failed
+    // Monitor function failed - this is an actual error
+    HELOG(kError, "Worker {}: Monitor function failed for task (Pool: {}, Method: {}): {}", 
+          worker_id_, task_ptr->pool_id_, task_ptr->method_, e.what());
+    EndTaskWithError(task_ptr, 2);  // Error code 2 for monitor failure
     return false;
   }
 }
@@ -638,6 +640,29 @@ void Worker::BeginTask(const FullPtr<Task>& task_ptr, Container* container,
   ExecTask(task_ptr, run_ctx, false);
 }
 
+void Worker::EndTaskWithError(const FullPtr<Task>& task_ptr, u32 error_code) {
+  if (task_ptr.IsNull()) {
+    return;
+  }
+
+  // If task is fire-and-forget, delete it immediately
+  // Fire-and-forget tasks don't need to be kept around for the client
+  if (task_ptr->IsFireAndForget()) {
+    auto* ipc_manager = CHI_IPC;
+    if (ipc_manager) {
+      // DelTask now takes a copy, so we can pass task_ptr directly
+      ipc_manager->DelTask(task_ptr);
+    }
+  } else {
+    // Set the error return code and mark task as complete
+    task_ptr->SetReturnCode(error_code);
+    task_ptr->is_complete.store(1);
+  }
+
+  // Note: Non-fire-and-forget tasks are left in memory for the client to check
+  // the return code and completion status before explicitly deleting them
+}
+
 u32 Worker::ContinueBlockedTasks() {
   // Always check tasks from the front of the queue
   while (!blocked_queue_.empty()) {
@@ -750,12 +775,14 @@ void Worker::ExecTask(const FullPtr<Task>& task_ptr, RunContext* run_ctx,
 
     // Jump to task's yield point and capture the result
     // This provides the current worker context to the fiber for proper return
-    bctx::transfer_t resume_result = bctx::jump_fcontext(resume_fctx, resume_data);
-    
+    bctx::transfer_t resume_result =
+        bctx::jump_fcontext(resume_fctx, resume_data);
+
     // Update yield_context with current worker context so task can return here
-    // This is critical: the task needs to know where to return when it completes or yields again
+    // This is critical: the task needs to know where to return when it
+    // completes or yields again
     run_ctx->yield_context = resume_result;
-    
+
     // Update resume_context only if the task yielded again (is_blocked = true)
     if (run_ctx->is_blocked) {
       run_ctx->resume_context = resume_result;
@@ -770,18 +797,20 @@ void Worker::ExecTask(const FullPtr<Task>& task_ptr, RunContext* run_ctx,
 
     // Create fiber context for this task
     // stack_ptr is already correctly positioned based on stack growth direction
-    bctx::fcontext_t fiber_fctx = 
-        bctx::make_fcontext(run_ctx->stack_ptr, run_ctx->stack_size, FiberExecutionFunction);
+    bctx::fcontext_t fiber_fctx = bctx::make_fcontext(
+        run_ctx->stack_ptr, run_ctx->stack_size, FiberExecutionFunction);
 
     // Jump to fiber context to execute the task
-    // This will provide the worker context to FiberExecutionFunction through the parameter
+    // This will provide the worker context to FiberExecutionFunction through
+    // the parameter
     bctx::transfer_t fiber_result = bctx::jump_fcontext(fiber_fctx, nullptr);
-    
+
     // Update yield_context with current worker context so task can return here
     // The fiber_result contains the worker context for the task to use
     run_ctx->yield_context = fiber_result;
-    
-    // Update resume_context only if the task actually yielded (is_blocked = true)
+
+    // Update resume_context only if the task actually yielded (is_blocked =
+    // true)
     if (run_ctx->is_blocked) {
       run_ctx->resume_context = fiber_result;
     }

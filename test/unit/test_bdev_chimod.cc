@@ -222,9 +222,9 @@ TEST_CASE("bdev_container_creation", "[bdev][create]") {
     chimaera::bdev::Client client(chi::PoolId(100, 0));  // Use non-zero pool ID
     hipc::MemContext mctx;
 
-    REQUIRE_NOTHROW(
-        client.Create(mctx, chi::PoolQuery::Local(), fixture.getTestFile(), 
-                      chimaera::bdev::BdevType::kFile));
+    bool success = client.Create(mctx, chi::PoolQuery::Local(), fixture.getTestFile(), 
+                                 chimaera::bdev::BdevType::kFile);
+    REQUIRE(success);
 
     HILOG(kInfo, "Successfully created bdev container with default parameters");
   }
@@ -242,7 +242,8 @@ TEST_CASE("bdev_block_allocation_4kb", "[bdev][allocate][4kb]") {
     chimaera::bdev::Client client(chi::PoolId(102, 0));
     hipc::MemContext mctx;
 
-    client.Create(mctx, chi::PoolQuery::Local(), fixture.getTestFile(), chimaera::bdev::BdevType::kFile);
+    bool success = client.Create(mctx, chi::PoolQuery::Local(), fixture.getTestFile(), chimaera::bdev::BdevType::kFile);
+    REQUIRE(success);
 
     // Allocate multiple 4KB blocks
     std::vector<chimaera::bdev::Block> blocks;
@@ -286,7 +287,8 @@ TEST_CASE("bdev_write_read_basic", "[bdev][io][basic]") {
     chimaera::bdev::Client client(chi::PoolId(103, 0));
     hipc::MemContext mctx;
 
-    client.Create(mctx, chi::PoolQuery::Local(), fixture.getTestFile(), chimaera::bdev::BdevType::kFile);
+    bool success = client.Create(mctx, chi::PoolQuery::Local(), fixture.getTestFile(), chimaera::bdev::BdevType::kFile);
+    REQUIRE(success);
 
     // Allocate a block
     std::vector<chimaera::bdev::Block> blocks = client.AllocateBlocks(mctx, k4KB);
@@ -336,7 +338,8 @@ TEST_CASE("bdev_async_operations", "[bdev][async][io]") {
     chimaera::bdev::Client client(chi::PoolId(104, 0));
     hipc::MemContext mctx;
 
-    client.Create(mctx, chi::PoolQuery::Local(), fixture.getTestFile(), chimaera::bdev::BdevType::kFile);
+    bool success = client.Create(mctx, chi::PoolQuery::Local(), fixture.getTestFile(), chimaera::bdev::BdevType::kFile);
+    REQUIRE(success);
 
     // Async allocate
     auto alloc_task = client.AsyncAllocateBlocks(mctx, k64KB);
@@ -397,7 +400,8 @@ TEST_CASE("bdev_performance_metrics", "[bdev][performance][metrics]") {
     chimaera::bdev::Client client(chi::PoolId(105, 0));
     hipc::MemContext mctx;
 
-    client.Create(mctx, chi::PoolQuery::Local(), fixture.getTestFile(), chimaera::bdev::BdevType::kFile);
+    bool success = client.Create(mctx, chi::PoolQuery::Local(), fixture.getTestFile(), chimaera::bdev::BdevType::kFile);
+    REQUIRE(success);
 
     // Get initial stats
     chi::u64 initial_remaining;
@@ -496,7 +500,8 @@ TEST_CASE("bdev_ram_container_creation", "[bdev][ram][create]") {
 
   // Create admin client
   chimaera::admin::Client admin_client;
-  admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), "admin");
+  bool admin_success = admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), "admin");
+  REQUIRE(admin_success);
   std::this_thread::sleep_for(100ms);
 
   // Create bdev client for RAM backend
@@ -505,8 +510,9 @@ TEST_CASE("bdev_ram_container_creation", "[bdev][ram][create]") {
   // Create RAM-based bdev container (1MB)
   const chi::u64 ram_size = 1024 * 1024;
   std::string pool_name = "ram_test_" + std::to_string(getpid()) + "_" + std::to_string(8001);
-  bdev_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), pool_name,
-                     chimaera::bdev::BdevType::kRam, ram_size);
+  bool bdev_success = bdev_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), pool_name,
+                                         chimaera::bdev::BdevType::kRam, ram_size);
+  REQUIRE(bdev_success);
 
   std::this_thread::sleep_for(100ms);
 
@@ -520,7 +526,8 @@ TEST_CASE("bdev_ram_allocation_and_io", "[bdev][ram][io]") {
 
   // Create admin client
   chimaera::admin::Client admin_client;
-  admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), "admin");
+  bool admin_success = admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), "admin");
+  REQUIRE(admin_success);
   std::this_thread::sleep_for(100ms);
 
   // Create bdev client for RAM backend
@@ -529,8 +536,9 @@ TEST_CASE("bdev_ram_allocation_and_io", "[bdev][ram][io]") {
   // Create RAM-based bdev container (1MB)
   const chi::u64 ram_size = 1024 * 1024;
   std::string pool_name = "ram_test_" + std::to_string(getpid()) + "_" + std::to_string(8002);
-  bdev_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), pool_name,
-                     chimaera::bdev::BdevType::kRam, ram_size);
+  bool bdev_success = bdev_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), pool_name,
+                                         chimaera::bdev::BdevType::kRam, ram_size);
+  REQUIRE(bdev_success);
   std::this_thread::sleep_for(100ms);
 
   // Allocate a 4KB block
@@ -584,7 +592,8 @@ TEST_CASE("bdev_ram_large_blocks", "[bdev][ram][large]") {
 
   // Create admin client
   chimaera::admin::Client admin_client;
-  admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), "admin");
+  bool admin_success = admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), "admin");
+  REQUIRE(admin_success);
   std::this_thread::sleep_for(100ms);
 
   // Create bdev client for RAM backend
@@ -593,8 +602,9 @@ TEST_CASE("bdev_ram_large_blocks", "[bdev][ram][large]") {
   // Create RAM-based bdev container (10MB)
   const chi::u64 ram_size = 10 * 1024 * 1024;
   std::string pool_name = "ram_test_" + std::to_string(getpid()) + "_" + std::to_string(8003);
-  bdev_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), pool_name,
-                     chimaera::bdev::BdevType::kRam, ram_size);
+  bool bdev_success = bdev_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), pool_name,
+                                         chimaera::bdev::BdevType::kRam, ram_size);
+  REQUIRE(bdev_success);
   std::this_thread::sleep_for(100ms);
 
   // Test different block sizes
@@ -653,7 +663,8 @@ TEST_CASE("bdev_ram_performance", "[bdev][ram][performance]") {
 
   // Create admin client
   chimaera::admin::Client admin_client;
-  admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), "admin");
+  bool admin_success = admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), "admin");
+  REQUIRE(admin_success);
   std::this_thread::sleep_for(100ms);
 
   // Create bdev client for RAM backend
@@ -662,8 +673,9 @@ TEST_CASE("bdev_ram_performance", "[bdev][ram][performance]") {
   // Create RAM-based bdev container (100MB)
   const chi::u64 ram_size = 100 * 1024 * 1024;
   std::string pool_name = "ram_test_" + std::to_string(getpid()) + "_" + std::to_string(8004);
-  bdev_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), pool_name,
-                     chimaera::bdev::BdevType::kRam, ram_size);
+  bool bdev_success = bdev_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), pool_name,
+                                         chimaera::bdev::BdevType::kRam, ram_size);
+  REQUIRE(bdev_success);
   std::this_thread::sleep_for(100ms);
 
   // Allocate a 1MB block
@@ -734,7 +746,8 @@ TEST_CASE("bdev_ram_bounds_checking", "[bdev][ram][bounds]") {
 
   // Create admin client
   chimaera::admin::Client admin_client;
-  admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), "admin");
+  bool admin_success = admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), "admin");
+  REQUIRE(admin_success);
   std::this_thread::sleep_for(100ms);
 
   // Create bdev client for RAM backend
@@ -743,8 +756,9 @@ TEST_CASE("bdev_ram_bounds_checking", "[bdev][ram][bounds]") {
   // Create small RAM-based bdev container (64KB)
   const chi::u64 ram_size = 64 * 1024;
   std::string pool_name = "ram_test_" + std::to_string(getpid()) + "_" + std::to_string(8005);
-  bdev_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), pool_name,
-                     chimaera::bdev::BdevType::kRam, ram_size);
+  bool bdev_success = bdev_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), pool_name,
+                                         chimaera::bdev::BdevType::kRam, ram_size);
+  REQUIRE(bdev_success);
   std::this_thread::sleep_for(100ms);
 
   // Create a block that would go beyond bounds
@@ -791,7 +805,8 @@ TEST_CASE("bdev_file_vs_ram_comparison", "[bdev][file][ram][comparison]") {
 
   // Create admin client
   chimaera::admin::Client admin_client;
-  admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), "admin");
+  bool admin_success = admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), "admin");
+  REQUIRE(admin_success);
   std::this_thread::sleep_for(100ms);
 
   // Create two bdev clients - one for file, one for RAM
@@ -799,14 +814,16 @@ TEST_CASE("bdev_file_vs_ram_comparison", "[bdev][file][ram][comparison]") {
   chimaera::bdev::Client ram_client(chi::PoolId(8007, 0));
 
   // Create file-based container
-  file_client.Create(HSHM_MCTX, chi::PoolQuery::Local(),
-                     fixture.getTestFile(), chimaera::bdev::BdevType::kFile);
+  bool file_success = file_client.Create(HSHM_MCTX, chi::PoolQuery::Local(),
+                                         fixture.getTestFile(), chimaera::bdev::BdevType::kFile);
+  REQUIRE(file_success);
   std::this_thread::sleep_for(100ms);
 
   // Create RAM-based container (same size as file)
   std::string ram_pool_name = "ram_comparison_" + std::to_string(getpid()) + "_" + std::to_string(8007);
-  ram_client.Create(HSHM_MCTX, chi::PoolQuery::Local(),
-                    ram_pool_name, chimaera::bdev::BdevType::kRam, kDefaultFileSize);
+  bool ram_success = ram_client.Create(HSHM_MCTX, chi::PoolQuery::Local(),
+                                       ram_pool_name, chimaera::bdev::BdevType::kRam, kDefaultFileSize);
+  REQUIRE(ram_success);
   std::this_thread::sleep_for(100ms);
 
   // Test same operations on both backends
@@ -930,16 +947,18 @@ TEST_CASE("bdev_file_explicit_backend", "[bdev][file][explicit]") {
 
   // Create admin client
   chimaera::admin::Client admin_client;
-  admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), "admin");
+  bool admin_success = admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), "admin");
+  REQUIRE(admin_success);
   std::this_thread::sleep_for(100ms);
 
   // Create bdev client with explicit file backend
   chimaera::bdev::Client bdev_client(chi::PoolId(8008, 0));
 
   // Create file-based container using explicit backend type
-  bdev_client.Create(HSHM_MCTX, chi::PoolQuery::Local(),
-                     fixture.getTestFile(), chimaera::bdev::BdevType::kFile, 0,
-                     32, 4096);
+  bool bdev_success = bdev_client.Create(HSHM_MCTX, chi::PoolQuery::Local(),
+                                         fixture.getTestFile(), chimaera::bdev::BdevType::kFile, 0,
+                                         32, 4096);
+  REQUIRE(bdev_success);
   std::this_thread::sleep_for(100ms);
 
   // Test basic operations
@@ -986,7 +1005,8 @@ TEST_CASE("bdev_error_conditions_enhanced", "[bdev][error][enhanced]") {
 
   // Create admin client
   chimaera::admin::Client admin_client;
-  admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), "admin");
+  bool admin_success = admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), "admin");
+  REQUIRE(admin_success);
   std::this_thread::sleep_for(100ms);
 
   // Test 1: RAM backend without size specification
@@ -994,27 +1014,20 @@ TEST_CASE("bdev_error_conditions_enhanced", "[bdev][error][enhanced]") {
     chimaera::bdev::Client ram_client_no_size(chi::PoolId(8009, 0));
 
     // This should fail because RAM backend requires explicit size
-    bool creation_failed = false;
-    try {
-      std::string pool_name = "ram_fail_test_" + std::to_string(getpid());
-      ram_client_no_size.Create(HSHM_MCTX, chi::PoolQuery::Local(),
-                                pool_name, chimaera::bdev::BdevType::kRam,
-                                0);  // Size 0 should fail
-      std::this_thread::sleep_for(100ms);
-    } catch (...) {
-      creation_failed = true;
-    }
-
-    // Note: The actual error handling might be at the task level,
-    // so we test if we can allocate (which should fail)
+    std::string pool_name = "ram_fail_test_" + std::to_string(getpid());
+    bool creation_success = ram_client_no_size.Create(HSHM_MCTX, chi::PoolQuery::Local(),
+                                                      pool_name, chimaera::bdev::BdevType::kRam,
+                                                      0);  // Size 0 should fail
+    std::this_thread::sleep_for(100ms);
+    
+    // Creation should fail for RAM backend with zero size
+    bool creation_failed = !creation_success;
+    
+    // If creation didn't fail at the Create level, test allocation to see if the container is invalid
     if (!creation_failed) {
-      try {
-        std::vector<chimaera::bdev::Block> blocks =
-            ram_client_no_size.AllocateBlocks(HSHM_MCTX, k4KB);
-        creation_failed = (blocks.size() == 0);  // Should be invalid block list
-      } catch (...) {
-        creation_failed = true;
-      }
+      std::vector<chimaera::bdev::Block> blocks =
+          ram_client_no_size.AllocateBlocks(HSHM_MCTX, k4KB);
+      creation_failed = (blocks.size() == 0);  // Should be invalid block list
     }
 
     HILOG(kInfo, "RAM backend properly rejects zero size: {}",
@@ -1025,19 +1038,20 @@ TEST_CASE("bdev_error_conditions_enhanced", "[bdev][error][enhanced]") {
   {
     chimaera::bdev::Client file_client_bad_path(chi::PoolId(8010, 0));
 
-    bool creation_failed = false;
-    try {
-      file_client_bad_path.Create(HSHM_MCTX, chi::PoolQuery::Local(),
-                                  "/nonexistent/path/file.dat",
-                                  chimaera::bdev::BdevType::kFile);
-      std::this_thread::sleep_for(100ms);
+    // This should fail because the file path doesn't exist
+    bool creation_success = file_client_bad_path.Create(HSHM_MCTX, chi::PoolQuery::Local(),
+                                                        "/nonexistent/path/file.dat",
+                                                        chimaera::bdev::BdevType::kFile);
+    std::this_thread::sleep_for(100ms);
 
-      // Try to allocate to see if container actually works
+    // Creation should fail for non-existent file path
+    bool creation_failed = !creation_success;
+    
+    // If creation didn't fail at the Create level, test allocation to see if the container is invalid
+    if (!creation_failed) {
       std::vector<chimaera::bdev::Block> blocks =
           file_client_bad_path.AllocateBlocks(HSHM_MCTX, k4KB);
       creation_failed = (blocks.size() == 0);
-    } catch (...) {
-      creation_failed = true;
     }
 
     HILOG(kInfo, "File backend properly handles bad path: {}",

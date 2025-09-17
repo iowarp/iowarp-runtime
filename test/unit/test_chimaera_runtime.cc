@@ -170,7 +170,8 @@ class ChimaeraRuntimeFixture {
 
       // Create the admin container first if needed
       chi::DomainQuery pool_query;  // Default domain query
-      admin_client.Create(HSHM_MCTX, pool_query, "admin");
+      bool success = admin_client.Create(HSHM_MCTX, pool_query, "admin");
+      REQUIRE(success);
 
       // Create MOD_NAME pool parameters
       chimaera::MOD_NAME::CreateParams params;
@@ -269,7 +270,8 @@ TEST_CASE("MOD_NAME Custom Task Execution", "[task][mod_name][custom]") {
     // Step 4: Create the MOD_NAME container
     chi::DomainQuery pool_query;  // Default domain query
     std::string pool_name = "test_mod_name_pool";
-    mod_name_client.Create(HSHM_MCTX, pool_query, pool_name);
+    bool success = mod_name_client.Create(HSHM_MCTX, pool_query, pool_name);
+    REQUIRE(success);
 
     // Step 5: Submit custom task
     std::string input_data = "test_input_data";
@@ -306,7 +308,8 @@ TEST_CASE("MOD_NAME Async Task Execution", "[task][mod_name][async]") {
     // Create the MOD_NAME container
     chi::DomainQuery pool_query;
     std::string pool_name = "test_mod_name_pool";
-    mod_name_client.Create(HSHM_MCTX, pool_query, pool_name);
+    bool success = mod_name_client.Create(HSHM_MCTX, pool_query, pool_name);
+    REQUIRE(success);
 
     // Submit async custom task
     std::string input_data = "async_test_data";
@@ -349,7 +352,8 @@ TEST_CASE("Error Handling Tests", "[error][edge_cases]") {
 
     // Creating container without runtime should fail or handle gracefully
     std::string pool_name = "test_mod_name_pool";
-    REQUIRE_NOTHROW(mod_name_client.Create(HSHM_MCTX, pool_query, pool_name));
+    bool success = mod_name_client.Create(HSHM_MCTX, pool_query, pool_name);
+    REQUIRE_NOTHROW(success);
   }
 
   SECTION("Invalid pool ID should handle gracefully") {
@@ -362,7 +366,8 @@ TEST_CASE("Error Handling Tests", "[error][edge_cases]") {
     chi::DomainQuery pool_query;
 
     // This should not crash
-    REQUIRE_NOTHROW(invalid_client.Create(HSHM_MCTX, pool_query));
+    bool success = invalid_client.Create(HSHM_MCTX, pool_query);
+    REQUIRE_NOTHROW(success);
   }
 
   SECTION("Task timeout handling") {
@@ -372,7 +377,8 @@ TEST_CASE("Error Handling Tests", "[error][edge_cases]") {
     chimaera::MOD_NAME::Client mod_name_client(kTestModNamePoolId);
     chi::DomainQuery pool_query;
     std::string pool_name = "test_mod_name_pool";
-    mod_name_client.Create(HSHM_MCTX, pool_query, pool_name);
+    bool success = mod_name_client.Create(HSHM_MCTX, pool_query, pool_name);
+    REQUIRE(success);
 
     // Submit a task
     auto task =
@@ -407,7 +413,8 @@ TEST_CASE("Concurrent Task Execution", "[concurrent][stress]") {
     chimaera::MOD_NAME::Client mod_name_client(kTestModNamePoolId);
     chi::DomainQuery pool_query;
     std::string pool_name = "test_mod_name_pool";
-    mod_name_client.Create(HSHM_MCTX, pool_query, pool_name);
+    bool success = mod_name_client.Create(HSHM_MCTX, pool_query, pool_name);
+    REQUIRE(success);
 
     // Submit multiple concurrent tasks
     constexpr int kNumTasks = 5;
@@ -458,7 +465,8 @@ TEST_CASE("Memory Management", "[memory][cleanup]") {
     chimaera::MOD_NAME::Client mod_name_client(kTestModNamePoolId);
     chi::DomainQuery pool_query;
     std::string pool_name = "test_mod_name_pool";
-    mod_name_client.Create(HSHM_MCTX, pool_query, pool_name);
+    bool success = mod_name_client.Create(HSHM_MCTX, pool_query, pool_name);
+    REQUIRE(success);
 
     // Allocate many tasks to test memory management
     constexpr int kNumAllocations = 10;
@@ -497,7 +505,8 @@ TEST_CASE("Performance Tests", "[performance][timing]") {
     chimaera::MOD_NAME::Client mod_name_client(kTestModNamePoolId);
     chi::DomainQuery pool_query;
     std::string pool_name = "test_mod_name_pool";
-    mod_name_client.Create(HSHM_MCTX, pool_query, pool_name);
+    bool success = mod_name_client.Create(HSHM_MCTX, pool_query, pool_name);
+    REQUIRE(success);
 
     // Measure task execution time
     auto start_time = std::chrono::high_resolution_clock::now();
