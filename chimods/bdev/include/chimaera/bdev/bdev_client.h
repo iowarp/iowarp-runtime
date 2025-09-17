@@ -2,8 +2,9 @@
 #define BDEV_CLIENT_H_
 
 #include <chimaera/chimaera.h>
-#include <chrono>
 #include <unistd.h>
+
+#include <chrono>
 
 #include "bdev_tasks.h"
 
@@ -15,37 +16,6 @@
 
 namespace chimaera::bdev {
 
-/**
- * Client-side block list (uses std::vector instead of hipc::vector)
- */
-struct ClientBlockList {
-  std::vector<Block> blocks_;    // List of allocated blocks
-  chi::u64 total_size_;          // Total size covered by all blocks
-  
-  ClientBlockList() : total_size_(0) {}
-  
-  // Add a block to the list
-  void AddBlock(const Block& block) {
-    blocks_.push_back(block);
-    total_size_ += block.size_;
-  }
-  
-  // Get number of blocks
-  size_t GetBlockCount() const {
-    return blocks_.size();
-  }
-  
-  // Get total size covered
-  chi::u64 GetTotalSize() const {
-    return total_size_;
-  }
-  
-  // Clear all blocks
-  void Clear() {
-    blocks_.clear();
-    total_size_ = 0;
-  }
-};
 
 class Client : public chi::ContainerClient {
  public:
@@ -54,27 +24,30 @@ class Client : public chi::ContainerClient {
 
   /**
    * Create bdev container - synchronous
-   * For file-based bdev, pool_name is the file path; for RAM, pool_name is a unique identifier
+   * For file-based bdev, pool_name is the file path; for RAM, pool_name is a
+   * unique identifier
    */
   void Create(const hipc::MemContext& mctx, const chi::PoolQuery& pool_query,
-              const std::string& pool_name, BdevType bdev_type, chi::u64 total_size = 0,
-              chi::u32 io_depth = 32, chi::u32 alignment = 4096) {
-    auto task = AsyncCreate(mctx, pool_query, pool_name, bdev_type, total_size, io_depth,
-                            alignment);
+              const std::string& pool_name, BdevType bdev_type,
+              chi::u64 total_size = 0, chi::u32 io_depth = 32,
+              chi::u32 alignment = 4096) {
+    auto task = AsyncCreate(mctx, pool_query, pool_name, bdev_type, total_size,
+                            io_depth, alignment);
     task->Wait();
-    
+
     // CRITICAL: Update client pool_id_ with the actual pool ID from the task
     pool_id_ = task->new_pool_id_;
-    
+
     // Store the return code from the Create task in the client
     return_code_ = task->return_code_;
-    
+
     CHI_IPC->DelTask(task);
   }
 
   /**
-   * Create bdev container - asynchronous 
-   * For file-based bdev, pool_name is the file path; for RAM, pool_name is a unique identifier
+   * Create bdev container - asynchronous
+   * For file-based bdev, pool_name is the file path; for RAM, pool_name is a
+   * unique identifier
    */
   hipc::FullPtr<chimaera::bdev::CreateTask> AsyncCreate(
       const hipc::MemContext& mctx, const chi::PoolQuery& pool_query,
@@ -83,19 +56,21 @@ class Client : public chi::ContainerClient {
     auto* ipc_manager = CHI_IPC;
 
     // CreateTask should always use admin pool, never the client's pool_id_
-    // Pass all arguments directly to NewTask constructor including CreateParams arguments
-    chi::u32 safe_alignment = (alignment == 0) ? 4096 : alignment;  // Ensure non-zero alignment
-    
+    // Pass all arguments directly to NewTask constructor including CreateParams
+    // arguments
+    chi::u32 safe_alignment =
+        (alignment == 0) ? 4096 : alignment;  // Ensure non-zero alignment
+
     auto task = ipc_manager->NewTask<chimaera::bdev::CreateTask>(
-        chi::CreateTaskNode(), 
+        chi::CreateTaskNode(),
         chi::kAdminPoolId,  // Send to admin pool for GetOrCreatePool processing
         pool_query,
         CreateParams::chimod_lib_name,  // chimod name from CreateParams
-        pool_name,  // user-provided pool name (file path for files, unique name for RAM)
-        pool_id_,  // target pool ID to create
+        pool_name,  // user-provided pool name (file path for files, unique name
+                    // for RAM)
+        pool_id_,   // target pool ID to create
         // CreateParams arguments:
-        bdev_type, total_size, io_depth, safe_alignment
-    );
+        bdev_type, total_size, io_depth, safe_alignment);
 
     // Submit to runtime
     ipc_manager->Enqueue(task);
@@ -105,40 +80,25 @@ class Client : public chi::ContainerClient {
   /**
    * Allocate multiple blocks - synchronous
    */
-  ClientBlockList AllocateBlocks(const hipc::MemContext& mctx, chi::u64 size) {
-    auto task = AsyncAllocate(mctx, size);
+  std::vector<Block> AllocateBlocks(const hipc::MemContext& mctx, chi::u64 size) {
+    auto task = AsyncAllocateBlocks(mctx, size);
     task->Wait();
-    ClientBlockList result;
-    for (size_t i = 0; i < task->block_list_.blocks_.size(); ++i) {
-      result.AddBlock(task->block_list_.blocks_[i]);
-    }
-    CHI_IPC->DelTask(task);
-    return result;
-  }
-  
-  /**
-   * Allocate single block - synchronous (backward compatibility)
-   * Returns the first block if multiple blocks were allocated
-   */
-  Block Allocate(const hipc::MemContext& mctx, chi::u64 size) {
-    auto task = AsyncAllocate(mctx, size);
-    task->Wait();
-    Block result;
-    if (task->block_list_.GetBlockCount() > 0) {
-      result = task->block_list_.blocks_[0];
+    std::vector<Block> result;
+    for (size_t i = 0; i < task->blocks_.size(); ++i) {
+      result.push_back(task->blocks_[i]);
     }
     CHI_IPC->DelTask(task);
     return result;
   }
 
   /**
-   * Allocate data block - asynchronous
+   * Allocate data blocks - asynchronous
    */
-  hipc::FullPtr<chimaera::bdev::AllocateTask> AsyncAllocate(
+  hipc::FullPtr<AllocateBlocksTask> AsyncAllocateBlocks(
       const hipc::MemContext& mctx, chi::u64 size) {
     auto* ipc_manager = CHI_IPC;
 
-    auto task = ipc_manager->NewTask<chimaera::bdev::AllocateTask>(
+    auto task = ipc_manager->NewTask<AllocateBlocksTask>(
         chi::CreateTaskNode(), pool_id_, chi::PoolQuery::Local(), size);
 
     ipc_manager->Enqueue(task);
@@ -148,55 +108,33 @@ class Client : public chi::ContainerClient {
   /**
    * Free multiple blocks - synchronous
    */
-  chi::u32 FreeBlocks(const hipc::MemContext& mctx, const ClientBlockList& client_block_list) {
-    auto task = AsyncFreeBlocks(mctx, client_block_list);
+  chi::u32 FreeBlocks(const hipc::MemContext& mctx,
+                      const std::vector<Block>& blocks) {
+    auto task = AsyncFreeBlocks(mctx, blocks);
     task->Wait();
     chi::u32 result = task->return_code_;
     CHI_IPC->DelTask(task);
     return result;
   }
-  
+
   /**
    * Free multiple blocks - asynchronous
    */
   hipc::FullPtr<chimaera::bdev::FreeTask> AsyncFreeBlocks(
-      const hipc::MemContext& mctx, const ClientBlockList& client_block_list) {
+      const hipc::MemContext& mctx, const std::vector<Block>& blocks) {
     auto* ipc_manager = CHI_IPC;
 
-    // Create a task with empty block list, then populate it
-    auto task = ipc_manager->NewTask<chimaera::bdev::FreeTask>(
-        chi::CreateTaskNode(), pool_id_, chi::PoolQuery::Local(), Block{});
-    
-    // Clear the single block and add all blocks from client list
-    task->block_list_.Clear();
-    for (size_t i = 0; i < client_block_list.blocks_.size(); ++i) {
-      task->block_list_.AddBlock(client_block_list.blocks_[i]);
+    // Create a chi::ipc::vector from std::vector
+    auto alloc = HSHM_MEMORY_MANAGER->GetDefaultAllocator<CHI_MAIN_ALLOC_T>();
+    chi::ipc::vector<Block> ipc_blocks(alloc);
+    ipc_blocks.resize(blocks.size());
+    for (size_t i = 0; i < blocks.size(); ++i) {
+      ipc_blocks[i] = blocks[i];
     }
 
-    ipc_manager->Enqueue(task);
-    return task;
-  }
-  
-  /**
-   * Free single block - synchronous (backward compatibility)
-   */
-  chi::u32 Free(const hipc::MemContext& mctx, const Block& block) {
-    auto task = AsyncFree(mctx, block);
-    task->Wait();
-    chi::u32 result = task->return_code_;
-    CHI_IPC->DelTask(task);
-    return result;
-  }
-
-  /**
-   * Free single block - asynchronous (backward compatibility)
-   */
-  hipc::FullPtr<chimaera::bdev::FreeTask> AsyncFree(
-      const hipc::MemContext& mctx, const Block& block) {
-    auto* ipc_manager = CHI_IPC;
-
+    // Create task with vector constructor
     auto task = ipc_manager->NewTask<chimaera::bdev::FreeTask>(
-        chi::CreateTaskNode(), pool_id_, chi::PoolQuery::Local(), block);
+        chi::CreateTaskNode(), pool_id_, chi::PoolQuery::Local(), ipc_blocks);
 
     ipc_manager->Enqueue(task);
     return task;
@@ -206,8 +144,8 @@ class Client : public chi::ContainerClient {
    * Write data to block - synchronous
    */
   chi::u64 Write(const hipc::MemContext& mctx, const Block& block,
-                 const std::vector<hshm::u8>& data) {
-    auto task = AsyncWrite(mctx, block, data);
+                 hipc::Pointer data, size_t length) {
+    auto task = AsyncWrite(mctx, block, data, length);
     task->Wait();
     chi::u64 bytes_written = task->bytes_written_;
     CHI_IPC->DelTask(task);
@@ -218,12 +156,13 @@ class Client : public chi::ContainerClient {
    * Write data to block - asynchronous
    */
   hipc::FullPtr<chimaera::bdev::WriteTask> AsyncWrite(
-      const hipc::MemContext& mctx, const Block& block,
-      const std::vector<hshm::u8>& data) {
+      const hipc::MemContext& mctx, const Block& block, hipc::Pointer data,
+      size_t length) {
     auto* ipc_manager = CHI_IPC;
 
     auto task = ipc_manager->NewTask<chimaera::bdev::WriteTask>(
-        chi::CreateTaskNode(), pool_id_, chi::PoolQuery::Local(), block, data);
+        chi::CreateTaskNode(), pool_id_, chi::PoolQuery::Local(), block, data,
+        length);
 
     ipc_manager->Enqueue(task);
     return task;
@@ -231,28 +170,28 @@ class Client : public chi::ContainerClient {
 
   /**
    * Read data from block - synchronous
+   * Allocates buffer and returns pointer and size via output parameters
    */
-  std::vector<hshm::u8> Read(const hipc::MemContext& mctx, const Block& block) {
-    auto task = AsyncRead(mctx, block);
+  chi::u64 Read(const hipc::MemContext& mctx, const Block& block,
+                hipc::Pointer& data_out, size_t buffer_size) {
+    auto task = AsyncRead(mctx, block, data_out, buffer_size);
     task->Wait();
-    std::vector<hshm::u8> result;
-    result.reserve(task->data_.size());
-    for (size_t i = 0; i < task->data_.size(); ++i) {
-      result.push_back(task->data_[i]);
-    }
+    chi::u64 bytes_read = task->bytes_read_;
     CHI_IPC->DelTask(task);
-    return result;
+    return bytes_read;
   }
 
   /**
    * Read data from block - asynchronous
    */
   hipc::FullPtr<chimaera::bdev::ReadTask> AsyncRead(
-      const hipc::MemContext& mctx, const Block& block) {
+      const hipc::MemContext& mctx, const Block& block, hipc::Pointer data,
+      size_t buffer_size) {
     auto* ipc_manager = CHI_IPC;
 
     auto task = ipc_manager->NewTask<chimaera::bdev::ReadTask>(
-        chi::CreateTaskNode(), pool_id_, chi::PoolQuery::Local(), block);
+        chi::CreateTaskNode(), pool_id_, chi::PoolQuery::Local(), block, data,
+        buffer_size);
 
     ipc_manager->Enqueue(task);
     return task;
@@ -273,18 +212,18 @@ class Client : public chi::ContainerClient {
   /**
    * Get performance statistics - asynchronous
    */
-  hipc::FullPtr<chimaera::bdev::StatTask> AsyncGetStats(
+  hipc::FullPtr<chimaera::bdev::GetStatsTask> AsyncGetStats(
       const hipc::MemContext& mctx) {
     auto* ipc_manager = CHI_IPC;
 
-    auto task = ipc_manager->NewTask<chimaera::bdev::StatTask>(
+    auto task = ipc_manager->NewTask<chimaera::bdev::GetStatsTask>(
         chi::CreateTaskNode(), pool_id_, chi::PoolQuery());
 
     ipc_manager->Enqueue(task);
     return task;
   }
 
-private:
+ private:
   /**
    * Generate a unique pool name with a given prefix
    * Uses timestamp and process ID to ensure uniqueness
@@ -292,7 +231,8 @@ private:
   static std::string GeneratePoolName(const std::string& prefix) {
     auto now = std::chrono::system_clock::now();
     auto timestamp = std::chrono::duration_cast<std::chrono::microseconds>(
-        now.time_since_epoch()).count();
+                         now.time_since_epoch())
+                         .count();
     pid_t pid = getpid();
     return prefix + "_" + std::to_string(timestamp) + "_" + std::to_string(pid);
   }

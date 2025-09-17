@@ -572,6 +572,93 @@ This automated approach ensures consistency across all ChiMods and reduces boile
 5. **FullPtr Usage**: All task method signatures use `hipc::FullPtr<TaskType>` instead of raw pointers
 6. **Monitor Methods**: Every task type MUST have a Monitor method that implements `kLocalSchedule`
 
+### Task Naming Conventions
+
+**CRITICAL**: All task names MUST follow consistent naming patterns to ensure proper code generation and maintenance.
+
+#### Required Naming Pattern
+
+The naming convention enforces consistency across function names, task types, and method constants:
+
+```
+Function Name → Task Name → Method Constant
+FunctionName()  → FunctionNameTask  → kFunctionName
+```
+
+#### Examples
+
+**Correct Naming:**
+```cpp
+// Function: GetStats() and AsyncGetStats()
+// Task: GetStatsTask  
+// Method: kGetStats
+
+// In bdev_client.h
+PerfMetrics GetStats(const hipc::MemContext& mctx, chi::u64& remaining_size);
+hipc::FullPtr<GetStatsTask> AsyncGetStats(const hipc::MemContext& mctx);
+
+// In bdev_tasks.h  
+struct GetStatsTask : public chi::Task {
+  OUT PerfMetrics metrics_;
+  OUT chi::u64 remaining_size_;
+  // ... constructors and methods
+};
+
+// In chimaera_mod.yaml
+kGetStats: 14    # Get performance statistics
+
+// In bdev_runtime.h
+void GetStats(hipc::FullPtr<GetStatsTask> task, chi::RunContext& ctx);
+void MonitorGetStats(chi::MonitorModeId mode, hipc::FullPtr<GetStatsTask> task, chi::RunContext& ctx);
+```
+
+**Incorrect Naming Examples:**
+```cpp
+// WRONG: Function and task names don't match
+PerfMetrics GetStats(...);           // Function name
+struct StatTask { ... };             // Task name doesn't match function
+
+// WRONG: Method constant doesn't match function  
+GLOBAL_CONST chi::u32 kStat = 14;    // Method doesn't match function name
+
+// WRONG: Runtime method doesn't match function
+void Stat(hipc::FullPtr<StatTask> task, ...);  // Runtime method doesn't match
+```
+
+#### Naming Rules
+
+1. **Function Names**: Use descriptive verbs (e.g., `GetStats`, `AllocateBlocks`, `WriteData`)
+2. **Task Names**: Always append "Task" to the function name (e.g., `GetStatsTask`, `AllocateBlocksTask`)  
+3. **Method Constants**: Prefix with "k" and match the function name exactly (e.g., `kGetStats`, `kAllocateBlocks`)
+4. **Runtime Methods**: Must match the function name exactly (e.g., `GetStats()`, `MonitorGetStats()`)
+
+#### Backward Compatibility
+
+When renaming tasks, provide backward compatibility aliases:
+
+```cpp
+// In bdev_tasks.h - provide alias for old name
+using StatTask = GetStatsTask;  // Backward compatibility
+
+// In autogen/bdev_methods.h - provide constant alias
+GLOBAL_CONST chi::u32 kGetStats = 14;
+GLOBAL_CONST chi::u32 kStat = kGetStats;  // Backward compatibility
+
+// In bdev_runtime.h - provide wrapper methods
+void GetStats(hipc::FullPtr<GetStatsTask> task, chi::RunContext& ctx);  // Primary
+void Stat(hipc::FullPtr<StatTask> task, chi::RunContext& ctx) {         // Wrapper
+  GetStats(task, ctx);
+}
+```
+
+#### Benefits of Consistent Naming
+
+1. **Code Generation**: Automated tools can reliably generate method dispatch code
+2. **Maintenance**: Clear correlation between client functions and runtime implementations
+3. **Documentation**: Self-documenting code with predictable naming patterns
+4. **Debugging**: Easy to trace from client calls to runtime execution
+5. **Testing**: Consistent patterns make it easier to write comprehensive tests
+
 ### Method System and Auto-Generated Files
 
 #### Method Definitions (autogen/MOD_NAME_methods.h)

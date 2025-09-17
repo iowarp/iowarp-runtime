@@ -76,15 +76,27 @@ class Runtime : public chi::Container {
                      chi::RunContext& ctx);
 
   /**
-   * Allocate a data block (Method::kAllocate)
+   * Allocate multiple blocks (Method::kAllocateBlocks)
    */
-  void Allocate(hipc::FullPtr<AllocateTask> task, chi::RunContext& ctx);
+  void AllocateBlocks(hipc::FullPtr<AllocateBlocksTask> task, chi::RunContext& ctx);
 
   /**
-   * Monitor allocate progress
+   * Monitor allocate blocks progress
    */
+  void MonitorAllocateBlocks(chi::MonitorModeId mode, hipc::FullPtr<AllocateBlocksTask> task,
+                             chi::RunContext& ctx);
+
+  /**
+   * Backward compatibility methods for AllocateTask
+   */
+  void Allocate(hipc::FullPtr<AllocateTask> task, chi::RunContext& ctx) {
+    AllocateBlocks(task, ctx);
+  }
+  
   void MonitorAllocate(chi::MonitorModeId mode, hipc::FullPtr<AllocateTask> task,
-                       chi::RunContext& ctx);
+                       chi::RunContext& ctx) {
+    MonitorAllocateBlocks(mode, task, ctx);
+  }
 
   /**
    * Free a data block (Method::kFree)
@@ -120,15 +132,27 @@ class Runtime : public chi::Container {
                    chi::RunContext& ctx);
 
   /**
-   * Get performance statistics (Method::kStat)
+   * Get performance statistics (Method::kGetStats)
    */
-  void Stat(hipc::FullPtr<StatTask> task, chi::RunContext& ctx);
+  void GetStats(hipc::FullPtr<GetStatsTask> task, chi::RunContext& ctx);
 
   /**
-   * Monitor stat progress
+   * Monitor GetStats progress
    */
+  void MonitorGetStats(chi::MonitorModeId mode, hipc::FullPtr<GetStatsTask> task,
+                       chi::RunContext& ctx);
+
+  /**
+   * Backward compatibility methods for StatTask
+   */
+  void Stat(hipc::FullPtr<StatTask> task, chi::RunContext& ctx) {
+    GetStats(task, ctx);
+  }
+  
   void MonitorStat(chi::MonitorModeId mode, hipc::FullPtr<StatTask> task,
-                   chi::RunContext& ctx);
+                   chi::RunContext& ctx) {
+    MonitorGetStats(mode, task, ctx);
+  }
 
   /**
    * Destroy the container (Method::kDestroy)
@@ -265,7 +289,7 @@ class Runtime : public chi::Container {
   /**
    * Allocate multiple blocks for given total size
    */
-  bool AllocateMultipleBlocks(chi::u64 total_size, BlockList& block_list);
+  bool AllocateMultipleBlocks(chi::u64 total_size, chi::ipc::vector<Block>& blocks);
   
   /**
    * Allocate from free list if available

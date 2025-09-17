@@ -247,7 +247,9 @@ TEST_CASE("bdev_block_allocation_4kb", "[bdev][allocate][4kb]") {
     // Allocate multiple 4KB blocks
     std::vector<chimaera::bdev::Block> blocks;
     for (int i = 0; i < 5; ++i) {
-      chimaera::bdev::Block block = client.Allocate(mctx, k4KB);
+      std::vector<chimaera::bdev::Block> allocated_blocks = client.AllocateBlocks(mctx, k4KB);
+      REQUIRE(allocated_blocks.size() > 0);
+      chimaera::bdev::Block block = allocated_blocks[0];
 
       REQUIRE(block.size_ >= k4KB);
       REQUIRE(block.block_type_ == 0);     // 4KB category
@@ -287,18 +289,31 @@ TEST_CASE("bdev_write_read_basic", "[bdev][io][basic]") {
     client.Create(mctx, chi::PoolQuery::Local(), fixture.getTestFile(), chimaera::bdev::BdevType::kFile);
 
     // Allocate a block
-    chimaera::bdev::Block block = client.Allocate(mctx, k4KB);
+    std::vector<chimaera::bdev::Block> blocks = client.AllocateBlocks(mctx, k4KB);
+    REQUIRE(blocks.size() > 0);
+    chimaera::bdev::Block block = blocks[0];
 
     // Generate test data
     std::vector<hshm::u8> write_data = fixture.generateTestData(k4KB, 0xCD);
 
-    // Write data
-    chi::u64 bytes_written = client.Write(mctx, block, write_data);
+    // Write data - allocate buffer and copy data
+    auto write_buffer = CHI_IPC->AllocateBuffer<char>(write_data.size());
+    REQUIRE_FALSE(write_buffer.IsNull());
+    memcpy(write_buffer.ptr_, write_data.data(), write_data.size());
+    
+    // Convert to hipc::Pointer for Write call - use shm_ member
+    chi::u64 bytes_written = client.Write(mctx, block, write_buffer.shm_, write_data.size());
     REQUIRE(bytes_written == write_data.size());
 
-    // Read data back
-    std::vector<hshm::u8> read_data = client.Read(mctx, block);
-    REQUIRE(read_data.size() == write_data.size());
+    // Read data back - allocate buffer for reading
+    auto read_buffer = CHI_IPC->AllocateBuffer<char>(k4KB);
+    REQUIRE_FALSE(read_buffer.IsNull());
+    chi::u64 bytes_read = client.Read(mctx, block, read_buffer.shm_, k4KB);
+    REQUIRE(bytes_read == write_data.size());
+    
+    // Convert read data back to vector for verification
+    std::vector<hshm::u8> read_data(bytes_read);
+    memcpy(read_data.data(), read_buffer.ptr_, bytes_read);
 
     // Verify data matches
     for (size_t i = 0; i < write_data.size(); ++i) {
@@ -324,35 +339,44 @@ TEST_CASE("bdev_async_operations", "[bdev][async][io]") {
     client.Create(mctx, chi::PoolQuery::Local(), fixture.getTestFile(), chimaera::bdev::BdevType::kFile);
 
     // Async allocate
-    auto alloc_task = client.AsyncAllocate(mctx, k64KB);
+    auto alloc_task = client.AsyncAllocateBlocks(mctx, k64KB);
     alloc_task->Wait();
     REQUIRE(alloc_task->return_code_ == 0);
 
     chimaera::bdev::Block block;
-    REQUIRE(alloc_task->block_list_.GetBlockCount() > 0);
-    block = alloc_task->block_list_.blocks_[0];
+    REQUIRE(alloc_task->blocks_.size() > 0);
+    block = alloc_task->blocks_[0];
     CHI_IPC->DelTask(alloc_task);
 
     // Prepare test data
     std::vector<hshm::u8> write_data = fixture.generateTestData(k64KB, 0xEF);
 
-    // Async write
-    auto write_task = client.AsyncWrite(mctx, block, write_data);
+    // Async write - allocate buffer and copy data
+    auto async_write_buffer = CHI_IPC->AllocateBuffer<char>(write_data.size());
+    REQUIRE_FALSE(async_write_buffer.IsNull());
+    memcpy(async_write_buffer.ptr_, write_data.data(), write_data.size());
+    
+    auto write_task = client.AsyncWrite(mctx, block, async_write_buffer.shm_, write_data.size());
     write_task->Wait();
     REQUIRE(write_task->return_code_ == 0);
     REQUIRE(write_task->bytes_written_ == write_data.size());
     CHI_IPC->DelTask(write_task);
 
-    // Async read
-    auto read_task = client.AsyncRead(mctx, block);
+    // Async read - allocate buffer for reading
+    auto async_read_buffer = CHI_IPC->AllocateBuffer<char>(k64KB);
+    REQUIRE_FALSE(async_read_buffer.IsNull());
+    
+    auto read_task = client.AsyncRead(mctx, block, async_read_buffer.shm_, k64KB);
     read_task->Wait();
     REQUIRE(read_task->return_code_ == 0);
     REQUIRE(read_task->bytes_read_ == write_data.size());
 
-    // Verify data
-    REQUIRE(read_task->data_.size() == write_data.size());
+    // Verify data - copy from buffer to check
+    std::vector<hshm::u8> async_read_data(read_task->bytes_read_);
+    memcpy(async_read_data.data(), async_read_buffer.ptr_, read_task->bytes_read_);
+    REQUIRE(async_read_data.size() == write_data.size());
     for (size_t i = 0; i < write_data.size(); ++i) {
-      REQUIRE(read_task->data_[i] == write_data[i]);
+      REQUIRE(async_read_data[i] == write_data[i]);
     }
 
     CHI_IPC->DelTask(read_task);
@@ -385,17 +409,37 @@ TEST_CASE("bdev_performance_metrics", "[bdev][performance][metrics]") {
     REQUIRE(initial_metrics.write_bandwidth_mbps_ >= 0.0);
 
     // Perform some I/O operations
-    chimaera::bdev::Block block1 = client.Allocate(mctx, k1MB);
-    chimaera::bdev::Block block2 = client.Allocate(mctx, k256KB);
+    std::vector<chimaera::bdev::Block> blocks1 = client.AllocateBlocks(mctx, k1MB);
+    REQUIRE(blocks1.size() > 0);
+    chimaera::bdev::Block block1 = blocks1[0];
+    std::vector<chimaera::bdev::Block> blocks2 = client.AllocateBlocks(mctx, k256KB);
+    REQUIRE(blocks2.size() > 0);
+    chimaera::bdev::Block block2 = blocks2[0];
 
     std::vector<hshm::u8> data1 = fixture.generateTestData(k1MB, 0x12);
     std::vector<hshm::u8> data2 = fixture.generateTestData(k256KB, 0x34);
 
-    client.Write(mctx, block1, data1);
-    client.Write(mctx, block2, data2);
+    // Allocate buffers for data1 write
+    auto data1_write_buffer = CHI_IPC->AllocateBuffer<char>(data1.size());
+    REQUIRE_FALSE(data1_write_buffer.IsNull());
+    memcpy(data1_write_buffer.ptr_, data1.data(), data1.size());
+    
+    // Allocate buffers for data2 write  
+    auto data2_write_buffer = CHI_IPC->AllocateBuffer<char>(data2.size());
+    REQUIRE_FALSE(data2_write_buffer.IsNull());
+    memcpy(data2_write_buffer.ptr_, data2.data(), data2.size());
 
-    client.Read(mctx, block1);
-    client.Read(mctx, block2);
+    client.Write(mctx, block1, data1_write_buffer.shm_, data1.size());
+    client.Write(mctx, block2, data2_write_buffer.shm_, data2.size());
+
+    // Allocate buffers for reads
+    auto data1_read_buffer = CHI_IPC->AllocateBuffer<char>(k1MB);
+    REQUIRE_FALSE(data1_read_buffer.IsNull());
+    auto data2_read_buffer = CHI_IPC->AllocateBuffer<char>(k256KB);
+    REQUIRE_FALSE(data2_read_buffer.IsNull());
+
+    client.Read(mctx, block1, data1_read_buffer.shm_, k1MB);
+    client.Read(mctx, block2, data2_read_buffer.shm_, k256KB);
 
     // Get updated stats
     chi::u64 final_remaining;
@@ -490,7 +534,9 @@ TEST_CASE("bdev_ram_allocation_and_io", "[bdev][ram][io]") {
   std::this_thread::sleep_for(100ms);
 
   // Allocate a 4KB block
-  chimaera::bdev::Block block = bdev_client.Allocate(HSHM_MCTX, k4KB);
+  std::vector<chimaera::bdev::Block> blocks = bdev_client.AllocateBlocks(HSHM_MCTX, k4KB);
+  REQUIRE(blocks.size() > 0);
+  chimaera::bdev::Block block = blocks[0];
   REQUIRE(block.size_ == k4KB);
   REQUIRE(block.offset_ < ram_size);
 
@@ -500,13 +546,23 @@ TEST_CASE("bdev_ram_allocation_and_io", "[bdev][ram][io]") {
     write_data[i] = static_cast<hshm::u8>((i + 0xAB) % 256);
   }
 
-  // Write data to RAM
-  chi::u64 bytes_written = bdev_client.Write(HSHM_MCTX, block, write_data);
+  // Write data to RAM - allocate buffer and copy data
+  auto write_buffer = CHI_IPC->AllocateBuffer<char>(write_data.size());
+  REQUIRE_FALSE(write_buffer.IsNull());
+  memcpy(write_buffer.ptr_, write_data.data(), write_data.size());
+  
+  chi::u64 bytes_written = bdev_client.Write(HSHM_MCTX, block, write_buffer.shm_, write_data.size());
   REQUIRE(bytes_written == k4KB);
 
-  // Read data back from RAM
-  std::vector<hshm::u8> read_data = bdev_client.Read(HSHM_MCTX, block);
-  REQUIRE(read_data.size() == k4KB);
+  // Read data back from RAM - allocate buffer for reading
+  auto read_buffer = CHI_IPC->AllocateBuffer<char>(k4KB);
+  REQUIRE_FALSE(read_buffer.IsNull());
+  chi::u64 bytes_read = bdev_client.Read(HSHM_MCTX, block, read_buffer.shm_, k4KB);
+  REQUIRE(bytes_read == k4KB);
+  
+  // Convert read data back to vector for verification
+  std::vector<hshm::u8> read_data(bytes_read);
+  memcpy(read_data.data(), read_buffer.ptr_, bytes_read);
 
   // Verify data integrity
   bool data_matches =
@@ -514,7 +570,9 @@ TEST_CASE("bdev_ram_allocation_and_io", "[bdev][ram][io]") {
   REQUIRE(data_matches);
 
   // Free the block
-  chi::u32 free_result = bdev_client.Free(HSHM_MCTX, block);
+  std::vector<chimaera::bdev::Block> free_blocks;
+  free_blocks.push_back(block);
+  chi::u32 free_result = bdev_client.FreeBlocks(HSHM_MCTX, free_blocks);
   REQUIRE(free_result == 0);
 
   HILOG(kInfo, "RAM backend I/O operations completed successfully");
@@ -546,7 +604,9 @@ TEST_CASE("bdev_ram_large_blocks", "[bdev][ram][large]") {
     HILOG(kInfo, "Testing RAM backend with block size: {} bytes", block_size);
 
     // Allocate block
-    chimaera::bdev::Block block = bdev_client.Allocate(HSHM_MCTX, block_size);
+    std::vector<chimaera::bdev::Block> blocks = bdev_client.AllocateBlocks(HSHM_MCTX, block_size);
+    REQUIRE(blocks.size() > 0);
+    chimaera::bdev::Block block = blocks[0];
     REQUIRE(block.size_ == block_size);
 
     // Create test pattern
@@ -555,12 +615,22 @@ TEST_CASE("bdev_ram_large_blocks", "[bdev][ram][large]") {
       test_data[i] = static_cast<hshm::u8>((i / 1024) % 256);
     }
 
-    // Write and read
-    chi::u64 bytes_written = bdev_client.Write(HSHM_MCTX, block, test_data);
+    // Write and read - allocate buffers
+    auto test_write_buffer = CHI_IPC->AllocateBuffer<char>(test_data.size());
+    REQUIRE_FALSE(test_write_buffer.IsNull());
+    memcpy(test_write_buffer.ptr_, test_data.data(), test_data.size());
+    
+    chi::u64 bytes_written = bdev_client.Write(HSHM_MCTX, block, test_write_buffer.shm_, test_data.size());
     REQUIRE(bytes_written == block_size);
 
-    std::vector<hshm::u8> read_data = bdev_client.Read(HSHM_MCTX, block);
-    REQUIRE(read_data.size() == block_size);
+    auto test_read_buffer = CHI_IPC->AllocateBuffer<char>(block_size);
+    REQUIRE_FALSE(test_read_buffer.IsNull());
+    chi::u64 bytes_read = bdev_client.Read(HSHM_MCTX, block, test_read_buffer.shm_, block_size);
+    REQUIRE(bytes_read == block_size);
+    
+    // Convert read data back to vector for verification
+    std::vector<hshm::u8> read_data(bytes_read);
+    memcpy(read_data.data(), test_read_buffer.ptr_, bytes_read);
 
     // Verify critical points in the data
     for (size_t i = 0; i < read_data.size(); i += 1024) {
@@ -568,7 +638,9 @@ TEST_CASE("bdev_ram_large_blocks", "[bdev][ram][large]") {
     }
 
     // Free block
-    chi::u32 free_result = bdev_client.Free(HSHM_MCTX, block);
+    std::vector<chimaera::bdev::Block> free_blocks;
+    free_blocks.push_back(block);
+    chi::u32 free_result = bdev_client.FreeBlocks(HSHM_MCTX, free_blocks);
     REQUIRE(free_result == 0);
   }
 
@@ -595,23 +667,38 @@ TEST_CASE("bdev_ram_performance", "[bdev][ram][performance]") {
   std::this_thread::sleep_for(100ms);
 
   // Allocate a 1MB block
-  chimaera::bdev::Block block = bdev_client.Allocate(HSHM_MCTX, k1MB);
+  std::vector<chimaera::bdev::Block> blocks = bdev_client.AllocateBlocks(HSHM_MCTX, k1MB);
+  REQUIRE(blocks.size() > 0);
+  chimaera::bdev::Block block = blocks[0];
   REQUIRE(block.size_ == k1MB);
 
   // Prepare test data
   std::vector<hshm::u8> test_data(k1MB, 0xCD);
+  
+  // Allocate buffer for write
+  auto perf_write_buffer = CHI_IPC->AllocateBuffer<char>(test_data.size());
+  REQUIRE_FALSE(perf_write_buffer.IsNull());
+  memcpy(perf_write_buffer.ptr_, test_data.data(), test_data.size());
 
   // Measure write performance
   auto write_start = std::chrono::high_resolution_clock::now();
-  chi::u64 bytes_written = bdev_client.Write(HSHM_MCTX, block, test_data);
+  chi::u64 bytes_written = bdev_client.Write(HSHM_MCTX, block, perf_write_buffer.shm_, test_data.size());
   auto write_end = std::chrono::high_resolution_clock::now();
 
   REQUIRE(bytes_written == k1MB);
 
+  // Allocate buffer for read
+  auto perf_read_buffer = CHI_IPC->AllocateBuffer<char>(k1MB);
+  REQUIRE_FALSE(perf_read_buffer.IsNull());
+
   // Measure read performance
   auto read_start = std::chrono::high_resolution_clock::now();
-  std::vector<hshm::u8> read_data = bdev_client.Read(HSHM_MCTX, block);
+  chi::u64 bytes_read = bdev_client.Read(HSHM_MCTX, block, perf_read_buffer.shm_, k1MB);
   auto read_end = std::chrono::high_resolution_clock::now();
+  
+  // Convert read data back to vector for verification
+  std::vector<hshm::u8> read_data(bytes_read);
+  memcpy(read_data.data(), perf_read_buffer.ptr_, bytes_read);
 
   REQUIRE(read_data.size() == k1MB);
 
@@ -635,7 +722,9 @@ TEST_CASE("bdev_ram_performance", "[bdev][ram][performance]") {
   REQUIRE(read_duration.count() < 10000.0);   // Less than 10ms
 
   // Free block
-  chi::u32 free_result = bdev_client.Free(HSHM_MCTX, block);
+  std::vector<chimaera::bdev::Block> free_blocks;
+  free_blocks.push_back(block);
+  chi::u32 free_result = bdev_client.FreeBlocks(HSHM_MCTX, free_blocks);
   REQUIRE(free_result == 0);
 }
 
@@ -667,14 +756,25 @@ TEST_CASE("bdev_ram_bounds_checking", "[bdev][ram][bounds]") {
   // Prepare test data
   std::vector<hshm::u8> test_data(2048, 0xEF);
 
-  // Write should fail with bounds check
+  // Write should fail with bounds check - allocate buffer
+  auto error_write_buffer = CHI_IPC->AllocateBuffer<char>(test_data.size());
+  REQUIRE_FALSE(error_write_buffer.IsNull());
+  memcpy(error_write_buffer.ptr_, test_data.data(), test_data.size());
+  
   chi::u64 bytes_written =
-      bdev_client.Write(HSHM_MCTX, out_of_bounds_block, test_data);
+      bdev_client.Write(HSHM_MCTX, out_of_bounds_block, error_write_buffer.shm_, test_data.size());
   REQUIRE(bytes_written == 0);  // Should fail
 
-  // Read should also fail with bounds check
-  std::vector<hshm::u8> read_data =
-      bdev_client.Read(HSHM_MCTX, out_of_bounds_block);
+  // Read should also fail with bounds check - allocate buffer
+  auto error_read_buffer = CHI_IPC->AllocateBuffer<char>(2048);
+  REQUIRE_FALSE(error_read_buffer.IsNull());
+  chi::u64 bytes_read = bdev_client.Read(HSHM_MCTX, out_of_bounds_block, error_read_buffer.shm_, 2048);
+  
+  // Convert read data back to vector (should be empty due to error)
+  std::vector<hshm::u8> read_data(bytes_read);
+  if (bytes_read > 0) {
+    memcpy(read_data.data(), error_read_buffer.ptr_, bytes_read);
+  }
   REQUIRE(read_data.empty());  // Should fail
 
   HILOG(kInfo, "RAM backend bounds checking working correctly");
@@ -713,8 +813,12 @@ TEST_CASE("bdev_file_vs_ram_comparison", "[bdev][file][ram][comparison]") {
   const chi::u64 test_size = k64KB;
 
   // Allocate blocks on both
-  chimaera::bdev::Block file_block = file_client.Allocate(HSHM_MCTX, test_size);
-  chimaera::bdev::Block ram_block = ram_client.Allocate(HSHM_MCTX, test_size);
+  std::vector<chimaera::bdev::Block> file_blocks = file_client.AllocateBlocks(HSHM_MCTX, test_size);
+  REQUIRE(file_blocks.size() > 0);
+  chimaera::bdev::Block file_block = file_blocks[0];
+  std::vector<chimaera::bdev::Block> ram_blocks = ram_client.AllocateBlocks(HSHM_MCTX, test_size);
+  REQUIRE(ram_blocks.size() > 0);
+  chimaera::bdev::Block ram_block = ram_blocks[0];
 
   REQUIRE(file_block.size_ == test_size);
   REQUIRE(ram_block.size_ == test_size);
@@ -729,29 +833,54 @@ TEST_CASE("bdev_file_vs_ram_comparison", "[bdev][file][ram][comparison]") {
     test_data[i] = static_cast<hshm::u8>(dis(gen));
   }
 
+  // Allocate buffer for file write
+  auto file_write_buffer = CHI_IPC->AllocateBuffer<char>(test_data.size());
+  REQUIRE_FALSE(file_write_buffer.IsNull());
+  memcpy(file_write_buffer.ptr_, test_data.data(), test_data.size());
+
   // Write to both backends and measure time
   auto file_write_start = std::chrono::high_resolution_clock::now();
   chi::u64 file_bytes_written =
-      file_client.Write(HSHM_MCTX, file_block, test_data);
+      file_client.Write(HSHM_MCTX, file_block, file_write_buffer.shm_, test_data.size());
   auto file_write_end = std::chrono::high_resolution_clock::now();
+
+  // Allocate buffer for ram write
+  auto ram_write_buffer = CHI_IPC->AllocateBuffer<char>(test_data.size());
+  REQUIRE_FALSE(ram_write_buffer.IsNull());
+  memcpy(ram_write_buffer.ptr_, test_data.data(), test_data.size());
 
   auto ram_write_start = std::chrono::high_resolution_clock::now();
   chi::u64 ram_bytes_written =
-      ram_client.Write(HSHM_MCTX, ram_block, test_data);
+      ram_client.Write(HSHM_MCTX, ram_block, ram_write_buffer.shm_, test_data.size());
   auto ram_write_end = std::chrono::high_resolution_clock::now();
 
   REQUIRE(file_bytes_written == test_size);
   REQUIRE(ram_bytes_written == test_size);
 
+  // Allocate buffer for file read
+  auto file_read_buffer = CHI_IPC->AllocateBuffer<char>(test_size);
+  REQUIRE_FALSE(file_read_buffer.IsNull());
+
   // Read from both backends and measure time
   auto file_read_start = std::chrono::high_resolution_clock::now();
-  std::vector<hshm::u8> file_read_data =
-      file_client.Read(HSHM_MCTX, file_block);
+  chi::u64 file_bytes_read = file_client.Read(HSHM_MCTX, file_block, file_read_buffer.shm_, test_size);
   auto file_read_end = std::chrono::high_resolution_clock::now();
+  
+  // Convert read data back to vector
+  std::vector<hshm::u8> file_read_data(file_bytes_read);
+  memcpy(file_read_data.data(), file_read_buffer.ptr_, file_bytes_read);
+
+  // Allocate buffer for ram read
+  auto ram_read_buffer = CHI_IPC->AllocateBuffer<char>(test_size);
+  REQUIRE_FALSE(ram_read_buffer.IsNull());
 
   auto ram_read_start = std::chrono::high_resolution_clock::now();
-  std::vector<hshm::u8> ram_read_data = ram_client.Read(HSHM_MCTX, ram_block);
+  chi::u64 ram_bytes_read = ram_client.Read(HSHM_MCTX, ram_block, ram_read_buffer.shm_, test_size);
   auto ram_read_end = std::chrono::high_resolution_clock::now();
+  
+  // Convert read data back to vector
+  std::vector<hshm::u8> ram_read_data(ram_bytes_read);
+  memcpy(ram_read_data.data(), ram_read_buffer.ptr_, ram_bytes_read);
 
   REQUIRE(file_read_data.size() == test_size);
   REQUIRE(ram_read_data.size() == test_size);
@@ -786,8 +915,12 @@ TEST_CASE("bdev_file_vs_ram_comparison", "[bdev][file][ram][comparison]") {
   REQUIRE(ram_read_time.count() < file_read_time.count());
 
   // Clean up
-  file_client.Free(HSHM_MCTX, file_block);
-  ram_client.Free(HSHM_MCTX, ram_block);
+  std::vector<chimaera::bdev::Block> file_free_blocks;
+  file_free_blocks.push_back(file_block);
+  file_client.FreeBlocks(HSHM_MCTX, file_free_blocks);
+  std::vector<chimaera::bdev::Block> ram_free_blocks;
+  ram_free_blocks.push_back(ram_block);
+  ram_client.FreeBlocks(HSHM_MCTX, ram_free_blocks);
 }
 
 TEST_CASE("bdev_file_explicit_backend", "[bdev][file][explicit]") {
@@ -810,21 +943,37 @@ TEST_CASE("bdev_file_explicit_backend", "[bdev][file][explicit]") {
   std::this_thread::sleep_for(100ms);
 
   // Test basic operations
-  chimaera::bdev::Block block = bdev_client.Allocate(HSHM_MCTX, k4KB);
+  std::vector<chimaera::bdev::Block> blocks = bdev_client.AllocateBlocks(HSHM_MCTX, k4KB);
+  REQUIRE(blocks.size() > 0);
+  chimaera::bdev::Block block = blocks[0];
   REQUIRE(block.size_ == k4KB);
 
   std::vector<hshm::u8> test_data(k4KB, 0x42);
-  chi::u64 bytes_written = bdev_client.Write(HSHM_MCTX, block, test_data);
+  
+  // Allocate buffers for Write/Read operations
+  auto final_write_buffer = CHI_IPC->AllocateBuffer<char>(test_data.size());
+  REQUIRE_FALSE(final_write_buffer.IsNull());
+  memcpy(final_write_buffer.ptr_, test_data.data(), test_data.size());
+  
+  chi::u64 bytes_written = bdev_client.Write(HSHM_MCTX, block, final_write_buffer.shm_, test_data.size());
   REQUIRE(bytes_written == k4KB);
 
-  std::vector<hshm::u8> read_data = bdev_client.Read(HSHM_MCTX, block);
-  REQUIRE(read_data.size() == k4KB);
+  auto final_read_buffer = CHI_IPC->AllocateBuffer<char>(k4KB);
+  REQUIRE_FALSE(final_read_buffer.IsNull());
+  chi::u64 bytes_read = bdev_client.Read(HSHM_MCTX, block, final_read_buffer.shm_, k4KB);
+  REQUIRE(bytes_read == k4KB);
+  
+  // Convert read data back to vector for verification
+  std::vector<hshm::u8> read_data(bytes_read);
+  memcpy(read_data.data(), final_read_buffer.ptr_, bytes_read);
 
   bool data_ok =
       std::equal(test_data.begin(), test_data.end(), read_data.begin());
   REQUIRE(data_ok);
 
-  chi::u32 free_result = bdev_client.Free(HSHM_MCTX, block);
+  std::vector<chimaera::bdev::Block> free_blocks;
+  free_blocks.push_back(block);
+  chi::u32 free_result = bdev_client.FreeBlocks(HSHM_MCTX, free_blocks);
   REQUIRE(free_result == 0);
 
   HILOG(kInfo,
@@ -860,9 +1009,9 @@ TEST_CASE("bdev_error_conditions_enhanced", "[bdev][error][enhanced]") {
     // so we test if we can allocate (which should fail)
     if (!creation_failed) {
       try {
-        chimaera::bdev::Block block =
-            ram_client_no_size.Allocate(HSHM_MCTX, k4KB);
-        creation_failed = (block.size_ == 0);  // Should be invalid block
+        std::vector<chimaera::bdev::Block> blocks =
+            ram_client_no_size.AllocateBlocks(HSHM_MCTX, k4KB);
+        creation_failed = (blocks.size() == 0);  // Should be invalid block list
       } catch (...) {
         creation_failed = true;
       }
@@ -884,9 +1033,9 @@ TEST_CASE("bdev_error_conditions_enhanced", "[bdev][error][enhanced]") {
       std::this_thread::sleep_for(100ms);
 
       // Try to allocate to see if container actually works
-      chimaera::bdev::Block block =
-          file_client_bad_path.Allocate(HSHM_MCTX, k4KB);
-      creation_failed = (block.size_ == 0);
+      std::vector<chimaera::bdev::Block> blocks =
+          file_client_bad_path.AllocateBlocks(HSHM_MCTX, k4KB);
+      creation_failed = (blocks.size() == 0);
     } catch (...) {
       creation_failed = true;
     }

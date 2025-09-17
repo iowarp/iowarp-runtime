@@ -15,11 +15,15 @@ GLOBAL_CONST chi::u32 kCreate = 0;
 GLOBAL_CONST chi::u32 kDestroy = 1;
 
 // bdev-specific methods
-GLOBAL_CONST chi::u32 kAllocate = 10;
+GLOBAL_CONST chi::u32 kAllocateBlocks = 10;
 GLOBAL_CONST chi::u32 kFree = 11;
 GLOBAL_CONST chi::u32 kWrite = 12;
 GLOBAL_CONST chi::u32 kRead = 13;
-GLOBAL_CONST chi::u32 kStat = 14;
+GLOBAL_CONST chi::u32 kGetStats = 14;
+
+// Backward compatibility
+GLOBAL_CONST chi::u32 kAllocate = kAllocateBlocks;
+GLOBAL_CONST chi::u32 kStat = kGetStats;
 }  // namespace Method
 
 }  // namespace chimaera::bdev

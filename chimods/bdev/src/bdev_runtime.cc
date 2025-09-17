@@ -182,12 +182,12 @@ void Runtime::MonitorCreate(chi::MonitorModeId mode,
   }
 }
 
-void Runtime::Allocate(hipc::FullPtr<AllocateTask> task, chi::RunContext& ctx) {
-  // Clear the block list first
-  task->block_list_.Clear();
+void Runtime::AllocateBlocks(hipc::FullPtr<AllocateBlocksTask> task, chi::RunContext& ctx) {
+  // Clear the block vector first
+  task->blocks_.clear();
 
   // Allocate multiple blocks to satisfy the requested size
-  if (!AllocateMultipleBlocks(task->size_, task->block_list_)) {
+  if (!AllocateMultipleBlocks(task->size_, task->blocks_)) {
     task->return_code_ = 1;  // Out of space
     return;
   }
@@ -195,8 +195,8 @@ void Runtime::Allocate(hipc::FullPtr<AllocateTask> task, chi::RunContext& ctx) {
   task->return_code_ = 0;
 }
 
-void Runtime::MonitorAllocate(chi::MonitorModeId mode,
-                              hipc::FullPtr<AllocateTask> task,
+void Runtime::MonitorAllocateBlocks(chi::MonitorModeId mode,
+                                    hipc::FullPtr<AllocateBlocksTask> task,
                               chi::RunContext& ctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule: {
@@ -217,9 +217,9 @@ void Runtime::MonitorAllocate(chi::MonitorModeId mode,
 }
 
 void Runtime::Free(hipc::FullPtr<FreeTask> task, chi::RunContext& ctx) {
-  // Free all blocks in the list
-  for (size_t i = 0; i < task->block_list_.blocks_.size(); ++i) {
-    const Block& block = task->block_list_.blocks_[i];
+  // Free all blocks in the vector
+  for (size_t i = 0; i < task->blocks_.size(); ++i) {
+    const Block& block = task->blocks_[i];
     // Add block back to the appropriate free list
     AddToFreeList(block);
     // Update remaining size counter
@@ -322,7 +322,7 @@ void Runtime::MonitorRead(chi::MonitorModeId mode, hipc::FullPtr<ReadTask> task,
   }
 }
 
-void Runtime::Stat(hipc::FullPtr<StatTask> task, chi::RunContext& ctx) {
+void Runtime::GetStats(hipc::FullPtr<GetStatsTask> task, chi::RunContext& ctx) {
   auto current_time = std::chrono::high_resolution_clock::now();
   auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(current_time -
                                                                   start_time_);
@@ -359,8 +359,8 @@ void Runtime::Stat(hipc::FullPtr<StatTask> task, chi::RunContext& ctx) {
   task->return_code_ = 0;
 }
 
-void Runtime::MonitorStat(chi::MonitorModeId mode, hipc::FullPtr<StatTask> task,
-                          chi::RunContext& ctx) {
+void Runtime::MonitorGetStats(chi::MonitorModeId mode, hipc::FullPtr<GetStatsTask> task,
+                              chi::RunContext& ctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule: {
       auto lane_ptr = GetLaneFullPtr(0, 0);  // Queue 0 (low latency), lane 0
@@ -583,7 +583,7 @@ chi::u32 Runtime::CalculateBlocksNeeded(chi::u64 total_size) {
 }
 
 bool Runtime::AllocateMultipleBlocks(chi::u64 total_size,
-                                     BlockList& block_list) {
+                                     chi::ipc::vector<Block>& blocks) {
   if (total_size == 0) {
     return true;  // Nothing to allocate
   }
@@ -609,8 +609,10 @@ bool Runtime::AllocateMultipleBlocks(chi::u64 total_size,
         }
       }
 
-      // Add the allocated block to the list
-      block_list.AddBlock(block);
+      // Add the allocated block to the vector
+      size_t old_size = blocks.size();
+      blocks.resize(old_size + 1);
+      blocks[old_size] = block;
       remaining_size -= block.size_;
     }
   }
@@ -619,12 +621,12 @@ bool Runtime::AllocateMultipleBlocks(chi::u64 total_size,
   if (remaining_size > 0) {
     // We couldn't allocate enough space - need to free what we allocated and
     // return false
-    for (size_t i = 0; i < block_list.blocks_.size(); ++i) {
-      const Block& block = block_list.blocks_[i];
+    for (size_t i = 0; i < blocks.size(); ++i) {
+      const Block& block = blocks[i];
       AddToFreeList(block);
       remaining_size_.fetch_add(block.size_);
     }
-    block_list.Clear();
+    blocks.clear();
     return false;
   }
 
@@ -702,8 +704,11 @@ chi::u32 Runtime::PerformAsyncIO(bool is_write, chi::u64 offset, void* buffer,
 
 // Backend-specific write operations
 void Runtime::WriteToFile(hipc::FullPtr<WriteTask> task) {
+  // Convert hipc::Pointer to hipc::FullPtr<char> for data access
+  hipc::FullPtr<char> data_ptr(task->data_);
+  
   // Align buffer for direct I/O
-  chi::u64 aligned_size = AlignSize(task->data_.size());
+  chi::u64 aligned_size = AlignSize(task->length_);
 
   // Allocate aligned buffer
   void* aligned_buffer;
@@ -714,10 +719,10 @@ void Runtime::WriteToFile(hipc::FullPtr<WriteTask> task) {
   }
 
   // Copy data to aligned buffer
-  memcpy(aligned_buffer, task->data_.data(), task->data_.size());
-  if (aligned_size > task->data_.size()) {
-    memset(static_cast<char*>(aligned_buffer) + task->data_.size(), 0,
-           aligned_size - task->data_.size());
+  memcpy(aligned_buffer, data_ptr.ptr_, task->length_);
+  if (aligned_size > task->length_) {
+    memset(static_cast<char*>(aligned_buffer) + task->length_, 0,
+           aligned_size - task->length_);
   }
 
   // Perform async write using POSIX AIO
@@ -734,7 +739,7 @@ void Runtime::WriteToFile(hipc::FullPtr<WriteTask> task) {
   } else {
     task->return_code_ = 0;
     task->bytes_written_ =
-        std::min(bytes_written, static_cast<chi::u64>(task->data_.size()));
+        std::min(bytes_written, static_cast<chi::u64>(task->length_));
 
     // Update performance metrics
     total_writes_.fetch_add(1);
@@ -743,19 +748,22 @@ void Runtime::WriteToFile(hipc::FullPtr<WriteTask> task) {
 }
 
 void Runtime::WriteToRam(hipc::FullPtr<WriteTask> task) {
+  // Convert hipc::Pointer to hipc::FullPtr<char> for data access
+  hipc::FullPtr<char> data_ptr(task->data_);
+  
   // Check bounds
-  if (task->block_.offset_ + task->data_.size() > ram_size_) {
+  if (task->block_.offset_ + task->length_ > ram_size_) {
     task->return_code_ = 1;  // Write beyond buffer bounds
     task->bytes_written_ = 0;
     return;
   }
 
   // Simple memory copy
-  memcpy(ram_buffer_ + task->block_.offset_, task->data_.data(),
-         task->data_.size());
+  memcpy(ram_buffer_ + task->block_.offset_, data_ptr.ptr_,
+         task->length_);
 
   task->return_code_ = 0;
-  task->bytes_written_ = task->data_.size();
+  task->bytes_written_ = task->length_;
 
   // Update performance metrics
   total_writes_.fetch_add(1);
@@ -788,22 +796,28 @@ void Runtime::ReadFromFile(hipc::FullPtr<ReadTask> task) {
     return;
   }
 
+  // Convert hipc::Pointer to hipc::FullPtr<char> for data access
+  hipc::FullPtr<char> data_ptr(task->data_);
+  
   // Copy data to task output
   chi::u64 actual_bytes = std::min(bytes_read, task->block_.size_);
-  task->data_.resize(actual_bytes);
-  memcpy(task->data_.data(), aligned_buffer, actual_bytes);
+  chi::u64 available_space = std::min(actual_bytes, static_cast<chi::u64>(task->length_));
+  memcpy(data_ptr.ptr_, aligned_buffer, available_space);
 
   free(aligned_buffer);
 
   task->return_code_ = 0;
-  task->bytes_read_ = actual_bytes;
+  task->bytes_read_ = available_space;
 
   // Update performance metrics
   total_reads_.fetch_add(1);
-  total_bytes_read_.fetch_add(actual_bytes);
+  total_bytes_read_.fetch_add(available_space);
 }
 
 void Runtime::ReadFromRam(hipc::FullPtr<ReadTask> task) {
+  // Convert hipc::Pointer to hipc::FullPtr<char> for data access
+  hipc::FullPtr<char> data_ptr(task->data_);
+  
   // Check bounds
   if (task->block_.offset_ + task->block_.size_ > ram_size_) {
     task->return_code_ = 1;  // Read beyond buffer bounds
@@ -811,17 +825,17 @@ void Runtime::ReadFromRam(hipc::FullPtr<ReadTask> task) {
     return;
   }
 
-  // Copy data from RAM buffer to task output
-  task->data_.resize(task->block_.size_);
-  memcpy(task->data_.data(), ram_buffer_ + task->block_.offset_,
-         task->block_.size_);
+  // Copy data from RAM buffer to task output (limit by available buffer space)
+  chi::u64 available_space = std::min(task->block_.size_, static_cast<chi::u64>(task->length_));
+  memcpy(data_ptr.ptr_, ram_buffer_ + task->block_.offset_,
+         available_space);
 
   task->return_code_ = 0;
-  task->bytes_read_ = task->block_.size_;
+  task->bytes_read_ = available_space;
 
   // Update performance metrics
   total_reads_.fetch_add(1);
-  total_bytes_read_.fetch_add(task->bytes_read_);
+  total_bytes_read_.fetch_add(available_space);
 }
 
 // VIRTUAL METHOD IMPLEMENTATIONS (now in autogen/bdev_lib_exec.cc)

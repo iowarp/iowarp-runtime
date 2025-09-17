@@ -41,59 +41,6 @@ struct Block {
   }
 };
 
-/**
- * BlockList structure for multi-block allocation
- */
-struct BlockList {
-  hipc::vector<Block> blocks_;    // List of allocated blocks
-  chi::u64 total_size_;          // Total size covered by all blocks
-  
-  // Default constructor
-  BlockList() : total_size_(0) {}
-  
-  // Constructor with allocator
-  explicit BlockList(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc) 
-    : blocks_(alloc), total_size_(0) {}
-  
-  // Copy constructor with allocator
-  BlockList(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc, const BlockList& other)
-    : blocks_(alloc), total_size_(other.total_size_) {
-    blocks_.resize(other.blocks_.size());
-    for (size_t i = 0; i < other.blocks_.size(); ++i) {
-      blocks_[i] = other.blocks_[i];
-    }
-  }
-  
-  // Add a block to the list
-  void AddBlock(const Block& block) {
-    size_t old_size = blocks_.size();
-    blocks_.resize(old_size + 1);
-    blocks_[old_size] = block;
-    total_size_ += block.size_;
-  }
-  
-  // Get number of blocks
-  size_t GetBlockCount() const {
-    return blocks_.size();
-  }
-  
-  // Get total size covered
-  chi::u64 GetTotalSize() const {
-    return total_size_;
-  }
-  
-  // Clear all blocks
-  void Clear() {
-    blocks_.clear();
-    total_size_ = 0;
-  }
-    
-  // Cereal serialization
-  template<class Archive>
-  void serialize(Archive& ar) {
-    ar(blocks_, total_size_);
-  }
-};
 
 /**
  * Performance metrics structure
@@ -170,30 +117,30 @@ struct CreateParams {
 using CreateTask = chimaera::admin::GetOrCreatePoolTask<CreateParams>;
 
 /**
- * AllocateTask - Allocate multiple blocks with specified total size
+ * AllocateBlocksTask - Allocate multiple blocks with specified total size
  */
-struct AllocateTask : public chi::Task {
+struct AllocateBlocksTask : public chi::Task {
   // Task-specific data
   IN chi::u64 size_;               // Requested total size
-  OUT BlockList block_list_;       // Allocated blocks information
+  OUT chi::ipc::vector<Block> blocks_;       // Allocated blocks information
 
   /** SHM default constructor */
-  explicit AllocateTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc) 
-      : chi::Task(alloc), size_(0), block_list_(alloc) {}
+  explicit AllocateBlocksTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc) 
+      : chi::Task(alloc), size_(0), blocks_(alloc) {}
 
   /** Emplace constructor */
-  explicit AllocateTask(
+  explicit AllocateBlocksTask(
       const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
       const chi::TaskNode &task_node,
       const chi::PoolId &pool_id, 
       const chi::PoolQuery &pool_query,
       chi::u64 size)
       : chi::Task(alloc, task_node, pool_id, pool_query, 10),
-        size_(size), block_list_(alloc) {
+        size_(size), blocks_(alloc) {
     // Initialize task
     task_node_ = task_node;
     pool_id_ = pool_id;
-    method_ = Method::kAllocate;
+    method_ = Method::kAllocateBlocks;
     task_flags_.Clear();
     pool_query_ = pool_query;
   }
@@ -207,39 +154,26 @@ struct AllocateTask : public chi::Task {
   /** Serialize OUT and INOUT parameters */
   template<typename Archive>
   void SerializeOut(Archive& ar) {
-    ar(block_list_);
+    ar(blocks_);
   }
 };
+
+/**
+ * Backward compatibility alias for AllocateTask
+ */
+using AllocateTask = AllocateBlocksTask;
 
 /**
  * FreeTask - Free allocated blocks
  */
 struct FreeTask : public chi::Task {
   // Task-specific data
-  IN BlockList block_list_;    // Blocks to free
+  IN chi::ipc::vector<Block> blocks_;    // Blocks to free
 
   /** SHM default constructor */
   explicit FreeTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc) 
-      : chi::Task(alloc), block_list_(alloc) {}
+      : chi::Task(alloc), blocks_(alloc) {}
 
-  /** Emplace constructor for single block (backward compatibility) */
-  explicit FreeTask(
-      const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
-      const chi::TaskNode &task_node,
-      const chi::PoolId &pool_id, 
-      const chi::PoolQuery &pool_query,
-      const Block& block)
-      : chi::Task(alloc, task_node, pool_id, pool_query, 10),
-        block_list_(alloc) {
-    // Initialize task
-    task_node_ = task_node;
-    pool_id_ = pool_id;
-    method_ = Method::kFree;
-    task_flags_.Clear();
-    pool_query_ = pool_query;
-    // Add single block to list
-    block_list_.AddBlock(block);
-  }
 
   /** Emplace constructor for multiple blocks */
   explicit FreeTask(
@@ -247,21 +181,27 @@ struct FreeTask : public chi::Task {
       const chi::TaskNode &task_node,
       const chi::PoolId &pool_id, 
       const chi::PoolQuery &pool_query,
-      const BlockList& block_list)
+      const chi::ipc::vector<Block>& blocks)
       : chi::Task(alloc, task_node, pool_id, pool_query, 10),
-        block_list_(alloc, block_list) {
+        blocks_(alloc) {
     // Initialize task
     task_node_ = task_node;
     pool_id_ = pool_id;
     method_ = Method::kFree;
     task_flags_.Clear();
     pool_query_ = pool_query;
+    
+    // Copy blocks
+    blocks_.resize(blocks.size());
+    for (size_t i = 0; i < blocks.size(); ++i) {
+      blocks_[i] = blocks[i];
+    }
   }
 
   /** Serialize IN and INOUT parameters */
   template<typename Archive>
   void SerializeIn(Archive& ar) {
-    ar(block_list_);
+    ar(blocks_);
   }
   
   /** Serialize OUT and INOUT parameters */
@@ -277,12 +217,13 @@ struct FreeTask : public chi::Task {
 struct WriteTask : public chi::Task {
   // Task-specific data
   IN Block block_;                  // Block to write to
-  INOUT hipc::vector<hshm::u8> data_; // Data to write (input) / written data (output)
+  IN hipc::Pointer data_;           // Data to write (pointer-based)
+  IN size_t length_;                // Size of data to write
   OUT chi::u64 bytes_written_;      // Number of bytes actually written
 
   /** SHM default constructor */
   explicit WriteTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc) 
-      : chi::Task(alloc), data_(alloc), bytes_written_(0) {}
+      : chi::Task(alloc), length_(0), bytes_written_(0) {}
 
   /** Emplace constructor */
   explicit WriteTask(
@@ -291,9 +232,10 @@ struct WriteTask : public chi::Task {
       const chi::PoolId &pool_id, 
       const chi::PoolQuery &pool_query,
       const Block& block,
-      const std::vector<hshm::u8>& data)
+      hipc::Pointer data,
+      size_t length)
       : chi::Task(alloc, task_node, pool_id, pool_query, 10),
-        block_(block), data_(alloc), 
+        block_(block), data_(data), length_(length),
         bytes_written_(0) {
     // Initialize task
     task_node_ = task_node;
@@ -301,24 +243,18 @@ struct WriteTask : public chi::Task {
     method_ = Method::kWrite;
     task_flags_.Clear();
     pool_query_ = pool_query;
-    
-    // Copy data from std::vector to hipc::vector
-    data_.resize(data.size());
-    for (size_t i = 0; i < data.size(); ++i) {
-      data_[i] = data[i];
-    }
   }
 
   /** Serialize IN and INOUT parameters */
   template<typename Archive>
   void SerializeIn(Archive& ar) {
-    ar(block_, data_);
+    ar(block_, data_, length_);
   }
   
   /** Serialize OUT and INOUT parameters */
   template<typename Archive>
   void SerializeOut(Archive& ar) {
-    ar(data_, bytes_written_);
+    ar(bytes_written_);
   }
 };
 
@@ -328,12 +264,13 @@ struct WriteTask : public chi::Task {
 struct ReadTask : public chi::Task {
   // Task-specific data
   IN Block block_;                  // Block to read from
-  OUT hipc::vector<hshm::u8> data_;  // Read data
+  OUT hipc::Pointer data_;          // Read data (pointer-based)
+  OUT size_t length_;               // Size of data buffer
   OUT chi::u64 bytes_read_;         // Number of bytes actually read
 
   /** SHM default constructor */
   explicit ReadTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc) 
-      : chi::Task(alloc), data_(alloc), bytes_read_(0) {}
+      : chi::Task(alloc), length_(0), bytes_read_(0) {}
 
   /** Emplace constructor */
   explicit ReadTask(
@@ -341,9 +278,11 @@ struct ReadTask : public chi::Task {
       const chi::TaskNode &task_node,
       const chi::PoolId &pool_id, 
       const chi::PoolQuery &pool_query,
-      const Block& block)
+      const Block& block,
+      hipc::Pointer data,
+      size_t length)
       : chi::Task(alloc, task_node, pool_id, pool_query, 10),
-        block_(block), data_(alloc), bytes_read_(0) {
+        block_(block), data_(data), length_(length), bytes_read_(0) {
     // Initialize task
     task_node_ = task_node;
     pool_id_ = pool_id;
@@ -361,24 +300,24 @@ struct ReadTask : public chi::Task {
   /** Serialize OUT and INOUT parameters */
   template<typename Archive>
   void SerializeOut(Archive& ar) {
-    ar(data_, bytes_read_);
+    ar(data_, length_, bytes_read_);
   }
 };
 
 /**
- * StatTask - Get performance statistics and remaining size
+ * GetStatsTask - Get performance statistics and remaining size
  */
-struct StatTask : public chi::Task {
+struct GetStatsTask : public chi::Task {
   // Task-specific data (no inputs)
   OUT PerfMetrics metrics_;         // Performance metrics
   OUT chi::u64 remaining_size_;     // Remaining allocatable space
 
   /** SHM default constructor */
-  explicit StatTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc) 
+  explicit GetStatsTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc) 
       : chi::Task(alloc), remaining_size_(0) {}
 
   /** Emplace constructor */
-  explicit StatTask(
+  explicit GetStatsTask(
       const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
       const chi::TaskNode &task_node,
       const chi::PoolId &pool_id, 
@@ -388,7 +327,7 @@ struct StatTask : public chi::Task {
     // Initialize task
     task_node_ = task_node;
     pool_id_ = pool_id;
-    method_ = Method::kStat;
+    method_ = Method::kGetStats;
     task_flags_.Clear();
     pool_query_ = pool_query;
   }
@@ -405,6 +344,11 @@ struct StatTask : public chi::Task {
     ar(metrics_, remaining_size_);
   }
 };
+
+/**
+ * Backward compatibility alias for StatTask
+ */
+using StatTask = GetStatsTask;
 
 /**
  * Standard DestroyTask for bdev

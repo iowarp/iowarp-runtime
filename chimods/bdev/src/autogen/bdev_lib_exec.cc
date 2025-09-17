@@ -26,8 +26,8 @@ void Runtime::Run(chi::u32 method, hipc::FullPtr<chi::Task> task_ptr, chi::RunCo
       Destroy(task_ptr.Cast<DestroyTask>(), rctx);
       break;
     }
-    case Method::kAllocate: {
-      Allocate(task_ptr.Cast<AllocateTask>(), rctx);
+    case Method::kAllocateBlocks: {
+      AllocateBlocks(task_ptr.Cast<AllocateBlocksTask>(), rctx);
       break;
     }
     case Method::kFree: {
@@ -42,8 +42,8 @@ void Runtime::Run(chi::u32 method, hipc::FullPtr<chi::Task> task_ptr, chi::RunCo
       Read(task_ptr.Cast<ReadTask>(), rctx);
       break;
     }
-    case Method::kStat: {
-      Stat(task_ptr.Cast<StatTask>(), rctx);
+    case Method::kGetStats: {
+      GetStats(task_ptr.Cast<GetStatsTask>(), rctx);
       break;
     }
     default: {
@@ -64,8 +64,8 @@ void Runtime::Monitor(chi::MonitorModeId mode, chi::u32 method,
       MonitorDestroy(mode, task_ptr.Cast<DestroyTask>(), rctx);
       break;
     }
-    case Method::kAllocate: {
-      MonitorAllocate(mode, task_ptr.Cast<AllocateTask>(), rctx);
+    case Method::kAllocateBlocks: {
+      MonitorAllocateBlocks(mode, task_ptr.Cast<AllocateBlocksTask>(), rctx);
       break;
     }
     case Method::kFree: {
@@ -80,8 +80,8 @@ void Runtime::Monitor(chi::MonitorModeId mode, chi::u32 method,
       MonitorRead(mode, task_ptr.Cast<ReadTask>(), rctx);
       break;
     }
-    case Method::kStat: {
-      MonitorStat(mode, task_ptr.Cast<StatTask>(), rctx);
+    case Method::kGetStats: {
+      MonitorGetStats(mode, task_ptr.Cast<GetStatsTask>(), rctx);
       break;
     }
     default: {
@@ -104,8 +104,8 @@ void Runtime::Del(chi::u32 method, hipc::FullPtr<chi::Task> task_ptr) {
       ipc_manager->DelTask(task_ptr.Cast<DestroyTask>());
       break;
     }
-    case Method::kAllocate: {
-      ipc_manager->DelTask(task_ptr.Cast<AllocateTask>());
+    case Method::kAllocateBlocks: {
+      ipc_manager->DelTask(task_ptr.Cast<AllocateBlocksTask>());
       break;
     }
     case Method::kFree: {
@@ -120,8 +120,8 @@ void Runtime::Del(chi::u32 method, hipc::FullPtr<chi::Task> task_ptr) {
       ipc_manager->DelTask(task_ptr.Cast<ReadTask>());
       break;
     }
-    case Method::kStat: {
-      ipc_manager->DelTask(task_ptr.Cast<StatTask>());
+    case Method::kGetStats: {
+      ipc_manager->DelTask(task_ptr.Cast<GetStatsTask>());
       break;
     }
     default: {
@@ -145,8 +145,8 @@ void Runtime::SaveIn(chi::u32 method, chi::TaskSaveInArchive& archive,
       typed_task->SerializeIn(archive);
       break;
     }
-    case Method::kAllocate: {
-      auto typed_task = task_ptr.Cast<AllocateTask>();
+    case Method::kAllocateBlocks: {
+      auto typed_task = task_ptr.Cast<AllocateBlocksTask>();
       typed_task->SerializeIn(archive);
       break;
     }
@@ -165,8 +165,8 @@ void Runtime::SaveIn(chi::u32 method, chi::TaskSaveInArchive& archive,
       typed_task->SerializeIn(archive);
       break;
     }
-    case Method::kStat: {
-      auto typed_task = task_ptr.Cast<StatTask>();
+    case Method::kGetStats: {
+      auto typed_task = task_ptr.Cast<GetStatsTask>();
       typed_task->SerializeIn(archive);
       break;
     }
@@ -190,8 +190,8 @@ void Runtime::LoadIn(chi::u32 method, chi::TaskLoadInArchive& archive,
       typed_task->SerializeIn(archive);
       break;
     }
-    case Method::kAllocate: {
-      auto typed_task = task_ptr.Cast<AllocateTask>();
+    case Method::kAllocateBlocks: {
+      auto typed_task = task_ptr.Cast<AllocateBlocksTask>();
       typed_task->SerializeIn(archive);
       break;
     }
@@ -210,8 +210,8 @@ void Runtime::LoadIn(chi::u32 method, chi::TaskLoadInArchive& archive,
       typed_task->SerializeIn(archive);
       break;
     }
-    case Method::kStat: {
-      auto typed_task = task_ptr.Cast<StatTask>();
+    case Method::kGetStats: {
+      auto typed_task = task_ptr.Cast<GetStatsTask>();
       typed_task->SerializeIn(archive);
       break;
     }
@@ -235,8 +235,8 @@ void Runtime::SaveOut(chi::u32 method, chi::TaskSaveOutArchive& archive,
       typed_task->SerializeOut(archive);
       break;
     }
-    case Method::kAllocate: {
-      auto typed_task = task_ptr.Cast<AllocateTask>();
+    case Method::kAllocateBlocks: {
+      auto typed_task = task_ptr.Cast<AllocateBlocksTask>();
       typed_task->SerializeOut(archive);
       break;
     }
@@ -255,8 +255,8 @@ void Runtime::SaveOut(chi::u32 method, chi::TaskSaveOutArchive& archive,
       typed_task->SerializeOut(archive);
       break;
     }
-    case Method::kStat: {
-      auto typed_task = task_ptr.Cast<StatTask>();
+    case Method::kGetStats: {
+      auto typed_task = task_ptr.Cast<GetStatsTask>();
       typed_task->SerializeOut(archive);
       break;
     }
@@ -280,8 +280,8 @@ void Runtime::LoadOut(chi::u32 method, chi::TaskLoadOutArchive& archive,
       typed_task->SerializeOut(archive);
       break;
     }
-    case Method::kAllocate: {
-      auto typed_task = task_ptr.Cast<AllocateTask>();
+    case Method::kAllocateBlocks: {
+      auto typed_task = task_ptr.Cast<AllocateBlocksTask>();
       typed_task->SerializeOut(archive);
       break;
     }
@@ -300,8 +300,8 @@ void Runtime::LoadOut(chi::u32 method, chi::TaskLoadOutArchive& archive,
       typed_task->SerializeOut(archive);
       break;
     }
-    case Method::kStat: {
-      auto typed_task = task_ptr.Cast<StatTask>();
+    case Method::kGetStats: {
+      auto typed_task = task_ptr.Cast<GetStatsTask>();
       typed_task->SerializeOut(archive);
       break;
     }
@@ -342,12 +342,12 @@ void Runtime::NewCopy(chi::u32 method, const hipc::FullPtr<chi::Task>& orig_task
       }
       break;
     }
-    case Method::kAllocate: {
+    case Method::kAllocateBlocks: {
       // Allocate new task using SHM default constructor
-      auto typed_task = ipc_manager->NewTask<AllocateTask>();
+      auto typed_task = ipc_manager->NewTask<AllocateBlocksTask>();
       if (!typed_task.IsNull()) {
         // Use HSHM strong copy method for actual copying
-        typed_task->shm_strong_copy_main(*orig_task.Cast<AllocateTask>());
+        typed_task->shm_strong_copy_main(*orig_task.Cast<AllocateBlocksTask>());
         // Cast to base Task type for return
         dup_task = typed_task.template Cast<chi::Task>();
       }
@@ -386,12 +386,12 @@ void Runtime::NewCopy(chi::u32 method, const hipc::FullPtr<chi::Task>& orig_task
       }
       break;
     }
-    case Method::kStat: {
+    case Method::kGetStats: {
       // Allocate new task using SHM default constructor
-      auto typed_task = ipc_manager->NewTask<StatTask>();
+      auto typed_task = ipc_manager->NewTask<GetStatsTask>();
       if (!typed_task.IsNull()) {
         // Use HSHM strong copy method for actual copying
-        typed_task->shm_strong_copy_main(*orig_task.Cast<StatTask>());
+        typed_task->shm_strong_copy_main(*orig_task.Cast<GetStatsTask>());
         // Cast to base Task type for return
         dup_task = typed_task.template Cast<chi::Task>();
       }
