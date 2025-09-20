@@ -32,8 +32,7 @@ u64 Host::IpToNodeId(const std::string& ip_str) {
   std::string resolved_ip = ResolveHostnameToIp(ip_str);
   if (resolved_ip.empty()) {
     // If resolution fails, fall back to string hashing for consistency
-    std::cout << "Warning: Failed to resolve hostname '" << ip_str 
-              << "', falling back to string hash" << std::endl;
+    HILOG(kDebug, "Warning: Failed to resolve hostname '{}', falling back to string hash", ip_str);
     std::hash<std::string> hasher;
     return static_cast<u64>(hasher(ip_str));
   }
@@ -116,8 +115,7 @@ u64 Host::ConvertIpToNumeric64(const std::string& ip_str) {
   }
   
   // If neither IPv4 nor IPv6 parsing succeeded, fall back to string hash
-  std::cout << "Warning: IP address '" << ip_str 
-            << "' is not valid IPv4 or IPv6, using string hash" << std::endl;
+  HILOG(kDebug, "Warning: IP address '{}' is not valid IPv4 or IPv6, using string hash", ip_str);
   std::hash<std::string> hasher;
   return static_cast<u64>(hasher(ip_str));
 }
@@ -144,21 +142,20 @@ bool IpcManager::ClientInit() {
   // Retrieve node ID from shared header and store in this_host_
   if (shared_header_) {
     this_host_.node_id = shared_header_->node_id;
-    std::cout << "Retrieved node ID from shared memory: 0x" << std::hex 
-              << this_host_.node_id << std::dec << std::endl;
+    HILOG(kDebug, "Retrieved node ID from shared memory: 0x{:x}", this_host_.node_id);
   } else {
-    std::cerr << "Warning: Could not access shared header during ClientInit" << std::endl;
+    HELOG(kError, "Warning: Could not access shared header during ClientInit");
     this_host_ = Host(); // Default constructor gives node_id = 0
   }
 
   // Test connection to local server - critical for client functionality
   if (!TestLocalServer()) {
-    std::cerr << "CRITICAL ERROR: Cannot connect to local server." << std::endl;
-    std::cerr << "This usually means:" << std::endl;
-    std::cerr << "1. Chimaera runtime is not running" << std::endl;
-    std::cerr << "2. Local server failed to start" << std::endl;
-    std::cerr << "3. Network connectivity issues" << std::endl;
-    std::cerr << "Client initialization failed. Exiting." << std::endl;
+    HELOG(kError, "CRITICAL ERROR: Cannot connect to local server.");
+    HELOG(kError, "This usually means:");
+    HELOG(kError, "1. Chimaera runtime is not running");
+    HELOG(kError, "2. Local server failed to start");
+    HELOG(kError, "3. Network connectivity issues");
+    HELOG(kError, "Client initialization failed. Exiting.");
     return false;
   }
 
@@ -193,7 +190,7 @@ bool IpcManager::ServerInit() {
 
   // Identify this host and store node ID in shared header
   if (!IdentifyThisHost()) {
-    std::cerr << "Warning: Could not identify host, using default node ID" << std::endl;
+    HELOG(kError, "Warning: Could not identify host, using default node ID");
     this_host_ = Host(); // Default constructor gives node_id = 0
     if (shared_header_) {
       shared_header_->node_id = this_host_.node_id;
@@ -204,8 +201,7 @@ bool IpcManager::ServerInit() {
       shared_header_->node_id = this_host_.node_id;
     }
     
-    std::cout << "Node ID stored in shared memory: 0x" << std::hex 
-              << this_host_.node_id << std::dec << std::endl;
+    HILOG(kDebug, "Node ID stored in shared memory: 0x{:x}", this_host_.node_id);
   }
 
   // Initialize HSHM TLS key for task counter (needed for CreateTaskNode in runtime)
@@ -537,17 +533,17 @@ bool IpcManager::TestLocalServer() {
         addr, hshm::lbm::Transport::kZeroMq, protocol, port);
     
     if (client != nullptr) {
-      std::cout << "Successfully connected to local server at " << addr << ":" << port << std::endl;
+      HILOG(kDebug, "Successfully connected to local server at {}:{}", addr, port);
       return true;
     } else {
-      std::cerr << "Failed to create client connection to local server" << std::endl;
+      HELOG(kError, "Failed to create client connection to local server");
       return false;
     }
   } catch (const std::exception& e) {
-    std::cerr << "Exception while testing local server connection: " << e.what() << std::endl;
+    HELOG(kError, "Exception while testing local server connection: {}", e.what());
     return false;
   } catch (...) {
-    std::cerr << "Unknown error while testing local server connection" << std::endl;
+    HELOG(kError, "Unknown error while testing local server connection");
     return false;
   }
 }
@@ -580,7 +576,7 @@ bool IpcManager::LoadHostfile() {
   
   if (hostfile_path.empty()) {
     // No hostfile configured - assume localhost
-    std::cout << "No hostfile configured, using localhost" << std::endl;
+    HILOG(kDebug, "No hostfile configured, using localhost");
     std::vector<std::string> default_hosts = {"localhost", "127.0.0.1", "0.0.0.0"};
     for (const auto& ip : default_hosts) {
       Host host(ip);
@@ -599,13 +595,11 @@ bool IpcManager::LoadHostfile() {
       hostfile_map_[host.node_id] = host;
     }
     
-    std::cout << "Loaded " << hostfile_map_.size() << " hosts from hostfile: " 
-              << hostfile_path << std::endl;
+    HILOG(kDebug, "Loaded {} hosts from hostfile: {}", hostfile_map_.size(), hostfile_path);
     return true;
     
   } catch (const std::exception& e) {
-    std::cerr << "Error loading hostfile " << hostfile_path << ": " 
-              << e.what() << std::endl;
+    HELOG(kError, "Error loading hostfile {}: {}", hostfile_path, e.what());
     return false;
   }
 }
@@ -632,43 +626,42 @@ std::vector<Host> IpcManager::GetAllHosts() const {
 }
 
 bool IpcManager::IdentifyThisHost() {
-  std::cout << "Identifying current host" << std::endl;
+  HILOG(kDebug, "Identifying current host");
   
   // Load hostfile if not already loaded
   if (hostfile_map_.empty()) {
     if (!LoadHostfile()) {
-      std::cerr << "Error: Failed to load hostfile" << std::endl;
+      HELOG(kError, "Error: Failed to load hostfile");
       return false;
     }
   }
   
   if (hostfile_map_.empty()) {
-    std::cerr << "ERROR: No hosts available for identification" << std::endl;
+    HELOG(kError, "ERROR: No hosts available for identification");
     return false;
   }
   
-  std::cout << "Attempting to identify host among " << hostfile_map_.size() 
-            << " candidates" << std::endl;
+  HILOG(kDebug, "Attempting to identify host among {} candidates", hostfile_map_.size());
   
   // Try to start TCP server on each host IP
   for (const auto& pair : hostfile_map_) {
     const Host& host = pair.second;
-    std::cout << "Trying to bind TCP server to: " << host.ip_address << std::endl;
+    HILOG(kDebug, "Trying to bind TCP server to: {}", host.ip_address);
     
     try {
       if (TryStartMainServer(host.ip_address)) {
-        std::cout << "SUCCESS: Main server started on " << host.ip_address << std::endl;
+        HILOG(kDebug, "SUCCESS: Main server started on {}", host.ip_address);
         this_host_ = host;
         return true;
       }
     } catch (const std::exception& e) {
-      std::cout << "Failed to bind to " << host.ip_address << ": " << e.what() << std::endl;
+      HILOG(kDebug, "Failed to bind to {}: {}", host.ip_address, e.what());
     } catch (...) {
-      std::cout << "Failed to bind to " << host.ip_address << ": Unknown error" << std::endl;
+      HILOG(kDebug, "Failed to bind to {}: Unknown error", host.ip_address);
     }
   }
   
-  std::cerr << "ERROR: Could not start TCP server on any host from hostfile" << std::endl;
+  HELOG(kError, "ERROR: Could not start TCP server on any host from hostfile");
   return false;
 }
 
@@ -688,7 +681,7 @@ bool IpcManager::TryStartMainServer(const std::string& hostname) {
         hostname, hshm::lbm::Transport::kZeroMq, protocol, port);
     
     if (main_server_ != nullptr) {
-      std::cout << "Main server successfully bound to " << hostname << ":" << port << std::endl;
+      HILOG(kDebug, "Main server successfully bound to {}:{}", hostname, port);
       return true;
     }
     

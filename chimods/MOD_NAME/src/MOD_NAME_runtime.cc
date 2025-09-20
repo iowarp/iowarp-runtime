@@ -6,7 +6,6 @@
 
 #include "../include/chimaera/MOD_NAME/MOD_NAME_runtime.h"
 
-#include <iostream>
 #include <chrono>
 
 
@@ -26,8 +25,7 @@ void Runtime::InitClient(const chi::PoolId& pool_id) {
 //===========================================================================
 
 void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& rctx) {
-  std::cout << "MOD_NAME: Executing Create task for pool " << task->pool_id_
-            << std::endl;
+  HILOG(kDebug, "MOD_NAME: Executing Create task for pool {}", task->pool_id_);
 
   // Initialize the container with pool information and domain query
   chi::Container::Init(task->pool_id_, task->pool_query_);
@@ -38,9 +36,7 @@ void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& rctx) {
 
   create_count_++;
 
-  std::cout << "MOD_NAME: Container created and initialized for pool: "
-            << pool_name_ << " (ID: " << task->pool_id_
-            << ", count: " << create_count_ << ")" << std::endl;
+  HILOG(kDebug, "MOD_NAME: Container created and initialized for pool: {} (ID: {}, count: {})", pool_name_, task->pool_id_, create_count_);
 }
 
 void Runtime::MonitorCreate(chi::MonitorModeId mode,
@@ -49,7 +45,7 @@ void Runtime::MonitorCreate(chi::MonitorModeId mode,
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule:
       // Set route_lane_ to indicate where task should be routed
-      std::cout << "MOD_NAME: Setting route_lane_ for Create task" << std::endl;
+      HILOG(kDebug, "MOD_NAME: Setting route_lane_ for Create task");
       // Use base class lane management - set route_lane_ to queue 0
       {
         auto lane_ptr = GetLaneFullPtr(0, 0);
@@ -61,27 +57,25 @@ void Runtime::MonitorCreate(chi::MonitorModeId mode,
 
     case chi::MonitorModeId::kGlobalSchedule:
       // Coordinate global distribution
-      std::cout << "MOD_NAME: Global scheduling for Create task" << std::endl;
+      HILOG(kDebug, "MOD_NAME: Global scheduling for Create task");
       break;
 
     case chi::MonitorModeId::kEstLoad:
       // Estimate task execution time
-      std::cout << "MOD_NAME: Estimating load for Create task" << std::endl;
+      HILOG(kDebug, "MOD_NAME: Estimating load for Create task");
       break;
   }
 }
 
 void Runtime::Custom(hipc::FullPtr<CustomTask> task, chi::RunContext& rctx) {
-  std::cout << "MOD_NAME: Executing Custom task with data: "
-            << task->data_.c_str() << std::endl;
+  HILOG(kDebug, "MOD_NAME: Executing Custom task with data: {}", task->data_.c_str());
 
   custom_count_++;
 
   // Process custom task here
   // In a real implementation, this would perform the custom operation
 
-  std::cout << "MOD_NAME: Custom completed (count: " << custom_count_ << ")"
-            << std::endl;
+  HILOG(kDebug, "MOD_NAME: Custom completed (count: {})", custom_count_);
 }
 
 void Runtime::MonitorCustom(chi::MonitorModeId mode,
@@ -90,7 +84,7 @@ void Runtime::MonitorCustom(chi::MonitorModeId mode,
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule:
       // Set route_lane_ to indicate where task should be routed
-      std::cout << "MOD_NAME: Setting route_lane_ for Custom task" << std::endl;
+      HILOG(kDebug, "MOD_NAME: Setting route_lane_ for Custom task");
       // Use base class lane management - set route_lane_ to queue 0
       // lane 0
       {
@@ -103,19 +97,18 @@ void Runtime::MonitorCustom(chi::MonitorModeId mode,
 
     case chi::MonitorModeId::kGlobalSchedule:
       // Coordinate global distribution
-      std::cout << "MOD_NAME: Global scheduling for Custom task" << std::endl;
+      HILOG(kDebug, "MOD_NAME: Global scheduling for Custom task");
       break;
 
     case chi::MonitorModeId::kEstLoad:
       // Estimate task execution time
-      std::cout << "MOD_NAME: Estimating load for Custom task" << std::endl;
+      HILOG(kDebug, "MOD_NAME: Estimating load for Custom task");
       break;
   }
 }
 
 void Runtime::Destroy(hipc::FullPtr<DestroyTask> task, chi::RunContext& rctx) {
-  std::cout << "MOD_NAME: Executing Destroy task - Pool ID: "
-            << task->target_pool_id_ << std::endl;
+  HILOG(kDebug, "MOD_NAME: Executing Destroy task - Pool ID: {}", task->target_pool_id_);
 
   // Initialize output values
   task->return_code_ = 0;
@@ -123,7 +116,7 @@ void Runtime::Destroy(hipc::FullPtr<DestroyTask> task, chi::RunContext& rctx) {
 
   // In a real implementation, this would clean up MOD_NAME-specific resources
   // For now, just mark as successful
-  std::cout << "MOD_NAME: Container destroyed successfully" << std::endl;
+  HILOG(kDebug, "MOD_NAME: Container destroyed successfully");
 }
 
 void Runtime::MonitorDestroy(chi::MonitorModeId mode,
@@ -132,7 +125,7 @@ void Runtime::MonitorDestroy(chi::MonitorModeId mode,
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule:
       // Set route_lane_ to indicate where task should be routed
-      std::cout << "MOD_NAME: Setting route_lane_ for Destroy task" << std::endl;
+      HILOG(kDebug, "MOD_NAME: Setting route_lane_ for Destroy task");
       // Use base class lane management - set route_lane_ to queue 0 lane 0
       {
         auto lane_ptr = GetLaneFullPtr(0, 0);
@@ -144,7 +137,7 @@ void Runtime::MonitorDestroy(chi::MonitorModeId mode,
 
     case chi::MonitorModeId::kGlobalSchedule:
       // Coordinate global destruction
-      std::cout << "MOD_NAME: Global scheduling for Destroy task" << std::endl;
+      HILOG(kDebug, "MOD_NAME: Global scheduling for Destroy task");
       break;
 
     case chi::MonitorModeId::kEstLoad:
@@ -164,8 +157,7 @@ chi::u64 Runtime::GetWorkRemaining() const {
 //===========================================================================
 
 void Runtime::CoMutexTest(hipc::FullPtr<CoMutexTestTask> task, chi::RunContext& rctx) {
-  std::cout << "MOD_NAME: Executing CoMutexTest task " << task->test_id_
-            << " (hold: " << task->hold_duration_ms_ << "ms)" << std::endl;
+  HILOG(kDebug, "MOD_NAME: Executing CoMutexTest task {} (hold: {}ms)", task->test_id_, task->hold_duration_ms_);
 
   // Use actual CoMutex synchronization primitive
   chi::ScopedCoMutex lock(test_comutex_);
@@ -183,7 +175,7 @@ void Runtime::CoMutexTest(hipc::FullPtr<CoMutexTestTask> task, chi::RunContext& 
   }
 
   task->return_code_ = 0;  // Success (0 means success in most conventions)
-  std::cout << "MOD_NAME: CoMutexTest " << task->test_id_ << " completed" << std::endl;
+  HILOG(kDebug, "MOD_NAME: CoMutexTest {} completed", task->test_id_);
 }
 
 void Runtime::MonitorCoMutexTest(chi::MonitorModeId mode,
@@ -204,9 +196,7 @@ void Runtime::MonitorCoMutexTest(chi::MonitorModeId mode,
 }
 
 void Runtime::CoRwLockTest(hipc::FullPtr<CoRwLockTestTask> task, chi::RunContext& rctx) {
-  std::cout << "MOD_NAME: Executing CoRwLockTest task " << task->test_id_
-            << " (" << (task->is_writer_ ? "writer" : "reader")
-            << ", hold: " << task->hold_duration_ms_ << "ms)" << std::endl;
+  HILOG(kDebug, "MOD_NAME: Executing CoRwLockTest task {} ({}, hold: {}ms)", task->test_id_, (task->is_writer_ ? "writer" : "reader"), task->hold_duration_ms_);
 
   // Use actual CoRwLock synchronization primitive with appropriate lock type
   if (task->is_writer_) {
@@ -240,7 +230,7 @@ void Runtime::CoRwLockTest(hipc::FullPtr<CoRwLockTestTask> task, chi::RunContext
   }
 
   task->return_code_ = 0;  // Success (0 means success in most conventions)
-  std::cout << "MOD_NAME: CoRwLockTest " << task->test_id_ << " completed" << std::endl;
+  HILOG(kDebug, "MOD_NAME: CoRwLockTest {} completed", task->test_id_);
 }
 
 void Runtime::MonitorCoRwLockTest(chi::MonitorModeId mode,
@@ -261,9 +251,7 @@ void Runtime::MonitorCoRwLockTest(chi::MonitorModeId mode,
 }
 
 void Runtime::FireAndForgetTest(hipc::FullPtr<FireAndForgetTestTask> task, chi::RunContext& rctx) {
-  std::cout << "MOD_NAME: Executing FireAndForgetTest task " << task->test_id_
-            << " (processing: " << task->processing_time_ms_ << "ms, message: '"
-            << task->log_message_.c_str() << "')" << std::endl;
+  HILOG(kDebug, "MOD_NAME: Executing FireAndForgetTest task {} (processing: {}ms, message: '{}')", task->test_id_, task->processing_time_ms_, task->log_message_.c_str());
 
   // Simulate processing time
   if (task->processing_time_ms_ > 0) {
@@ -277,8 +265,7 @@ void Runtime::FireAndForgetTest(hipc::FullPtr<FireAndForgetTestTask> task, chi::
     }
   }
 
-  std::cout << "MOD_NAME: FireAndForgetTest " << task->test_id_ 
-            << " completed and will be auto-deleted" << std::endl;
+  HILOG(kDebug, "MOD_NAME: FireAndForgetTest {} completed and will be auto-deleted", task->test_id_);
 }
 
 void Runtime::MonitorFireAndForgetTest(chi::MonitorModeId mode,
@@ -299,17 +286,14 @@ void Runtime::MonitorFireAndForgetTest(chi::MonitorModeId mode,
 }
 
 void Runtime::WaitTest(hipc::FullPtr<WaitTestTask> task, chi::RunContext& rctx) {
-  std::cout << "MOD_NAME: Executing WaitTest task " << task->test_id_
-            << " (depth: " << task->depth_ << ", current_depth: " << task->current_depth_ << ")"
-            << std::endl;
+  HILOG(kDebug, "MOD_NAME: Executing WaitTest task {} (depth: {}, current_depth: {})", task->test_id_, task->depth_, task->current_depth_);
 
   // Increment current depth
   task->current_depth_++;
 
   // If we haven't reached the target depth, create a subtask and wait for it
   if (task->current_depth_ < task->depth_) {
-    std::cout << "MOD_NAME: WaitTest " << task->test_id_ 
-              << " creating recursive subtask at depth " << task->current_depth_ << std::endl;
+    HILOG(kDebug, "MOD_NAME: WaitTest {} creating recursive subtask at depth {}", task->test_id_, task->current_depth_);
     
     // Use the client API for recursive calls - this tests the Wait() functionality properly
     // Create a subtask with remaining depth
@@ -321,12 +305,10 @@ void Runtime::WaitTest(hipc::FullPtr<WaitTestTask> task, chi::RunContext& rctx) 
     // The subtask returns the final depth it reached, so we set our depth to that
     task->current_depth_ = task->depth_;
     
-    std::cout << "MOD_NAME: WaitTest " << task->test_id_ 
-              << " subtask completed via client API, final depth: " << task->current_depth_ << std::endl;
+    HILOG(kDebug, "MOD_NAME: WaitTest {} subtask completed via client API, final depth: {}", task->test_id_, task->current_depth_);
   }
 
-  std::cout << "MOD_NAME: WaitTest " << task->test_id_ << " completed at depth " 
-            << task->current_depth_ << std::endl;
+  HILOG(kDebug, "MOD_NAME: WaitTest {} completed at depth {}", task->test_id_, task->current_depth_);
 }
 
 void Runtime::MonitorWaitTest(chi::MonitorModeId mode,

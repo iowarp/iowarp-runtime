@@ -17,14 +17,14 @@ volatile bool g_keep_running = true;
 void signal_handler(int signal) {
   if (signal == SIGINT) {
     // Ctrl-C should exit immediately without graceful shutdown
-    std::cout << "Received SIGINT (Ctrl-C), exiting immediately..." << std::endl;
+    HILOG(kDebug, "Received SIGINT (Ctrl-C), exiting immediately...");
     std::exit(1);
   } else if (signal == SIGTERM) {
     // SIGTERM allows graceful shutdown
-    std::cout << "Received SIGTERM, shutting down gracefully..." << std::endl;
+    HILOG(kDebug, "Received SIGTERM, shutting down gracefully...");
     g_keep_running = false;
   } else {
-    std::cout << "Received signal " << signal << ", shutting down..." << std::endl;
+    HILOG(kDebug, "Received signal {}, shutting down...", signal);
     g_keep_running = false;
   }
 }
@@ -35,28 +35,26 @@ void signal_handler(int signal) {
  * @return true if successful, false on failure
  */
 bool InitializeAdminChiMod() {
-  std::cout << "Initializing admin ChiMod..." << std::endl;
+  HILOG(kDebug, "Initializing admin ChiMod...");
 
   // Get the module manager to find the admin chimod
   auto* module_manager = CHI_MODULE_MANAGER;
   if (!module_manager) {
-    std::cerr << "Module manager not available" << std::endl;
+    HELOG(kError, "Module manager not available");
     return false;
   }
 
   // Check if admin chimod is available
   auto* admin_chimod = module_manager->GetChiMod("chimaera_admin");
   if (!admin_chimod) {
-    std::cerr << "CRITICAL: Admin ChiMod not found! This is a required system "
-                 "component."
-              << std::endl;
+    HELOG(kError, "CRITICAL: Admin ChiMod not found! This is a required system component.");
     return false;
   }
 
   // Get the pool manager to register the admin pool
   auto* pool_manager = CHI_POOL_MANAGER;
   if (!pool_manager) {
-    std::cerr << "Pool manager not available" << std::endl;
+    HELOG(kError, "Pool manager not available");
     return false;
   }
 
@@ -65,22 +63,19 @@ bool InitializeAdminChiMod() {
     // This functionality is now handled by PoolManager::ServerInit()
     // which calls CreatePool internally with proper task and RunContext
     // No need to manually create admin pool here anymore
-    std::cout << "Admin pool creation handled by PoolManager::ServerInit()" << std::endl;
+    HILOG(kDebug, "Admin pool creation handled by PoolManager::ServerInit()");
 
     // Verify the pool was created successfully
     if (!pool_manager->HasPool(chi::kAdminPoolId)) {
-      std::cerr << "Admin pool creation reported success but pool is not found"
-                << std::endl;
+      HELOG(kError, "Admin pool creation reported success but pool is not found");
       return false;
     }
 
-    std::cout << "Admin ChiPool created successfully (ID: " << chi::kAdminPoolId
-              << ")" << std::endl;
+    HILOG(kDebug, "Admin ChiPool created successfully (ID: {})", chi::kAdminPoolId);
     return true;
 
   } catch (const std::exception& e) {
-    std::cerr << "Exception during admin ChiMod initialization: " << e.what()
-              << std::endl;
+    HELOG(kError, "Exception during admin ChiMod initialization: {}", e.what());
     return false;
   }
 }
@@ -89,7 +84,7 @@ bool InitializeAdminChiMod() {
  * Shutdown the admin ChiMod properly
  */
 void ShutdownAdminChiMod() {
-  std::cout << "Shutting down admin ChiMod..." << std::endl;
+  HILOG(kDebug, "Shutting down admin ChiMod...");
 
   try {
     // Get the pool manager to destroy the admin pool
@@ -97,24 +92,23 @@ void ShutdownAdminChiMod() {
     if (pool_manager && pool_manager->HasPool(chi::kAdminPoolId)) {
       // Use PoolManager to destroy the admin pool locally
       if (pool_manager->DestroyLocalPool(chi::kAdminPoolId)) {
-        std::cout << "Admin pool destroyed successfully" << std::endl;
+        HILOG(kDebug, "Admin pool destroyed successfully");
       } else {
-        std::cerr << "Failed to destroy admin pool" << std::endl;
+        HELOG(kError, "Failed to destroy admin pool");
       }
     }
 
   } catch (const std::exception& e) {
-    std::cerr << "Exception during admin ChiMod shutdown: " << e.what()
-              << std::endl;
+    HELOG(kError, "Exception during admin ChiMod shutdown: {}", e.what());
   }
 
-  std::cout << "Admin ChiMod shutdown complete" << std::endl;
+  HILOG(kDebug, "Admin ChiMod shutdown complete");
 }
 
 }  // namespace
 
 int main(int argc, char* argv[]) {
-  std::cout << "Starting Chimaera runtime..." << std::endl;
+  HILOG(kDebug, "Starting Chimaera runtime...");
 
   // Set up signal handling
   std::signal(SIGINT, signal_handler);
@@ -122,21 +116,19 @@ int main(int argc, char* argv[]) {
 
   // Initialize Chimaera runtime
   if (!chi::CHIMAERA_RUNTIME_INIT()) {
-    std::cerr << "Failed to initialize Chimaera runtime" << std::endl;
+    HELOG(kError, "Failed to initialize Chimaera runtime");
     return 1;
   }
 
-  std::cout << "Chimaera runtime started successfully" << std::endl;
+  HILOG(kDebug, "Chimaera runtime started successfully");
 
   // Find and initialize admin ChiMod
   if (!InitializeAdminChiMod()) {
-    std::cerr << "FATAL ERROR: Failed to find or initialize admin ChiMod"
-              << std::endl;
+    HELOG(kError, "FATAL ERROR: Failed to find or initialize admin ChiMod");
     return 1;
   }
 
-  std::cout << "Admin ChiMod initialized successfully with pool ID "
-            << chi::kAdminPoolId << std::endl;
+  HILOG(kDebug, "Admin ChiMod initialized successfully with pool ID {}", chi::kAdminPoolId);
 
   // Main runtime loop
   while (g_keep_running) {
@@ -144,11 +136,11 @@ int main(int argc, char* argv[]) {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
 
-  std::cout << "Shutting down Chimaera runtime..." << std::endl;
+  HILOG(kDebug, "Shutting down Chimaera runtime...");
 
   // Shutdown admin pool first
   ShutdownAdminChiMod();
 
-  std::cout << "Chimaera runtime stopped (finalization will happen automatically)" << std::endl;
+  HILOG(kDebug, "Chimaera runtime stopped (finalization will happen automatically)");
   return 0;
 }

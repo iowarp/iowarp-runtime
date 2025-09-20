@@ -4,7 +4,6 @@
 
 #include "chimaera/config_manager.h"
 #include <cstdlib>
-#include <iostream>
 
 // Global pointer variable definition for Configuration manager singleton
 HSHM_DEFINE_GLOBAL_PTR_VAR_CC(chi::ConfigManager, g_config_manager);
@@ -24,8 +23,7 @@ bool ConfigManager::ClientInit() {
   // Load YAML configuration if path is provided
   if (!config_file_path_.empty()) {
     if (!LoadYaml(config_file_path_)) {
-      std::cerr << "Warning: Failed to load configuration from " 
-                << config_file_path_ << ", using defaults" << std::endl;
+      HELOG(kError, "Warning: Failed to load configuration from {}, using defaults", config_file_path_);
     }
   }
 

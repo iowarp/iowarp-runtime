@@ -5,8 +5,6 @@
 
 #include <cmath>
 #include <cstring>
-#include <fstream>
-#include <iostream>
 #include <thread>
 
 namespace chimaera::bdev {
@@ -155,8 +153,7 @@ void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& ctx) {
   // Set success result
   task->return_code_ = 0;
 
-  std::cout << "bdev container created for pool: " << pool_name
-            << " (Size: " << file_size_ << " bytes)" << std::endl;
+  HILOG(kDebug, "bdev container created for pool: {} (Size: {} bytes)", pool_name, file_size_);
 }
 
 void Runtime::MonitorCreate(chi::MonitorModeId mode,
@@ -186,11 +183,73 @@ void Runtime::AllocateBlocks(hipc::FullPtr<AllocateBlocksTask> task, chi::RunCon
   // Clear the block vector first
   task->blocks_.clear();
 
-  // Allocate multiple blocks to satisfy the requested size
-  if (!AllocateMultipleBlocks(task->size_, task->blocks_)) {
-    task->return_code_ = 1;  // Out of space
+  chi::u64 total_size = task->size_;
+  if (total_size == 0) {
+    task->return_code_ = 0;  // Nothing to allocate
     return;
   }
+
+  // Calculate minimum block set according to new algorithm
+  std::vector<std::pair<BlockSizeCategory, chi::u32>> blocks_to_allocate;
+  chi::u64 total_allocated_size = 0;
+
+  if (total_size < (1ULL << 20)) { // < 1MB
+    // Allocate a single block of the next largest size
+    BlockSizeCategory category;
+    if (total_size <= kBlockSizes[0]) {        // <= 4KB
+      category = BlockSizeCategory::k4KB;
+    } else if (total_size <= kBlockSizes[1]) { // <= 64KB  
+      category = BlockSizeCategory::k64KB;
+    } else if (total_size <= kBlockSizes[2]) { // <= 256KB
+      category = BlockSizeCategory::k256KB;
+    } else {                                   // <= 1MB
+      category = BlockSizeCategory::k1MB;
+    }
+    
+    blocks_to_allocate.push_back({category, 1});
+    total_allocated_size = GetBlockSize(category);
+    
+  } else { // >= 1MB
+    // Allocate only 1MB blocks to meet requirement
+    chi::u32 num_1mb_blocks = static_cast<chi::u32>((total_size + kBlockSizes[3] - 1) / kBlockSizes[3]);
+    blocks_to_allocate.push_back({BlockSizeCategory::k1MB, num_1mb_blocks});
+    total_allocated_size = num_1mb_blocks * kBlockSizes[3];
+  }
+
+  // Now allocate the determined blocks using the allocation strategy
+  for (const auto& block_spec : blocks_to_allocate) {
+    BlockSizeCategory category = block_spec.first;
+    chi::u32 num_blocks = block_spec.second;
+    chi::u64 block_size = GetBlockSize(category);
+
+    for (chi::u32 i = 0; i < num_blocks; ++i) {
+      Block block;
+
+      // Try to allocate from free list first
+      if (!AllocateFromFreeList(category, block_size, block)) {
+        // If no free blocks, allocate from heap
+        if (!AllocateFromHeap(block_size, category, block)) {
+          // If both heap and free lists exhausted, clean up and return error
+          for (size_t j = 0; j < task->blocks_.size(); ++j) {
+            const Block& allocated_block = task->blocks_[j];
+            AddToFreeList(allocated_block);
+            remaining_size_.fetch_add(allocated_block.size_);
+          }
+          task->blocks_.clear();
+          task->return_code_ = 1;  // Out of space
+          return;
+        }
+      }
+
+      // Add the allocated block to the vector
+      size_t old_size = task->blocks_.size();
+      task->blocks_.resize(old_size + 1);
+      task->blocks_[old_size] = block;
+    }
+  }
+
+  // Update capacity: decrement remaining_size_ based on total allocated block size  
+  remaining_size_.fetch_sub(total_allocated_size);
 
   task->return_code_ = 0;
 }
@@ -400,7 +459,7 @@ void Runtime::Destroy(hipc::FullPtr<DestroyTask> task, chi::RunContext& ctx) {
   }
 
   task->return_code_ = 0;
-  std::cout << "bdev container destroyed for pool: " << pool_id_ << std::endl;
+  HILOG(kDebug, "bdev container destroyed for pool: {}", pool_id_);
 }
 
 void Runtime::MonitorDestroy(chi::MonitorModeId mode,
@@ -439,8 +498,7 @@ void Runtime::InitializeAllocator() {
 void Runtime::BenchmarkPerformance() {
   // Skip benchmarking for RAM backend (very fast operations)
   if (bdev_type_ == BdevType::kRam) {
-    std::cout << "Skipping benchmark for RAM backend (operations < 1us)"
-              << std::endl;
+    HILOG(kDebug, "Skipping benchmark for RAM backend (operations < 1us)");
     return;
   }
 
@@ -467,17 +525,10 @@ void Runtime::BenchmarkPerformance() {
 
     free(aligned_buffer);
 
-    std::cout << "Benchmark results - Write: " << write_duration.count()
-              << "us, Read: " << read_duration.count() << "us" << std::endl;
+    HILOG(kDebug, "Benchmark results - Write: {}us, Read: {}us", write_duration.count(), read_duration.count());
   }
 }
 
-BlockSizeCategory Runtime::DetermineBlockSizeCategory(chi::u64 size) {
-  if (size <= kBlockSizes[0]) return BlockSizeCategory::k4KB;
-  if (size <= kBlockSizes[1]) return BlockSizeCategory::k64KB;
-  if (size <= kBlockSizes[2]) return BlockSizeCategory::k256KB;
-  return BlockSizeCategory::k1MB;
-}
 
 chi::u64 Runtime::GetBlockSize(BlockSizeCategory category) {
   return kBlockSizes[static_cast<size_t>(category)];
@@ -550,88 +601,7 @@ chi::u64 Runtime::AlignSize(chi::u64 size) {
   return ((size + alignment_ - 1) / alignment_) * alignment_;
 }
 
-chi::u32 Runtime::CalculateBlocksNeeded(chi::u64 total_size) {
-  if (total_size == 0) {
-    return 0;
-  }
 
-  chi::u32 blocks_needed = 0;
-  chi::u64 remaining_size = total_size;
-
-  // Start with largest blocks and work down
-  for (int i = static_cast<int>(BlockSizeCategory::kMaxCategories) - 1; i >= 0;
-       --i) {
-    BlockSizeCategory category = static_cast<BlockSizeCategory>(i);
-    chi::u64 block_size = GetBlockSize(category);
-
-    chi::u32 blocks_of_this_size =
-        static_cast<chi::u32>(remaining_size / block_size);
-    blocks_needed += blocks_of_this_size;
-    remaining_size -= blocks_of_this_size * block_size;
-
-    if (remaining_size == 0) {
-      break;
-    }
-  }
-
-  // If there's still remaining size, we need one more block of smallest size
-  if (remaining_size > 0) {
-    blocks_needed += 1;
-  }
-
-  return blocks_needed;
-}
-
-bool Runtime::AllocateMultipleBlocks(chi::u64 total_size,
-                                     chi::ipc::vector<Block>& blocks) {
-  if (total_size == 0) {
-    return true;  // Nothing to allocate
-  }
-
-  chi::u64 remaining_size = total_size;
-
-  // Start with largest blocks and work down to minimize fragmentation
-  for (int i = static_cast<int>(BlockSizeCategory::kMaxCategories) - 1; i >= 0;
-       --i) {
-    BlockSizeCategory category = static_cast<BlockSizeCategory>(i);
-    chi::u64 block_size = GetBlockSize(category);
-
-    // Allocate as many blocks of this size as needed
-    while (remaining_size >= block_size) {
-      Block block;
-
-      // Try to allocate from free list first
-      if (!AllocateFromFreeList(category, block_size, block)) {
-        // Allocate from heap if no free blocks available
-        if (!AllocateFromHeap(block_size, category, block)) {
-          // If we can't allocate this block, try smaller blocks
-          break;
-        }
-      }
-
-      // Add the allocated block to the vector
-      size_t old_size = blocks.size();
-      blocks.resize(old_size + 1);
-      blocks[old_size] = block;
-      remaining_size -= block.size_;
-    }
-  }
-
-  // Check if we successfully allocated enough space
-  if (remaining_size > 0) {
-    // We couldn't allocate enough space - need to free what we allocated and
-    // return false
-    for (size_t i = 0; i < blocks.size(); ++i) {
-      const Block& block = blocks[i];
-      AddToFreeList(block);
-      remaining_size_.fetch_add(block.size_);
-    }
-    blocks.clear();
-    return false;
-  }
-
-  return true;
-}
 
 void Runtime::UpdatePerformanceMetrics(bool is_write, chi::u64 bytes,
                                        double duration_us) {

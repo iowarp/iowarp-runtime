@@ -13,7 +13,6 @@
 #include <chimaera/task_archives.h>
 
 #include <chrono>
-#include <iostream>
 #include <memory>
 #include <sstream>
 #include <thread>
@@ -42,7 +41,7 @@ void Runtime::InitClient(const chi::PoolId& pool_id) {
 
 void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& rctx) {
   // Admin container creation logic (IS_ADMIN=true)
-  std::cout << "Admin: Initializing admin container" << std::endl;
+  HILOG(kDebug, "Admin: Initializing admin container");
 
   // Initialize the Admin container with pool information from the task
   // Note: Admin container is already initialized by the framework before Create
@@ -57,9 +56,7 @@ void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& rctx) {
 
   create_count_++;
 
-  std::cout << "Admin: Container created and initialized for pool: "
-            << pool_name_ << " (ID: " << task->new_pool_id_
-            << ", count: " << create_count_ << ")" << std::endl;
+  HILOG(kDebug, "Admin: Container created and initialized for pool: {} (ID: {}, count: {})", pool_name_, task->new_pool_id_, create_count_);
 }
 
 void Runtime::GetOrCreatePool(
@@ -68,9 +65,7 @@ void Runtime::GetOrCreatePool(
         task,
     chi::RunContext& rctx) {
   // Pool get-or-create operation logic (IS_ADMIN=false)
-  std::cout << "Admin: Executing GetOrCreatePool task - ChiMod: "
-            << task->chimod_name_.str() << ", Pool: " << task->pool_name_.str()
-            << std::endl;
+  HILOG(kDebug, "Admin: Executing GetOrCreatePool task - ChiMod: {}, Pool: {}", task->chimod_name_.str(), task->pool_name_.str());
 
   // Initialize output values
   task->return_code_ = 0;
@@ -96,18 +91,14 @@ void Runtime::GetOrCreatePool(
     task->return_code_ = 0;
     pools_created_++;
 
-    std::cout << "Admin: Pool operation completed successfully - ID: " 
-              << task->new_pool_id_ << ", Name: " << task->pool_name_.str()
-              << " (Total pools created: " << pools_created_ << ")"
-              << std::endl;
+    HILOG(kDebug, "Admin: Pool operation completed successfully - ID: {}, Name: {} (Total pools created: {})", task->new_pool_id_, task->pool_name_.str(), pools_created_);
 
   } catch (const std::exception& e) {
     task->return_code_ = 99;
     auto alloc = task->GetCtxAllocator();
     task->error_message_ = hipc::string(
         alloc, std::string("Exception during pool creation: ") + e.what());
-    std::cerr << "Admin: Pool creation failed with exception: " << e.what()
-              << std::endl;
+    HELOG(kError, "Admin: Pool creation failed with exception: {}", e.what());
   }
 }
 
@@ -117,8 +108,7 @@ void Runtime::MonitorCreate(chi::MonitorModeId mode,
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule:
       // Set route_lane_ to indicate where task should be routed
-      std::cout << "Admin: Setting route_lane_ for admin Create task"
-                << std::endl;
+      HILOG(kDebug, "Admin: Setting route_lane_ for admin Create task");
       // Set route_lane_ to metadata queue lane 0
       {
         auto lane_ptr = GetLaneFullPtr(kMetadataQueue, 0);
@@ -130,8 +120,7 @@ void Runtime::MonitorCreate(chi::MonitorModeId mode,
 
     case chi::MonitorModeId::kGlobalSchedule:
       // Coordinate global distribution
-      std::cout << "Admin: Global scheduling for admin Create task"
-                << std::endl;
+      HILOG(kDebug, "Admin: Global scheduling for admin Create task");
       break;
 
     case chi::MonitorModeId::kEstLoad:
@@ -150,8 +139,7 @@ void Runtime::MonitorGetOrCreatePool(
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule:
       // Set route_lane_ to indicate where task should be routed
-      std::cout << "Admin: Setting route_lane_ for GetOrCreatePool task"
-                << std::endl;
+      HILOG(kDebug, "Admin: Setting route_lane_ for GetOrCreatePool task");
       // Set route_lane_ to metadata queue lane 0
       {
         auto lane_ptr = GetLaneFullPtr(kMetadataQueue, 0);
@@ -163,8 +151,7 @@ void Runtime::MonitorGetOrCreatePool(
 
     case chi::MonitorModeId::kGlobalSchedule:
       // Coordinate global distribution
-      std::cout << "Admin: Global scheduling for GetOrCreatePool task"
-                << std::endl;
+      HILOG(kDebug, "Admin: Global scheduling for GetOrCreatePool task");
       break;
 
     case chi::MonitorModeId::kEstLoad:
@@ -185,8 +172,7 @@ void Runtime::Destroy(hipc::FullPtr<DestroyTask> task, chi::RunContext& rctx) {
 
 void Runtime::DestroyPool(hipc::FullPtr<DestroyPoolTask> task,
                           chi::RunContext& rctx) {
-  std::cout << "Admin: Executing DestroyPool task - Pool ID: "
-            << task->target_pool_id_ << std::endl;
+  HILOG(kDebug, "Admin: Executing DestroyPool task - Pool ID: {}", task->target_pool_id_);
 
   // Initialize output values
   task->return_code_ = 0;
@@ -214,16 +200,13 @@ void Runtime::DestroyPool(hipc::FullPtr<DestroyPoolTask> task,
     task->return_code_ = 0;
     pools_destroyed_++;
 
-    std::cout << "Admin: Pool destroyed successfully - ID: " << target_pool
-              << " (Total pools destroyed: " << pools_destroyed_ << ")"
-              << std::endl;
+    HILOG(kDebug, "Admin: Pool destroyed successfully - ID: {} (Total pools destroyed: {})", target_pool, pools_destroyed_);
 
   } catch (const std::exception& e) {
     task->return_code_ = 99;
     task->error_message_ =
         std::string("Exception during pool destruction: ") + e.what();
-    std::cerr << "Admin: Pool destruction failed with exception: " << e.what()
-              << std::endl;
+    HELOG(kError, "Admin: Pool destruction failed with exception: {}", e.what());
   }
 }
 
@@ -241,8 +224,7 @@ void Runtime::MonitorDestroyPool(chi::MonitorModeId mode,
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule:
       // Set route_lane_ to indicate where task should be routed
-      std::cout << "Admin: Setting route_lane_ for DestroyPool task"
-                << std::endl;
+      HILOG(kDebug, "Admin: Setting route_lane_ for DestroyPool task");
       // Set route_lane_ to metadata queue lane 0
       {
         auto lane_ptr = GetLaneFullPtr(kMetadataQueue, 0);
@@ -254,7 +236,7 @@ void Runtime::MonitorDestroyPool(chi::MonitorModeId mode,
 
     case chi::MonitorModeId::kGlobalSchedule:
       // Coordinate global pool destruction
-      std::cout << "Admin: Global scheduling for DestroyPool task" << std::endl;
+      HILOG(kDebug, "Admin: Global scheduling for DestroyPool task");
       break;
 
     case chi::MonitorModeId::kEstLoad:
@@ -266,8 +248,7 @@ void Runtime::MonitorDestroyPool(chi::MonitorModeId mode,
 
 void Runtime::StopRuntime(hipc::FullPtr<StopRuntimeTask> task,
                           chi::RunContext& rctx) {
-  std::cout << "Admin: Executing StopRuntime task - Grace period: "
-            << task->grace_period_ms_ << "ms" << std::endl;
+  HILOG(kDebug, "Admin: Executing StopRuntime task - Grace period: {}ms", task->grace_period_ms_);
 
   // Initialize output values
   task->return_code_ = 0;
@@ -283,14 +264,13 @@ void Runtime::StopRuntime(hipc::FullPtr<StopRuntimeTask> task,
     // Set success results
     task->return_code_ = 0;
 
-    std::cout << "Admin: Runtime shutdown initiated successfully" << std::endl;
+    HILOG(kDebug, "Admin: Runtime shutdown initiated successfully");
 
   } catch (const std::exception& e) {
     task->return_code_ = 99;
     task->error_message_ =
         std::string("Exception during runtime shutdown: ") + e.what();
-    std::cerr << "Admin: Runtime shutdown failed with exception: " << e.what()
-              << std::endl;
+    HELOG(kError, "Admin: Runtime shutdown failed with exception: {}", e.what());
   }
 }
 
@@ -300,8 +280,7 @@ void Runtime::MonitorStopRuntime(chi::MonitorModeId mode,
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule:
       // Set route_lane_ to indicate where task should be routed
-      std::cout << "Admin: Setting route_lane_ for StopRuntime task"
-                << std::endl;
+      HILOG(kDebug, "Admin: Setting route_lane_ for StopRuntime task");
       // Set route_lane_ to metadata queue lane 0
       {
         auto lane_ptr = GetLaneFullPtr(kMetadataQueue, 0);
@@ -313,7 +292,7 @@ void Runtime::MonitorStopRuntime(chi::MonitorModeId mode,
 
     case chi::MonitorModeId::kGlobalSchedule:
       // Coordinate global runtime shutdown
-      std::cout << "Admin: Global scheduling for StopRuntime task" << std::endl;
+      HILOG(kDebug, "Admin: Global scheduling for StopRuntime task");
       break;
 
     case chi::MonitorModeId::kEstLoad:
@@ -325,8 +304,7 @@ void Runtime::MonitorStopRuntime(chi::MonitorModeId mode,
 }
 
 void Runtime::InitiateShutdown(chi::u32 grace_period_ms) {
-  std::cout << "Admin: Initiating runtime shutdown with " << grace_period_ms
-            << "ms grace period" << std::endl;
+  HILOG(kDebug, "Admin: Initiating runtime shutdown with {}ms grace period", grace_period_ms);
 
   // In a real implementation, this would:
   // 1. Signal all worker threads to stop
@@ -350,8 +328,7 @@ std::unique_ptr<hshm::lbm::Client> Runtime::CreateZmqClient(chi::u32 node_id) {
     // Get configuration for ZeroMQ connections
     chi::ConfigManager* config = CHI_CONFIG_MANAGER;
     if (!config) {
-      std::cerr << "Admin: Config manager not available for ZMQ client"
-                << std::endl;
+      HELOG(kError, "Admin: Config manager not available for ZMQ client");
       return nullptr;
     }
 
@@ -363,8 +340,7 @@ std::unique_ptr<hshm::lbm::Client> Runtime::CreateZmqClient(chi::u32 node_id) {
     chi::u32 base_port = config->GetZmqPort();
     chi::u32 target_port = base_port + node_id;
 
-    std::cout << "Admin: Creating ZMQ client connection to node " << node_id
-              << " at " << target_addr << ":" << target_port << std::endl;
+    HILOG(kDebug, "Admin: Creating ZMQ client connection to node {} at {}:{}", node_id, target_addr, target_port);
 
     // Retry connection creation with exponential backoff
     const int max_retries = 3;
@@ -377,40 +353,34 @@ std::unique_ptr<hshm::lbm::Client> Runtime::CreateZmqClient(chi::u32 node_id) {
             target_addr, hshm::lbm::Transport::kZeroMq, protocol, target_port);
 
         if (zmq_client) {
-          std::cout << "Admin: Successfully created ZMQ client for node "
-                    << node_id << " on attempt " << (retry + 1) << std::endl;
+          HILOG(kDebug, "Admin: Successfully created ZMQ client for node {} on attempt {}", node_id, (retry + 1));
           return zmq_client;
         }
 
         if (retry < max_retries - 1) {
           int delay_ms = base_delay_ms * (1 << retry);  // Exponential backoff
-          std::cout << "Admin: ZMQ client creation attempt " << (retry + 1)
-                    << " failed, retrying in " << delay_ms << "ms..."
-                    << std::endl;
+          HILOG(kDebug, "Admin: ZMQ client creation attempt {} failed, retrying in {}ms...", (retry + 1), delay_ms);
           std::this_thread::sleep_for(std::chrono::milliseconds(delay_ms));
         }
       } catch (const std::exception& retry_ex) {
-        std::cerr << "Admin: ZMQ client creation attempt " << (retry + 1)
-                  << " threw exception: " << retry_ex.what() << std::endl;
+        HELOG(kError, "Admin: ZMQ client creation attempt {} threw exception: {}", (retry + 1), retry_ex.what());
         if (retry == max_retries - 1) {
           throw;  // Re-throw on final attempt
         }
       }
     }
 
-    std::cerr << "Admin: Failed to create ZMQ client for node " << node_id
-              << " after " << max_retries << " attempts" << std::endl;
+    HELOG(kError, "Admin: Failed to create ZMQ client for node {} after {} attempts", node_id, max_retries);
     return nullptr;
 
   } catch (const std::exception& e) {
-    std::cerr << "Admin: Exception creating ZMQ client for node " << node_id
-              << ": " << e.what() << std::endl;
+    HELOG(kError, "Admin: Exception creating ZMQ client for node {}: {}", node_id, e.what());
     return nullptr;
   }
 }
 
 void Runtime::Flush(hipc::FullPtr<FlushTask> task, chi::RunContext& rctx) {
-  std::cout << "Admin: Executing Flush task" << std::endl;
+  HILOG(kDebug, "Admin: Executing Flush task");
 
   // Initialize output values
   task->return_code_ = 0;
@@ -427,8 +397,7 @@ void Runtime::Flush(hipc::FullPtr<FlushTask> task, chi::RunContext& rctx) {
     // Loop until all work is complete
     chi::u64 total_work_remaining = 0;
     while (work_orchestrator->HasWorkRemaining(total_work_remaining)) {
-      std::cout << "Admin: Flush found " << total_work_remaining
-                << " work units still remaining, waiting..." << std::endl;
+      HILOG(kDebug, "Admin: Flush found {} work units still remaining, waiting...", total_work_remaining);
 
       // Brief sleep to avoid busy waiting
       task->Yield();
@@ -438,14 +407,11 @@ void Runtime::Flush(hipc::FullPtr<FlushTask> task, chi::RunContext& rctx) {
     task->total_work_done_ = total_work_remaining;
     task->return_code_ = 0;  // Success - all work completed
 
-    std::cout
-        << "Admin: Flush completed - no work remaining across all containers"
-        << std::endl;
+    HILOG(kDebug, "Admin: Flush completed - no work remaining across all containers");
 
   } catch (const std::exception& e) {
     task->return_code_ = 99;
-    std::cerr << "Admin: Flush failed with exception: " << e.what()
-              << std::endl;
+    HELOG(kError, "Admin: Flush failed with exception: {}", e.what());
   }
 }
 
@@ -455,7 +421,7 @@ void Runtime::MonitorFlush(chi::MonitorModeId mode,
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule:
       // Set route_lane_ to indicate where task should be routed
-      std::cout << "Admin: Setting route_lane_ for Flush task" << std::endl;
+      HILOG(kDebug, "Admin: Setting route_lane_ for Flush task");
       // Set route_lane_ to metadata queue lane 0
       {
         auto lane_ptr = GetLaneFullPtr(kMetadataQueue, 0);
@@ -467,7 +433,7 @@ void Runtime::MonitorFlush(chi::MonitorModeId mode,
 
     case chi::MonitorModeId::kGlobalSchedule:
       // Coordinate global flush operations
-      std::cout << "Admin: Global scheduling for Flush task" << std::endl;
+      HILOG(kDebug, "Admin: Global scheduling for Flush task");
       break;
 
     case chi::MonitorModeId::kEstLoad:
@@ -510,8 +476,7 @@ void Runtime::AddTasksToMap(
         // Get the container from the pool manager using the task's pool_id
         auto* pool_manager = CHI_POOL_MANAGER;
         if (!pool_manager || !pool_manager->IsInitialized()) {
-          std::cerr << "Admin: Pool manager not available for task copy"
-                    << std::endl;
+          HELOG(kError, "Admin: Pool manager not available for task copy");
           continue;  // Skip this pool_query iteration if pool manager not
                      // available
         }
@@ -519,8 +484,7 @@ void Runtime::AddTasksToMap(
         auto* source_container =
             pool_manager->GetContainer(task_to_copy->pool_id_);
         if (!source_container) {
-          std::cerr << "Admin: Container not found for pool_id "
-                    << task_to_copy->pool_id_ << std::endl;
+          HELOG(kError, "Admin: Container not found for pool_id {}", task_to_copy->pool_id_);
           continue;  // Skip this pool_query iteration if container not found
         }
 
@@ -529,17 +493,16 @@ void Runtime::AddTasksToMap(
                                   task_copy, true);
 
         if (task_copy.IsNull()) {
-          std::cerr << "Admin: NewCopy failed to create task copy" << std::endl;
+          HELOG(kError, "Admin: NewCopy failed to create task copy");
           continue;  // Skip this pool_query iteration if NewCopy failed
         }
 
       } catch (const std::exception& e) {
-        std::cerr << "Admin: Exception during task copy creation: " << e.what()
-                  << std::endl;
+        HELOG(kError, "Admin: Exception during task copy creation: {}", e.what());
         continue;  // Skip this pool_query iteration if copy creation failed
       }
     } else {
-      std::cerr << "Admin: Cannot copy null task" << std::endl;
+      HELOG(kError, "Admin: Cannot copy null task");
       continue;  // Skip this pool_query iteration if source task is null
     }
 
@@ -550,8 +513,7 @@ void Runtime::AddTasksToMap(
 
 void Runtime::ClientSendTaskIn(hipc::FullPtr<ClientSendTaskInTask> task,
                                chi::RunContext& rctx) {
-  std::cout << "Admin: Executing ClientSendTaskIn - Sending task input data"
-            << std::endl;
+  HILOG(kDebug, "Admin: Executing ClientSendTaskIn - Sending task input data");
 
   // Initialize output values
   task->return_code_ = 0;
@@ -623,15 +585,13 @@ void Runtime::ClientSendTaskIn(hipc::FullPtr<ClientSendTaskInTask> task,
     for (auto& [node_id, task_list] : node_task_map) {
       if (task_list.empty()) continue;
 
-      std::cout << "Admin: Processing " << task_list.size()
-                << " tasks for node " << node_id << std::endl;
+      HILOG(kDebug, "Admin: Processing {} tasks for node {}", task_list.size(), node_id);
 
       // Step 1: Create TaskSaveInArchive with task count constructor
       size_t task_count = task_list.size();
       chi::TaskSaveInArchive archive(task_count);
 
-      std::cout << "Admin: Created TaskSaveInArchive with task count: "
-                << task_count << std::endl;
+      HILOG(kDebug, "Admin: Created TaskSaveInArchive with task count: {}", task_count);
 
       // Step 2: Serialize each task using ar << (*task)
       for (auto& task_copy : task_list) {
@@ -648,21 +608,17 @@ void Runtime::ClientSendTaskIn(hipc::FullPtr<ClientSendTaskInTask> task,
         // Use ar << (*task) - this calls SerializeIn and may call ar.bulk()
         archive << (*task_copy);
 
-        std::cout << "Admin: Serialized task for node " << node_id
-                  << " - SerializeIn may have registered DataTransfer objects"
-                  << std::endl;
+        HILOG(kDebug, "Admin: Serialized task for node {} - SerializeIn may have registered DataTransfer objects", node_id);
       }
 
       // Step 3: Get the serialized data string
       std::string serialized_data = archive.GetData();
-      std::cout << "Admin: Retrieved serialized data, size: "
-                << serialized_data.size() << " bytes" << std::endl;
+      HILOG(kDebug, "Admin: Retrieved serialized data, size: {} bytes", serialized_data.size());
 
       // Step 4: Get DataTransfer objects that were appended during
       // serialization
       const auto& data_transfers = archive.GetDataTransfers();
-      std::cout << "Admin: Found " << data_transfers.size()
-                << " DataTransfer objects for bulk transfer" << std::endl;
+      HILOG(kDebug, "Admin: Found {} DataTransfer objects for bulk transfer", data_transfers.size());
 
       // Step 5: Transfer serialized data with lightbeam
       try {
@@ -674,14 +630,11 @@ void Runtime::ClientSendTaskIn(hipc::FullPtr<ClientSendTaskInTask> task,
           task->error_message_ =
               hipc::string(alloc, "Failed to create ZMQ client for node " +
                                       std::to_string(node_id));
-          std::cerr << "Admin: Failed to create ZMQ client for node " << node_id
-                    << std::endl;
+          HELOG(kError, "Admin: Failed to create ZMQ client for node {}", node_id);
           return;
         }
 
-        std::cout << "Admin: Transferring serialized task data to node "
-                  << node_id << " (size: " << serialized_data.size()
-                  << " bytes)" << std::endl;
+        HILOG(kDebug, "Admin: Transferring serialized task data to node {} (size: {} bytes)", node_id, serialized_data.size());
 
         // Send serialized string data via ZeroMQ
         // Use HSHM lightbeam to send the serialized task data using
@@ -697,22 +650,17 @@ void Runtime::ClientSendTaskIn(hipc::FullPtr<ClientSendTaskInTask> task,
           task->error_message_ =
               hipc::string(alloc, "Failed to send serialized data to node " +
                                       std::to_string(node_id));
-          std::cerr << "Admin: Failed to send serialized data to node "
-                    << node_id << std::endl;
+          HELOG(kError, "Admin: Failed to send serialized data to node {}", node_id);
           return;
         }
 
-        std::cout << "Admin: Successfully sent serialized data to node "
-                  << node_id << std::endl;
+        HILOG(kDebug, "Admin: Successfully sent serialized data to node {}", node_id);
 
         // Step 6: Transfer each DataTransfer object individually
         for (size_t i = 0; i < data_transfers.size(); ++i) {
           const auto& transfer = data_transfers[i];
 
-          std::cout << "Admin: Transferring DataTransfer object " << (i + 1)
-                    << " of " << data_transfers.size()
-                    << " - size: " << transfer.size
-                    << " bytes, flags: " << transfer.flags << std::endl;
+          HILOG(kDebug, "Admin: Transferring DataTransfer object {} of {} - size: {} bytes, flags: {}", (i + 1), data_transfers.size(), transfer.size, transfer.flags);
 
           if (transfer.data != nullptr && transfer.size > 0) {
             // Create hshm::lbm::Bulk for bulk data transfer
@@ -731,23 +679,19 @@ void Runtime::ClientSendTaskIn(hipc::FullPtr<ClientSendTaskInTask> task,
                   hipc::string(alloc, "Failed to send bulk transfer data " +
                                           std::to_string(i + 1) + " to node " +
                                           std::to_string(node_id));
-              std::cerr << "Admin: Failed to send bulk transfer data "
-                        << (i + 1) << " to node " << node_id << std::endl;
+              HELOG(kError, "Admin: Failed to send bulk transfer data {} to node {}", (i + 1), node_id);
               return;
             }
 
-            std::cout << "Admin: Successfully transferred bulk data object "
-                      << (i + 1) << " to node " << node_id << std::endl;
+            HILOG(kDebug, "Admin: Successfully transferred bulk data object {} to node {}", (i + 1), node_id);
           } else {
-            std::cout << "Admin: Warning - DataTransfer object " << (i + 1)
-                      << " has null data pointer or zero size" << std::endl;
+            HILOG(kDebug, "Admin: Warning - DataTransfer object {} has null data pointer or zero size", (i + 1));
           }
         }
 
         // Close ZeroMQ client connection after successful transfer
         zmq_client.reset();
-        std::cout << "Admin: Closed ZMQ client connection for node " << node_id
-                  << std::endl;
+        HILOG(kDebug, "Admin: Closed ZMQ client connection for node {}", node_id);
 
       } catch (const std::exception& transfer_ex) {
         task->return_code_ = 9;
@@ -755,9 +699,7 @@ void Runtime::ClientSendTaskIn(hipc::FullPtr<ClientSendTaskInTask> task,
         task->error_message_ = hipc::string(
             alloc, std::string("Network transfer exception for node ") +
                        std::to_string(node_id) + ": " + transfer_ex.what());
-        std::cerr << "Admin: Network transfer to node " << node_id
-                  << " failed with exception: " << transfer_ex.what()
-                  << std::endl;
+        HELOG(kError, "Admin: Network transfer to node {} failed with exception: {}", node_id, transfer_ex.what());
         return;
       } catch (...) {
         task->return_code_ = 10;
@@ -765,14 +707,12 @@ void Runtime::ClientSendTaskIn(hipc::FullPtr<ClientSendTaskInTask> task,
         task->error_message_ =
             hipc::string(alloc, "Unknown network transfer error for node " +
                                     std::to_string(node_id));
-        std::cerr << "Admin: Unknown network transfer error for node "
-                  << node_id << std::endl;
+        HELOG(kError, "Admin: Unknown network transfer error for node {}", node_id);
         return;
       }
     }
 
-    std::cout << "Admin: Task input data sent successfully to "
-              << node_task_map.size() << " nodes" << std::endl;
+    HILOG(kDebug, "Admin: Task input data sent successfully to {} nodes", node_task_map.size());
 
     task->return_code_ = 0;
 
@@ -781,7 +721,7 @@ void Runtime::ClientSendTaskIn(hipc::FullPtr<ClientSendTaskInTask> task,
     auto alloc = task->GetCtxAllocator();
     task->error_message_ = hipc::string(
         alloc, std::string("Exception during task send: ") + e.what());
-    std::cerr << "Admin: ClientSendTaskIn failed: " << e.what() << std::endl;
+    HELOG(kError, "Admin: ClientSendTaskIn failed: {}", e.what());
   }
 }
 
@@ -791,8 +731,7 @@ void Runtime::MonitorClientSendTaskIn(
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule:
       // Set route_lane_ to indicate where task should be routed
-      std::cout << "Admin: Setting route_lane_ for ClientSendTaskIn"
-                << std::endl;
+      HILOG(kDebug, "Admin: Setting route_lane_ for ClientSendTaskIn");
       // Set route_lane_ to client send task input queue lane 0
       {
         auto lane_ptr = GetLaneFullPtr(kClientSendTaskInQueue, 0);
@@ -804,7 +743,7 @@ void Runtime::MonitorClientSendTaskIn(
 
     case chi::MonitorModeId::kGlobalSchedule:
       // Coordinate global network send
-      std::cout << "Admin: Global scheduling for ClientSendTaskIn" << std::endl;
+      HILOG(kDebug, "Admin: Global scheduling for ClientSendTaskIn");
       break;
 
     case chi::MonitorModeId::kEstLoad:
@@ -816,8 +755,7 @@ void Runtime::MonitorClientSendTaskIn(
 
 void Runtime::ServerRecvTaskIn(hipc::FullPtr<ServerRecvTaskInTask> task,
                                chi::RunContext& rctx) {
-  std::cout << "Admin: Executing ServerRecvTaskIn - Receiving task input data"
-            << std::endl;
+  HILOG(kDebug, "Admin: Executing ServerRecvTaskIn - Receiving task input data");
 
   // Initialize output values
   task->return_code_ = 0;
@@ -830,7 +768,7 @@ void Runtime::ServerRecvTaskIn(hipc::FullPtr<ServerRecvTaskInTask> task,
     // 3. Create a new local task instance
     // 4. Submit the task to the local worker for execution
 
-    std::cout << "Admin: Task input data received successfully" << std::endl;
+    HILOG(kDebug, "Admin: Task input data received successfully");
 
     task->return_code_ = 0;
 
@@ -839,7 +777,7 @@ void Runtime::ServerRecvTaskIn(hipc::FullPtr<ServerRecvTaskInTask> task,
     auto alloc = task->GetCtxAllocator();
     task->error_message_ = hipc::string(
         alloc, std::string("Exception during task receive: ") + e.what());
-    std::cerr << "Admin: ServerRecvTaskIn failed: " << e.what() << std::endl;
+    HELOG(kError, "Admin: ServerRecvTaskIn failed: {}", e.what());
   }
 }
 
@@ -849,8 +787,7 @@ void Runtime::MonitorServerRecvTaskIn(
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule:
       // Set route_lane_ to indicate where task should be routed
-      std::cout << "Admin: Setting route_lane_ for ServerRecvTaskIn"
-                << std::endl;
+      HILOG(kDebug, "Admin: Setting route_lane_ for ServerRecvTaskIn");
       // Set route_lane_ to server receive task input queue lane 0
       {
         auto lane_ptr = GetLaneFullPtr(kServerRecvTaskInQueue, 0);
@@ -862,7 +799,7 @@ void Runtime::MonitorServerRecvTaskIn(
 
     case chi::MonitorModeId::kGlobalSchedule:
       // Coordinate global network receive
-      std::cout << "Admin: Global scheduling for ServerRecvTaskIn" << std::endl;
+      HILOG(kDebug, "Admin: Global scheduling for ServerRecvTaskIn");
       break;
 
     case chi::MonitorModeId::kEstLoad:
@@ -874,8 +811,7 @@ void Runtime::MonitorServerRecvTaskIn(
 
 void Runtime::ServerSendTaskOut(hipc::FullPtr<ServerSendTaskOutTask> task,
                                 chi::RunContext& rctx) {
-  std::cout << "Admin: Executing ServerSendTaskOut - Sending task results"
-            << std::endl;
+  HILOG(kDebug, "Admin: Executing ServerSendTaskOut - Sending task results");
 
   // Initialize output values
   task->return_code_ = 0;
@@ -888,7 +824,7 @@ void Runtime::ServerSendTaskOut(hipc::FullPtr<ServerSendTaskOutTask> task,
     // 3. Handle CHI_WRITE/CHI_EXPOSE flags for bulk transfer
     // 4. Clean up the completed task
 
-    std::cout << "Admin: Task results sent successfully" << std::endl;
+    HILOG(kDebug, "Admin: Task results sent successfully");
 
     task->return_code_ = 0;
 
@@ -897,7 +833,7 @@ void Runtime::ServerSendTaskOut(hipc::FullPtr<ServerSendTaskOutTask> task,
     auto alloc = task->GetCtxAllocator();
     task->error_message_ = hipc::string(
         alloc, std::string("Exception during result send: ") + e.what());
-    std::cerr << "Admin: ServerSendTaskOut failed: " << e.what() << std::endl;
+    HELOG(kError, "Admin: ServerSendTaskOut failed: {}", e.what());
   }
 }
 
@@ -907,8 +843,7 @@ void Runtime::MonitorServerSendTaskOut(
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule:
       // Set route_lane_ to indicate where task should be routed
-      std::cout << "Admin: Setting route_lane_ for ServerSendTaskOut"
-                << std::endl;
+      HILOG(kDebug, "Admin: Setting route_lane_ for ServerSendTaskOut");
       // Set route_lane_ to server send task output queue lane 0
       {
         auto lane_ptr = GetLaneFullPtr(kServerSendTaskOutQueue, 0);
@@ -920,8 +855,7 @@ void Runtime::MonitorServerSendTaskOut(
 
     case chi::MonitorModeId::kGlobalSchedule:
       // Coordinate global network send
-      std::cout << "Admin: Global scheduling for ServerSendTaskOut"
-                << std::endl;
+      HILOG(kDebug, "Admin: Global scheduling for ServerSendTaskOut");
       break;
 
     case chi::MonitorModeId::kEstLoad:
@@ -933,8 +867,7 @@ void Runtime::MonitorServerSendTaskOut(
 
 void Runtime::ClientRecvTaskOut(hipc::FullPtr<ClientRecvTaskOutTask> task,
                                 chi::RunContext& rctx) {
-  std::cout << "Admin: Executing ClientRecvTaskOut - Receiving task results"
-            << std::endl;
+  HILOG(kDebug, "Admin: Executing ClientRecvTaskOut - Receiving task results");
 
   // Initialize output values
   task->return_code_ = 0;
@@ -947,7 +880,7 @@ void Runtime::ClientRecvTaskOut(hipc::FullPtr<ClientRecvTaskOutTask> task,
     // 3. Update the original task with the result
     // 4. Mark the task as completed
 
-    std::cout << "Admin: Task results received successfully" << std::endl;
+    HILOG(kDebug, "Admin: Task results received successfully");
 
     task->return_code_ = 0;
 
@@ -956,7 +889,7 @@ void Runtime::ClientRecvTaskOut(hipc::FullPtr<ClientRecvTaskOutTask> task,
     auto alloc = task->GetCtxAllocator();
     task->error_message_ = hipc::string(
         alloc, std::string("Exception during result receive: ") + e.what());
-    std::cerr << "Admin: ClientRecvTaskOut failed: " << e.what() << std::endl;
+    HELOG(kError, "Admin: ClientRecvTaskOut failed: {}", e.what());
   }
 }
 
@@ -966,8 +899,7 @@ void Runtime::MonitorClientRecvTaskOut(
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule:
       // Set route_lane_ to indicate where task should be routed
-      std::cout << "Admin: Setting route_lane_ for ClientRecvTaskOut"
-                << std::endl;
+      HILOG(kDebug, "Admin: Setting route_lane_ for ClientRecvTaskOut");
       // Set route_lane_ to client receive task output queue lane 0
       {
         auto lane_ptr = GetLaneFullPtr(kClientRecvTaskOutQueue, 0);
@@ -979,8 +911,7 @@ void Runtime::MonitorClientRecvTaskOut(
 
     case chi::MonitorModeId::kGlobalSchedule:
       // Coordinate global network receive
-      std::cout << "Admin: Global scheduling for ClientRecvTaskOut"
-                << std::endl;
+      HILOG(kDebug, "Admin: Global scheduling for ClientRecvTaskOut");
       break;
 
     case chi::MonitorModeId::kEstLoad:

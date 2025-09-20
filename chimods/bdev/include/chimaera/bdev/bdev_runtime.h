@@ -272,24 +272,10 @@ class Runtime : public chi::Container {
   void BenchmarkPerformance();
   
   /**
-   * Determine block size category for given size
-   */
-  BlockSizeCategory DetermineBlockSizeCategory(chi::u64 size);
-  
-  /**
    * Get actual block size for category
    */
   chi::u64 GetBlockSize(BlockSizeCategory category);
   
-  /**
-   * Calculate number of blocks needed for given size
-   */
-  chi::u32 CalculateBlocksNeeded(chi::u64 total_size);
-  
-  /**
-   * Allocate multiple blocks for given total size
-   */
-  bool AllocateMultipleBlocks(chi::u64 total_size, chi::ipc::vector<Block>& blocks);
   
   /**
    * Allocate from free list if available

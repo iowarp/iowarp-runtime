@@ -4,7 +4,6 @@
 
 #include "chimaera/module_manager.h"
 #include "chimaera/container.h"
-#include <iostream>
 #include <filesystem>
 #include <cstring>
 
@@ -20,13 +19,12 @@ bool ModuleManager::ServerInit() {
     return true;
   }
 
-  std::cout << "Initializing Module Manager..." << std::endl;
+  HILOG(kDebug, "Initializing Module Manager...");
   
   // Scan for and load ChiMods
   ScanForChiMods();
   
-  std::cout << "Module Manager initialized with " << chimods_.size() 
-            << " ChiMods loaded" << std::endl;
+  HILOG(kDebug, "Module Manager initialized with {} ChiMods loaded", chimods_.size());
   
   is_initialized_ = true;
   return true;
@@ -37,7 +35,7 @@ void ModuleManager::Finalize() {
     return;
   }
 
-  std::cout << "Finalizing Module Manager..." << std::endl;
+  HILOG(kDebug, "Finalizing Module Manager...");
   
   // Clear all loaded ChiMods - SharedLibrary destructor handles cleanup
   chimods_.clear();
@@ -46,7 +44,7 @@ void ModuleManager::Finalize() {
 }
 
 bool ModuleManager::LoadChiMod(const std::string& lib_path) {
-  std::cout << "Loading ChiMod from: " << lib_path << std::endl;
+  HILOG(kDebug, "Loading ChiMod from: {}", lib_path);
   
   auto chimod_info = std::make_unique<ChiModInfo>();
   chimod_info->lib_path = lib_path;
@@ -54,13 +52,13 @@ bool ModuleManager::LoadChiMod(const std::string& lib_path) {
   // Load the shared library
   chimod_info->lib.Load(lib_path);
   if (chimod_info->lib.IsNull()) {
-    std::cerr << "Failed to load library: " << chimod_info->lib.GetError() << std::endl;
+    HELOG(kError, "Failed to load library: {}", chimod_info->lib.GetError());
     return false;
   }
   
   // Validate ChiMod entry points
   if (!ValidateChiMod(chimod_info->lib)) {
-    std::cerr << "Library " << lib_path << " is not a valid ChiMod" << std::endl;
+    HELOG(kError, "Library {} is not a valid ChiMod", lib_path);
     return false;
   }
   
@@ -73,9 +71,9 @@ bool ModuleManager::LoadChiMod(const std::string& lib_path) {
   // Get ChiMod name
   if (chimod_info->name_func) {
     chimod_info->name = chimod_info->name_func();
-    std::cout << "Loaded ChiMod: " << chimod_info->name << std::endl;
+    HILOG(kDebug, "Loaded ChiMod: {}", chimod_info->name);
   } else {
-    std::cerr << "ChiMod missing get_chimod_name function" << std::endl;
+    HELOG(kError, "ChiMod missing get_chimod_name function");
     return false;
   }
   
@@ -123,7 +121,7 @@ void ModuleManager::ScanForChiMods() {
   std::vector<std::string> scan_dirs = GetScanDirectories();
   
   for (const std::string& dir : scan_dirs) {
-    std::cout << "Scanning directory for ChiMods: " << dir << std::endl;
+    HILOG(kDebug, "Scanning directory for ChiMods: {}", dir);
     
     if (!std::filesystem::exists(dir) || !std::filesystem::is_directory(dir)) {
       continue;
@@ -139,7 +137,7 @@ void ModuleManager::ScanForChiMods() {
         }
       }
     } catch (const std::exception& e) {
-      std::cerr << "Error scanning directory " << dir << ": " << e.what() << std::endl;
+      HELOG(kError, "Error scanning directory {}: {}", dir, e.what());
     }
   }
 }

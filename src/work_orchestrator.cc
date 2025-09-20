@@ -40,9 +40,8 @@ static void StackDetectionFunction(boost::context::detail::transfer_t t) {
   bool is_below_middle = (array_start < data->middle_ptr);
   
   // Debug output to understand what's happening
-  std::cout << "Stack detection: middle_ptr=" << data->middle_ptr 
-            << ", array_start=" << array_start 
-            << ", is_below_middle=" << is_below_middle << std::endl;
+  HILOG(kDebug, "Stack detection: middle_ptr={}, array_start={}, is_below_middle={}", 
+        data->middle_ptr, array_start, is_below_middle);
   
   *data->detection_complete = true;
   
@@ -57,7 +56,7 @@ static bool DetectStackGrowthDirection() {
   void* test_stack = malloc(test_stack_size);
   if (!test_stack) {
     // Fallback to downward assumption
-    std::cout << "Stack detection: Failed to allocate test stack, assuming downward" << std::endl;
+    HILOG(kDebug, "Stack detection: Failed to allocate test stack, assuming downward");
     return true;
   }
   
@@ -69,7 +68,7 @@ static bool DetectStackGrowthDirection() {
   StackDetectionData data = { middle_ptr, &detection_complete };
   
   // Try high-end pointer first (correct for downward-growing stacks)
-  std::cout << "Testing stack detection with high-end pointer..." << std::endl;
+  HILOG(kDebug, "Testing stack detection with high-end pointer...");
   void* high_end_ptr = static_cast<char*>(test_stack) + test_stack_size;
   
   bool stack_grows_downward = true;  // Default assumption
@@ -78,7 +77,7 @@ static bool DetectStackGrowthDirection() {
     auto context = boost::context::detail::make_fcontext(high_end_ptr, test_stack_size, StackDetectionFunction);
     boost::context::detail::jump_fcontext(context, &data);
   } catch (...) {
-    std::cout << "High-end pointer attempt failed" << std::endl;
+    HILOG(kDebug, "High-end pointer attempt failed");
     detection_complete = false;
   }
   
@@ -86,17 +85,17 @@ static bool DetectStackGrowthDirection() {
     // If high-end pointer worked, it means make_fcontext expects high-end pointer
     // This is the correct behavior for downward-growing stacks
     stack_grows_downward = true;
-    std::cout << "High-end pointer succeeded - stack grows downward (correct for x86_64)" << std::endl;
+    HILOG(kDebug, "High-end pointer succeeded - stack grows downward (correct for x86_64)");
   } else {
     // If first attempt failed, try low end pointer (upward growth)
-    std::cout << "Testing stack detection with low-end pointer..." << std::endl;
+    HILOG(kDebug, "Testing stack detection with low-end pointer...");
     detection_complete = false;
     
     try {
       auto context2 = boost::context::detail::make_fcontext(test_stack, test_stack_size, StackDetectionFunction);
       boost::context::detail::jump_fcontext(context2, &data);
     } catch (...) {
-      std::cout << "Low-end pointer attempt also failed" << std::endl;
+      HILOG(kDebug, "Low-end pointer attempt also failed");
       detection_complete = false;
     }
     
@@ -104,10 +103,10 @@ static bool DetectStackGrowthDirection() {
       // If low-end pointer worked, it means make_fcontext expects low-end pointer
       // This would be for upward-growing stacks (rare)
       stack_grows_downward = false;
-      std::cout << "Low-end pointer succeeded - stack grows upward (unusual architecture)" << std::endl;
+      HILOG(kDebug, "Low-end pointer succeeded - stack grows upward (unusual architecture)");
     } else {
       // Fallback to downward assumption
-      std::cout << "Both attempts failed, falling back to downward assumption" << std::endl;
+      HILOG(kDebug, "Both attempts failed, falling back to downward assumption");
       stack_grows_downward = true;
     }
   }
@@ -115,8 +114,8 @@ static bool DetectStackGrowthDirection() {
   free(test_stack);
   
   // Log the detection result
-  std::cout << "Stack growth direction detected: " 
-            << (stack_grows_downward ? "downward" : "upward") << std::endl;
+  HILOG(kDebug, "Stack growth direction detected: {}", 
+        (stack_grows_downward ? "downward" : "upward"));
   
   return stack_grows_downward;
 }
@@ -238,8 +237,7 @@ void WorkOrchestrator::StopWorkers() {
     return;
   }
 
-  std::cout << "Stopping " << all_workers_.size() << " worker threads..."
-            << std::endl;
+  HILOG(kDebug, "Stopping {} worker threads...", all_workers_.size());
 
   // Stop all workers
   for (auto* worker : all_workers_) {
@@ -257,9 +255,8 @@ void WorkOrchestrator::StopWorkers() {
   for (auto& thread : worker_threads_) {
     auto elapsed = std::chrono::steady_clock::now() - start_time;
     if (elapsed > timeout_duration) {
-      std::cerr << "Warning: Worker thread join timeout reached. Some threads "
-                   "may not have stopped gracefully."
-                << std::endl;
+      HELOG(kError, "Warning: Worker thread join timeout reached. Some threads "
+                    "may not have stopped gracefully.");
       break;
     }
 
@@ -267,8 +264,7 @@ void WorkOrchestrator::StopWorkers() {
     joined_count++;
   }
 
-  std::cout << "Joined " << joined_count << " of " << worker_threads_.size()
-            << " worker threads" << std::endl;
+  HILOG(kDebug, "Joined {} of {} worker threads", joined_count, worker_threads_.size());
   workers_running_ = false;
 }
 
@@ -398,8 +394,7 @@ void WorkOrchestrator::MapLaneToWorker(TaskLane* lane,
 
   // TODO: Implement lane-to-worker mapping if needed
   // For now, just log the mapping
-  std::cout << "WorkOrchestrator: Mapped lane to worker " << worker_id
-            << std::endl;
+  HILOG(kDebug, "WorkOrchestrator: Mapped lane to worker {}", worker_id);
 }
 
 void WorkOrchestrator::RoundRobinTaskQueueScheduler(TaskQueue* task_queue) {
@@ -411,8 +406,8 @@ void WorkOrchestrator::RoundRobinTaskQueueScheduler(TaskQueue* task_queue) {
   u32 num_lanes = task_queue->GetNumLanes();
   u32 num_priorities = task_queue->GetNumPriorities();
 
-  std::cout << "WorkOrchestrator: Scheduling TaskQueue with " << num_lanes
-            << " lanes and " << num_priorities << " priorities" << std::endl;
+  HILOG(kDebug, "WorkOrchestrator: Scheduling TaskQueue with {} lanes and {} priorities", 
+        num_lanes, num_priorities);
 
   // Iterate through all lanes and assign workers using round-robin
   for (u32 lane_id = 0; lane_id < num_lanes; ++lane_id) {
@@ -423,9 +418,7 @@ void WorkOrchestrator::RoundRobinTaskQueueScheduler(TaskQueue* task_queue) {
       // Get next worker using round-robin scheduling
       WorkerId worker_id = GetNextAvailableWorker();
       if (worker_id == 0) {
-        std::cerr
-            << "WorkOrchestrator: No workers available for lane scheduling"
-            << std::endl;
+        HELOG(kError, "WorkOrchestrator: No workers available for lane scheduling");
         continue;
       }
 

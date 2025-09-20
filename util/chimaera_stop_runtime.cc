@@ -15,35 +15,31 @@
 #include "chimaera/types.h"
 
 int main(int argc, char* argv[]) {
-  std::cout << "Stopping Chimaera runtime..." << std::endl;
+  HILOG(kDebug, "Stopping Chimaera runtime...");
 
   try {
     // Initialize Chimaera client components
-    std::cout << "Initializing Chimaera client..." << std::endl;
+    HILOG(kDebug, "Initializing Chimaera client...");
     if (!chi::CHIMAERA_CLIENT_INIT()) {
-      std::cerr << "Failed to initialize Chimaera client components"
-                << std::endl;
+      HELOG(kError, "Failed to initialize Chimaera client components");
       return 1;
     }
 
-    std::cout << "Creating admin client connection..." << std::endl;
+    HILOG(kDebug, "Creating admin client connection...");
     // Create admin client connected to admin pool
     chimaera::admin::Client admin_client(chi::kAdminPoolId);
 
     // Check if IPC manager is available
     auto* ipc_manager = CHI_IPC;
     if (!ipc_manager || !ipc_manager->IsInitialized()) {
-      std::cerr << "IPC manager not available - is Chimaera runtime running?"
-                << std::endl;
+      HELOG(kError, "IPC manager not available - is Chimaera runtime running?");
       return 1;
     }
 
     // Additional validation: check if TaskQueue is accessible
     auto* task_queue = ipc_manager->GetTaskQueue();
     if (!task_queue || task_queue->IsNull()) {
-      std::cerr
-          << "TaskQueue not available - runtime may not be properly initialized"
-          << std::endl;
+      HELOG(kError, "TaskQueue not available - runtime may not be properly initialized");
       return 1;
     }
 
@@ -51,15 +47,12 @@ int main(int argc, char* argv[]) {
     try {
       chi::u32 num_lanes = task_queue->GetNumLanes();
       if (num_lanes == 0) {
-        std::cerr << "TaskQueue has no lanes configured - runtime "
-                     "initialization incomplete"
-                  << std::endl;
+        HELOG(kError, "TaskQueue has no lanes configured - runtime initialization incomplete");
         return 1;
       }
-      std::cout << "TaskQueue validated with " << num_lanes << " lanes"
-                << std::endl;
+      HILOG(kDebug, "TaskQueue validated with {} lanes", num_lanes);
     } catch (const std::exception& e) {
-      std::cerr << "TaskQueue validation failed: " << e.what() << std::endl;
+      HELOG(kError, "TaskQueue validation failed: {}", e.what());
       return 1;
     }
 
@@ -77,11 +70,10 @@ int main(int argc, char* argv[]) {
       }
     }
 
-    std::cout << "Sending stop runtime task to admin pool (grace period: "
-              << grace_period_ms << "ms)..." << std::endl;
+    HILOG(kDebug, "Sending stop runtime task to admin pool (grace period: {}ms)...", grace_period_ms);
 
     // Send StopRuntimeTask via admin client
-    std::cout << "Calling admin client AsyncStopRuntime..." << std::endl;
+    HILOG(kDebug, "Calling admin client AsyncStopRuntime...");
     auto start_time = std::chrono::steady_clock::now();
 
     // Use the admin client's AsyncStopRuntime method - fire and forget
@@ -90,32 +82,27 @@ int main(int argc, char* argv[]) {
       stop_task = admin_client.AsyncStopRuntime(
           HSHM_MCTX, pool_query, shutdown_flags, grace_period_ms);
       if (stop_task.IsNull()) {
-        std::cerr
-            << "Failed to create stop runtime task - runtime may not be running"
-            << std::endl;
+        HELOG(kError, "Failed to create stop runtime task - runtime may not be running");
         return 1;
       }
     } catch (const std::exception& e) {
-      std::cerr << "Error creating stop runtime task: " << e.what()
-                << std::endl;
+      HELOG(kError, "Error creating stop runtime task: {}", e.what());
       return 1;
     }
 
-    std::cout << "Stop runtime task submitted successfully (fire-and-forget)"
-              << std::endl;
+    HILOG(kDebug, "Stop runtime task submitted successfully (fire-and-forget)");
 
     auto end_time = std::chrono::steady_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
                         end_time - start_time)
                         .count();
 
-    std::cout << "Runtime stop task submitted in " << duration << "ms"
-              << std::endl;
+    HILOG(kDebug, "Runtime stop task submitted in {}ms", duration);
 
     return 0;
 
   } catch (const std::exception& e) {
-    std::cerr << "Error stopping runtime: " << e.what() << std::endl;
+    HELOG(kError, "Error stopping runtime: {}", e.what());
     return 1;
   }
 }

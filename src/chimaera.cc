@@ -25,11 +25,9 @@ void Container::ScheduleTaskQueueWithWorkOrchestrator(::chi::TaskQueue* task_que
   auto* work_orchestrator = CHI_WORK_ORCHESTRATOR;
   if (work_orchestrator && work_orchestrator->IsInitialized()) {
     work_orchestrator->RoundRobinTaskQueueScheduler(task_queue);
-    std::cout << "Container: Scheduled lanes for queue " << queue_id
-              << " with WorkOrchestrator for pool " << pool_id_
-              << std::endl;
+    HILOG(kDebug, "Container: Scheduled lanes for queue {} with WorkOrchestrator for pool {}", queue_id, pool_id_);
   } else {
-    std::cerr << "Container: WorkOrchestrator not available for lane scheduling" << std::endl;
+    HELOG(kError, "Container: WorkOrchestrator not available for lane scheduling");
   }
 }
 

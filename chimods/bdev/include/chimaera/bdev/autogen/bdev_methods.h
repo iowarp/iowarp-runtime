@@ -22,7 +22,6 @@ GLOBAL_CONST chi::u32 kRead = 13;
 GLOBAL_CONST chi::u32 kGetStats = 14;
 
 // Backward compatibility
-GLOBAL_CONST chi::u32 kAllocate = kAllocateBlocks;
 GLOBAL_CONST chi::u32 kStat = kGetStats;
 }  // namespace Method
 

@@ -78,6 +78,8 @@ class Chimaera {
   bool is_initialized_ = false;
   bool is_client_mode_ = false;
   bool is_runtime_mode_ = false;
+  bool client_is_initializing_ = false;
+  bool runtime_is_initializing_ = false;
 
   
 };

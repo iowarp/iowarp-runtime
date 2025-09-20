@@ -75,19 +75,23 @@ Chimaera::~Chimaera() {
 }
 
 bool Chimaera::ClientInit() {
-  if (is_client_mode_) {
+  if (is_client_mode_ || client_is_initializing_ || runtime_is_initializing_) {
     return true;
   }
+
+  client_is_initializing_ = true;
 
   // Initialize configuration manager
   auto* config_manager = CHI_CONFIG_MANAGER;
   if (!config_manager->Init()) {
+    client_is_initializing_ = false;
     return false;
   }
 
   // Initialize IPC manager for client
   auto* ipc_manager = CHI_IPC;
   if (!ipc_manager->ClientInit()) {
+    client_is_initializing_ = false;
     return false;
   }
 
@@ -96,55 +100,65 @@ bool Chimaera::ClientInit() {
 
   is_client_mode_ = true;
   is_initialized_ = true;
+  client_is_initializing_ = false;
 
   return true;
 }
 
 bool Chimaera::ServerInit() {
-  if (is_runtime_mode_) {
+  if (is_runtime_mode_ || runtime_is_initializing_) {
     return true;
   }
+
+  runtime_is_initializing_ = true;
 
   // Initialize configuration manager first
   auto* config_manager = CHI_CONFIG_MANAGER;
   if (!config_manager->Init()) {
+    runtime_is_initializing_ = false;
     return false;
   }
 
   // Initialize IPC manager for server
   auto* ipc_manager = CHI_IPC;
   if (!ipc_manager->ServerInit()) {
+    runtime_is_initializing_ = false;
     return false;
   }
 
-  std::cout << "Host identification successful: "
-            << ipc_manager->GetCurrentHostname() << std::endl;
+  HILOG(kDebug, "Host identification successful: {}",
+        ipc_manager->GetCurrentHostname());
 
   // Initialize module manager first (needed for admin chimod)
   auto* module_manager = CHI_MODULE_MANAGER;
   if (!module_manager->Init()) {
+    runtime_is_initializing_ = false;
     return false;
   }
 
   // Initialize pool manager (server mode only) after module manager
   auto* pool_manager = CHI_POOL_MANAGER;
   if (!pool_manager->ServerInit()) {
+    runtime_is_initializing_ = false;
     return false;
   }
 
   // Initialize work orchestrator
   auto* work_orchestrator = CHI_WORK_ORCHESTRATOR;
   if (!work_orchestrator->Init()) {
+    runtime_is_initializing_ = false;
     return false;
   }
 
   // Start worker threads
   if (!work_orchestrator->StartWorkers()) {
+    runtime_is_initializing_ = false;
     return false;
   }
 
   is_runtime_mode_ = true;
   is_initialized_ = true;
+  runtime_is_initializing_ = false;
 
   return true;
 }
@@ -207,6 +221,5 @@ u64 Chimaera::GetNodeId() const {
   auto* ipc_manager = CHI_IPC;
   return ipc_manager->GetNodeId();
 }
-
 
 }  // namespace chi
