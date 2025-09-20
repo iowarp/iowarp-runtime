@@ -375,7 +375,8 @@ bool WorkOrchestrator::ServerInitQueues(u32 num_lanes) {
 
 WorkerId WorkOrchestrator::GetNextAvailableWorker() {
   if (all_workers_.empty()) {
-    return 0;  // No workers available
+    HELOG(kError, "WorkOrchestrator: GetNextAvailableWorker called with no workers");
+    return 0;  // This should never happen in normal operation
   }
 
   // Round-robin scheduling
@@ -383,7 +384,12 @@ WorkerId WorkOrchestrator::GetNextAvailableWorker() {
       next_worker_index_for_scheduling_.fetch_add(1) % all_workers_.size();
   Worker* worker = all_workers_[worker_index];
 
-  return worker ? worker->GetId() : 0;
+  if (!worker) {
+    HELOG(kError, "WorkOrchestrator: Worker at index {} is null", worker_index);
+    return 0;  // This should never happen in normal operation
+  }
+
+  return worker->GetId();
 }
 
 void WorkOrchestrator::MapLaneToWorker(TaskLane* lane,
@@ -417,10 +423,6 @@ void WorkOrchestrator::RoundRobinTaskQueueScheduler(TaskQueue* task_queue) {
 
       // Get next worker using round-robin scheduling
       WorkerId worker_id = GetNextAvailableWorker();
-      if (worker_id == 0) {
-        HELOG(kError, "WorkOrchestrator: No workers available for lane scheduling");
-        continue;
-      }
 
       // Map this lane to the selected worker
       MapLaneToWorker(&lane, worker_id);

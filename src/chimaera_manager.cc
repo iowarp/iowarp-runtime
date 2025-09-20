@@ -136,14 +136,7 @@ bool Chimaera::ServerInit() {
     return false;
   }
 
-  // Initialize pool manager (server mode only) after module manager
-  auto* pool_manager = CHI_POOL_MANAGER;
-  if (!pool_manager->ServerInit()) {
-    runtime_is_initializing_ = false;
-    return false;
-  }
-
-  // Initialize work orchestrator
+  // Initialize work orchestrator before pool manager
   auto* work_orchestrator = CHI_WORK_ORCHESTRATOR;
   if (!work_orchestrator->Init()) {
     runtime_is_initializing_ = false;
@@ -152,6 +145,13 @@ bool Chimaera::ServerInit() {
 
   // Start worker threads
   if (!work_orchestrator->StartWorkers()) {
+    runtime_is_initializing_ = false;
+    return false;
+  }
+
+  // Initialize pool manager (server mode only) after work orchestrator
+  auto* pool_manager = CHI_POOL_MANAGER;
+  if (!pool_manager->ServerInit()) {
     runtime_is_initializing_ = false;
     return false;
   }
@@ -220,6 +220,10 @@ const std::string& Chimaera::GetCurrentHostname() const {
 u64 Chimaera::GetNodeId() const {
   auto* ipc_manager = CHI_IPC;
   return ipc_manager->GetNodeId();
+}
+
+bool Chimaera::IsInitializing() const {
+  return client_is_initializing_ || runtime_is_initializing_;
 }
 
 }  // namespace chi

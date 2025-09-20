@@ -44,21 +44,17 @@ void ModuleManager::Finalize() {
 }
 
 bool ModuleManager::LoadChiMod(const std::string& lib_path) {
-  HILOG(kDebug, "Loading ChiMod from: {}", lib_path);
-  
   auto chimod_info = std::make_unique<ChiModInfo>();
   chimod_info->lib_path = lib_path;
   
   // Load the shared library
   chimod_info->lib.Load(lib_path);
   if (chimod_info->lib.IsNull()) {
-    HELOG(kError, "Failed to load library: {}", chimod_info->lib.GetError());
     return false;
   }
   
   // Validate ChiMod entry points
   if (!ValidateChiMod(chimod_info->lib)) {
-    HELOG(kError, "Library {} is not a valid ChiMod", lib_path);
     return false;
   }
   
@@ -73,7 +69,6 @@ bool ModuleManager::LoadChiMod(const std::string& lib_path) {
     chimod_info->name = chimod_info->name_func();
     HILOG(kDebug, "Loaded ChiMod: {}", chimod_info->name);
   } else {
-    HELOG(kError, "ChiMod missing get_chimod_name function");
     return false;
   }
   
@@ -121,8 +116,6 @@ void ModuleManager::ScanForChiMods() {
   std::vector<std::string> scan_dirs = GetScanDirectories();
   
   for (const std::string& dir : scan_dirs) {
-    HILOG(kDebug, "Scanning directory for ChiMods: {}", dir);
-    
     if (!std::filesystem::exists(dir) || !std::filesystem::is_directory(dir)) {
       continue;
     }

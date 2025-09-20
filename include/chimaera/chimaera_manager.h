@@ -74,6 +74,12 @@ class Chimaera {
    */
   u64 GetNodeId() const;
 
+  /**
+   * Check if Chimaera is currently in the process of initializing
+   * @return true if either client or runtime initialization is in progress, false otherwise
+   */
+  bool IsInitializing() const;
+
  private:
   bool is_initialized_ = false;
   bool is_client_mode_ = false;
