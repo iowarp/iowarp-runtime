@@ -158,36 +158,32 @@ struct AllocateBlocksTask : public chi::Task {
   }
 };
 
-/**
- * Backward compatibility alias for AllocateTask
- */
-using AllocateTask = AllocateBlocksTask;
 
 /**
- * FreeTask - Free allocated blocks
+ * FreeBlocksTask - Free allocated blocks
  */
-struct FreeTask : public chi::Task {
+struct FreeBlocksTask : public chi::Task {
   // Task-specific data
   IN chi::ipc::vector<Block> blocks_;    // Blocks to free
 
   /** SHM default constructor */
-  explicit FreeTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc) 
+  explicit FreeBlocksTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc) 
       : chi::Task(alloc), blocks_(alloc) {}
 
 
   /** Emplace constructor for multiple blocks */
-  explicit FreeTask(
+  explicit FreeBlocksTask(
       const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
       const chi::TaskNode &task_node,
       const chi::PoolId &pool_id, 
       const chi::PoolQuery &pool_query,
-      const chi::ipc::vector<Block>& blocks)
+      const std::vector<Block>& blocks)
       : chi::Task(alloc, task_node, pool_id, pool_query, 10),
         blocks_(alloc) {
     // Initialize task
     task_node_ = task_node;
     pool_id_ = pool_id;
-    method_ = Method::kFree;
+    method_ = Method::kFreeBlocks;
     task_flags_.Clear();
     pool_query_ = pool_query;
     

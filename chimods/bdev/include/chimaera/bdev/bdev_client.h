@@ -124,21 +124,13 @@ class Client : public chi::ContainerClient {
   /**
    * Free multiple blocks - asynchronous
    */
-  hipc::FullPtr<chimaera::bdev::FreeTask> AsyncFreeBlocks(
+  hipc::FullPtr<chimaera::bdev::FreeBlocksTask> AsyncFreeBlocks(
       const hipc::MemContext& mctx, const std::vector<Block>& blocks) {
     auto* ipc_manager = CHI_IPC;
 
-    // Create a chi::ipc::vector from std::vector
-    auto alloc = HSHM_MEMORY_MANAGER->GetDefaultAllocator<CHI_MAIN_ALLOC_T>();
-    chi::ipc::vector<Block> ipc_blocks(alloc);
-    ipc_blocks.resize(blocks.size());
-    for (size_t i = 0; i < blocks.size(); ++i) {
-      ipc_blocks[i] = blocks[i];
-    }
-
-    // Create task with vector constructor
-    auto task = ipc_manager->NewTask<chimaera::bdev::FreeTask>(
-        chi::CreateTaskNode(), pool_id_, chi::PoolQuery::Local(), ipc_blocks);
+    // Create task with std::vector constructor (constructor parameter uses std::vector)
+    auto task = ipc_manager->NewTask<chimaera::bdev::FreeBlocksTask>(
+        chi::CreateTaskNode(), pool_id_, chi::PoolQuery::Local(), blocks);
 
     ipc_manager->Enqueue(task);
     return task;

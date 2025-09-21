@@ -15,7 +15,7 @@ kUpgrade: -1      # 5 - Not implemented
 
 # Custom Methods (start from 10)
 kAllocateBlocks: 10     # Allocate data blocks
-kFree: 11               # Free data block  
+kFreeBlocks: 11         # Free data blocks  
 kWrite: 12              # Write data with libaio
 kRead: 13               # Read data with libaio
 kGetStats: 14           # Get performance statistics

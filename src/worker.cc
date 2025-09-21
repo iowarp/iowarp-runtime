@@ -30,7 +30,8 @@ Worker::Worker(u32 worker_id, ThreadType thread_type)
       is_running_(false),
       is_initialized_(false),
       did_work_(false),
-      current_run_context_(nullptr) {}
+      current_run_context_(nullptr),
+      block_queue_bit_(false) {}
 
 Worker::~Worker() {
   if (is_initialized_) {
@@ -115,8 +116,8 @@ void Worker::Run() {
                 // Routing successful, execute the task
                 BeginTask(task_full_ptr, container, lane_full_ptr.ptr_);
               }
-              // Note: RouteTask returning false doesn't always indicate an error
-              // Real errors are handled within RouteTask itself
+              // Note: RouteTask returning false doesn't always indicate an
+              // error Real errors are handled within RouteTask itself
             }
           } else {
             // No more tasks in this lane
@@ -325,7 +326,9 @@ bool Worker::RouteLocal(const FullPtr<Task>& task_ptr, TaskLane* lane,
     }
   } catch (const std::exception& e) {
     // Monitor function failed - this is an actual error
-    HELOG(kError, "Worker {}: Monitor function failed for task (Pool: {}, Method: {}): {}", 
+    HELOG(kError,
+          "Worker {}: Monitor function failed for task (Pool: {}, Method: {}): "
+          "{}",
           worker_id_, task_ptr->pool_id_, task_ptr->method_, e.what());
     EndTaskWithError(task_ptr, 2);  // Error code 2 for monitor failure
     return false;
@@ -664,9 +667,18 @@ void Worker::EndTaskWithError(const FullPtr<Task>& task_ptr, u32 error_code) {
 }
 
 u32 Worker::ContinueBlockedTasks() {
-  // Always check tasks from the front of the queue
-  while (!blocked_queue_.empty()) {
-    RunContext* run_ctx = blocked_queue_.top();
+  // Get reference to current blocked queue and flip the bit for new blocking
+  // operations
+  auto& orig_queue = blocked_queue_[block_queue_bit_];
+  block_queue_bit_ = !block_queue_bit_;
+  auto& new_queue = blocked_queue_[block_queue_bit_];
+
+  u32 return_value = 0;  // Default return value for immediate recheck
+
+  // Process tasks from the original queue
+  while (!orig_queue.empty()) {
+    RunContext* run_ctx = orig_queue.top();
+    orig_queue.pop();
 
     if (run_ctx && !run_ctx->task.IsNull()) {
       // Always check if all subtasks are completed first
@@ -674,45 +686,50 @@ u32 Worker::ContinueBlockedTasks() {
         // All subtasks are completed, resume this task immediately
         run_ctx->is_blocked = false;
 
-        // Remove from queue BEFORE calling ExecTask to prevent duplicate
-        // entries if ExecTask calls AddToBlockedQueue
-        blocked_queue_.pop();
-
         // Use unified execution function to resume the task
         ExecTask(run_ctx->task, run_ctx, true);
-
-        // Continue checking next task
+        // Task execution handled, continue to next task
         continue;
       }
 
-      // Subtasks not completed - calculate time using HSHM timepoint
+      // Subtasks not completed - calculate remaining time and re-queue
       hshm::Timepoint current_time;
       current_time.Now();
       double elapsed_us = current_time.GetUsecFromStart(run_ctx->block_time);
 
-      // Calculate remaining time until estimated completion
-      if (elapsed_us >= run_ctx->estimated_completion_time_us) {
-        // Time estimate exceeded, return 0 to indicate immediate recheck needed
-        return 0;
-      } else {
-        // Return remaining time until estimated completion
-        return static_cast<u32>(run_ctx->estimated_completion_time_us -
-                                elapsed_us);
+      // Decrement the remaining time by the current elapsed time
+      run_ctx->estimated_completion_time_us -= elapsed_us;
+      if (run_ctx->estimated_completion_time_us < 0) {
+        run_ctx->estimated_completion_time_us = 0;
       }
-    } else {
-      // Invalid run context, remove from queue and continue
-      blocked_queue_.pop();
+
+      // Update the block time for next iteration
+      run_ctx->block_time.Now();
+
+      // Set return value based on remaining time
+      if (run_ctx->estimated_completion_time_us <= 0) {
+        return_value = 0;  // Time estimate exceeded, immediate recheck needed
+      } else {
+        return_value = static_cast<u32>(run_ctx->estimated_completion_time_us);
+      }
+
+      // Add this task to the new blocked queue (after we flipped the bit)
+      new_queue.push(run_ctx);
+
+      // Break the loop - don't process any more tasks
+      if (run_ctx->estimated_completion_time_us > 0) {
+        break;
+      }
     }
   }
 
-  // No blocked tasks remaining, return 0 for immediate recheck
-  return 0;
+  return return_value;
 }
 
-void Worker::ExecTask(const FullPtr<Task>& task_ptr, RunContext* run_ctx,
+bool Worker::ExecTask(const FullPtr<Task>& task_ptr, RunContext* run_ctx,
                       bool is_started) {
   if (task_ptr.IsNull() || !run_ctx) {
-    return;
+    return true;  // Consider null tasks as completed
   }
 
   // Mark that work is being done
@@ -819,7 +836,7 @@ void Worker::ExecTask(const FullPtr<Task>& task_ptr, RunContext* run_ctx,
   // Common cleanup logic for both fiber and direct execution
   if (run_ctx->is_blocked) {
     // Task is blocked - don't clean up, will be resumed later
-    return;
+    return false;  // Task is not completed, blocked for later resume
   }
 
   // Tasks should never return incomplete from ExecTask
@@ -832,11 +849,10 @@ void Worker::ExecTask(const FullPtr<Task>& task_ptr, RunContext* run_ctx,
   bool is_fire_and_forget = task_ptr->IsFireAndForget();
 
   if (should_complete_task) {
-    // Clear RunContext pointer and deallocate stack for non-periodic tasks
+    // Clear RunContext pointer first
     task_ptr->run_ctx_ = nullptr;
-    DeallocateStackAndContext(run_ctx);
 
-    // Mark task as complete LAST - after all cleanup is done
+    // Mark task as complete FIRST - before deletion
     // This prevents race condition with client DelTask
     task_ptr->is_complete.store(1);
 
@@ -844,8 +860,12 @@ void Worker::ExecTask(const FullPtr<Task>& task_ptr, RunContext* run_ctx,
     if (is_fire_and_forget && run_ctx->container) {
       run_ctx->container->Del(task_ptr->method_, task_ptr);
     }
+
+    // Deallocate stack and context AFTER task is deleted
+    DeallocateStackAndContext(run_ctx);
   }
-  // Periodic tasks keep their resources and are not marked complete
+  // Return whether the task should be considered completed
+  return should_complete_task;
 }
 
 void Worker::AddToBlockedQueue(RunContext* run_ctx, double estimated_time_us) {
@@ -857,8 +877,8 @@ void Worker::AddToBlockedQueue(RunContext* run_ctx, double estimated_time_us) {
   run_ctx->estimated_completion_time_us = estimated_time_us;
   run_ctx->block_time.Now();
 
-  // Add RunContext to the blocked queue (priority queue)
-  blocked_queue_.push(run_ctx);
+  // Add RunContext to the current blocked queue (priority queue)
+  blocked_queue_[block_queue_bit_].push(run_ctx);
 }
 
 void Worker::ReschedulePeriodicTask(RunContext* run_ctx,

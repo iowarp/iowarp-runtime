@@ -1,5 +1,5 @@
 @CLAUDE.md Build a series of jarvis packages for deploying this repo. Read @doc/jarvis/jarvis-pkg-dev.md
-to see how.
+to see how. Create packages in test/jarvis directory. 
 
 ## wrp_start_runtime
 

@@ -2,6 +2,7 @@
 #define BDEV_RUNTIME_H_
 
 #include <chimaera/chimaera.h>
+#include <chimaera/comutex.h>
 #include "bdev_tasks.h"
 #include <sys/types.h>
 #include <unistd.h>
@@ -9,7 +10,6 @@
 #include <aio.h>
 #include <vector>
 #include <atomic>
-#include <mutex>
 #include <chrono>
 
 /**
@@ -19,6 +19,7 @@
  */
 
 namespace chimaera::bdev {
+
 
 /**
  * Free list node for data allocator
@@ -86,28 +87,17 @@ class Runtime : public chi::Container {
   void MonitorAllocateBlocks(chi::MonitorModeId mode, hipc::FullPtr<AllocateBlocksTask> task,
                              chi::RunContext& ctx);
 
-  /**
-   * Backward compatibility methods for AllocateTask
-   */
-  void Allocate(hipc::FullPtr<AllocateTask> task, chi::RunContext& ctx) {
-    AllocateBlocks(task, ctx);
-  }
-  
-  void MonitorAllocate(chi::MonitorModeId mode, hipc::FullPtr<AllocateTask> task,
-                       chi::RunContext& ctx) {
-    MonitorAllocateBlocks(mode, task, ctx);
-  }
 
   /**
-   * Free a data block (Method::kFree)
+   * Free data blocks (Method::kFreeBlocks)
    */
-  void Free(hipc::FullPtr<FreeTask> task, chi::RunContext& ctx);
+  void FreeBlocks(hipc::FullPtr<FreeBlocksTask> task, chi::RunContext& ctx);
 
   /**
-   * Monitor free progress
+   * Monitor free blocks progress
    */
-  void MonitorFree(chi::MonitorModeId mode, hipc::FullPtr<FreeTask> task,
-                   chi::RunContext& ctx);
+  void MonitorFreeBlocks(chi::MonitorModeId mode, hipc::FullPtr<FreeBlocksTask> task,
+                         chi::RunContext& ctx);
 
   /**
    * Write data to a block (Method::kWrite)
@@ -238,11 +228,11 @@ class Runtime : public chi::Container {
   // Data allocator state
   std::atomic<chi::u64> remaining_size_;          // Remaining allocatable space
   chi::u64 next_offset_;                          // Next allocation offset
-  std::mutex alloc_mutex_;                        // Mutex for allocation operations
+  chi::CoMutex alloc_mutex_;                      // CoMutex for allocation operations
   
   // Free lists for different block sizes
   FreeListNode* free_lists_[static_cast<size_t>(BlockSizeCategory::kMaxCategories)];
-  std::mutex free_list_mutexes_[static_cast<size_t>(BlockSizeCategory::kMaxCategories)];
+  chi::CoMutex free_list_mutexes_[static_cast<size_t>(BlockSizeCategory::kMaxCategories)];
   
   // Performance tracking
   std::atomic<chi::u64> total_reads_;

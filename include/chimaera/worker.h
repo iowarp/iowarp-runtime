@@ -265,7 +265,7 @@ public:
    * @param run_ctx_ptr Pointer to existing RunContext
    * @param is_started True if task is resuming, false for new task
    */
-  void ExecTask(const FullPtr<Task>& task_ptr, RunContext* run_ctx_ptr,
+  bool ExecTask(const FullPtr<Task>& task_ptr, RunContext* run_ctx_ptr,
                 bool is_started);
 
   /**
@@ -299,9 +299,13 @@ public:
     }
   };
 
+  // Dual blocked queues to prevent deadlocking during ContinueBlockedTasks
   std::priority_queue<RunContext*, std::vector<RunContext*>,
                       RunContextComparator>
-      blocked_queue_;
+      blocked_queue_[2];
+  
+  // Queue bit flag to alternate between the two blocked queues
+  bool block_queue_bit_;
 };
 
 }  // namespace chi

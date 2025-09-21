@@ -30,8 +30,8 @@ void Runtime::Run(chi::u32 method, hipc::FullPtr<chi::Task> task_ptr, chi::RunCo
       AllocateBlocks(task_ptr.Cast<AllocateBlocksTask>(), rctx);
       break;
     }
-    case Method::kFree: {
-      Free(task_ptr.Cast<FreeTask>(), rctx);
+    case Method::kFreeBlocks: {
+      FreeBlocks(task_ptr.Cast<FreeBlocksTask>(), rctx);
       break;
     }
     case Method::kWrite: {
@@ -68,8 +68,8 @@ void Runtime::Monitor(chi::MonitorModeId mode, chi::u32 method,
       MonitorAllocateBlocks(mode, task_ptr.Cast<AllocateBlocksTask>(), rctx);
       break;
     }
-    case Method::kFree: {
-      MonitorFree(mode, task_ptr.Cast<FreeTask>(), rctx);
+    case Method::kFreeBlocks: {
+      MonitorFreeBlocks(mode, task_ptr.Cast<FreeBlocksTask>(), rctx);
       break;
     }
     case Method::kWrite: {
@@ -108,8 +108,8 @@ void Runtime::Del(chi::u32 method, hipc::FullPtr<chi::Task> task_ptr) {
       ipc_manager->DelTask(task_ptr.Cast<AllocateBlocksTask>());
       break;
     }
-    case Method::kFree: {
-      ipc_manager->DelTask(task_ptr.Cast<FreeTask>());
+    case Method::kFreeBlocks: {
+      ipc_manager->DelTask(task_ptr.Cast<FreeBlocksTask>());
       break;
     }
     case Method::kWrite: {
@@ -150,8 +150,8 @@ void Runtime::SaveIn(chi::u32 method, chi::TaskSaveInArchive& archive,
       typed_task->SerializeIn(archive);
       break;
     }
-    case Method::kFree: {
-      auto typed_task = task_ptr.Cast<FreeTask>();
+    case Method::kFreeBlocks: {
+      auto typed_task = task_ptr.Cast<FreeBlocksTask>();
       typed_task->SerializeIn(archive);
       break;
     }
@@ -195,8 +195,8 @@ void Runtime::LoadIn(chi::u32 method, chi::TaskLoadInArchive& archive,
       typed_task->SerializeIn(archive);
       break;
     }
-    case Method::kFree: {
-      auto typed_task = task_ptr.Cast<FreeTask>();
+    case Method::kFreeBlocks: {
+      auto typed_task = task_ptr.Cast<FreeBlocksTask>();
       typed_task->SerializeIn(archive);
       break;
     }
@@ -240,8 +240,8 @@ void Runtime::SaveOut(chi::u32 method, chi::TaskSaveOutArchive& archive,
       typed_task->SerializeOut(archive);
       break;
     }
-    case Method::kFree: {
-      auto typed_task = task_ptr.Cast<FreeTask>();
+    case Method::kFreeBlocks: {
+      auto typed_task = task_ptr.Cast<FreeBlocksTask>();
       typed_task->SerializeOut(archive);
       break;
     }
@@ -285,8 +285,8 @@ void Runtime::LoadOut(chi::u32 method, chi::TaskLoadOutArchive& archive,
       typed_task->SerializeOut(archive);
       break;
     }
-    case Method::kFree: {
-      auto typed_task = task_ptr.Cast<FreeTask>();
+    case Method::kFreeBlocks: {
+      auto typed_task = task_ptr.Cast<FreeBlocksTask>();
       typed_task->SerializeOut(archive);
       break;
     }
@@ -353,12 +353,12 @@ void Runtime::NewCopy(chi::u32 method, const hipc::FullPtr<chi::Task>& orig_task
       }
       break;
     }
-    case Method::kFree: {
+    case Method::kFreeBlocks: {
       // Allocate new task using SHM default constructor
-      auto typed_task = ipc_manager->NewTask<FreeTask>();
+      auto typed_task = ipc_manager->NewTask<FreeBlocksTask>();
       if (!typed_task.IsNull()) {
         // Use HSHM strong copy method for actual copying
-        typed_task->shm_strong_copy_main(*orig_task.Cast<FreeTask>());
+        typed_task->shm_strong_copy_main(*orig_task.Cast<FreeBlocksTask>());
         // Cast to base Task type for return
         dup_task = typed_task.template Cast<chi::Task>();
       }

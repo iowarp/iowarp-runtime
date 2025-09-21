@@ -1,4 +1,5 @@
 #include <chimaera/bdev/bdev_runtime.h>
+#include <chimaera/comutex.h>
 #include <errno.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -54,8 +55,8 @@ void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& ctx) {
   HILOG(kInfo,
         "DEBUG: Bdev runtime received params: bdev_type={}, pool_name='{}', "
         "total_size={}, io_depth={}, alignment={}",
-        static_cast<chi::u32>(params.bdev_type_), pool_name,
-        params.total_size_, params.io_depth_, params.alignment_);
+        static_cast<chi::u32>(params.bdev_type_), pool_name, params.total_size_,
+        params.io_depth_, params.alignment_);
 
   // Initialize the container with pool information and domain query
   chi::Container::Init(task->pool_id_, task->pool_query_);
@@ -72,8 +73,7 @@ void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& ctx) {
   // Initialize storage backend based on type
   if (bdev_type_ == BdevType::kFile) {
     // File-based storage initialization - use pool_name as file path
-    file_fd_ =
-        open(pool_name.c_str(), O_RDWR | O_CREAT | O_DIRECT, 0644);
+    file_fd_ = open(pool_name.c_str(), O_RDWR | O_CREAT | O_DIRECT, 0644);
     if (file_fd_ < 0) {
       task->return_code_ = 1;
       return;
@@ -153,7 +153,8 @@ void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& ctx) {
   // Set success result
   task->return_code_ = 0;
 
-  HILOG(kDebug, "bdev container created for pool: {} (Size: {} bytes)", pool_name, file_size_);
+  HILOG(kDebug, "bdev container created for pool: {} (Size: {} bytes)",
+        pool_name, file_size_);
 }
 
 void Runtime::MonitorCreate(chi::MonitorModeId mode,
@@ -179,7 +180,8 @@ void Runtime::MonitorCreate(chi::MonitorModeId mode,
   }
 }
 
-void Runtime::AllocateBlocks(hipc::FullPtr<AllocateBlocksTask> task, chi::RunContext& ctx) {
+void Runtime::AllocateBlocks(hipc::FullPtr<AllocateBlocksTask> task,
+                             chi::RunContext& ctx) {
   // Clear the block vector first
   task->blocks_.clear();
 
@@ -193,25 +195,26 @@ void Runtime::AllocateBlocks(hipc::FullPtr<AllocateBlocksTask> task, chi::RunCon
   std::vector<std::pair<BlockSizeCategory, chi::u32>> blocks_to_allocate;
   chi::u64 total_allocated_size = 0;
 
-  if (total_size < (1ULL << 20)) { // < 1MB
+  if (total_size < (1ULL << 20)) {  // < 1MB
     // Allocate a single block of the next largest size
     BlockSizeCategory category;
-    if (total_size <= kBlockSizes[0]) {        // <= 4KB
+    if (total_size <= kBlockSizes[0]) {  // <= 4KB
       category = BlockSizeCategory::k4KB;
-    } else if (total_size <= kBlockSizes[1]) { // <= 64KB  
+    } else if (total_size <= kBlockSizes[1]) {  // <= 64KB
       category = BlockSizeCategory::k64KB;
-    } else if (total_size <= kBlockSizes[2]) { // <= 256KB
+    } else if (total_size <= kBlockSizes[2]) {  // <= 256KB
       category = BlockSizeCategory::k256KB;
-    } else {                                   // <= 1MB
+    } else {  // <= 1MB
       category = BlockSizeCategory::k1MB;
     }
-    
+
     blocks_to_allocate.push_back({category, 1});
     total_allocated_size = GetBlockSize(category);
-    
-  } else { // >= 1MB
+
+  } else {  // >= 1MB
     // Allocate only 1MB blocks to meet requirement
-    chi::u32 num_1mb_blocks = static_cast<chi::u32>((total_size + kBlockSizes[3] - 1) / kBlockSizes[3]);
+    chi::u32 num_1mb_blocks = static_cast<chi::u32>(
+        (total_size + kBlockSizes[3] - 1) / kBlockSizes[3]);
     blocks_to_allocate.push_back({BlockSizeCategory::k1MB, num_1mb_blocks});
     total_allocated_size = num_1mb_blocks * kBlockSizes[3];
   }
@@ -248,7 +251,8 @@ void Runtime::AllocateBlocks(hipc::FullPtr<AllocateBlocksTask> task, chi::RunCon
     }
   }
 
-  // Update capacity: decrement remaining_size_ based on total allocated block size  
+  // Update capacity: decrement remaining_size_ based on total allocated block
+  // size
   remaining_size_.fetch_sub(total_allocated_size);
 
   task->return_code_ = 0;
@@ -256,7 +260,7 @@ void Runtime::AllocateBlocks(hipc::FullPtr<AllocateBlocksTask> task, chi::RunCon
 
 void Runtime::MonitorAllocateBlocks(chi::MonitorModeId mode,
                                     hipc::FullPtr<AllocateBlocksTask> task,
-                              chi::RunContext& ctx) {
+                                    chi::RunContext& ctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule: {
       auto lane_ptr = GetLaneFullPtr(0, 0);  // Queue 0 (low latency), lane 0
@@ -275,7 +279,9 @@ void Runtime::MonitorAllocateBlocks(chi::MonitorModeId mode,
   }
 }
 
-void Runtime::Free(hipc::FullPtr<FreeTask> task, chi::RunContext& ctx) {
+void Runtime::FreeBlocks(hipc::FullPtr<FreeBlocksTask> task,
+                         chi::RunContext& ctx) {
+  HILOG(kInfo, "FreeBlocks called with {} blocks", task->blocks_.size());
   // Free all blocks in the vector
   for (size_t i = 0; i < task->blocks_.size(); ++i) {
     const Block& block = task->blocks_[i];
@@ -288,8 +294,9 @@ void Runtime::Free(hipc::FullPtr<FreeTask> task, chi::RunContext& ctx) {
   task->return_code_ = 0;
 }
 
-void Runtime::MonitorFree(chi::MonitorModeId mode, hipc::FullPtr<FreeTask> task,
-                          chi::RunContext& ctx) {
+void Runtime::MonitorFreeBlocks(chi::MonitorModeId mode,
+                                hipc::FullPtr<FreeBlocksTask> task,
+                                chi::RunContext& ctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule: {
       auto lane_ptr = GetLaneFullPtr(0, 0);  // Queue 0 (low latency), lane 0
@@ -418,7 +425,8 @@ void Runtime::GetStats(hipc::FullPtr<GetStatsTask> task, chi::RunContext& ctx) {
   task->return_code_ = 0;
 }
 
-void Runtime::MonitorGetStats(chi::MonitorModeId mode, hipc::FullPtr<GetStatsTask> task,
+void Runtime::MonitorGetStats(chi::MonitorModeId mode,
+                              hipc::FullPtr<GetStatsTask> task,
                               chi::RunContext& ctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule: {
@@ -448,7 +456,7 @@ void Runtime::Destroy(hipc::FullPtr<DestroyTask> task, chi::RunContext& ctx) {
   // Clean up free lists
   for (size_t i = 0; i < static_cast<size_t>(BlockSizeCategory::kMaxCategories);
        ++i) {
-    std::lock_guard<std::mutex> lock(free_list_mutexes_[i]);
+    chi::ScopedCoMutex lock(free_list_mutexes_[i]);
     FreeListNode* node = free_lists_[i];
     while (node) {
       FreeListNode* next = node->next_;
@@ -525,10 +533,10 @@ void Runtime::BenchmarkPerformance() {
 
     free(aligned_buffer);
 
-    HILOG(kDebug, "Benchmark results - Write: {}us, Read: {}us", write_duration.count(), read_duration.count());
+    HILOG(kDebug, "Benchmark results - Write: {}us, Read: {}us",
+          write_duration.count(), read_duration.count());
   }
 }
-
 
 chi::u64 Runtime::GetBlockSize(BlockSizeCategory category) {
   return kBlockSizes[static_cast<size_t>(category)];
@@ -537,7 +545,7 @@ chi::u64 Runtime::GetBlockSize(BlockSizeCategory category) {
 bool Runtime::AllocateFromFreeList(BlockSizeCategory category, chi::u64 size,
                                    Block& block) {
   size_t idx = static_cast<size_t>(category);
-  std::lock_guard<std::mutex> lock(free_list_mutexes_[idx]);
+  chi::ScopedCoMutex lock(free_list_mutexes_[idx]);
 
   FreeListNode** current = &free_lists_[idx];
   while (*current) {
@@ -560,7 +568,7 @@ bool Runtime::AllocateFromFreeList(BlockSizeCategory category, chi::u64 size,
 
 bool Runtime::AllocateFromHeap(chi::u64 size, BlockSizeCategory category,
                                Block& block) {
-  std::lock_guard<std::mutex> lock(alloc_mutex_);
+  chi::ScopedCoMutex lock(alloc_mutex_);
 
   chi::u64 aligned_size = AlignSize(size);
 
@@ -584,7 +592,7 @@ void Runtime::AddToFreeList(const Block& block) {
     return;  // Invalid block type
   }
 
-  std::lock_guard<std::mutex> lock(free_list_mutexes_[idx]);
+  chi::ScopedCoMutex lock(free_list_mutexes_[idx]);
 
   FreeListNode* node = new FreeListNode(block.offset_, block.size_);
   node->next_ = free_lists_[idx];
@@ -592,16 +600,11 @@ void Runtime::AddToFreeList(const Block& block) {
 }
 
 chi::u64 Runtime::AlignSize(chi::u64 size) {
-  HILOG(kInfo, "DEBUG: AlignSize called with size={}, alignment_={}", size,
-        alignment_);
   if (alignment_ == 0) {
-    HILOG(kInfo, "AlignSize called with alignment_ = 0, using default 4096");
     alignment_ = 4096;  // Set to default if somehow it's 0
   }
   return ((size + alignment_ - 1) / alignment_) * alignment_;
 }
-
-
 
 void Runtime::UpdatePerformanceMetrics(bool is_write, chi::u64 bytes,
                                        double duration_us) {
@@ -676,7 +679,7 @@ chi::u32 Runtime::PerformAsyncIO(bool is_write, chi::u64 offset, void* buffer,
 void Runtime::WriteToFile(hipc::FullPtr<WriteTask> task) {
   // Convert hipc::Pointer to hipc::FullPtr<char> for data access
   hipc::FullPtr<char> data_ptr(task->data_);
-  
+
   // Align buffer for direct I/O
   chi::u64 aligned_size = AlignSize(task->length_);
 
@@ -720,7 +723,7 @@ void Runtime::WriteToFile(hipc::FullPtr<WriteTask> task) {
 void Runtime::WriteToRam(hipc::FullPtr<WriteTask> task) {
   // Convert hipc::Pointer to hipc::FullPtr<char> for data access
   hipc::FullPtr<char> data_ptr(task->data_);
-  
+
   // Check bounds
   if (task->block_.offset_ + task->length_ > ram_size_) {
     task->return_code_ = 1;  // Write beyond buffer bounds
@@ -729,8 +732,7 @@ void Runtime::WriteToRam(hipc::FullPtr<WriteTask> task) {
   }
 
   // Simple memory copy
-  memcpy(ram_buffer_ + task->block_.offset_, data_ptr.ptr_,
-         task->length_);
+  memcpy(ram_buffer_ + task->block_.offset_, data_ptr.ptr_, task->length_);
 
   task->return_code_ = 0;
   task->bytes_written_ = task->length_;
@@ -768,10 +770,11 @@ void Runtime::ReadFromFile(hipc::FullPtr<ReadTask> task) {
 
   // Convert hipc::Pointer to hipc::FullPtr<char> for data access
   hipc::FullPtr<char> data_ptr(task->data_);
-  
+
   // Copy data to task output
   chi::u64 actual_bytes = std::min(bytes_read, task->block_.size_);
-  chi::u64 available_space = std::min(actual_bytes, static_cast<chi::u64>(task->length_));
+  chi::u64 available_space =
+      std::min(actual_bytes, static_cast<chi::u64>(task->length_));
   memcpy(data_ptr.ptr_, aligned_buffer, available_space);
 
   free(aligned_buffer);
@@ -787,7 +790,7 @@ void Runtime::ReadFromFile(hipc::FullPtr<ReadTask> task) {
 void Runtime::ReadFromRam(hipc::FullPtr<ReadTask> task) {
   // Convert hipc::Pointer to hipc::FullPtr<char> for data access
   hipc::FullPtr<char> data_ptr(task->data_);
-  
+
   // Check bounds
   if (task->block_.offset_ + task->block_.size_ > ram_size_) {
     task->return_code_ = 1;  // Read beyond buffer bounds
@@ -796,9 +799,9 @@ void Runtime::ReadFromRam(hipc::FullPtr<ReadTask> task) {
   }
 
   // Copy data from RAM buffer to task output (limit by available buffer space)
-  chi::u64 available_space = std::min(task->block_.size_, static_cast<chi::u64>(task->length_));
-  memcpy(data_ptr.ptr_, ram_buffer_ + task->block_.offset_,
-         available_space);
+  chi::u64 available_space =
+      std::min(task->block_.size_, static_cast<chi::u64>(task->length_));
+  memcpy(data_ptr.ptr_, ram_buffer_ + task->block_.offset_, available_space);
 
   task->return_code_ = 0;
   task->bytes_read_ = available_space;

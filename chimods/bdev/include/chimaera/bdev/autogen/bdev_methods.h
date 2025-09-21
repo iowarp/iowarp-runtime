@@ -16,7 +16,7 @@ GLOBAL_CONST chi::u32 kDestroy = 1;
 
 // bdev-specific methods
 GLOBAL_CONST chi::u32 kAllocateBlocks = 10;
-GLOBAL_CONST chi::u32 kFree = 11;
+GLOBAL_CONST chi::u32 kFreeBlocks = 11;
 GLOBAL_CONST chi::u32 kWrite = 12;
 GLOBAL_CONST chi::u32 kRead = 13;
 GLOBAL_CONST chi::u32 kGetStats = 14;
