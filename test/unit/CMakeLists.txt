@@ -73,6 +73,7 @@ set(IPC_ALLOCATE_BUFFER_TEST_SOURCES
 )
 
 
+
 # Create task archive test executable
 add_executable(${TASK_ARCHIVE_TEST_TARGET} ${TASK_ARCHIVE_TEST_SOURCES})
 
@@ -85,7 +86,6 @@ target_include_directories(${TASK_ARCHIVE_TEST_TARGET} PRIVATE
 
 # Link against required libraries for task archive tests
 target_link_libraries(${TASK_ARCHIVE_TEST_TARGET}
-  cxx                        # Main Chimaera library
   chimaera_admin_runtime          # Admin module runtime for task types
   chimaera_admin_client           # Admin module client for task types
   hshm::cxx                       # HermesShm library
@@ -118,7 +118,6 @@ target_include_directories(${FLUSH_TEST_TARGET} PRIVATE
 
 # Link against required libraries for flush tests
 target_link_libraries(${FLUSH_TEST_TARGET}
-  cxx                        # Main Chimaera library
   chimaera_admin_runtime          # Admin module runtime
   chimaera_admin_client           # Admin module client
   chimaera_MOD_NAME_runtime       # MOD_NAME module runtime for work tracking
@@ -153,7 +152,6 @@ target_include_directories(${BDEV_TEST_TARGET} PRIVATE
 
 # Link against required libraries for bdev tests
 target_link_libraries(${BDEV_TEST_TARGET}
-  cxx                        # Main Chimaera library
   chimaera_admin_runtime          # Admin module runtime
   chimaera_admin_client           # Admin module client
   chimaera_bdev_runtime           # Bdev module runtime
@@ -269,7 +267,6 @@ target_include_directories(${COMUTEX_TEST_TARGET} PRIVATE
 
 # Link against required libraries for CoMutex tests
 target_link_libraries(${COMUTEX_TEST_TARGET}
-  cxx                        # Main Chimaera library
   chimaera_admin_runtime          # Admin module runtime
   chimaera_admin_client           # Admin module client
   chimaera_MOD_NAME_runtime       # MOD_NAME module runtime for CoMutex/CoRwLock
@@ -304,7 +301,6 @@ target_include_directories(${FIRE_AND_FORGET_TEST_TARGET} PRIVATE
 
 # Link against required libraries for Fire-and-Forget tests
 target_link_libraries(${FIRE_AND_FORGET_TEST_TARGET}
-  cxx                        # Main Chimaera library
   chimaera_admin_runtime          # Admin module runtime
   chimaera_admin_client           # Admin module client
   chimaera_MOD_NAME_runtime       # MOD_NAME module runtime for fire-and-forget tasks
@@ -339,7 +335,6 @@ target_include_directories(${WAIT_FUNCTIONALITY_TEST_TARGET} PRIVATE
 
 # Link against required libraries for Wait Functionality tests
 target_link_libraries(${WAIT_FUNCTIONALITY_TEST_TARGET}
-  cxx                        # Main Chimaera library
   chimaera_admin_runtime          # Admin module runtime
   chimaera_admin_client           # Admin module client
   chimaera_MOD_NAME_runtime       # MOD_NAME module runtime for WaitTest tasks
@@ -385,6 +380,7 @@ set_target_properties(${IPC_ALLOCATE_BUFFER_TEST_TARGET} PROPERTIES
 set_target_properties(${IPC_ALLOCATE_BUFFER_TEST_TARGET} PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
 )
+
 
 
 # Create test executable

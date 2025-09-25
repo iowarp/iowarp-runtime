@@ -1,4 +1,6 @@
 name: simple_mod
+module_name: simple_mod
+namespace: external_test
 description: Simple test ChiMod for external development
 version: 1.0.0
 

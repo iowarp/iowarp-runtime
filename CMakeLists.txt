@@ -103,7 +103,7 @@ endif()
 #------------------------------------------------------------------------------
 # Install the main chimaera library using the same dynamic system as modules
 set(MAIN_EXPORT_NAME "${CHIMAERA_NAMESPACE}_coreTargets")
-set(MAIN_PACKAGE_NAME "${CHIMAERA_NAMESPACE}-core")
+set(MAIN_PACKAGE_NAME "${CHIMAERA_NAMESPACE}")
 
 # Install main library
 install(TARGETS cxx

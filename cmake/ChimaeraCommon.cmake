@@ -1,22 +1,59 @@
-# ChimaeraCommon.cmake
-# Common utilities and dependencies for Chimaera project and external libraries
+# ChimaeraCommon.cmake - Core shared CMake functionality for Chimaera
+
+# Guard against multiple inclusions
+if(CHIMAERA_COMMON_INCLUDED)
+  return()
+endif()
+set(CHIMAERA_COMMON_INCLUDED TRUE)
 
 #------------------------------------------------------------------------------
-# COMMON DEPENDENCIES
+# Dependencies
 #------------------------------------------------------------------------------
 
-# Find HermesShm - the shared memory framework used by Chimaera
-# HermesShm is compiled with Boost support, so it provides the necessary Boost dependencies
+# Find HermesShm
 find_package(HermesShm CONFIG REQUIRED)
 
-# Find cereal for serialization support
+# Find Boost components
+find_package(Boost REQUIRED COMPONENTS fiber context system)
+
+# Find cereal
 find_package(cereal REQUIRED)
 
-# Find Boost for fiber context support (required by types.h)
-find_package(Boost REQUIRED COMPONENTS fiber context)
+# Find MPI (optional)
+find_package(MPI QUIET)
+
+# Thread support
+find_package(Threads REQUIRED)
 
 #------------------------------------------------------------------------------
-# UTILITY FUNCTIONS
+# Common compile definitions and flags
+#------------------------------------------------------------------------------
+
+# Set common compile features
+set(CHIMAERA_CXX_STANDARD 17)
+
+# Common compile definitions
+set(CHIMAERA_COMMON_COMPILE_DEFS
+  $<$<CONFIG:Debug>:DEBUG>
+  $<$<CONFIG:Release>:NDEBUG>
+)
+
+# Common include directories
+set(CHIMAERA_COMMON_INCLUDES
+  ${Boost_INCLUDE_DIRS}
+  ${cereal_INCLUDE_DIRS}
+)
+
+# Common link libraries
+set(CHIMAERA_COMMON_LIBS
+  Boost::fiber
+  Boost::context
+  Boost::system
+  Threads::Threads
+)
+
+#------------------------------------------------------------------------------
+# Module configuration parsing
 #------------------------------------------------------------------------------
 
 # Function to read repository namespace from chimaera_repo.yaml
@@ -46,201 +83,312 @@ function(read_repo_namespace output_var start_path)
   set(${output_var} "${namespace}" PARENT_SCOPE)
 endfunction()
 
-# Function to create both client and runtime libraries for a ChiMod
-# Creates targets in format: ${NAMESPACE}_${CHIMOD_NAME}_runtime and ${NAMESPACE}_${CHIMOD_NAME}_client
-function(add_chimod_both)
-  cmake_parse_arguments(ARG
-    ""  # options
-    "NAMESPACE;CHIMOD_NAME"  # one value args
-    "RUNTIME_SOURCES;CLIENT_SOURCES"  # multi value args
-    ${ARGN}
-  )
+# Function to read module configuration from chimaera_mod.yaml
+function(chimaera_read_module_config MODULE_DIR)
+  set(CONFIG_FILE "${MODULE_DIR}/chimaera_mod.yaml")
   
-  # Use project namespace if not provided
-  if(NOT ARG_NAMESPACE)
-    # Try to read from local chimaera_repo.yaml first
-    read_repo_namespace(REPO_NAMESPACE "${CMAKE_CURRENT_SOURCE_DIR}")
-    if(DEFINED CHIMAERA_NAMESPACE)
-      set(ARG_NAMESPACE ${CHIMAERA_NAMESPACE})
-    else()
-      set(ARG_NAMESPACE "${REPO_NAMESPACE}")
-    endif()
+  if(NOT EXISTS ${CONFIG_FILE})
+    message(FATAL_ERROR "Missing chimaera_mod.yaml in ${MODULE_DIR}")
   endif()
   
-  if(NOT ARG_CHIMOD_NAME)
-    message(FATAL_ERROR "add_chimod_both: CHIMOD_NAME is required")
+  # Parse YAML file (simple regex parsing for key: value pairs)
+  file(READ ${CONFIG_FILE} CONFIG_CONTENT)
+  
+  # Extract module_name
+  string(REGEX MATCH "module_name:[ ]*([^\n\r]*)" MODULE_MATCH ${CONFIG_CONTENT})
+  if(MODULE_MATCH)
+    string(REGEX REPLACE "module_name:[ ]*" "" CHIMAERA_MODULE_NAME "${MODULE_MATCH}")
+    string(STRIP "${CHIMAERA_MODULE_NAME}" CHIMAERA_MODULE_NAME)
+  endif()
+  set(CHIMAERA_MODULE_NAME ${CHIMAERA_MODULE_NAME} PARENT_SCOPE)
+  
+  # Extract namespace
+  string(REGEX MATCH "namespace:[ ]*([^\n\r]*)" NAMESPACE_MATCH ${CONFIG_CONTENT})
+  if(NAMESPACE_MATCH)
+    string(REGEX REPLACE "namespace:[ ]*" "" CHIMAERA_NAMESPACE "${NAMESPACE_MATCH}")
+    string(STRIP "${CHIMAERA_NAMESPACE}" CHIMAERA_NAMESPACE)
+  endif()
+  set(CHIMAERA_NAMESPACE ${CHIMAERA_NAMESPACE} PARENT_SCOPE)
+  
+  # Validate extracted values
+  if(NOT CHIMAERA_MODULE_NAME)
+    message(FATAL_ERROR "module_name not found in ${CONFIG_FILE}. Content preview: ${CONFIG_CONTENT}")
   endif()
   
-  # Create target names using namespace_chimod_type format
-  set(RUNTIME_TARGET_NAME "${ARG_NAMESPACE}_${ARG_CHIMOD_NAME}_runtime")
-  set(CLIENT_TARGET_NAME "${ARG_NAMESPACE}_${ARG_CHIMOD_NAME}_client")
-  
-  # Create runtime library
-  if(ARG_RUNTIME_SOURCES)
-    add_library(${RUNTIME_TARGET_NAME} SHARED ${ARG_RUNTIME_SOURCES})
-    # Link to chimaera::cxx for external builds, fallback to cxx for internal builds
-    if(TARGET chimaera::cxx)
-      target_link_libraries(${RUNTIME_TARGET_NAME} PUBLIC chimaera::cxx)
-    else()
-      target_link_libraries(${RUNTIME_TARGET_NAME} PUBLIC cxx)
-    endif()
-    target_include_directories(${RUNTIME_TARGET_NAME} PUBLIC
-      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-      $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
-      $<INSTALL_INTERFACE:include>
-    )
-    target_compile_definitions(${RUNTIME_TARGET_NAME} PRIVATE
-      CHI_CHIMOD_NAME="${ARG_CHIMOD_NAME}"
-      CHI_NAMESPACE="${ARG_NAMESPACE}"
-    )
-    
-    # Add global include_directories and link_directories for clangd support
-    include_directories(
-      ${CMAKE_CURRENT_SOURCE_DIR}/include
-      ${CMAKE_SOURCE_DIR}/include
-      ${CMAKE_SOURCE_DIR}/chimods/admin/include
-      ${CMAKE_SOURCE_DIR}/chimods/bdev/include
-      ${CMAKE_SOURCE_DIR}/chimods/MOD_NAME/include
-    )
-    link_directories(
-      ${CMAKE_BINARY_DIR}/bin
-      ${CMAKE_BINARY_DIR}/lib
-    )
-    
-    # Create namespace alias for external consumption
-    add_library(${ARG_NAMESPACE}::${ARG_CHIMOD_NAME}_runtime ALIAS ${RUNTIME_TARGET_NAME})
-    
-    # Set global property for referencing this target
-    set_property(GLOBAL PROPERTY ${ARG_CHIMOD_NAME}_RUNTIME_TARGET ${RUNTIME_TARGET_NAME})
-  endif()
-  
-  # Create client library
-  if(ARG_CLIENT_SOURCES)
-    add_library(${CLIENT_TARGET_NAME} SHARED ${ARG_CLIENT_SOURCES})
-    # Link to chimaera::cxx for external builds, fallback to cxx for internal builds
-    if(TARGET chimaera::cxx)
-      target_link_libraries(${CLIENT_TARGET_NAME} PUBLIC chimaera::cxx)
-    else()
-      target_link_libraries(${CLIENT_TARGET_NAME} PUBLIC cxx)
-    endif()
-    target_include_directories(${CLIENT_TARGET_NAME} PUBLIC
-      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-      $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
-      $<INSTALL_INTERFACE:include>
-    )
-    target_compile_definitions(${CLIENT_TARGET_NAME} PRIVATE
-      CHI_CHIMOD_NAME="${ARG_CHIMOD_NAME}"
-      CHI_NAMESPACE="${ARG_NAMESPACE}"
-    )
-    
-    # Add global include_directories and link_directories for clangd support  
-    include_directories(
-      ${CMAKE_CURRENT_SOURCE_DIR}/include
-      ${CMAKE_SOURCE_DIR}/include
-      ${CMAKE_SOURCE_DIR}/chimods/admin/include
-      ${CMAKE_SOURCE_DIR}/chimods/bdev/include
-      ${CMAKE_SOURCE_DIR}/chimods/MOD_NAME/include
-    )
-    link_directories(
-      ${CMAKE_BINARY_DIR}/bin
-      ${CMAKE_BINARY_DIR}/lib
-    )
-    
-    # Create namespace alias for external consumption
-    add_library(${ARG_NAMESPACE}::${ARG_CHIMOD_NAME}_client ALIAS ${CLIENT_TARGET_NAME})
-    
-    # Set global property for referencing this target
-    set_property(GLOBAL PROPERTY ${ARG_CHIMOD_NAME}_CLIENT_TARGET ${CLIENT_TARGET_NAME})
+  if(NOT CHIMAERA_NAMESPACE)
+    message(FATAL_ERROR "namespace not found in ${CONFIG_FILE}. Content preview: ${CONFIG_CONTENT}")
   endif()
 endfunction()
 
-# Function to install ChiMod libraries
-# Automatically finds targets created by add_chimod_both using global properties
-function(install_chimod)
-  cmake_parse_arguments(ARG
-    ""  # options
-    "NAMESPACE;CHIMOD_NAME;RUNTIME_TARGET;CLIENT_TARGET"  # one value args
-    ""  # multi value args
+#------------------------------------------------------------------------------
+# ChiMod Client Library Function
+#------------------------------------------------------------------------------
+
+# add_chimod_client - Create a ChiMod client library
+#
+# Parameters:
+#   SOURCES             - Source files for the client library
+#   COMPILE_DEFINITIONS - Additional compile definitions
+#   LINK_LIBRARIES      - Additional libraries to link
+#   LINK_DIRECTORIES    - Additional link directories
+#   INCLUDE_LIBRARIES   - Libraries whose includes should be added
+#   INCLUDE_DIRECTORIES - Additional include directories
+#
+function(add_chimod_client)
+  cmake_parse_arguments(
+    ARG
+    ""
+    ""
+    "SOURCES;COMPILE_DEFINITIONS;LINK_LIBRARIES;LINK_DIRECTORIES;INCLUDE_LIBRARIES;INCLUDE_DIRECTORIES"
     ${ARGN}
   )
   
-  # Use project namespace if not provided
-  if(NOT ARG_NAMESPACE)
-    # Try to read from local chimaera_repo.yaml first
-    read_repo_namespace(REPO_NAMESPACE "${CMAKE_CURRENT_SOURCE_DIR}")
-    if(DEFINED CHIMAERA_NAMESPACE)
-      set(ARG_NAMESPACE ${CHIMAERA_NAMESPACE})
-    else()
-      set(ARG_NAMESPACE "${REPO_NAMESPACE}")
-    endif()
-  endif()
+  # Read module configuration
+  chimaera_read_module_config(${CMAKE_CURRENT_SOURCE_DIR})
   
-  if(NOT ARG_CHIMOD_NAME)
-    message(FATAL_ERROR "install_chimod: CHIMOD_NAME is required")
-  endif()
+  # Create target name
+  set(TARGET_NAME "${CHIMAERA_NAMESPACE}_${CHIMAERA_MODULE_NAME}_client")
   
-  # Get target names from global properties or compute them
-  set(TARGETS_TO_INSTALL "")
+  # Create the library
+  add_library(${TARGET_NAME} SHARED ${ARG_SOURCES})
   
-  if(ARG_RUNTIME_TARGET)
-    # Use explicitly provided target name
-    if(TARGET ${ARG_RUNTIME_TARGET})
-      list(APPEND TARGETS_TO_INSTALL ${ARG_RUNTIME_TARGET})
-    endif()
-  else()
-    # Get runtime target from global property or compute it
-    get_property(RUNTIME_TARGET GLOBAL PROPERTY ${ARG_CHIMOD_NAME}_RUNTIME_TARGET)
-    if(NOT RUNTIME_TARGET)
-      set(RUNTIME_TARGET "${ARG_NAMESPACE}_${ARG_CHIMOD_NAME}_runtime")
-    endif()
-    if(TARGET ${RUNTIME_TARGET})
-      list(APPEND TARGETS_TO_INSTALL ${RUNTIME_TARGET})
-    endif()
-  endif()
+  # Set C++ standard
+  target_compile_features(${TARGET_NAME} PUBLIC cxx_std_${CHIMAERA_CXX_STANDARD})
   
-  if(ARG_CLIENT_TARGET)
-    # Use explicitly provided target name
-    if(TARGET ${ARG_CLIENT_TARGET})
-      list(APPEND TARGETS_TO_INSTALL ${ARG_CLIENT_TARGET})
-    endif()
-  else()
-    # Get client target from global property or compute it
-    get_property(CLIENT_TARGET GLOBAL PROPERTY ${ARG_CHIMOD_NAME}_CLIENT_TARGET)
-    if(NOT CLIENT_TARGET)
-      set(CLIENT_TARGET "${ARG_NAMESPACE}_${ARG_CHIMOD_NAME}_client")
-    endif()
-    if(TARGET ${CLIENT_TARGET})
-      list(APPEND TARGETS_TO_INSTALL ${CLIENT_TARGET})
-    endif()
-  endif()
+  # Add compile definitions
+  target_compile_definitions(${TARGET_NAME}
+    PUBLIC
+      ${CHIMAERA_COMMON_COMPILE_DEFS}
+      ${ARG_COMPILE_DEFINITIONS}
+  )
   
-  if(TARGETS_TO_INSTALL)
-    # Use the package name format that CMake expects for automatic config generation
-    set(MODULE_PACKAGE_NAME "${ARG_NAMESPACE}-${ARG_CHIMOD_NAME}")
-    set(MODULE_EXPORT_NAME "${MODULE_PACKAGE_NAME}")
-    
-    # Install targets with module-specific export set
-    install(TARGETS ${TARGETS_TO_INSTALL}
-      EXPORT ${MODULE_EXPORT_NAME}
-      LIBRARY DESTINATION lib
-      ARCHIVE DESTINATION lib
-      RUNTIME DESTINATION bin
-      INCLUDES DESTINATION include
+  # Add include directories
+  target_include_directories(${TARGET_NAME}
+    PUBLIC
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+      $<INSTALL_INTERFACE:include>
+      ${CHIMAERA_COMMON_INCLUDES}
+  )
+  
+  # Add additional include directories with BUILD_INTERFACE wrapper
+  foreach(INCLUDE_DIR ${ARG_INCLUDE_DIRECTORIES})
+    target_include_directories(${TARGET_NAME} PUBLIC
+      $<BUILD_INTERFACE:${INCLUDE_DIR}>
     )
-    
-    # Install headers if they exist
-    set(CHIMOD_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
-    if(EXISTS "${CHIMOD_INCLUDE_DIR}")
-      install(DIRECTORY "${CHIMOD_INCLUDE_DIR}/"
-        DESTINATION include
-        FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp"
-      )
+  endforeach()
+  
+  # Add include directories from INCLUDE_LIBRARIES
+  foreach(LIB ${ARG_INCLUDE_LIBRARIES})
+    get_target_property(LIB_INCLUDES ${LIB} INTERFACE_INCLUDE_DIRECTORIES)
+    if(LIB_INCLUDES)
+      target_include_directories(${TARGET_NAME} PUBLIC ${LIB_INCLUDES})
     endif()
-    
+  endforeach()
+  
+  # Add link directories
+  if(ARG_LINK_DIRECTORIES)
+    target_link_directories(${TARGET_NAME} PUBLIC ${ARG_LINK_DIRECTORIES})
+  endif()
+  
+  # Link libraries - use hermes_shm::cxx for internal builds, chimaera::cxx for external
+  set(CORE_LIB "")
+  if(TARGET chimaera::cxx)
+    set(CORE_LIB chimaera::cxx)
+  elseif(TARGET hermes_shm::cxx)
+    set(CORE_LIB hermes_shm::cxx)
+  elseif(TARGET HermesShm::cxx)
+    set(CORE_LIB HermesShm::cxx)
+  elseif(TARGET cxx)
+    set(CORE_LIB cxx)
+  else()
+    message(FATAL_ERROR "Neither chimaera::cxx, hermes_shm::cxx, HermesShm::cxx nor cxx target found")
+  endif()
+  
+  target_link_libraries(${TARGET_NAME}
+    PUBLIC
+      ${CORE_LIB}
+      ${CHIMAERA_COMMON_LIBS}
+      ${ARG_LINK_LIBRARIES}
+  )
+  
+  # Create alias for external use
+  add_library(${CHIMAERA_NAMESPACE}::${CHIMAERA_MODULE_NAME}_client ALIAS ${TARGET_NAME})
+  
+  # Set properties for installation
+  set_target_properties(${TARGET_NAME} PROPERTIES
+    EXPORT_NAME "${CHIMAERA_MODULE_NAME}_client"
+    OUTPUT_NAME "${CHIMAERA_MODULE_NAME}_client"
+  )
+  
+  # Install the client library
+  set(MODULE_PACKAGE_NAME "${CHIMAERA_NAMESPACE}_${CHIMAERA_MODULE_NAME}")
+  set(MODULE_EXPORT_NAME "${MODULE_PACKAGE_NAME}")
+  
+  install(TARGETS ${TARGET_NAME}
+    EXPORT ${MODULE_EXPORT_NAME}
+    LIBRARY DESTINATION lib
+    ARCHIVE DESTINATION lib
+    RUNTIME DESTINATION bin
+    INCLUDES DESTINATION include
+  )
+  
+  # Install headers
+  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/include")
+    install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/"
+      DESTINATION include
+      FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp"
+    )
+  endif()
+  
+  # Export module info to parent scope
+  set(CHIMAERA_MODULE_CLIENT_TARGET ${TARGET_NAME} PARENT_SCOPE)
+  set(CHIMAERA_MODULE_NAME ${CHIMAERA_MODULE_NAME} PARENT_SCOPE)
+  set(CHIMAERA_NAMESPACE ${CHIMAERA_NAMESPACE} PARENT_SCOPE)
+endfunction()
+
+#------------------------------------------------------------------------------
+# ChiMod Runtime Library Function
+#------------------------------------------------------------------------------
+
+# add_chimod_runtime - Create a ChiMod runtime library
+#
+# Parameters:
+#   SOURCES             - Source files for the runtime library
+#   COMPILE_DEFINITIONS - Additional compile definitions
+#   LINK_LIBRARIES      - Additional libraries to link
+#   LINK_DIRECTORIES    - Additional link directories
+#   INCLUDE_LIBRARIES   - Libraries whose includes should be added
+#   INCLUDE_DIRECTORIES - Additional include directories
+#
+function(add_chimod_runtime)
+  cmake_parse_arguments(
+    ARG
+    ""
+    ""
+    "SOURCES;COMPILE_DEFINITIONS;LINK_LIBRARIES;LINK_DIRECTORIES;INCLUDE_LIBRARIES;INCLUDE_DIRECTORIES"
+    ${ARGN}
+  )
+  
+  # Read module configuration
+  chimaera_read_module_config(${CMAKE_CURRENT_SOURCE_DIR})
+  
+  # Create target name
+  set(TARGET_NAME "${CHIMAERA_NAMESPACE}_${CHIMAERA_MODULE_NAME}_runtime")
+  
+  # Create the library
+  add_library(${TARGET_NAME} SHARED ${ARG_SOURCES})
+  
+  # Set C++ standard
+  target_compile_features(${TARGET_NAME} PUBLIC cxx_std_${CHIMAERA_CXX_STANDARD})
+  
+  # Add compile definitions (runtime always has CHIMAERA_RUNTIME=1)
+  target_compile_definitions(${TARGET_NAME}
+    PUBLIC
+      CHIMAERA_RUNTIME=1
+      ${CHIMAERA_COMMON_COMPILE_DEFS}
+      ${ARG_COMPILE_DEFINITIONS}
+  )
+  
+  # Add include directories
+  target_include_directories(${TARGET_NAME}
+    PUBLIC
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+      $<INSTALL_INTERFACE:include>
+      ${CHIMAERA_COMMON_INCLUDES}
+  )
+  
+  # Add additional include directories with BUILD_INTERFACE wrapper
+  foreach(INCLUDE_DIR ${ARG_INCLUDE_DIRECTORIES})
+    target_include_directories(${TARGET_NAME} PUBLIC
+      $<BUILD_INTERFACE:${INCLUDE_DIR}>
+    )
+  endforeach()
+  
+  # Add include directories from INCLUDE_LIBRARIES
+  foreach(LIB ${ARG_INCLUDE_LIBRARIES})
+    get_target_property(LIB_INCLUDES ${LIB} INTERFACE_INCLUDE_DIRECTORIES)
+    if(LIB_INCLUDES)
+      target_include_directories(${TARGET_NAME} PUBLIC ${LIB_INCLUDES})
+    endif()
+  endforeach()
+  
+  # Add link directories
+  if(ARG_LINK_DIRECTORIES)
+    target_link_directories(${TARGET_NAME} PUBLIC ${ARG_LINK_DIRECTORIES})
+  endif()
+  
+  # Link libraries - use hermes_shm::cxx for internal builds, chimaera::cxx for external
+  set(CORE_LIB "")
+  if(TARGET chimaera::cxx)
+    set(CORE_LIB chimaera::cxx)
+  elseif(TARGET hermes_shm::cxx)
+    set(CORE_LIB hermes_shm::cxx)
+  elseif(TARGET HermesShm::cxx)
+    set(CORE_LIB HermesShm::cxx)
+  elseif(TARGET cxx)
+    set(CORE_LIB cxx)
+  else()
+    message(FATAL_ERROR "Neither chimaera::cxx, hermes_shm::cxx, HermesShm::cxx nor cxx target found")
+  endif()
+  
+  # Automatically link to client library if it exists
+  set(RUNTIME_LINK_LIBS ${CORE_LIB} ${CHIMAERA_COMMON_LIBS} ${ARG_LINK_LIBRARIES})
+  if(CHIMAERA_MODULE_CLIENT_TARGET AND TARGET ${CHIMAERA_MODULE_CLIENT_TARGET})
+    list(APPEND RUNTIME_LINK_LIBS ${CHIMAERA_MODULE_CLIENT_TARGET})
+  endif()
+  
+  target_link_libraries(${TARGET_NAME}
+    PUBLIC
+      ${RUNTIME_LINK_LIBS}
+    PRIVATE
+      rt  # POSIX real-time library for async I/O
+  )
+  
+  # Create alias for external use
+  add_library(${CHIMAERA_NAMESPACE}::${CHIMAERA_MODULE_NAME}_runtime ALIAS ${TARGET_NAME})
+  
+  # Set properties for installation
+  set_target_properties(${TARGET_NAME} PROPERTIES
+    EXPORT_NAME "${CHIMAERA_MODULE_NAME}_runtime"
+    OUTPUT_NAME "${CHIMAERA_MODULE_NAME}_runtime"
+  )
+  
+  # Install the runtime library (add to existing export set if client exists)
+  set(MODULE_PACKAGE_NAME "${CHIMAERA_NAMESPACE}_${CHIMAERA_MODULE_NAME}")
+  set(MODULE_EXPORT_NAME "${MODULE_PACKAGE_NAME}")
+  
+  install(TARGETS ${TARGET_NAME}
+    EXPORT ${MODULE_EXPORT_NAME}
+    LIBRARY DESTINATION lib
+    ARCHIVE DESTINATION lib
+    RUNTIME DESTINATION bin
+    INCLUDES DESTINATION include
+  )
+  
+  # Install headers (only if not already installed by client)
+  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/include" AND NOT CHIMAERA_MODULE_CLIENT_TARGET)
+    install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/"
+      DESTINATION include
+      FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp"
+    )
+  endif()
+  
+  # Generate and install package config files (only do this once per module)
+  # Check if both client and runtime exist, or if this is runtime-only
+  set(SHOULD_GENERATE_CONFIG FALSE)
+  if(CHIMAERA_MODULE_CLIENT_TARGET AND TARGET ${CHIMAERA_MODULE_CLIENT_TARGET})
+    # Both client and runtime exist, generate config
+    set(SHOULD_GENERATE_CONFIG TRUE)
+  elseif(NOT CHIMAERA_MODULE_CLIENT_TARGET)
+    # Runtime-only module, generate config
+    set(SHOULD_GENERATE_CONFIG TRUE)
+  endif()
+  
+  if(SHOULD_GENERATE_CONFIG)
     # Export targets file
     install(EXPORT ${MODULE_EXPORT_NAME}
       FILE ${MODULE_EXPORT_NAME}.cmake
-      NAMESPACE ${ARG_NAMESPACE}::
+      NAMESPACE ${CHIMAERA_NAMESPACE}::
       DESTINATION cmake/${MODULE_PACKAGE_NAME}
     )
     
@@ -250,16 +398,14 @@ function(install_chimod)
 
 include(CMakeFindDependencyMacro)
 
-# Find required dependencies for external projects
-find_dependency(HermesShm CONFIG REQUIRED)
-find_dependency(cereal REQUIRED)
-find_dependency(Boost REQUIRED COMPONENTS fiber context)
+# Find the core Chimaera package (handles all other dependencies)
+find_dependency(chimaera REQUIRED)
 
 # Include the exported targets
 include(\"\${CMAKE_CURRENT_LIST_DIR}/${MODULE_EXPORT_NAME}.cmake\")
 
-# Provide components
-check_required_components(${ARG_NAMESPACE}_${ARG_CHIMOD_NAME})
+# Provide components  
+check_required_components(${MODULE_PACKAGE_NAME})
 ")
     
     # Write Config.cmake template
@@ -281,15 +427,66 @@ check_required_components(${ARG_NAMESPACE}_${ARG_CHIMOD_NAME})
       COMPATIBILITY SameMajorVersion
     )
     
-    # Install Config and ConfigVersion files in cmake/${MODULE_PACKAGE_NAME}/ directory
+    # Install Config and ConfigVersion files
     install(FILES
       "${CMAKE_CURRENT_BINARY_DIR}/${MODULE_PACKAGE_NAME}Config.cmake"
       "${CMAKE_CURRENT_BINARY_DIR}/${MODULE_PACKAGE_NAME}ConfigVersion.cmake"
       DESTINATION cmake/${MODULE_PACKAGE_NAME}
     )
     
-    message(STATUS "Created module package: ${ARG_NAMESPACE}::${ARG_CHIMOD_NAME}")
-    message(STATUS "  Export set: ${MODULE_EXPORT_NAME}")
-    message(STATUS "  Config location: cmake/${MODULE_PACKAGE_NAME}")
+    # Collect targets for status message
+    set(INSTALLED_TARGETS ${TARGET_NAME})
+    if(CHIMAERA_MODULE_CLIENT_TARGET AND TARGET ${CHIMAERA_MODULE_CLIENT_TARGET})
+      list(APPEND INSTALLED_TARGETS ${CHIMAERA_MODULE_CLIENT_TARGET})
+    endif()
+    
+    message(STATUS "Created module package: ${MODULE_PACKAGE_NAME}")
+    message(STATUS "  Targets: ${INSTALLED_TARGETS}")
+    message(STATUS "  Aliases: ${CHIMAERA_NAMESPACE}::${CHIMAERA_MODULE_NAME}_client, ${CHIMAERA_NAMESPACE}::${CHIMAERA_MODULE_NAME}_runtime")
   endif()
+  
+  # Export module info to parent scope
+  set(CHIMAERA_MODULE_RUNTIME_TARGET ${TARGET_NAME} PARENT_SCOPE)
+  set(CHIMAERA_MODULE_NAME ${CHIMAERA_MODULE_NAME} PARENT_SCOPE)
+  set(CHIMAERA_NAMESPACE ${CHIMAERA_NAMESPACE} PARENT_SCOPE)
+endfunction()
+
+#------------------------------------------------------------------------------
+# Installation is now handled automatically within add_chimod_client/runtime
+#------------------------------------------------------------------------------
+
+#------------------------------------------------------------------------------
+# Legacy Support (Backward Compatibility)
+#------------------------------------------------------------------------------
+
+# Legacy add_chimod_both function for backward compatibility
+# Will be deprecated in future versions
+function(add_chimod_both)
+  message(WARNING "add_chimod_both is deprecated. Use add_chimod_client() and add_chimod_runtime() separately.")
+  
+  cmake_parse_arguments(ARG
+    ""  # options
+    "NAMESPACE;CHIMOD_NAME"  # one value args
+    "RUNTIME_SOURCES;CLIENT_SOURCES"  # multi value args
+    ${ARGN}
+  )
+  
+  # For backward compatibility, create chimaera_mod.yaml if it doesn't exist
+  if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/chimaera_mod.yaml")
+    set(YAML_CONTENT "module_name: ${ARG_CHIMOD_NAME}\nnamespace: ${ARG_NAMESPACE}\n")
+    file(WRITE "${CMAKE_CURRENT_SOURCE_DIR}/chimaera_mod.yaml" "${YAML_CONTENT}")
+    message(STATUS "Created chimaera_mod.yaml for ${ARG_CHIMOD_NAME}")
+  endif()
+  
+  # Call new functions (installation and client linking are now automatic)
+  if(ARG_CLIENT_SOURCES)
+    add_chimod_client(SOURCES ${ARG_CLIENT_SOURCES})
+  endif()
+  
+  if(ARG_RUNTIME_SOURCES)
+    add_chimod_runtime(SOURCES ${ARG_RUNTIME_SOURCES})
+  endif()
+  
+  # Note: No need to call install_chimod() - installation is automatic
+  # Note: Runtime automatically links to client library if both exist
 endfunction()

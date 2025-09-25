@@ -110,31 +110,31 @@ public:
   chi::u64 GetWorkRemaining() const override;
 
   //===========================================================================
-  // Task Serialization Methods
+  // Task Serialization Methods (automatically generated in autogen/)
   //===========================================================================
 
   /**
-   * Serialize task IN parameters for network transfer
+   * Serialize task IN parameters for network transfer (auto-generated)
    */
   void SaveIn(chi::u32 method, chi::TaskSaveInArchive& archive, hipc::FullPtr<chi::Task> task_ptr) override;
 
   /**
-   * Deserialize task IN parameters from network transfer
+   * Deserialize task IN parameters from network transfer (auto-generated)
    */
   void LoadIn(chi::u32 method, chi::TaskLoadInArchive& archive, hipc::FullPtr<chi::Task> task_ptr) override;
 
   /**
-   * Serialize task OUT parameters for network transfer
+   * Serialize task OUT parameters for network transfer (auto-generated)
    */
   void SaveOut(chi::u32 method, chi::TaskSaveOutArchive& archive, hipc::FullPtr<chi::Task> task_ptr) override;
 
   /**
-   * Deserialize task OUT parameters from network transfer
+   * Deserialize task OUT parameters from network transfer (auto-generated)
    */
   void LoadOut(chi::u32 method, chi::TaskLoadOutArchive& archive, hipc::FullPtr<chi::Task> task_ptr) override;
 
   /**
-   * Create a new copy of a task (deep copy for distributed execution)
+   * Create a new copy of a task for distributed execution (auto-generated)
    */
   void NewCopy(chi::u32 method, 
                const hipc::FullPtr<chi::Task> &orig_task,
