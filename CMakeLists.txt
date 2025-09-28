@@ -99,7 +99,13 @@ if(CHIMAERA_ENABLE_TESTS)
 endif()
 
 #------------------------------------------------------------------------------
-# SECTION 6: INSTALL CODE
+# SECTION 6: JARVIS INTEGRATION
+#------------------------------------------------------------------------------ 
+# Add Jarvis WRP runtime package
+jarvis_repo_add(${CMAKE_SOURCE_DIR}/test/jarvis_wrp_run "")
+
+#------------------------------------------------------------------------------
+# SECTION 7: INSTALL CODE
 #------------------------------------------------------------------------------
 # Install the main chimaera library using the same dynamic system as modules
 set(MAIN_EXPORT_NAME "${CHIMAERA_NAMESPACE}_coreTargets")
