@@ -13,7 +13,7 @@ from jarvis_cd.basic.pkg import Service
 from jarvis_util import *
 
 
-class WrpStartRuntime(Service):
+class WrpRuntime(Service):
     """
     Service package for starting Chimaera runtime on multiple nodes
     """
@@ -78,7 +78,7 @@ class WrpStartRuntime(Service):
                 'default': 536870912
             },
             {
-                'name': 'zmq_port',
+                'name': 'port',
                 'msg': 'ZeroMQ port for network communication',
                 'type': int,
                 'default': 5555
@@ -126,12 +126,6 @@ class WrpStartRuntime(Service):
                 'default': 30000
             },
             {
-                'name': 'runtime_binary',
-                'msg': 'Path to the chimaera_start_runtime binary',
-                'type': str,
-                'default': '${HOME}/iowarp-runtime/build/bin/chimaera_start_runtime'
-            },
-            {
                 'name': 'hostfile',
                 'msg': 'Path to hostfile for distributed deployment',
                 'type': str,
@@ -163,7 +157,7 @@ class WrpStartRuntime(Service):
                 "runtime_data_segment_size": self.config["runtime_data_segment_size"]
             },
             "network": {
-                "zmq_port": self.config["zmq_port"]
+                "port": self.config["port"]
             },
             "logging": {
                 "level": self.config["logging_level"],
@@ -219,16 +213,15 @@ class WrpStartRuntime(Service):
         
         # Create PsshExecInfo to launch runtime on all nodes
         hostfile = self.config["hostfile"]
-        runtime_binary = self.config["runtime_binary"]
         
         if not os.path.exists(hostfile):
             raise FileNotFoundError(f"Hostfile not found: {hostfile}")
         
         self.log(f"Starting Chimaera runtime on nodes from hostfile: {hostfile}")
-        self.log(f"Using runtime binary: {runtime_binary}")
+        self.log("Using chimaera_start_runtime from PATH environment variable")
         
         # Use PsshExecInfo to launch on all nodes specified in hostfile
-        self.daemon_pkg = Exec(f"export CHI_SERVER_CONF={config_path} && {runtime_binary}",
+        self.daemon_pkg = Exec(f"export CHI_SERVER_CONF={config_path} && chimaera_start_runtime",
                                PsshExecInfo(hostfile=hostfile, env=self.env, exec_async=True))
         
         self.log("Chimaera runtime started successfully on all nodes")
@@ -243,23 +236,18 @@ class WrpStartRuntime(Service):
             self.log(f"Warning: Hostfile not found: {hostfile}")
             return
             
-        # Find the stop runtime binary (assume it's in same directory as start binary)
-        runtime_binary = self.config["runtime_binary"]
-        runtime_dir = os.path.dirname(runtime_binary)
-        stop_binary = os.path.join(runtime_dir, "chimaera_stop_runtime")
-        
         self.log(f"Stopping Chimaera runtime on nodes from hostfile: {hostfile}")
-        self.log(f"Using stop binary: {stop_binary}")
+        self.log("Using chimaera_stop_runtime from PATH environment variable")
         
         # Use PsshExecInfo to stop on all nodes
-        Exec(stop_binary, PsshExecInfo(hostfile=hostfile, env=self.env))
+        Exec("chimaera_stop_runtime", PsshExecInfo(hostfile=hostfile, env=self.env))
         
         # Wait for daemon to finish if it exists
         if hasattr(self, 'daemon_pkg') and self.daemon_pkg is not None:
             self.daemon_pkg.wait()
         
         # Clean up generated config file if we created it
-        if "CHI_SERVER_CONF" in self.env and self.env["CHI_SERVER_CONF"].startswith("/tmp/"):
+        if "CHI_SERVER_CONF" in self.env:
             try:
                 os.unlink(self.env["CHI_SERVER_CONF"])
                 self.log(f"Cleaned up temporary config file: {self.env['CHI_SERVER_CONF']}")

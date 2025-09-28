@@ -187,7 +187,7 @@ This creates:
 - **MOD_NAME**: `chimaera::MOD_NAME_client`, `chimaera::MOD_NAME_runtime`
 
 ### Automatic Dependency Linking
-The `add_chimod_both` function automatically handles common dependencies:
+ChiMod libraries automatically handle common dependencies:
 
 **Automatic Dependencies for Runtime Code:**
 - `rt` library: Automatically linked to all ChiMod runtime targets for POSIX real-time library support (async I/O)
@@ -205,31 +205,11 @@ target_link_libraries(your_target
 # All target names use underscores consistently
 ```
 
-**For Internal Development:**
-ChiMod CMakeLists.txt files only need to specify source files:
-```cmake
-add_chimod_both(
-  CHIMOD_NAME your_chimod_name
-  RUNTIME_SOURCES src/your_chimod_runtime.cc src/autogen/your_chimod_lib_exec.cc
-  CLIENT_SOURCES src/your_chimod_client.cc
-)
-# rt library and admin dependencies are automatically linked
-```
-
 ### ChiMod Creation and Installation
-Use the ChimaeraCommon.cmake utilities for creating ChiMods:
-
-**Creating ChiMod libraries:**
-```cmake
-add_chimod_both(
-  CHIMOD_NAME your_chimod_name
-  RUNTIME_SOURCES src/your_chimod_runtime.cc src/autogen/your_chimod_lib_exec.cc
-  CLIENT_SOURCES src/your_chimod_client.cc
-)
-```
+ChiMod libraries are created using ChimaeraCommon.cmake utilities with separate client and runtime targets.
 
 **Automatic Dependencies:**
-The `add_chimod_both` function automatically handles common dependencies:
+ChiMod libraries automatically handle common dependencies:
 
 - **Runtime Libraries**: Automatically links `rt` (POSIX real-time library) to all runtime targets for async I/O operations
 - **Admin ChiMod Integration**: For non-admin chimods, automatically links both `chimaera_admin_runtime` and `chimaera_admin_client` and includes admin headers
@@ -238,11 +218,11 @@ The `add_chimod_both` function automatically handles common dependencies:
 This eliminates the need for manual dependency configuration in individual ChiMod CMakeLists.txt files.
 
 **ChiMod Installation:**
-Installation is now automatic - no separate `install_chimod()` call required. The `add_chimod_client()` and `add_chimod_runtime()` functions automatically handle:
+Installation is automatic - no separate `install_chimod()` call required. The `add_chimod_client()` and `add_chimod_runtime()` functions automatically handle:
 - Target installation with proper export sets
-- Header installation
-- Package configuration file generation
-- CMake export file creation
+- Header installation to `include/[namespace]/[module_name]/`
+- Package configuration file generation (`[namespace]_[module]Config.cmake`)
+- CMake export file creation for external projects
 - Runtime libraries automatically link to client libraries when both exist
 
 ### Include Directory Requirements

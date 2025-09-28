@@ -17,15 +17,14 @@ The Admin ChiMod is a critical component of the Chimaera runtime system that man
 To use the Admin ChiMod in external projects:
 
 ```cmake
-find_package(chimaera-admin REQUIRED)
-find_package(chimaera-core REQUIRED)
+find_package(chimaera_admin REQUIRED)      # Admin ChiMod package
+find_package(chimaera REQUIRED)            # Core Chimaera (automatically includes ChimaeraCommon.cmake)
 
 target_link_libraries(your_application
   chimaera::admin_client        # Admin client library
-  chimaera::cxx                 # Main chimaera library
-  hshm::cxx                     # HermesShm library
   ${CMAKE_THREAD_LIBS_INIT}     # Threading support
 )
+# Core Chimaera library dependencies are automatically included by ChiMod libraries
 ```
 
 ### Required Headers
@@ -58,21 +57,23 @@ explicit Client(const chi::PoolId& pool_id)
 Creates and initializes the admin container.
 
 ```cpp
-void Create(const hipc::MemContext& mctx, const chi::PoolQuery& pool_query)
+void Create(const hipc::MemContext& mctx, const chi::PoolQuery& pool_query, 
+           const std::string& pool_name)
 ```
 
 **Parameters:**
 - `mctx`: Memory context for task allocation
 - `pool_query`: Pool domain query (typically `chi::PoolQuery::Local()`)
+- `pool_name`: Pool name (MUST be "admin" for admin containers)
 
 **Usage:**
 ```cpp
 chi::CHIMAERA_CLIENT_INIT();
-const chi::PoolId pool_id = chi::PoolId(7000, 0);
+const chi::PoolId pool_id = chi::kAdminPoolId;  // Use predefined admin pool ID
 chimaera::admin::Client admin_client(pool_id);
 
 auto pool_query = chi::PoolQuery::Local();
-admin_client.Create(HSHM_MCTX, pool_query);
+admin_client.Create(HSHM_MCTX, pool_query, "admin");  // Pool name MUST be "admin"
 ```
 
 ##### `AsyncCreate()` - Asynchronous
@@ -80,7 +81,8 @@ Creates and initializes the admin container asynchronously.
 
 ```cpp
 hipc::FullPtr<CreateTask> AsyncCreate(const hipc::MemContext& mctx,
-                                     const chi::PoolQuery& pool_query)
+                                     const chi::PoolQuery& pool_query,
+                                     const std::string& pool_name)
 ```
 
 **Returns:** Task pointer for asynchronous completion checking
@@ -236,13 +238,14 @@ hipc::FullPtr<StopRuntimeTask> AsyncStopRuntime(
 ## Task Types
 
 ### CreateTask
-Container creation task for the admin module.
+Container creation task for the admin module. This is an alias for `chimaera::admin::BaseCreateTask<CreateParams, Method::kCreate, true>`.
 
 **Key Fields:**
+- Inherits from `BaseCreateTask` with admin-specific `CreateParams`
 - `chimod_name_`: Name of the ChiMod being created
-- `pool_name_`: Name of the pool
+- `pool_name_`: Name of the pool (must be "admin" for admin containers)
 - `chimod_params_`: Serialized parameters
-- `pool_id_`: Pool identifier
+- `pool_id_`: Pool identifier (input/output)
 - `result_code_`: Operation result (0 = success)
 - `error_message_`: Error description if creation failed
 
@@ -329,13 +332,13 @@ int main() {
   // Initialize Chimaera client
   chi::CHIMAERA_CLIENT_INIT();
   
-  // Create admin client
-  const chi::PoolId pool_id = chi::PoolId(7000, 0);
+  // Create admin client with proper admin pool ID
+  const chi::PoolId pool_id = chi::kAdminPoolId;
   chimaera::admin::Client admin_client(pool_id);
   
-  // Create admin container
+  // Create admin container (pool name MUST be "admin")
   auto pool_query = chi::PoolQuery::Local();
-  admin_client.Create(HSHM_MCTX, pool_query);
+  admin_client.Create(HSHM_MCTX, pool_query, "admin");
   
   // Perform admin operations...
   admin_client.Flush(HSHM_MCTX, pool_query);
@@ -437,7 +440,9 @@ ipc_manager->DelTask(task);
 
 1. **Pool ID for CreateTask**: All ChiMod CreateTask operations must use `chi::kAdminPoolId`, not the client's `pool_id_`.
 
-2. **Admin Dependency**: The admin module is required by all other ChiMods and must be linked in all Chimaera applications.
+2. **Admin Pool Name**: The admin pool name MUST always be "admin". Multiple admin pools are NOT supported.
+
+3. **Admin Dependency**: The admin module is required by all other ChiMods and must be linked in all Chimaera applications.
 
 3. **Asynchronous Operations**: Always clean up task pointers after completion using `ipc_manager->DelTask(task)`.
 

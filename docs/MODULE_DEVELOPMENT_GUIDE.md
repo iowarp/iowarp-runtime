@@ -25,7 +25,7 @@ Chimaera modules (ChiMods) are dynamically loadable components that extend the r
 - **Task definitions**: Shared structures for client-server communication
 - **Configuration**: YAML metadata describing the module
 
-**Header Organization**: All ChiMod headers are organized under the `chimaera` namespace directory structure (`include/chimaera/[module_name]/`) to provide clear namespace separation and prevent header conflicts.
+**Header Organization**: All ChiMod headers are organized under the namespace directory structure (`include/[namespace]/[module_name]/`) to provide clear namespace separation and prevent header conflicts.
 
 ## Architecture
 
@@ -39,7 +39,7 @@ Chimaera modules (ChiMods) are dynamically loadable components that extend the r
 ```
 ChiMod/
 ├── include/
-│   └── chimaera/
+│   └── [namespace]/
 │       └── MOD_NAME/
 │           ├── MOD_NAME_client.h     # Client API
 │           ├── MOD_NAME_runtime.h    # Runtime container
@@ -56,12 +56,12 @@ ChiMod/
 ```
 
 **Include Directory Structure:**
-- All ChiMod headers are organized under the `chimaera` namespace directory
-- Structure: `include/chimaera/[module_name]/`
-- Example: Admin headers are in `include/chimaera/admin/`
+- All ChiMod headers are organized under the namespace directory
+- Structure: `include/[namespace]/[module_name]/`
+- Example: Admin headers are in `include/[namespace]/admin/` (where `[namespace]` is the namespace from `chimaera_repo.yaml`)
 - Headers follow naming pattern: `[module_name]_[type].h`
 - Auto-generated headers are in the `autogen/` subdirectory
-- **Note**: The chimod directory name (e.g., `chimods/`, `modules/`) is flexible and doesn't need to match the namespace
+- **Note**: The namespace comes from `chimaera_repo.yaml` and the chimod directory name doesn't need to match the namespace
 
 ## Coding Style
 
@@ -117,9 +117,9 @@ Task definition patterns:
 #define MOD_NAME_TASKS_H_
 
 #include <chimaera/chimaera.h>
-#include <chimaera/MOD_NAME/autogen/MOD_NAME_methods.h>
+#include <[namespace]/MOD_NAME/autogen/MOD_NAME_methods.h>
 // Include admin tasks for GetOrCreatePoolTask
-#include <chimaera/admin/admin_tasks.h>
+#include <[namespace]/admin/admin_tasks.h>
 
 namespace chimaera::MOD_NAME {
 
@@ -211,7 +211,7 @@ The client provides a simple API for task submission:
 #define MOD_NAME_CLIENT_H_
 
 #include <chimaera/chimaera.h>
-#include <chimaera/MOD_NAME/MOD_NAME_tasks.h>
+#include <[namespace]/MOD_NAME/MOD_NAME_tasks.h>
 
 namespace chimaera::MOD_NAME {
 
@@ -369,7 +369,7 @@ The runtime container executes tasks server-side:
 #define MOD_NAME_RUNTIME_H_
 
 #include <chimaera/chimaera.h>
-#include <chimaera/MOD_NAME/MOD_NAME_tasks.h>
+#include <[namespace]/MOD_NAME/MOD_NAME_tasks.h>
 
 namespace chimaera::MOD_NAME {
 
@@ -564,7 +564,7 @@ The `chi_refresh_repo` utility automatically generates autogen files from YAML c
 #### Generated Files
 For each ChiMod, the utility generates:
 
-1. **`include/chimaera/MOD_NAME/autogen/MOD_NAME_methods.h`**:
+1. **`include/[namespace]/MOD_NAME/autogen/MOD_NAME_methods.h`**:
    ```cpp
    namespace chimaera::MOD_NAME {
    namespace Method {
@@ -748,7 +748,7 @@ For modules that need container creation functionality, use the BaseCreateTask t
 All non-admin ChiMods should use `GetOrCreatePoolTask` which is a specialized version of BaseCreateTask designed for external pool creation:
 
 ```cpp
-#include <admin/admin_tasks.h>  // Include admin templates
+#include <[namespace]/admin/admin_tasks.h>  // Include admin templates
 
 namespace chimaera::MOD_NAME {
 
@@ -1607,7 +1607,7 @@ For task definitions and any data that needs to be shared between client and run
 Use `chi::ipc::string` or `hipc::string` instead of `std::string` in task definitions:
 
 ```cpp
-#include <chimaera/types.h>
+#include <[namespace]/types.h>
 
 // Task definition using shared-memory string
 struct CustomTask : public chi::Task {
@@ -1700,84 +1700,206 @@ ChiMod CMakeLists.txt files should use the standardized ChimaeraCommon.cmake fun
 cmake_minimum_required(VERSION 3.10)
 
 # Create both client and runtime libraries for your module
-# This creates targets: ${NAMESPACE}_${CHIMOD_NAME}-runtime and ${NAMESPACE}_${CHIMOD_NAME}-client
-# Pretty aliases: ${NAMESPACE}::${CHIMOD_NAME}-runtime and ${NAMESPACE}::${CHIMOD_NAME}-client
-add_chimod_both(
+# This creates targets: ${NAMESPACE}_${CHIMOD_NAME}_runtime and ${NAMESPACE}_${CHIMOD_NAME}_client
+# CMake aliases: ${NAMESPACE}::${CHIMOD_NAME}_runtime and ${NAMESPACE}::${CHIMOD_NAME}_client
+add_chimod_client(
   CHIMOD_NAME YOUR_MODULE_NAME
-  RUNTIME_SOURCES src/YOUR_MODULE_NAME_runtime.cc
-  CLIENT_SOURCES src/YOUR_MODULE_NAME_client.cc
+  SOURCES src/YOUR_MODULE_NAME_client.cc
+)
+add_chimod_runtime(
+  CHIMOD_NAME YOUR_MODULE_NAME
+  SOURCES src/YOUR_MODULE_NAME_runtime.cc src/autogen/YOUR_MODULE_NAME_lib_exec.cc
 )
 
-# Install the ChiMod
-# Automatically finds and installs the targets created above
-install_chimod(
-  CHIMOD_NAME YOUR_MODULE_NAME
-)
+# Installation is automatic - no separate install_chimod() call required
 ```
 
 ### CMakeLists.txt Guidelines
 
 **DO:**
-- Use `add_chimod_both()` and `install_chimod()` utility functions
+- Use `add_chimod_client()` and `add_chimod_runtime()` utility functions (installation is automatic)
 - Set `CHIMOD_NAME` to your module's name
-- List source files explicitly in `RUNTIME_SOURCES` and `CLIENT_SOURCES`
+- List source files explicitly in `SOURCES` parameters
+- Include autogen source files in runtime `SOURCES`
 - Keep the CMakeLists.txt minimal and consistent
 
 **DON'T:**
 - Use manual `add_library()` calls - use the utilities instead
+- Call `install_chimod()` separately - it's handled automatically
 - Include relative paths like `../include/*` - use proper include directories
 - Set custom compile definitions - the utilities handle this
 - Manually configure target properties - the utilities provide standard settings
 
-### Target Naming and Linking
+### ChiMod Build Functions Reference
 
-#### Modern Target Format (Current)
-The current system uses dash-based target names for better readability and consistency:
+#### `add_chimod_client()` Function
+Creates a ChiMod client library target with automatic dependency management.
 
-**Migration Note:** If you're upgrading from an older version, update any references from the old underscore format (`chimaera_admin_runtime`) to the new dash format (`chimaera_admin-runtime`). The pretty aliases provide a cleaner interface.
-
-**Target Names:**
-- **Runtime**: `${NAMESPACE}_${CHIMOD_NAME}_runtime` (e.g., `my_namespace_my_module_runtime`)
-- **Client**: `${NAMESPACE}_${CHIMOD_NAME}_client` (e.g., `my_namespace_my_module_client`)
-
-**CMake Aliases (Recommended):**
-- **Runtime**: `${NAMESPACE}::${CHIMOD_NAME}_runtime` (e.g., `my_namespace::my_module_runtime`)
-- **Client**: `${NAMESPACE}::${CHIMOD_NAME}_client` (e.g., `my_namespace::my_module_client`)
-
-**Package Names:**
-- Format: `${NAMESPACE}_${CHIMOD_NAME}` (e.g., `my_namespace_my_module`)
-- Used with: `find_package(my_namespace_my_module REQUIRED)`
-- Core package: `chimaera` (provides `chimaera::cxx`)
-
-**Linking Examples:**
 ```cmake
-# Use CMake aliases (recommended) - these are clean and readable
-target_link_libraries(my_app
-  my_namespace::my_module_client    # ChiMod client library (alias)
-  # Note: my_namespace::cxx is automatically included by ChiMod libraries
-)
-
-# Alternative: Direct target names (not recommended) - verbose and harder to read
-target_link_libraries(my_app
-  my_namespace_my_module_client     # Direct target name (avoid this)
-  # Note: Core library is automatically included by ChiMod libraries
+add_chimod_client(
+  SOURCES source_file1.cc source_file2.cc ...
+  [COMPILE_DEFINITIONS definition1 definition2 ...]
+  [LINK_LIBRARIES library1 library2 ...]
+  [LINK_DIRECTORIES directory1 directory2 ...]
+  [INCLUDE_LIBRARIES target1 target2 ...]
+  [INCLUDE_DIRECTORIES directory1 directory2 ...]
 )
 ```
 
-**Standard Chimaera Examples:**
+**Parameters:**
+- **`SOURCES`** (required): List of source files for the client library
+- **`COMPILE_DEFINITIONS`** (optional): Additional preprocessor definitions beyond automatic ones
+- **`LINK_LIBRARIES`** (optional): Additional libraries to link beyond automatic dependencies
+- **`LINK_DIRECTORIES`** (optional): Additional library search directories
+- **`INCLUDE_LIBRARIES`** (optional): Target libraries whose include directories should be inherited
+- **`INCLUDE_DIRECTORIES`** (optional): Additional include directories beyond automatic ones
+
+**Automatic Behavior:**
+- Creates target: `${NAMESPACE}_${CHIMOD_NAME}_client`
+- Creates alias: `${NAMESPACE}::${CHIMOD_NAME}_client`
+- Automatically links core Chimaera library (`chimaera::cxx` or `hermes_shm::cxx`)
+- For non-admin ChiMods: automatically links `chimaera_admin_client`
+- Automatically includes module headers from `include/` directory
+- Installs library and headers with proper CMake export configuration
+
+**Example:**
 ```cmake
-# Standard ChiMod examples - chimaera::cxx is automatically included
-target_link_libraries(my_app
-  chimaera::admin_client            # Admin client
-  chimaera::bdev_client             # BDev client
-  chimaera::MOD_NAME_client         # Custom ChiMod client
-  # Note: chimaera::cxx is automatically included by ChiMod libraries
+add_chimod_client(
+  SOURCES src/my_module_client.cc
+  COMPILE_DEFINITIONS MY_MODULE_DEBUG=1
+  LINK_LIBRARIES additional_lib
+  INCLUDE_DIRECTORIES ${EXTERNAL_INCLUDE_DIR}
+)
+```
+
+#### `add_chimod_runtime()` Function
+Creates a ChiMod runtime library target with automatic dependency management.
+
+```cmake
+add_chimod_runtime(
+  SOURCES source_file1.cc source_file2.cc ...
+  [COMPILE_DEFINITIONS definition1 definition2 ...]
+  [LINK_LIBRARIES library1 library2 ...]
+  [LINK_DIRECTORIES directory1 directory2 ...]
+  [INCLUDE_LIBRARIES target1 target2 ...]
+  [INCLUDE_DIRECTORIES directory1 directory2 ...]
+)
+```
+
+**Parameters:**
+- **`SOURCES`** (required): List of source files for the runtime library (include autogen files)
+- **`COMPILE_DEFINITIONS`** (optional): Additional preprocessor definitions beyond automatic ones
+- **`LINK_LIBRARIES`** (optional): Additional libraries to link beyond automatic dependencies
+- **`LINK_DIRECTORIES`** (optional): Additional library search directories
+- **`INCLUDE_LIBRARIES`** (optional): Target libraries whose include directories should be inherited
+- **`INCLUDE_DIRECTORIES`** (optional): Additional include directories beyond automatic ones
+
+**Automatic Behavior:**
+- Creates target: `${NAMESPACE}_${CHIMOD_NAME}_runtime`
+- Creates alias: `${NAMESPACE}::${CHIMOD_NAME}_runtime`
+- Automatically defines `CHIMAERA_RUNTIME=1` for runtime code
+- Automatically links core Chimaera library (`chimaera::cxx` or `hermes_shm::cxx`)
+- Automatically links `rt` library for POSIX real-time support
+- For non-admin ChiMods: automatically links both `chimaera_admin_runtime` and `chimaera_admin_client`
+- Automatically includes module headers from `include/` directory
+- Links to client library if it exists
+- Installs library and headers with proper CMake export configuration
+
+**Example:**
+```cmake
+add_chimod_runtime(
+  SOURCES 
+    src/my_module_runtime.cc 
+    src/autogen/my_module_lib_exec.cc
+  COMPILE_DEFINITIONS MY_MODULE_RUNTIME_DEBUG=1
+  LINK_LIBRARIES libaio
+  INCLUDE_DIRECTORIES ${LIBAIO_INCLUDE_DIR}
+)
+```
+
+#### Configuration Requirements
+Before using these functions, ensure your ChiMod directory contains:
+
+1. **`chimaera_mod.yaml`**: Module configuration file defining the module name
+   ```yaml
+   module_name: my_module
+   ```
+
+2. **Include structure**: Headers organized as `include/[namespace]/[module_name]/`
+3. **Source files**: Client and runtime implementations with autogen files for runtime
+
+#### Typical Usage Pattern
+Most ChiMods use both functions together:
+
+```cmake
+# Create client library
+add_chimod_client(
+  SOURCES src/my_module_client.cc
+)
+
+# Create runtime library
+add_chimod_runtime(
+  SOURCES 
+    src/my_module_runtime.cc 
+    src/autogen/my_module_lib_exec.cc
+)
+```
+
+**Function Dependencies:**
+Both functions automatically handle common dependencies:
+
+- **Core Library**: Automatically links appropriate Chimaera core library
+- **Runtime Libraries**: `add_chimod_runtime()` automatically links `rt` library for async I/O operations
+- **Admin ChiMod Integration**: For non-admin chimods, both functions automatically link admin libraries and include admin headers
+- **Client-Runtime Linking**: Runtime automatically links to client library when both exist
+
+This eliminates the need for manual dependency configuration in individual ChiMod CMakeLists.txt files.
+
+### Target Naming and Linking
+
+#### Target Format
+The system uses underscore-based target names for consistency with CMake conventions:
+
+**Target Names:**
+- **Runtime**: `${NAMESPACE}_${CHIMOD_NAME}_runtime` (e.g., `chimaera_admin_runtime`)
+- **Client**: `${NAMESPACE}_${CHIMOD_NAME}_client` (e.g., `chimaera_admin_client`)
+
+**CMake Aliases (Recommended):**
+- **Runtime**: `${NAMESPACE}::${CHIMOD_NAME}_runtime` (e.g., `chimaera::admin_runtime`)
+- **Client**: `${NAMESPACE}::${CHIMOD_NAME}_client` (e.g., `chimaera::admin_client`)
+
+**Package Names:**
+- Format: `${NAMESPACE}_${CHIMOD_NAME}` (e.g., `chimaera_admin`)
+- Used with: `find_package(chimaera_admin REQUIRED)`
+- Core package: `chimaera` (automatically included by `find_package(chimaera)`)
+
+**External Application Linking (Based on test/unit/external/CMakeLists.txt):**
+```cmake
+# External applications typically only need ChiMod client libraries
+# Core library dependencies are automatically included
+find_package(chimaera REQUIRED)
+find_package(chimaera_admin REQUIRED)
+
+target_link_libraries(my_external_app
+  chimaera::admin_client            # Admin client (includes all dependencies)
+  ${CMAKE_THREAD_LIBS_INIT}         # Threading support
+)
+# Note: chimaera::cxx is automatically included by ChiMod client libraries
+```
+
+**Internal Development Linking:**
+```cmake
+# For internal development within the Chimaera project
+target_link_libraries(internal_app
+  chimaera::admin_client            # ChiMod client
+  chimaera::bdev_client             # BDev client 
+  # Core dependencies are automatically linked by ChiMod libraries
 )
 ```
 
 ### Automatic Dependencies
 
-The `add_chimod_both()` function automatically handles common dependencies:
+The ChiMod build functions automatically handle common dependencies:
 
 **For Runtime Code:**
 - **rt library**: Automatically linked for POSIX real-time library support (async I/O operations)
@@ -1787,7 +1909,7 @@ The `add_chimod_both()` function automatically handles common dependencies:
 **For All ChiMods:**
 - Creates both client and runtime shared libraries
 - Sets proper include directories (include/, ${CMAKE_SOURCE_DIR}/include)
-- Links against the chimaera library (automatically includes `chimaera::cxx` as dependency)
+- Automatically links core Chimaera dependencies
 - Sets required compile definitions (CHI_CHIMOD_NAME, CHI_NAMESPACE)
 - Configures proper build flags and settings
 
@@ -1796,21 +1918,23 @@ ChiMod developers no longer need to manually specify:
 - `rt` library dependencies
 - Admin ChiMod dependencies (`chimaera_admin_runtime`, `chimaera_admin_client`)
 - Admin include directories
-- Core Chimaera library (`chimaera::cxx`) - automatically included
+- Core Chimaera library dependencies
 - Common linking patterns
 
 **Important Note for External Applications:**
-When linking against ChiMod libraries, you do NOT need to explicitly link `chimaera::cxx`. ChiMod libraries automatically include the core Chimaera library as a dependency.
+External applications linking against ChiMod libraries receive all necessary dependencies automatically. The ChiMod client libraries include the core Chimaera library as a transitive dependency.
 
-The `install_chimod()` function automatically:
+**Automatic Installation:**
+The ChiMod build functions automatically handle installation:
 - Installs libraries to the correct destination
 - Sets up proper runtime paths
 - Configures installation properties
 - Includes automatic dependencies in exported CMake packages
+- No separate `install_chimod()` call required
 
-### Targets Created by add_chimod_both()
+### Targets Created by ChiMod Functions
 
-When you call `add_chimod_both(CHIMOD_NAME YOUR_MODULE_NAME ...)`, it creates the following CMake targets using the new dash-based naming format:
+When you call `add_chimod_client()` and `add_chimod_runtime()` with `CHIMOD_NAME YOUR_MODULE_NAME`, they create the following CMake targets using the underscore-based naming format:
 
 #### Target Naming System
 - **Actual Target Names**: `${NAMESPACE}_${CHIMOD_NAME}_runtime` and `${NAMESPACE}_${CHIMOD_NAME}_client`
@@ -1895,7 +2019,7 @@ dependencies: []
 ```
 
 ### Auto-Generated Method Files
-Each module requires an auto-generated methods file at `include/MOD_NAME/autogen/MOD_NAME_methods.h`. This file must:
+Each module requires an auto-generated methods file at `include/[namespace]/MOD_NAME/autogen/MOD_NAME_methods.h`. This file must:
 
 1. **Include chimaera.h**: Required for GLOBAL_CONST macro
 2. **Use namespace constants**: Define methods as `GLOBAL_CONST chi::u32` values
@@ -2015,8 +2139,8 @@ The auto-generated source file contains:
  * Changes should be made to the autogen tool or the YAML configuration.
  */
 
-#include <chimaera/MOD_NAME/MOD_NAME_runtime.h>
-#include <chimaera/MOD_NAME/autogen/MOD_NAME_methods.h>
+#include <[namespace]/MOD_NAME/MOD_NAME_runtime.h>
+#include <[namespace]/MOD_NAME/autogen/MOD_NAME_methods.h>
 #include <chimaera/chimaera.h>
 
 namespace chimaera::MOD_NAME {
@@ -2134,10 +2258,13 @@ void Runtime::Monitor(chi::MonitorModeId mode, chi::u32 method,
 The auto-generated source file must be included in the `RUNTIME_SOURCES`:
 
 ```cmake
-add_chimod_both(
+add_chimod_client(
   CHIMOD_NAME MOD_NAME
-  RUNTIME_SOURCES src/MOD_NAME_runtime.cc src/autogen/MOD_NAME_lib_exec.cc
-  CLIENT_SOURCES src/MOD_NAME_client.cc
+  SOURCES src/MOD_NAME_client.cc
+)
+add_chimod_runtime(
+  CHIMOD_NAME MOD_NAME
+  SOURCES src/MOD_NAME_runtime.cc src/autogen/MOD_NAME_lib_exec.cc
 )
 ```
 
@@ -2155,7 +2282,7 @@ To migrate from the old inline header pattern to the new source pattern:
 
 1. **Create autogen source directory**: `mkdir -p src/autogen/`
 2. **Generate new autogen source**: Create `src/autogen/MOD_NAME_lib_exec.cc` with virtual method implementations
-3. **Remove autogen header includes**: Delete `#include "autogen/MOD_NAME_lib_exec.h"` from runtime source (replaced by .cc files)
+3. **Remove autogen header includes**: Delete `#include <[namespace]/MOD_NAME/autogen/MOD_NAME_lib_exec.h>` from runtime source (replaced by .cc files)
 4. **Remove dispatcher methods**: Delete all virtual method implementations from runtime source (Run, Monitor, Del, etc.)
 5. **Update CMakeLists.txt**: Add autogen source to `RUNTIME_SOURCES`
 6. **Keep business logic**: Retain the actual task processing methods (Create, Custom, etc.)
@@ -2203,7 +2330,7 @@ my_external_chimod/
 │       ├── chimaera_mod.yaml   # Module configuration
 │       ├── CMakeLists.txt      # Module build configuration  
 │       ├── include/
-│       │   └── chimaera/
+│       │   └── [namespace]/
 │       │       └── my_module/
 │       │           ├── my_module_client.h
 │       │           ├── my_module_runtime.h
@@ -2246,16 +2373,14 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Find required Chimaera packages
 # These packages are installed by 'cmake --install build --prefix /usr/local'
-find_package(chimaera REQUIRED)              # Core Chimaera library (libcxx.so)
+find_package(chimaera REQUIRED)              # Core Chimaera (automatically includes ChimaeraCommon.cmake)
 find_package(chimaera_admin REQUIRED)        # Admin ChiMod (often required)
-# Note: Admin ChiMod is automatically linked by add_chimod_both() for non-admin modules
 
 # Set CMAKE_PREFIX_PATH if Chimaera is installed in a custom location
-# set(CMAKE_PREFIX_PATH "/path/to/chimaera/install" ${CMAKE_PREFIX_PATH})
+# set(CMAKE_PREFIX_PATH "/path/to/[namespace]/install" ${CMAKE_PREFIX_PATH})
 
-# Include ChimaeraCommon.cmake utilities for add_chimod_both() and install_chimod()
-# This file is installed with Chimaera and provides the standard ChiMod build functions
-include(ChimaeraCommon)
+# ChimaeraCommon.cmake utilities are automatically included by find_package(chimaera)
+# This provides add_chimod_client(), add_chimod_runtime(), and other build functions
 
 # Add subdirectories containing your ChiMods
 add_subdirectory(modules/my_module)  # Use your actual directory name
@@ -2269,22 +2394,22 @@ Each ChiMod's `CMakeLists.txt` uses the standard Chimaera build utilities:
 cmake_minimum_required(VERSION 3.20)
 
 # Create both client and runtime libraries using standard Chimaera utilities
-# These functions are provided by ChimaeraCommon.cmake (included in root CMakeLists.txt)
-# Creates targets: my_namespace_my_module-client, my_namespace_my_module-runtime
-# Creates aliases: my_namespace::my_module-client, my_namespace::my_module-runtime
-add_chimod_both(
+# These functions are provided by ChimaeraCommon.cmake (automatically included via find_package(chimaera))
+# Creates targets: my_namespace_my_module_client, my_namespace_my_module_runtime
+# Creates aliases: my_namespace::my_module_client, my_namespace::my_module_runtime
+add_chimod_client(
   CHIMOD_NAME my_module
-  RUNTIME_SOURCES 
+  SOURCES src/my_module_client.cc
+)
+add_chimod_runtime(
+  CHIMOD_NAME my_module
+  SOURCES
     src/my_module_runtime.cc 
     src/autogen/my_module_lib_exec.cc
-  CLIENT_SOURCES 
-    src/my_module_client.cc
 )
 
-# Install the ChiMod libraries with package name: my_namespace_my_module
-install_chimod(
-  CHIMOD_NAME my_module
-)
+# Installation is automatic - no separate install_chimod() call required
+# Package name: my_namespace_my_module (for find_package)
 
 # Optional: Add additional dependencies if your ChiMod needs external libraries
 # get_property(RUNTIME_TARGET GLOBAL PROPERTY my_module_RUNTIME_TARGET)
@@ -2294,23 +2419,21 @@ install_chimod(
 ```
 
 ### External Applications Using Your ChiMod
-Once installed, external applications can find and link to your ChiMod using the clean alias format:
+Once installed, external applications can find and link to your ChiMod. Based on our external unit test patterns (see test/unit/external-chimod/CMakeLists.txt):
 
 ```cmake
 # External application CMakeLists.txt
-find_package(my_namespace_my_module REQUIRED)  # Package name format
-find_package(chimaera REQUIRED)                # Core Chimaera library
+find_package(my_namespace_my_module REQUIRED)  # Your ChiMod package
+find_package(chimaera REQUIRED)                # Core Chimaera (automatically includes utilities)
+find_package(chimaera_admin REQUIRED)          # Admin ChiMod (often required)
 
+# Simple linking pattern - ChiMod libraries include all dependencies
 target_link_libraries(my_external_app
-  my_namespace::my_module_client    # ChiMod client (alias - recommended)
-  chimaera::cxx                     # Core Chimaera library
+  my_namespace::my_module_client    # Your ChiMod client
+  chimaera::admin_client            # Admin client (if needed)
+  ${CMAKE_THREAD_LIBS_INIT}         # Threading support
 )
-
-# Admin ChiMod example (if needed)
-find_package(chimaera_admin REQUIRED)
-target_link_libraries(my_external_app
-  chimaera::admin_client            # Admin client
-)
+# Core Chimaera library is automatically included by ChiMod dependencies
 ```
 
 ### External ChiMod Implementation
@@ -2369,8 +2492,8 @@ make install
 ```
 
 The build system will automatically:
-- Link against `chimaera::cxx` (the core Chimaera library)
-- Link against `chimaera::admin_client` and `chimaera::admin_runtime` (required dependencies)
+- Link all necessary core Chimaera dependencies
+- Link against `chimaera::admin_client` and `chimaera::admin_runtime` (for non-admin modules)
 - Generate libraries with your custom namespace: `libmyproject_my_module_runtime.so`
 - Configure proper include paths and dependencies
 
@@ -2380,8 +2503,8 @@ Applications using your external ChiMod would reference it as:
 
 ```cpp
 #include <chimaera/chimaera.h>
-#include <chimaera/my_module/my_module_client.h>
-#include <chimaera/admin/admin_client.h>
+#include <[namespace]/my_module/my_module_client.h>
+#include <[namespace]/admin/admin_client.h>
 
 int main() {
   // Initialize Chimaera client
@@ -2401,16 +2524,17 @@ int main() {
 
 External ChiMod development requires these components to be installed:
 
-1. **Core Library**: `chimaera::cxx` (main Chimaera library)
-2. **Admin ChiMod**: `chimaera::admin_client` and `chimaera::admin_runtime` (always required)
-3. **CMake Configs**: Package discovery files (`.cmake` files)
-4. **Headers**: All Chimaera framework headers
-5. **ChimaeraCommon.cmake**: Build utilities for `add_chimod_both()` and `install_chimod()`
+1. **Core Package**: `chimaera` (includes main library and ChimaeraCommon.cmake utilities)
+2. **Admin ChiMod**: `chimaera::admin_client` and `chimaera::admin_runtime` (required for most modules)
+3. **CMake Configs**: Package discovery files (automatically installed with packages)
+4. **Headers**: All Chimaera framework headers (installed with packages)
+
+All build utilities (`add_chimod_client()`, `add_chimod_runtime()`) are automatically available via `find_package(chimaera)`.
 
 If Chimaera is installed in a custom location, set `CMAKE_PREFIX_PATH`:
 
 ```bash
-export CMAKE_PREFIX_PATH="/path/to/chimaera/install:$CMAKE_PREFIX_PATH"
+export CMAKE_PREFIX_PATH="/path/to/[namespace]/install:$CMAKE_PREFIX_PATH"
 ```
 
 ### Common External Development Issues
@@ -2418,16 +2542,16 @@ export CMAKE_PREFIX_PATH="/path/to/chimaera/install:$CMAKE_PREFIX_PATH"
 **ChimaeraCommon.cmake Not Found:**
 - Ensure Chimaera was installed with `cmake --install build --prefix <path>`
 - Verify `CMAKE_PREFIX_PATH` includes the Chimaera installation directory
-- Check that `find_package(chimaera REQUIRED)` succeeded
+- Check that `find_package(chimaera REQUIRED)` succeeded (ChimaeraCommon.cmake is included automatically)
 
 **Library Name Mismatch:**
 - Ensure `CreateParams::chimod_lib_name` exactly matches your namespace and module name
 - For namespace "myproject" and module "my_module": `chimod_lib_name = "myproject_my_module"`
-- The system automatically appends "-runtime" to find the runtime library (new format)
-- Target names use format: `myproject_my_module-runtime` and `myproject_my_module-client`
+- The system automatically appends "_runtime" to find the runtime library
+- Target names use format: `myproject_my_module_runtime` and `myproject_my_module_client`
 
 **Missing Dependencies:**
-- The `add_chimod_both()` function automatically links admin and rt library dependencies
+- The ChiMod build functions automatically link admin and rt library dependencies
 - Ensure all external dependencies (Boost, MPI, etc.) are available in your build environment  
 - Use the same dependency versions that Chimaera was built with
 - For runtime code, rt library is automatically included for async I/O support
@@ -2439,9 +2563,9 @@ export CMAKE_PREFIX_PATH="/path/to/chimaera/install:$CMAKE_PREFIX_PATH"
 - [ ] **ChiMod Configuration**: `chimaera_mod.yaml` with method definitions
 - [ ] **Library Name**: `CreateParams::chimod_lib_name` matches namespace pattern
 - [ ] **C++ Namespace**: All code uses custom namespace consistently  
-- [ ] **Build Integration**: ChiMod CMakeLists.txt uses `add_chimod_both()` and `install_chimod()`
+- [ ] **Build Integration**: ChiMod CMakeLists.txt uses `add_chimod_client()` and `add_chimod_runtime()` (installation is automatic)
 - [ ] **Dependencies**: All required external libraries available at build time
-- [ ] **Automatic Linking**: Rely on `add_chimod_both()` for rt and admin dependencies
+- [ ] **Automatic Linking**: Rely on ChiMod build functions for rt and admin dependencies
 
 ## Example Module
 

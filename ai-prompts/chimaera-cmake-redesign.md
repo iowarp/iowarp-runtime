@@ -7,7 +7,7 @@ This document outlines a complete redesign of the Chimaera CMake build system to
 ## 1. Problem Analysis
 
 ### Current Issues
-- **Complexity**: The `add_chimod_both()` function combines too many responsibilities
+- **Complexity**: The previous `add_chimod_both()` function combined too many responsibilities
 - **Opacity**: Auto-generated targets and aliases are hard to understand
 - **External Integration**: Difficult to use ChiMods from external projects
 - **Naming Confusion**: Inconsistent target naming across modules
@@ -527,7 +527,7 @@ target_link_libraries(my_app
 
 ### For Existing ChiMods
 1. Add `chimaera_mod.yaml` to each module directory
-2. Replace `add_chimod_both()` calls with separate client/runtime calls
+2. Replace previous `add_chimod_both()` calls with separate client/runtime calls
 3. Update target references to use new naming convention
 4. Test build and installation
 

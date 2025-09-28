@@ -19,17 +19,16 @@ The Bdev (Block Device) ChiMod provides a high-performance interface for block d
 To use the Bdev ChiMod in external projects:
 
 ```cmake
-find_package(chimaera-bdev REQUIRED)
-find_package(chimaera-admin REQUIRED)  # Always required
-find_package(chimaera-core REQUIRED)
+find_package(chimaera_bdev REQUIRED)       # BDev ChiMod package
+find_package(chimaera_admin REQUIRED)      # Admin ChiMod (always required)
+find_package(chimaera REQUIRED)            # Core Chimaera (automatically includes ChimaeraCommon.cmake)
 
 target_link_libraries(your_application
   chimaera::bdev_client         # Bdev client library
   chimaera::admin_client        # Admin client (required)
-  chimaera::cxx                 # Main chimaera library
-  hshm::cxx                     # HermesShm library
   ${CMAKE_THREAD_LIBS_INIT}     # Threading support
 )
+# Core Chimaera library dependencies are automatically included by ChiMod libraries
 ```
 
 ### Required Headers
@@ -59,29 +58,20 @@ explicit Client(const chi::PoolId& pool_id)
 
 #### Container Management
 
-##### `Create()` - Synchronous (File-based, Backward Compatible)
-Creates and initializes the bdev container with file-based storage.
-
-```cpp
-void Create(const hipc::MemContext& mctx, const chi::PoolQuery& pool_query,
-           const std::string& file_path, chi::u64 total_size = 0,
-           chi::u32 io_depth = 32, chi::u32 alignment = 4096)
-```
-
-##### `Create()` - Synchronous (With Backend Type Selection)
+##### `Create()` - Synchronous (Unified Pool Name Interface)
 Creates and initializes the bdev container with specified backend type.
 
 ```cpp
 void Create(const hipc::MemContext& mctx, const chi::PoolQuery& pool_query,
-           BdevType bdev_type, const std::string& file_path = "", chi::u64 total_size = 0,
-           chi::u32 io_depth = 32, chi::u32 alignment = 4096)
+           const std::string& pool_name, BdevType bdev_type, 
+           chi::u64 total_size = 0, chi::u32 io_depth = 32, chi::u32 alignment = 4096)
 ```
 
 **Parameters:**
 - `mctx`: Memory context for task allocation
 - `pool_query`: Pool domain query (typically `chi::PoolQuery::Local()`)
+- `pool_name`: Pool name (serves as file path for kFile, unique identifier for kRam)
 - `bdev_type`: Backend type (`BdevType::kFile` or `BdevType::kRam`)
-- `file_path`: Path to the block device file (required for kFile, ignored for kRam)
 - `total_size`: Total size available for allocation (0 = use file size for kFile, required for kRam)
 - `io_depth`: libaio queue depth for asynchronous operations (ignored for kRam, default: 32)
 - `alignment`: I/O alignment in bytes for optimal performance (default: 4096)
@@ -95,34 +85,24 @@ const chi::PoolId pool_id = chi::PoolId(8000, 0);
 chimaera::bdev::Client bdev_client(pool_id);
 
 auto pool_query = chi::PoolQuery::Local();
-// Traditional file-based storage
-bdev_client.Create(HSHM_MCTX, pool_query, BdevType::kFile, "/dev/nvme0n1", 0, 64, 4096);
+// File-based storage (pool_name IS the file path)
+bdev_client.Create(HSHM_MCTX, pool_query, "/dev/nvme0n1", BdevType::kFile, 0, 64, 4096);
 ```
 
 *RAM-based storage:*
 ```cpp
-// RAM-based storage (1GB)
-bdev_client.Create(HSHM_MCTX, pool_query, BdevType::kRam, "", 1024*1024*1024);
+// RAM-based storage (1GB, pool_name is unique identifier)
+bdev_client.Create(HSHM_MCTX, pool_query, "my_ram_device", BdevType::kRam, 1024*1024*1024);
 ```
 
-##### `AsyncCreate()` - Asynchronous (File-based, Backward Compatible)
-Creates and initializes the bdev container asynchronously with file-based storage.
-
-```cpp
-hipc::FullPtr<chimaera::bdev::CreateTask> AsyncCreate(
-    const hipc::MemContext& mctx, const chi::PoolQuery& pool_query,
-    const std::string& file_path, chi::u64 total_size = 0,
-    chi::u32 io_depth = 32, chi::u32 alignment = 4096)
-```
-
-##### `AsyncCreate()` - Asynchronous (With Backend Type Selection)
+##### `AsyncCreate()` - Asynchronous (Unified Pool Name Interface)
 Creates and initializes the bdev container asynchronously with specified backend type.
 
 ```cpp
 hipc::FullPtr<chimaera::bdev::CreateTask> AsyncCreate(
     const hipc::MemContext& mctx, const chi::PoolQuery& pool_query,
-    BdevType bdev_type, const std::string& file_path = "", chi::u64 total_size = 0,
-    chi::u32 io_depth = 32, chi::u32 alignment = 4096)
+    const std::string& pool_name, BdevType bdev_type,
+    chi::u64 total_size = 0, chi::u32 io_depth = 32, chi::u32 alignment = 4096)
 ```
 
 **Returns:** Task pointer for asynchronous completion checking
@@ -378,7 +358,6 @@ Configuration parameters for bdev container creation:
 ```cpp
 struct CreateParams {
   BdevType bdev_type_;         // Block device type (file or RAM)
-  std::string file_path_;      // Path to block device file (for kFile type)
   chi::u64 total_size_;        // Total size for allocation (0 = file size for kFile, required for kRam)
   chi::u32 io_depth_;          // libaio queue depth (ignored for kRam, default: 32)
   chi::u32 alignment_;         // I/O alignment in bytes (default: 4096)
@@ -388,9 +367,13 @@ struct CreateParams {
 }
 ```
 
+**Note**: The `file_path_` field has been removed. The pool name (passed to Create/AsyncCreate) now serves as the file path for file-based BDevs.
+
 **Parameter Guidelines:**
 - **bdev_type_**: Choose `BdevType::kFile` for persistent storage or `BdevType::kRam` for high-speed volatile storage
-- **file_path_**: Required for kFile (can be block device `/dev/nvme0n1` or regular file), ignored for kRam
+- **pool_name**: 
+  - For kFile: **IS the file path** (can be block device `/dev/nvme0n1` or regular file)
+  - For kRam: Unique identifier for the RAM device
 - **total_size_**: 
   - For kFile: Set to 0 to use full file/device size, or specify limit
   - For kRam: **Required** - specifies the RAM buffer size to allocate
@@ -413,17 +396,17 @@ int main() {
     chi::CHIMAERA_CLIENT_INIT();
     
     // Create admin client first (always required)
-    const chi::PoolId admin_pool_id = chi::PoolId(7000, 0);
+    const chi::PoolId admin_pool_id = chi::kAdminPoolId;
     chimaera::admin::Client admin_client(admin_pool_id);
-    admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local());
+    admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), "admin");
     
     // Create bdev client
     const chi::PoolId bdev_pool_id = chi::PoolId(8000, 0);
     chimaera::bdev::Client bdev_client(bdev_pool_id);
     
-    // Initialize bdev container with NVMe device (file-based)
+    // Initialize bdev container with NVMe device (pool_name IS the file path)
     bdev_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), 
-                      BdevType::kFile, "/dev/nvme0n1", 0, 64, 4096);
+                      "/dev/nvme0n1", BdevType::kFile, 0, 64, 4096);
     
     // Allocate a 1MB block
     Block large_block = bdev_client.Allocate(HSHM_MCTX, 1024 * 1024);
@@ -481,17 +464,17 @@ int main() {
     chi::CHIMAERA_CLIENT_INIT();
     
     // Create admin client first (always required)
-    const chi::PoolId admin_pool_id = chi::PoolId(7000, 0);
+    const chi::PoolId admin_pool_id = chi::kAdminPoolId;
     chimaera::admin::Client admin_client(admin_pool_id);
-    admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local());
+    admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), "admin");
     
     // Create bdev client
     const chi::PoolId bdev_pool_id = chi::PoolId(8000, 0);
     chimaera::bdev::Client bdev_client(bdev_pool_id);
     
-    // Initialize bdev container with RAM backend (1GB)
+    // Initialize bdev container with RAM backend (pool_name is unique identifier)
     bdev_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), 
-                      BdevType::kRam, "", 1024*1024*1024);
+                      "my_ram_device", BdevType::kRam, 1024*1024*1024);
     
     // Allocate a 1MB block (from RAM)
     Block large_block = bdev_client.Allocate(HSHM_MCTX, 1024 * 1024);

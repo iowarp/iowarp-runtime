@@ -459,34 +459,3 @@ endfunction()
 # Legacy Support (Backward Compatibility)
 #------------------------------------------------------------------------------
 
-# Legacy add_chimod_both function for backward compatibility
-# Will be deprecated in future versions
-function(add_chimod_both)
-  message(WARNING "add_chimod_both is deprecated. Use add_chimod_client() and add_chimod_runtime() separately.")
-  
-  cmake_parse_arguments(ARG
-    ""  # options
-    "NAMESPACE;CHIMOD_NAME"  # one value args
-    "RUNTIME_SOURCES;CLIENT_SOURCES"  # multi value args
-    ${ARGN}
-  )
-  
-  # For backward compatibility, create chimaera_mod.yaml if it doesn't exist
-  if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/chimaera_mod.yaml")
-    set(YAML_CONTENT "module_name: ${ARG_CHIMOD_NAME}\nnamespace: ${ARG_NAMESPACE}\n")
-    file(WRITE "${CMAKE_CURRENT_SOURCE_DIR}/chimaera_mod.yaml" "${YAML_CONTENT}")
-    message(STATUS "Created chimaera_mod.yaml for ${ARG_CHIMOD_NAME}")
-  endif()
-  
-  # Call new functions (installation and client linking are now automatic)
-  if(ARG_CLIENT_SOURCES)
-    add_chimod_client(SOURCES ${ARG_CLIENT_SOURCES})
-  endif()
-  
-  if(ARG_RUNTIME_SOURCES)
-    add_chimod_runtime(SOURCES ${ARG_RUNTIME_SOURCES})
-  endif()
-  
-  # Note: No need to call install_chimod() - installation is automatic
-  # Note: Runtime automatically links to client library if both exist
-endfunction()

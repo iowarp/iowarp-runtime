@@ -9,7 +9,7 @@
  * - External namespace usage (external_test vs chimaera)  
  * - Custom ChiMod development patterns
  * - Proper CMake find_package and linking
- * - add_chimod_both and install_chimod functionality
+ * - add_chimod_client and add_chimod_runtime functionality
  */
 
 #include <iostream>
@@ -87,7 +87,7 @@ int main() {
   std::cout << "\n=== Key External ChiMod Features Demonstrated ===" << std::endl;
   std::cout << "✓ Custom namespace (external_test vs chimaera)" << std::endl;
   std::cout << "✓ External chimaera_repo.yaml configuration" << std::endl;
-  std::cout << "✓ add_chimod_both() CMake function usage" << std::endl;
+  std::cout << "✓ add_chimod_client()/add_chimod_runtime() CMake functions" << std::endl;
   std::cout << "✓ install_chimod() CMake function usage" << std::endl;
   std::cout << "✓ find_package(chimaera::core) linking" << std::endl;
   std::cout << "✓ External module directory structure" << std::endl;
