@@ -101,8 +101,9 @@ endif()
 #------------------------------------------------------------------------------
 # SECTION 6: JARVIS INTEGRATION
 #------------------------------------------------------------------------------ 
-# Add Jarvis WRP runtime package
+# Add Jarvis WRP runtime packages
 jarvis_repo_add(${CMAKE_SOURCE_DIR}/test/jarvis_wrp_run "")
+jarvis_repo_add(${CMAKE_SOURCE_DIR}/test/jarvis_wrp_runtime "")
 
 #------------------------------------------------------------------------------
 # SECTION 7: INSTALL CODE
