@@ -64,7 +64,8 @@ Creates and initializes the bdev container with specified backend type.
 ```cpp
 void Create(const hipc::MemContext& mctx, const chi::PoolQuery& pool_query,
            const std::string& pool_name, BdevType bdev_type, 
-           chi::u64 total_size = 0, chi::u32 io_depth = 32, chi::u32 alignment = 4096)
+           chi::u64 total_size = 0, chi::u32 io_depth = 32, chi::u32 alignment = 4096,
+           const PerfMetrics* perf_metrics = nullptr)
 ```
 
 **Parameters:**
@@ -75,6 +76,38 @@ void Create(const hipc::MemContext& mctx, const chi::PoolQuery& pool_query,
 - `total_size`: Total size available for allocation (0 = use file size for kFile, required for kRam)
 - `io_depth`: libaio queue depth for asynchronous operations (ignored for kRam, default: 32)
 - `alignment`: I/O alignment in bytes for optimal performance (default: 4096)
+- `perf_metrics`: **Optional** user-defined performance characteristics (nullptr = use defaults)
+
+**Performance Characteristics Definition:**
+Instead of automatic benchmarking during container creation, users can optionally specify the expected performance characteristics of their storage device. This allows for:
+- **Faster container initialization** (no benchmarking delay)
+- **Predictable performance modeling** for different storage types
+- **Custom device profiling** based on external testing
+- **Flexible usage** - defaults used when not specified
+
+**Example with Default Performance (recommended for most users):**
+```cpp
+// Create container with default performance characteristics
+bdev_client.Create(HSHM_MCTX, pool_query, "/dev/nvme0n1", BdevType::kFile);
+
+// Or with custom storage parameters but default performance
+bdev_client.Create(HSHM_MCTX, pool_query, "/dev/nvme0n1", BdevType::kFile, 0, 64, 4096);
+```
+
+**Example with Custom Performance (for advanced users):**
+```cpp
+// Define performance characteristics for a high-end NVMe SSD
+PerfMetrics nvme_perf;
+nvme_perf.read_bandwidth_mbps_ = 3500.0;   // 3.5 GB/s read
+nvme_perf.write_bandwidth_mbps_ = 3000.0;  // 3.0 GB/s write  
+nvme_perf.read_latency_us_ = 50.0;         // 50μs read latency
+nvme_perf.write_latency_us_ = 80.0;        // 80μs write latency
+nvme_perf.iops_ = 500000.0;                // 500K IOPS
+
+// Create container with custom performance profile
+bdev_client.Create(HSHM_MCTX, pool_query, "/dev/nvme0n1", BdevType::kFile, 
+                   0, 64, 4096, &nvme_perf);
+```
 
 **Usage Examples:**
 
@@ -102,10 +135,13 @@ Creates and initializes the bdev container asynchronously with specified backend
 hipc::FullPtr<chimaera::bdev::CreateTask> AsyncCreate(
     const hipc::MemContext& mctx, const chi::PoolQuery& pool_query,
     const std::string& pool_name, BdevType bdev_type,
-    chi::u64 total_size = 0, chi::u32 io_depth = 32, chi::u32 alignment = 4096)
+    chi::u64 total_size = 0, chi::u32 io_depth = 32, chi::u32 alignment = 4096,
+    const PerfMetrics* perf_metrics = nullptr)
 ```
 
 **Returns:** Task pointer for asynchronous completion checking
+
+**Note:** The `perf_metrics` parameter is optional and positioned last for convenience. Pass `nullptr` (default) to use conservative default performance characteristics, or provide a pointer to custom metrics for specific device modeling.
 
 #### Block Management Operations
 
@@ -231,7 +267,9 @@ PerfMetrics GetStats(const hipc::MemContext& mctx, chi::u64& remaining_size)
 - `mctx`: Memory context for task allocation
 - `remaining_size`: Output parameter for remaining allocatable space
 
-**Returns:** `PerfMetrics` structure with performance data
+**Returns:** `PerfMetrics` structure with user-defined performance characteristics
+
+**Important Note:** GetStats now returns the performance characteristics that were specified during container creation (either default values or user-provided custom metrics), not calculated runtime statistics.
 
 **Usage:**
 ```cpp
@@ -361,6 +399,7 @@ struct CreateParams {
   chi::u64 total_size_;        // Total size for allocation (0 = file size for kFile, required for kRam)
   chi::u32 io_depth_;          // libaio queue depth (ignored for kRam, default: 32)
   chi::u32 alignment_;         // I/O alignment in bytes (default: 4096)
+  PerfMetrics perf_metrics_;   // User-defined performance characteristics
   
   // Required: chimod library name for module manager
   static constexpr const char* chimod_lib_name = "chimaera_bdev";
@@ -404,9 +443,20 @@ int main() {
     const chi::PoolId bdev_pool_id = chi::PoolId(8000, 0);
     chimaera::bdev::Client bdev_client(bdev_pool_id);
     
-    // Initialize bdev container with NVMe device (pool_name IS the file path)
+    // Option 1: Initialize with default performance characteristics (recommended)
     bdev_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), 
                       "/dev/nvme0n1", BdevType::kFile, 0, 64, 4096);
+    
+    // Option 2: Initialize with custom performance characteristics (advanced)
+    PerfMetrics nvme_perf;
+    nvme_perf.read_bandwidth_mbps_ = 3500.0;   // 3.5 GB/s
+    nvme_perf.write_bandwidth_mbps_ = 3000.0;  // 3.0 GB/s
+    nvme_perf.read_latency_us_ = 50.0;         // 50μs
+    nvme_perf.write_latency_us_ = 80.0;        // 80μs
+    nvme_perf.iops_ = 500000.0;                // 500K IOPS
+    
+    bdev_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), 
+                      "/dev/nvme0n1", BdevType::kFile, 0, 64, 4096, &nvme_perf);
     
     // Allocate a 1MB block
     Block large_block = bdev_client.Allocate(HSHM_MCTX, 1024 * 1024);
@@ -430,14 +480,15 @@ int main() {
                        std::equal(test_data.begin(), test_data.end(), read_data.begin());
     std::cout << "Data integrity: " << (integrity_ok ? "PASS" : "FAIL") << std::endl;
     
-    // Get performance statistics
+    // Get performance characteristics (user-defined, not runtime measured)
     chi::u64 remaining_space;
     PerfMetrics perf = bdev_client.GetStats(HSHM_MCTX, remaining_space);
     
-    std::cout << "\nPerformance Summary:" << std::endl;
+    std::cout << "\nDevice Performance Profile:" << std::endl;
     std::cout << "  Read: " << perf.read_bandwidth_mbps_ << " MB/s" << std::endl;
     std::cout << "  Write: " << perf.write_bandwidth_mbps_ << " MB/s" << std::endl;
     std::cout << "  IOPS: " << perf.iops_ << std::endl;
+    std::cout << "  Note: Values reflect user-defined characteristics, not runtime measurements" << std::endl;
     
     // Free the allocated block
     chi::u32 free_result = bdev_client.Free(HSHM_MCTX, large_block);
@@ -472,9 +523,20 @@ int main() {
     const chi::PoolId bdev_pool_id = chi::PoolId(8000, 0);
     chimaera::bdev::Client bdev_client(bdev_pool_id);
     
-    // Initialize bdev container with RAM backend (pool_name is unique identifier)
+    // Option 1: Initialize with default RAM performance characteristics (recommended)
     bdev_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), 
                       "my_ram_device", BdevType::kRam, 1024*1024*1024);
+    
+    // Option 2: Initialize with custom RAM performance characteristics (advanced)
+    PerfMetrics ram_perf;
+    ram_perf.read_bandwidth_mbps_ = 25000.0;   // 25 GB/s (typical DDR4)
+    ram_perf.write_bandwidth_mbps_ = 20000.0;  // 20 GB/s
+    ram_perf.read_latency_us_ = 0.1;           // 100ns
+    ram_perf.write_latency_us_ = 0.1;          // 100ns
+    ram_perf.iops_ = 10000000.0;               // 10M IOPS
+    
+    bdev_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), 
+                      "my_ram_device", BdevType::kRam, 1024*1024*1024, 32, 4096, &ram_perf);
     
     // Allocate a 1MB block (from RAM)
     Block large_block = bdev_client.Allocate(HSHM_MCTX, 1024 * 1024);
@@ -648,7 +710,43 @@ CHI_IPC->DelTask(task);
 - Corrupted block metadata
 - Network failures in distributed setups
 
-## Performance Considerations
+## Performance Management
+
+### Performance Characteristics Definition
+
+**User-Defined Performance Model**: The BDev module now uses user-provided performance characteristics instead of automatic benchmarking. This approach offers several advantages:
+
+1. **No Benchmarking Overhead**: Container creation is faster without benchmark delays
+2. **Predictable Performance Modeling**: Consistent performance reporting across restarts
+3. **Custom Device Profiling**: Model specific storage devices based on external testing
+4. **Flexible Performance Profiles**: Switch between different performance profiles for testing
+
+**Setting Performance Characteristics:**
+```cpp
+// Example: High-end NVMe SSD profile
+PerfMetrics nvme_perf;
+nvme_perf.read_bandwidth_mbps_ = 7000.0;   // 7 GB/s sequential read
+nvme_perf.write_bandwidth_mbps_ = 5000.0;  // 5 GB/s sequential write
+nvme_perf.read_latency_us_ = 30.0;         // 30μs random read
+nvme_perf.write_latency_us_ = 50.0;        // 50μs random write
+nvme_perf.iops_ = 1000000.0;               // 1M random IOPS
+
+// Example: SATA SSD profile
+PerfMetrics sata_perf;
+sata_perf.read_bandwidth_mbps_ = 550.0;    // 550 MB/s
+sata_perf.write_bandwidth_mbps_ = 500.0;   // 500 MB/s
+sata_perf.read_latency_us_ = 100.0;        // 100μs
+sata_perf.write_latency_us_ = 200.0;       // 200μs
+sata_perf.iops_ = 95000.0;                 // 95K IOPS
+
+// Example: Mechanical HDD profile
+PerfMetrics hdd_perf;
+hdd_perf.read_bandwidth_mbps_ = 180.0;     // 180 MB/s
+hdd_perf.write_bandwidth_mbps_ = 160.0;    // 160 MB/s
+hdd_perf.read_latency_us_ = 8000.0;        // 8ms seek time
+hdd_perf.write_latency_us_ = 10000.0;      // 10ms seek time
+hdd_perf.iops_ = 150.0;                    // 150 IOPS
+```
 
 ### Backend Selection
 
@@ -679,19 +777,33 @@ CHI_IPC->DelTask(task);
 
 5. **Batch Operations**: Group multiple allocations/deallocations when possible to reduce overhead
 
-### Expected Performance Characteristics
+6. **Performance Profile Selection**: Choose appropriate performance characteristics that match your storage device
 
-**RAM Backend:**
-- **Latency**: ~1-10 microseconds for read/write operations
-- **Bandwidth**: Limited by memory bandwidth (~10-50 GB/s typical)
-- **IOPS**: Very high (>1M IOPS)
+### Typical Performance Profiles
+
+**RAM Backend (DDR4-3200):**
+- **Latency**: ~0.1 microseconds
+- **Bandwidth**: ~20-25 GB/s
+- **IOPS**: ~10M IOPS
 - **Scalability**: Excellent for concurrent access
 
-**File Backend:**
-- **Latency**: Device-dependent (~10-100 microseconds for NVMe)
-- **Bandwidth**: Device-dependent (~1-7 GB/s for high-end NVMe)
-- **IOPS**: Device-dependent (~100K-1M IOPS for NVMe)
-- **Scalability**: Good with proper io_depth tuning
+**High-End NVMe SSD:**
+- **Latency**: ~30-50 microseconds
+- **Bandwidth**: ~5-7 GB/s sequential
+- **IOPS**: ~500K-1M random IOPS
+- **Scalability**: Excellent with proper io_depth
+
+**SATA SSD:**
+- **Latency**: ~100-200 microseconds
+- **Bandwidth**: ~500-550 MB/s
+- **IOPS**: ~80K-100K IOPS
+- **Scalability**: Good
+
+**Mechanical HDD:**
+- **Latency**: ~8-12 milliseconds (seek time)
+- **Bandwidth**: ~150-200 MB/s sequential
+- **IOPS**: ~100-200 IOPS
+- **Scalability**: Limited by mechanical constraints
 
 ## Important Notes
 
@@ -704,3 +816,9 @@ CHI_IPC->DelTask(task);
 4. **Device Permissions**: Ensure the application has appropriate permissions to access block devices.
 
 5. **Data Persistence**: Data written to blocks persists across container restarts if backed by persistent storage.
+
+6. **Performance Characteristics**: Performance metrics returned by GetStats() reflect the user-defined values specified during container creation, not runtime measurements. For actual performance monitoring, implement separate benchmarking tools.
+
+7. **Default Performance Values**: If no custom performance characteristics are provided (perf_metrics = nullptr), the container uses conservative default values (100 MB/s read/write, 1ms latency, 1000 IOPS) suitable for basic operations.
+
+8. **Optional Performance Parameter**: The performance metrics parameter is optional and positioned last in all Create methods for convenience. Most users can omit this parameter and use the defaults.

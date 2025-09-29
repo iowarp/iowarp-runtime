@@ -241,6 +241,9 @@ class Runtime : public chi::Container {
   std::atomic<chi::u64> total_bytes_written_;
   std::chrono::high_resolution_clock::time_point start_time_;
   
+  // User-provided performance characteristics
+  PerfMetrics perf_metrics_;
+  
   /**
    * Initialize the data allocator
    */
@@ -256,10 +259,6 @@ class Runtime : public chi::Container {
    */
   void CleanupAsyncIO();
   
-  /**
-   * Conduct performance benchmark during create
-   */
-  void BenchmarkPerformance();
   
   /**
    * Get actual block size for category

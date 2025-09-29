@@ -74,22 +74,40 @@ struct CreateParams {
   chi::u32 io_depth_;              // libaio queue depth (ignored for kRam)
   chi::u32 alignment_;             // I/O alignment (default 4096)
   
+  // Performance characteristics (user-defined instead of benchmarked)
+  PerfMetrics perf_metrics_;       // User-provided performance characteristics
+  
   // Required: chimod library name for module manager
   static constexpr const char* chimod_lib_name = "chimaera_bdev";
   
-  // Default constructor (defaults to file-based)
-  CreateParams() : bdev_type_(BdevType::kFile), total_size_(0), io_depth_(32), alignment_(4096) {}
+  // Default constructor (defaults to file-based with conservative performance estimates)
+  CreateParams() : bdev_type_(BdevType::kFile), total_size_(0), io_depth_(32), alignment_(4096) {
+    // Set conservative default performance characteristics
+    perf_metrics_.read_bandwidth_mbps_ = 100.0;   // 100 MB/s
+    perf_metrics_.write_bandwidth_mbps_ = 80.0;   // 80 MB/s
+    perf_metrics_.read_latency_us_ = 1000.0;      // 1ms
+    perf_metrics_.write_latency_us_ = 1200.0;     // 1.2ms
+    perf_metrics_.iops_ = 1000.0;                 // 1000 IOPS
+  }
   
   // Constructor with allocator (required for admin task system)
   explicit CreateParams(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc)
-      : bdev_type_(BdevType::kFile), total_size_(0), io_depth_(32), alignment_(4096) {}
+      : bdev_type_(BdevType::kFile), total_size_(0), io_depth_(32), alignment_(4096) {
+    // Set conservative default performance characteristics
+    perf_metrics_.read_bandwidth_mbps_ = 100.0;
+    perf_metrics_.write_bandwidth_mbps_ = 80.0;
+    perf_metrics_.read_latency_us_ = 1000.0;
+    perf_metrics_.write_latency_us_ = 1200.0;
+    perf_metrics_.iops_ = 1000.0;
+  }
   
   // Copy constructor with allocator (for template system)
   CreateParams(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc, const CreateParams& other)
       : bdev_type_(other.bdev_type_), total_size_(other.total_size_), 
-        io_depth_(other.io_depth_), alignment_(other.alignment_) {}
+        io_depth_(other.io_depth_), alignment_(other.alignment_),
+        perf_metrics_(other.perf_metrics_) {}
   
-  // Constructor with allocator and parameters
+  // Constructor with allocator and basic parameters (uses default performance)
   CreateParams(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
                BdevType bdev_type,
                chi::u64 total_size = 0,
@@ -97,15 +115,49 @@ struct CreateParams {
                chi::u32 alignment = 4096)
       : bdev_type_(bdev_type), total_size_(total_size), 
         io_depth_(io_depth), alignment_(alignment) {
+    // Set conservative default performance characteristics
+    perf_metrics_.read_bandwidth_mbps_ = 100.0;
+    perf_metrics_.write_bandwidth_mbps_ = 80.0;
+    perf_metrics_.read_latency_us_ = 1000.0;
+    perf_metrics_.write_latency_us_ = 1200.0;
+    perf_metrics_.iops_ = 1000.0;
+    
     // Debug: Log what parameters were received
-    HELOG(kError, "DEBUG: CreateParams constructor called with: bdev_type={}, total_size={}, io_depth={}, alignment={}", 
+    HILOG(kDebug, "DEBUG: CreateParams constructor called with: bdev_type={}, total_size={}, io_depth={}, alignment={}", 
           static_cast<chi::u32>(bdev_type_), total_size_, io_depth_, alignment_);
+  }
+  
+  // Constructor with allocator and optional performance metrics (as last parameter)
+  CreateParams(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
+               BdevType bdev_type,
+               chi::u64 total_size,
+               chi::u32 io_depth,
+               chi::u32 alignment,
+               const PerfMetrics* perf_metrics = nullptr)
+      : bdev_type_(bdev_type), total_size_(total_size), 
+        io_depth_(io_depth), alignment_(alignment) {
+    // Set performance metrics (use provided metrics or defaults)
+    if (perf_metrics != nullptr) {
+      perf_metrics_ = *perf_metrics;
+      HILOG(kDebug, "DEBUG: CreateParams constructor called with custom performance: bdev_type={}, total_size={}, io_depth={}, alignment={}, read_bw={}, write_bw={}", 
+            static_cast<chi::u32>(bdev_type_), total_size_, io_depth_, alignment_, 
+            perf_metrics_.read_bandwidth_mbps_, perf_metrics_.write_bandwidth_mbps_);
+    } else {
+      // Use default performance characteristics
+      perf_metrics_.read_bandwidth_mbps_ = 100.0;
+      perf_metrics_.write_bandwidth_mbps_ = 80.0;
+      perf_metrics_.read_latency_us_ = 1000.0;
+      perf_metrics_.write_latency_us_ = 1200.0;
+      perf_metrics_.iops_ = 1000.0;
+      HILOG(kDebug, "DEBUG: CreateParams constructor called with default performance: bdev_type={}, total_size={}, io_depth={}, alignment={}", 
+            static_cast<chi::u32>(bdev_type_), total_size_, io_depth_, alignment_);
+    }
   }
   
   // Serialization support for cereal
   template<class Archive>
   void serialize(Archive& ar) {
-    ar(bdev_type_, total_size_, io_depth_, alignment_);
+    ar(bdev_type_, total_size_, io_depth_, alignment_, perf_metrics_);
   }
 };
 

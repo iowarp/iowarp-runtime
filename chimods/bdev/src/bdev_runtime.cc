@@ -147,8 +147,8 @@ void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& ctx) {
   total_bytes_read_ = 0;
   total_bytes_written_ = 0;
 
-  // Conduct performance benchmark
-  BenchmarkPerformance();
+  // Store user-provided performance characteristics
+  perf_metrics_ = params.perf_metrics_;
 
   // Set success result
   task->return_code_ = 0;
@@ -389,38 +389,8 @@ void Runtime::MonitorRead(chi::MonitorModeId mode, hipc::FullPtr<ReadTask> task,
 }
 
 void Runtime::GetStats(hipc::FullPtr<GetStatsTask> task, chi::RunContext& ctx) {
-  auto current_time = std::chrono::high_resolution_clock::now();
-  auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(current_time -
-                                                                  start_time_);
-
-  PerfMetrics metrics;
-
-  if (elapsed.count() > 0) {
-    double elapsed_sec = elapsed.count();
-    chi::u64 total_ops = total_reads_ + total_writes_;
-    chi::u64 total_bytes = total_bytes_read_ + total_bytes_written_;
-
-    metrics.iops_ = total_ops / elapsed_sec;
-
-    if (total_reads_ > 0) {
-      metrics.read_bandwidth_mbps_ =
-          (total_bytes_read_ / (1024.0 * 1024.0)) / elapsed_sec;
-    }
-
-    if (total_writes_ > 0) {
-      metrics.write_bandwidth_mbps_ =
-          (total_bytes_written_ / (1024.0 * 1024.0)) / elapsed_sec;
-    }
-
-    // Simplified latency calculation - in real implementation would track
-    // per-operation
-    if (total_ops > 0) {
-      metrics.read_latency_us_ = 1000.0;   // Placeholder
-      metrics.write_latency_us_ = 1000.0;  // Placeholder
-    }
-  }
-
-  task->metrics_ = metrics;
+  // Return the user-provided performance characteristics instead of calculating them
+  task->metrics_ = perf_metrics_;
   task->remaining_size_ = remaining_size_.load();
   task->return_code_ = 0;
 }
@@ -503,40 +473,6 @@ void Runtime::InitializeAllocator() {
   remaining_size_ = file_size_;
 }
 
-void Runtime::BenchmarkPerformance() {
-  // Skip benchmarking for RAM backend (very fast operations)
-  if (bdev_type_ == BdevType::kRam) {
-    HILOG(kDebug, "Skipping benchmark for RAM backend (operations < 1us)");
-    return;
-  }
-
-  // Simple benchmark for file backend: write and read a small block
-  const chi::u64 benchmark_size = 4096;
-  void* aligned_buffer;
-
-  if (posix_memalign(&aligned_buffer, alignment_, benchmark_size) == 0) {
-    memset(aligned_buffer, 0xAA, benchmark_size);
-
-    auto start = std::chrono::high_resolution_clock::now();
-    pwrite(file_fd_, aligned_buffer, benchmark_size, 0);
-    auto end = std::chrono::high_resolution_clock::now();
-
-    auto write_duration =
-        std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-
-    start = std::chrono::high_resolution_clock::now();
-    pread(file_fd_, aligned_buffer, benchmark_size, 0);
-    end = std::chrono::high_resolution_clock::now();
-
-    auto read_duration =
-        std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-
-    free(aligned_buffer);
-
-    HILOG(kDebug, "Benchmark results - Write: {}us, Read: {}us",
-          write_duration.count(), read_duration.count());
-  }
-}
 
 chi::u64 Runtime::GetBlockSize(BlockSizeCategory category) {
   return kBlockSizes[static_cast<size_t>(category)];
