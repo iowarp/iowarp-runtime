@@ -217,7 +217,7 @@ function(add_chimod_client)
   # Set properties for installation
   set_target_properties(${TARGET_NAME} PROPERTIES
     EXPORT_NAME "${CHIMAERA_MODULE_NAME}_client"
-    OUTPUT_NAME "${CHIMAERA_MODULE_NAME}_client"
+    OUTPUT_NAME "${CHIMAERA_NAMESPACE}_${CHIMAERA_MODULE_NAME}_client"
   )
   
   # Install the client library
@@ -350,7 +350,7 @@ function(add_chimod_runtime)
   # Set properties for installation
   set_target_properties(${TARGET_NAME} PROPERTIES
     EXPORT_NAME "${CHIMAERA_MODULE_NAME}_runtime"
-    OUTPUT_NAME "${CHIMAERA_MODULE_NAME}_runtime"
+    OUTPUT_NAME "${CHIMAERA_NAMESPACE}_${CHIMAERA_MODULE_NAME}_runtime"
   )
   
   # Install the runtime library (add to existing export set if client exists)
