@@ -223,8 +223,8 @@ class ChiModGenerator {
     oss << " * Changes should be made to the autogen tool or the YAML configuration.\n";
     oss << " */\n";
     oss << "\n";
-    oss << "#include \"chimaera/" << module_name << "/" << chimod_name << "_runtime.h\"\n";
-    oss << "#include \"chimaera/" << module_name << "/autogen/" << chimod_name << "_methods.h\"\n";
+    oss << "#include \"" << namespace_name << "/" << module_name << "/" << chimod_name << "_runtime.h\"\n";
+    oss << "#include \"" << namespace_name << "/" << module_name << "/autogen/" << chimod_name << "_methods.h\"\n";
     oss << "#include <chimaera/chimaera.h>\n";
     oss << "\n";
     oss << "namespace " << namespace_name << "::" << chimod_name << " {\n";
