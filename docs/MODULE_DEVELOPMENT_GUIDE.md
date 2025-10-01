@@ -379,29 +379,34 @@ class Container : public chi::Container {
   ~Container() override = default;
 
   /**
-   * Initialize client for this container (REQUIRED)
+   * Initialize container with pool information (REQUIRED)
+   * This is called by the framework before Create is called
    */
-  void InitClient(const chi::PoolId& pool_id) {
+  void Init(const chi::PoolId& pool_id, const std::string& pool_name) override {
+    // Call base class initialization
+    chi::Container::Init(pool_id, pool_name);
+
     // Initialize the client for this ChiMod
     client_ = Client(pool_id);
   }
 
   /**
    * Create the container (Method::kCreate)
-   * This method both creates and initializes the container
+   * This method creates queues and sets up container resources
+   * NOTE: Container is already initialized via Init() before Create is called
    */
   void Create(hipc::FullPtr<CreateTask> task, chi::RunContext& ctx) {
-    // Initialize the container with pool information and pool query
-    chi::Container::Init(task->pool_id_, task->pool_query_);
-    
+    // Container is already initialized via Init() before Create is called
+    // Do NOT call Init() here
+
     // Create local queues with semantic names, lane counts, and priorities
     CreateLocalQueue(kMetadataQueue, 1, chi::kHighLatency);      // 1 lane for metadata operations
     CreateLocalQueue(kProcessingQueue, 4, chi::kLowLatency);     // 4 lanes for low latency tasks
     CreateLocalQueue(kBatchQueue, 2, chi::kHighLatency);         // 2 lanes for batch processing
-    
+
     // Additional container-specific initialization logic here
     std::cout << "Container created and initialized for pool: " << pool_name_
-              << " (ID: " << task->pool_id_ << ")" << std::endl;
+              << " (ID: " << pool_id_ << ")" << std::endl;
   }
 
   /**
@@ -2626,13 +2631,13 @@ CHI_TASK_CC(chimaera::MOD_NAME::Runtime)
 
 ```cpp
 void Create(hipc::FullPtr<CreateTask> task, chi::RunContext& ctx) {
-  // Initialize the container with data from the task
-  chi::Container::Init(task->pool_id_, task->pool_query_);
-  
+  // Container is already initialized via Init() before Create is called
+  // Do NOT call Init() here
+
   // Set up queues and resources
   CreateLocalQueue(chi::kLowLatency, 4);
   CreateLocalQueue(chi::kHighLatency, 2);
-  
+
   // Container is now ready for operation
 }
 ```
@@ -3051,8 +3056,8 @@ When creating a new Chimaera module, ensure you have:
 
 ### Runtime Container Checklist (`_runtime.h/cc`)
 - [ ] Inherits from `chi::Container`
-- [ ] **InitClient() method implemented** - initializes client for this ChiMod
-- [ ] Create() method calls `chi::Container::Init()`
+- [ ] **Init() method overridden** - calls base class Init() then initializes client for this ChiMod
+- [ ] Create() method does NOT call `chi::Container::Init()` (container is already initialized before Create is called)
 - [ ] Create() method calls `CreateLocalQueue()` with semantic queue IDs, lane counts, and priorities
 - [ ] **Queue ID constants defined** - use semantic names like `kMetadataQueue`, not raw integers
 - [ ] All task methods use `hipc::FullPtr<TaskType>` parameters
@@ -3085,11 +3090,11 @@ When creating a new Chimaera module, ensure you have:
 - [ ] ❌ **CRITICAL: Direct lane enqueuing** in Monitor methods (bypasses work orchestrator)
 - [ ] ❌ **CRITICAL: Not updating pool_id_ in Create methods** (leads to incorrect pool ID for subsequent operations)
 - [ ] ❌ Using raw pointers instead of FullPtr in runtime methods
-- [ ] ❌ Not calling `chi::Container::Init()` in Create method
+- [ ] ❌ **Calling `chi::Container::Init()` in Create method** (container is already initialized by framework before Create is called)
+- [ ] ❌ **Not overriding `Init()` method** (required to initialize the client member)
 - [ ] ❌ Using non-HSHM types in task data members
 - [ ] ❌ Forgetting to create local queues in Create method
 - [ ] ❌ **Using raw integers for queue IDs** (use semantic constants like `kMetadataQueue`)
-- [ ] ❌ **Forgetting InitClient() implementation** (prevents client calls within runtime)
 - [ ] ❌ Implementing custom Del methods (framework calls `ipc_manager->DelTask()` automatically)
 - [ ] ❌ Writing complex extern "C" blocks (use `CHI_TASK_CC` macro instead)
 - [ ] ❌ **Using static_cast with Method values** (use Method::kName directly)

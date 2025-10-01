@@ -363,23 +363,27 @@ bool PoolManager::CreatePool(FullPtr<Task> task, RunContext* run_ctx) {
       return false;
     }
 
-    // Initialize container (this will call InitClient internally)
-    container->Init(target_pool_id);
+    // Initialize container with pool ID and name (this will call InitClient internally)
+    container->Init(target_pool_id, pool_name);
 
-    // Run create method on container (task and run_ctx guaranteed by
-    // CHIMAERA_RUNTIME_INIT)
-    container->Run(0, task, *run_ctx);  // Method::kCreate = 0
-
-    if (!task->GetReturnCode() == 0) {
-      HELOG(kError, "PoolManager: Failed to create container for ChiMod: {}", chimod_name);
+    // Register the container BEFORE running Create method
+    // This allows Create to spawn tasks that can find this container in the map
+    if (!RegisterContainer(target_pool_id, container)) {
+      HELOG(kError, "PoolManager: Failed to register container");
       module_manager->DestroyContainer(chimod_name, container);
       pool_metadata_.erase(target_pool_id);
       return false;
     }
 
-    // Register the container
-    if (!RegisterContainer(target_pool_id, container)) {
-      HELOG(kError, "PoolManager: Failed to register container");
+    // Run create method on container (task and run_ctx guaranteed by
+    // CHIMAERA_RUNTIME_INIT)
+    // Create methods can spawn tasks internally that need to find this container
+    container->Run(0, task, *run_ctx);  // Method::kCreate = 0
+
+    if (!task->GetReturnCode() == 0) {
+      HELOG(kError, "PoolManager: Failed to create container for ChiMod: {}", chimod_name);
+      // Unregister the container since Create failed
+      UnregisterContainer(target_pool_id);
       module_manager->DestroyContainer(chimod_name, container);
       pool_metadata_.erase(target_pool_id);
       return false;
@@ -388,6 +392,8 @@ bool PoolManager::CreatePool(FullPtr<Task> task, RunContext* run_ctx) {
   } catch (const std::exception& e) {
     HELOG(kError, "PoolManager: Exception during pool creation: {}", e.what());
     if (container) {
+      // Unregister if it was registered before the exception
+      UnregisterContainer(target_pool_id);
       module_manager->DestroyContainer(chimod_name, container);
     }
     pool_metadata_.erase(target_pool_id);

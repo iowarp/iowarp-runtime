@@ -1037,6 +1037,104 @@ exec_info = MpiExecInfo(
 )
 ```
 
+### Debugging with GdbServer
+
+The `GdbServer` class enables remote debugging by launching applications under gdbserver. This is particularly useful for debugging MPI applications or applications running on remote nodes.
+
+#### GdbServer Usage
+
+```python
+from jarvis_cd.shell.process import GdbServer
+
+# Launch application under gdbserver
+GdbServer(cmd='./my_app --args', port=2345, exec_info=LocalExecInfo()).run()
+
+# With MPI
+GdbServer(
+    cmd='my_mpi_app',
+    port=2345,
+    exec_info=MpiExecInfo(
+        env=self.mod_env,
+        hostfile=self.jarvis.hostfile,
+        nprocs=self.config['nprocs']
+    )
+).run()
+```
+
+#### Conditional Debugging Pattern
+
+Most packages should support optional debugging using a `do_dbg` configuration flag:
+
+```python
+class MyApp(Application):
+    def _configure_menu(self):
+        return [
+            {
+                'name': 'do_dbg',
+                'msg': 'Enable remote debugging with gdbserver',
+                'type': bool,
+                'default': False
+            },
+            {
+                'name': 'dbg_port',
+                'msg': 'GDB server port',
+                'type': int,
+                'default': 2345
+            }
+        ]
+
+    def start(self):
+        # Build command
+        cmd = f'lmp -in {self.input_path}'
+
+        # Execute with or without debugging
+        if self.config['do_dbg']:
+            GdbServer(cmd, self.config['dbg_port'], LocalExecInfo(env=self.mod_env)).run()
+        else:
+            Exec(cmd, LocalExecInfo(env=self.mod_env)).run()
+```
+
+#### Connecting to GdbServer
+
+Once the application is running under gdbserver, connect from your local machine:
+
+```bash
+# Connect to gdbserver
+gdb ./my_app
+(gdb) target remote hostname:2345
+(gdb) continue
+```
+
+#### Multi-Process Debugging
+
+For MPI applications, each process can run on a different port:
+
+```python
+def start(self):
+    cmd = 'my_mpi_app'
+
+    if self.config['do_dbg']:
+        # Calculate unique port per process
+        base_port = self.config['dbg_port']
+
+        # Launch with gdbserver (MPI will spawn multiple instances)
+        GdbServer(
+            cmd,
+            base_port,  # MPI processes will use base_port, base_port+1, etc.
+            MpiExecInfo(
+                env=self.mod_env,
+                hostfile=self.jarvis.hostfile,
+                nprocs=self.config['nprocs']
+            )
+        ).run()
+    else:
+        Exec(cmd, MpiExecInfo(
+            env=self.mod_env,
+            hostfile=self.jarvis.hostfile,
+            nprocs=self.config['nprocs']
+        )).run()
+```
+
 ## Utility Classes
 
 Jarvis-CD provides several utility classes to help with common tasks in package development:
@@ -2439,7 +2537,35 @@ class Profiler(Interceptor):
 
 ## Best Practices
 
-### 1. Use Environment Variables Correctly
+### 1. CRITICAL: Always Call .run() on Exec Objects
+
+**MOST IMPORTANT**: All Exec objects and process utilities must call `.run()` to actually execute commands. Simply creating an Exec object does not execute anything.
+
+```python
+# ✅ Correct - Execute the command
+Exec('my_command', LocalExecInfo()).run()
+
+# ❌ Wrong - Command is never executed
+Exec('my_command', LocalExecInfo())  # Does nothing!
+
+# ✅ Correct - Store executor and run
+executor = Exec('my_command', LocalExecInfo())
+executor.run()
+
+# ✅ Correct - Process utilities also need .run()
+from jarvis_cd.shell.process import Mkdir, Rm, Which
+Mkdir('/output/dir', LocalExecInfo()).run()
+Rm('/tmp/files*', LocalExecInfo()).run()
+Which('required_tool', LocalExecInfo()).run()
+
+# ❌ Wrong - These commands are never executed
+Mkdir('/output/dir', LocalExecInfo())  # Directory not created!
+Rm('/tmp/files*', LocalExecInfo())     # Files not removed!
+```
+
+This is the most common mistake in package development and will cause your package to appear to work but actually do nothing.
+
+### 2. Use Environment Variables Correctly
 
 ```python
 # ✅ Good - Use in _configure()
@@ -2472,7 +2598,7 @@ def _configure(self, **kwargs):
     self.output_dir = os.path.abspath(output_dir)
 ```
 
-### 3. Use Proper Execution Commands
+### 4. Use Proper Execution Commands
 
 ```python
 def start(self):
@@ -2488,7 +2614,7 @@ def start(self):
     subprocess.run(['command'])  # Don't do this
 ```
 
-### 4. Implement Proper Cleanup
+### 5. Implement Proper Cleanup
 
 ```python
 def clean(self):
@@ -2501,7 +2627,7 @@ def clean(self):
     Rm('/tmp/myapp_*', LocalExecInfo()).run()
 ```
 
-### 5. Error Handling
+### 6. Error Handling
 
 ```python
 def start(self):
@@ -2522,7 +2648,7 @@ def start(self):
         raise
 ```
 
-### 6. Documentation
+### 7. Documentation
 
 ```python
 class MyPackage(Application):
@@ -2598,7 +2724,7 @@ When you run `jarvis ppl print`, you'll see:
 
 ```
 Pipeline: performance_testing
-Directory: /home/user/.jarvis/config/pipelines/performance_testing
+Directory: /home/user/.ppi-jarvis/config/pipelines/performance_testing
 Packages:
   benchmark:
     Type: builtin.ior

@@ -13,7 +13,10 @@ namespace chimaera::MOD_NAME {
 
 // Method implementations for Runtime class
 
-void Runtime::InitClient(const chi::PoolId& pool_id) {
+void Runtime::Init(const chi::PoolId& pool_id, const std::string& pool_name) {
+  // Call base class initialization
+  chi::Container::Init(pool_id, pool_name);
+
   // Initialize the client for this ChiMod
   client_ = Client(pool_id);
 }
@@ -27,8 +30,8 @@ void Runtime::InitClient(const chi::PoolId& pool_id) {
 void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& rctx) {
   HILOG(kDebug, "MOD_NAME: Executing Create task for pool {}", task->pool_id_);
 
-  // Initialize the container with pool information and domain query
-  chi::Container::Init(task->pool_id_, task->pool_query_);
+  // Container is already initialized via Init() before Create is called
+  // Just create the local queues for task processing
 
   // Create local queues with explicit queue IDs and priorities
   CreateLocalQueue(0, 4, chi::kLowLatency);   // Queue 0: 4 lanes for low latency tasks

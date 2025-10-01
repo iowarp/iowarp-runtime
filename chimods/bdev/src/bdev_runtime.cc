@@ -58,8 +58,8 @@ void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& ctx) {
         static_cast<chi::u32>(params.bdev_type_), pool_name, params.total_size_,
         params.io_depth_, params.alignment_);
 
-  // Initialize the container with pool information and domain query
-  chi::Container::Init(task->pool_id_, task->pool_query_);
+  // Initialize the container with pool information
+  chi::Container::Init(task->pool_id_, task->pool_name_.str());
 
   // Create local queues with explicit queue IDs and priorities
   CreateLocalQueue(0, 4,

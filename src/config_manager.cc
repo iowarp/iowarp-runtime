@@ -19,11 +19,14 @@ bool ConfigManager::ClientInit() {
 
   // Get configuration file path from environment
   config_file_path_ = GetServerConfigPath();
+  HILOG(kInfo, "Config at: {}", config_file_path_);
 
   // Load YAML configuration if path is provided
   if (!config_file_path_.empty()) {
     if (!LoadYaml(config_file_path_)) {
-      HELOG(kError, "Warning: Failed to load configuration from {}, using defaults", config_file_path_);
+      HELOG(kError,
+            "Warning: Failed to load configuration from {}, using defaults",
+            config_file_path_);
     }
   }
 
@@ -36,74 +39,71 @@ bool ConfigManager::ServerInit() {
   return ClientInit();
 }
 
-bool ConfigManager::LoadYaml(const std::string& config_path) {
+bool ConfigManager::LoadYaml(const std::string &config_path) {
   try {
     // Use HSHM BaseConfig methods
     LoadFromFile(config_path, true);
     return true;
-  } catch (const std::exception& e) {
+  } catch (const std::exception &e) {
     return false;
   }
 }
 
 std::string ConfigManager::GetServerConfigPath() const {
-  const char* env_path = std::getenv("CHI_SERVER_CONF");
+  const char *env_path = std::getenv("CHI_SERVER_CONF");
   return env_path ? std::string(env_path) : std::string();
 }
 
 u32 ConfigManager::GetWorkerThreadCount(ThreadType thread_type) const {
   switch (thread_type) {
-    case kLowLatencyWorker:
-      return low_latency_workers_;
-    case kHighLatencyWorker:
-      return high_latency_workers_;
-    case kReinforcementWorker:
-      return reinforcement_workers_;
-    case kProcessReaper:
-      return process_reaper_workers_;
-    default:
-      return 0;
+  case kLowLatencyWorker:
+    return low_latency_workers_;
+  case kHighLatencyWorker:
+    return high_latency_workers_;
+  case kReinforcementWorker:
+    return reinforcement_workers_;
+  case kProcessReaper:
+    return process_reaper_workers_;
+  default:
+    return 0;
   }
 }
 
 size_t ConfigManager::GetMemorySegmentSize(MemorySegment segment) const {
   switch (segment) {
-    case kMainSegment:
-      return main_segment_size_;
-    case kClientDataSegment:
-      return client_data_segment_size_;
-    case kRuntimeDataSegment:
-      return runtime_data_segment_size_;
-    default:
-      return 0;
+  case kMainSegment:
+    return main_segment_size_;
+  case kClientDataSegment:
+    return client_data_segment_size_;
+  case kRuntimeDataSegment:
+    return runtime_data_segment_size_;
+  default:
+    return 0;
   }
 }
 
-u32 ConfigManager::GetZmqPort() const {
-  return zmq_port_;
-}
+u32 ConfigManager::GetZmqPort() const { return zmq_port_; }
 
-u32 ConfigManager::GetTaskQueueLanes() const {
-  return task_queue_lanes_;
-}
+u32 ConfigManager::GetTaskQueueLanes() const { return task_queue_lanes_; }
 
-std::string ConfigManager::GetSharedMemorySegmentName(MemorySegment segment) const {
+std::string
+ConfigManager::GetSharedMemorySegmentName(MemorySegment segment) const {
   std::string segment_name;
-  
+
   switch (segment) {
-    case kMainSegment:
-      segment_name = main_segment_name_;
-      break;
-    case kClientDataSegment:
-      segment_name = client_data_segment_name_;
-      break;
-    case kRuntimeDataSegment:
-      segment_name = runtime_data_segment_name_;
-      break;
-    default:
-      return "";
+  case kMainSegment:
+    segment_name = main_segment_name_;
+    break;
+  case kClientDataSegment:
+    segment_name = client_data_segment_name_;
+    break;
+  case kRuntimeDataSegment:
+    segment_name = runtime_data_segment_name_;
+    break;
+  default:
+    return "";
   }
-  
+
   // Use HSHM's ExpandPath to resolve environment variables
   return hshm::ConfigParse::ExpandPath(segment_name);
 }
@@ -112,14 +112,12 @@ std::string ConfigManager::GetHostfilePath() const {
   if (hostfile_path_.empty()) {
     return "";
   }
-  
+
   // Use HSHM's ExpandPath to resolve environment variables in hostfile path
   return hshm::ConfigParse::ExpandPath(hostfile_path_);
 }
 
-bool ConfigManager::IsValid() const {
-  return is_initialized_;
-}
+bool ConfigManager::IsValid() const { return is_initialized_; }
 
 void ConfigManager::LoadDefault() {
   // Set default configuration values
@@ -127,19 +125,19 @@ void ConfigManager::LoadDefault() {
   high_latency_workers_ = 2;
   reinforcement_workers_ = 1;
   process_reaper_workers_ = 1;
-  
-  main_segment_size_ = 1024 * 1024 * 1024; // 1GB
-  client_data_segment_size_ = 512 * 1024 * 1024; // 512MB
+
+  main_segment_size_ = 1024 * 1024 * 1024;        // 1GB
+  client_data_segment_size_ = 512 * 1024 * 1024;  // 512MB
   runtime_data_segment_size_ = 512 * 1024 * 1024; // 512MB
-  
+
   zmq_port_ = 5555;
   task_queue_lanes_ = 4;
-  
+
   // Set default shared memory segment names with environment variables
   main_segment_name_ = "chi_main_segment_${USER}";
   client_data_segment_name_ = "chi_client_data_segment_${USER}";
   runtime_data_segment_name_ = "chi_runtime_data_segment_${USER}";
-  
+
   // Set default hostfile path (empty means no distributed scheduling)
   hostfile_path_ = "";
 }
@@ -161,27 +159,24 @@ void ConfigManager::ParseYAML(YAML::Node &yaml_conf) {
       process_reaper_workers_ = workers["process_reaper"].as<u32>();
     }
   }
-  
+
   // Parse memory segments
   if (yaml_conf["memory"]) {
     auto memory = yaml_conf["memory"];
     if (memory["main_segment_size"]) {
       main_segment_size_ = hshm::ConfigParse::ParseSize(
-        memory["main_segment_size"].as<std::string>()
-      );
+          memory["main_segment_size"].as<std::string>());
     }
     if (memory["client_data_segment_size"]) {
       client_data_segment_size_ = hshm::ConfigParse::ParseSize(
-        memory["client_data_segment_size"].as<std::string>()
-      );
+          memory["client_data_segment_size"].as<std::string>());
     }
     if (memory["runtime_data_segment_size"]) {
       runtime_data_segment_size_ = hshm::ConfigParse::ParseSize(
-        memory["runtime_data_segment_size"].as<std::string>()
-      );
+          memory["runtime_data_segment_size"].as<std::string>());
     }
   }
-  
+
   // Parse networking
   if (yaml_conf["networking"]) {
     auto networking = yaml_conf["networking"];
@@ -189,7 +184,7 @@ void ConfigManager::ParseYAML(YAML::Node &yaml_conf) {
       zmq_port_ = networking["zmq_port"].as<u32>();
     }
   }
-  
+
   // Parse task queue configuration
   if (yaml_conf["task_queue"]) {
     auto task_queue = yaml_conf["task_queue"];
@@ -197,7 +192,7 @@ void ConfigManager::ParseYAML(YAML::Node &yaml_conf) {
       task_queue_lanes_ = task_queue["lanes"].as<u32>();
     }
   }
-  
+
   // Parse shared memory configuration
   if (yaml_conf["shared_memory"]) {
     auto shm = yaml_conf["shared_memory"];
@@ -205,13 +200,15 @@ void ConfigManager::ParseYAML(YAML::Node &yaml_conf) {
       main_segment_name_ = shm["main_segment_name"].as<std::string>();
     }
     if (shm["client_data_segment_name"]) {
-      client_data_segment_name_ = shm["client_data_segment_name"].as<std::string>();
+      client_data_segment_name_ =
+          shm["client_data_segment_name"].as<std::string>();
     }
     if (shm["runtime_data_segment_name"]) {
-      runtime_data_segment_name_ = shm["runtime_data_segment_name"].as<std::string>();
+      runtime_data_segment_name_ =
+          shm["runtime_data_segment_name"].as<std::string>();
     }
   }
-  
+
   // Parse distributed scheduling configuration
   if (yaml_conf["distributed_scheduling"]) {
     auto dist = yaml_conf["distributed_scheduling"];
@@ -221,4 +218,4 @@ void ConfigManager::ParseYAML(YAML::Node &yaml_conf) {
   }
 }
 
-}  // namespace chi
+} // namespace chi

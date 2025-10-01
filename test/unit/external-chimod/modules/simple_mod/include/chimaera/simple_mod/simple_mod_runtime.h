@@ -43,9 +43,11 @@ public:
   virtual ~Runtime() = default;
 
   /**
-   * Initialize client for this container
+   * Initialize container with pool information
+   * @param pool_id The unique ID of this pool
+   * @param pool_name The semantic name of this pool (user-provided)
    */
-  void InitClient(const chi::PoolId& pool_id) override;
+  void Init(const chi::PoolId& pool_id, const std::string& pool_name) override;
 
   /**
    * Execute a method on a task

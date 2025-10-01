@@ -61,9 +61,9 @@ public:
 
 
   /**
-   * Initialize client for this container
+   * Initialize container with pool information
    */
-  void InitClient(const chi::PoolId& pool_id) override;
+  void Init(const chi::PoolId& pool_id, const std::string& pool_name) override;
 
   /**
    * Execute a method on a task

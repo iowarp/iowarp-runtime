@@ -22,9 +22,9 @@ hshm::ThreadLocalKey chi_task_counter_key_;
  */
 TaskNode CreateTaskNode() {
   // In runtime mode, check if we have a current worker
-  auto* chimaera_manager = CHI_CHIMAERA_MANAGER;
+  auto *chimaera_manager = CHI_CHIMAERA_MANAGER;
   if (chimaera_manager && chimaera_manager->IsRuntime()) {
-    Worker* current_worker = CHI_CUR_WORKER;
+    Worker *current_worker = CHI_CUR_WORKER;
     if (current_worker) {
       // Get current task from worker
       FullPtr<Task> current_task = current_worker->GetCurrentTask();
@@ -39,14 +39,14 @@ TaskNode CreateTaskNode() {
 
   // Fallback: Create new TaskNode using counter (client mode or no current
   // task) Get system information singleton (avoid direct dereferencing)
-  auto* system_info = HSHM_SYSTEM_INFO;
+  auto *system_info = HSHM_SYSTEM_INFO;
   u32 pid = system_info ? system_info->pid_ : 0;
 
   // Get thread ID
   u32 tid = static_cast<u32>(HSHM_THREAD_MODEL->GetTid().tid_);
 
   // Get thread-local task counter (should be initialized during client init)
-  TaskCounter* counter =
+  TaskCounter *counter =
       HSHM_THREAD_MODEL->GetTls<TaskCounter>(chi_task_counter_key_);
   if (!counter) {
     // Initialize counter if not present (should not happen in client mode)
@@ -57,7 +57,7 @@ TaskNode CreateTaskNode() {
   // Get next major number
   u32 major = counter->GetNext();
 
-  return TaskNode(pid, tid, major, 0);  // minor starts at 0 for new tasks
+  return TaskNode(pid, tid, major, 0); // minor starts at 0 for new tasks
 }
 
 Chimaera::~Chimaera() {
@@ -75,21 +75,24 @@ Chimaera::~Chimaera() {
 }
 
 bool Chimaera::ClientInit() {
+  HILOG(kInfo, "Chimaera::ClientInit");
   if (is_client_mode_ || client_is_initializing_ || runtime_is_initializing_) {
     return true;
   }
 
   client_is_initializing_ = true;
 
+  HILOG(kDebug, "IpcManager::ClientInit");
   // Initialize configuration manager
-  auto* config_manager = CHI_CONFIG_MANAGER;
+  auto *config_manager = CHI_CONFIG_MANAGER;
   if (!config_manager->Init()) {
     client_is_initializing_ = false;
     return false;
   }
 
+  HILOG(kDebug, "IpcManager::ClientInit");
   // Initialize IPC manager for client
-  auto* ipc_manager = CHI_IPC;
+  auto *ipc_manager = CHI_IPC;
   if (!ipc_manager->ClientInit()) {
     client_is_initializing_ = false;
     return false;
@@ -113,14 +116,14 @@ bool Chimaera::ServerInit() {
   runtime_is_initializing_ = true;
 
   // Initialize configuration manager first
-  auto* config_manager = CHI_CONFIG_MANAGER;
+  auto *config_manager = CHI_CONFIG_MANAGER;
   if (!config_manager->Init()) {
     runtime_is_initializing_ = false;
     return false;
   }
 
   // Initialize IPC manager for server
-  auto* ipc_manager = CHI_IPC;
+  auto *ipc_manager = CHI_IPC;
   if (!ipc_manager->ServerInit()) {
     runtime_is_initializing_ = false;
     return false;
@@ -130,14 +133,14 @@ bool Chimaera::ServerInit() {
         ipc_manager->GetCurrentHostname());
 
   // Initialize module manager first (needed for admin chimod)
-  auto* module_manager = CHI_MODULE_MANAGER;
+  auto *module_manager = CHI_MODULE_MANAGER;
   if (!module_manager->Init()) {
     runtime_is_initializing_ = false;
     return false;
   }
 
   // Initialize work orchestrator before pool manager
-  auto* work_orchestrator = CHI_WORK_ORCHESTRATOR;
+  auto *work_orchestrator = CHI_WORK_ORCHESTRATOR;
   if (!work_orchestrator->Init()) {
     runtime_is_initializing_ = false;
     return false;
@@ -150,7 +153,7 @@ bool Chimaera::ServerInit() {
   }
 
   // Initialize pool manager (server mode only) after work orchestrator
-  auto* pool_manager = CHI_POOL_MANAGER;
+  auto *pool_manager = CHI_POOL_MANAGER;
   if (!pool_manager->ServerInit()) {
     runtime_is_initializing_ = false;
     return false;
@@ -169,9 +172,9 @@ void Chimaera::ClientFinalize() {
   }
 
   // Finalize client components
-  auto* pool_manager = CHI_POOL_MANAGER;
+  auto *pool_manager = CHI_POOL_MANAGER;
   pool_manager->Finalize();
-  auto* ipc_manager = CHI_IPC;
+  auto *ipc_manager = CHI_IPC;
   ipc_manager->ClientFinalize();
 
   is_client_mode_ = false;
@@ -187,16 +190,16 @@ void Chimaera::ServerFinalize() {
   }
 
   // Stop workers and finalize server components
-  auto* work_orchestrator = CHI_WORK_ORCHESTRATOR;
+  auto *work_orchestrator = CHI_WORK_ORCHESTRATOR;
   work_orchestrator->StopWorkers();
   work_orchestrator->Finalize();
-  auto* module_manager = CHI_MODULE_MANAGER;
+  auto *module_manager = CHI_MODULE_MANAGER;
   module_manager->Finalize();
 
   // Finalize shared components
-  auto* pool_manager = CHI_POOL_MANAGER;
+  auto *pool_manager = CHI_POOL_MANAGER;
   pool_manager->Finalize();
-  auto* ipc_manager = CHI_IPC;
+  auto *ipc_manager = CHI_IPC;
   ipc_manager->ServerFinalize();
 
   is_runtime_mode_ = false;
@@ -212,13 +215,13 @@ bool Chimaera::IsClient() const { return is_client_mode_; }
 
 bool Chimaera::IsRuntime() const { return is_runtime_mode_; }
 
-const std::string& Chimaera::GetCurrentHostname() const {
-  auto* ipc_manager = CHI_IPC;
+const std::string &Chimaera::GetCurrentHostname() const {
+  auto *ipc_manager = CHI_IPC;
   return ipc_manager->GetCurrentHostname();
 }
 
 u64 Chimaera::GetNodeId() const {
-  auto* ipc_manager = CHI_IPC;
+  auto *ipc_manager = CHI_IPC;
   return ipc_manager->GetNodeId();
 }
 
@@ -226,4 +229,4 @@ bool Chimaera::IsInitializing() const {
   return client_is_initializing_ || runtime_is_initializing_;
 }
 
-}  // namespace chi
+} // namespace chi

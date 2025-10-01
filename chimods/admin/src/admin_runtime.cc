@@ -28,7 +28,10 @@ namespace chimaera::admin {
 
 // Method implementations for Runtime class
 
-void Runtime::InitClient(const chi::PoolId& pool_id) {
+void Runtime::Init(const chi::PoolId& pool_id, const std::string& pool_name) {
+  // Call base class initialization
+  chi::Container::Init(pool_id, pool_name);
+
   // Initialize the client for this ChiMod
   client_ = Client(pool_id);
 }

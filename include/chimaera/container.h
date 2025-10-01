@@ -73,30 +73,15 @@ class Container {
   }
 
   /**
-   * Initialize container with pool information and domain query
-   * This version includes PoolQuery for more complete initialization
+   * Initialize container with pool information
+   * @param pool_id The unique ID of this pool
+   * @param pool_name The semantic name of this pool (user-provided)
+   *
+   * ChiMod runtime classes should override this method to initialize their client member.
    */
-  void Init(const PoolId& pool_id, const PoolQuery& pool_query) {
+  virtual void Init(const PoolId& pool_id, const std::string& pool_name) {
     pool_id_ = pool_id;
-    pool_query_ = pool_query;
-    pool_name_ = "pool_" + std::to_string(pool_id.ToU64());
-
-    // Get main allocator for creating lanes
-    auto mem_manager = HSHM_MEMORY_MANAGER;
-    main_allocator_ =
-        mem_manager->GetAllocator<CHI_MAIN_ALLOC_T>(hipc::AllocatorId(1, 0));
-
-    // Note: InitClient should be called separately after system is fully
-    // initialized
-  }
-
-  /**
-   * Simple initialization with client initialization
-   * Used when we only have a PoolId available
-   */
-  void Init(const PoolId& pool_id) {
-    pool_id_ = pool_id;
-    pool_name_ = "pool_" + std::to_string(pool_id.ToU64());
+    pool_name_ = pool_name;
     container_id_ = 0;
     pool_query_ = PoolQuery();  // Default pool query
 
@@ -104,19 +89,6 @@ class Container {
     auto mem_manager = HSHM_MEMORY_MANAGER;
     main_allocator_ =
         mem_manager->GetAllocator<CHI_MAIN_ALLOC_T>(hipc::AllocatorId(1, 0));
-
-    // Initialize client for this container
-    InitClient(pool_id);
-  }
-
-  /**
-   * Initialize client for this container - can be overridden by derived classes
-   * This is called by Init to allow runtime modules to initialize their clients
-   * Default implementation does nothing (for test containers and simple cases)
-   */
-  virtual void InitClient(const PoolId& pool_id) {
-    // Default: do nothing
-    (void)pool_id;
   }
 
   /**

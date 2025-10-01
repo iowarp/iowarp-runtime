@@ -6,14 +6,14 @@
 
 #include "chimaera/config_manager.h"
 #include "chimaera/task_queue.h"
-#include <functional>
-#include <iostream>
-#include <sys/socket.h>
-#include <netdb.h>
 #include <arpa/inet.h>
 #include <cstring>
-#include <memory>
 #include <endian.h>
+#include <functional>
+#include <iostream>
+#include <memory>
+#include <netdb.h>
+#include <sys/socket.h>
 
 // Global pointer variable definition for IPC manager singleton
 HSHM_DEFINE_GLOBAL_PTR_VAR_CC(chi::IpcManager, g_ipc_manager);
@@ -22,77 +22,83 @@ namespace chi {
 
 // Host struct methods
 
-u64 Host::IpToNodeId(const std::string& ip_str) {
+u64 Host::IpToNodeId(const std::string &ip_str) {
   // Handle empty string case
   if (ip_str.empty()) {
     return 0;
   }
-  
+
   // Step 1: Resolve hostname to IP address using portable getaddrinfo
   std::string resolved_ip = ResolveHostnameToIp(ip_str);
   if (resolved_ip.empty()) {
     // If resolution fails, fall back to string hashing for consistency
-    HILOG(kDebug, "Warning: Failed to resolve hostname '{}', falling back to string hash", ip_str);
+    HILOG(
+        kDebug,
+        "Warning: Failed to resolve hostname '{}', falling back to string hash",
+        ip_str);
     std::hash<std::string> hasher;
     return static_cast<u64>(hasher(ip_str));
   }
-  
+
   // Step 2: Convert resolved IP address to 64-bit numeric representation
   return ConvertIpToNumeric64(resolved_ip);
 }
 
-std::string Host::ResolveHostnameToIp(const std::string& hostname) {
+std::string Host::ResolveHostnameToIp(const std::string &hostname) {
   struct addrinfo hints, *result;
   std::memset(&hints, 0, sizeof(hints));
-  
+
   // Allow both IPv4 and IPv6, prefer IPv4 for deterministic results
   hints.ai_family = AF_UNSPEC;     // Allow IPv4 or IPv6
   hints.ai_socktype = SOCK_STREAM; // TCP socket type
-  hints.ai_flags = AI_ADDRCONFIG;  // Return addresses only if interfaces configured
-  
+  hints.ai_flags =
+      AI_ADDRCONFIG; // Return addresses only if interfaces configured
+
   int status = getaddrinfo(hostname.c_str(), nullptr, &hints, &result);
   if (status != 0) {
     // getaddrinfo failed - hostname resolution failed
     return std::string();
   }
-  
-  std::unique_ptr<struct addrinfo, decltype(&freeaddrinfo)> 
-      result_guard(result, freeaddrinfo);
-  
+
+  std::unique_ptr<struct addrinfo, decltype(&freeaddrinfo)> result_guard(
+      result, freeaddrinfo);
+
   // Iterate through results, prefer IPv4 for deterministic ordering
-  struct addrinfo* ipv4_addr = nullptr;
-  struct addrinfo* ipv6_addr = nullptr;
-  
-  for (struct addrinfo* rp = result; rp != nullptr; rp = rp->ai_next) {
+  struct addrinfo *ipv4_addr = nullptr;
+  struct addrinfo *ipv6_addr = nullptr;
+
+  for (struct addrinfo *rp = result; rp != nullptr; rp = rp->ai_next) {
     if (rp->ai_family == AF_INET && !ipv4_addr) {
-      ipv4_addr = rp;  // Store first IPv4 address
+      ipv4_addr = rp; // Store first IPv4 address
     } else if (rp->ai_family == AF_INET6 && !ipv6_addr) {
-      ipv6_addr = rp;  // Store first IPv6 address  
+      ipv6_addr = rp; // Store first IPv6 address
     }
   }
-  
+
   // Prefer IPv4 for deterministic results, fall back to IPv6
-  struct addrinfo* chosen_addr = ipv4_addr ? ipv4_addr : ipv6_addr;
+  struct addrinfo *chosen_addr = ipv4_addr ? ipv4_addr : ipv6_addr;
   if (!chosen_addr) {
     return std::string();
   }
-  
+
   // Convert socket address to string representation
   char ip_str[INET6_ADDRSTRLEN];
   if (chosen_addr->ai_family == AF_INET) {
-    struct sockaddr_in* sin = reinterpret_cast<struct sockaddr_in*>(chosen_addr->ai_addr);
+    struct sockaddr_in *sin =
+        reinterpret_cast<struct sockaddr_in *>(chosen_addr->ai_addr);
     inet_ntop(AF_INET, &sin->sin_addr, ip_str, INET_ADDRSTRLEN);
   } else if (chosen_addr->ai_family == AF_INET6) {
-    struct sockaddr_in6* sin6 = reinterpret_cast<struct sockaddr_in6*>(chosen_addr->ai_addr);
+    struct sockaddr_in6 *sin6 =
+        reinterpret_cast<struct sockaddr_in6 *>(chosen_addr->ai_addr);
     inet_ntop(AF_INET6, &sin6->sin6_addr, ip_str, INET6_ADDRSTRLEN);
   } else {
     return std::string();
   }
-  
+
   return std::string(ip_str);
 }
 
-u64 Host::ConvertIpToNumeric64(const std::string& ip_str) {
+u64 Host::ConvertIpToNumeric64(const std::string &ip_str) {
   // Try IPv4 first
   struct in_addr ipv4_addr;
   if (inet_pton(AF_INET, ip_str.c_str(), &ipv4_addr) == 1) {
@@ -101,21 +107,24 @@ u64 Host::ConvertIpToNumeric64(const std::string& ip_str) {
     u32 ipv4_numeric = ntohl(ipv4_addr.s_addr);
     return static_cast<u64>(ipv4_numeric);
   }
-  
+
   // Try IPv6
   struct in6_addr ipv6_addr;
   if (inet_pton(AF_INET6, ip_str.c_str(), &ipv6_addr) == 1) {
     // IPv6 address: use lower 64 bits of the 128-bit address
     // This provides good distribution while fitting in 64 bits
     u64 result = 0;
-    std::memcpy(&result, &ipv6_addr.s6_addr[8], 8);  // Copy bytes 8-15 (lower 64 bits)
-    
+    std::memcpy(&result, &ipv6_addr.s6_addr[8],
+                8); // Copy bytes 8-15 (lower 64 bits)
+
     // Convert from network byte order to host byte order
     return be64toh(result);
   }
-  
+
   // If neither IPv4 nor IPv6 parsing succeeded, fall back to string hash
-  HILOG(kDebug, "Warning: IP address '{}' is not valid IPv4 or IPv6, using string hash", ip_str);
+  HILOG(kDebug,
+        "Warning: IP address '{}' is not valid IPv4 or IPv6, using string hash",
+        ip_str);
   std::hash<std::string> hasher;
   return static_cast<u64>(hasher(ip_str));
 }
@@ -125,6 +134,7 @@ u64 Host::ConvertIpToNumeric64(const std::string& ip_str) {
 // Constructor and destructor removed - handled by HSHM singleton pattern
 
 bool IpcManager::ClientInit() {
+  HILOG(kDebug, "IpcManager::ClientInit");
   if (is_initialized_) {
     return true;
   }
@@ -142,7 +152,8 @@ bool IpcManager::ClientInit() {
   // Retrieve node ID from shared header and store in this_host_
   if (shared_header_) {
     this_host_.node_id = shared_header_->node_id;
-    HILOG(kDebug, "Retrieved node ID from shared memory: 0x{:x}", this_host_.node_id);
+    HILOG(kDebug, "Retrieved node ID from shared memory: 0x{:x}",
+          this_host_.node_id);
   } else {
     HELOG(kError, "Warning: Could not access shared header during ClientInit");
     this_host_ = Host(); // Default constructor gives node_id = 0
@@ -163,11 +174,12 @@ bool IpcManager::ClientInit() {
   HSHM_THREAD_MODEL->CreateTls<TaskCounter>(chi_task_counter_key_, nullptr);
 
   // Initialize thread-local task counter for this client thread
-  auto* counter = new TaskCounter();
+  auto *counter = new TaskCounter();
   HSHM_THREAD_MODEL->SetTls(chi_task_counter_key_, counter);
 
   // Set current worker to null for client-only mode
-  HSHM_THREAD_MODEL->SetTls(chi_cur_worker_key_, static_cast<Worker*>(nullptr));
+  HSHM_THREAD_MODEL->SetTls(chi_cur_worker_key_,
+                            static_cast<Worker *>(nullptr));
 
   is_initialized_ = true;
   return true;
@@ -200,11 +212,13 @@ bool IpcManager::ServerInit() {
     if (shared_header_) {
       shared_header_->node_id = this_host_.node_id;
     }
-    
-    HILOG(kDebug, "Node ID stored in shared memory: 0x{:x}", this_host_.node_id);
+
+    HILOG(kDebug, "Node ID stored in shared memory: 0x{:x}",
+          this_host_.node_id);
   }
 
-  // Initialize HSHM TLS key for task counter (needed for CreateTaskNode in runtime)
+  // Initialize HSHM TLS key for task counter (needed for CreateTaskNode in
+  // runtime)
   HSHM_THREAD_MODEL->CreateTls<TaskCounter>(chi_task_counter_key_, nullptr);
 
   // Start local ZeroMQ server (optional - failure is non-fatal)
@@ -214,15 +228,14 @@ bool IpcManager::ServerInit() {
   return true;
 }
 
-
 void IpcManager::ClientFinalize() {
   // Clean up thread-local task counter
-  TaskCounter* counter =
+  TaskCounter *counter =
       HSHM_THREAD_MODEL->GetTls<TaskCounter>(chi_task_counter_key_);
   if (counter) {
     delete counter;
     HSHM_THREAD_MODEL->SetTls(chi_task_counter_key_,
-                              static_cast<TaskCounter*>(nullptr));
+                              static_cast<TaskCounter *>(nullptr));
   }
 
   // Clients should not destroy shared resources
@@ -272,12 +285,12 @@ void IpcManager::ServerFinalize() {
 // Template methods (NewTask, DelTask, AllocateBuffer, Enqueue) are implemented
 // inline in the header
 
-TaskQueue* IpcManager::GetTaskQueue() { return external_queue_.ptr_; }
+TaskQueue *IpcManager::GetTaskQueue() { return external_queue_.ptr_; }
 
-void* IpcManager::GetProcessQueue(QueuePriority priority) {
+void *IpcManager::GetProcessQueue(QueuePriority priority) {
   // For compatibility, return the TaskQueue as void*
-  (void)priority;  // Suppress unused parameter warning
-  return static_cast<void*>(GetTaskQueue());
+  (void)priority; // Suppress unused parameter warning
+  return static_cast<void *>(GetTaskQueue());
 }
 
 bool IpcManager::IsInitialized() const { return is_initialized_; }
@@ -299,13 +312,12 @@ bool IpcManager::InitializeWorkerQueues(u32 num_workers) {
     shared_header_->num_workers = num_workers;
 
     return true;
-  } catch (const std::exception& e) {
+  } catch (const std::exception &e) {
     return false;
   }
 }
 
-hipc::FullPtr<WorkQueue>
-IpcManager::GetWorkerQueue(u32 worker_id) {
+hipc::FullPtr<WorkQueue> IpcManager::GetWorkerQueue(u32 worker_id) {
   if (!shared_header_) {
     return hipc::FullPtr<WorkQueue>::GetNull();
   }
@@ -315,7 +327,7 @@ IpcManager::GetWorkerQueue(u32 worker_id) {
   }
 
   // Get the vector of worker queues from delay_ar
-  auto& worker_queues_vector = shared_header_->worker_queues;
+  auto &worker_queues_vector = shared_header_->worker_queues;
 
   if (worker_id >= worker_queues_vector->size()) {
     return hipc::FullPtr<WorkQueue>::GetNull();
@@ -334,7 +346,7 @@ u32 IpcManager::GetWorkerCount() {
 
 bool IpcManager::ServerInitShm() {
   auto mem_manager = HSHM_MEMORY_MANAGER;
-  ConfigManager* config = CHI_CONFIG_MANAGER;
+  ConfigManager *config = CHI_CONFIG_MANAGER;
 
   try {
     // Set backend and allocator IDs
@@ -391,14 +403,14 @@ bool IpcManager::ServerInitShm() {
         runtime_data_allocator_id_);
 
     return main_allocator_ && client_data_allocator_ && runtime_data_allocator_;
-  } catch (const std::exception& e) {
+  } catch (const std::exception &e) {
     return false;
   }
 }
 
 bool IpcManager::ClientInitShm() {
   auto mem_manager = HSHM_MEMORY_MANAGER;
-  ConfigManager* config = CHI_CONFIG_MANAGER;
+  ConfigManager *config = CHI_CONFIG_MANAGER;
 
   try {
     // Set backend and allocator IDs (must match server)
@@ -435,7 +447,7 @@ bool IpcManager::ClientInitShm() {
         runtime_data_allocator_id_);
 
     return main_allocator_ && client_data_allocator_ && runtime_data_allocator_;
-  } catch (const std::exception& e) {
+  } catch (const std::exception &e) {
     return false;
   }
 }
@@ -458,15 +470,15 @@ bool IpcManager::ServerInitQueues() {
     hipc::CtxAllocator<CHI_MAIN_ALLOC_T> ctx_alloc(HSHM_MCTX, main_allocator_);
 
     // Get configured number of lanes from ConfigManager
-    ConfigManager* config = CHI_CONFIG_MANAGER;
+    ConfigManager *config = CHI_CONFIG_MANAGER;
     u32 num_lanes = config->GetTaskQueueLanes();
 
     // Initialize TaskQueue in shared header
     shared_header_->external_queue.shm_init(
         ctx_alloc, ctx_alloc,
-        num_lanes,  // num_lanes for concurrency from config
-        1,          // num_priorities (single priority)
-        1024);      // depth_per_queue
+        num_lanes, // num_lanes for concurrency from config
+        1,         // num_priorities (single priority)
+        1024);     // depth_per_queue
 
     // Create FullPtr reference to the shared TaskQueue
     external_queue_ =
@@ -476,7 +488,7 @@ bool IpcManager::ServerInitQueues() {
     // not here
 
     return !external_queue_.IsNull();
-  } catch (const std::exception& e) {
+  } catch (const std::exception &e) {
     return false;
   }
 }
@@ -494,16 +506,16 @@ bool IpcManager::ClientInitQueues() {
     // Client accesses the server's shared TaskQueue via delay_ar
     // Create FullPtr reference to the shared TaskQueue
     external_queue_ =
-        hipc::FullPtr<TaskQueue>(&shared_header_->external_queue.get_ref());
+        hipc::FullPtr<TaskQueue>(shared_header_->external_queue.get());
 
     return !external_queue_.IsNull();
-  } catch (const std::exception& e) {
+  } catch (const std::exception &e) {
     return false;
   }
 }
 
 bool IpcManager::StartLocalServer() {
-  ConfigManager* config = CHI_CONFIG_MANAGER;
+  ConfigManager *config = CHI_CONFIG_MANAGER;
 
   try {
     // Start local ZeroMQ server using HSHM Lightbeam
@@ -515,32 +527,35 @@ bool IpcManager::StartLocalServer() {
         addr, hshm::lbm::Transport::kZeroMq, protocol, port);
 
     return local_server_ != nullptr;
-  } catch (const std::exception& e) {
+  } catch (const std::exception &e) {
     return false;
   }
 }
 
 bool IpcManager::TestLocalServer() {
-  ConfigManager* config = CHI_CONFIG_MANAGER;
-  
+  ConfigManager *config = CHI_CONFIG_MANAGER;
+
   try {
     // Create lightbeam client to test connection to local server
     std::string addr = "127.0.0.1";
     std::string protocol = "tcp";
-    u32 port = config->GetZmqPort() + 1; // Use ZMQ port + 1 to match local server
-    
+    u32 port =
+        config->GetZmqPort() + 1; // Use ZMQ port + 1 to match local server
+
     auto client = hshm::lbm::TransportFactory::GetClient(
         addr, hshm::lbm::Transport::kZeroMq, protocol, port);
-    
+
     if (client != nullptr) {
-      HILOG(kDebug, "Successfully connected to local server at {}:{}", addr, port);
+      HILOG(kDebug, "Successfully connected to local server at {}:{}", addr,
+            port);
       return true;
     } else {
       HELOG(kError, "Failed to create client connection to local server");
       return false;
     }
-  } catch (const std::exception& e) {
-    HELOG(kError, "Exception while testing local server connection: {}", e.what());
+  } catch (const std::exception &e) {
+    HELOG(kError, "Exception while testing local server connection: {}",
+          e.what());
     return false;
   } catch (...) {
     HELOG(kError, "Unknown error while testing local server connection");
@@ -548,11 +563,11 @@ bool IpcManager::TestLocalServer() {
   }
 }
 
-void IpcManager::SetNodeId(const std::string& hostname) {
+void IpcManager::SetNodeId(const std::string &hostname) {
   if (!shared_header_) {
     return;
   }
-  
+
   shared_header_->node_id = ComputeNodeIdHash(hostname);
 }
 
@@ -561,55 +576,58 @@ u64 IpcManager::GetNodeId() const {
   return this_host_.node_id;
 }
 
-u64 IpcManager::ComputeNodeIdHash(const std::string& hostname) {
+u64 IpcManager::ComputeNodeIdHash(const std::string &hostname) {
   // Use std::hash<std::string> to generate a 64-bit hash of the hostname
   std::hash<std::string> hasher;
   return static_cast<u64>(hasher(hostname));
 }
 
 bool IpcManager::LoadHostfile() {
-  ConfigManager* config = CHI_CONFIG_MANAGER;
+  ConfigManager *config = CHI_CONFIG_MANAGER;
   std::string hostfile_path = config->GetHostfilePath();
-  
+
   // Clear existing hostfile map
   hostfile_map_.clear();
-  
+
   if (hostfile_path.empty()) {
     // No hostfile configured - assume localhost
     HILOG(kDebug, "No hostfile configured, using localhost");
-    std::vector<std::string> default_hosts = {"localhost", "127.0.0.1", "0.0.0.0"};
-    for (const auto& ip : default_hosts) {
+    std::vector<std::string> default_hosts = {"localhost", "127.0.0.1",
+                                              "0.0.0.0"};
+    for (const auto &ip : default_hosts) {
       Host host(ip);
       hostfile_map_[host.node_id] = host;
     }
     return true;
   }
-  
+
   try {
     // Use HSHM to parse hostfile
-    std::vector<std::string> host_ips = hshm::ConfigParse::ParseHostfile(hostfile_path);
-    
+    std::vector<std::string> host_ips =
+        hshm::ConfigParse::ParseHostfile(hostfile_path);
+
     // Create Host structs and populate map
-    for (const auto& ip : host_ips) {
+    for (const auto &ip : host_ips) {
       Host host(ip);
       hostfile_map_[host.node_id] = host;
     }
-    
-    HILOG(kDebug, "Loaded {} hosts from hostfile: {}", hostfile_map_.size(), hostfile_path);
+
+    HILOG(kDebug, "Loaded {} hosts from hostfile: {}", hostfile_map_.size(),
+          hostfile_path);
     return true;
-    
-  } catch (const std::exception& e) {
+
+  } catch (const std::exception &e) {
     HELOG(kError, "Error loading hostfile {}: {}", hostfile_path, e.what());
     return false;
   }
 }
 
-const Host* IpcManager::GetHost(u64 node_id) const {
+const Host *IpcManager::GetHost(u64 node_id) const {
   auto it = hostfile_map_.find(node_id);
   return (it != hostfile_map_.end()) ? &it->second : nullptr;
 }
 
-const Host* IpcManager::GetHostByIp(const std::string& ip_address) const {
+const Host *IpcManager::GetHostByIp(const std::string &ip_address) const {
   u64 node_id = Host::IpToNodeId(ip_address);
   return GetHost(node_id);
 }
@@ -617,17 +635,17 @@ const Host* IpcManager::GetHostByIp(const std::string& ip_address) const {
 std::vector<Host> IpcManager::GetAllHosts() const {
   std::vector<Host> hosts;
   hosts.reserve(hostfile_map_.size());
-  
-  for (const auto& pair : hostfile_map_) {
+
+  for (const auto &pair : hostfile_map_) {
     hosts.push_back(pair.second);
   }
-  
+
   return hosts;
 }
 
 bool IpcManager::IdentifyThisHost() {
   HILOG(kDebug, "Identifying current host");
-  
+
   // Load hostfile if not already loaded
   if (hostfile_map_.empty()) {
     if (!LoadHostfile()) {
@@ -635,58 +653,59 @@ bool IpcManager::IdentifyThisHost() {
       return false;
     }
   }
-  
+
   if (hostfile_map_.empty()) {
     HELOG(kError, "ERROR: No hosts available for identification");
     return false;
   }
-  
-  HILOG(kDebug, "Attempting to identify host among {} candidates", hostfile_map_.size());
-  
+
+  HILOG(kDebug, "Attempting to identify host among {} candidates",
+        hostfile_map_.size());
+
   // Try to start TCP server on each host IP
-  for (const auto& pair : hostfile_map_) {
-    const Host& host = pair.second;
+  for (const auto &pair : hostfile_map_) {
+    const Host &host = pair.second;
     HILOG(kDebug, "Trying to bind TCP server to: {}", host.ip_address);
-    
+
     try {
       if (TryStartMainServer(host.ip_address)) {
         HILOG(kDebug, "SUCCESS: Main server started on {}", host.ip_address);
         this_host_ = host;
         return true;
       }
-    } catch (const std::exception& e) {
+    } catch (const std::exception &e) {
       HILOG(kDebug, "Failed to bind to {}: {}", host.ip_address, e.what());
     } catch (...) {
       HILOG(kDebug, "Failed to bind to {}: Unknown error", host.ip_address);
     }
   }
-  
+
   HELOG(kError, "ERROR: Could not start TCP server on any host from hostfile");
   return false;
 }
 
-const std::string& IpcManager::GetCurrentHostname() const {
+const std::string &IpcManager::GetCurrentHostname() const {
   return this_host_.ip_address;
 }
 
-bool IpcManager::TryStartMainServer(const std::string& hostname) {
-  ConfigManager* config = CHI_CONFIG_MANAGER;
-  
+bool IpcManager::TryStartMainServer(const std::string &hostname) {
+  ConfigManager *config = CHI_CONFIG_MANAGER;
+
   try {
     // Try to start main server using HSHM Lightbeam
     std::string protocol = "tcp";
     u32 port = config->GetZmqPort(); // Use ZMQ port for main server
-    
+
     main_server_ = hshm::lbm::TransportFactory::GetServer(
         hostname, hshm::lbm::Transport::kZeroMq, protocol, port);
-    
+
     if (main_server_ != nullptr) {
       HILOG(kDebug, "Main server successfully bound to {}:{}", hostname, port);
       return true;
     }
-    
+
     return false;
-  } catch (const std::exception& e) {
+  } catch (const std::exception &e) {
     // Exception will be caught and handled by caller
     throw;
   } catch (...) {
@@ -696,4 +715,4 @@ bool IpcManager::TryStartMainServer(const std::string& hostname) {
 
 // No template instantiations needed - all templates are inline in header
 
-}  // namespace chi
+} // namespace chi

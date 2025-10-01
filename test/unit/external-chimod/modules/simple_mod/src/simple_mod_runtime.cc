@@ -18,7 +18,10 @@ namespace external_test::simple_mod {
 
 // Method implementations for Runtime class
 
-void Runtime::InitClient(const chi::PoolId& pool_id) {
+void Runtime::Init(const chi::PoolId& pool_id, const std::string& pool_name) {
+  // Call base class Init to set pool_id_ and pool_name_
+  chi::Container::Init(pool_id, pool_name);
+
   // Initialize the client for this ChiMod
   client_ = Client(pool_id);
 }

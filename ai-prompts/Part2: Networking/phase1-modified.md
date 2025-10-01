@@ -397,7 +397,7 @@ public:
 // In admin runtime initialization
 
 void Container::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& ctx) {
-  chi::Container::Init(task->pool_id_, task->pool_query_);
+  chi::Container::Init(task->pool_id_, task->pool_name_.str());
   
   // Initialize queues
   CreateLocalQueue(chi::kLowLatency, 4);
