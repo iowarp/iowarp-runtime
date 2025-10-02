@@ -107,7 +107,9 @@ public:
   void OpenPosix(size_t dev_size) {
     // Open file for read & write, no override
     fd_ = open64(url_.path_.c_str(), O_RDWR | O_CREAT, 0666);
-    ftruncate64(fd_, dev_size);
+    if (ftruncate64(fd_, dev_size) != 0) {
+      HELOG(kWarning, "Failed to truncate bdev file: {}", strerror(errno));
+    }
   }
 
   /** Open a CUDA file */
