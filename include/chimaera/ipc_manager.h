@@ -165,6 +165,27 @@ class IpcManager {
   }
 
   /**
+   * Free buffer from appropriate memory segment
+   * Client uses cdata segment, runtime uses rdata segment
+   * @param buffer_ptr FullPtr to buffer to free
+   */
+  template<typename T>
+  void FreeBuffer(FullPtr<T> buffer_ptr) {
+    if (buffer_ptr.IsNull()) {
+      return;
+    }
+
+    auto* chimaera_manager = CHI_CHIMAERA_MANAGER;
+    if (chimaera_manager->IsRuntime()) {
+      // Runtime uses rdata segment
+      runtime_data_allocator_->Free(HSHM_MCTX, buffer_ptr);
+    } else {
+      // Client uses cdata segment
+      client_data_allocator_->Free(HSHM_MCTX, buffer_ptr);
+    }
+  }
+
+  /**
    * Enqueue task to process queue
    * Priority is determined from the task itself
    * @param task_ptr Task to enqueue  

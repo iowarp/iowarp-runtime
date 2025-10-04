@@ -6,7 +6,7 @@ Assumes chimaera has been installed and binaries are available in PATH.
 """
 from jarvis_cd.core.pkg import Service
 from jarvis_cd.shell import Exec, LocalExecInfo, PsshExecInfo
-from jarvis_cd.shell.process import Kill, Which, GdbServer
+from jarvis_cd.shell.process import Kill, Which
 from jarvis_cd.util import SizeType
 import os
 import yaml
@@ -114,18 +114,6 @@ class WrpRuntime(Service):
                 'msg': 'Task timeout (milliseconds)',
                 'type': int,
                 'default': 30000
-            },
-            {
-                'name': 'do_dbg',
-                'msg': 'Enable remote debugging with gdbserver',
-                'type': bool,
-                'default': False
-            },
-            {
-                'name': 'dbg_port',
-                'msg': 'GDB server port',
-                'type': int,
-                'default': 2345
             }
         ]
 
@@ -212,20 +200,11 @@ class WrpRuntime(Service):
         # The chimaera_start_runtime binary will read CHI_SERVER_CONF from environment
         cmd = 'chimaera_start_runtime'
 
-        # Execute with or without debugging
-        if self.config['do_dbg']:
-            self.log(f"  Debug mode enabled on port {self.config['dbg_port']}")
-            GdbServer(cmd, self.config['dbg_port'], LocalExecInfo(
-                env=self.env,  # Use env, not mod_env
-                hostfile=self.jarvis.hostfile,
-                exec_async=True
-            )).run()
-        else:
-            Exec(cmd, LocalExecInfo(
-                env=self.env,  # Use env, not mod_env
-                hostfile=self.jarvis.hostfile,
-                exec_async=True
-            )).run()
+        Exec(cmd, LocalExecInfo(
+            env=self.env,  # Use env, not mod_env
+            hostfile=self.jarvis.hostfile,
+            exec_async=True
+        )).run()
 
         self.sleep()
 

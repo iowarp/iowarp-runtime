@@ -37,23 +37,24 @@ struct RunContext;
  * across the distributed system.
  */
 class Task : public hipc::ShmContainer {
- public:
+public:
   IN PoolId pool_id_;       /**< Pool identifier for task execution */
   IN TaskNode task_node_;   /**< Node identifier for task routing */
   IN PoolQuery pool_query_; /**< Pool query for execution location */
   IN MethodId method_;      /**< Method identifier for task type */
   IN ibitfield task_flags_; /**< Task properties and flags */
   IN double period_ns_;     /**< Period in nanoseconds for periodic tasks */
-  IN RunContext* run_ctx_; /**< Pointer to runtime context for task execution */
+  IN RunContext *run_ctx_; /**< Pointer to runtime context for task execution */
   IN u32 net_key_; /**< Network identification key for distributed scheduling */
   std::atomic<u32> is_complete; /**< Atomic flag indicating task completion
                                    (0=not complete, 1=complete) */
-  std::atomic<u32> return_code_; /**< Task return code (0=success, non-zero=error) */
+  std::atomic<u32>
+      return_code_; /**< Task return code (0=success, non-zero=error) */
 
   /**
    * SHM default constructor
    */
-  explicit Task(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T>& alloc)
+  explicit Task(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc)
       : hipc::ShmContainer() {
     SetNull();
   }
@@ -61,9 +62,9 @@ class Task : public hipc::ShmContainer {
   /**
    * Emplace constructor with task initialization
    */
-  explicit Task(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T>& alloc,
-                const TaskNode& task_node, const PoolId& pool_id,
-                const PoolQuery& pool_query, const MethodId& method)
+  explicit Task(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
+                const TaskNode &task_node, const PoolId &pool_id,
+                const PoolQuery &pool_query, const MethodId &method)
       : hipc::ShmContainer() {
     // Initialize task
     task_node_ = task_node;
@@ -81,7 +82,7 @@ class Task : public hipc::ShmContainer {
   /**
    * Copy constructor
    */
-  HSHM_CROSS_FUN explicit Task(const Task& other) {
+  HSHM_CROSS_FUN explicit Task(const Task &other) {
     SetNull();
     shm_strong_copy_main(other);
   }
@@ -90,7 +91,7 @@ class Task : public hipc::ShmContainer {
    * Strong copy implementation
    */
   template <typename ContainerT>
-  HSHM_CROSS_FUN void shm_strong_copy_main(const ContainerT& other) {
+  HSHM_CROSS_FUN void shm_strong_copy_main(const ContainerT &other) {
     pool_id_ = other.pool_id_;
     task_node_ = other.task_node_;
     pool_query_ = other.pool_query_;
@@ -107,16 +108,16 @@ class Task : public hipc::ShmContainer {
   /**
    * Move constructor
    */
-  HSHM_CROSS_FUN Task(Task&& other) {
+  HSHM_CROSS_FUN Task(Task &&other) {
     shm_move_op<false>(
         HSHM_MEMORY_MANAGER->GetDefaultAllocator<CHI_MAIN_ALLOC_T>(),
         std::move(other));
   }
 
   template <bool IS_ASSIGN>
-  HSHM_CROSS_FUN void shm_move_op(
-      const hipc::CtxAllocator<CHI_MAIN_ALLOC_T>& alloc,
-      Task&& other) noexcept {
+  HSHM_CROSS_FUN void
+  shm_move_op(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
+              Task &&other) noexcept {
     // For simplified Task class, just copy the data
     shm_strong_copy_main(other);
     other.SetNull();
@@ -126,7 +127,7 @@ class Task : public hipc::ShmContainer {
    * IsNull check
    */
   HSHM_INLINE_CROSS_FUN bool IsNull() const {
-    return false;  // Base task is never null
+    return false; // Base task is never null
   }
 
   /**
@@ -159,11 +160,10 @@ class Task : public hipc::ShmContainer {
 
   /**
    * Wait for task completion (blocking)
-   * @param from_yield If true, do not add subtasks to RunContext (default: false)
+   * @param from_yield If true, do not add subtasks to RunContext (default:
+   * false)
    */
   HSHM_CROSS_FUN void Wait(bool from_yield = false);
-
-
 
   /**
    * Check if task is complete
@@ -175,8 +175,6 @@ class Task : public hipc::ShmContainer {
    * Yield execution back to worker by waiting for task completion
    */
   HSHM_CROSS_FUN void Yield();
-
-
 
   /**
    * Check if task is periodic
@@ -199,6 +197,14 @@ class Task : public hipc::ShmContainer {
    * @return true if task has routed flag set
    */
   HSHM_CROSS_FUN bool IsRouted() const { return task_flags_.Any(TASK_ROUTED); }
+
+  /**
+   * Check if task is the data owner
+   * @return true if task has data owner flag set
+   */
+  HSHM_CROSS_FUN bool IsDataOwner() const {
+    return task_flags_.Any(TASK_DATA_OWNER);
+  }
 
   /**
    * Get task execution period in specified time unit
@@ -258,8 +264,8 @@ class Task : public hipc::ShmContainer {
    * @param args The arguments to serialize
    */
   template <typename... Args>
-  static void Serialize(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T>& alloc,
-                        hipc::string& output_str, const Args&... args) {
+  static void Serialize(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
+                        hipc::string &output_str, const Args &...args) {
     std::ostringstream os;
     cereal::BinaryOutputArchive archive(os);
     archive(args...);
@@ -274,7 +280,7 @@ class Task : public hipc::ShmContainer {
    * @return The deserialized object
    */
   template <typename OutT>
-  static OutT Deserialize(const hipc::string& input_str) {
+  static OutT Deserialize(const hipc::string &input_str) {
     std::string data = input_str.str();
     std::istringstream is(data);
     cereal::BinaryInputArchive archive(is);
@@ -291,8 +297,7 @@ class Task : public hipc::ShmContainer {
    * Task inheritance.
    * @param ar Archive to serialize to
    */
-  template <typename Archive>
-  void BaseSerializeIn(Archive& ar) {
+  template <typename Archive> void BaseSerializeIn(Archive &ar) {
     // Handle atomic return_code_ by loading/storing its value
     u32 return_code_value = return_code_.load();
     ar(pool_id_, task_node_, pool_query_, method_, task_flags_, period_ns_,
@@ -307,8 +312,7 @@ class Task : public hipc::ShmContainer {
    * Task inheritance.
    * @param ar Archive to serialize to
    */
-  template <typename Archive>
-  void BaseSerializeOut(Archive& ar) {
+  template <typename Archive> void BaseSerializeOut(Archive &ar) {
     // Handle atomic return_code_ by loading/storing its value
     u32 return_code_value = return_code_.load();
     ar(pool_id_, task_node_, pool_query_, method_, task_flags_, period_ns_,
@@ -322,8 +326,7 @@ class Task : public hipc::ShmContainer {
    * Archives automatically call BaseSerializeIn first, then this method.
    * @param ar Archive to serialize to
    */
-  template <typename Archive>
-  void SerializeIn(Archive& ar) {
+  template <typename Archive> void SerializeIn(Archive &ar) {
     // Base implementation does nothing - derived classes override to serialize
     // their IN/INOUT fields
   }
@@ -334,8 +337,7 @@ class Task : public hipc::ShmContainer {
    * Archives automatically call BaseSerializeOut first, then this method.
    * @param ar Archive to serialize to
    */
-  template <typename Archive>
-  void SerializeOut(Archive& ar) {
+  template <typename Archive> void SerializeOut(Archive &ar) {
     // Base implementation does nothing - derived classes override to serialize
     // their OUT/INOUT fields
   }
@@ -366,44 +368,36 @@ class Task : public hipc::ShmContainer {
  * Context passed to task execution methods
  */
 struct RunContext {
-  void* stack_ptr;  // Stack pointer (positioned for boost::context based on
-                    // stack growth)
-  void* stack_base_for_free;  // Original malloc pointer for freeing
+  void *stack_ptr; // Stack pointer (positioned for boost::context based on
+                   // stack growth)
+  void *stack_base_for_free; // Original malloc pointer for freeing
   size_t stack_size;
   ThreadType thread_type;
   u32 worker_id;
-  FullPtr<Task> task;                   // Task being executed by this context
-  bool is_blocked;                      // Task is waiting for completion
-  double estimated_completion_time_us;  // Estimated completion time in
-                                        // microseconds
+  FullPtr<Task> task;                  // Task being executed by this context
+  bool is_blocked;                     // Task is waiting for completion
+  double estimated_completion_time_us; // Estimated completion time in
+                                       // microseconds
   hshm::Timepoint
-      block_time;  // Time when task was blocked (for timing measurements)
+      block_time; // Time when task was blocked (for timing measurements)
   boost::context::detail::transfer_t
-      yield_context;  // boost::context transfer from FiberExecutionFunction
-                      // parameter - used for yielding back
+      yield_context; // boost::context transfer from FiberExecutionFunction
+                     // parameter - used for yielding back
   boost::context::detail::transfer_t
       resume_context;    // boost::context transfer for resuming into yield
                          // function
-  Container* container;  // Current container being executed
-  TaskLane* lane;        // Current lane being processed
-  TaskLane* route_lane_; // Lane pointer set by kLocalSchedule for task routing
+  Container *container;  // Current container being executed
+  TaskLane *lane;        // Current lane being processed
+  TaskLane *route_lane_; // Lane pointer set by kLocalSchedule for task routing
   std::vector<FullPtr<Task>>
-      waiting_for_tasks;  // Tasks this task is waiting for completion
-  std::vector<PoolQuery> pool_queries;  // Pool queries for task distribution
+      waiting_for_tasks; // Tasks this task is waiting for completion
+  std::vector<PoolQuery> pool_queries; // Pool queries for task distribution
 
   RunContext()
-      : stack_ptr(nullptr),
-        stack_base_for_free(nullptr),
-        stack_size(0),
-        thread_type(kLowLatencyWorker),
-        worker_id(0),
-        is_blocked(false),
-        estimated_completion_time_us(0.0),
-        yield_context{},
-        resume_context{},
-        container(nullptr),
-        lane(nullptr),
-        route_lane_(nullptr) {}
+      : stack_ptr(nullptr), stack_base_for_free(nullptr), stack_size(0),
+        thread_type(kLowLatencyWorker), worker_id(0), is_blocked(false),
+        estimated_completion_time_us(0.0), yield_context{}, resume_context{},
+        container(nullptr), lane(nullptr), route_lane_(nullptr) {}
 
   /**
    * Check if all subtasks this task is waiting for are completed
@@ -411,15 +405,15 @@ struct RunContext {
    */
   bool AreSubtasksCompleted() const {
     // Check each task in the waiting_for_tasks vector
-    for (const auto& waiting_task : waiting_for_tasks) {
+    for (const auto &waiting_task : waiting_for_tasks) {
       if (!waiting_task.IsNull()) {
         // Check if the waiting task is completed using atomic flag
         if (waiting_task->is_complete.load() == 0) {
-          return false;  // Found a subtask that's not completed yet
+          return false; // Found a subtask that's not completed yet
         }
       }
     }
-    return true;  // All subtasks are completed (or no subtasks)
+    return true; // All subtasks are completed (or no subtasks)
   }
 };
 
@@ -427,8 +421,8 @@ struct RunContext {
 #undef CLASS_NAME
 #undef CLASS_NEW_ARGS
 
-}  // namespace chi
+} // namespace chi
 
 // Namespace alias for convenience - removed to avoid circular reference
 
-#endif  // CHIMAERA_INCLUDE_CHIMAERA_TASK_H_
+#endif // CHIMAERA_INCLUDE_CHIMAERA_TASK_H_

@@ -221,6 +221,7 @@ struct AddressHash {
 #define TASK_PERIODIC BIT_OPT(chi::u32, 0)
 #define TASK_FIRE_AND_FORGET BIT_OPT(chi::u32, 1)
 #define TASK_ROUTED BIT_OPT(chi::u32, 2)
+#define TASK_DATA_OWNER BIT_OPT(chi::u32, 3)
 
 // Bulk transfer flags for task archives
 #define CHI_WRITE BIT_OPT(chi::u32, 0)    ///< Copy data from pointer to remote location
