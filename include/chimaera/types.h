@@ -219,9 +219,8 @@ struct AddressHash {
 
 // Task flags using HSHM BIT_OPT macro
 #define TASK_PERIODIC BIT_OPT(chi::u32, 0)
-#define TASK_FIRE_AND_FORGET BIT_OPT(chi::u32, 1)
-#define TASK_ROUTED BIT_OPT(chi::u32, 2)
-#define TASK_DATA_OWNER BIT_OPT(chi::u32, 3)
+#define TASK_ROUTED BIT_OPT(chi::u32, 1)
+#define TASK_DATA_OWNER BIT_OPT(chi::u32, 2)
 
 // Bulk transfer flags for task archives
 #define CHI_WRITE BIT_OPT(chi::u32, 0)    ///< Copy data from pointer to remote location
@@ -237,6 +236,13 @@ enum QueuePriority {
 enum ThreadType {
   kSchedWorker = 0,      ///< Unified scheduler worker (replaces separate latency types)
   kProcessReaper = 1     ///< Process reaper thread
+};
+
+// Lane mapping policies for task distribution
+enum class LaneMapPolicy {
+  kMapByPidTid = 0,   ///< Map tasks to lanes by hashing PID+TID (ensures per-thread affinity)
+  kRoundRobin = 1,    ///< Map tasks to lanes using round-robin (static counter, default)
+  kRandom = 2         ///< Map tasks to lanes randomly
 };
 
 // Special pool IDs

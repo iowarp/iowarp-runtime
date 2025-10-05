@@ -185,14 +185,6 @@ public:
   }
 
   /**
-   * Check if task is fire-and-forget
-   * @return true if task has fire-and-forget flag set
-   */
-  HSHM_CROSS_FUN bool IsFireAndForget() const {
-    return task_flags_.Any(TASK_FIRE_AND_FORGET);
-  }
-
-  /**
    * Check if task has been routed
    * @return true if task has routed flag set
    */

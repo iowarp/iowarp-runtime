@@ -199,25 +199,6 @@ class Client : public chi::ContainerClient {
   }
 
   /**
-   * Submit fire-and-forget test task
-   * This task will be automatically deleted after completion, so no return value is provided
-   */
-  void FireAndForgetTest(const hipc::MemContext& mctx,
-                        const chi::PoolQuery& pool_query, 
-                        chi::u32 test_id,
-                        chi::u32 processing_time_ms,
-                        const std::string& log_message) {
-    auto* ipc_manager = CHI_IPC;
-
-    // Allocate FireAndForgetTestTask - task will be auto-deleted, so we don't return it
-    auto task = ipc_manager->NewTask<FireAndForgetTestTask>(
-        chi::CreateTaskNode(), pool_id_, pool_query, test_id, processing_time_ms, log_message);
-
-    // Submit to runtime - task will be deleted automatically when completed
-    ipc_manager->Enqueue(task);
-  }
-
-  /**
    * Submit Wait test task (asynchronous)
    * Tests recursive task->Wait() functionality with specified depth
    * @param mctx Memory context for the operation

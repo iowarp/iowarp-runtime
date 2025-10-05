@@ -213,36 +213,6 @@ void Runtime::MonitorCoRwLockTest(chi::MonitorModeId mode,
   }
 }
 
-void Runtime::FireAndForgetTest(hipc::FullPtr<FireAndForgetTestTask> task, chi::RunContext& rctx) {
-  HILOG(kDebug, "MOD_NAME: Executing FireAndForgetTest task {} (processing: {}ms, message: '{}')", task->test_id_, task->processing_time_ms_, task->log_message_.c_str());
-
-  // Simulate processing time
-  if (task->processing_time_ms_ > 0) {
-    auto start = std::chrono::high_resolution_clock::now();
-    while (true) {
-      auto now = std::chrono::high_resolution_clock::now();
-      auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count();
-      if (duration >= task->processing_time_ms_) {
-        break;
-      }
-    }
-  }
-
-  HILOG(kDebug, "MOD_NAME: FireAndForgetTest {} completed and will be auto-deleted", task->test_id_);
-}
-
-void Runtime::MonitorFireAndForgetTest(chi::MonitorModeId mode,
-                                      hipc::FullPtr<FireAndForgetTestTask> task_ptr,
-                                      chi::RunContext& rctx) {
-  switch (mode) {
-    case chi::MonitorModeId::kLocalSchedule:
-      // Task executes directly on current worker without re-routing
-      break;
-    default:
-      break;
-  }
-}
-
 void Runtime::WaitTest(hipc::FullPtr<WaitTestTask> task, chi::RunContext& rctx) {
   HILOG(kDebug, "MOD_NAME: Executing WaitTest task {} (depth: {}, current_depth: {})", task->test_id_, task->depth_, task->current_depth_);
 

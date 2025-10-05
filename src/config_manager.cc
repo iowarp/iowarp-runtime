@@ -113,6 +113,10 @@ std::string ConfigManager::GetHostfilePath() const {
 
 bool ConfigManager::IsValid() const { return is_initialized_; }
 
+LaneMapPolicy ConfigManager::GetLaneMapPolicy() const {
+  return lane_map_policy_;
+}
+
 void ConfigManager::LoadDefault() {
   // Set default configuration values
   sched_workers_ = 8;
@@ -131,6 +135,9 @@ void ConfigManager::LoadDefault() {
 
   // Set default hostfile path (empty means no distributed scheduling)
   hostfile_path_ = "";
+
+  // Set default lane mapping policy
+  lane_map_policy_ = LaneMapPolicy::kRoundRobin;
 }
 
 void ConfigManager::ParseYAML(YAML::Node &yaml_conf) {
@@ -191,6 +198,24 @@ void ConfigManager::ParseYAML(YAML::Node &yaml_conf) {
     auto dist = yaml_conf["distributed_scheduling"];
     if (dist["hostfile"]) {
       hostfile_path_ = dist["hostfile"].as<std::string>();
+    }
+  }
+
+  // Parse performance tuning configuration
+  if (yaml_conf["performance"]) {
+    auto perf = yaml_conf["performance"];
+    if (perf["lane_map_policy"]) {
+      std::string policy_str = perf["lane_map_policy"].as<std::string>();
+      if (policy_str == "map_by_pid_tid") {
+        lane_map_policy_ = LaneMapPolicy::kMapByPidTid;
+      } else if (policy_str == "round_robin") {
+        lane_map_policy_ = LaneMapPolicy::kRoundRobin;
+      } else if (policy_str == "random") {
+        lane_map_policy_ = LaneMapPolicy::kRandom;
+      } else {
+        HELOG(kWarning, "Unknown lane_map_policy '{}', using default (round_robin)", policy_str);
+        lane_map_policy_ = LaneMapPolicy::kRoundRobin;
+      }
     }
   }
 }

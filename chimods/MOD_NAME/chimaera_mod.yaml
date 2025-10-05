@@ -17,5 +17,4 @@ kUpgrade: -1      # 5 - Not implemented
 kCustom: 10             # Custom operation method
 kCoMutexTest: 20        # CoMutex synchronization testing method
 kCoRwLockTest: 21       # CoRwLock reader-writer synchronization testing method
-kFireAndForgetTest: 22  # Fire and forget task testing method
-kWaitTest: 23         # Wait test method
+kWaitTest: 23           # Wait test method

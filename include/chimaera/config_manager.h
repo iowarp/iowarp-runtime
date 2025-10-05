@@ -89,6 +89,12 @@ class ConfigManager : public hshm::BaseConfig {
    */
   bool IsValid() const;
 
+  /**
+   * Get lane mapping policy for task distribution
+   * @return Lane mapping policy
+   */
+  LaneMapPolicy GetLaneMapPolicy() const;
+
  private:
   /**
    * Set default configuration values (implements hshm::BaseConfig)
@@ -120,6 +126,9 @@ class ConfigManager : public hshm::BaseConfig {
 
   // Distributed scheduling configuration
   std::string hostfile_path_ = "";
+
+  // Task distribution policy
+  LaneMapPolicy lane_map_policy_ = LaneMapPolicy::kRoundRobin;
 };
 
 }  // namespace chi

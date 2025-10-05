@@ -480,7 +480,7 @@ The chimaera runtime provides two specialized coroutine-aware mutex types for ru
   - Provides `ScopedCoMutex` for RAII-style locking
 
 ### CoRwLock (Coroutine Reader-Writer Lock)
-- **Header**: `chimaera/corwlock.h`  
+- **Header**: `chimaera/corwlock.h`
 - **Purpose**: TaskNode-grouped reader-writer lock with similar grouping semantics
 - **Key Features**:
   - Multiple readers from any TaskNode group can proceed simultaneously

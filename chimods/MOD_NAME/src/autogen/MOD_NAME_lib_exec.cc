@@ -38,10 +38,6 @@ void Runtime::Run(chi::u32 method, hipc::FullPtr<chi::Task> task_ptr, chi::RunCo
       CoRwLockTest(task_ptr.Cast<CoRwLockTestTask>(), rctx);
       break;
     }
-    case Method::kFireAndForgetTest: {
-      FireAndForgetTest(task_ptr.Cast<FireAndForgetTestTask>(), rctx);
-      break;
-    }
     case Method::kWaitTest: {
       WaitTest(task_ptr.Cast<WaitTestTask>(), rctx);
       break;
@@ -74,10 +70,6 @@ void Runtime::Monitor(chi::MonitorModeId mode, chi::u32 method,
     }
     case Method::kCoRwLockTest: {
       MonitorCoRwLockTest(mode, task_ptr.Cast<CoRwLockTestTask>(), rctx);
-      break;
-    }
-    case Method::kFireAndForgetTest: {
-      MonitorFireAndForgetTest(mode, task_ptr.Cast<FireAndForgetTestTask>(), rctx);
       break;
     }
     case Method::kWaitTest: {
@@ -116,10 +108,6 @@ void Runtime::Del(chi::u32 method, hipc::FullPtr<chi::Task> task_ptr) {
       ipc_manager->DelTask(task_ptr.Cast<CoRwLockTestTask>());
       break;
     }
-    case Method::kFireAndForgetTest: {
-      ipc_manager->DelTask(task_ptr.Cast<FireAndForgetTestTask>());
-      break;
-    }
     case Method::kWaitTest: {
       ipc_manager->DelTask(task_ptr.Cast<WaitTestTask>());
       break;
@@ -132,7 +120,7 @@ void Runtime::Del(chi::u32 method, hipc::FullPtr<chi::Task> task_ptr) {
   }
 }
 
-void Runtime::SaveIn(chi::u32 method, chi::TaskSaveInArchive& archive, 
+void Runtime::SaveIn(chi::u32 method, chi::TaskSaveInArchive& archive,
                       hipc::FullPtr<chi::Task> task_ptr) {
   switch (method) {
     case Method::kCreate: {
@@ -160,11 +148,6 @@ void Runtime::SaveIn(chi::u32 method, chi::TaskSaveInArchive& archive,
       typed_task->SerializeIn(archive);
       break;
     }
-    case Method::kFireAndForgetTest: {
-      auto typed_task = task_ptr.Cast<FireAndForgetTestTask>();
-      typed_task->SerializeIn(archive);
-      break;
-    }
     case Method::kWaitTest: {
       auto typed_task = task_ptr.Cast<WaitTestTask>();
       typed_task->SerializeIn(archive);
@@ -177,7 +160,7 @@ void Runtime::SaveIn(chi::u32 method, chi::TaskSaveInArchive& archive,
   }
 }
 
-void Runtime::LoadIn(chi::u32 method, chi::TaskLoadInArchive& archive, 
+void Runtime::LoadIn(chi::u32 method, chi::TaskLoadInArchive& archive,
                       hipc::FullPtr<chi::Task> task_ptr) {
   switch (method) {
     case Method::kCreate: {
@@ -205,11 +188,6 @@ void Runtime::LoadIn(chi::u32 method, chi::TaskLoadInArchive& archive,
       typed_task->SerializeIn(archive);
       break;
     }
-    case Method::kFireAndForgetTest: {
-      auto typed_task = task_ptr.Cast<FireAndForgetTestTask>();
-      typed_task->SerializeIn(archive);
-      break;
-    }
     case Method::kWaitTest: {
       auto typed_task = task_ptr.Cast<WaitTestTask>();
       typed_task->SerializeIn(archive);
@@ -222,7 +200,7 @@ void Runtime::LoadIn(chi::u32 method, chi::TaskLoadInArchive& archive,
   }
 }
 
-void Runtime::SaveOut(chi::u32 method, chi::TaskSaveOutArchive& archive, 
+void Runtime::SaveOut(chi::u32 method, chi::TaskSaveOutArchive& archive,
                        hipc::FullPtr<chi::Task> task_ptr) {
   switch (method) {
     case Method::kCreate: {
@@ -250,11 +228,6 @@ void Runtime::SaveOut(chi::u32 method, chi::TaskSaveOutArchive& archive,
       typed_task->SerializeOut(archive);
       break;
     }
-    case Method::kFireAndForgetTest: {
-      auto typed_task = task_ptr.Cast<FireAndForgetTestTask>();
-      typed_task->SerializeOut(archive);
-      break;
-    }
     case Method::kWaitTest: {
       auto typed_task = task_ptr.Cast<WaitTestTask>();
       typed_task->SerializeOut(archive);
@@ -267,7 +240,7 @@ void Runtime::SaveOut(chi::u32 method, chi::TaskSaveOutArchive& archive,
   }
 }
 
-void Runtime::LoadOut(chi::u32 method, chi::TaskLoadOutArchive& archive, 
+void Runtime::LoadOut(chi::u32 method, chi::TaskLoadOutArchive& archive,
                        hipc::FullPtr<chi::Task> task_ptr) {
   switch (method) {
     case Method::kCreate: {
@@ -292,11 +265,6 @@ void Runtime::LoadOut(chi::u32 method, chi::TaskLoadOutArchive& archive,
     }
     case Method::kCoRwLockTest: {
       auto typed_task = task_ptr.Cast<CoRwLockTestTask>();
-      typed_task->SerializeOut(archive);
-      break;
-    }
-    case Method::kFireAndForgetTest: {
-      auto typed_task = task_ptr.Cast<FireAndForgetTestTask>();
       typed_task->SerializeOut(archive);
       break;
     }
@@ -370,17 +338,6 @@ void Runtime::NewCopy(chi::u32 method, const hipc::FullPtr<chi::Task>& orig_task
       if (!typed_task.IsNull()) {
         // Use HSHM strong copy method for actual copying
         typed_task->shm_strong_copy_main(*orig_task.Cast<CoRwLockTestTask>());
-        // Cast to base Task type for return
-        dup_task = typed_task.template Cast<chi::Task>();
-      }
-      break;
-    }
-    case Method::kFireAndForgetTest: {
-      // Allocate new task using SHM default constructor
-      auto typed_task = ipc_manager->NewTask<FireAndForgetTestTask>();
-      if (!typed_task.IsNull()) {
-        // Use HSHM strong copy method for actual copying
-        typed_task->shm_strong_copy_main(*orig_task.Cast<FireAndForgetTestTask>());
         // Cast to base Task type for return
         dup_task = typed_task.template Cast<chi::Task>();
       }

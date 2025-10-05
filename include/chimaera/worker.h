@@ -216,15 +216,6 @@ public:
 
  private:
   /**
-   * Check for duplicate RunContext pointers in blocked_queue_
-   * Aborts with fatal error if duplicates are found
-   * @param label Debug label to identify where the check is being called from
-   */
-  void CheckBlockedQueueDuplicates(const std::string& label);
-
-
-
-  /**
    * Create run context for task execution
    * @param task_ptr Full pointer to task to create context for
    * @return RunContext for task execution
@@ -308,13 +299,16 @@ public:
     }
   };
 
-  // Blocked queue for tasks waiting for subtasks to complete
+  // Two blocked queues - we alternate between them using a bit
+  // This allows lock-free operation: one queue is being processed while
+  // new blocked tasks go to the other queue
   std::priority_queue<RunContext*, std::vector<RunContext*>,
                       RunContextComparator>
-      blocked_queue_;
+      blocked_queue_[2];
 
-  // Mutex to protect blocked_queue_ from concurrent access
-  std::mutex blocked_queue_mutex_;
+  // Bit to select which blocked queue to use for new additions
+  // Flipped in ContinueBlockedTasks to alternate between queues
+  bool block_queue_bit_;
 };
 
 }  // namespace chi

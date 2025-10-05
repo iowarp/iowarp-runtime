@@ -1,7 +1,9 @@
 #ifndef CHIMAERA_INCLUDE_CHIMAERA_MANAGERS_IPC_MANAGER_H_
 #define CHIMAERA_INCLUDE_CHIMAERA_MANAGERS_IPC_MANAGER_H_
 
+#include <atomic>
 #include <memory>
+#include <random>
 #include <unordered_map>
 #include <vector>
 #include <string>
@@ -187,26 +189,21 @@ class IpcManager {
 
   /**
    * Enqueue task to process queue
-   * Priority is determined from the task itself
-   * @param task_ptr Task to enqueue  
+   * Uses the configured lane mapping policy to select the target lane
+   * @param task_ptr Task to enqueue
    */
   template<typename TaskT>
   void Enqueue(FullPtr<TaskT>& task_ptr) {
     if (!external_queue_.IsNull() && external_queue_.ptr_) {
       // Create TypedPointer from the task FullPtr
       hipc::TypedPointer<Task> typed_ptr(task_ptr.shm_);
-      
-      // Use HSHM_SYSTEM_INFO to get both PID and TID for lane hashing
-      auto* sys_info = HSHM_SYSTEM_INFO;
-      pid_t pid = sys_info->pid_;
-      auto tid = HSHM_THREAD_MODEL->GetTid();
+
       u32 num_lanes = external_queue_->GetNumLanes();
       if (num_lanes == 0) return; // Avoid division by zero
 
-      // Combine PID and TID for hashing to ensure different processes use different lanes
-      size_t combined_hash = std::hash<pid_t>{}(pid) ^ (std::hash<void*>{}(&tid) << 1);
-      LaneId lane_id = static_cast<LaneId>(combined_hash % num_lanes);
-      
+      // Map task to lane using configured policy
+      LaneId lane_id = MapTaskToLane(num_lanes);
+
       // Get lane as FullPtr and use TaskQueue's EmplaceTask method
       auto& lane_ref = external_queue_->GetLane(lane_id, 0);
       hipc::FullPtr<TaskLane> lane_ptr(&lane_ref);
@@ -312,7 +309,48 @@ class IpcManager {
    */
   const std::string& GetCurrentHostname() const;
 
+  /**
+   * Set lane mapping policy for task distribution
+   * @param policy Lane mapping policy to use
+   */
+  void SetLaneMapPolicy(LaneMapPolicy policy);
+
+  /**
+   * Get current lane mapping policy
+   * @return Current lane mapping policy
+   */
+  LaneMapPolicy GetLaneMapPolicy() const;
+
  private:
+  /**
+   * Map task to lane ID using the configured policy
+   * Dispatches to the appropriate policy-specific function
+   * @param num_lanes Number of available lanes
+   * @return Lane ID to use
+   */
+  LaneId MapTaskToLane(u32 num_lanes);
+
+  /**
+   * Map task to lane by PID+TID hash
+   * @param num_lanes Number of available lanes
+   * @return Lane ID to use
+   */
+  LaneId MapByPidTid(u32 num_lanes);
+
+  /**
+   * Map task to lane using round-robin
+   * @param num_lanes Number of available lanes
+   * @return Lane ID to use
+   */
+  LaneId MapRoundRobin(u32 num_lanes);
+
+  /**
+   * Map task to lane randomly
+   * @param num_lanes Number of available lanes
+   * @return Lane ID to use
+   */
+  LaneId MapRandom(u32 num_lanes);
+
   /**
    * Initialize memory segments for server
    * @return true if successful, false otherwise
@@ -400,6 +438,10 @@ class IpcManager {
   // Hostfile management
   std::unordered_map<u64, Host> hostfile_map_; // Map node_id -> Host
   Host this_host_; // Identified host for this node
+
+  // Lane mapping policy
+  LaneMapPolicy lane_map_policy_ = LaneMapPolicy::kRoundRobin;
+  std::atomic<u32> round_robin_counter_{0};  // Counter for round-robin policy
 };
 
 }  // namespace chi

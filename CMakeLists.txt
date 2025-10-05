@@ -91,6 +91,9 @@ add_subdirectory(chimods)
 # Add utilities subdirectory
 add_subdirectory(util)
 
+# Add benchmark subdirectory
+add_subdirectory(benchmark)
+
 # Add test subdirectory if testing is enabled
 if(CHIMAERA_ENABLE_TESTS)
   enable_testing()

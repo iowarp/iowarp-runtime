@@ -18,7 +18,6 @@ GLOBAL_CONST chi::u32 kDestroy = 1;
 GLOBAL_CONST chi::u32 kCustom = 10;
 GLOBAL_CONST chi::u32 kCoMutexTest = 20;
 GLOBAL_CONST chi::u32 kCoRwLockTest = 21;
-GLOBAL_CONST chi::u32 kFireAndForgetTest = 22;
 GLOBAL_CONST chi::u32 kWaitTest = 23;
 }  // namespace Method
 

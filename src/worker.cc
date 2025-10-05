@@ -27,7 +27,7 @@ namespace chi {
 Worker::Worker(u32 worker_id, ThreadType thread_type)
     : worker_id_(worker_id), thread_type_(thread_type), is_running_(false),
       is_initialized_(false), did_work_(false), current_run_context_(nullptr),
-      assigned_lane_(nullptr) {}
+      assigned_lane_(nullptr), block_queue_bit_(false) {}
 
 Worker::~Worker() {
   if (is_initialized_) {
@@ -593,80 +593,27 @@ void Worker::EndTaskWithError(const FullPtr<Task> &task_ptr, u32 error_code) {
     return;
   }
 
-  // If task is fire-and-forget, delete it immediately
-  // Fire-and-forget tasks don't need to be kept around for the client
-  if (task_ptr->IsFireAndForget()) {
-    auto *ipc_manager = CHI_IPC;
-    if (ipc_manager) {
-      // DelTask now takes a copy, so we can pass task_ptr directly
-      ipc_manager->DelTask(task_ptr);
-    }
-  } else {
-    // Set the error return code and mark task as complete
-    task_ptr->SetReturnCode(error_code);
-    task_ptr->is_complete.store(1);
-  }
+  // Set the error return code and mark task as complete
+  task_ptr->SetReturnCode(error_code);
+  task_ptr->is_complete.store(1);
 
-  // Note: Non-fire-and-forget tasks are left in memory for the client to check
+  // Note: Tasks are left in memory for the client to check
   // the return code and completion status before explicitly deleting them
 }
 
-void Worker::CheckBlockedQueueDuplicates(const std::string &label) {
-  std::unordered_set<RunContext *> seen_contexts;
-
-  // Make a copy of the queue with mutex protection
-  std::priority_queue<RunContext *, std::vector<RunContext *>,
-                      RunContextComparator>
-      check_queue;
-  {
-    std::lock_guard<std::mutex> lock(blocked_queue_mutex_);
-    check_queue = blocked_queue_;
-  }
-
-  while (!check_queue.empty()) {
-    RunContext *run_ctx = check_queue.top();
-    check_queue.pop();
-
-    if (seen_contexts.count(run_ctx) > 0) {
-      // Found a duplicate!
-      HELOG(kFatal,
-            "Worker {}: CRITICAL BUG - Duplicate RunContext in blocked_queue_ "
-            "[{}]! "
-            "Task ptr: {:#x}, Pool: {}, Method: {}, TaskNode: {}.{}.{}.{}",
-            worker_id_, label, reinterpret_cast<uintptr_t>(run_ctx->task.ptr_),
-            run_ctx->task->pool_id_, run_ctx->task->method_,
-            run_ctx->task->task_node_.pid_, run_ctx->task->task_node_.tid_,
-            run_ctx->task->task_node_.major_, run_ctx->task->task_node_.minor_);
-      std::abort();
-    }
-    seen_contexts.insert(run_ctx);
-  }
-}
-
 u32 Worker::ContinueBlockedTasks() {
-  // Check for duplicates at the start
-  CheckBlockedQueueDuplicates("START");
+  // Get reference to current blocked queue and flip the bit for new blocking
+  // operations
+  auto& orig_queue = blocked_queue_[block_queue_bit_];
+  block_queue_bit_ = !block_queue_bit_;
+  auto& new_queue = blocked_queue_[block_queue_bit_];
 
-  // Create a copy of the blocked queue and clear the original with mutex
-  // protection
-  std::priority_queue<RunContext *, std::vector<RunContext *>,
-                      RunContextComparator>
-      queue_copy;
-  {
-    std::lock_guard<std::mutex> lock(blocked_queue_mutex_);
-    queue_copy = blocked_queue_;
-    blocked_queue_ =
-        std::priority_queue<RunContext *, std::vector<RunContext *>,
-                            RunContextComparator>();
-  }
+  u32 return_value = 0;  // Default return value for immediate recheck
 
-  u32 return_value = 0;      // Default return value for immediate recheck
-  bool should_break = false; // Flag to indicate we should stop processing
-
-  // FIRST LOOP: Process ready tasks and check if we should continue
-  while (!queue_copy.empty() && !should_break) {
-    RunContext *run_ctx = queue_copy.top();
-    queue_copy.pop();
+  // Process tasks from the original queue
+  while (!orig_queue.empty()) {
+    RunContext* run_ctx = orig_queue.top();
+    orig_queue.pop();
 
     if (run_ctx && !run_ctx->task.IsNull()) {
       // Always check if all subtasks are completed first
@@ -696,39 +643,19 @@ u32 Worker::ContinueBlockedTasks() {
 
       // Set return value based on remaining time
       if (run_ctx->estimated_completion_time_us <= 0) {
-        return_value = 0; // Time estimate exceeded, immediate recheck needed
+        return_value = 0;  // Time estimate exceeded, immediate recheck needed
       } else {
         return_value = static_cast<u32>(run_ctx->estimated_completion_time_us);
       }
 
-      // Add this task back to the blocked queue with mutex protection
-      {
-        std::lock_guard<std::mutex> lock(blocked_queue_mutex_);
-        blocked_queue_.push(run_ctx);
-      }
+      // Add this task to the new blocked queue (after we flipped the bit)
+      new_queue.push(run_ctx);
 
-      // Stop processing if this task has time remaining
-      if (run_ctx->estimated_completion_time_us > 0) {
-        should_break = true;
-      }
+      // Break the loop - don't process any more tasks
+      // Return the sleep time for this task
+      break;
     }
   }
-
-  // SECOND LOOP: Move all remaining tasks from queue_copy back to
-  // blocked_queue_
-  {
-    std::lock_guard<std::mutex> lock(blocked_queue_mutex_);
-    while (!queue_copy.empty()) {
-      RunContext *run_ctx = queue_copy.top();
-      queue_copy.pop();
-
-      // Simply transfer back to blocked queue without processing
-      blocked_queue_.push(run_ctx);
-    }
-  }
-
-  // Check for duplicates at the end
-  CheckBlockedQueueDuplicates("END");
 
   return return_value;
 }
@@ -853,33 +780,31 @@ bool Worker::ExecTask(const FullPtr<Task> &task_ptr, RunContext *run_ctx,
 
   // Determine if task should be completed and cleaned up
   bool should_complete_task = !task_ptr->IsPeriodic();
-  bool is_fire_and_forget = task_ptr->IsFireAndForget();
 
   if (should_complete_task) {
     // CRITICAL BUG CHECK: Verify this task is not in the blocked queue
     // This should never happen - if it does, it's a serious bug
-    std::priority_queue<RunContext *, std::vector<RunContext *>,
-                        RunContextComparator>
-        temp_queue;
-    {
-      std::lock_guard<std::mutex> lock(blocked_queue_mutex_);
-      temp_queue = blocked_queue_;
-    }
+    // Check both blocked queues
+    for (int queue_idx = 0; queue_idx < 2; ++queue_idx) {
+      std::priority_queue<RunContext *, std::vector<RunContext *>,
+                          RunContextComparator>
+          temp_queue = blocked_queue_[queue_idx];
 
-    while (!temp_queue.empty()) {
-      RunContext *blocked_ctx = temp_queue.top();
-      temp_queue.pop();
+      while (!temp_queue.empty()) {
+        RunContext *blocked_ctx = temp_queue.top();
+        temp_queue.pop();
 
-      if (blocked_ctx == run_ctx) {
-        HELOG(
-            kFatal,
-            "Worker {}: CRITICAL BUG - Completed task found in blocked queue! "
-            "Task ptr: {:#x}, Pool: {}, Method: {}, TaskNode: {}.{}.{}.{}",
-            worker_id_, reinterpret_cast<uintptr_t>(task_ptr.ptr_),
-            task_ptr->pool_id_, task_ptr->method_, task_ptr->task_node_.pid_,
-            task_ptr->task_node_.tid_, task_ptr->task_node_.major_,
-            task_ptr->task_node_.minor_);
-        std::abort();
+        if (blocked_ctx == run_ctx) {
+          HELOG(
+              kFatal,
+              "Worker {}: CRITICAL BUG - Completed task found in blocked queue[{}]! "
+              "Task ptr: {:#x}, Pool: {}, Method: {}, TaskNode: {}.{}.{}.{}",
+              worker_id_, queue_idx, reinterpret_cast<uintptr_t>(task_ptr.ptr_),
+              task_ptr->pool_id_, task_ptr->method_, task_ptr->task_node_.pid_,
+              task_ptr->task_node_.tid_, task_ptr->task_node_.major_,
+              task_ptr->task_node_.minor_);
+          std::abort();
+        }
       }
     }
 
@@ -890,12 +815,7 @@ bool Worker::ExecTask(const FullPtr<Task> &task_ptr, RunContext *run_ctx,
     // This prevents race condition with client DelTask
     task_ptr->is_complete.store(1);
 
-    // For fire-and-forget tasks, automatically delete them after completion
-    if (is_fire_and_forget && run_ctx->container) {
-      run_ctx->container->Del(task_ptr->method_, task_ptr);
-    }
-
-    // Deallocate stack and context AFTER task is deleted
+    // Deallocate stack and context
     DeallocateStackAndContext(run_ctx);
   }
   // Return whether the task should be considered completed
@@ -907,28 +827,14 @@ void Worker::AddToBlockedQueue(RunContext *run_ctx, double estimated_time_us) {
     return;
   }
 
-  auto *worker = CHI_CUR_WORKER;
-  if (worker != this) {
-    HELOG(
-        kFatal,
-        "Worker {}: AddToBlockedQueue - Task ptr: {:#x}, Pool: {}, Method: {}, "
-        "TaskNode: {}.{}.{}.{}, EstimatedTime: {} us",
-        worker_id_, reinterpret_cast<uintptr_t>(run_ctx->task.ptr_),
-        run_ctx->task->pool_id_, run_ctx->task->method_,
-        run_ctx->task->task_node_.pid_, run_ctx->task->task_node_.tid_,
-        run_ctx->task->task_node_.major_, run_ctx->task->task_node_.minor_,
-        estimated_time_us);
-  }
-
   // Set timing information in RunContext
   run_ctx->estimated_completion_time_us = estimated_time_us;
   run_ctx->block_time.Now();
 
-  // Add RunContext to the blocked queue (priority queue) with mutex protection
-  {
-    std::lock_guard<std::mutex> lock(blocked_queue_mutex_);
-    blocked_queue_.push(run_ctx);
-  }
+  // Add RunContext to the current blocked queue (selected by bit)
+  // The bit is flipped in ContinueBlockedTasks, so new additions go to
+  // the queue not currently being processed
+  blocked_queue_[block_queue_bit_].push(run_ctx);
 }
 
 void Worker::ReschedulePeriodicTask(RunContext *run_ctx,
