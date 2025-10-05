@@ -22,9 +22,6 @@ pkgs:
     # Networking
     zmq_port: 5555
 
-    # Task queue configuration
-    task_queue_lanes: 4
-
     # Logging
     log_level: "info"
 

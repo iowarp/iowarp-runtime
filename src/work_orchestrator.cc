@@ -157,9 +157,7 @@ bool WorkOrchestrator::Init() {
   }
 
   // Calculate total worker count from configuration
-  u32 total_workers = config->GetWorkerThreadCount(kLowLatencyWorker) +
-                      config->GetWorkerThreadCount(kHighLatencyWorker) +
-                      config->GetWorkerThreadCount(kReinforcementWorker) +
+  u32 total_workers = config->GetWorkerThreadCount(kSchedWorker) +
                       config->GetWorkerThreadCount(kProcessReaper);
 
   if (!ipc->InitializeWorkerQueues(total_workers)) {
@@ -167,18 +165,8 @@ bool WorkOrchestrator::Init() {
   }
 
   // Create workers based on configuration
-  if (!CreateWorkers(kLowLatencyWorker,
-                     config->GetWorkerThreadCount(kLowLatencyWorker))) {
-    return false;
-  }
-
-  if (!CreateWorkers(kHighLatencyWorker,
-                     config->GetWorkerThreadCount(kHighLatencyWorker))) {
-    return false;
-  }
-
-  if (!CreateWorkers(kReinforcementWorker,
-                     config->GetWorkerThreadCount(kReinforcementWorker))) {
+  if (!CreateWorkers(kSchedWorker,
+                     config->GetWorkerThreadCount(kSchedWorker))) {
     return false;
   }
 
@@ -210,9 +198,7 @@ void WorkOrchestrator::Finalize() {
 
   // Clear worker containers
   all_workers_.clear();
-  low_latency_workers_.clear();
-  high_latency_workers_.clear();
-  reinforcement_workers_.clear();
+  sched_workers_.clear();
   process_reaper_workers_.clear();
 
   is_initialized_ = false;
@@ -308,6 +294,53 @@ bool WorkOrchestrator::AreWorkersRunning() const { return workers_running_; }
 bool WorkOrchestrator::IsStackDownward() const { return stack_is_downward_; }
 
 bool WorkOrchestrator::SpawnWorkerThreads() {
+  // Get IPC Manager to access external queue
+  IpcManager* ipc = CHI_IPC;
+  if (!ipc) {
+    return false;
+  }
+
+  // Get the external queue (task queue)
+  TaskQueue* external_queue = ipc->GetTaskQueue();
+  if (!external_queue) {
+    HELOG(kError, "WorkOrchestrator: External queue not available for lane mapping");
+    return false;
+  }
+
+  u32 num_lanes = external_queue->GetNumLanes();
+  if (num_lanes == 0) {
+    HELOG(kError, "WorkOrchestrator: External queue has no lanes");
+    return false;
+  }
+
+  // Map lanes to sched workers (only sched workers process tasks from external queue)
+  u32 num_sched_workers = static_cast<u32>(sched_workers_.size());
+  if (num_sched_workers == 0) {
+    HELOG(kError, "WorkOrchestrator: No sched workers available for lane mapping");
+    return false;
+  }
+
+  // Number of lanes should equal number of sched workers (configured in IpcManager)
+  // Each worker gets exactly one lane for 1:1 mapping
+  for (u32 worker_idx = 0; worker_idx < num_sched_workers; ++worker_idx) {
+    Worker* worker = sched_workers_[worker_idx].get();
+    if (worker) {
+      // Direct 1:1 mapping: worker i gets lane i
+      u32 lane_id = worker_idx;
+      TaskLane* lane = &external_queue->GetLane(lane_id, 0);
+
+      // Set the worker's assigned lane
+      worker->SetLane(lane);
+
+      // Mark the lane header with the assigned worker ID
+      auto& lane_header = lane->GetHeader();
+      lane_header.assigned_worker_id = worker->GetId();
+
+      HILOG(kDebug, "WorkOrchestrator: Mapped sched worker {} (ID {}) to external queue lane {}",
+            worker_idx, worker->GetId(), lane_id);
+    }
+  }
+
   // Use HSHM thread model to spawn worker threads
   auto thread_model = HSHM_THREAD_MODEL;
   worker_threads_.reserve(all_workers_.size());
@@ -343,14 +376,8 @@ bool WorkOrchestrator::CreateWorkers(ThreadType thread_type, u32 count) {
 
     // Add to type-specific container
     switch (thread_type) {
-      case kLowLatencyWorker:
-        low_latency_workers_.push_back(std::move(worker));
-        break;
-      case kHighLatencyWorker:
-        high_latency_workers_.push_back(std::move(worker));
-        break;
-      case kReinforcementWorker:
-        reinforcement_workers_.push_back(std::move(worker));
+      case kSchedWorker:
+        sched_workers_.push_back(std::move(worker));
         break;
       case kProcessReaper:
         process_reaper_workers_.push_back(std::move(worker));
@@ -371,88 +398,6 @@ bool WorkOrchestrator::ServerInitQueues(u32 num_lanes) {
 
   // No longer creating local queues - external queue is managed by IPC Manager
   return success;
-}
-
-WorkerId WorkOrchestrator::GetNextAvailableWorker() {
-  if (all_workers_.empty()) {
-    HELOG(kError, "WorkOrchestrator: GetNextAvailableWorker called with no workers");
-    return 0;  // This should never happen in normal operation
-  }
-
-  // Round-robin scheduling
-  u32 worker_index =
-      next_worker_index_for_scheduling_.fetch_add(1) % all_workers_.size();
-  Worker* worker = all_workers_[worker_index];
-
-  if (!worker) {
-    HELOG(kError, "WorkOrchestrator: Worker at index {} is null", worker_index);
-    return 0;  // This should never happen in normal operation
-  }
-
-  return worker->GetId();
-}
-
-void WorkOrchestrator::MapLaneToWorker(TaskLane* lane,
-                                       WorkerId worker_id) {
-  if (!lane) {
-    return;
-  }
-
-  // TODO: Implement lane-to-worker mapping if needed
-  // For now, just log the mapping
-  HILOG(kDebug, "WorkOrchestrator: Mapped lane to worker {}", worker_id);
-}
-
-void WorkOrchestrator::RoundRobinTaskQueueScheduler(TaskQueue* task_queue) {
-  if (!is_initialized_ || !task_queue) {
-    return;
-  }
-
-  // Get the number of lanes and priorities from the TaskQueue
-  u32 num_lanes = task_queue->GetNumLanes();
-  u32 num_priorities = task_queue->GetNumPriorities();
-
-  HILOG(kDebug, "WorkOrchestrator: Scheduling TaskQueue with {} lanes and {} priorities", 
-        num_lanes, num_priorities);
-
-  // Iterate through all lanes and assign workers using round-robin
-  for (u32 lane_id = 0; lane_id < num_lanes; ++lane_id) {
-    for (u32 prio_id = 0; prio_id < num_priorities; ++prio_id) {
-      // Get the specific lane from the TaskQueue
-      auto& lane = task_queue->GetLane(lane_id, prio_id);
-
-      // Get next worker using round-robin scheduling
-      WorkerId worker_id = GetNextAvailableWorker();
-
-      // Map this lane to the selected worker
-      MapLaneToWorker(&lane, worker_id);
-    }
-  }
-}
-
-/*static*/ void WorkOrchestrator::NotifyWorkerLaneReady(
-    hipc::FullPtr<TaskLane> lane_ptr) {
-  if (lane_ptr.IsNull()) {
-    return;
-  }
-
-  // Get IPC Manager to access worker queues in shared memory
-  IpcManager* ipc = CHI_IPC;
-  if (!ipc) {
-    return;
-  }
-
-  // Get worker ID from lane header
-  auto& header = lane_ptr->GetHeader();
-  u32 worker_id = header.assigned_worker_id;
-
-  // Get the worker's active queue from shared memory
-  auto worker_queue = ipc->GetWorkerQueue(worker_id);
-  if (!worker_queue.IsNull()) {
-    // Convert FullPtr to TypedPointer for worker queue
-    hipc::TypedPointer<TaskLane> lane_typed_ptr(lane_ptr.shm_);
-    worker_queue->push(lane_typed_ptr);
-  }
 }
 
 bool WorkOrchestrator::HasWorkRemaining(u64& total_work_remaining) const {

@@ -22,9 +22,9 @@ struct DebugRunContext {
     bctx::transfer_t yield_context;   // Context from FiberExecutionFunction parameter - used for yielding back
     bctx::transfer_t resume_context;  // Context for resuming into yield function
     bool is_blocked;
-    
-    DebugRunContext() : stack_ptr(nullptr), stack_base_for_free(nullptr), 
-                        stack_size(65536), fiber_context{}, yield_context{}, 
+
+    DebugRunContext() : stack_ptr(nullptr), stack_base_for_free(nullptr),
+                        stack_size(65536), fiber_context{}, yield_context{},
                         resume_context{}, is_blocked(false) {
         AllocateStack();
     }

@@ -3,10 +3,8 @@
 
 # Worker thread configuration
 workers:
-  low_latency_threads: 4
-  high_latency_threads: 2  
-  reinforcement_threads: 1
-  process_reaper_threads: 1
+  sched_threads: 8           # Unified scheduler worker threads
+  process_reaper_threads: 1  # Process reaper threads
 
 # Memory segment configuration  
 memory:
@@ -27,10 +25,6 @@ logging:
 performance:
   stack_size: 65536  # 64KB per task
   queue_depth: 10000
-
-# Task queue configuration
-task_queue:
-  lanes: 4  # Number of concurrent lanes for task processing
 
 # Shared memory configuration
 shared_memory:

@@ -3,6 +3,7 @@
 
 #include <boost/context/detail/fcontext.hpp>
 #include <chrono>
+#include <mutex>
 #include <queue>
 #include <thread>
 #include <vector>
@@ -150,11 +151,16 @@ class Worker {
   void ReschedulePeriodicTask(RunContext* run_ctx_ptr, const FullPtr<Task>& task_ptr);
 
   /**
-   * Enqueue a lane to this worker's active queue for processing
-   * @param lane_ptr FullPtr to lane (as returned by GetLane) that has work
-   * available
+   * Set the worker's assigned lane
+   * @param lane Pointer to the TaskLane assigned to this worker
    */
-  void EnqueueLane(hipc::TypedPointer<TaskLane> lane_ptr);
+  void SetLane(TaskLane* lane);
+
+  /**
+   * Get the worker's assigned lane
+   * @return Pointer to the TaskLane assigned to this worker
+   */
+  TaskLane* GetLane() const;
 
   /**
    * Route a task by calling ResolvePoolQuery and determining local vs global scheduling
@@ -209,7 +215,12 @@ public:
   bool RouteGlobal(const FullPtr<Task>& task_ptr, const std::vector<PoolQuery>& pool_queries);
 
  private:
-
+  /**
+   * Check for duplicate RunContext pointers in blocked_queue_
+   * Aborts with fatal error if duplicates are found
+   * @param label Debug label to identify where the check is being called from
+   */
+  void CheckBlockedQueueDuplicates(const std::string& label);
 
 
 
@@ -283,10 +294,8 @@ public:
   // Current RunContext for this worker thread
   RunContext* current_run_context_;
 
-
-  // Active queue of lanes for processing
-  // GetLane returns a lane reference, so we store lane TypedPointers
-  hipc::FullPtr<WorkQueue> active_queue_;  // Queue of lane TypedPointers from GetLane
+  // Single lane assigned to this worker (one lane per worker)
+  TaskLane* assigned_lane_;
 
   // Stack management simplified - allocate/free directly with malloc
 
@@ -299,13 +308,13 @@ public:
     }
   };
 
-  // Dual blocked queues to prevent deadlocking during ContinueBlockedTasks
+  // Blocked queue for tasks waiting for subtasks to complete
   std::priority_queue<RunContext*, std::vector<RunContext*>,
                       RunContextComparator>
-      blocked_queue_[2];
-  
-  // Queue bit flag to alternate between the two blocked queues
-  bool block_queue_bit_;
+      blocked_queue_;
+
+  // Mutex to protect blocked_queue_ from concurrent access
+  std::mutex blocked_queue_mutex_;
 };
 
 }  // namespace chi

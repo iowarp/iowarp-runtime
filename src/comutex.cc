@@ -119,11 +119,11 @@ void CoMutex::UnblockNextGroup() {
   if (!waiting_tasks_.empty()) {
     auto it = waiting_tasks_.begin();
     const TaskNode& next_holder = it->first;
-    
+
     // Transfer lock to the next group
     is_locked_ = true;
     current_holder_ = next_holder;
-    
+
     // Notify the work orchestrator that tasks from this group can now proceed
     auto* worker = CHI_CUR_WORKER;
     if (worker) {
@@ -133,6 +133,9 @@ void CoMutex::UnblockNextGroup() {
         }
       }
     }
+
+    // CRITICAL: Remove this TaskNode group from waiting_tasks_ to prevent re-enqueueing
+    waiting_tasks_.erase(it);
   }
 }
 

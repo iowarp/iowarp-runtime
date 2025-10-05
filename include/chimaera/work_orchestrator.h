@@ -114,23 +114,6 @@ class WorkOrchestrator {
   void MapLaneToWorker(TaskLane* lane, WorkerId worker_id);
 
   /**
-   * Round-robin scheduler for TaskQueue lanes
-   * Iterates over each lane in the TaskQueue and assigns workers using round-robin
-   * @param task_queue Pointer to the TaskQueue to schedule
-   */
-  void RoundRobinTaskQueueScheduler(::chi::TaskQueue* task_queue);
-
-  /**
-   * Static function to notify that a lane has work available and should be
-   * enqueued to its assigned worker Uses IPC Manager to enqueue the lane to the
-   * appropriate worker's shared memory queue Works the same way on clients and
-   * in the runtime
-   * @param lane_ptr FullPtr to the TaskLane that has work available
-   */
-  static void NotifyWorkerLaneReady(
-      hipc::FullPtr<TaskLane> lane_ptr);
-
-  /**
    * Check if there is any work remaining across all containers in the system
    * @param total_work_remaining Reference to store the total work count
    * @return true if work is remaining, false if all work is complete
@@ -163,9 +146,7 @@ class WorkOrchestrator {
   bool stack_is_downward_ = true; // Stack growth direction (detected at initialization)
 
   // Worker containers organized by type
-  std::vector<std::unique_ptr<Worker>> low_latency_workers_;
-  std::vector<std::unique_ptr<Worker>> high_latency_workers_;
-  std::vector<std::unique_ptr<Worker>> reinforcement_workers_;
+  std::vector<std::unique_ptr<Worker>> sched_workers_;
   std::vector<std::unique_ptr<Worker>> process_reaper_workers_;
 
   // All workers for easy access

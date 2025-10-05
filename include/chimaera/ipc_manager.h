@@ -196,12 +196,16 @@ class IpcManager {
       // Create TypedPointer from the task FullPtr
       hipc::TypedPointer<Task> typed_ptr(task_ptr.shm_);
       
-      // Use HSHM_THREAD_MODEL to get thread ID for lane hashing
+      // Use HSHM_SYSTEM_INFO to get both PID and TID for lane hashing
+      auto* sys_info = HSHM_SYSTEM_INFO;
+      pid_t pid = sys_info->pid_;
       auto tid = HSHM_THREAD_MODEL->GetTid();
       u32 num_lanes = external_queue_->GetNumLanes();
       if (num_lanes == 0) return; // Avoid division by zero
-      
-      LaneId lane_id = static_cast<LaneId>(std::hash<void*>{}(&tid) % num_lanes);
+
+      // Combine PID and TID for hashing to ensure different processes use different lanes
+      size_t combined_hash = std::hash<pid_t>{}(pid) ^ (std::hash<void*>{}(&tid) << 1);
+      LaneId lane_id = static_cast<LaneId>(combined_hash % num_lanes);
       
       // Get lane as FullPtr and use TaskQueue's EmplaceTask method
       auto& lane_ref = external_queue_->GetLane(lane_id, 0);

@@ -4,9 +4,6 @@
 
 #include "chimaera/task_queue.h"
 
-#include "chimaera/singletons.h"
-#include "chimaera/work_orchestrator.h"
-
 namespace chi {
 
 TaskQueue::TaskQueue(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T>& alloc,
@@ -21,17 +18,9 @@ TaskQueue::TaskQueue(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T>& alloc,
     return false;
   }
   
-  // Check if lane was empty before enqueue for notification
-  bool was_empty = (lane_ptr->size() == 0);
-  
   // Push to the lane
   lane_ptr->push(task_ptr);
-  
-  // Notify worker if lane was empty - WorkOrchestrator will use the worker ID from the lane header
-  if (was_empty) {
-    WorkOrchestrator::NotifyWorkerLaneReady(lane_ptr);
-  }
-  
+
   return true;
 }
 

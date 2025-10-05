@@ -227,7 +227,7 @@ struct AddressHash {
 #define CHI_WRITE BIT_OPT(chi::u32, 0)    ///< Copy data from pointer to remote location
 #define CHI_EXPOSE BIT_OPT(chi::u32, 1)   ///< Copy pointer to remote so remote can write to it
 
-// Queue priorities
+// Queue priorities (kept for backward compatibility but not used for worker routing)
 enum QueuePriority {
   kLowLatency = 0,
   kHighLatency = 1
@@ -235,10 +235,8 @@ enum QueuePriority {
 
 // Thread types for work orchestrator
 enum ThreadType {
-  kLowLatencyWorker = 0,
-  kHighLatencyWorker = 1,
-  kReinforcementWorker = 2,
-  kProcessReaper = 3
+  kSchedWorker = 0,      ///< Unified scheduler worker (replaces separate latency types)
+  kProcessReaper = 1     ///< Process reaper thread
 };
 
 // Special pool IDs

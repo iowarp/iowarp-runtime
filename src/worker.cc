@@ -25,13 +25,9 @@ namespace chi {
 // Stack detection is now handled by WorkOrchestrator during initialization
 
 Worker::Worker(u32 worker_id, ThreadType thread_type)
-    : worker_id_(worker_id),
-      thread_type_(thread_type),
-      is_running_(false),
-      is_initialized_(false),
-      did_work_(false),
-      current_run_context_(nullptr),
-      block_queue_bit_(false) {}
+    : worker_id_(worker_id), thread_type_(thread_type), is_running_(false),
+      is_initialized_(false), did_work_(false), current_run_context_(nullptr),
+      assigned_lane_(nullptr) {}
 
 Worker::~Worker() {
   if (is_initialized_) {
@@ -45,12 +41,8 @@ bool Worker::Init() {
   }
 
   // Stack management simplified - no pool needed
-
-  // Get active queue from shared memory via IPC Manager
-  IpcManager* ipc = CHI_IPC;
-  if (ipc) {
-    active_queue_ = ipc->GetWorkerQueue(worker_id_);
-  }
+  // Note: assigned_lane_ will be set by WorkOrchestrator during external queue
+  // initialization
 
   is_initialized_ = true;
   return true;
@@ -64,11 +56,9 @@ void Worker::Finalize() {
   Stop();
 
   // Stack management simplified - stacks are freed individually when tasks
-  // complete
-
-  // Clear active queue reference (don't delete - it's in shared memory)
-  active_queue_ =
-      hipc::FullPtr<chi::ipc::mpsc_queue<hipc::TypedPointer<TaskLane>>>();
+  // complete Clear assigned lane reference (don't delete - it's in shared
+  // memory)
+  assigned_lane_ = nullptr;
 
   is_initialized_ = false;
 }
@@ -77,57 +67,47 @@ void Worker::Run() {
   if (!is_initialized_) {
     return;
   }
+  HILOG(kInfo, "Worker {}: Running", worker_id_);
 
   // Set current worker once for the entire thread duration
   SetAsCurrentWorker();
   is_running_ = true;
 
-  // Main worker loop - pop lanes from active queue and process tasks
+  // Main worker loop - process tasks from assigned lane
   while (is_running_) {
-    did_work_ = false;  // Reset work tracker at start of each loop iteration
-    hipc::TypedPointer<TaskLane> lane_ptr;
+    did_work_ = false; // Reset work tracker at start of each loop iteration
 
-    // Pop a lane from the active queue
-    if (!active_queue_.IsNull() && !active_queue_->pop(lane_ptr).IsNull()) {
-      if (!lane_ptr.IsNull()) {
-        // Convert TypedPointer to FullPtr by passing to constructor
-        hipc::FullPtr<TaskLane> lane_full_ptr(lane_ptr);
-        did_work_ = true;  // Mark that we attempted to process work
+    // Process tasks from the worker's assigned lane
+    if (assigned_lane_) {
+      // Process up to 64 tasks from this worker's lane per iteration
+      const u32 MAX_TASKS_PER_ITERATION = 64;
+      u32 tasks_processed = 0;
 
-        // Process up to 64 tasks from this specific lane
-        const u32 MAX_TASKS_TOTAL = 64;
-        u32 tasks_processed = 0;
+      while (tasks_processed < MAX_TASKS_PER_ITERATION) {
+        hipc::TypedPointer<Task> task_typed_ptr;
 
-        while (tasks_processed < MAX_TASKS_TOTAL) {
-          hipc::TypedPointer<Task> task_typed_ptr;
+        // Pop task from assigned lane
+        hipc::FullPtr<TaskLane> lane_full_ptr(assigned_lane_);
+        if (::chi::TaskQueue::PopTask(lane_full_ptr, task_typed_ptr)) {
+          tasks_processed++;
+          did_work_ = true;
 
-          // Use static method to pop task from lane (convert TypedPointer to
-          // FullPtr first)
-          if (::chi::TaskQueue::PopTask(lane_full_ptr, task_typed_ptr)) {
-            tasks_processed++;
+          // Convert TypedPointer to FullPtr for consistent API usage
+          hipc::FullPtr<Task> task_full_ptr(task_typed_ptr);
 
-            // Convert TypedPointer to FullPtr for consistent API usage
-            hipc::FullPtr<Task> task_full_ptr(task_typed_ptr);
-
-            if (!task_full_ptr.IsNull()) {
-              // Route task using consolidated routing function
-              Container* container = nullptr;
-              if (RouteTask(task_full_ptr, lane_full_ptr.ptr_, container)) {
-                // Routing successful, execute the task
-                BeginTask(task_full_ptr, container, lane_full_ptr.ptr_);
-              }
-              // Note: RouteTask returning false doesn't always indicate an
-              // error Real errors are handled within RouteTask itself
+          if (!task_full_ptr.IsNull()) {
+            // Route task using consolidated routing function
+            Container *container = nullptr;
+            if (RouteTask(task_full_ptr, assigned_lane_, container)) {
+              // Routing successful, execute the task
+              BeginTask(task_full_ptr, container, assigned_lane_);
             }
-          } else {
-            // No more tasks in this lane
-            break;
+            // Note: RouteTask returning false doesn't always indicate an error
+            // Real errors are handled within RouteTask itself
           }
-        }
-
-        // Re-enqueue the lane if it still has tasks remaining
-        if (lane_full_ptr->GetSize() > 0) {
-          active_queue_->push(lane_ptr);
+        } else {
+          // No more tasks in this lane
+          break;
         }
       }
     }
@@ -151,14 +131,9 @@ void Worker::Run() {
 
 void Worker::Stop() { is_running_ = false; }
 
-void Worker::EnqueueLane(hipc::TypedPointer<TaskLane> lane_ptr) {
-  if (lane_ptr.IsNull() || active_queue_.IsNull()) {
-    return;
-  }
+void Worker::SetLane(TaskLane *lane) { assigned_lane_ = lane; }
 
-  // Enqueue lane TypedPointer to active queue (lock-free)
-  active_queue_->push(lane_ptr);
-}
+TaskLane *Worker::GetLane() const { return assigned_lane_; }
 
 u32 Worker::GetId() const { return worker_id_; }
 
@@ -166,33 +141,33 @@ ThreadType Worker::GetThreadType() const { return thread_type_; }
 
 bool Worker::IsRunning() const { return is_running_; }
 
-RunContext* Worker::GetCurrentRunContext() const {
+RunContext *Worker::GetCurrentRunContext() const {
   return current_run_context_;
 }
 
-RunContext* Worker::SetCurrentRunContext(RunContext* rctx) {
+RunContext *Worker::SetCurrentRunContext(RunContext *rctx) {
   current_run_context_ = rctx;
   return current_run_context_;
 }
 
 FullPtr<Task> Worker::GetCurrentTask() const {
-  RunContext* run_ctx = GetCurrentRunContext();
+  RunContext *run_ctx = GetCurrentRunContext();
   if (!run_ctx) {
     return FullPtr<Task>::GetNull();
   }
   return run_ctx->task;
 }
 
-Container* Worker::GetCurrentContainer() const {
-  RunContext* run_ctx = GetCurrentRunContext();
+Container *Worker::GetCurrentContainer() const {
+  RunContext *run_ctx = GetCurrentRunContext();
   if (!run_ctx) {
     return nullptr;
   }
   return run_ctx->container;
 }
 
-TaskLane* Worker::GetCurrentLane() const {
-  RunContext* run_ctx = GetCurrentRunContext();
+TaskLane *Worker::GetCurrentLane() const {
+  RunContext *run_ctx = GetCurrentRunContext();
   if (!run_ctx) {
     return nullptr;
   }
@@ -201,23 +176,23 @@ TaskLane* Worker::GetCurrentLane() const {
 
 void Worker::SetAsCurrentWorker() {
   HSHM_THREAD_MODEL->SetTls(chi_cur_worker_key_,
-                            static_cast<class Worker*>(this));
+                            static_cast<class Worker *>(this));
 }
 
 void Worker::ClearCurrentWorker() {
   HSHM_THREAD_MODEL->SetTls(chi_cur_worker_key_,
-                            static_cast<class Worker*>(nullptr));
+                            static_cast<class Worker *>(nullptr));
 }
 
-bool Worker::RouteTask(const FullPtr<Task>& task_ptr, TaskLane* lane,
-                       Container*& container) {
+bool Worker::RouteTask(const FullPtr<Task> &task_ptr, TaskLane *lane,
+                       Container *&container) {
   if (task_ptr.IsNull()) {
     return false;
   }
 
   // Check if task has already been routed - if so, return true immediately
   if (task_ptr->IsRouted()) {
-    auto* pool_manager = CHI_POOL_MANAGER;
+    auto *pool_manager = CHI_POOL_MANAGER;
     container = pool_manager->GetContainer(task_ptr->pool_id_);
     return (container != nullptr);
   }
@@ -249,94 +224,62 @@ bool Worker::RouteTask(const FullPtr<Task>& task_ptr, TaskLane* lane,
     // Route task globally using admin client's ClientSendTaskIn method
     // RouteGlobal never fails, so no need for fallback logic
     RouteGlobal(task_ptr, pool_queries);
-    return false;  // No local execution needed
+    return false; // No local execution needed
   }
 }
 
-bool Worker::IsTaskLocal(const std::vector<PoolQuery>& pool_queries) {
+bool Worker::IsTaskLocal(const std::vector<PoolQuery> &pool_queries) {
   // Task is local only if there is exactly one pool query
   if (pool_queries.size() != 1) {
     return false;
   }
 
-  const PoolQuery& query = pool_queries[0];
+  const PoolQuery &query = pool_queries[0];
 
   // Check routing mode first, then specific conditions
   RoutingMode routing_mode = query.GetRoutingMode();
 
   switch (routing_mode) {
-    case RoutingMode::Local:
-      return true;  // Always local
+  case RoutingMode::Local:
+    return true; // Always local
 
-    case RoutingMode::Physical: {
-      // Physical mode is local only if targeting local node
-      auto* ipc_manager = CHI_IPC;
-      u64 local_node_id = ipc_manager ? ipc_manager->GetNodeId() : 0;
-      return query.GetNodeId() == local_node_id;
-    }
+  case RoutingMode::Physical: {
+    // Physical mode is local only if targeting local node
+    auto *ipc_manager = CHI_IPC;
+    u64 local_node_id = ipc_manager ? ipc_manager->GetNodeId() : 0;
+    return query.GetNodeId() == local_node_id;
+  }
 
-    case RoutingMode::DirectId:
-    case RoutingMode::DirectHash:
-    case RoutingMode::Range:
-    case RoutingMode::Broadcast:
-      // These modes should have been resolved to Physical queries by now
-      // If we still see them here, they are not local
-      return false;
+  case RoutingMode::DirectId:
+  case RoutingMode::DirectHash:
+  case RoutingMode::Range:
+  case RoutingMode::Broadcast:
+    // These modes should have been resolved to Physical queries by now
+    // If we still see them here, they are not local
+    return false;
   }
 
   return false;
 }
 
-bool Worker::RouteLocal(const FullPtr<Task>& task_ptr, TaskLane* lane,
-                        Container*& container) {
-  auto* pool_manager = CHI_POOL_MANAGER;
+bool Worker::RouteLocal(const FullPtr<Task> &task_ptr, TaskLane *lane,
+                        Container *&container) {
+  auto *pool_manager = CHI_POOL_MANAGER;
   container = pool_manager->GetContainer(task_ptr->pool_id_);
   if (!container) {
     return false;
   }
 
-  // Call monitor function with kLocalSchedule to determine routing
-  RunContext run_ctx = CreateRunContext(task_ptr);
+  // Task is local and should be executed directly without re-routing
+  // Set TASK_ROUTED flag to indicate this task has been routed
+  task_ptr->SetFlags(TASK_ROUTED);
 
-  try {
-    container->Monitor(MonitorModeId::kLocalSchedule, task_ptr->method_,
-                       task_ptr, run_ctx);
-
-    // Check if the route_lane_ is different from the input lane
-    TaskLane* route_lane = run_ctx.route_lane_;
-    if (route_lane && route_lane != lane) {
-      // Task should be routed to a different lane - enqueue it there
-      hipc::TypedPointer<Task> task_typed_ptr(task_ptr.shm_);
-      hipc::FullPtr<TaskLane> route_lane_full_ptr(route_lane);
-      ::chi::TaskQueue::EmplaceTask(route_lane_full_ptr, task_typed_ptr);
-
-      // Set TASK_ROUTED flag to indicate this task has been routed
-      task_ptr->SetFlags(TASK_ROUTED);
-
-      // Task was routed to different lane, return false to indicate no local
-      // execution needed
-      return false;
-    } else {
-      // Task should be executed locally (same lane or no routing needed)
-      // Set TASK_ROUTED flag to indicate this task has been routed
-      task_ptr->SetFlags(TASK_ROUTED);
-
-      // Routing successful - caller should execute the task locally
-      return true;
-    }
-  } catch (const std::exception& e) {
-    // Monitor function failed - this is an actual error
-    HELOG(kError,
-          "Worker {}: Monitor function failed for task (Pool: {}, Method: {}): "
-          "{}",
-          worker_id_, task_ptr->pool_id_, task_ptr->method_, e.what());
-    EndTaskWithError(task_ptr, 2);  // Error code 2 for monitor failure
-    return false;
-  }
+  // Routing successful - caller should execute the task locally
+  return true;
 }
 
-bool Worker::RouteGlobal(const FullPtr<Task>& task_ptr,
-                         const std::vector<PoolQuery>& pool_queries) {
+bool Worker::RouteGlobal(const FullPtr<Task> &task_ptr,
+                         const std::vector<PoolQuery> &pool_queries) {
   try {
     // Create admin client to send task to target node
     chimaera::admin::Client admin_client(kAdminPoolId);
@@ -347,8 +290,8 @@ bool Worker::RouteGlobal(const FullPtr<Task>& task_ptr,
     // Send task using Client API with entire pool queries vector
     admin_client.ClientSendTaskIn(
         mctx,
-        pool_queries,  // Pass entire pool queries vector
-        task_ptr       // Task pointer passed, serialization handled internally
+        pool_queries, // Pass entire pool queries vector
+        task_ptr      // Task pointer passed, serialization handled internally
     );
 
     // Set TASK_ROUTED flag on original task
@@ -357,7 +300,7 @@ bool Worker::RouteGlobal(const FullPtr<Task>& task_ptr,
     // Always return true (never fail)
     return true;
 
-  } catch (const std::exception& e) {
+  } catch (const std::exception &e) {
     // Handle any exceptions - still never fail
     task_ptr->SetFlags(TASK_ROUTED);
     return true;
@@ -368,43 +311,43 @@ bool Worker::RouteGlobal(const FullPtr<Task>& task_ptr,
   }
 }
 
-std::vector<PoolQuery> Worker::ResolvePoolQuery(const PoolQuery& query,
+std::vector<PoolQuery> Worker::ResolvePoolQuery(const PoolQuery &query,
                                                 PoolId pool_id) {
   // Basic validation
   if (pool_id.IsNull()) {
-    return {};  // Invalid pool ID
+    return {}; // Invalid pool ID
   }
 
   RoutingMode routing_mode = query.GetRoutingMode();
 
   switch (routing_mode) {
-    case RoutingMode::Local:
-      return ResolveLocalQuery(query);
-    case RoutingMode::DirectId:
-      return ResolveDirectIdQuery(query, pool_id);
-    case RoutingMode::DirectHash:
-      return ResolveDirectHashQuery(query, pool_id);
-    case RoutingMode::Range:
-      return ResolveRangeQuery(query, pool_id);
-    case RoutingMode::Broadcast:
-      return ResolveBroadcastQuery(query, pool_id);
-    case RoutingMode::Physical:
-      return ResolvePhysicalQuery(query, pool_id);
+  case RoutingMode::Local:
+    return ResolveLocalQuery(query);
+  case RoutingMode::DirectId:
+    return ResolveDirectIdQuery(query, pool_id);
+  case RoutingMode::DirectHash:
+    return ResolveDirectHashQuery(query, pool_id);
+  case RoutingMode::Range:
+    return ResolveRangeQuery(query, pool_id);
+  case RoutingMode::Broadcast:
+    return ResolveBroadcastQuery(query, pool_id);
+  case RoutingMode::Physical:
+    return ResolvePhysicalQuery(query, pool_id);
   }
 
   return {};
 }
 
-std::vector<PoolQuery> Worker::ResolveLocalQuery(const PoolQuery& query) {
+std::vector<PoolQuery> Worker::ResolveLocalQuery(const PoolQuery &query) {
   // Local routing - process on current node
   return {query};
 }
 
-std::vector<PoolQuery> Worker::ResolveDirectIdQuery(const PoolQuery& query,
+std::vector<PoolQuery> Worker::ResolveDirectIdQuery(const PoolQuery &query,
                                                     PoolId pool_id) {
-  auto* pool_manager = CHI_POOL_MANAGER;
+  auto *pool_manager = CHI_POOL_MANAGER;
   if (!pool_manager) {
-    return {query};  // Fallback to original query
+    return {query}; // Fallback to original query
   }
 
   // Get the container ID from the query
@@ -417,17 +360,17 @@ std::vector<PoolQuery> Worker::ResolveDirectIdQuery(const PoolQuery& query,
   return {PoolQuery::Physical(node_id)};
 }
 
-std::vector<PoolQuery> Worker::ResolveDirectHashQuery(const PoolQuery& query,
+std::vector<PoolQuery> Worker::ResolveDirectHashQuery(const PoolQuery &query,
                                                       PoolId pool_id) {
-  auto* pool_manager = CHI_POOL_MANAGER;
+  auto *pool_manager = CHI_POOL_MANAGER;
   if (!pool_manager) {
-    return {query};  // Fallback to original query
+    return {query}; // Fallback to original query
   }
 
   // Get pool info to find the number of containers
-  const PoolInfo* pool_info = pool_manager->GetPoolInfo(pool_id);
+  const PoolInfo *pool_info = pool_manager->GetPoolInfo(pool_id);
   if (!pool_info || pool_info->num_containers_ == 0) {
-    return {query};  // Fallback to original query
+    return {query}; // Fallback to original query
   }
 
   // Hash to get container ID
@@ -441,11 +384,11 @@ std::vector<PoolQuery> Worker::ResolveDirectHashQuery(const PoolQuery& query,
   return {PoolQuery::Physical(node_id)};
 }
 
-std::vector<PoolQuery> Worker::ResolveRangeQuery(const PoolQuery& query,
+std::vector<PoolQuery> Worker::ResolveRangeQuery(const PoolQuery &query,
                                                  PoolId pool_id) {
-  auto* pool_manager = CHI_POOL_MANAGER;
+  auto *pool_manager = CHI_POOL_MANAGER;
   if (!pool_manager) {
-    return {query};  // Fallback to original query
+    return {query}; // Fallback to original query
   }
 
   u32 range_offset = query.GetRangeOffset();
@@ -453,7 +396,7 @@ std::vector<PoolQuery> Worker::ResolveRangeQuery(const PoolQuery& query,
 
   // Validate range
   if (range_count == 0) {
-    return {};  // Empty range
+    return {}; // Empty range
   }
 
   std::vector<PoolQuery> result_queries;
@@ -487,7 +430,7 @@ std::vector<PoolQuery> Worker::ResolveRangeQuery(const PoolQuery& query,
   for (u32 i = 0; i < queries_to_create; ++i) {
     u32 current_count = containers_per_query;
     if (i < remaining_containers) {
-      current_count++;  // Distribute remainder across first queries
+      current_count++; // Distribute remainder across first queries
     }
 
     if (current_count > 0) {
@@ -499,17 +442,17 @@ std::vector<PoolQuery> Worker::ResolveRangeQuery(const PoolQuery& query,
   return result_queries;
 }
 
-std::vector<PoolQuery> Worker::ResolveBroadcastQuery(const PoolQuery& query,
+std::vector<PoolQuery> Worker::ResolveBroadcastQuery(const PoolQuery &query,
                                                      PoolId pool_id) {
-  auto* pool_manager = CHI_POOL_MANAGER;
+  auto *pool_manager = CHI_POOL_MANAGER;
   if (!pool_manager) {
-    return {query};  // Fallback to original query
+    return {query}; // Fallback to original query
   }
 
   // Get pool info to find the total number of containers
-  const PoolInfo* pool_info = pool_manager->GetPoolInfo(pool_id);
+  const PoolInfo *pool_info = pool_manager->GetPoolInfo(pool_id);
   if (!pool_info || pool_info->num_containers_ == 0) {
-    return {query};  // Fallback to original query
+    return {query}; // Fallback to original query
   }
 
   // Create a Range query that covers all containers, then resolve it
@@ -517,33 +460,33 @@ std::vector<PoolQuery> Worker::ResolveBroadcastQuery(const PoolQuery& query,
   return ResolveRangeQuery(range_query, pool_id);
 }
 
-std::vector<PoolQuery> Worker::ResolvePhysicalQuery(const PoolQuery& query,
+std::vector<PoolQuery> Worker::ResolvePhysicalQuery(const PoolQuery &query,
                                                     PoolId pool_id) {
   // Physical routing - query is already resolved to a specific node
   return {query};
 }
 
-RunContext Worker::CreateRunContext(const FullPtr<Task>& task_ptr) {
+RunContext Worker::CreateRunContext(const FullPtr<Task> &task_ptr) {
   // This method is deprecated - use AllocateStackAndContext instead
   // Creating a temporary RunContext for compatibility
   RunContext run_ctx;
   run_ctx.thread_type = thread_type_;
   run_ctx.worker_id = worker_id_;
-  run_ctx.stack_size = 65536;   // 64KB
-  run_ctx.stack_ptr = nullptr;  // Will be set by AllocateStackAndContext
+  run_ctx.stack_size = 65536;  // 64KB
+  run_ctx.stack_ptr = nullptr; // Will be set by AllocateStackAndContext
   return run_ctx;
 }
 
-RunContext* Worker::AllocateStackAndContext(size_t size) {
+RunContext *Worker::AllocateStackAndContext(size_t size) {
   // Allocate aligned stack and RunContext
   // Use page alignment for the stack to match unit test pattern
   const size_t page_size = 4096;
   size = ((size + page_size - 1) / page_size) * page_size;
 
-  void* stack_base = nullptr;
+  void *stack_base = nullptr;
   int ret = posix_memalign(&stack_base, page_size, size);
-  RunContext* new_run_ctx =
-      static_cast<RunContext*>(malloc(sizeof(RunContext)));
+  RunContext *new_run_ctx =
+      static_cast<RunContext *>(malloc(sizeof(RunContext)));
 
   if (ret == 0 && stack_base && new_run_ctx) {
     // Initialize RunContext using placement new
@@ -558,20 +501,20 @@ RunContext* Worker::AllocateStackAndContext(size_t size) {
 
     // Set the correct stack pointer based on stack growth direction from work
     // orchestrator
-    WorkOrchestrator* orchestrator = CHI_WORK_ORCHESTRATOR;
+    WorkOrchestrator *orchestrator = CHI_WORK_ORCHESTRATOR;
     bool grows_downward = orchestrator ? orchestrator->IsStackDownward()
-                                       : true;  // Default to downward
+                                       : true; // Default to downward
 
     if (grows_downward) {
       // Stack grows downward: point to aligned end of the malloc buffer
       // Ensure 16-byte alignment (required for x86-64 ABI)
-      char* stack_top = static_cast<char*>(stack_base) + size;
-      new_run_ctx->stack_ptr = reinterpret_cast<void*>(
+      char *stack_top = static_cast<char *>(stack_base) + size;
+      new_run_ctx->stack_ptr = reinterpret_cast<void *>(
           reinterpret_cast<uintptr_t>(stack_top) & ~static_cast<uintptr_t>(15));
     } else {
       // Stack grows upward: point to the beginning of the malloc buffer
       // Ensure 16-byte alignment
-      new_run_ctx->stack_ptr = reinterpret_cast<void*>(
+      new_run_ctx->stack_ptr = reinterpret_cast<void *>(
           (reinterpret_cast<uintptr_t>(stack_base) + 15) &
           ~static_cast<uintptr_t>(15));
     }
@@ -589,13 +532,15 @@ RunContext* Worker::AllocateStackAndContext(size_t size) {
   }
 
   // Cleanup on failure
-  if (stack_base) free(stack_base);
-  if (new_run_ctx) free(new_run_ctx);
+  if (stack_base)
+    free(stack_base);
+  if (new_run_ctx)
+    free(new_run_ctx);
 
   return nullptr;
 }
 
-void Worker::DeallocateStackAndContext(RunContext* run_ctx) {
+void Worker::DeallocateStackAndContext(RunContext *run_ctx) {
   if (!run_ctx) {
     return;
   }
@@ -610,14 +555,14 @@ void Worker::DeallocateStackAndContext(RunContext* run_ctx) {
   free(run_ctx);
 }
 
-void Worker::BeginTask(const FullPtr<Task>& task_ptr, Container* container,
-                       TaskLane* lane) {
+void Worker::BeginTask(const FullPtr<Task> &task_ptr, Container *container,
+                       TaskLane *lane) {
   if (task_ptr.IsNull()) {
     return;
   }
 
   // Allocate stack and RunContext together for new task
-  RunContext* run_ctx = AllocateStackAndContext(65536);  // 64KB default
+  RunContext *run_ctx = AllocateStackAndContext(65536); // 64KB default
 
   if (!run_ctx) {
     // FATAL: Stack allocation failure - this is a critical error
@@ -625,17 +570,17 @@ void Worker::BeginTask(const FullPtr<Task>& task_ptr, Container* container,
           "Worker {}: Failed to allocate stack for task execution. Task "
           "method: {}, pool: {}",
           worker_id_, task_ptr->method_, task_ptr->pool_id_);
-    std::abort();  // Fatal failure
+    std::abort(); // Fatal failure
   }
 
   // Initialize RunContext for new task
   run_ctx->thread_type = thread_type_;
   run_ctx->worker_id = worker_id_;
-  run_ctx->task = task_ptr;            // Store task in RunContext
-  run_ctx->is_blocked = false;         // Initially not blocked
-  run_ctx->container = container;      // Store container for CHI_CUR_CONTAINER
-  run_ctx->lane = lane;                // Store lane for CHI_CUR_LANE
-  run_ctx->waiting_for_tasks.clear();  // Clear waiting tasks for new task
+  run_ctx->task = task_ptr;           // Store task in RunContext
+  run_ctx->is_blocked = false;        // Initially not blocked
+  run_ctx->container = container;     // Store container for CHI_CUR_CONTAINER
+  run_ctx->lane = lane;               // Store lane for CHI_CUR_LANE
+  run_ctx->waiting_for_tasks.clear(); // Clear waiting tasks for new task
   // Set RunContext pointer in task
   task_ptr->run_ctx_ = run_ctx;
 
@@ -643,7 +588,7 @@ void Worker::BeginTask(const FullPtr<Task>& task_ptr, Container* container,
   ExecTask(task_ptr, run_ctx, false);
 }
 
-void Worker::EndTaskWithError(const FullPtr<Task>& task_ptr, u32 error_code) {
+void Worker::EndTaskWithError(const FullPtr<Task> &task_ptr, u32 error_code) {
   if (task_ptr.IsNull()) {
     return;
   }
@@ -651,7 +596,7 @@ void Worker::EndTaskWithError(const FullPtr<Task>& task_ptr, u32 error_code) {
   // If task is fire-and-forget, delete it immediately
   // Fire-and-forget tasks don't need to be kept around for the client
   if (task_ptr->IsFireAndForget()) {
-    auto* ipc_manager = CHI_IPC;
+    auto *ipc_manager = CHI_IPC;
     if (ipc_manager) {
       // DelTask now takes a copy, so we can pass task_ptr directly
       ipc_manager->DelTask(task_ptr);
@@ -666,19 +611,62 @@ void Worker::EndTaskWithError(const FullPtr<Task>& task_ptr, u32 error_code) {
   // the return code and completion status before explicitly deleting them
 }
 
+void Worker::CheckBlockedQueueDuplicates(const std::string &label) {
+  std::unordered_set<RunContext *> seen_contexts;
+
+  // Make a copy of the queue with mutex protection
+  std::priority_queue<RunContext *, std::vector<RunContext *>,
+                      RunContextComparator>
+      check_queue;
+  {
+    std::lock_guard<std::mutex> lock(blocked_queue_mutex_);
+    check_queue = blocked_queue_;
+  }
+
+  while (!check_queue.empty()) {
+    RunContext *run_ctx = check_queue.top();
+    check_queue.pop();
+
+    if (seen_contexts.count(run_ctx) > 0) {
+      // Found a duplicate!
+      HELOG(kFatal,
+            "Worker {}: CRITICAL BUG - Duplicate RunContext in blocked_queue_ "
+            "[{}]! "
+            "Task ptr: {:#x}, Pool: {}, Method: {}, TaskNode: {}.{}.{}.{}",
+            worker_id_, label, reinterpret_cast<uintptr_t>(run_ctx->task.ptr_),
+            run_ctx->task->pool_id_, run_ctx->task->method_,
+            run_ctx->task->task_node_.pid_, run_ctx->task->task_node_.tid_,
+            run_ctx->task->task_node_.major_, run_ctx->task->task_node_.minor_);
+      std::abort();
+    }
+    seen_contexts.insert(run_ctx);
+  }
+}
+
 u32 Worker::ContinueBlockedTasks() {
-  // Get reference to current blocked queue and flip the bit for new blocking
-  // operations
-  auto& orig_queue = blocked_queue_[block_queue_bit_];
-  block_queue_bit_ = !block_queue_bit_;
-  auto& new_queue = blocked_queue_[block_queue_bit_];
+  // Check for duplicates at the start
+  CheckBlockedQueueDuplicates("START");
 
-  u32 return_value = 0;  // Default return value for immediate recheck
+  // Create a copy of the blocked queue and clear the original with mutex
+  // protection
+  std::priority_queue<RunContext *, std::vector<RunContext *>,
+                      RunContextComparator>
+      queue_copy;
+  {
+    std::lock_guard<std::mutex> lock(blocked_queue_mutex_);
+    queue_copy = blocked_queue_;
+    blocked_queue_ =
+        std::priority_queue<RunContext *, std::vector<RunContext *>,
+                            RunContextComparator>();
+  }
 
-  // Process tasks from the original queue
-  while (!orig_queue.empty()) {
-    RunContext* run_ctx = orig_queue.top();
-    orig_queue.pop();
+  u32 return_value = 0;      // Default return value for immediate recheck
+  bool should_break = false; // Flag to indicate we should stop processing
+
+  // FIRST LOOP: Process ready tasks and check if we should continue
+  while (!queue_copy.empty() && !should_break) {
+    RunContext *run_ctx = queue_copy.top();
+    queue_copy.pop();
 
     if (run_ctx && !run_ctx->task.IsNull()) {
       // Always check if all subtasks are completed first
@@ -708,28 +696,47 @@ u32 Worker::ContinueBlockedTasks() {
 
       // Set return value based on remaining time
       if (run_ctx->estimated_completion_time_us <= 0) {
-        return_value = 0;  // Time estimate exceeded, immediate recheck needed
+        return_value = 0; // Time estimate exceeded, immediate recheck needed
       } else {
         return_value = static_cast<u32>(run_ctx->estimated_completion_time_us);
       }
 
-      // Add this task to the new blocked queue (after we flipped the bit)
-      new_queue.push(run_ctx);
+      // Add this task back to the blocked queue with mutex protection
+      {
+        std::lock_guard<std::mutex> lock(blocked_queue_mutex_);
+        blocked_queue_.push(run_ctx);
+      }
 
-      // Break the loop - don't process any more tasks
+      // Stop processing if this task has time remaining
       if (run_ctx->estimated_completion_time_us > 0) {
-        break;
+        should_break = true;
       }
     }
   }
 
+  // SECOND LOOP: Move all remaining tasks from queue_copy back to
+  // blocked_queue_
+  {
+    std::lock_guard<std::mutex> lock(blocked_queue_mutex_);
+    while (!queue_copy.empty()) {
+      RunContext *run_ctx = queue_copy.top();
+      queue_copy.pop();
+
+      // Simply transfer back to blocked queue without processing
+      blocked_queue_.push(run_ctx);
+    }
+  }
+
+  // Check for duplicates at the end
+  CheckBlockedQueueDuplicates("END");
+
   return return_value;
 }
 
-bool Worker::ExecTask(const FullPtr<Task>& task_ptr, RunContext* run_ctx,
+bool Worker::ExecTask(const FullPtr<Task> &task_ptr, RunContext *run_ctx,
                       bool is_started) {
   if (task_ptr.IsNull() || !run_ctx) {
-    return true;  // Consider null tasks as completed
+    return true; // Consider null tasks as completed
   }
 
   // Mark that work is being done
@@ -788,7 +795,7 @@ bool Worker::ExecTask(const FullPtr<Task>& task_ptr, RunContext* run_ctx,
     // Resume execution - jump back to task's yield point
     // Use temporary variables to avoid read/write conflict on resume_context
     bctx::fcontext_t resume_fctx = run_ctx->resume_context.fctx;
-    void* resume_data = run_ctx->resume_context.data;
+    void *resume_data = run_ctx->resume_context.data;
 
     // Jump to task's yield point and capture the result
     // This provides the current worker context to the fiber for proper return
@@ -836,7 +843,7 @@ bool Worker::ExecTask(const FullPtr<Task>& task_ptr, RunContext* run_ctx,
   // Common cleanup logic for both fiber and direct execution
   if (run_ctx->is_blocked) {
     // Task is blocked - don't clean up, will be resumed later
-    return false;  // Task is not completed, blocked for later resume
+    return false; // Task is not completed, blocked for later resume
   }
 
   // Tasks should never return incomplete from ExecTask
@@ -849,6 +856,33 @@ bool Worker::ExecTask(const FullPtr<Task>& task_ptr, RunContext* run_ctx,
   bool is_fire_and_forget = task_ptr->IsFireAndForget();
 
   if (should_complete_task) {
+    // CRITICAL BUG CHECK: Verify this task is not in the blocked queue
+    // This should never happen - if it does, it's a serious bug
+    std::priority_queue<RunContext *, std::vector<RunContext *>,
+                        RunContextComparator>
+        temp_queue;
+    {
+      std::lock_guard<std::mutex> lock(blocked_queue_mutex_);
+      temp_queue = blocked_queue_;
+    }
+
+    while (!temp_queue.empty()) {
+      RunContext *blocked_ctx = temp_queue.top();
+      temp_queue.pop();
+
+      if (blocked_ctx == run_ctx) {
+        HELOG(
+            kFatal,
+            "Worker {}: CRITICAL BUG - Completed task found in blocked queue! "
+            "Task ptr: {:#x}, Pool: {}, Method: {}, TaskNode: {}.{}.{}.{}",
+            worker_id_, reinterpret_cast<uintptr_t>(task_ptr.ptr_),
+            task_ptr->pool_id_, task_ptr->method_, task_ptr->task_node_.pid_,
+            task_ptr->task_node_.tid_, task_ptr->task_node_.major_,
+            task_ptr->task_node_.minor_);
+        std::abort();
+      }
+    }
+
     // Clear RunContext pointer first
     task_ptr->run_ctx_ = nullptr;
 
@@ -868,52 +902,59 @@ bool Worker::ExecTask(const FullPtr<Task>& task_ptr, RunContext* run_ctx,
   return should_complete_task;
 }
 
-void Worker::AddToBlockedQueue(RunContext* run_ctx, double estimated_time_us) {
+void Worker::AddToBlockedQueue(RunContext *run_ctx, double estimated_time_us) {
   if (!run_ctx || run_ctx->task.IsNull()) {
     return;
+  }
+
+  auto *worker = CHI_CUR_WORKER;
+  if (worker != this) {
+    HELOG(
+        kFatal,
+        "Worker {}: AddToBlockedQueue - Task ptr: {:#x}, Pool: {}, Method: {}, "
+        "TaskNode: {}.{}.{}.{}, EstimatedTime: {} us",
+        worker_id_, reinterpret_cast<uintptr_t>(run_ctx->task.ptr_),
+        run_ctx->task->pool_id_, run_ctx->task->method_,
+        run_ctx->task->task_node_.pid_, run_ctx->task->task_node_.tid_,
+        run_ctx->task->task_node_.major_, run_ctx->task->task_node_.minor_,
+        estimated_time_us);
   }
 
   // Set timing information in RunContext
   run_ctx->estimated_completion_time_us = estimated_time_us;
   run_ctx->block_time.Now();
 
-  // Add RunContext to the current blocked queue (priority queue)
-  blocked_queue_[block_queue_bit_].push(run_ctx);
+  // Add RunContext to the blocked queue (priority queue) with mutex protection
+  {
+    std::lock_guard<std::mutex> lock(blocked_queue_mutex_);
+    blocked_queue_.push(run_ctx);
+  }
 }
 
-void Worker::ReschedulePeriodicTask(RunContext* run_ctx,
-                                    const FullPtr<Task>& task_ptr) {
+void Worker::ReschedulePeriodicTask(RunContext *run_ctx,
+                                    const FullPtr<Task> &task_ptr) {
   if (!run_ctx || task_ptr.IsNull() || !task_ptr->IsPeriodic()) {
     return;
   }
 
   // Get the lane from the run context
-  TaskLane* lane = run_ctx->lane;
+  TaskLane *lane = run_ctx->lane;
   if (!lane) {
     // No lane information, cannot reschedule
     return;
   }
 
   // Check if the lane still maps to this worker by checking the lane header
-  auto& header = lane->GetHeader();
-  if (header.assigned_worker_id == worker_id_) {
-    // Lane still maps to this worker - add to blocked queue for timed execution
-    double period_us = task_ptr->GetPeriod(kMicro);
-    AddToBlockedQueue(run_ctx, period_us);
-  } else {
-    // Lane has been reassigned to a different worker - reschedule task in the
-    // lane Convert task FullPtr to TypedPointer for lane enqueueing
-    hipc::TypedPointer<Task> task_typed_ptr(task_ptr.shm_);
-    hipc::FullPtr<TaskLane> lane_full_ptr(lane);
-    ::chi::TaskQueue::EmplaceTask(lane_full_ptr, task_typed_ptr);
-  }
+  auto &header = lane->GetHeader();
+  double period_us = task_ptr->GetPeriod(kMicro);
+  AddToBlockedQueue(run_ctx, period_us);
 }
 
 void Worker::FiberExecutionFunction(boost::context::detail::transfer_t t) {
   // This function runs in the fiber context
   // Use thread-local storage to get context
-  Worker* worker = CHI_CUR_WORKER;
-  RunContext* run_ctx = worker->GetCurrentRunContext();
+  Worker *worker = CHI_CUR_WORKER;
+  RunContext *run_ctx = worker->GetCurrentRunContext();
   FullPtr<Task> task_ptr =
       worker ? worker->GetCurrentTask() : FullPtr<Task>::GetNull();
 
@@ -924,7 +965,7 @@ void Worker::FiberExecutionFunction(boost::context::detail::transfer_t t) {
     // Execute the task directly - merged TaskExecutionFunction logic
     try {
       // Get the container from RunContext
-      Container* container = run_ctx->container;
+      Container *container = run_ctx->container;
 
       if (container) {
         // Call the container's Run function with the task
@@ -934,7 +975,7 @@ void Worker::FiberExecutionFunction(boost::context::detail::transfer_t t) {
         HILOG(kWarning, "Container not found in RunContext for pool_id: {}",
               task_ptr->pool_id_);
       }
-    } catch (const std::exception& e) {
+    } catch (const std::exception &e) {
       // Handle execution errors
       HELOG(kError, "Task execution failed: {}", e.what());
     } catch (...) {
@@ -961,8 +1002,8 @@ void Worker::FiberExecutionFunction(boost::context::detail::transfer_t t) {
   // Jump back to worker context when task completes
   // Use temporary variables to avoid potential read/write conflicts
   bctx::fcontext_t worker_fctx = run_ctx->yield_context.fctx;
-  void* worker_data = run_ctx->yield_context.data;
+  void *worker_data = run_ctx->yield_context.data;
   bctx::jump_fcontext(worker_fctx, worker_data);
 }
 
-}  // namespace chi
+} // namespace chi

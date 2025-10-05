@@ -31,11 +31,6 @@ void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& rctx) {
   HILOG(kDebug, "MOD_NAME: Executing Create task for pool {}", task->pool_id_);
 
   // Container is already initialized via Init() before Create is called
-  // Just create the local queues for task processing
-
-  // Create local queues with explicit queue IDs and priorities
-  CreateLocalQueue(0, 4, chi::kLowLatency);   // Queue 0: 4 lanes for low latency tasks
-  CreateLocalQueue(1, 2, chi::kHighLatency);  // Queue 1: 2 lanes for high latency tasks
 
   create_count_++;
 
@@ -47,15 +42,7 @@ void Runtime::MonitorCreate(chi::MonitorModeId mode,
                             chi::RunContext& rctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule:
-      // Set route_lane_ to indicate where task should be routed
-      HILOG(kDebug, "MOD_NAME: Setting route_lane_ for Create task");
-      // Use base class lane management - set route_lane_ to queue 0
-      {
-        auto lane_ptr = GetLaneFullPtr(0, 0);
-        if (!lane_ptr.IsNull()) {
-          rctx.route_lane_ = lane_ptr.ptr_;
-        }
-      }
+      // Task executes directly on current worker without re-routing
       break;
 
     case chi::MonitorModeId::kGlobalSchedule:
@@ -86,16 +73,7 @@ void Runtime::MonitorCustom(chi::MonitorModeId mode,
                             chi::RunContext& rctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule:
-      // Set route_lane_ to indicate where task should be routed
-      HILOG(kDebug, "MOD_NAME: Setting route_lane_ for Custom task");
-      // Use base class lane management - set route_lane_ to queue 0
-      // lane 0
-      {
-        auto lane_ptr = GetLaneFullPtr(0, 0);
-        if (!lane_ptr.IsNull()) {
-          rctx.route_lane_ = lane_ptr.ptr_;
-        }
-      }
+      // Task executes directly on current worker without re-routing
       break;
 
     case chi::MonitorModeId::kGlobalSchedule:
@@ -127,15 +105,7 @@ void Runtime::MonitorDestroy(chi::MonitorModeId mode,
                             chi::RunContext& rctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule:
-      // Set route_lane_ to indicate where task should be routed
-      HILOG(kDebug, "MOD_NAME: Setting route_lane_ for Destroy task");
-      // Use base class lane management - set route_lane_ to queue 0 lane 0
-      {
-        auto lane_ptr = GetLaneFullPtr(0, 0);
-        if (!lane_ptr.IsNull()) {
-          rctx.route_lane_ = lane_ptr.ptr_;
-        }
-      }
+      // Task executes directly on current worker without re-routing
       break;
 
     case chi::MonitorModeId::kGlobalSchedule:
@@ -186,12 +156,7 @@ void Runtime::MonitorCoMutexTest(chi::MonitorModeId mode,
                                 chi::RunContext& rctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule:
-      {
-        auto lane_ptr = GetLaneFullPtr(0, 0);
-        if (!lane_ptr.IsNull()) {
-          rctx.route_lane_ = lane_ptr.ptr_;
-        }
-      }
+      // Task executes directly on current worker without re-routing
       break;
     default:
       break;
@@ -241,12 +206,7 @@ void Runtime::MonitorCoRwLockTest(chi::MonitorModeId mode,
                                  chi::RunContext& rctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule:
-      {
-        auto lane_ptr = GetLaneFullPtr(0, 0);
-        if (!lane_ptr.IsNull()) {
-          rctx.route_lane_ = lane_ptr.ptr_;
-        }
-      }
+      // Task executes directly on current worker without re-routing
       break;
     default:
       break;
@@ -276,12 +236,7 @@ void Runtime::MonitorFireAndForgetTest(chi::MonitorModeId mode,
                                       chi::RunContext& rctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule:
-      {
-        auto lane_ptr = GetLaneFullPtr(0, 0);
-        if (!lane_ptr.IsNull()) {
-          rctx.route_lane_ = lane_ptr.ptr_;
-        }
-      }
+      // Task executes directly on current worker without re-routing
       break;
     default:
       break;
@@ -319,12 +274,7 @@ void Runtime::MonitorWaitTest(chi::MonitorModeId mode,
                              chi::RunContext& rctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule:
-      {
-        auto lane_ptr = GetLaneFullPtr(0, 0);
-        if (!lane_ptr.IsNull()) {
-          rctx.route_lane_ = lane_ptr.ptr_;
-        }
-      }
+      // Task executes directly on current worker without re-routing
       break;
     case chi::MonitorModeId::kEstLoad:
       // Estimate completion time based on depth

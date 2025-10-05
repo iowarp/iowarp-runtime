@@ -395,7 +395,7 @@ struct RunContext {
 
   RunContext()
       : stack_ptr(nullptr), stack_base_for_free(nullptr), stack_size(0),
-        thread_type(kLowLatencyWorker), worker_id(0), is_blocked(false),
+        thread_type(kSchedWorker), worker_id(0), is_blocked(false),
         estimated_completion_time_us(0.0), yield_context{}, resume_context{},
         container(nullptr), lane(nullptr), route_lane_(nullptr) {}
 

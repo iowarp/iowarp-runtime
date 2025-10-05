@@ -45,9 +45,9 @@ Runtime::~Runtime() {
 }
 
 void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& ctx) {
-  // Get the creation parameters
-  hipc::CtxAllocator<CHI_MAIN_ALLOC_T> ctx_alloc(HSHM_MCTX, main_allocator_);
-  CreateParams params = task->GetParams(ctx_alloc);
+  // Get the creation parameters using task's allocator
+  auto alloc = task->GetCtxAllocator();
+  CreateParams params = task->GetParams(alloc);
 
   // Get the pool name which serves as the file path for file-based operations
   std::string pool_name = task->pool_name_.str();
@@ -60,12 +60,6 @@ void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& ctx) {
 
   // Initialize the container with pool information
   chi::Container::Init(task->pool_id_, task->pool_name_.str());
-
-  // Create local queues with explicit queue IDs and priorities
-  CreateLocalQueue(0, 4,
-                   chi::kLowLatency);  // Queue 0: 4 lanes for low latency tasks
-  CreateLocalQueue(
-      1, 2, chi::kHighLatency);  // Queue 1: 2 lanes for high latency tasks
 
   // Store backend type
   bdev_type_ = params.bdev_type_;
@@ -162,11 +156,7 @@ void Runtime::MonitorCreate(chi::MonitorModeId mode,
                             chi::RunContext& ctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule: {
-      // REQUIRED: Set route_lane_ to indicate where task should be routed
-      auto lane_ptr = GetLaneFullPtr(0, 0);  // Queue 0 (low latency), lane 0
-      if (!lane_ptr.IsNull()) {
-        ctx.route_lane_ = lane_ptr.ptr_;
-      }
+      // Task executes directly on current worker without re-routing
       break;
     }
     case chi::MonitorModeId::kGlobalSchedule: {
@@ -263,10 +253,7 @@ void Runtime::MonitorAllocateBlocks(chi::MonitorModeId mode,
                                     chi::RunContext& ctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule: {
-      auto lane_ptr = GetLaneFullPtr(0, 0);  // Queue 0 (low latency), lane 0
-      if (!lane_ptr.IsNull()) {
-        ctx.route_lane_ = lane_ptr.ptr_;
-      }
+      // Task executes directly on current worker without re-routing
       break;
     }
     case chi::MonitorModeId::kGlobalSchedule: {
@@ -299,10 +286,7 @@ void Runtime::MonitorFreeBlocks(chi::MonitorModeId mode,
                                 chi::RunContext& ctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule: {
-      auto lane_ptr = GetLaneFullPtr(0, 0);  // Queue 0 (low latency), lane 0
-      if (!lane_ptr.IsNull()) {
-        ctx.route_lane_ = lane_ptr.ptr_;
-      }
+      // Task executes directly on current worker without re-routing
       break;
     }
     case chi::MonitorModeId::kGlobalSchedule: {
@@ -335,11 +319,7 @@ void Runtime::MonitorWrite(chi::MonitorModeId mode,
                            chi::RunContext& ctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule: {
-      // Route to high latency queue for I/O operations
-      auto lane_ptr = GetLaneFullPtr(1, 0);  // Queue 1 (high latency), lane 0
-      if (!lane_ptr.IsNull()) {
-        ctx.route_lane_ = lane_ptr.ptr_;
-      }
+      // Task executes directly on current worker without re-routing
       break;
     }
     case chi::MonitorModeId::kGlobalSchedule: {
@@ -371,11 +351,7 @@ void Runtime::MonitorRead(chi::MonitorModeId mode, hipc::FullPtr<ReadTask> task,
                           chi::RunContext& ctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule: {
-      // Route to high latency queue for I/O operations
-      auto lane_ptr = GetLaneFullPtr(1, 1);  // Queue 1 (high latency), lane 1
-      if (!lane_ptr.IsNull()) {
-        ctx.route_lane_ = lane_ptr.ptr_;
-      }
+      // Task executes directly on current worker without re-routing
       break;
     }
     case chi::MonitorModeId::kGlobalSchedule: {
@@ -400,10 +376,7 @@ void Runtime::MonitorGetStats(chi::MonitorModeId mode,
                               chi::RunContext& ctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule: {
-      auto lane_ptr = GetLaneFullPtr(0, 0);  // Queue 0 (low latency), lane 0
-      if (!lane_ptr.IsNull()) {
-        ctx.route_lane_ = lane_ptr.ptr_;
-      }
+      // Task executes directly on current worker without re-routing
       break;
     }
     case chi::MonitorModeId::kGlobalSchedule: {
@@ -445,10 +418,7 @@ void Runtime::MonitorDestroy(chi::MonitorModeId mode,
                              chi::RunContext& ctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule: {
-      auto lane_ptr = GetLaneFullPtr(0, 0);  // Queue 0 (low latency), lane 0
-      if (!lane_ptr.IsNull()) {
-        ctx.route_lane_ = lane_ptr.ptr_;
-      }
+      // Task executes directly on current worker without re-routing
       break;
     }
     case chi::MonitorModeId::kGlobalSchedule: {
@@ -619,28 +589,44 @@ void Runtime::WriteToFile(hipc::FullPtr<WriteTask> task) {
   // Align buffer for direct I/O
   chi::u64 aligned_size = AlignSize(task->length_);
 
-  // Allocate aligned buffer
-  void* aligned_buffer;
-  if (posix_memalign(&aligned_buffer, alignment_, aligned_size) != 0) {
-    task->return_code_ = 1;
-    task->bytes_written_ = 0;
-    return;
-  }
+  // Check if the buffer is already aligned
+  bool is_aligned = (reinterpret_cast<uintptr_t>(data_ptr.ptr_) % alignment_ == 0) &&
+                    (task->length_ == aligned_size);
 
-  // Copy data to aligned buffer
-  memcpy(aligned_buffer, data_ptr.ptr_, task->length_);
-  if (aligned_size > task->length_) {
-    memset(static_cast<char*>(aligned_buffer) + task->length_, 0,
-           aligned_size - task->length_);
+  void* buffer_to_use;
+  void* aligned_buffer = nullptr;
+  bool needs_free = false;
+
+  if (is_aligned) {
+    // Buffer is already aligned, use it directly
+    buffer_to_use = data_ptr.ptr_;
+  } else {
+    // Allocate aligned buffer
+    if (posix_memalign(&aligned_buffer, alignment_, aligned_size) != 0) {
+      task->return_code_ = 1;
+      task->bytes_written_ = 0;
+      return;
+    }
+    needs_free = true;
+    buffer_to_use = aligned_buffer;
+
+    // Copy data to aligned buffer
+    memcpy(aligned_buffer, data_ptr.ptr_, task->length_);
+    if (aligned_size > task->length_) {
+      memset(static_cast<char*>(aligned_buffer) + task->length_, 0,
+             aligned_size - task->length_);
+    }
   }
 
   // Perform async write using POSIX AIO
   chi::u64 bytes_written;
   chi::u32 result =
-      PerformAsyncIO(true, task->block_.offset_, aligned_buffer, aligned_size,
+      PerformAsyncIO(true, task->block_.offset_, buffer_to_use, aligned_size,
                      bytes_written, task.Cast<chi::Task>());
 
-  free(aligned_buffer);
+  if (needs_free) {
+    free(aligned_buffer);
+  }
 
   if (result != 0) {
     task->return_code_ = result;
@@ -680,40 +666,58 @@ void Runtime::WriteToRam(hipc::FullPtr<WriteTask> task) {
 
 // Backend-specific read operations
 void Runtime::ReadFromFile(hipc::FullPtr<ReadTask> task) {
+  // Convert hipc::Pointer to hipc::FullPtr<char> for data access
+  hipc::FullPtr<char> data_ptr(task->data_);
+
   // Align buffer for direct I/O
   chi::u64 aligned_size = AlignSize(task->block_.size_);
 
-  // Allocate aligned buffer
-  void* aligned_buffer;
-  if (posix_memalign(&aligned_buffer, alignment_, aligned_size) != 0) {
-    task->return_code_ = 1;
-    task->bytes_read_ = 0;
-    return;
+  // Check if the buffer is already aligned
+  bool is_aligned = (reinterpret_cast<uintptr_t>(data_ptr.ptr_) % alignment_ == 0) &&
+                    (task->block_.size_ == aligned_size);
+
+  void* buffer_to_use;
+  void* aligned_buffer = nullptr;
+  bool needs_free = false;
+
+  if (is_aligned) {
+    // Buffer is already aligned, use it directly
+    buffer_to_use = data_ptr.ptr_;
+  } else {
+    // Allocate aligned buffer
+    if (posix_memalign(&aligned_buffer, alignment_, aligned_size) != 0) {
+      task->return_code_ = 1;
+      task->bytes_read_ = 0;
+      return;
+    }
+    needs_free = true;
+    buffer_to_use = aligned_buffer;
   }
 
   // Perform async read using POSIX AIO
   chi::u64 bytes_read;
   chi::u32 result =
-      PerformAsyncIO(false, task->block_.offset_, aligned_buffer, aligned_size,
+      PerformAsyncIO(false, task->block_.offset_, buffer_to_use, aligned_size,
                      bytes_read, task.Cast<chi::Task>());
 
   if (result != 0) {
     task->return_code_ = result;
     task->bytes_read_ = 0;
-    free(aligned_buffer);
+    if (needs_free) {
+      free(aligned_buffer);
+    }
     return;
   }
 
-  // Convert hipc::Pointer to hipc::FullPtr<char> for data access
-  hipc::FullPtr<char> data_ptr(task->data_);
-
-  // Copy data to task output
+  // Copy data to task output if we used an aligned buffer
   chi::u64 actual_bytes = std::min(bytes_read, task->block_.size_);
   chi::u64 available_space =
       std::min(actual_bytes, static_cast<chi::u64>(task->length_));
-  memcpy(data_ptr.ptr_, aligned_buffer, available_space);
 
-  free(aligned_buffer);
+  if (needs_free) {
+    memcpy(data_ptr.ptr_, aligned_buffer, available_space);
+    free(aligned_buffer);
+  }
 
   task->return_code_ = 0;
   task->bytes_read_ = available_space;

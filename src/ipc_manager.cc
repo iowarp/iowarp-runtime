@@ -469,14 +469,15 @@ bool IpcManager::ServerInitQueues() {
     // Server creates the TaskQueue using delay_ar
     hipc::CtxAllocator<CHI_MAIN_ALLOC_T> ctx_alloc(HSHM_MCTX, main_allocator_);
 
-    // Get configured number of lanes from ConfigManager
+    // Get number of sched workers from ConfigManager
+    // Number of lanes equals number of sched workers for optimal distribution
     ConfigManager *config = CHI_CONFIG_MANAGER;
-    u32 num_lanes = config->GetTaskQueueLanes();
+    u32 num_lanes = config->GetWorkerThreadCount(kSchedWorker);
 
     // Initialize TaskQueue in shared header
     shared_header_->external_queue.shm_init(
         ctx_alloc, ctx_alloc,
-        num_lanes, // num_lanes for concurrency from config
+        num_lanes, // num_lanes equals sched worker count
         1,         // num_priorities (single priority)
         1024);     // depth_per_queue
 

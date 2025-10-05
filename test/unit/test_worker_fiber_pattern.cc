@@ -19,12 +19,12 @@ struct WorkerFiberTest {
     
     // Mimic RunContext fields from worker.cc
     bctx::fcontext_t fiber_context;    // Initial fiber entry point
-    bctx::transfer_t fiber_transfer;   // Current yield/resume point  
+    bctx::transfer_t fiber_transfer;   // Current yield/resume point
     bctx::transfer_t worker_context;   // Worker context for yielding back
     bool is_blocked;
-    
-    WorkerFiberTest() : stack_ptr(nullptr), stack_base_for_free(nullptr), 
-                        stack_size(65536), fiber_context{}, fiber_transfer{}, 
+
+    WorkerFiberTest() : stack_ptr(nullptr), stack_base_for_free(nullptr),
+                        stack_size(65536), fiber_context{}, fiber_transfer{},
                         worker_context{}, is_blocked(false) {
         AllocateStack();
     }

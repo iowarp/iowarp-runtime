@@ -47,15 +47,7 @@ void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& rctx) {
   HILOG(kDebug, "Admin: Initializing admin container");
 
   // Initialize the Admin container with pool information from the task
-  // Note: Admin container is already initialized by the framework before Create
-  // is called, but we can create local queues here for Admin operations
-  
-  // Create specific local queues for admin operations (all high-latency priority, 1 lane each)
-  CreateLocalQueue(kMetadataQueue, 1, chi::kHighLatency);         // Metadata operations
-  CreateLocalQueue(kClientSendTaskInQueue, 1, chi::kHighLatency); // Client task input processing  
-  CreateLocalQueue(kServerRecvTaskInQueue, 1, chi::kHighLatency); // Server task input reception
-  CreateLocalQueue(kServerSendTaskOutQueue, 1, chi::kHighLatency);// Server task output sending
-  CreateLocalQueue(kClientRecvTaskOutQueue, 1, chi::kHighLatency);// Client task output reception
+  // Note: Admin container is already initialized by the framework before Create is called
 
   create_count_++;
 
@@ -110,15 +102,7 @@ void Runtime::MonitorCreate(chi::MonitorModeId mode,
                             chi::RunContext& rctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule:
-      // Set route_lane_ to indicate where task should be routed
-      HILOG(kDebug, "Admin: Setting route_lane_ for admin Create task");
-      // Set route_lane_ to metadata queue lane 0
-      {
-        auto lane_ptr = GetLaneFullPtr(kMetadataQueue, 0);
-        if (!lane_ptr.IsNull()) {
-          rctx.route_lane_ = lane_ptr.ptr_;
-        }
-      }
+      // Task executes directly on current worker without re-routing
       break;
 
     case chi::MonitorModeId::kGlobalSchedule:
@@ -141,15 +125,7 @@ void Runtime::MonitorGetOrCreatePool(
     chi::RunContext& rctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule:
-      // Set route_lane_ to indicate where task should be routed
-      HILOG(kDebug, "Admin: Setting route_lane_ for GetOrCreatePool task");
-      // Set route_lane_ to metadata queue lane 0
-      {
-        auto lane_ptr = GetLaneFullPtr(kMetadataQueue, 0);
-        if (!lane_ptr.IsNull()) {
-          rctx.route_lane_ = lane_ptr.ptr_;
-        }
-      }
+      // Task executes directly on current worker without re-routing
       break;
 
     case chi::MonitorModeId::kGlobalSchedule:
@@ -226,15 +202,7 @@ void Runtime::MonitorDestroyPool(chi::MonitorModeId mode,
                                  chi::RunContext& rctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule:
-      // Set route_lane_ to indicate where task should be routed
-      HILOG(kDebug, "Admin: Setting route_lane_ for DestroyPool task");
-      // Set route_lane_ to metadata queue lane 0
-      {
-        auto lane_ptr = GetLaneFullPtr(kMetadataQueue, 0);
-        if (!lane_ptr.IsNull()) {
-          rctx.route_lane_ = lane_ptr.ptr_;
-        }
-      }
+      // Task executes directly on current worker without re-routing
       break;
 
     case chi::MonitorModeId::kGlobalSchedule:
@@ -282,15 +250,7 @@ void Runtime::MonitorStopRuntime(chi::MonitorModeId mode,
                                  chi::RunContext& rctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule:
-      // Set route_lane_ to indicate where task should be routed
-      HILOG(kDebug, "Admin: Setting route_lane_ for StopRuntime task");
-      // Set route_lane_ to metadata queue lane 0
-      {
-        auto lane_ptr = GetLaneFullPtr(kMetadataQueue, 0);
-        if (!lane_ptr.IsNull()) {
-          rctx.route_lane_ = lane_ptr.ptr_;
-        }
-      }
+      // Task executes directly on current worker without re-routing
       break;
 
     case chi::MonitorModeId::kGlobalSchedule:
@@ -423,15 +383,7 @@ void Runtime::MonitorFlush(chi::MonitorModeId mode,
                            chi::RunContext& rctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule:
-      // Set route_lane_ to indicate where task should be routed
-      HILOG(kDebug, "Admin: Setting route_lane_ for Flush task");
-      // Set route_lane_ to metadata queue lane 0
-      {
-        auto lane_ptr = GetLaneFullPtr(kMetadataQueue, 0);
-        if (!lane_ptr.IsNull()) {
-          rctx.route_lane_ = lane_ptr.ptr_;
-        }
-      }
+      // Task executes directly on current worker without re-routing
       break;
 
     case chi::MonitorModeId::kGlobalSchedule:
@@ -733,15 +685,7 @@ void Runtime::MonitorClientSendTaskIn(
     chi::RunContext& rctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule:
-      // Set route_lane_ to indicate where task should be routed
-      HILOG(kDebug, "Admin: Setting route_lane_ for ClientSendTaskIn");
-      // Set route_lane_ to client send task input queue lane 0
-      {
-        auto lane_ptr = GetLaneFullPtr(kClientSendTaskInQueue, 0);
-        if (!lane_ptr.IsNull()) {
-          rctx.route_lane_ = lane_ptr.ptr_;
-        }
-      }
+      // Task executes directly on current worker without re-routing
       break;
 
     case chi::MonitorModeId::kGlobalSchedule:
@@ -789,15 +733,7 @@ void Runtime::MonitorServerRecvTaskIn(
     chi::RunContext& rctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule:
-      // Set route_lane_ to indicate where task should be routed
-      HILOG(kDebug, "Admin: Setting route_lane_ for ServerRecvTaskIn");
-      // Set route_lane_ to server receive task input queue lane 0
-      {
-        auto lane_ptr = GetLaneFullPtr(kServerRecvTaskInQueue, 0);
-        if (!lane_ptr.IsNull()) {
-          rctx.route_lane_ = lane_ptr.ptr_;
-        }
-      }
+      // Task executes directly on current worker without re-routing
       break;
 
     case chi::MonitorModeId::kGlobalSchedule:
@@ -845,15 +781,7 @@ void Runtime::MonitorServerSendTaskOut(
     chi::RunContext& rctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule:
-      // Set route_lane_ to indicate where task should be routed
-      HILOG(kDebug, "Admin: Setting route_lane_ for ServerSendTaskOut");
-      // Set route_lane_ to server send task output queue lane 0
-      {
-        auto lane_ptr = GetLaneFullPtr(kServerSendTaskOutQueue, 0);
-        if (!lane_ptr.IsNull()) {
-          rctx.route_lane_ = lane_ptr.ptr_;
-        }
-      }
+      // Task executes directly on current worker without re-routing
       break;
 
     case chi::MonitorModeId::kGlobalSchedule:
@@ -901,15 +829,7 @@ void Runtime::MonitorClientRecvTaskOut(
     chi::RunContext& rctx) {
   switch (mode) {
     case chi::MonitorModeId::kLocalSchedule:
-      // Set route_lane_ to indicate where task should be routed
-      HILOG(kDebug, "Admin: Setting route_lane_ for ClientRecvTaskOut");
-      // Set route_lane_ to client receive task output queue lane 0
-      {
-        auto lane_ptr = GetLaneFullPtr(kClientRecvTaskOutQueue, 0);
-        if (!lane_ptr.IsNull()) {
-          rctx.route_lane_ = lane_ptr.ptr_;
-        }
-      }
+      // Task executes directly on current worker without re-routing
       break;
 
     case chi::MonitorModeId::kGlobalSchedule:

@@ -399,11 +399,6 @@ class Container : public chi::Container {
     // Container is already initialized via Init() before Create is called
     // Do NOT call Init() here
 
-    // Create local queues with semantic names, lane counts, and priorities
-    CreateLocalQueue(kMetadataQueue, 1, chi::kHighLatency);      // 1 lane for metadata operations
-    CreateLocalQueue(kProcessingQueue, 4, chi::kLowLatency);     // 4 lanes for low latency tasks
-    CreateLocalQueue(kBatchQueue, 2, chi::kHighLatency);         // 2 lanes for batch processing
-
     // Additional container-specific initialization logic here
     std::cout << "Container created and initialized for pool: " << pool_name_
               << " (ID: " << pool_id_ << ")" << std::endl;
@@ -416,11 +411,7 @@ class Container : public chi::Container {
                      chi::RunContext& ctx) {
     switch (mode) {
       case chi::MonitorModeId::kLocalSchedule: {
-        // CORRECT: Set route_lane_ to indicate where task should be routed
-        auto lane_ptr = GetLaneFullPtr(kMetadataQueue, 0);
-        if (!lane_ptr.IsNull()) {
-          ctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
-        }
+        // Routing handled automatically by framework
         break;
       }
       case chi::MonitorModeId::kGlobalSchedule: {
@@ -454,11 +445,7 @@ class Container : public chi::Container {
                     chi::RunContext& ctx) {
     switch (mode) {
       case chi::MonitorModeId::kLocalSchedule: {
-        // CORRECT: Set route_lane_ based on task properties for load balancing
-        auto lane_ptr = GetLaneFullPtrByHash(kProcessingQueue, task->operation_id_);
-        if (!lane_ptr.IsNull()) {
-          ctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
-        }
+        // Routing handled automatically by framework
         break;
       }
       case chi::MonitorModeId::kGlobalSchedule:
@@ -472,11 +459,6 @@ class Container : public chi::Container {
   }
 
  private:
-  // Queue ID constants (REQUIRED: Use semantic names, not raw integers)
-  static const chi::QueueId kMetadataQueue = 0;
-  static const chi::QueueId kProcessingQueue = 1;
-  static const chi::QueueId kBatchQueue = 2;
-
   std::string processData(const std::string& input, u32 op_id) {
     // Business logic here
     return input + "_processed";
@@ -616,7 +598,7 @@ This automated approach ensures consistency across all ChiMods and reduces boile
 3. **Serializable Types**: Use HSHM types (chi::string, chi::vector, etc.) for member variables
 4. **Method Assignment**: Set the method_ field to identify the operation
 5. **FullPtr Usage**: All task method signatures use `hipc::FullPtr<TaskType>` instead of raw pointers
-6. **Monitor Methods**: Every task type MUST have a Monitor method that implements `kLocalSchedule`
+6. **Monitor Methods**: Optional - only implement if you need custom load estimation or distributed coordination
 
 ### Task Naming Conventions
 
@@ -2634,9 +2616,9 @@ void Create(hipc::FullPtr<CreateTask> task, chi::RunContext& ctx) {
   // Container is already initialized via Init() before Create is called
   // Do NOT call Init() here
 
-  // Set up queues and resources
-  CreateLocalQueue(chi::kLowLatency, 4);
-  CreateLocalQueue(chi::kHighLatency, 2);
+  // Container-specific initialization logic
+  // All tasks will be routed through the external queue lanes
+  // which are automatically mapped to workers at runtime startup
 
   // Container is now ready for operation
 }
@@ -2832,152 +2814,77 @@ case chi::MonitorModeId::kLocalSchedule:
 ```cpp
 // DO THIS - let work orchestrator handle enqueuing
 case chi::MonitorModeId::kLocalSchedule:
-  // Set route_lane_ to indicate where task should be routed
-  {
-    auto lane_ptr = GetLaneFullPtr(kProcessingQueue, 0);
-    if (!lane_ptr.IsNull()) {
-      rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
-    }
-  }
+  // Routing handled automatically by framework
   break;
 ```
 
 **Why this matters**:
 - Work orchestrator manages task lifecycle and scheduling policies
 - Direct enqueuing bypasses load balancing and monitoring
-- `route_lane_` pointer tells the orchestrator where to place the task
-- Framework handles actual enqueuing after monitor returns
-- Proper routing enables task migration, load balancing, and debugging
-
-### CreateLocalQueue Parameters
-
-The `CreateLocalQueue` method requires three parameters:
-
-```cpp
-void CreateLocalQueue(QueueId queue_id, u32 num_lanes, QueuePriority priority);
-```
-
-**Parameters:**
-- `queue_id`: Semantic constant (e.g., `kMetadataQueue`, never raw integers)
-- `num_lanes`: Number of concurrent processing lanes for this queue
-- `priority`: Either `chi::kLowLatency` or `chi::kHighLatency`
-
-**Example Usage:**
-```cpp
-// Create queues with different characteristics
-CreateLocalQueue(kMetadataQueue, 1, chi::kHighLatency);    // Single lane for sequential metadata
-CreateLocalQueue(kProcessingQueue, 4, chi::kLowLatency);   // 4 lanes for parallel low-latency work
-CreateLocalQueue(kBatchQueue, 2, chi::kHighLatency);       // 2 lanes for batch processing
-```
+- Framework handles all task routing through external queue lanes
+- Workers are automatically mapped to lanes at runtime startup
+- Simplified architecture eliminates container-specific queues
 
 ## Task Monitoring Requirements
 
-### Mandatory kLocalSchedule Implementation
-Every task type must have a corresponding Monitor method that implements `kLocalSchedule`. This is critical for task execution:
+### Optional Monitor Methods
+Monitor methods are **optional** in the current architecture. The framework handles task routing automatically, so most ChiMods don't need custom Monitor implementations.
+
+**When to implement Monitor methods:**
+- **kEstLoad**: Only if you need custom load estimation for task scheduling
+- **kGlobalSchedule**: Only if you need distributed coordination across nodes
+- **kLocalSchedule**: Not needed - routing is fully automatic
 
 ```cpp
-void MonitorCustom(chi::MonitorModeId mode, 
+// Minimal Monitor implementation (only implement if needed for load estimation)
+void MonitorCustom(chi::MonitorModeId mode,
                   hipc::FullPtr<CustomTask> task_ptr,
                   chi::RunContext& rctx) {
   switch (mode) {
-    case chi::MonitorModeId::kLocalSchedule: {
-      // CORRECT: Set route_lane_ for work orchestrator
-      auto lane_ptr = GetLaneFullPtrByHash(kProcessingQueue, task_ptr->operation_id_);
-      if (!lane_ptr.IsNull()) {
-        rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
-      }
-      break;
-    }
-    case chi::MonitorModeId::kGlobalSchedule:
-      // Optional: Global coordination logic
-      break;
-      
     case chi::MonitorModeId::kEstLoad:
-      // Estimate execution time
+      // Optional: Estimate execution time for load balancing
       rctx.estimated_completion_time_us = task_ptr->operation_id_ * 100.0;
       break;
-  }
-}
-```
 
-### Lane Selection Strategies
-When implementing `kLocalSchedule`, choose the appropriate lane selection strategy:
-
-1. **Fixed Lane Assignment**:
-```cpp
-// Always use lane 0 for simple cases
-{
-  auto lane_ptr = GetLaneFullPtr(kProcessingQueue, 0);
-  if (!lane_ptr.IsNull()) {
-    rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
-  }
-}
-```
-
-2. **Hash-Based Load Balancing**:
-```cpp
-// Distribute based on task data for load balancing
-{
-  auto lane_ptr = GetLaneFullPtrByHash(kProcessingQueue, task_ptr->operation_id_);
-  if (!lane_ptr.IsNull()) {
-    rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
-  }
-}
-```
-
-3. **Priority-Based Routing**:
-```cpp
-// Route to different queues based on task properties
-{
-  QueueId queue_id = (task_ptr->operation_id_ > 1000) ? 
-                     kBatchQueue : kProcessingQueue;
-  auto lane_ptr = GetLaneFullPtr(queue_id, 0);
-  if (!lane_ptr.IsNull()) {
-    rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
-  }
-}
-```
-
-### Common Monitor Implementation Pattern
-```cpp
-void MonitorTaskType(chi::MonitorModeId mode,
-                    hipc::FullPtr<TaskType> task_ptr,
-                    chi::RunContext& rctx) {
-  switch (mode) {
-    case chi::MonitorModeId::kLocalSchedule: {
-      // STEP 1: Choose appropriate queue and lane based on task properties
-      QueueId queue_id = DetermineQueueId(task_ptr);
-      LaneId lane_id = DetermineLaneId(task_ptr);
-      
-      // STEP 2: Get the lane using FullPtr
-      auto lane_ptr = GetLaneFullPtr(queue_id, lane_id);
-      if (lane_ptr.IsNull()) {
-        // Fallback to default lane
-        lane_ptr = GetLaneFullPtr(kDefaultQueue, 0);
-      }
-      
-      // STEP 3: Set route_lane_ for work orchestrator
-      if (!lane_ptr.IsNull()) {
-        rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_);
-      }
-      break;
-    }
-    
     case chi::MonitorModeId::kGlobalSchedule:
-      // Implement global coordination if needed
+      // Optional: Global coordination logic for distributed systems
       break;
-      
-    case chi::MonitorModeId::kEstLoad:
-      // Estimate task execution time
-      rctx.estimated_completion_time_us = EstimateExecutionTime(task_ptr);
+
+    case chi::MonitorModeId::kLocalSchedule:
+      // No longer needed - routing is automatic
+      // This case can be omitted entirely
       break;
-      
+
     default:
-      // Handle unknown modes gracefully
       break;
   }
 }
 ```
+
+### Automatic Routing Architecture
+The framework handles all task routing automatically:
+
+1. **Client-Side Enqueuing**:
+   - Tasks are enqueued via `IpcManager::Enqueue()` from client code
+   - Lane selection uses PID+TID hash for automatic distribution across lanes
+   - Formula: `lane_id = hash(PID, TID) % num_lanes`
+
+2. **Worker-Lane Mapping** (1:1 Direct Mapping):
+   - Number of lanes automatically equals number of sched workers (default: 8)
+   - Each worker assigned exactly one lane: worker i → lane i
+   - No round-robin needed - perfect 1:1 correspondence
+   - Lane headers track assigned worker ID
+
+3. **No Configuration Required**:
+   - Lane count automatically matches sched worker count from config
+   - No separate `task_queue_lanes` configuration needed
+   - Change worker count → lane count adjusts automatically
+
+**Example**: With 8 sched workers (default):
+- 8 lanes created automatically in external queue
+- Worker 0 → Lane 0, Worker 1 → Lane 1, ..., Worker 7 → Lane 7
+- Client tasks distributed via hash to lanes 0-7
+- Each worker processes tasks from its dedicated lane
 
 ### Error Handling
 ```cpp
@@ -3058,15 +2965,11 @@ When creating a new Chimaera module, ensure you have:
 - [ ] Inherits from `chi::Container`
 - [ ] **Init() method overridden** - calls base class Init() then initializes client for this ChiMod
 - [ ] Create() method does NOT call `chi::Container::Init()` (container is already initialized before Create is called)
-- [ ] Create() method calls `CreateLocalQueue()` with semantic queue IDs, lane counts, and priorities
-- [ ] **Queue ID constants defined** - use semantic names like `kMetadataQueue`, not raw integers
 - [ ] All task methods use `hipc::FullPtr<TaskType>` parameters
-- [ ] **CRITICAL**: Every Monitor method implements `kLocalSchedule` case
-- [ ] `kLocalSchedule` calls `GetLaneFullPtr()` to get lane pointer
-- [ ] `kLocalSchedule` sets `rctx.route_lane_ = static_cast<void*>(lane_ptr.ptr_)` 
-- [ ] **NEVER directly enqueue** - use route_lane_ assignment, let work orchestrator handle enqueuing
+- [ ] **Monitor methods are optional** - only implement if you need custom load estimation or distributed coordination
 - [ ] **NO custom Del methods needed** - framework calls `ipc_manager->DelTask()` automatically
 - [ ] Uses `CHI_TASK_CC(ClassName)` macro for entry points
+- [ ] **Routing is automatic** - tasks are routed through external queue lanes mapped to workers (1:1 worker-to-lane mapping)
 
 ### Client API Checklist (`_client.h/cc`)
 - [ ] Inherits from `chi::ContainerClient`
@@ -3093,11 +2996,10 @@ When creating a new Chimaera module, ensure you have:
 - [ ] ❌ **Calling `chi::Container::Init()` in Create method** (container is already initialized by framework before Create is called)
 - [ ] ❌ **Not overriding `Init()` method** (required to initialize the client member)
 - [ ] ❌ Using non-HSHM types in task data members
-- [ ] ❌ Forgetting to create local queues in Create method
-- [ ] ❌ **Using raw integers for queue IDs** (use semantic constants like `kMetadataQueue`)
 - [ ] ❌ Implementing custom Del methods (framework calls `ipc_manager->DelTask()` automatically)
 - [ ] ❌ Writing complex extern "C" blocks (use `CHI_TASK_CC` macro instead)
 - [ ] ❌ **Using static_cast with Method values** (use Method::kName directly)
+- [ ] ❌ Attempting to manually manage task routing (framework handles automatically)
 - [ ] ❌ **Missing chimaera.h include** in methods file (GLOBAL_CONST won't work)
 - [ ] ❌ **Using enum class for methods** (use namespace with GLOBAL_CONST instead)
 - [ ] ❌ **Using BaseCreateTask directly for non-admin modules** (use GetOrCreatePoolTask instead)

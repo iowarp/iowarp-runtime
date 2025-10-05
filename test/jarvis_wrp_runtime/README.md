@@ -76,9 +76,6 @@ jarvis ppl start
 #### Network Configuration
 - **zmq_port**: ZeroMQ port for networking (default: `5555`)
 
-#### Task Queue Configuration
-- **task_queue_lanes**: Number of concurrent task queue lanes (default: `4`)
-
 #### Logging
 - **log_level**: Logging level - `debug`, `info`, `warning`, `error` (default: `info`)
 

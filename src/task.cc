@@ -14,13 +14,13 @@ namespace bctx = boost::context::detail;
 namespace chi {
 
 void Task::Wait(bool from_yield) {
-  auto* chimaera_manager = CHI_CHIMAERA_MANAGER;
+  auto *chimaera_manager = CHI_CHIMAERA_MANAGER;
   if (chimaera_manager && chimaera_manager->IsRuntime()) {
     // Runtime implementation: Estimate load and yield execution
 
     // Get current run context from worker
-    Worker* worker = CHI_CUR_WORKER;
-    RunContext* run_ctx = worker ? worker->GetCurrentRunContext() : nullptr;
+    Worker *worker = CHI_CUR_WORKER;
+    RunContext *run_ctx = worker ? worker->GetCurrentRunContext() : nullptr;
 
     if (!worker || !run_ctx) {
       // No worker or run context available, fall back to client implementation
@@ -31,10 +31,10 @@ void Task::Wait(bool from_yield) {
     }
 
     // Use container from RunContext instead of CHI_POOL_MANAGER
-    Container* container = worker ? worker->GetCurrentContainer() : nullptr;
+    Container *container = worker ? worker->GetCurrentContainer() : nullptr;
     if (container) {
       // Estimate completion time using Monitor with kEstLoad
-      RunContext est_ctx = *run_ctx;  // Copy run context for estimation
+      RunContext est_ctx = *run_ctx; // Copy run context for estimation
       container->Monitor(MonitorModeId::kEstLoad, method_, run_ctx->task,
                          est_ctx);
 
@@ -44,7 +44,18 @@ void Task::Wait(bool from_yield) {
           est_ctx.estimated_completion_time_us;
     } else {
       // No container available, use default estimate
-      run_ctx->estimated_completion_time_us = 1000.0;  // Default 1ms estimate
+      run_ctx->estimated_completion_time_us = 1000.0; // Default 1ms estimate
+    }
+
+    // Check if task is already blocked - this should never happen
+    if (run_ctx->is_blocked) {
+      HELOG(kFatal,
+            "Worker {}: Task is already blocked when calling Wait()! "
+            "Task ptr: {:#x}, Pool: {}, Method: {}, TaskNode: {}.{}.{}.{}",
+            worker->GetId(), reinterpret_cast<uintptr_t>(this), pool_id_,
+            method_, task_node_.pid_, task_node_.tid_, task_node_.major_,
+            task_node_.minor_);
+      std::abort();
     }
 
     // Add this task to the current task's waiting_for_tasks list
@@ -71,11 +82,11 @@ void Task::Wait(bool from_yield) {
 }
 
 void Task::YieldBase() {
-  auto* chimaera_manager = CHI_CHIMAERA_MANAGER;
+  auto *chimaera_manager = CHI_CHIMAERA_MANAGER;
   if (chimaera_manager && chimaera_manager->IsRuntime()) {
     // Get current run context from worker
-    Worker* worker = CHI_CUR_WORKER;
-    RunContext* run_ctx = worker ? worker->GetCurrentRunContext() : nullptr;
+    Worker *worker = CHI_CUR_WORKER;
+    RunContext *run_ctx = worker ? worker->GetCurrentRunContext() : nullptr;
 
     if (!run_ctx) {
       // No run context available, fall back to client implementation
@@ -93,7 +104,7 @@ void Task::YieldBase() {
     // resumption Use temporary variables to store the yield context before
     // jumping
     bctx::fcontext_t yield_fctx = run_ctx->yield_context.fctx;
-    void* yield_data = run_ctx->yield_context.data;
+    void *yield_data = run_ctx->yield_context.data;
 
     // Jump back to worker and capture the result
     bctx::transfer_t yield_result = bctx::jump_fcontext(yield_fctx, yield_data);
@@ -122,4 +133,4 @@ bool Task::IsComplete() const {
   return is_complete.load() != 0;
 }
 
-}  // namespace chi
+} // namespace chi

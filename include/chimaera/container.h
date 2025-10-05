@@ -58,12 +58,7 @@ class Container {
   u32 container_id_;       ///< The logical ID of this container instance
 
  protected:
-  // Local queue management using TaskQueue
-  std::unordered_map<QueueId, hipc::FullPtr<::chi::TaskQueue>> local_queues_;
   PoolQuery pool_query_;
-
-  // Default allocator for creating lanes
-  CHI_MAIN_ALLOC_T* main_allocator_ = nullptr;
 
  public:
   Container() = default;
@@ -84,107 +79,6 @@ class Container {
     pool_name_ = pool_name;
     container_id_ = 0;
     pool_query_ = PoolQuery();  // Default pool query
-
-    // Get main allocator for creating lanes
-    auto mem_manager = HSHM_MEMORY_MANAGER;
-    main_allocator_ =
-        mem_manager->GetAllocator<CHI_MAIN_ALLOC_T>(hipc::AllocatorId(1, 0));
-  }
-
-  /**
-   * Create a local queue with specified lanes
-   */
-  void CreateLocalQueue(QueueId queue_id, u32 num_lanes, u32 priority) {
-    if (local_queues_.find(queue_id) != local_queues_.end()) {
-      return;  // Queue already exists
-    }
-
-    // Create TaskQueue with configurable lanes and priority
-    if (main_allocator_) {
-      hipc::CtxAllocator<CHI_MAIN_ALLOC_T> ctx_alloc(HSHM_MCTX,
-                                                     main_allocator_);
-
-      // Create TaskQueue (headers are managed internally by TaskQueue)
-      auto task_queue = main_allocator_->template NewObj<::chi::TaskQueue>(
-          HSHM_MCTX, ctx_alloc, num_lanes, priority, 1024);
-
-      if (!task_queue.IsNull()) {
-        local_queues_[queue_id] = task_queue;
-
-        // Schedule all lanes in the queue using round-robin scheduler
-        // NOTE: WorkOrchestrator scheduling will be handled during container initialization
-        // to avoid circular dependency issues with header includes
-        ScheduleTaskQueueWithWorkOrchestrator(task_queue.ptr_, queue_id);
-        
-        std::cout << "Container: Created queue " << queue_id << " for pool "
-                  << pool_id_ << std::endl;
-      }
-    }
-  }
-
-  /**
-   * Get TaskQueue by queue ID
-   */
-  ::chi::TaskQueue* GetTaskQueue(QueueId queue_id) {
-    auto it = local_queues_.find(queue_id);
-    if (it != local_queues_.end() && !it->second.IsNull()) {
-      return it->second.ptr_;
-    }
-    return nullptr;
-  }
-
-  /**
-   * Get specific lane by ID
-   */
-  virtual TaskLane* GetLane(QueueId queue_id,
-                                              LaneId lane_id) {
-    auto* task_queue = GetTaskQueue(queue_id);
-    if (task_queue && lane_id < task_queue->GetNumLanes()) {
-      return &task_queue->GetLane(lane_id,
-                                  0);  // priority 0 since only one priority
-    }
-    return nullptr;
-  }
-
-  /**
-   * Get lane by hash for load balancing
-   */
-  virtual TaskLane* GetLaneByHash(QueueId queue_id,
-                                                    u32 hash) {
-    auto* task_queue = GetTaskQueue(queue_id);
-    if (task_queue) {
-      u32 num_lanes = task_queue->GetNumLanes();
-      if (num_lanes > 0) {
-        LaneId lane_id = hash % num_lanes;
-        return &task_queue->GetLane(lane_id,
-                                    0);  // priority 0 since only one priority
-      }
-    }
-    return nullptr;
-  }
-
-  /**
-   * Get FullPtr to specific lane by ID for task emplacement
-   */
-  hipc::FullPtr<TaskLane> GetLaneFullPtr(QueueId queue_id,
-                                                           LaneId lane_id) {
-    auto* lane = GetLane(queue_id, lane_id);
-    if (lane) {
-      return hipc::FullPtr<TaskLane>(lane);
-    }
-    return hipc::FullPtr<TaskLane>();
-  }
-
-  /**
-   * Get FullPtr to lane by hash for task emplacement
-   */
-  hipc::FullPtr<TaskLane> GetLaneByHashFullPtr(
-      QueueId queue_id, u32 hash) {
-    auto* lane = GetLaneByHash(queue_id, hash);
-    if (lane) {
-      return hipc::FullPtr<TaskLane>(lane);
-    }
-    return hipc::FullPtr<TaskLane>();
   }
 
   /**
@@ -268,31 +162,6 @@ class Container {
                                hipc::FullPtr<Task> &dup_task, bool deep) = 0;
 
  protected:
-  /**
-   * Helper to schedule a TaskQueue with WorkOrchestrator
-   * Can be overridden by derived classes if needed
-   */
-  virtual void ScheduleTaskQueueWithWorkOrchestrator(::chi::TaskQueue* task_queue, QueueId queue_id);
-
-  /**
-   * Helper to get queue priority from queue ID
-   */
-  QueuePriority GetQueuePriority(QueueId queue_id) const {
-    return static_cast<QueuePriority>(queue_id);
-  }
-
-  /**
-   * Helper to check if a queue exists
-   */
-  bool HasQueue(QueueId queue_id) const {
-    return local_queues_.find(queue_id) != local_queues_.end();
-  }
-
-  /**
-   * Helper to get number of queues
-   */
-  size_t GetQueueCount() const { return local_queues_.size(); }
-
   /**
    * Get the allocator for this container
    */

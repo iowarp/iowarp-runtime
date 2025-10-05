@@ -56,12 +56,8 @@ std::string ConfigManager::GetServerConfigPath() const {
 
 u32 ConfigManager::GetWorkerThreadCount(ThreadType thread_type) const {
   switch (thread_type) {
-  case kLowLatencyWorker:
-    return low_latency_workers_;
-  case kHighLatencyWorker:
-    return high_latency_workers_;
-  case kReinforcementWorker:
-    return reinforcement_workers_;
+  case kSchedWorker:
+    return sched_workers_;
   case kProcessReaper:
     return process_reaper_workers_;
   default:
@@ -83,8 +79,6 @@ size_t ConfigManager::GetMemorySegmentSize(MemorySegment segment) const {
 }
 
 u32 ConfigManager::GetZmqPort() const { return zmq_port_; }
-
-u32 ConfigManager::GetTaskQueueLanes() const { return task_queue_lanes_; }
 
 std::string
 ConfigManager::GetSharedMemorySegmentName(MemorySegment segment) const {
@@ -121,9 +115,7 @@ bool ConfigManager::IsValid() const { return is_initialized_; }
 
 void ConfigManager::LoadDefault() {
   // Set default configuration values
-  low_latency_workers_ = 4;
-  high_latency_workers_ = 2;
-  reinforcement_workers_ = 1;
+  sched_workers_ = 8;
   process_reaper_workers_ = 1;
 
   main_segment_size_ = 1024 * 1024 * 1024;        // 1GB
@@ -131,7 +123,6 @@ void ConfigManager::LoadDefault() {
   runtime_data_segment_size_ = 512 * 1024 * 1024; // 512MB
 
   zmq_port_ = 5555;
-  task_queue_lanes_ = 4;
 
   // Set default shared memory segment names with environment variables
   main_segment_name_ = "chi_main_segment_${USER}";
@@ -146,17 +137,11 @@ void ConfigManager::ParseYAML(YAML::Node &yaml_conf) {
   // Parse worker thread counts
   if (yaml_conf["workers"]) {
     auto workers = yaml_conf["workers"];
-    if (workers["low_latency"]) {
-      low_latency_workers_ = workers["low_latency"].as<u32>();
+    if (workers["sched_threads"]) {
+      sched_workers_ = workers["sched_threads"].as<u32>();
     }
-    if (workers["high_latency"]) {
-      high_latency_workers_ = workers["high_latency"].as<u32>();
-    }
-    if (workers["reinforcement"]) {
-      reinforcement_workers_ = workers["reinforcement"].as<u32>();
-    }
-    if (workers["process_reaper"]) {
-      process_reaper_workers_ = workers["process_reaper"].as<u32>();
+    if (workers["process_reaper_threads"]) {
+      process_reaper_workers_ = workers["process_reaper_threads"].as<u32>();
     }
   }
 
@@ -182,14 +167,6 @@ void ConfigManager::ParseYAML(YAML::Node &yaml_conf) {
     auto networking = yaml_conf["networking"];
     if (networking["zmq_port"]) {
       zmq_port_ = networking["zmq_port"].as<u32>();
-    }
-  }
-
-  // Parse task queue configuration
-  if (yaml_conf["task_queue"]) {
-    auto task_queue = yaml_conf["task_queue"];
-    if (task_queue["lanes"]) {
-      task_queue_lanes_ = task_queue["lanes"].as<u32>();
     }
   }
 

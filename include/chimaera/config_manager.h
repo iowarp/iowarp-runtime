@@ -71,12 +71,6 @@ class ConfigManager : public hshm::BaseConfig {
   u32 GetZmqPort() const;
 
   /**
-   * Get number of task queue lanes
-   * @return Number of lanes for task queue concurrency
-   */
-  u32 GetTaskQueueLanes() const;
-
-  /**
    * Get shared memory segment names
    * @param segment Memory segment identifier`
    * @return Expanded segment name with environment variables resolved
@@ -110,9 +104,7 @@ class ConfigManager : public hshm::BaseConfig {
   std::string config_file_path_;
 
   // Configuration parameters
-  u32 low_latency_workers_ = 2;
-  u32 high_latency_workers_ = 4;
-  u32 reinforcement_workers_ = 1;
+  u32 sched_workers_ = 8;
   u32 process_reaper_workers_ = 1;
 
   size_t main_segment_size_ = hshm::Unit<size_t>::Gigabytes(1);
@@ -120,7 +112,6 @@ class ConfigManager : public hshm::BaseConfig {
   size_t runtime_data_segment_size_ = hshm::Unit<size_t>::Megabytes(256);
 
   u32 zmq_port_ = 9128;
-  u32 task_queue_lanes_ = 4;
 
   // Shared memory segment names with environment variable support
   std::string main_segment_name_ = "chi_main_segment_${USER}";

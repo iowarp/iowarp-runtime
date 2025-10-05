@@ -6,7 +6,7 @@ Assumes chimaera has been installed and binaries are available in PATH.
 """
 from jarvis_cd.core.pkg import Service
 from jarvis_cd.shell import Exec, LocalExecInfo, PsshExecInfo
-from jarvis_cd.shell.process import Kill, Which
+from jarvis_cd.shell.process import Kill, Which, GdbServer
 from jarvis_cd.util import SizeType
 import os
 import yaml
@@ -31,22 +31,10 @@ class WrpRuntime(Service):
         """Define configuration options for IOWarp runtime"""
         return [
             {
-                'name': 'low_latency_workers',
-                'msg': 'Number of low-latency worker threads',
+                'name': 'sched_workers',
+                'msg': 'Number of unified scheduler worker threads',
                 'type': int,
-                'default': 4
-            },
-            {
-                'name': 'high_latency_workers',
-                'msg': 'Number of high-latency worker threads',
-                'type': int,
-                'default': 2
-            },
-            {
-                'name': 'reinforcement_workers',
-                'msg': 'Number of reinforcement worker threads',
-                'type': int,
-                'default': 1
+                'default': 8
             },
             {
                 'name': 'process_reaper_workers',
@@ -77,12 +65,6 @@ class WrpRuntime(Service):
                 'msg': 'ZeroMQ port for networking',
                 'type': int,
                 'default': 5555
-            },
-            {
-                'name': 'task_queue_lanes',
-                'msg': 'Number of concurrent task queue lanes',
-                'type': int,
-                'default': 4
             },
             {
                 'name': 'log_level',
@@ -143,9 +125,7 @@ class WrpRuntime(Service):
         # Build configuration dictionary matching chimaera_default.yaml format
         config_dict = {
             'workers': {
-                'low_latency_threads': self.config['low_latency_workers'],
-                'high_latency_threads': self.config['high_latency_workers'],
-                'reinforcement_threads': self.config['reinforcement_workers'],
+                'sched_threads': self.config['sched_workers'],
                 'process_reaper_threads': self.config['process_reaper_workers']
             },
             'memory': {
@@ -163,9 +143,6 @@ class WrpRuntime(Service):
             'performance': {
                 'stack_size': self.config['stack_size'],
                 'queue_depth': self.config['queue_depth']
-            },
-            'task_queue': {
-                'lanes': self.config['task_queue_lanes']
             },
             'shared_memory': {
                 'main_segment_name': 'chi_main_segment_${USER}',
@@ -200,11 +177,20 @@ class WrpRuntime(Service):
         # The chimaera_start_runtime binary will read CHI_SERVER_CONF from environment
         cmd = 'chimaera_start_runtime'
 
-        Exec(cmd, LocalExecInfo(
-            env=self.env,  # Use env, not mod_env
-            hostfile=self.jarvis.hostfile,
-            exec_async=True
-        )).run()
+        # Execute with or without debugging
+        if self.config.get('do_dbg', False):
+            self.log(f"Starting with GDB server on port {self.config['dbg_port']}")
+            GdbServer(cmd, self.config['dbg_port'], LocalExecInfo(
+                env=self.env,
+                hostfile=self.jarvis.hostfile,
+                exec_async=True
+            )).run()
+        else:
+            Exec(cmd, LocalExecInfo(
+                env=self.env,  # Use env, not mod_env
+                hostfile=self.jarvis.hostfile,
+                exec_async=True
+            )).run()
 
         self.sleep()
 
