@@ -165,13 +165,8 @@ class ChimaeraRuntimeFixture {
    */
   bool createModNamePool() {
     try {
-      // Initialize admin client
-      chimaera::admin::Client admin_client(chi::kAdminPoolId);
-
-      // Create the admin container first if needed
+      // Admin client is automatically initialized via CHI_ADMIN singleton
       chi::DomainQuery pool_query;  // Default domain query
-      bool success = admin_client.Create(HSHM_MCTX, pool_query, "admin");
-      REQUIRE(success);
 
       // Create MOD_NAME pool parameters
       chimaera::MOD_NAME::CreateParams params;

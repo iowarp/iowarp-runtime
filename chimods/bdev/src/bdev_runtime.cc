@@ -32,14 +32,15 @@ Runtime::~Runtime() {
     ram_buffer_ = nullptr;
   }
 
-  // Clean up free lists
-  for (size_t i = 0; i < static_cast<size_t>(BlockSizeCategory::kMaxCategories);
-       ++i) {
-    FreeListNode* node = free_lists_[i];
-    while (node) {
-      FreeListNode* next = node->next_;
-      delete node;
-      node = next;
+  // Clean up per-worker free lists
+  for (size_t worker = 0; worker < kMaxWorkers; ++worker) {
+    for (size_t category = 0; category < static_cast<size_t>(BlockSizeCategory::kMaxCategories); ++category) {
+      FreeListNode* node = free_lists_[worker][category];
+      while (node) {
+        FreeListNode* next = node->next_;
+        delete node;
+        node = next;
+      }
     }
   }
 }
@@ -120,16 +121,11 @@ void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& ctx) {
     // Initialize RAM buffer to zero
     memset(ram_buffer_, 0, ram_size_);
     file_size_ = ram_size_;  // Use file_size_ for common allocation logic
-
-    HILOG(kInfo, "DEBUG: Initialized RAM backend with size {}", ram_size_);
   }
 
   // Initialize common parameters
   alignment_ = params.alignment_;
   io_depth_ = params.io_depth_;
-
-  HILOG(kInfo, "DEBUG: Setting alignment_={} from params.alignment_={}",
-        alignment_, params.alignment_);
 
   // Initialize the data allocator
   InitializeAllocator();
@@ -146,9 +142,6 @@ void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& ctx) {
 
   // Set success result
   task->return_code_ = 0;
-
-  HILOG(kDebug, "bdev container created for pool: {} (Size: {} bytes)",
-        pool_name, file_size_);
 }
 
 void Runtime::MonitorCreate(chi::MonitorModeId mode,
@@ -172,6 +165,9 @@ void Runtime::MonitorCreate(chi::MonitorModeId mode,
 
 void Runtime::AllocateBlocks(hipc::FullPtr<AllocateBlocksTask> task,
                              chi::RunContext& ctx) {
+  // Get worker ID for per-worker free list access
+  size_t worker_id = GetWorkerID(ctx);
+
   // Clear the block vector first
   task->blocks_.clear();
 
@@ -218,14 +214,14 @@ void Runtime::AllocateBlocks(hipc::FullPtr<AllocateBlocksTask> task,
     for (chi::u32 i = 0; i < num_blocks; ++i) {
       Block block;
 
-      // Try to allocate from free list first
-      if (!AllocateFromFreeList(category, block_size, block)) {
-        // If no free blocks, allocate from heap
+      // Try to allocate from per-worker free list first
+      if (!AllocateFromFreeList(worker_id, category, block_size, block)) {
+        // If no free blocks, allocate from heap using atomic operations
         if (!AllocateFromHeap(block_size, category, block)) {
           // If both heap and free lists exhausted, clean up and return error
           for (size_t j = 0; j < task->blocks_.size(); ++j) {
             const Block& allocated_block = task->blocks_[j];
-            AddToFreeList(allocated_block);
+            AddToFreeList(worker_id, allocated_block);
             remaining_size_.fetch_add(allocated_block.size_);
           }
           task->blocks_.clear();
@@ -268,12 +264,14 @@ void Runtime::MonitorAllocateBlocks(chi::MonitorModeId mode,
 
 void Runtime::FreeBlocks(hipc::FullPtr<FreeBlocksTask> task,
                          chi::RunContext& ctx) {
-  HILOG(kInfo, "FreeBlocks called with {} blocks", task->blocks_.size());
+  // Get worker ID for per-worker free list access
+  size_t worker_id = GetWorkerID(ctx);
+
   // Free all blocks in the vector
   for (size_t i = 0; i < task->blocks_.size(); ++i) {
     const Block& block = task->blocks_[i];
-    // Add block back to the appropriate free list
-    AddToFreeList(block);
+    // Add block back to the appropriate per-worker free list
+    AddToFreeList(worker_id, block);
     // Update remaining size counter
     remaining_size_.fetch_add(block.size_);
   }
@@ -396,21 +394,20 @@ void Runtime::Destroy(hipc::FullPtr<DestroyTask> task, chi::RunContext& ctx) {
     file_fd_ = -1;
   }
 
-  // Clean up free lists
-  for (size_t i = 0; i < static_cast<size_t>(BlockSizeCategory::kMaxCategories);
-       ++i) {
-    chi::ScopedCoMutex lock(free_list_mutexes_[i]);
-    FreeListNode* node = free_lists_[i];
-    while (node) {
-      FreeListNode* next = node->next_;
-      delete node;
-      node = next;
+  // Clean up per-worker free lists (no locking needed)
+  for (size_t worker = 0; worker < kMaxWorkers; ++worker) {
+    for (size_t category = 0; category < static_cast<size_t>(BlockSizeCategory::kMaxCategories); ++category) {
+      FreeListNode* node = free_lists_[worker][category];
+      while (node) {
+        FreeListNode* next = node->next_;
+        delete node;
+        node = next;
+      }
+      free_lists_[worker][category] = nullptr;
     }
-    free_lists_[i] = nullptr;
   }
 
   task->return_code_ = 0;
-  HILOG(kDebug, "bdev container destroyed for pool: {}", pool_id_);
 }
 
 void Runtime::MonitorDestroy(chi::MonitorModeId mode,
@@ -432,15 +429,16 @@ void Runtime::MonitorDestroy(chi::MonitorModeId mode,
 }
 
 void Runtime::InitializeAllocator() {
-  // Initialize free lists
-  for (size_t i = 0; i < static_cast<size_t>(BlockSizeCategory::kMaxCategories);
-       ++i) {
-    free_lists_[i] = nullptr;
+  // Initialize per-worker free lists
+  for (size_t worker = 0; worker < kMaxWorkers; ++worker) {
+    for (size_t category = 0; category < static_cast<size_t>(BlockSizeCategory::kMaxCategories); ++category) {
+      free_lists_[worker][category] = nullptr;
+    }
   }
 
-  // Start allocation from beginning of file
-  next_offset_ = 0;
-  remaining_size_ = file_size_;
+  // Start allocation from beginning of file (atomic initialization)
+  next_offset_.store(0, std::memory_order_relaxed);
+  remaining_size_.store(file_size_, std::memory_order_relaxed);
 }
 
 
@@ -448,12 +446,22 @@ chi::u64 Runtime::GetBlockSize(BlockSizeCategory category) {
   return kBlockSizes[static_cast<size_t>(category)];
 }
 
-bool Runtime::AllocateFromFreeList(BlockSizeCategory category, chi::u64 size,
-                                   Block& block) {
-  size_t idx = static_cast<size_t>(category);
-  chi::ScopedCoMutex lock(free_list_mutexes_[idx]);
+size_t Runtime::GetWorkerID(chi::RunContext& ctx) {
+  // Get current worker from thread-local storage
+  auto* worker = HSHM_THREAD_MODEL->GetTls<chi::Worker>(chi::chi_cur_worker_key_);
+  if (worker == nullptr) {
+    return 0;  // Fallback to worker 0 if not in worker context
+  }
+  chi::u32 worker_id = worker->GetId();
+  return worker_id % kMaxWorkers;
+}
 
-  FreeListNode** current = &free_lists_[idx];
+bool Runtime::AllocateFromFreeList(size_t worker_id, BlockSizeCategory category,
+                                   chi::u64 size, Block& block) {
+  size_t category_idx = static_cast<size_t>(category);
+
+  // Access per-worker free list - no locking needed
+  FreeListNode** current = &free_lists_[worker_id][category_idx];
   while (*current) {
     if ((*current)->size_ >= size) {
       FreeListNode* node = *current;
@@ -474,35 +482,35 @@ bool Runtime::AllocateFromFreeList(BlockSizeCategory category, chi::u64 size,
 
 bool Runtime::AllocateFromHeap(chi::u64 size, BlockSizeCategory category,
                                Block& block) {
-  chi::ScopedCoMutex lock(alloc_mutex_);
-
   chi::u64 aligned_size = AlignSize(size);
 
-  if (next_offset_ + aligned_size > file_size_) {
+  // Atomically reserve space from heap using fetch_add
+  chi::u64 offset = next_offset_.fetch_add(aligned_size, std::memory_order_relaxed);
+
+  // Check if allocation would exceed file size
+  if (offset + aligned_size > file_size_) {
+    // Rollback the atomic increment by subtracting what we added
+    next_offset_.fetch_sub(aligned_size, std::memory_order_relaxed);
     return false;  // Out of space
   }
 
-  block.offset_ = next_offset_;
+  block.offset_ = offset;
   block.size_ = aligned_size;
   block.block_type_ = static_cast<chi::u32>(category);
-
-  next_offset_ += aligned_size;
-  remaining_size_.fetch_sub(aligned_size);
 
   return true;
 }
 
-void Runtime::AddToFreeList(const Block& block) {
-  size_t idx = block.block_type_;
-  if (idx >= static_cast<size_t>(BlockSizeCategory::kMaxCategories)) {
+void Runtime::AddToFreeList(size_t worker_id, const Block& block) {
+  size_t category_idx = block.block_type_;
+  if (category_idx >= static_cast<size_t>(BlockSizeCategory::kMaxCategories)) {
     return;  // Invalid block type
   }
 
-  chi::ScopedCoMutex lock(free_list_mutexes_[idx]);
-
+  // Add to per-worker free list - no locking needed
   FreeListNode* node = new FreeListNode(block.offset_, block.size_);
-  node->next_ = free_lists_[idx];
-  free_lists_[idx] = node;
+  node->next_ = free_lists_[worker_id][category_idx];
+  free_lists_[worker_id][category_idx] = node;
 }
 
 chi::u64 Runtime::AlignSize(chi::u64 size) {

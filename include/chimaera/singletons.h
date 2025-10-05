@@ -15,6 +15,7 @@
 #include "chimaera/pool_manager.h"
 #include "chimaera/module_manager.h"
 #include "chimaera/work_orchestrator.h"
+#include "chimaera/admin.h"
 
 /**
  * Convenience macros for accessing Chimaera singletons
@@ -27,9 +28,10 @@
 // CHI_CHIMAERA_MANAGER - Main Chimaera framework coordinator
 // CHI_CONFIG_MANAGER   - Configuration manager for YAML parsing
 // CHI_IPC              - IPC manager for shared memory and networking
-// CHI_POOL_MANAGER     - Pool manager for ChiPools and ChiContainers  
+// CHI_POOL_MANAGER     - Pool manager for ChiPools and ChiContainers
 // CHI_MODULE_MANAGER   - Module manager for dynamic loading
 // CHI_WORK_ORCHESTRATOR - Work orchestrator for thread management
+// CHI_ADMIN            - Admin ChiMod client singleton
 
 // All macros are defined in their respective header files:
 // - CHI_CHIMAERA_MANAGER defined in chimaera/chimaera_manager.h
@@ -38,6 +40,7 @@
 // - CHI_POOL_MANAGER defined in chimaera/pool_manager.h
 // - CHI_MODULE_MANAGER defined in chimaera/module_manager.h
 // - CHI_WORK_ORCHESTRATOR defined in chimaera/work_orchestrator.h
+// - CHI_ADMIN defined in chimaera/admin.h
 
 /**
  * Example usage:

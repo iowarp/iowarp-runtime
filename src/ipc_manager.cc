@@ -492,7 +492,7 @@ bool IpcManager::ServerInitQueues() {
     shared_header_->external_queue.shm_init(
         ctx_alloc, ctx_alloc,
         num_lanes, // num_lanes equals sched worker count
-        1,         // num_priorities (single priority)
+        2,         // num_priorities (2 priorities: 0=normal, 1=resumed tasks)
         1024);     // depth_per_queue
 
     // Create FullPtr reference to the shared TaskQueue

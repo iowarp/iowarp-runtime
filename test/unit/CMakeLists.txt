@@ -66,6 +66,12 @@ set(IPC_ALLOCATE_BUFFER_TEST_SOURCES
   test_ipc_allocate_buffer.cc
 )
 
+# Unordered Map LL test executable (test for chi::unordered_map_ll container)
+set(UNORDERED_MAP_LL_TEST_TARGET test_unordered_map_ll)
+set(UNORDERED_MAP_LL_TEST_SOURCES
+  test_unordered_map_ll.cc
+)
+
 
 
 # Create task archive test executable
@@ -338,6 +344,30 @@ set_target_properties(${IPC_ALLOCATE_BUFFER_TEST_TARGET} PROPERTIES
 
 # Copy IPC AllocateBuffer test executable to bin directory
 set_target_properties(${IPC_ALLOCATE_BUFFER_TEST_TARGET} PROPERTIES
+  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)
+
+# Create Unordered Map LL test executable
+add_executable(${UNORDERED_MAP_LL_TEST_TARGET} ${UNORDERED_MAP_LL_TEST_SOURCES})
+
+# Include directories for Unordered Map LL tests
+target_include_directories(${UNORDERED_MAP_LL_TEST_TARGET} PRIVATE
+  ${CMAKE_SOURCE_DIR}/include
+)
+
+# Link against required libraries for Unordered Map LL tests
+target_link_libraries(${UNORDERED_MAP_LL_TEST_TARGET}
+  ${CMAKE_THREAD_LIBS_INIT}  # Threading support
+)
+
+# Set C++ standard for Unordered Map LL tests
+set_target_properties(${UNORDERED_MAP_LL_TEST_TARGET} PROPERTIES
+  CXX_STANDARD 17
+  CXX_STANDARD_REQUIRED ON
+)
+
+# Copy Unordered Map LL test executable to bin directory
+set_target_properties(${UNORDERED_MAP_LL_TEST_TARGET} PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
 )
 
@@ -971,7 +1001,7 @@ add_custom_target(test_all_unit
 )
 
 # Install test executables (optional)
-install(TARGETS ${TEST_TARGET} ${TASK_ARCHIVE_TEST_TARGET} ${FLUSH_TEST_TARGET} ${BDEV_TEST_TARGET} ${FIBER_TEST_TARGET} ${WORKER_FIBER_TEST_TARGET} ${SEGFAULT_DEBUG_TEST_TARGET} ${COMUTEX_TEST_TARGET} ${WAIT_FUNCTIONALITY_TEST_TARGET} ${IPC_ALLOCATE_BUFFER_TEST_TARGET}
+install(TARGETS ${TEST_TARGET} ${TASK_ARCHIVE_TEST_TARGET} ${FLUSH_TEST_TARGET} ${BDEV_TEST_TARGET} ${FIBER_TEST_TARGET} ${WORKER_FIBER_TEST_TARGET} ${SEGFAULT_DEBUG_TEST_TARGET} ${COMUTEX_TEST_TARGET} ${WAIT_FUNCTIONALITY_TEST_TARGET} ${IPC_ALLOCATE_BUFFER_TEST_TARGET} ${UNORDERED_MAP_LL_TEST_TARGET}
   RUNTIME DESTINATION bin
 )
 

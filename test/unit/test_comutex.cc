@@ -207,12 +207,8 @@ public:
   bool createModNamePool() {
     try {
       // Initialize admin client
-      chimaera::admin::Client admin_client(chi::kAdminPoolId);
-      
-      // Create the admin container first if needed
+      // Admin client is automatically initialized via CHI_ADMIN singleton
       chi::PoolQuery pool_query;
-      bool admin_success = admin_client.Create(HSHM_MCTX, pool_query, "admin");
-      REQUIRE(admin_success);
       
       // Create MOD_NAME client and container directly with dynamic pool ID
       chimaera::MOD_NAME::Client mod_name_client(test_pool_id_);

@@ -7,6 +7,7 @@
 #include <iostream>
 
 #include "chimaera/singletons.h"
+#include "chimaera/admin/admin_client.h"
 
 // Global pointer variable definition for Chimaera manager singleton
 HSHM_DEFINE_GLOBAL_PTR_VAR_CC(chi::Chimaera, g_chimaera_manager);
@@ -100,6 +101,14 @@ bool Chimaera::ClientInit() {
 
   // Pool manager is not initialized in client mode
   // It's only needed for server/runtime mode
+
+  // Initialize CHI_ADMIN singleton
+  // The admin container is already created by the runtime, so we just
+  // construct the admin client directly with the admin pool ID
+  HILOG(kDebug, "Initializing CHI_ADMIN singleton");
+  if (CHI_ADMIN == nullptr) {
+    g_admin = new chimaera::admin::Client(chi::kAdminPoolId);
+  }
 
   is_client_mode_ = true;
   is_initialized_ = true;

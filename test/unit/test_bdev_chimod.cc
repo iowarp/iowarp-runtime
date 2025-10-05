@@ -498,10 +498,7 @@ TEST_CASE("bdev_ram_container_creation", "[bdev][ram][create]") {
   BdevChimodFixture fixture;
   REQUIRE(fixture.initializeBoth());
 
-  // Create admin client
-  chimaera::admin::Client admin_client;
-  bool admin_success = admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), "admin");
-  REQUIRE(admin_success);
+  // Admin client is automatically initialized via CHI_ADMIN singleton
   std::this_thread::sleep_for(100ms);
 
   // Create bdev client for RAM backend
@@ -524,10 +521,7 @@ TEST_CASE("bdev_ram_allocation_and_io", "[bdev][ram][io]") {
   BdevChimodFixture fixture;
   REQUIRE(fixture.initializeBoth());
 
-  // Create admin client
-  chimaera::admin::Client admin_client;
-  bool admin_success = admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), "admin");
-  REQUIRE(admin_success);
+  // Admin client is automatically initialized via CHI_ADMIN singleton
   std::this_thread::sleep_for(100ms);
 
   // Create bdev client for RAM backend
@@ -590,10 +584,7 @@ TEST_CASE("bdev_ram_large_blocks", "[bdev][ram][large]") {
   BdevChimodFixture fixture;
   REQUIRE(fixture.initializeBoth());
 
-  // Create admin client
-  chimaera::admin::Client admin_client;
-  bool admin_success = admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), "admin");
-  REQUIRE(admin_success);
+  // Admin client is automatically initialized via CHI_ADMIN singleton
   std::this_thread::sleep_for(100ms);
 
   // Create bdev client for RAM backend
@@ -661,10 +652,7 @@ TEST_CASE("bdev_ram_performance", "[bdev][ram][performance]") {
   BdevChimodFixture fixture;
   REQUIRE(fixture.initializeBoth());
 
-  // Create admin client
-  chimaera::admin::Client admin_client;
-  bool admin_success = admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), "admin");
-  REQUIRE(admin_success);
+  // Admin client is automatically initialized via CHI_ADMIN singleton
   std::this_thread::sleep_for(100ms);
 
   // Create bdev client for RAM backend
@@ -744,10 +732,7 @@ TEST_CASE("bdev_ram_bounds_checking", "[bdev][ram][bounds]") {
   BdevChimodFixture fixture;
   REQUIRE(fixture.initializeBoth());
 
-  // Create admin client
-  chimaera::admin::Client admin_client;
-  bool admin_success = admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), "admin");
-  REQUIRE(admin_success);
+  // Admin client is automatically initialized via CHI_ADMIN singleton
   std::this_thread::sleep_for(100ms);
 
   // Create bdev client for RAM backend
@@ -803,10 +788,7 @@ TEST_CASE("bdev_file_vs_ram_comparison", "[bdev][file][ram][comparison]") {
   REQUIRE(fixture.initializeBoth());
   REQUIRE(fixture.createTestFile(kDefaultFileSize));
 
-  // Create admin client
-  chimaera::admin::Client admin_client;
-  bool admin_success = admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), "admin");
-  REQUIRE(admin_success);
+  // Admin client is automatically initialized via CHI_ADMIN singleton
   std::this_thread::sleep_for(100ms);
 
   // Create two bdev clients - one for file, one for RAM
@@ -945,10 +927,7 @@ TEST_CASE("bdev_file_explicit_backend", "[bdev][file][explicit]") {
   REQUIRE(fixture.initializeBoth());
   REQUIRE(fixture.createTestFile(kDefaultFileSize));
 
-  // Create admin client
-  chimaera::admin::Client admin_client;
-  bool admin_success = admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), "admin");
-  REQUIRE(admin_success);
+  // Admin client is automatically initialized via CHI_ADMIN singleton
   std::this_thread::sleep_for(100ms);
 
   // Create bdev client with explicit file backend
@@ -1003,10 +982,7 @@ TEST_CASE("bdev_error_conditions_enhanced", "[bdev][error][enhanced]") {
   BdevChimodFixture fixture;
   REQUIRE(fixture.initializeBoth());
 
-  // Create admin client
-  chimaera::admin::Client admin_client;
-  bool admin_success = admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), "admin");
-  REQUIRE(admin_success);
+  // Admin client is automatically initialized via CHI_ADMIN singleton
   std::this_thread::sleep_for(100ms);
 
   // Test 1: RAM backend without size specification
@@ -1056,6 +1032,108 @@ TEST_CASE("bdev_error_conditions_enhanced", "[bdev][error][enhanced]") {
 
     HILOG(kInfo, "File backend properly handles bad path: {}",
           creation_failed ? "YES" : "NO");
+  }
+}
+
+//==============================================================================
+// PARALLEL OPERATIONS TESTS
+//==============================================================================
+
+TEST_CASE("bdev_parallel_io_operations", "[bdev][parallel][io]") {
+  BdevChimodFixture fixture;
+
+  SECTION("Setup") {
+    REQUIRE(fixture.initializeBoth());
+    REQUIRE(fixture.createTestFile(100 * 1024 * 1024));  // 100MB for parallel ops
+  }
+
+  SECTION("Parallel allocate/write/free operations") {
+    // Test configuration
+    const size_t num_threads = 4;
+    const size_t ops_per_thread = 100;
+    const size_t io_size = 4096;  // 4KB I/O size
+
+    // Create BDev container
+    chi::PoolId pool_id(200, 0);
+    chimaera::bdev::Client client(pool_id);
+    hipc::MemContext mctx;
+
+    bool success = client.Create(mctx, chi::PoolQuery::Local(), fixture.getTestFile(),
+                                 chimaera::bdev::BdevType::kFile);
+    REQUIRE(success);
+    REQUIRE(client.GetReturnCode() == 0);
+
+    HILOG(kInfo, "Starting parallel I/O operations test:");
+    HILOG(kInfo, "  Threads: {}", num_threads);
+    HILOG(kInfo, "  Operations per thread: {}", ops_per_thread);
+    HILOG(kInfo, "  I/O size: {} bytes", io_size);
+    HILOG(kInfo, "  Total operations: {}", num_threads * ops_per_thread);
+
+    // Worker thread function
+    auto worker_thread = [&](size_t thread_id) {
+      // Create thread-local BDev client
+      chimaera::bdev::Client thread_client(pool_id);
+      hipc::MemContext thread_mctx;
+
+      // Allocate write buffer in shared memory
+      auto write_buffer = CHI_IPC->AllocateBuffer<char>(io_size);
+      std::memset(write_buffer.ptr_, static_cast<int>(thread_id), io_size);
+
+      // Perform I/O operations
+      for (size_t i = 0; i < ops_per_thread; i++) {
+        // Allocate block
+        auto blocks = thread_client.AllocateBlocks(thread_mctx, 1);
+        REQUIRE(blocks.size() == 1);
+
+        // Write data
+        auto write_task = thread_client.AsyncWrite(thread_mctx, blocks[0],
+                                                    write_buffer.shm_, io_size);
+        write_task->Wait();
+        REQUIRE(write_task->return_code_.load() == 0);
+        REQUIRE(write_task->bytes_written_ == io_size);
+
+        // Free block
+        auto free_task = thread_client.AsyncFreeBlocks(thread_mctx, blocks);
+        free_task->Wait();
+        REQUIRE(free_task->return_code_.load() == 0);
+      }
+    };
+
+    // Launch worker threads
+    std::vector<std::thread> threads;
+    threads.reserve(num_threads);
+
+    auto start_time = std::chrono::high_resolution_clock::now();
+
+    for (size_t i = 0; i < num_threads; i++) {
+      threads.emplace_back(worker_thread, i);
+    }
+
+    // Wait for all threads to complete
+    for (auto& thread : threads) {
+      thread.join();
+    }
+
+    auto end_time = std::chrono::high_resolution_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+        end_time - start_time);
+
+    // Calculate and log statistics
+    size_t total_ops = num_threads * ops_per_thread;
+    double ops_per_sec = (total_ops * 1000.0) / elapsed.count();
+    double bandwidth_mbps = (total_ops * io_size * 1000.0) /
+                            (elapsed.count() * 1024 * 1024);
+
+    HILOG(kInfo, "Parallel I/O test completed:");
+    HILOG(kInfo, "  Total time: {} ms", elapsed.count());
+    HILOG(kInfo, "  IOPS: {:.0f} ops/sec", ops_per_sec);
+    HILOG(kInfo, "  Bandwidth: {:.2f} MB/s", bandwidth_mbps);
+    HILOG(kInfo, "  Avg latency: {:.3f} us/op",
+          (elapsed.count() * 1000.0) / total_ops);
+
+    // Verify all operations completed successfully
+    REQUIRE(elapsed.count() > 0);
+    REQUIRE(ops_per_sec > 0);
   }
 }
 

@@ -468,25 +468,48 @@ These methods are automatically generated in `autogen/` files based on task defi
 
 ## CoMutex and CoRwLock
 
-The chimaera runtime provides two specialized coroutine-aware mutex types for runtime code:
+The chimaera runtime provides two simplified coroutine-aware synchronization primitives for runtime code:
 
 ### CoMutex (Coroutine Mutex)
 - **Header**: `chimaera/comutex.h`
-- **Purpose**: TaskNode-grouped mutex that allows multiple tasks from the same TaskNode to proceed together
-- **Key Features**:
-  - Tasks are grouped by TaskNode (ignoring minor number) to prevent deadlocks
-  - Uses `unordered_map[TaskNode] -> list<FullPtr<Task>>` internally
-  - Blocked tasks are sent back to their lane stored in `task->run_ctx_`
-  - Provides `ScopedCoMutex` for RAII-style locking
+- **Purpose**: Simplified mutex that uses Yield for blocking
+- **Implementation**:
+  - Uses a single `std::atomic<bool>` for lock state
+  - Tasks that cannot acquire the lock call `Yield()` to be placed in the blocked queue
+  - Tasks are retried automatically by the blocked queue mechanism
+  - No complex data structures (no vectors, maps, or lists)
+- **API**:
+  - `Lock()`: Acquire mutex (yields if locked)
+  - `Unlock()`: Release mutex
+  - `TryLock()`: Non-blocking acquire attempt
+  - `ScopedCoMutex`: RAII-style scoped lock
 
 ### CoRwLock (Coroutine Reader-Writer Lock)
 - **Header**: `chimaera/corwlock.h`
-- **Purpose**: TaskNode-grouped reader-writer lock with similar grouping semantics
-- **Key Features**:
-  - Multiple readers from any TaskNode group can proceed simultaneously
-  - Single writer TaskNode group can hold exclusive access
-  - Tasks from same TaskNode group as current lock holder can always proceed
-  - Provides `ScopedCoRwReadLock` and `ScopedCoRwWriteLock` for RAII-style locking
+- **Purpose**: Simplified reader-writer lock that uses Yield for blocking
+- **Implementation**:
+  - Uses `std::atomic<int>` for reader count and `std::atomic<bool>` for writer state
+  - Supports multiple concurrent readers or a single writer
+  - Tasks that cannot acquire the lock call `Yield()` to be placed in the blocked queue
+  - Tasks are retried automatically by the blocked queue mechanism
+  - No complex data structures (no vectors, maps, or lists)
+- **API**:
+  - `ReadLock()`: Acquire read lock (yields if writer active)
+  - `ReadUnlock()`: Release read lock
+  - `WriteLock()`: Acquire write lock (yields if readers/writers active)
+  - `WriteUnlock()`: Release write lock
+  - `TryReadLock()`: Non-blocking read lock attempt
+  - `TryWriteLock()`: Non-blocking write lock attempt
+  - `ScopedCoRwReadLock`: RAII-style scoped read lock
+  - `ScopedCoRwWriteLock`: RAII-style scoped write lock
+
+### Blocked Queue Processing
+When a task calls `Yield()` due to lock contention:
+1. Task is placed in the worker's blocked queue
+2. `Worker::ContinueBlockedTasks()` periodically retries blocked tasks
+3. When the lock becomes available, the task's retry succeeds and it proceeds
+
+This approach eliminates the need for complex lock queues and explicit unblocking mechanisms.
 
 ### Usage Example
 ```cpp
@@ -497,18 +520,18 @@ The chimaera runtime provides two specialized coroutine-aware mutex types for ru
 chi::CoMutex mutex;
 {
   chi::ScopedCoMutex lock(mutex);
-  // Critical section - other TaskNodes blocked
+  // Critical section - other tasks yield if they try to acquire
 }
 
-// CoRwLock usage  
+// CoRwLock usage
 chi::CoRwLock rwlock;
 {
   chi::ScopedCoRwReadLock read_lock(rwlock);
-  // Multiple readers can proceed
+  // Multiple readers can proceed, writers yield
 }
 {
   chi::ScopedCoRwWriteLock write_lock(rwlock);
-  // Exclusive writer access
+  // Exclusive writer access, readers and writers yield
 }
 ```
 

@@ -52,13 +52,15 @@ class Runtime : public chi::Container {
   // Required typedef for CHI_TASK_CC macro
   using CreateParams = chimaera::bdev::CreateParams;
   
-  Runtime() : bdev_type_(BdevType::kFile), file_fd_(-1), file_size_(0), alignment_(4096), 
-              io_depth_(32), ram_buffer_(nullptr), ram_size_(0), remaining_size_(0), 
-              next_offset_(0), total_reads_(0), total_writes_(0), 
+  Runtime() : bdev_type_(BdevType::kFile), file_fd_(-1), file_size_(0), alignment_(4096),
+              io_depth_(32), ram_buffer_(nullptr), ram_size_(0), remaining_size_(0),
+              next_offset_(0), total_reads_(0), total_writes_(0),
               total_bytes_read_(0), total_bytes_written_(0) {
-    // Initialize free lists
-    for (size_t i = 0; i < static_cast<size_t>(BlockSizeCategory::kMaxCategories); ++i) {
-      free_lists_[i] = nullptr;
+    // Initialize per-worker free lists
+    for (size_t worker = 0; worker < kMaxWorkers; ++worker) {
+      for (size_t category = 0; category < static_cast<size_t>(BlockSizeCategory::kMaxCategories); ++category) {
+        free_lists_[worker][category] = nullptr;
+      }
     }
     start_time_ = std::chrono::high_resolution_clock::now();
   }
@@ -227,12 +229,11 @@ class Runtime : public chi::Container {
   
   // Data allocator state
   std::atomic<chi::u64> remaining_size_;          // Remaining allocatable space
-  chi::u64 next_offset_;                          // Next allocation offset
-  chi::CoMutex alloc_mutex_;                      // CoMutex for allocation operations
-  
-  // Free lists for different block sizes
-  FreeListNode* free_lists_[static_cast<size_t>(BlockSizeCategory::kMaxCategories)];
-  chi::CoMutex free_list_mutexes_[static_cast<size_t>(BlockSizeCategory::kMaxCategories)];
+  std::atomic<chi::u64> next_offset_;             // Next allocation offset (atomic for lock-free allocation)
+
+  // Per-worker free lists for different block sizes (no locking needed)
+  static constexpr size_t kMaxWorkers = 8;
+  FreeListNode* free_lists_[kMaxWorkers][static_cast<size_t>(BlockSizeCategory::kMaxCategories)];
   
   // Performance tracking
   std::atomic<chi::u64> total_reads_;
@@ -267,19 +268,37 @@ class Runtime : public chi::Container {
   
   
   /**
-   * Allocate from free list if available
+   * Get worker ID from runtime context
+   * @param ctx Runtime context containing worker information
+   * @return Worker ID (0 to kMaxWorkers-1)
    */
-  bool AllocateFromFreeList(BlockSizeCategory category, chi::u64 size, Block& block);
-  
+  size_t GetWorkerID(chi::RunContext& ctx);
+
   /**
-   * Allocate new block from heap offset
+   * Allocate from free list if available
+   * @param worker_id Worker ID for per-worker free list access
+   * @param category Block size category
+   * @param size Requested size
+   * @param block Output block structure
+   * @return true if allocation succeeded from free list
+   */
+  bool AllocateFromFreeList(size_t worker_id, BlockSizeCategory category, chi::u64 size, Block& block);
+
+  /**
+   * Allocate new block from heap offset using atomic operations
+   * @param size Requested size
+   * @param category Block size category
+   * @param block Output block structure
+   * @return true if allocation succeeded from heap
    */
   bool AllocateFromHeap(chi::u64 size, BlockSizeCategory category, Block& block);
-  
+
   /**
-   * Add block to appropriate free list
+   * Add block to appropriate free list for current worker
+   * @param worker_id Worker ID for per-worker free list access
+   * @param block Block to free
    */
-  void AddToFreeList(const Block& block);
+  void AddToFreeList(size_t worker_id, const Block& block);
   
   /**
    * Perform async I/O operation

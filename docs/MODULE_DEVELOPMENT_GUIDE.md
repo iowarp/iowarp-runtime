@@ -1669,7 +1669,7 @@ Both `chi::ipc::string` and `chi::ipc::vector` automatically support serializati
 struct SerializableTask : public chi::Task {
   INOUT hipc::string message_;
   INOUT chi::ipc::vector<chi::u64> timestamps_;
-  
+
   // Cereal automatically handles chi::ipc types
   template<class Archive>
   void serialize(Archive& ar) {
@@ -1677,6 +1677,350 @@ struct SerializableTask : public chi::Task {
   }
 };
 ```
+
+### chi::unordered_map_ll - Lock-Free Unordered Map
+
+The `chi::unordered_map_ll` is a hash map implementation using a vector of lists design that provides efficient concurrent access when combined with external locking. This container is specifically designed for runtime module data structures that require external synchronization control.
+
+#### Overview
+
+**Key Characteristics:**
+- **Vector of Lists Design**: Uses a vector of buckets, each containing a list of key-value pairs
+- **External Locking Required**: No internal mutexes - users must provide synchronization
+- **Bucket Partitioning**: Hash space is partitioned across multiple buckets for better cache locality
+- **Standard API**: Compatible with `std::unordered_map` interface
+- **NOT Shared-Memory Compatible**: For runtime-only data structures, not task parameters
+
+#### Basic Usage
+
+```cpp
+#include <chimaera/unordered_map_ll.h>
+
+class Runtime : public chi::Container {
+private:
+  // Runtime data structure with external locking
+  chi::unordered_map_ll<chi::u32, ModuleData> data_map_;
+
+  // External synchronization using CoRwLock
+  static chi::CoRwLock data_lock_;
+
+public:
+  Runtime() : data_map_(32) {}  // 32 buckets for hash partitioning
+
+  void ReadData(hipc::FullPtr<ReadTask> task, chi::RunContext& ctx) {
+    chi::ScopedCoRwReadLock lock(data_lock_);
+
+    // Safe to access data_map_ with external lock held
+    auto* value = data_map_.find(task->key_);
+    if (value) {
+      task->result_ = *value;
+    }
+  }
+
+  void WriteData(hipc::FullPtr<WriteTask> task, chi::RunContext& ctx) {
+    chi::ScopedCoRwWriteLock lock(data_lock_);
+
+    // Safe to modify data_map_ with exclusive lock
+    data_map_.insert_or_assign(task->key_, task->data_);
+  }
+};
+
+// Static member definition
+chi::CoRwLock Runtime::data_lock_;
+```
+
+#### Constructor
+
+```cpp
+// Create map with specified bucket count (determines max useful concurrency)
+chi::unordered_map_ll<Key, T> map(max_concurrency);
+
+// Example: 32 buckets provides good distribution for most workloads
+chi::unordered_map_ll<int, std::string> map(32);
+```
+
+**Parameters:**
+- `max_concurrency`: Number of buckets (default: 16)
+  - Higher values = better distribution, more memory overhead
+  - Typical values: 16-64 for most use cases
+  - Should be power of 2 for optimal hash distribution
+
+#### API Reference
+
+The container provides a `std::unordered_map`-compatible interface:
+
+```cpp
+// Insertion operations
+auto [inserted, value_ptr] = map.insert(key, value);          // Insert if not exists
+auto [inserted, value_ptr] = map.insert_or_assign(key, value); // Insert or update
+T& ref = map[key];                                            // Insert default if missing
+
+// Lookup operations
+T* ptr = map.find(key);                    // Returns nullptr if not found
+const T* ptr = map.find(key) const;        // Const version
+T& ref = map.at(key);                      // Throws if not found
+bool exists = map.contains(key);           // Check existence
+size_t count = map.count(key);             // Returns 0 or 1
+
+// Removal operations
+size_t erased = map.erase(key);            // Returns number of elements erased
+void map.clear();                          // Remove all elements
+
+// Size operations
+size_t size = map.size();                  // Total element count
+bool empty = map.empty();                  // Check if empty
+size_t buckets = map.bucket_count();       // Number of buckets
+
+// Iteration
+map.for_each([](const Key& key, T& value) {
+  // Process each element
+  // Note: External lock must be held during iteration
+});
+```
+
+#### Return Value Semantics
+
+Insert operations return `std::pair<bool, T*>`:
+- `first`: `true` if insertion occurred, `false` if key already exists
+- `second`: Pointer to the value (existing or newly inserted)
+
+```cpp
+auto [inserted, value_ptr] = map.insert(42, "hello");
+if (inserted) {
+  // New element was inserted
+  std::cout << "Inserted: " << *value_ptr << std::endl;
+} else {
+  // Key already existed
+  std::cout << "Existing: " << *value_ptr << std::endl;
+}
+```
+
+#### External Locking Patterns
+
+**Pattern 1: CoRwLock for Read-Heavy Workloads**
+```cpp
+class Runtime : public chi::Container {
+private:
+  chi::unordered_map_ll<chi::u64, CachedData> cache_;
+  static chi::CoRwLock cache_lock_;
+
+public:
+  void LookupCache(hipc::FullPtr<LookupTask> task, chi::RunContext& ctx) {
+    chi::ScopedCoRwReadLock lock(cache_lock_);  // Multiple readers allowed
+
+    auto* data = cache_.find(task->cache_key_);
+    if (data) {
+      task->result_ = *data;
+      task->found_ = true;
+    } else {
+      task->found_ = false;
+    }
+  }
+
+  void UpdateCache(hipc::FullPtr<UpdateTask> task, chi::RunContext& ctx) {
+    chi::ScopedCoRwWriteLock lock(cache_lock_);  // Exclusive writer
+
+    cache_.insert_or_assign(task->cache_key_, task->new_data_);
+  }
+};
+
+chi::CoRwLock Runtime::cache_lock_;
+```
+
+**Pattern 2: CoMutex for Write-Heavy Workloads**
+```cpp
+class Runtime : public chi::Container {
+private:
+  chi::unordered_map_ll<std::string, RequestCounter> counters_;
+  static chi::CoMutex counters_mutex_;
+
+public:
+  void IncrementCounter(hipc::FullPtr<IncrementTask> task, chi::RunContext& ctx) {
+    chi::ScopedCoMutex lock(counters_mutex_);
+
+    auto [inserted, counter_ptr] = counters_.insert(task->counter_name_, RequestCounter{});
+    counter_ptr->count++;
+    task->new_count_ = counter_ptr->count;
+  }
+};
+
+chi::CoMutex Runtime::counters_mutex_;
+```
+
+**Pattern 3: Instance-Level Locking**
+```cpp
+class Runtime : public chi::Container {
+private:
+  // Per-container instance data
+  chi::unordered_map_ll<chi::u32, TaskState> active_tasks_;
+  chi::CoMutex instance_lock_;  // Instance member, not static
+
+public:
+  void RegisterTask(hipc::FullPtr<RegisterTask> task, chi::RunContext& ctx) {
+    chi::ScopedCoMutex lock(instance_lock_);  // Lock this container instance only
+
+    active_tasks_.insert(task->task_id_, TaskState{task->start_time_});
+  }
+};
+```
+
+#### When to Use chi::unordered_map_ll
+
+**✅ Use chi::unordered_map_ll for:**
+- Runtime container data structures (caches, registries, counters)
+- Module-internal state management
+- Lookup tables for fast key-value access
+- Data structures protected by CoMutex/CoRwLock
+- Non-shared memory data (runtime process only)
+
+**❌ Do NOT use chi::unordered_map_ll for:**
+- Task input/output parameters (use `chi::ipc::` types instead)
+- Shared-memory data structures (not compatible with HSHM allocators)
+- Client-side code (use `std::unordered_map` instead)
+- Data that needs to be serialized (use `std::unordered_map` with cereal)
+
+#### Performance Considerations
+
+**Bucket Count Selection:**
+```cpp
+// Small datasets (< 100 elements): 16 buckets
+chi::unordered_map_ll<Key, Value> small_map(16);
+
+// Medium datasets (100-10000 elements): 32-64 buckets
+chi::unordered_map_ll<Key, Value> medium_map(32);
+
+// Large datasets (> 10000 elements): 64-128 buckets
+chi::unordered_map_ll<Key, Value> large_map(64);
+
+// Very large datasets or high concurrency: 128+ buckets
+chi::unordered_map_ll<Key, Value> huge_map(128);
+```
+
+**Iteration Performance:**
+```cpp
+// Iteration requires external lock for entire duration
+void ProcessAllEntries(hipc::FullPtr<Task> task, chi::RunContext& ctx) {
+  chi::ScopedCoRwReadLock lock(data_lock_);  // Hold lock during entire iteration
+
+  size_t count = 0;
+  data_map_.for_each([&count](const Key& key, Value& value) {
+    // Process entry
+    count++;
+  });
+
+  task->processed_count_ = count;
+  // Lock released when scope exits
+}
+```
+
+#### Complete Example: Request Tracking Module
+
+```cpp
+// In MOD_NAME_runtime.h
+#include <chimaera/unordered_map_ll.h>
+#include <chimaera/corwlock.h>
+
+class Runtime : public chi::Container {
+private:
+  // Request tracking data structure
+  struct RequestInfo {
+    chi::u64 start_time_us_;
+    chi::u64 bytes_processed_;
+    chi::u32 status_code_;
+  };
+
+  // Map of active requests (external locking required)
+  chi::unordered_map_ll<chi::u64, RequestInfo> active_requests_;
+
+  // Completed request statistics
+  chi::unordered_map_ll<chi::u32, chi::u64> status_counts_;
+
+  // Synchronization primitives
+  static chi::CoRwLock requests_lock_;
+  static chi::CoMutex stats_mutex_;
+
+public:
+  Runtime()
+    : active_requests_(64),   // 64 buckets for active requests
+      status_counts_(16) {}   // 16 buckets for status codes
+
+  void StartRequest(hipc::FullPtr<StartRequestTask> task, chi::RunContext& ctx) {
+    chi::ScopedCoRwWriteLock lock(requests_lock_);
+
+    RequestInfo info{
+      .start_time_us_ = task->timestamp_,
+      .bytes_processed_ = 0,
+      .status_code_ = 0
+    };
+
+    active_requests_.insert(task->request_id_, info);
+  }
+
+  void CompleteRequest(hipc::FullPtr<CompleteRequestTask> task, chi::RunContext& ctx) {
+    {
+      // Update active requests
+      chi::ScopedCoRwWriteLock lock(requests_lock_);
+
+      auto* info = active_requests_.find(task->request_id_);
+      if (info) {
+        task->duration_us_ = task->end_time_ - info->start_time_us_;
+        task->bytes_processed_ = info->bytes_processed_;
+
+        // Update statistics
+        {
+          chi::ScopedCoMutex stats_lock(stats_mutex_);
+          auto [inserted, count_ptr] = status_counts_.insert_or_assign(
+            info->status_code_, 0);
+          (*count_ptr)++;
+        }
+
+        active_requests_.erase(task->request_id_);
+      }
+    }
+  }
+
+  void GetStatistics(hipc::FullPtr<GetStatsTask> task, chi::RunContext& ctx) {
+    // Read statistics with read lock
+    chi::ScopedCoRwReadLock lock(requests_lock_);
+
+    task->active_count_ = active_requests_.size();
+
+    // Get status code distribution
+    chi::ScopedCoMutex stats_lock(stats_mutex_);
+    status_counts_.for_each([&task](const chi::u32& status, const chi::u64& count) {
+      task->status_distribution_.push_back({status, count});
+    });
+  }
+};
+
+// Static member definitions
+chi::CoRwLock Runtime::requests_lock_;
+chi::CoMutex Runtime::stats_mutex_;
+```
+
+#### Key Differences from std::unordered_map
+
+| Feature | std::unordered_map | chi::unordered_map_ll |
+|---------|-------------------|----------------------|
+| Thread Safety | None (external locking required) | None (external locking required) |
+| Internal Structure | Implementation-defined | Vector of lists (explicit) |
+| Bucket Count | Dynamic rehashing | Fixed at construction |
+| Iterator Stability | Unstable across insertions | Stable (list-based) |
+| Shared Memory | Not compatible | Not compatible |
+| Return Values | Iterators | Pointers to values |
+| Use Case | General purpose | Runtime data structures |
+
+#### Summary
+
+`chi::unordered_map_ll` provides a specialized hash map implementation optimized for Chimaera runtime modules:
+
+1. **External Locking**: Must be protected by CoMutex or CoRwLock
+2. **Fixed Buckets**: Bucket count set at construction (no rehashing)
+3. **Pointer Interface**: Operations return pointers instead of iterators
+4. **Runtime Only**: Not for shared-memory or task parameters
+5. **Efficient Lookup**: O(1) average case for find/insert/erase operations
+
+For runtime container data structures requiring fast key-value access with external synchronization, `chi::unordered_map_ll` provides an efficient and predictable solution.
 
 ## Build System Integration
 
