@@ -255,12 +255,6 @@ public:
   void EndTaskWithError(const FullPtr<Task>& task_ptr, u32 error_code = 1);
 
   /**
-   * Continue processing resumed tasks from priority 1 lane (CoMutex/CoRwLock unblocked tasks)
-   * Called before ContinueBlockedTasks to give priority to lock-resumed tasks
-   */
-  void ContinueResumedTasks();
-
-  /**
    * Continue processing blocked tasks that are ready to resume
    * @return Number of microseconds the worker could sleep if no new work, 0 if
    * immediate work available

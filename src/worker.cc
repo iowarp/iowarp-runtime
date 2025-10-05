@@ -112,10 +112,6 @@ void Worker::Run() {
       }
     }
 
-    // Process resumed tasks from priority 1 lane (CoMutex/CoRwLock unblocked tasks)
-    // This is called BEFORE ContinueBlockedTasks to give priority to lock-resumed tasks
-    ContinueResumedTasks();
-
     // Check blocked queue for completed tasks at end of each iteration
     u32 sleep_time_us = ContinueBlockedTasks();
 
@@ -605,57 +601,6 @@ void Worker::EndTaskWithError(const FullPtr<Task> &task_ptr, u32 error_code) {
   // the return code and completion status before explicitly deleting them
 }
 
-void Worker::ContinueResumedTasks() {
-  // Process tasks from priority 1 lane (resumed tasks from CoMutex/CoRwLock)
-  if (!assigned_lane_) {
-    return;
-  }
-
-  // Get the TaskQueue from IPC manager
-  auto* ipc_manager = CHI_IPC;
-  if (!ipc_manager) {
-    return;
-  }
-
-  TaskQueue* task_queue = ipc_manager->GetTaskQueue();
-  if (!task_queue) {
-    return;
-  }
-
-  // Process tasks from priority 1 lane (resumed tasks have higher priority)
-  const u32 MAX_RESUMED_TASKS_PER_ITERATION = 64;
-  u32 tasks_processed = 0;
-
-  while (tasks_processed < MAX_RESUMED_TASKS_PER_ITERATION) {
-    hipc::TypedPointer<Task> task_typed_ptr;
-
-    // Pop task from priority 1 lane for this worker
-    auto& priority1_lane = task_queue->GetLane(worker_id_, 1);
-    hipc::FullPtr<TaskLane> lane_full_ptr(&priority1_lane);
-
-    if (::chi::TaskQueue::PopTask(lane_full_ptr, task_typed_ptr)) {
-      tasks_processed++;
-      did_work_ = true;
-
-      // Convert TypedPointer to FullPtr
-      hipc::FullPtr<Task> task_full_ptr(task_typed_ptr);
-
-      if (!task_full_ptr.IsNull()) {
-        // Resume the task using its existing RunContext
-        RunContext* run_ctx = task_full_ptr->run_ctx_;
-        if (run_ctx) {
-          // Mark as not blocked and resume execution
-          run_ctx->is_blocked = false;
-          ExecTask(task_full_ptr, run_ctx, true);
-        }
-      }
-    } else {
-      // No more resumed tasks in priority 1 lane
-      break;
-    }
-  }
-}
-
 u32 Worker::ContinueBlockedTasks() {
   // Get reference to current blocked queue and flip the bit for new blocking
   // operations
@@ -692,6 +637,9 @@ u32 Worker::ContinueBlockedTasks() {
       if (run_ctx->estimated_completion_time_us < 0) {
         run_ctx->estimated_completion_time_us = 0;
       }
+
+      // Add 10us penalty for task not being ready (to avoid tight polling)
+      run_ctx->estimated_completion_time_us += 10.0;
 
       // Update the block time for next iteration
       run_ctx->block_time.Now();

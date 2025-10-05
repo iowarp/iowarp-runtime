@@ -213,38 +213,6 @@ class IpcManager {
   }
 
   /**
-   * Unblock a task (priority 1 - resumed tasks from CoMutex/CoRwLock)
-   * Routes the task back to its original worker's lane
-   * @param task_ptr Task to unblock
-   */
-  template<typename TaskT>
-  void UnblockTask(FullPtr<TaskT>& task_ptr) {
-    if (!external_queue_.IsNull() && external_queue_.ptr_) {
-      // Create TypedPointer from the task FullPtr
-      hipc::TypedPointer<Task> typed_ptr(task_ptr.shm_);
-
-      u32 num_lanes = external_queue_->GetNumLanes();
-      if (num_lanes == 0) return; // Avoid division by zero
-
-      // Use worker_id from run_ctx to route back to original worker
-      LaneId lane_id = 0;
-      if (task_ptr->run_ctx_) {
-        lane_id = static_cast<LaneId>(task_ptr->run_ctx_->worker_id % num_lanes);
-      } else {
-        // Fallback to lane mapping if no run_ctx
-        lane_id = MapTaskToLane(num_lanes);
-      }
-
-      // Get lane as FullPtr and use TaskQueue's EmplaceTask method
-      // Priority 1 for resumed/unblocked tasks (higher priority)
-      auto& lane_ref = external_queue_->GetLane(lane_id, 1);
-      hipc::FullPtr<TaskLane> lane_ptr(&lane_ref);
-      ::chi::TaskQueue::EmplaceTask(lane_ptr, typed_ptr);
-    }
-  }
-
-
-  /**
    * Get TaskQueue for task processing
    * @return Pointer to the TaskQueue or nullptr if not available
    */

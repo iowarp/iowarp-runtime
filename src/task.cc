@@ -13,7 +13,7 @@ namespace bctx = boost::context::detail;
 
 namespace chi {
 
-void Task::Wait(bool from_yield) {
+void Task::Wait(double wait_time_us, bool from_yield) {
   auto *chimaera_manager = CHI_CHIMAERA_MANAGER;
   if (chimaera_manager && chimaera_manager->IsRuntime()) {
     // Runtime implementation: Estimate load and yield execution
@@ -30,21 +30,26 @@ void Task::Wait(bool from_yield) {
       return;
     }
 
-    // Use container from RunContext instead of CHI_POOL_MANAGER
-    Container *container = worker ? worker->GetCurrentContainer() : nullptr;
-    if (container) {
-      // Estimate completion time using Monitor with kEstLoad
-      RunContext est_ctx = *run_ctx; // Copy run context for estimation
-      container->Monitor(MonitorModeId::kEstLoad, method_, run_ctx->task,
-                         est_ctx);
+    // Determine the actual wait time to use
+    double actual_wait_time_us = wait_time_us;
 
-      // The estimated time should be stored in
-      // est_ctx.estimated_completion_time_us
-      run_ctx->estimated_completion_time_us =
-          est_ctx.estimated_completion_time_us;
-    } else {
-      // No container available, use default estimate
-      run_ctx->estimated_completion_time_us = 1000.0; // Default 1ms estimate
+    // If wait_time is 0, use Monitor to estimate task weight
+    if (wait_time_us == 0.0) {
+      // Use container from RunContext to estimate load
+      Container *container = worker ? worker->GetCurrentContainer() : nullptr;
+      if (container) {
+        // Estimate completion time using Monitor with kEstLoad
+        RunContext est_ctx = *run_ctx; // Copy run context for estimation
+        container->Monitor(MonitorModeId::kEstLoad, method_, run_ctx->task,
+                           est_ctx);
+
+        // The estimated time should be stored in
+        // est_ctx.estimated_completion_time_us
+        actual_wait_time_us = est_ctx.estimated_completion_time_us;
+      } else {
+        // No container available, use default estimate
+        actual_wait_time_us = 1000.0; // Default 1ms estimate
+      }
     }
 
     // Check if task is already blocked - this should never happen
@@ -68,10 +73,10 @@ void Task::Wait(bool from_yield) {
     }
 
     // Yield execution back to worker in loop until task completes
-    // Add to blocked queue before each yield
+    // Add to blocked queue before each yield with the determined wait time
     // NOTE(llogan): This will only be unblocked when all subtasks are complete
     // No need for a while loop here.
-    worker->AddToBlockedQueue(run_ctx, run_ctx->estimated_completion_time_us);
+    worker->AddToBlockedQueue(run_ctx, actual_wait_time_us);
     YieldBase();
   } else {
     // Client implementation: Wait loop using Yield()
@@ -122,10 +127,10 @@ void Task::YieldBase() {
   }
 }
 
-void Task::Yield() {
+void Task::Yield(double wait_time_us) {
   // New public Yield function that calls Wait with from_yield=true
   // to avoid adding subtasks to RunContext
-  Wait(true);
+  Wait(wait_time_us, true);
 }
 
 bool Task::IsComplete() const {

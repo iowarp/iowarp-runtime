@@ -163,7 +163,7 @@ public:
    * @param from_yield If true, do not add subtasks to RunContext (default:
    * false)
    */
-  HSHM_CROSS_FUN void Wait(bool from_yield = false);
+  HSHM_CROSS_FUN void Wait(double wait_time_us = 10.0, bool from_yield = false);
 
   /**
    * Check if task is complete
@@ -174,7 +174,7 @@ public:
   /**
    * Yield execution back to worker by waiting for task completion
    */
-  HSHM_CROSS_FUN void Yield();
+  HSHM_CROSS_FUN void Yield(double wait_time_us = 10.0);
 
   /**
    * Check if task is periodic
