@@ -27,7 +27,10 @@ namespace chi {
 Worker::Worker(u32 worker_id, ThreadType thread_type)
     : worker_id_(worker_id), thread_type_(thread_type), is_running_(false),
       is_initialized_(false), did_work_(false), current_run_context_(nullptr),
-      assigned_lane_(nullptr), block_queue_bit_(false) {}
+      assigned_lane_(nullptr),
+      short_wait_queue_(256), // Initial capacity for short wait queue
+      long_wait_queue_(256),  // Initial capacity for long wait queue
+      iteration_counter_(0) {}
 
 Worker::~Worker() {
   if (is_initialized_) {
@@ -79,8 +82,8 @@ void Worker::Run() {
 
     // Process tasks from the worker's assigned lane
     if (assigned_lane_) {
-      // Process up to 64 tasks from this worker's lane per iteration
-      const u32 MAX_TASKS_PER_ITERATION = 64;
+      // Process up to 16 tasks from this worker's lane per iteration
+      const u32 MAX_TASKS_PER_ITERATION = 16;
       u32 tasks_processed = 0;
 
       while (tasks_processed < MAX_TASKS_PER_ITERATION) {
@@ -601,321 +604,314 @@ void Worker::EndTaskWithError(const FullPtr<Task> &task_ptr, u32 error_code) {
   // the return code and completion status before explicitly deleting them
 }
 
-u32 Worker::ContinueBlockedTasks() {
-  // Get reference to current blocked queue and flip the bit for new blocking
-  // operations
-  auto& orig_queue = blocked_queue_[block_queue_bit_];
-  block_queue_bit_ = !block_queue_bit_;
-  auto& new_queue = blocked_queue_[block_queue_bit_];
+void Worker::ProcessBlockedQueue(hshm::ext_ring_buffer<RunContext *> &queue) {
+  // Get current time once for all tasks in this queue
+  hshm::Timepoint current_time;
+  current_time.Now();
 
-  u32 return_value = 0;  // Default return value for immediate recheck
+  // Process only first 8 tasks in the queue
+  size_t queue_size = queue.GetSize();
+  size_t check_limit = std::min(queue_size, size_t(8));
 
-  // Process tasks from the original queue
-  while (!orig_queue.empty()) {
-    RunContext* run_ctx = orig_queue.top();
-    orig_queue.pop();
+  for (size_t i = 0; i < check_limit; i++) {
+    RunContext *run_ctx;
+    hshm::qtok_t token = queue.pop(run_ctx);
 
-    if (run_ctx && !run_ctx->task.IsNull()) {
-      // Always check if all subtasks are completed first
+    if (token.IsNull()) {
+      // Queue is empty
+      break;
+    }
+
+    if (!run_ctx || run_ctx->task.IsNull()) {
+      // Invalid entry, don't re-add
+      continue;
+    }
+
+    // Update timing first
+    double elapsed_us = run_ctx->block_time.GetUsecFromStart(current_time);
+
+    // Decrement remaining time by elapsed time
+    run_ctx->estimated_completion_time_us -= elapsed_us;
+    if (run_ctx->estimated_completion_time_us < 0) {
+      run_ctx->estimated_completion_time_us = 0;
+    }
+
+    // Only check subtask completion for short waits (estimated time < 10us)
+    // Long waits don't need to check every time since they're expensive
+    // operations
+    if (run_ctx->estimated_completion_time_us < 10.0) {
       if (run_ctx->AreSubtasksCompleted()) {
-        // All subtasks are completed, resume this task immediately
+        // All subtasks completed - resume task immediately
         run_ctx->is_blocked = false;
-
-        // Use unified execution function to resume the task
         ExecTask(run_ctx->task, run_ctx, true);
-        // Task execution handled, continue to next task
+
+        // Don't re-add to queue
         continue;
       }
 
-      // Subtasks not completed - calculate remaining time and re-queue
-      hshm::Timepoint current_time;
-      current_time.Now();
-      double elapsed_us = current_time.GetUsecFromStart(run_ctx->block_time);
-
-      // Decrement the remaining time by the current elapsed time
-      run_ctx->estimated_completion_time_us -= elapsed_us;
-      if (run_ctx->estimated_completion_time_us < 0) {
-        run_ctx->estimated_completion_time_us = 0;
-      }
-
-      // Add 10us penalty for task not being ready (to avoid tight polling)
+      // Subtasks not completed - add 10us penalty for task not being ready
       run_ctx->estimated_completion_time_us += 10.0;
+    }
 
-      // Update the block time for next iteration
-      run_ctx->block_time.Now();
+    // Re-add via AddToBlockedQueue to route to appropriate queue based on
+    // updated time
+    AddToBlockedQueue(run_ctx, run_ctx->estimated_completion_time_us);
+  }
+}
 
-      // Set return value based on remaining time
-      if (run_ctx->estimated_completion_time_us <= 0) {
-        return_value = 0;  // Time estimate exceeded, immediate recheck needed
-      } else {
-        return_value = static_cast<u32>(run_ctx->estimated_completion_time_us);
+u32 Worker::ContinueBlockedTasks() {
+    u32 return_value = 0; // Default return value for immediate recheck
+
+    // Increment iteration counter
+    iteration_counter_++;
+
+    // Check if we should process long wait queue (every 5 iterations)
+    bool check_long_queue = (iteration_counter_ % 5 == 0);
+
+    // Always process short wait queue (tasks with < 10us wait)
+    ProcessBlockedQueue(short_wait_queue_);
+
+    // Process long wait queue every 5 iterations
+    if (check_long_queue) {
+      ProcessBlockedQueue(long_wait_queue_);
+    }
+
+    return return_value;
+  }
+
+  bool Worker::ExecTask(const FullPtr<Task> &task_ptr, RunContext *run_ctx,
+                        bool is_started) {
+    if (task_ptr.IsNull() || !run_ctx) {
+      return true; // Consider null tasks as completed
+    }
+
+    // Mark that work is being done
+    did_work_ = true;
+
+    // Set current run context
+    // Note: Current worker is already set for thread duration
+    SetCurrentRunContext(run_ctx);
+
+    if (is_started) {
+      // Resume execution - jump back to where the task yielded (stored in
+      // fiber_transfer) The fiber_transfer contains the yield point, not the
+      // fiber start
+
+      // Validate resume_context before jumping
+      if (!run_ctx->resume_context.fctx) {
+        HELOG(kFatal,
+              "Worker {}: resume_context.fctx is null when resuming task. "
+              "Stack: {} Size: {} Task method: {} Pool: {}",
+              worker_id_, run_ctx->stack_ptr, run_ctx->stack_size,
+              task_ptr->method_, task_ptr->pool_id_);
+        std::abort();
       }
 
-      // Add this task to the new blocked queue (after we flipped the bit)
-      // No need to lock here - we're the worker thread, AddToBlockedQueue from
-      // other workers will go to the other queue due to the bit flip
-      new_queue.push(run_ctx);
-
-      // Break the loop - don't process any more tasks
-      // Return the sleep time for this task
-      break;
-    }
-  }
-
-  return return_value;
-}
-
-bool Worker::ExecTask(const FullPtr<Task> &task_ptr, RunContext *run_ctx,
-                      bool is_started) {
-  if (task_ptr.IsNull() || !run_ctx) {
-    return true; // Consider null tasks as completed
-  }
-
-  // Mark that work is being done
-  did_work_ = true;
-
-  // Set current run context
-  // Note: Current worker is already set for thread duration
-  SetCurrentRunContext(run_ctx);
-
-  if (is_started) {
-    // Resume execution - jump back to where the task yielded (stored in
-    // fiber_transfer) The fiber_transfer contains the yield point, not the
-    // fiber start
-
-    // Validate resume_context before jumping
-    if (!run_ctx->resume_context.fctx) {
-      HELOG(kFatal,
-            "Worker {}: resume_context.fctx is null when resuming task. "
-            "Stack: {} Size: {} Task method: {} Pool: {}",
-            worker_id_, run_ctx->stack_ptr, run_ctx->stack_size,
-            task_ptr->method_, task_ptr->pool_id_);
-      std::abort();
-    }
-
-    // Check if stack pointer is still valid
-    if (!run_ctx->stack_ptr || !run_ctx->stack_base_for_free) {
-      HELOG(kFatal,
-            "Worker {}: Stack context is invalid when resuming task. "
-            "stack_ptr: {} stack_base: {} Task method: {} Pool: {}",
-            worker_id_, run_ctx->stack_ptr, run_ctx->stack_base_for_free,
-            task_ptr->method_, task_ptr->pool_id_);
-      std::abort();
-    }
-
-    // Validate that resume_context.fctx points within the allocated stack range
-    uintptr_t fctx_addr =
-        reinterpret_cast<uintptr_t>(run_ctx->resume_context.fctx);
-    uintptr_t stack_start =
-        reinterpret_cast<uintptr_t>(run_ctx->stack_base_for_free);
-    uintptr_t stack_end = stack_start + run_ctx->stack_size;
-
-    if (fctx_addr < stack_start || fctx_addr > stack_end) {
-      HELOG(kWarning,
-            "Worker {}: resume_context.fctx ({:#x}) is outside stack range "
-            "[{:#x}, {:#x}]. "
-            "Task method: {} Pool: {}",
-            worker_id_, fctx_addr, stack_start, stack_end, task_ptr->method_,
-            task_ptr->pool_id_);
-    }
-
-    HILOG(kDebug,
-          "Worker {}: Resuming task - fctx: {:#x}, stack: [{:#x}, {:#x}], "
-          "method: {}",
-          worker_id_, fctx_addr, stack_start, stack_end, task_ptr->method_);
-
-    // Resume execution - jump back to task's yield point
-    // Use temporary variables to avoid read/write conflict on resume_context
-    bctx::fcontext_t resume_fctx = run_ctx->resume_context.fctx;
-    void *resume_data = run_ctx->resume_context.data;
-
-    // Jump to task's yield point and capture the result
-    // This provides the current worker context to the fiber for proper return
-    bctx::transfer_t resume_result =
-        bctx::jump_fcontext(resume_fctx, resume_data);
-
-    // Update yield_context with current worker context so task can return here
-    // This is critical: the task needs to know where to return when it
-    // completes or yields again
-    run_ctx->yield_context = resume_result;
-
-    // Update resume_context only if the task yielded again (is_blocked = true)
-    if (run_ctx->is_blocked) {
-      run_ctx->resume_context = resume_result;
-    }
-  } else {
-    // New task execution
-    // Increment work count for non-periodic tasks at task start
-    if (run_ctx->container && !task_ptr->IsPeriodic()) {
-      // Increment work remaining in the container for non-periodic tasks
-      run_ctx->container->UpdateWork(task_ptr, *run_ctx, 1);
-    }
-
-    // Create fiber context for this task
-    // stack_ptr is already correctly positioned based on stack growth direction
-    bctx::fcontext_t fiber_fctx = bctx::make_fcontext(
-        run_ctx->stack_ptr, run_ctx->stack_size, FiberExecutionFunction);
-
-    // Jump to fiber context to execute the task
-    // This will provide the worker context to FiberExecutionFunction through
-    // the parameter
-    bctx::transfer_t fiber_result = bctx::jump_fcontext(fiber_fctx, nullptr);
-
-    // Update yield_context with current worker context so task can return here
-    // The fiber_result contains the worker context for the task to use
-    run_ctx->yield_context = fiber_result;
-
-    // Update resume_context only if the task actually yielded (is_blocked =
-    // true)
-    if (run_ctx->is_blocked) {
-      run_ctx->resume_context = fiber_result;
-    }
-  }
-
-  // Common cleanup logic for both fiber and direct execution
-  if (run_ctx->is_blocked) {
-    // Task is blocked - don't clean up, will be resumed later
-    return false; // Task is not completed, blocked for later resume
-  }
-
-  // Tasks should never return incomplete from ExecTask
-  // Periodic tasks are rescheduled by ReschedulePeriodicTask in
-  // FiberExecutionFunction Non-periodic tasks are marked complete here AFTER
-  // cleanup to avoid race conditions
-
-  // Determine if task should be completed and cleaned up
-  bool should_complete_task = !task_ptr->IsPeriodic();
-
-  if (should_complete_task) {
-    // CRITICAL BUG CHECK: Verify this task is not in the blocked queue
-    // This should never happen - if it does, it's a serious bug
-    // Check both blocked queues
-    for (int queue_idx = 0; queue_idx < 2; ++queue_idx) {
-      std::priority_queue<RunContext *, std::vector<RunContext *>,
-                          RunContextComparator>
-          temp_queue = blocked_queue_[queue_idx];
-
-      while (!temp_queue.empty()) {
-        RunContext *blocked_ctx = temp_queue.top();
-        temp_queue.pop();
-
-        if (blocked_ctx == run_ctx) {
-          HELOG(
-              kFatal,
-              "Worker {}: CRITICAL BUG - Completed task found in blocked queue[{}]! "
-              "Task ptr: {:#x}, Pool: {}, Method: {}, TaskNode: {}.{}.{}.{}",
-              worker_id_, queue_idx, reinterpret_cast<uintptr_t>(task_ptr.ptr_),
-              task_ptr->pool_id_, task_ptr->method_, task_ptr->task_node_.pid_,
-              task_ptr->task_node_.tid_, task_ptr->task_node_.major_,
-              task_ptr->task_node_.minor_);
-          std::abort();
-        }
+      // Check if stack pointer is still valid
+      if (!run_ctx->stack_ptr || !run_ctx->stack_base_for_free) {
+        HELOG(kFatal,
+              "Worker {}: Stack context is invalid when resuming task. "
+              "stack_ptr: {} stack_base: {} Task method: {} Pool: {}",
+              worker_id_, run_ctx->stack_ptr, run_ctx->stack_base_for_free,
+              task_ptr->method_, task_ptr->pool_id_);
+        std::abort();
       }
-    }
 
-    // Clear RunContext pointer first
-    task_ptr->run_ctx_ = nullptr;
+      // Validate that resume_context.fctx points within the allocated stack
+      // range
+      uintptr_t fctx_addr =
+          reinterpret_cast<uintptr_t>(run_ctx->resume_context.fctx);
+      uintptr_t stack_start =
+          reinterpret_cast<uintptr_t>(run_ctx->stack_base_for_free);
+      uintptr_t stack_end = stack_start + run_ctx->stack_size;
 
-    // Mark task as complete FIRST - before deletion
-    // This prevents race condition with client DelTask
-    task_ptr->is_complete.store(1);
-
-    // Deallocate stack and context
-    DeallocateStackAndContext(run_ctx);
-  }
-  // Return whether the task should be considered completed
-  return should_complete_task;
-}
-
-void Worker::AddToBlockedQueue(RunContext *run_ctx, double estimated_time_us) {
-  if (!run_ctx || run_ctx->task.IsNull()) {
-    return;
-  }
-
-  // Set timing information in RunContext
-  run_ctx->estimated_completion_time_us = estimated_time_us;
-  run_ctx->block_time.Now();
-
-  // Add RunContext to the current blocked queue (selected by bit)
-  // The bit is flipped in ContinueBlockedTasks, so new additions go to
-  // the queue not currently being processed
-  // No mutex needed - only this worker thread accesses its blocked queue
-  blocked_queue_[block_queue_bit_].push(run_ctx);
-}
-
-void Worker::ReschedulePeriodicTask(RunContext *run_ctx,
-                                    const FullPtr<Task> &task_ptr) {
-  if (!run_ctx || task_ptr.IsNull() || !task_ptr->IsPeriodic()) {
-    return;
-  }
-
-  // Get the lane from the run context
-  TaskLane *lane = run_ctx->lane;
-  if (!lane) {
-    // No lane information, cannot reschedule
-    return;
-  }
-
-  // Check if the lane still maps to this worker by checking the lane header
-  auto &header = lane->GetHeader();
-  double period_us = task_ptr->GetPeriod(kMicro);
-  AddToBlockedQueue(run_ctx, period_us);
-}
-
-void Worker::FiberExecutionFunction(boost::context::detail::transfer_t t) {
-  // This function runs in the fiber context
-  // Use thread-local storage to get context
-  Worker *worker = CHI_CUR_WORKER;
-  RunContext *run_ctx = worker->GetCurrentRunContext();
-  FullPtr<Task> task_ptr =
-      worker ? worker->GetCurrentTask() : FullPtr<Task>::GetNull();
-
-  if (!task_ptr.IsNull() && worker && run_ctx) {
-    // Store the worker's context (from parameter t) - this is where we jump
-    // back when yielding or when task completes
-    run_ctx->yield_context = t;
-    // Execute the task directly - merged TaskExecutionFunction logic
-    try {
-      // Get the container from RunContext
-      Container *container = run_ctx->container;
-
-      if (container) {
-        // Call the container's Run function with the task
-        container->Run(task_ptr->method_, task_ptr, *run_ctx);
-      } else {
-        // Container not found - this is an error condition
-        HILOG(kWarning, "Container not found in RunContext for pool_id: {}",
+      if (fctx_addr < stack_start || fctx_addr > stack_end) {
+        HELOG(kWarning,
+              "Worker {}: resume_context.fctx ({:#x}) is outside stack range "
+              "[{:#x}, {:#x}]. "
+              "Task method: {} Pool: {}",
+              worker_id_, fctx_addr, stack_start, stack_end, task_ptr->method_,
               task_ptr->pool_id_);
       }
-    } catch (const std::exception &e) {
-      // Handle execution errors
-      HELOG(kError, "Task execution failed: {}", e.what());
-    } catch (...) {
-      // Handle unknown errors
-      HELOG(kError, "Task execution failed with unknown exception");
-    }
 
-    // Handle task completion and rescheduling
-    if (task_ptr->IsPeriodic()) {
-      // Periodic tasks are always rescheduled regardless of execution success
-      worker->ReschedulePeriodicTask(run_ctx, task_ptr);
+      HILOG(kDebug,
+            "Worker {}: Resuming task - fctx: {:#x}, stack: [{:#x}, {:#x}], "
+            "method: {}",
+            worker_id_, fctx_addr, stack_start, stack_end, task_ptr->method_);
+
+      // Resume execution - jump back to task's yield point
+      // Use temporary variables to avoid read/write conflict on resume_context
+      bctx::fcontext_t resume_fctx = run_ctx->resume_context.fctx;
+      void *resume_data = run_ctx->resume_context.data;
+
+      // Jump to task's yield point and capture the result
+      // This provides the current worker context to the fiber for proper return
+      bctx::transfer_t resume_result =
+          bctx::jump_fcontext(resume_fctx, resume_data);
+
+      // Update yield_context with current worker context so task can return
+      // here This is critical: the task needs to know where to return when it
+      // completes or yields again
+      run_ctx->yield_context = resume_result;
+
+      // Update resume_context only if the task yielded again (is_blocked =
+      // true)
+      if (run_ctx->is_blocked) {
+        run_ctx->resume_context = resume_result;
+      }
     } else {
-      // Non-periodic task completed - decrement work count and mark as complete
-      if (run_ctx->container) {
-        // Decrement work remaining in the container for non-periodic tasks
-        run_ctx->container->UpdateWork(task_ptr, *run_ctx, -1);
+      // New task execution
+      // Increment work count for non-periodic tasks at task start
+      if (run_ctx->container && !task_ptr->IsPeriodic()) {
+        // Increment work remaining in the container for non-periodic tasks
+        run_ctx->container->UpdateWork(task_ptr, *run_ctx, 1);
       }
 
-      // Don't mark as complete yet - defer until cleanup is done in ExecTask
-      // to avoid race condition with client DelTask
+      // Create fiber context for this task
+      // stack_ptr is already correctly positioned based on stack growth
+      // direction
+      bctx::fcontext_t fiber_fctx = bctx::make_fcontext(
+          run_ctx->stack_ptr, run_ctx->stack_size, FiberExecutionFunction);
+
+      // Jump to fiber context to execute the task
+      // This will provide the worker context to FiberExecutionFunction through
+      // the parameter
+      bctx::transfer_t fiber_result = bctx::jump_fcontext(fiber_fctx, nullptr);
+
+      // Update yield_context with current worker context so task can return
+      // here The fiber_result contains the worker context for the task to use
+      run_ctx->yield_context = fiber_result;
+
+      // Update resume_context only if the task actually yielded (is_blocked =
+      // true)
+      if (run_ctx->is_blocked) {
+        run_ctx->resume_context = fiber_result;
+      }
+    }
+
+    // Common cleanup logic for both fiber and direct execution
+    if (run_ctx->is_blocked) {
+      // Task is blocked - don't clean up, will be resumed later
+      return false; // Task is not completed, blocked for later resume
+    }
+
+    // Tasks should never return incomplete from ExecTask
+    // Periodic tasks are rescheduled by ReschedulePeriodicTask in
+    // FiberExecutionFunction Non-periodic tasks are marked complete here AFTER
+    // cleanup to avoid race conditions
+
+    // Determine if task should be completed and cleaned up
+    bool should_complete_task = !task_ptr->IsPeriodic();
+
+    if (should_complete_task) {
+      // Clear RunContext pointer first
+      task_ptr->run_ctx_ = nullptr;
+
+      // Mark task as complete FIRST - before deletion
+      // This prevents race condition with client DelTask
+      task_ptr->is_complete.store(1);
+
+      // Deallocate stack and context
+      DeallocateStackAndContext(run_ctx);
+    }
+    // Return whether the task should be considered completed
+    return should_complete_task;
+  }
+
+  void Worker::AddToBlockedQueue(RunContext * run_ctx,
+                                 double estimated_time_us) {
+    if (!run_ctx || run_ctx->task.IsNull()) {
+      return;
+    }
+
+    // Set timing information in RunContext
+    run_ctx->estimated_completion_time_us = estimated_time_us;
+    run_ctx->block_time.Now();
+
+    // Route to appropriate queue based on estimated wait time
+    // Short waits (< 10us): checked every iteration
+    // Long waits (>= 10us): checked every 5 iterations
+    if (estimated_time_us < 10.0) {
+      short_wait_queue_.push(run_ctx);
+    } else {
+      long_wait_queue_.push(run_ctx);
     }
   }
 
-  // Jump back to worker context when task completes
-  // Use temporary variables to avoid potential read/write conflicts
-  bctx::fcontext_t worker_fctx = run_ctx->yield_context.fctx;
-  void *worker_data = run_ctx->yield_context.data;
-  bctx::jump_fcontext(worker_fctx, worker_data);
-}
+  void Worker::ReschedulePeriodicTask(RunContext * run_ctx,
+                                      const FullPtr<Task> &task_ptr) {
+    if (!run_ctx || task_ptr.IsNull() || !task_ptr->IsPeriodic()) {
+      return;
+    }
+
+    // Get the lane from the run context
+    TaskLane *lane = run_ctx->lane;
+    if (!lane) {
+      // No lane information, cannot reschedule
+      return;
+    }
+
+    // Check if the lane still maps to this worker by checking the lane header
+    auto &header = lane->GetHeader();
+    double period_us = task_ptr->GetPeriod(kMicro);
+    AddToBlockedQueue(run_ctx, period_us);
+  }
+
+  void Worker::FiberExecutionFunction(boost::context::detail::transfer_t t) {
+    // This function runs in the fiber context
+    // Use thread-local storage to get context
+    Worker *worker = CHI_CUR_WORKER;
+    RunContext *run_ctx = worker->GetCurrentRunContext();
+    FullPtr<Task> task_ptr =
+        worker ? worker->GetCurrentTask() : FullPtr<Task>::GetNull();
+
+    if (!task_ptr.IsNull() && worker && run_ctx) {
+      // Store the worker's context (from parameter t) - this is where we jump
+      // back when yielding or when task completes
+      run_ctx->yield_context = t;
+      // Execute the task directly - merged TaskExecutionFunction logic
+      try {
+        // Get the container from RunContext
+        Container *container = run_ctx->container;
+
+        if (container) {
+          // Call the container's Run function with the task
+          container->Run(task_ptr->method_, task_ptr, *run_ctx);
+        } else {
+          // Container not found - this is an error condition
+          HILOG(kWarning, "Container not found in RunContext for pool_id: {}",
+                task_ptr->pool_id_);
+        }
+      } catch (const std::exception &e) {
+        // Handle execution errors
+        HELOG(kError, "Task execution failed: {}", e.what());
+      } catch (...) {
+        // Handle unknown errors
+        HELOG(kError, "Task execution failed with unknown exception");
+      }
+
+      // Handle task completion and rescheduling
+      if (task_ptr->IsPeriodic()) {
+        // Periodic tasks are always rescheduled regardless of execution success
+        worker->ReschedulePeriodicTask(run_ctx, task_ptr);
+      } else {
+        // Non-periodic task completed - decrement work count and mark as
+        // complete
+        if (run_ctx->container) {
+          // Decrement work remaining in the container for non-periodic tasks
+          run_ctx->container->UpdateWork(task_ptr, *run_ctx, -1);
+        }
+
+        // Don't mark as complete yet - defer until cleanup is done in ExecTask
+        // to avoid race condition with client DelTask
+      }
+    }
+
+    // Jump back to worker context when task completes
+    // Use temporary variables to avoid potential read/write conflicts
+    bctx::fcontext_t worker_fctx = run_ctx->yield_context.fctx;
+    void *worker_data = run_ctx->yield_context.data;
+    bctx::jump_fcontext(worker_fctx, worker_data);
+  }
 
 } // namespace chi

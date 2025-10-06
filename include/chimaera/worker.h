@@ -188,6 +188,12 @@ private:
   std::vector<PoolQuery> ResolveBroadcastQuery(const PoolQuery& query, PoolId pool_id);
   std::vector<PoolQuery> ResolvePhysicalQuery(const PoolQuery& query, PoolId pool_id);
 
+  /**
+   * Process a blocked queue, checking tasks and re-queuing as needed
+   * @param queue Reference to the ring buffer queue to process
+   */
+  void ProcessBlockedQueue(hshm::ext_ring_buffer<RunContext*>& queue);
+
 public:
 
   /**
@@ -290,25 +296,15 @@ public:
 
   // Stack management simplified - allocate/free directly with malloc
 
-  // Blocked queue stores RunContext pointers directly (priority queue by
-  // completion time)
-  struct RunContextComparator {
-    bool operator()(const RunContext* lhs, const RunContext* rhs) const {
-      return lhs->estimated_completion_time_us >
-             rhs->estimated_completion_time_us;
-    }
-  };
+  // Two-tier blocked queue system:
+  // - short_wait_queue_: Tasks with estimated time < 10us, checked every iteration
+  // - long_wait_queue_: Tasks with estimated time >= 10us, checked every 5 iterations
+  // Using ext_ring_buffer for O(1) enqueue/dequeue operations
+  hshm::ext_ring_buffer<RunContext*> short_wait_queue_;
+  hshm::ext_ring_buffer<RunContext*> long_wait_queue_;
 
-  // Two blocked queues - we alternate between them using a bit
-  // This allows lock-free operation: one queue is being processed while
-  // new blocked tasks go to the other queue
-  std::priority_queue<RunContext*, std::vector<RunContext*>,
-                      RunContextComparator>
-      blocked_queue_[2];
-
-  // Bit to select which blocked queue to use for new additions
-  // Flipped in ContinueBlockedTasks to alternate between queues
-  bool block_queue_bit_;
+  // Counter for checking long wait queue every 5 iterations
+  u32 iteration_counter_;
 };
 
 }  // namespace chi
