@@ -6,7 +6,7 @@ add_executable(task_throughput_benchmark
 )
 
 target_link_libraries(task_throughput_benchmark
-  chimaera::cxx                    # Core Chimaera runtime
+  cxx                             # Core Chimaera runtime
   chimaera::bdev_client           # BDev client for I/O operations
   chimaera::admin_client          # Admin client for container creation
   hshm::cxx                       # HermesShm shared memory framework
