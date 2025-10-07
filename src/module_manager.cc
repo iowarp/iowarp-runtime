@@ -74,6 +74,7 @@ bool ModuleManager::LoadChiMod(const std::string &lib_path) {
     chimod_info->name = chimod_info->name_func();
     HILOG(kInfo, "Loaded ChiMod: {}", chimod_info->name);
   } else {
+    HILOG(kInfo, "Didn't load ChiMod: {}", chimod_info->name);
     return false;
   }
 
@@ -183,7 +184,7 @@ std::vector<std::string> ModuleManager::GetScanDirectories() const {
 
   // Print all scan directories
   HILOG(kInfo, "ChiMod scan directories:");
-  for (const auto& dir : directories) {
+  for (const auto &dir : directories) {
     HILOG(kInfo, "  {}", dir);
   }
 
