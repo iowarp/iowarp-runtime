@@ -53,6 +53,19 @@ set(CHIMAERA_COMMON_LIBS
 )
 
 #------------------------------------------------------------------------------
+# Helper functions
+#------------------------------------------------------------------------------
+
+# Helper function to link runtime to client library (called via DEFER)
+# This allows linking to work regardless of which target is defined first
+function(_chimaera_link_runtime_to_client RUNTIME_TARGET CLIENT_TARGET)
+  if(TARGET ${CLIENT_TARGET})
+    target_link_libraries(${RUNTIME_TARGET} PUBLIC ${CLIENT_TARGET})
+    message(STATUS "Deferred linking: Runtime ${RUNTIME_TARGET} linked to client ${CLIENT_TARGET}")
+  endif()
+endfunction()
+
+#------------------------------------------------------------------------------
 # Module configuration parsing
 #------------------------------------------------------------------------------
 
@@ -330,11 +343,19 @@ function(add_chimod_runtime)
   else()
     message(FATAL_ERROR "Neither chimaera::cxx, hermes_shm::cxx, HermesShm::cxx nor cxx target found")
   endif()
-  
+
   # Automatically link to client library if it exists
   set(RUNTIME_LINK_LIBS ${CORE_LIB} ${CHIMAERA_COMMON_LIBS} ${ARG_LINK_LIBRARIES})
-  if(CHIMAERA_MODULE_CLIENT_TARGET AND TARGET ${CHIMAERA_MODULE_CLIENT_TARGET})
+
+  # Try to find client target by name (handles cases where client was defined first)
+  set(CLIENT_TARGET_NAME "${CHIMAERA_NAMESPACE}_${CHIMAERA_MODULE_NAME}_client")
+  if(TARGET ${CLIENT_TARGET_NAME})
+    list(APPEND RUNTIME_LINK_LIBS ${CLIENT_TARGET_NAME})
+    message(STATUS "Runtime ${TARGET_NAME} linking to client ${CLIENT_TARGET_NAME}")
+  elseif(CHIMAERA_MODULE_CLIENT_TARGET AND TARGET ${CHIMAERA_MODULE_CLIENT_TARGET})
+    # Fallback to variable-based approach for compatibility
     list(APPEND RUNTIME_LINK_LIBS ${CHIMAERA_MODULE_CLIENT_TARGET})
+    message(STATUS "Runtime ${TARGET_NAME} linking to client ${CHIMAERA_MODULE_CLIENT_TARGET}")
   endif()
   
   target_link_libraries(${TARGET_NAME}
@@ -346,12 +367,19 @@ function(add_chimod_runtime)
   
   # Create alias for external use
   add_library(${CHIMAERA_NAMESPACE}::${CHIMAERA_MODULE_NAME}_runtime ALIAS ${TARGET_NAME})
-  
+
   # Set properties for installation
   set_target_properties(${TARGET_NAME} PROPERTIES
     EXPORT_NAME "${CHIMAERA_MODULE_NAME}_runtime"
     OUTPUT_NAME "${CHIMAERA_NAMESPACE}_${CHIMAERA_MODULE_NAME}_runtime"
   )
+
+  # Use cmake_language(DEFER) to link to client after all targets are processed
+  # This works regardless of whether runtime or client is defined first
+  # Use EVAL CODE to properly capture variable values
+  cmake_language(EVAL CODE "
+    cmake_language(DEFER CALL _chimaera_link_runtime_to_client \"${TARGET_NAME}\" \"${CLIENT_TARGET_NAME}\")
+  ")
   
   # Install the runtime library (add to existing export set if client exists)
   set(MODULE_PACKAGE_NAME "${CHIMAERA_NAMESPACE}_${CHIMAERA_MODULE_NAME}")
