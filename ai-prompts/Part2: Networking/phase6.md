@@ -1,19 +1,24 @@
-@CLAUDE.md Implement the following methods in the runtime code for the admin chimod.
+@CLAUDE.md Implement the following methods in the runtime code for the admin chimod. Also update the archives in @include/chimaera/task_archives.h accordingly. Also read @docs/hshm/hshm-context.md to see how to use lightbeam.
 
-# ClientSendTaskIn
+# ClientSaveInArchive
 
-1. Get the current lane.
-2. Pop each task on the current lane.
-3. Build an unordered map of node_id -> list<Task>. For the task taken as input and all other tasks in the current lane, build the map iteratively using a helper function called AddTasksToMap. This is a new helper function that takes as input a single task, a vector of PoolQuery objects, and a reference to the map. Iterate over the PoolQuery vector. In the loop, make a copy of the task using the container NewCopy method and then an entry in the unordered map. The node id should be taken from the PoolQuery. The PoolQuery should be unchanged from the iterator. The task should be the copy. 
-4. When the unordered_map is built, we will iterate over the unordered map. We will create a TaskSaveIn that serializes each task in the list. For each task, since they are copies, update the pool query in the task to the resolved PoolQuery. We then call the container SaveIn method with the TaskSaveIn and task as inputs.
+Client send task inputs. Corresponds to a TaskSaveInArchive
+1. This function takes as input a ClientSendTaskInTask
+2. Internally, this contains a subtask, which is the target for this function. 
+3. We get the local container associated with the subtask using pool_id_.
+4. We then build a TaskSaveInArchive, which will serialize task inputs.
+5. We then call container->SaveIn(subtask, ar). This will serialize the subtask into the archive. The archive stores a vector of DataTransfer objects and a ceral::BinaryOutputArchive. ar(task) will call the task's SerializeIn method. Let's say task wants to serialize x, y, z, and data. ar(x, y, z) will serialize x, y, z into the binary output archive. ar.bulk(data) will add the data transfer to the vector.
+6. Theoretically, multiple tasks could be saved in a single archive, but we aren't doing that for now
+7. After we have serialized all tasks (for now just one) into the TaskSaveIn archive, we will need to build a message. TaskSaveInArchive should expose a function called BuildMessage(). This will serialize the TaskSaveInArchive itself, including the following: the number of tasks being serialized, the stringstream used for the BinaryOutputArchive, and the DataTransfer vector. The vector will not serialize the data that DataTransfer points to, it will just treat the pointers like integers.
+8. Send the messages to the resolved domains using ZeroMQ.
+    1. Send the BuildMessage() return value.
+    2. Iterate over DataTransfer and send the data objects it points to.
+    3. Ensure the message is received as a single unit on the server. For ZeroMQ, this can be done with a flag ZMQ_SNDMORE. Make sure ZeroMQ is non-blocking as well when it connects to the remote server.
 
-Here is the general flow of TaskSaveIn (let's call it ``ar``) in ClientSendTaskIn:
-1. Take as input the number of tasks being serialized in its constructor. This will be serialized using cereal.
-2. ClientSendTaskIn will do ``ar << (*task)``, which will call the task's SerializeIn method. If SerializeIn calls ar.bulk(), a DataTransfer object will be appended to a DataTransfer vector in the archive. In addition, the DataTransfer will be serialized. The DataTransfer should store a char* instead of hipc::Pointer. 
-3. After all tasks are serialized, the serialized string as obtained from the archive and then transferred with lightbeam. Then, we iterate over each DataTransfer object and transfer each individually.
+# ServerLoadInArchive
 
-# ServerRecvTaskIn
-
-1. Use lightbeam to receive a message
-2. Deserialize the message using TaskLoadIn archive 
-
+Server load task inputs. 
+1. Receive the BuildMessage() and deserialize that into a TaskLoadInArchive using cereal::BinaryInputArchive. Both TaskLoadInArchive and TaskLoadOutArchive should have the same class variables, just different methods, so this should work.
+2. Deserialize tasks one at a time using TaskLoadInArchive. ar(x, y, z) should just be the reverse from ClientSaveInArchive. ar.bulk() should call CHI_IPC->AllocateBuffer() to get the space, but do nothing else
+3. Receive all remaining parts of the message and copy them into their respective DataTransfer locations.
+4. 
