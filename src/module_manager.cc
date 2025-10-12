@@ -58,7 +58,6 @@ bool ModuleManager::LoadChiMod(const std::string &lib_path) {
 
   // Validate ChiMod entry points
   if (!ValidateChiMod(chimod_info->lib)) {
-    HILOG(kInfo, "Didn't load ChiMod (2): {}", lib_path);
     return false;
   }
 
@@ -75,9 +74,8 @@ bool ModuleManager::LoadChiMod(const std::string &lib_path) {
   // Get ChiMod name
   if (chimod_info->name_func) {
     chimod_info->name = chimod_info->name_func();
-    HILOG(kInfo, "Loaded ChiMod: {}", chimod_info->name);
+    HILOG(kInfo, "Loaded ChiMod: {} from {}", chimod_info->name, lib_path);
   } else {
-    HILOG(kInfo, "Didn't load ChiMod (3): {}", lib_path);
     return false;
   }
 

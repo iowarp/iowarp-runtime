@@ -14,6 +14,7 @@
 #include <memory>
 #include <netdb.h>
 #include <sys/socket.h>
+#include <zmq.h>
 
 // Global pointer variable definition for IPC manager singleton
 HSHM_DEFINE_GLOBAL_PTR_VAR_CC(chi::IpcManager, g_ipc_manager);
@@ -265,6 +266,16 @@ void IpcManager::ServerFinalize() {
   // Cleanup servers
   local_server_.reset();
   main_server_.reset();
+
+  // Cleanup direct ZeroMQ resources
+  if (zmq_main_socket_) {
+    zmq_close(zmq_main_socket_);
+    zmq_main_socket_ = nullptr;
+  }
+  if (zmq_main_context_) {
+    zmq_ctx_destroy(zmq_main_context_);
+    zmq_main_context_ = nullptr;
+  }
 
   // Cleanup task queue in shared header (queue handles cleanup automatically)
   // Only the last process to detach will actually destroy shared data
@@ -760,25 +771,55 @@ bool IpcManager::TryStartMainServer(const std::string &hostname) {
   ConfigManager *config = CHI_CONFIG_MANAGER;
 
   try {
-    // Try to start main server using HSHM Lightbeam
-    std::string protocol = "tcp";
-    u32 port = config->GetZmqPort(); // Use ZMQ port for main server
-
-    main_server_ = hshm::lbm::TransportFactory::GetServer(
-        hostname, hshm::lbm::Transport::kZeroMq, protocol, port);
-
-    if (main_server_ != nullptr) {
-      HILOG(kDebug, "Main server successfully bound to {}:{}", hostname, port);
-      return true;
+    // Create ZeroMQ context and socket for main server
+    zmq_main_context_ = zmq_ctx_new();
+    if (!zmq_main_context_) {
+      throw std::runtime_error("Failed to create ZeroMQ context");
     }
 
-    return false;
+    zmq_main_socket_ = zmq_socket(zmq_main_context_, ZMQ_PULL);
+    if (!zmq_main_socket_) {
+      zmq_ctx_destroy(zmq_main_context_);
+      zmq_main_context_ = nullptr;
+      throw std::runtime_error("Failed to create ZeroMQ socket");
+    }
+
+    // Bind the socket
+    std::string protocol = "tcp";
+    u32 port = config->GetZmqPort();
+    std::string full_url = protocol + "://" + hostname + ":" + std::to_string(port);
+
+    int rc = zmq_bind(zmq_main_socket_, full_url.c_str());
+    if (rc != 0) {
+      std::string err = "Failed to bind ZeroMQ socket to " + full_url + ": " + zmq_strerror(zmq_errno());
+      zmq_close(zmq_main_socket_);
+      zmq_ctx_destroy(zmq_main_context_);
+      zmq_main_socket_ = nullptr;
+      zmq_main_context_ = nullptr;
+      throw std::runtime_error(err);
+    }
+
+    HILOG(kDebug, "Main server successfully bound to {}:{}", hostname, port);
+    return true;
+
   } catch (const std::exception &e) {
     // Exception will be caught and handled by caller
     throw;
   } catch (...) {
     throw std::runtime_error("Unknown error starting main server");
   }
+}
+
+hshm::lbm::Server* IpcManager::GetMainServer() const {
+  return main_server_.get();
+}
+
+void* IpcManager::GetMainZmqSocket() const {
+  return zmq_main_socket_;
+}
+
+void* IpcManager::GetMainZmqContext() const {
+  return zmq_main_context_;
 }
 
 // No template instantiations needed - all templates are inline in header

@@ -6,7 +6,7 @@ Assumes chimaera has been installed and binaries are available in PATH.
 """
 from jarvis_cd.core.pkg import Service
 from jarvis_cd.shell import Exec, LocalExecInfo, PsshExecInfo
-from jarvis_cd.shell.process import Kill, Which, GdbServer
+from jarvis_cd.shell.process import Kill, GdbServer
 from jarvis_cd.util import SizeType
 import os
 import yaml
@@ -164,10 +164,7 @@ class WrpRuntime(Service):
         self.log(f"Generated Chimaera configuration: {self.config_file}")
 
     def start(self):
-        """Start the IOWarp runtime service on all nodes"""
-        # Verify chimaera_start_runtime is available
-        Which('chimaera_start_runtime', LocalExecInfo(env=self.env)).run()
-
+        """Start the IOWarp runtime service on all nodes""" 
         # Launch runtime on all nodes using PsshExecInfo
         # IMPORTANT: Use env (shared environment), not mod_env
         self.log(f"Starting IOWarp runtime on all nodes")
@@ -180,13 +177,13 @@ class WrpRuntime(Service):
         # Execute with or without debugging
         if self.config.get('do_dbg', False):
             self.log(f"Starting with GDB server on port {self.config['dbg_port']}")
-            GdbServer(cmd, self.config['dbg_port'], LocalExecInfo(
+            GdbServer(cmd, self.config['dbg_port'], PsshExecInfo(
                 env=self.env,
                 hostfile=self.jarvis.hostfile,
                 exec_async=True
             )).run()
         else:
-            Exec(cmd, LocalExecInfo(
+            Exec(cmd, PsshExecInfo(
                 env=self.env,  # Use env, not mod_env
                 hostfile=self.jarvis.hostfile,
                 exec_async=True
@@ -199,14 +196,6 @@ class WrpRuntime(Service):
     def stop(self):
         """Stop the IOWarp runtime service on all nodes"""
         self.log("Stopping IOWarp runtime on all nodes")
-
-        # Verify chimaera_stop_runtime is available
-        try:
-            Which('chimaera_stop_runtime', LocalExecInfo(env=self.env)).run()
-        except:
-            self.log("chimaera_stop_runtime not found, attempting forcible kill")
-            self.kill()
-            return
 
         # Use chimaera_stop_runtime to gracefully shutdown
         # The stop binary will also read CHI_SERVER_CONF from environment

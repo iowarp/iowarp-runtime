@@ -94,23 +94,23 @@ TEST_CASE("TaskLoadInArchive - Basic Construction", "[task_archive][input_in]") 
     
     // Archive should be constructed successfully
     // We can't easily test internal state, but construction should not throw
-    REQUIRE_NOTHROW(archive.GetBulkTransfers());
+    REQUIRE_NOTHROW(archive.GetDataTransfers());
   }
   
   SECTION("Construction from const char* and size") {
     const char* test_data = "test data";
     size_t size = strlen(test_data);
     chi::TaskLoadInArchive archive(test_data, size);
-    
+
     // Archive should be constructed successfully
-    REQUIRE_NOTHROW(archive.GetBulkTransfers());
+    REQUIRE_NOTHROW(archive.GetDataTransfers());
   }
   
   SECTION("Bulk transfers should be empty initially") {
     std::string test_data = "test";
     chi::TaskLoadInArchive archive(test_data);
-    
-    auto bulk_transfers = archive.GetBulkTransfers();
+
+    auto bulk_transfers = archive.GetDataTransfers();
     REQUIRE(bulk_transfers.empty());
   }
 }
@@ -186,10 +186,10 @@ TEST_CASE("Bulk Transfer Recording", "[task_archive][bulk_transfer]") {
     hipc::Pointer test_ptr;  // Null pointer for testing
     size_t test_size = 1024;
     uint32_t test_flags = kTestWriteFlag | kTestExposeFlag;
-    
+
     REQUIRE_NOTHROW(archive.bulk(test_ptr, test_size, test_flags));
-    
-    auto bulk_transfers = archive.GetBulkTransfers();
+
+    auto bulk_transfers = archive.GetDataTransfers();
     REQUIRE(bulk_transfers.size() == 1);
     REQUIRE(bulk_transfers[0].size == test_size);
     REQUIRE(bulk_transfers[0].flags == test_flags);
@@ -580,14 +580,14 @@ TEST_CASE("Error Handling and Edge Cases", "[task_archive][error_handling]") {
     int value;
     // Note: cereal may throw, so we wrap in try-catch in real usage
     // For this test, we just verify the archive can be constructed
-    REQUIRE_NOTHROW(archive.GetBulkTransfers());
+    REQUIRE_NOTHROW(archive.GetDataTransfers());
   }
   
   SECTION("Empty serialization data") {
     std::string empty_data = "";
     chi::TaskLoadInArchive archive(empty_data);
-    
-    REQUIRE(archive.GetBulkTransfers().empty());
+
+    REQUIRE(archive.GetDataTransfers().empty());
   }
   
   SECTION("Bulk transfer with null pointer") {

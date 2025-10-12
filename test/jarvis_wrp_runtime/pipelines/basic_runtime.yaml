@@ -30,3 +30,4 @@ pkgs:
     queue_depth: 10000
     heartbeat_interval: 1000
     task_timeout: 30000
+    sleep: 1

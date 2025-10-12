@@ -22,25 +22,24 @@ class Task;
 
 /**
  * Data transfer object for handling bulk data transfers
- * Stores char* instead of hipc::Pointer for network transfer compatibility
+ * Stores hipc::FullPtr for network transfer with pointer serialization
  */
 struct DataTransfer {
-  char* data;             /**< Raw data pointer for transfer */
-  size_t size;            /**< Size of data */
-  uint32_t flags;         /**< Transfer flags (CHI_WRITE, CHI_EXPOSE) */
-  
-  DataTransfer() : data(nullptr), size(0), flags(0) {}
-  DataTransfer(char* d, size_t s, uint32_t f) : data(d), size(s), flags(f) {}
-  DataTransfer(hipc::Pointer ptr, size_t s, uint32_t f) : data(nullptr), size(s), flags(f) {
-    // TODO: Convert hipc::Pointer to char* when networking layer provides conversion method
-    // For now, data is set to nullptr as hipc::Pointer doesn't directly convert to char*
-  }
-  
+  hipc::FullPtr<char> data;  /**< Full pointer for transfer */
+  size_t size;               /**< Size of data */
+  uint32_t flags;            /**< Transfer flags (CHI_WRITE, CHI_EXPOSE) */
+
+  DataTransfer() : size(0), flags(0) {}
+  DataTransfer(const hipc::FullPtr<char>& d, size_t s, uint32_t f)
+      : data(d), size(s), flags(f) {}
+  DataTransfer(hipc::Pointer ptr, size_t s, uint32_t f)
+      : data(hipc::FullPtr<char>(ptr)), size(s), flags(f) {}
+
   // Serialization support for cereal
   template<class Archive>
   void serialize(Archive& ar) {
-    ar(size, flags);
-    // Note: data pointer is not serialized - handled separately by network layer
+    ar(data, size, flags);
+    // FullPtr can be serialized - it stores allocator ID and offset
   }
 };
 
@@ -65,31 +64,37 @@ private:
   std::string data_;
   std::unique_ptr<std::istringstream> stream_;
   std::unique_ptr<cereal::BinaryInputArchive> archive_;
-  std::vector<BulkTransferInfo> bulk_transfers_;
+  std::vector<DataTransfer> data_transfers_;
+  size_t task_count_;
 
 public:
   /** Constructor from serialized data */
-  explicit TaskLoadInArchive(const std::string& data) 
+  explicit TaskLoadInArchive(const std::string& data)
       : data_(data),
         stream_(std::make_unique<std::istringstream>(data_)),
-        archive_(std::make_unique<cereal::BinaryInputArchive>(*stream_)) {}
-
-  /** Constructor with allocator (for compatibility - allocator is unused for input archives) */
-  explicit TaskLoadInArchive(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T>& alloc)
-      : TaskLoadInArchive("") {}
+        archive_(std::make_unique<cereal::BinaryInputArchive>(*stream_)),
+        task_count_(0) {}
 
   /** Constructor from const char* and size */
   TaskLoadInArchive(const char* data, size_t size)
       : data_(data, size),
         stream_(std::make_unique<std::istringstream>(data_)),
-        archive_(std::make_unique<cereal::BinaryInputArchive>(*stream_)) {}
+        archive_(std::make_unique<cereal::BinaryInputArchive>(*stream_)),
+        task_count_(0) {}
+
+  /** Default constructor */
+  TaskLoadInArchive()
+      : stream_(std::make_unique<std::istringstream>("")),
+        archive_(std::make_unique<cereal::BinaryInputArchive>(*stream_)),
+        task_count_(0) {}
 
   /** Move constructor */
   TaskLoadInArchive(TaskLoadInArchive&& other) noexcept
       : data_(std::move(other.data_)),
         stream_(std::move(other.stream_)),
         archive_(std::move(other.archive_)),
-        bulk_transfers_(std::move(other.bulk_transfers_)) {}
+        data_transfers_(std::move(other.data_transfers_)),
+        task_count_(other.task_count_) {}
 
   /** Move assignment operator */
   TaskLoadInArchive& operator=(TaskLoadInArchive&& other) noexcept {
@@ -97,7 +102,8 @@ public:
       data_ = std::move(other.data_);
       stream_ = std::move(other.stream_);
       archive_ = std::move(other.archive_);
-      bulk_transfers_ = std::move(other.bulk_transfers_);
+      data_transfers_ = std::move(other.data_transfers_);
+      task_count_ = other.task_count_;
     }
     return *this;
   }
@@ -125,16 +131,40 @@ public:
     ((*this >> args), ...);
   }
 
-  /** Bulk transfer support */
-  void bulk(hipc::Pointer ptr, size_t size, uint32_t flags) {
-    bulk_transfers_.emplace_back(ptr, size, flags);
-    // For input archives, we typically just record the bulk transfer info
-    // The actual data transfer would be handled by the networking layer
+  /** Bulk transfer support - records transfer for later allocation */
+  void bulk(hipc::Pointer& ptr, size_t size, uint32_t flags) {
+    // For input archives, just record the transfer info
+    // The actual buffer allocation will be done by the caller after LoadFromMessage
+    // using CHI_IPC->AllocateBuffer<char>(size) and the DataTransfer info
+    data_transfers_.emplace_back(ptr, size, flags);
   }
 
-  /** Get bulk transfer information */
-  const std::vector<BulkTransferInfo>& GetBulkTransfers() const {
-    return bulk_transfers_;
+  /** Get data transfer information */
+  const std::vector<DataTransfer>& GetDataTransfers() const {
+    return data_transfers_;
+  }
+
+  /** Get task count */
+  size_t GetTaskCount() const {
+    return task_count_;
+  }
+
+  /** Load archive from BuildMessage() output */
+  void LoadFromMessage(const std::string& message) {
+    // Deserialize the message using cereal
+    std::istringstream msg_stream(message);
+    cereal::BinaryInputArchive msg_archive(msg_stream);
+
+    // Deserialize components: task_count, archive_data, data_transfers
+    std::string archive_data;
+    msg_archive(task_count_);
+    msg_archive(archive_data);
+    msg_archive(data_transfers_);
+
+    // Reconstruct the internal archive from the archive_data
+    data_ = archive_data;
+    stream_ = std::make_unique<std::istringstream>(data_);
+    archive_ = std::make_unique<cereal::BinaryInputArchive>(*stream_);
   }
 
   /** Access underlying cereal archive */
@@ -154,25 +184,17 @@ private:
 
 public:
   /** Constructor with task count - serializes task count first */
-  explicit TaskSaveInArchive(size_t task_count) 
+  explicit TaskSaveInArchive(size_t task_count)
       : archive_(std::make_unique<cereal::BinaryOutputArchive>(stream_)),
         task_count_(task_count) {
     // Serialize task count first
     (*archive_)(task_count_);
   }
 
-  /** Constructor with allocator and task count */
-  TaskSaveInArchive(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T>& alloc, size_t task_count)
-      : TaskSaveInArchive(task_count) {}
-
   /** Default constructor (deprecated - use task count constructor) */
-  TaskSaveInArchive() 
+  TaskSaveInArchive()
       : archive_(std::make_unique<cereal::BinaryOutputArchive>(stream_)),
         task_count_(0) {}
-
-  /** Constructor with allocator only (deprecated - use task count constructor) */
-  explicit TaskSaveInArchive(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T>& alloc)
-      : TaskSaveInArchive() {}
 
   /** Move constructor */
   TaskSaveInArchive(TaskSaveInArchive&& other) noexcept
@@ -240,6 +262,29 @@ public:
     return task_count_;
   }
 
+  /** Build message for network transfer */
+  std::string BuildMessage() {
+    // First, finalize the main archive by ensuring all data is flushed
+    archive_.reset();  // Flush and close the archive
+
+    // Create a new stream for the complete message
+    std::ostringstream msg_stream;
+    cereal::BinaryOutputArchive msg_archive(msg_stream);
+
+    // Serialize the components:
+    // 1. Task count
+    msg_archive(task_count_);
+
+    // 2. Binary archive data (as string)
+    std::string archive_data = stream_.str();
+    msg_archive(archive_data);
+
+    // 3. DataTransfer vector
+    msg_archive(data_transfers_);
+
+    return msg_stream.str();
+  }
+
   /** Access underlying cereal archive */
   cereal::BinaryOutputArchive& GetArchive() { return *archive_; }
 };
@@ -262,14 +307,15 @@ public:
         stream_(std::make_unique<std::istringstream>(data_)),
         archive_(std::make_unique<cereal::BinaryInputArchive>(*stream_)) {}
 
-  /** Constructor with allocator (for compatibility - allocator is unused for input archives) */
-  explicit TaskLoadOutArchive(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T>& alloc)
-      : TaskLoadOutArchive("") {}
-
   /** Constructor from const char* and size */
   TaskLoadOutArchive(const char* data, size_t size)
       : data_(data, size),
         stream_(std::make_unique<std::istringstream>(data_)),
+        archive_(std::make_unique<cereal::BinaryInputArchive>(*stream_)) {}
+
+  /** Default constructor */
+  TaskLoadOutArchive()
+      : stream_(std::make_unique<std::istringstream>("")),
         archive_(std::make_unique<cereal::BinaryInputArchive>(*stream_)) {}
 
   /** Move constructor */
@@ -341,10 +387,6 @@ public:
   /** Default constructor */
   TaskSaveOutArchive()
       : archive_(std::make_unique<cereal::BinaryOutputArchive>(stream_)) {}
-
-  /** Constructor with allocator (for compatibility - allocator is unused for output archives) */
-  explicit TaskSaveOutArchive(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T>& alloc)
-      : TaskSaveOutArchive() {}
 
   /** Move constructor */
   TaskSaveOutArchive(TaskSaveOutArchive&& other) noexcept

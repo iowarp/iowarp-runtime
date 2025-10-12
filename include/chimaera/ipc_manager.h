@@ -321,6 +321,24 @@ class IpcManager {
    */
   LaneMapPolicy GetLaneMapPolicy() const;
 
+  /**
+   * Get the main ZeroMQ server for network communication
+   * @return Pointer to main server or nullptr if not initialized
+   */
+  hshm::lbm::Server* GetMainServer() const;
+
+  /**
+   * Get the underlying ZeroMQ socket from the main server
+   * @return ZeroMQ socket handle or nullptr if not initialized
+   */
+  void* GetMainZmqSocket() const;
+
+  /**
+   * Get the underlying ZeroMQ context from the main server
+   * @return ZeroMQ context handle or nullptr if not initialized
+   */
+  void* GetMainZmqContext() const;
+
  private:
   /**
    * Map task to lane ID using the configured policy
@@ -434,7 +452,11 @@ class IpcManager {
   
   // Main ZeroMQ server for distributed communication
   std::unique_ptr<hshm::lbm::Server> main_server_;
-  
+
+  // Direct ZeroMQ access (for multi-part message support)
+  void* zmq_main_context_ = nullptr;  // ZeroMQ context for main server
+  void* zmq_main_socket_ = nullptr;   // ZeroMQ socket for main server
+
   // Hostfile management
   std::unordered_map<u64, Host> hostfile_map_; // Map node_id -> Host
   Host this_host_; // Identified host for this node
