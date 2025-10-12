@@ -76,7 +76,7 @@ struct BaseCreateTask : public chi::Task {
   /** Emplace constructor with CreateParams arguments */
   template <typename... CreateParamsArgs>
   explicit BaseCreateTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
-                          const chi::TaskNode &task_node,
+                          const chi::TaskId &task_node,
                           const chi::PoolId &task_pool_id,
                           const chi::PoolQuery &pool_query,
                           const std::string &chimod_name,
@@ -91,7 +91,7 @@ struct BaseCreateTask : public chi::Task {
         error_message_(alloc),
         is_admin_(IS_ADMIN) {
     // Initialize base task
-    task_node_ = task_node;
+    task_id_ = task_node;
     method_ = MethodId;
     task_flags_.Clear();
     pool_query_ = pool_query;
@@ -181,7 +181,7 @@ struct DestroyPoolTask : public chi::Task {
 
   /** Emplace constructor */
   explicit DestroyPoolTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
-                           const chi::TaskNode &task_node,
+                           const chi::TaskId &task_node,
                            const chi::PoolId &pool_id,
                            const chi::PoolQuery &pool_query,
                            chi::PoolId target_pool_id,
@@ -191,7 +191,7 @@ struct DestroyPoolTask : public chi::Task {
         destruction_flags_(destruction_flags),
         error_message_(alloc) {
     // Initialize task
-    task_node_ = task_node;
+    task_id_ = task_node;
     pool_id_ = pool_id;
     method_ = Method::kDestroyPool;
     task_flags_.Clear();
@@ -237,7 +237,7 @@ struct StopRuntimeTask : public chi::Task {
 
   /** Emplace constructor */
   explicit StopRuntimeTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
-                           const chi::TaskNode &task_node,
+                           const chi::TaskId &task_node,
                            const chi::PoolId &pool_id,
                            const chi::PoolQuery &pool_query,
                            chi::u32 shutdown_flags = 0,
@@ -247,7 +247,7 @@ struct StopRuntimeTask : public chi::Task {
         grace_period_ms_(grace_period_ms),
         error_message_(alloc) {
     // Initialize task
-    task_node_ = task_node;
+    task_id_ = task_node;
     pool_id_ = pool_id;
     method_ = Method::kStopRuntime;
     task_flags_.Clear();
@@ -288,12 +288,12 @@ struct FlushTask : public chi::Task {
 
   /** Emplace constructor */
   explicit FlushTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
-                     const chi::TaskNode &task_node, const chi::PoolId &pool_id,
+                     const chi::TaskId &task_node, const chi::PoolId &pool_id,
                      const chi::PoolQuery &pool_query)
       : chi::Task(alloc, task_node, pool_id, pool_query, 10),
         total_work_done_(0) {
     // Initialize task
-    task_node_ = task_node;
+    task_id_ = task_node;
     pool_id_ = pool_id;
     method_ = Method::kFlush;
     task_flags_.Clear();
@@ -356,7 +356,7 @@ struct ClientSendTaskInTask : public chi::Task {
   /** Emplace constructor */
   explicit ClientSendTaskInTask(
       const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
-      const chi::TaskNode &task_node, const chi::PoolId &pool_id,
+      const chi::TaskId &task_node, const chi::PoolId &pool_id,
       const chi::PoolQuery &pool_query,
       const std::vector<chi::PoolQuery> &pool_queries,
       hipc::FullPtr<chi::Task> task_to_send, chi::u32 transfer_flags = 0)
@@ -367,7 +367,7 @@ struct ClientSendTaskInTask : public chi::Task {
         transfer_flags_(transfer_flags),
         error_message_(alloc) {
     // Initialize task
-    task_node_ = task_node;
+    task_id_ = task_node;
     pool_id_ = pool_id;
     method_ = Method::kClientSendTaskIn;
     task_flags_.Clear();
@@ -414,14 +414,14 @@ struct ServerRecvTaskInTask : public chi::Task {
   /** Emplace constructor */
   explicit ServerRecvTaskInTask(
       const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
-      const chi::TaskNode &task_node, const chi::PoolId &pool_id,
+      const chi::TaskId &task_node, const chi::PoolId &pool_id,
       const chi::PoolQuery &pool_query, chi::u32 transfer_flags = 0)
       : chi::Task(alloc, task_node, pool_id, pool_query,
                   Method::kServerRecvTaskIn),
         transfer_flags_(transfer_flags),
         error_message_(alloc) {
     // Initialize task
-    task_node_ = task_node;
+    task_id_ = task_node;
     pool_id_ = pool_id;
     method_ = Method::kServerRecvTaskIn;
     task_flags_.Clear();
@@ -473,7 +473,7 @@ struct ServerSendTaskOutTask : public chi::Task {
   /** Emplace constructor */
   explicit ServerSendTaskOutTask(
       const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
-      const chi::TaskNode &task_node, const chi::PoolId &pool_id,
+      const chi::TaskId &task_node, const chi::PoolId &pool_id,
       const chi::PoolQuery &pool_query, hipc::FullPtr<chi::Task> completed_task,
       chi::u32 transfer_flags = 0)
       : chi::Task(alloc, task_node, pool_id, pool_query,
@@ -482,7 +482,7 @@ struct ServerSendTaskOutTask : public chi::Task {
         transfer_flags_(transfer_flags),
         error_message_(alloc) {
     // Initialize task
-    task_node_ = task_node;
+    task_id_ = task_node;
     pool_id_ = pool_id;
     method_ = Method::kServerSendTaskOut;
     task_flags_.Clear();
@@ -529,14 +529,14 @@ struct ClientRecvTaskOutTask : public chi::Task {
   /** Emplace constructor */
   explicit ClientRecvTaskOutTask(
       const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
-      const chi::TaskNode &task_node, const chi::PoolId &pool_id,
+      const chi::TaskId &task_node, const chi::PoolId &pool_id,
       const chi::PoolQuery &pool_query, chi::u32 transfer_flags = 0)
       : chi::Task(alloc, task_node, pool_id, pool_query,
                   Method::kClientRecvTaskOut),
         transfer_flags_(transfer_flags),
         error_message_(alloc) {
     // Initialize task
-    task_node_ = task_node;
+    task_id_ = task_node;
     pool_id_ = pool_id;
     method_ = Method::kClientRecvTaskOut;
     task_flags_.Clear();

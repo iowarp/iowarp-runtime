@@ -47,10 +47,10 @@
  * 
  * // Initialize the configuration manager
  * CHI_CONFIG_MANAGER->Init();
- * 
+ *
  * // Get worker thread count from config
- * u32 workers = CHI_CONFIG_MANAGER->GetWorkerThreadCount(ThreadType::kLowLatency);
- * 
+ * u32 workers = CHI_CONFIG_MANAGER->GetWorkerThreadCount(ThreadType::kSchedWorker);
+ *
  * // Initialize IPC components
  * CHI_IPC->ServerInit();
  * 

@@ -56,10 +56,10 @@ void Task::Wait(double wait_time_us, bool from_yield) {
     if (run_ctx->is_blocked) {
       HELOG(kFatal,
             "Worker {}: Task is already blocked when calling Wait()! "
-            "Task ptr: {:#x}, Pool: {}, Method: {}, TaskNode: {}.{}.{}.{}",
+            "Task ptr: {:#x}, Pool: {}, Method: {}, TaskId: {}.{}.{}.{}.{}",
             worker->GetId(), reinterpret_cast<uintptr_t>(this), pool_id_,
-            method_, task_node_.pid_, task_node_.tid_, task_node_.major_,
-            task_node_.minor_);
+            method_, task_id_.pid_, task_id_.tid_, task_id_.major_,
+            task_id_.minor_, task_id_.unique_);
       std::abort();
     }
 

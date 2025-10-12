@@ -1,7 +1,6 @@
 @CLAUDE.md Implement the following methods in the runtime code for the admin chimod. Also update the archives in @include/chimaera/task_archives.h accordingly. Use ZeroMQ apis directly for this. Do not write stub implementations.
 
-The admin should store an unordered_map of tasks. Tasks should not appear multiple times in the map. We should replace TaskNode type with TaskId. It should have the same parameters as TaskNode and should behave similar, with one exception: it should also have a parameter called "unique", which increments the same counter as major, which is called during construction or increment,
-but not during copy.
+The admin should store an unordered_map of tasks. It should map TaskId to FullPtr<Task>. Tasks should not appear multiple times in the map. We should rename TaskNode to TaskId. It should also have a parameter called "unique", which increments the same counter as major, but it should be incremented when creating subtasks as well, not just the root task. Remove all backwards-compatability code as well. Not just for TaskNode, anywhere in the codebase.
 
 # ServerSaveOutArchive
 

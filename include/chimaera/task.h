@@ -39,7 +39,7 @@ struct RunContext;
 class Task : public hipc::ShmContainer {
 public:
   IN PoolId pool_id_;       /**< Pool identifier for task execution */
-  IN TaskNode task_node_;   /**< Node identifier for task routing */
+  IN TaskId task_id_;       /**< Task identifier for task routing */
   IN PoolQuery pool_query_; /**< Pool query for execution location */
   IN MethodId method_;      /**< Method identifier for task type */
   IN ibitfield task_flags_; /**< Task properties and flags */
@@ -63,11 +63,11 @@ public:
    * Emplace constructor with task initialization
    */
   explicit Task(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
-                const TaskNode &task_node, const PoolId &pool_id,
+                const TaskId &task_id, const PoolId &pool_id,
                 const PoolQuery &pool_query, const MethodId &method)
       : hipc::ShmContainer() {
     // Initialize task
-    task_node_ = task_node;
+    task_id_ = task_id;
     pool_id_ = pool_id;
     method_ = method;
     task_flags_.SetBits(0);
@@ -93,7 +93,7 @@ public:
   template <typename ContainerT>
   HSHM_CROSS_FUN void shm_strong_copy_main(const ContainerT &other) {
     pool_id_ = other.pool_id_;
-    task_node_ = other.task_node_;
+    task_id_ = other.task_id_;
     pool_query_ = other.pool_query_;
     method_ = other.method_;
     task_flags_ = other.task_flags_;
@@ -135,7 +135,7 @@ public:
    */
   HSHM_INLINE_CROSS_FUN void SetNull() {
     pool_id_ = PoolId::GetNull();
-    task_node_ = 0;
+    task_id_ = TaskId();
     pool_query_ = PoolQuery();
     method_ = 0;
     task_flags_.Clear();
@@ -292,7 +292,7 @@ public:
   template <typename Archive> void BaseSerializeIn(Archive &ar) {
     // Handle atomic return_code_ by loading/storing its value
     u32 return_code_value = return_code_.load();
-    ar(pool_id_, task_node_, pool_query_, method_, task_flags_, period_ns_,
+    ar(pool_id_, task_id_, pool_query_, method_, task_flags_, period_ns_,
        net_key_, return_code_value);
     return_code_.store(return_code_value);
   }
@@ -307,7 +307,7 @@ public:
   template <typename Archive> void BaseSerializeOut(Archive &ar) {
     // Handle atomic return_code_ by loading/storing its value
     u32 return_code_value = return_code_.load();
-    ar(pool_id_, task_node_, pool_query_, method_, task_flags_, period_ns_,
+    ar(pool_id_, task_id_, pool_query_, method_, task_flags_, period_ns_,
        net_key_, return_code_value);
     return_code_.store(return_code_value);
   }

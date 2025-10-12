@@ -112,41 +112,40 @@ inline std::ostream& operator<<(std::ostream& os, const PoolId& pool_id) {
 }
 
 /**
- * Task node identifier containing process, thread, and sequence information
+ * Task identifier containing process, thread, and sequence information
  */
-struct TaskNode {
+struct TaskId {
   u32 pid_;       ///< Process ID
   u32 tid_;       ///< Thread ID
   u32 major_;     ///< Major sequence number (monotonically increasing per thread)
   u32 minor_;     ///< Minor sequence number (for sub-tasks)
+  u32 unique_;    ///< Unique identifier incremented for both root tasks and subtasks
 
-  TaskNode() : pid_(0), tid_(0), major_(0), minor_(0) {}
-  TaskNode(u32 pid, u32 tid, u32 major, u32 minor = 0) 
-      : pid_(pid), tid_(tid), major_(major), minor_(minor) {}
-
-  // For backward compatibility with u32 constructor
-  TaskNode(u32 simple_id) : pid_(0), tid_(0), major_(simple_id), minor_(0) {}
+  TaskId() : pid_(0), tid_(0), major_(0), minor_(0), unique_(0) {}
+  TaskId(u32 pid, u32 tid, u32 major, u32 minor = 0, u32 unique = 0)
+      : pid_(pid), tid_(tid), major_(major), minor_(minor), unique_(unique) {}
 
   // Equality operators
-  bool operator==(const TaskNode& other) const {
-    return pid_ == other.pid_ && tid_ == other.tid_ && 
-           major_ == other.major_ && minor_ == other.minor_;
+  bool operator==(const TaskId& other) const {
+    return pid_ == other.pid_ && tid_ == other.tid_ &&
+           major_ == other.major_ && minor_ == other.minor_ &&
+           unique_ == other.unique_;
   }
 
-  bool operator!=(const TaskNode& other) const {
+  bool operator!=(const TaskId& other) const {
     return !(*this == other);
   }
 
-  // Convert to u64 for hashing (combine pid, tid, major)
+  // Convert to u64 for hashing (combine pid, tid, major, unique)
   u64 ToU64() const {
-    return (static_cast<u64>(pid_) << 48) | (static_cast<u64>(tid_) << 32) | 
+    return (static_cast<u64>(pid_) << 48) | (static_cast<u64>(tid_) << 32) |
            (static_cast<u64>(major_) << 16) | static_cast<u64>(minor_);
   }
 
   // Serialization support
   template<typename Ar>
   void serialize(Ar& ar) {
-    ar(pid_, tid_, major_, minor_);
+    ar(pid_, tid_, major_, minor_, unique_);
   }
 };
 
@@ -226,12 +225,6 @@ struct AddressHash {
 #define CHI_WRITE BIT_OPT(chi::u32, 0)    ///< Copy data from pointer to remote location
 #define CHI_EXPOSE BIT_OPT(chi::u32, 1)   ///< Copy pointer to remote so remote can write to it
 
-// Queue priorities (kept for backward compatibility but not used for worker routing)
-enum QueuePriority {
-  kLowLatency = 0,
-  kHighLatency = 1
-};
-
 // Thread types for work orchestrator
 enum ThreadType {
   kSchedWorker = 0,      ///< Unified scheduler worker (replaces separate latency types)
@@ -271,25 +264,25 @@ extern hshm::ThreadLocalKey chi_cur_worker_key_;
 extern hshm::ThreadLocalKey chi_task_counter_key_;
 
 /**
- * Thread-local task counter for generating unique TaskNode major numbers
+ * Thread-local task counter for generating unique TaskId major and unique numbers
  */
 struct TaskCounter {
   u32 counter_;
-  
+
   TaskCounter() : counter_(0) {}
-  
+
   u32 GetNext() {
     return ++counter_;
   }
 };
 
 /**
- * Create a new TaskNode with current process/thread info and next major counter
- * In runtime mode: copies current task's TaskNode and increments minor by 1
- * In client mode: creates new TaskNode with fresh major counter and minor = 0
- * @return TaskNode with pid, tid, major, and minor populated
+ * Create a new TaskId with current process/thread info and next major counter
+ * In runtime mode: copies current task's TaskId and increments both minor and unique
+ * In client mode: creates new TaskId with fresh major counter, minor = 0, and unique from counter
+ * @return TaskId with pid, tid, major, minor, and unique populated
  */
-TaskNode CreateTaskNode();
+TaskId CreateTaskId();
 
 // Template aliases for full pointers using HSHM
 template<typename T>
@@ -312,9 +305,9 @@ namespace std {
 
 
   template <>
-  struct hash<chi::TaskNode> {
-    size_t operator()(const chi::TaskNode& node) const {
-      return hash<chi::u64>()(node.ToU64());
+  struct hash<chi::TaskId> {
+    size_t operator()(const chi::TaskId& id) const {
+      return hash<chi::u64>()(id.ToU64());
     }
   };
 

@@ -69,7 +69,7 @@ class Client : public chi::ContainerClient {
     // Allocate CreateTask for admin container creation
     // Note: Admin uses BaseCreateTask pattern, not GetOrCreatePoolTask
     // The pool_name parameter is stored but may not be used the same way as other ChiMods
-    auto task = ipc_manager->NewTask<CreateTask>(chi::CreateTaskNode(),
+    auto task = ipc_manager->NewTask<CreateTask>(chi::CreateTaskId(),
                                                  chi::kAdminPoolId, pool_query, "", pool_name, pool_id_);
 
     // Submit to runtime
@@ -111,7 +111,7 @@ class Client : public chi::ContainerClient {
 
     // Allocate DestroyPoolTask
     auto task = ipc_manager->NewTask<DestroyPoolTask>(
-        chi::CreateTaskNode(), pool_id_, pool_query, target_pool_id,
+        chi::CreateTaskId(), pool_id_, pool_query, target_pool_id,
         destruction_flags);
 
     // Submit to runtime
@@ -158,7 +158,7 @@ class Client : public chi::ContainerClient {
 
     // Allocate ClientSendTaskInTask with pool queries and task
     auto task = ipc_manager->NewTask<ClientSendTaskInTask>(
-        chi::CreateTaskNode(), pool_id_, local_pool_query, pool_queries,
+        chi::CreateTaskId(), pool_id_, local_pool_query, pool_queries,
         task_to_send, 0);
 
     // Submit to runtime
@@ -199,7 +199,7 @@ class Client : public chi::ContainerClient {
 
     // Allocate ServerRecvTaskInTask for periodic polling
     auto task = ipc_manager->NewTask<ServerRecvTaskInTask>(
-        chi::CreateTaskNode(), pool_id_, pool_query, 0);
+        chi::CreateTaskId(), pool_id_, pool_query, 0);
 
     // Submit to runtime
     ipc_manager->Enqueue(task);
@@ -244,7 +244,7 @@ class Client : public chi::ContainerClient {
     // Allocate ServerSendTaskOutTask with the original completed task (no
     // serialization)
     auto task = ipc_manager->NewTask<ServerSendTaskOutTask>(
-        chi::CreateTaskNode(), pool_id_, pool_query,
+        chi::CreateTaskId(), pool_id_, pool_query,
         static_cast<hipc::FullPtr<chi::Task>>(completed_task), 0);
 
     // Submit to runtime
@@ -285,7 +285,7 @@ class Client : public chi::ContainerClient {
 
     // Allocate ClientRecvTaskOutTask for periodic polling
     auto task = ipc_manager->NewTask<ClientRecvTaskOutTask>(
-        chi::CreateTaskNode(), pool_id_, pool_query, 0);
+        chi::CreateTaskId(), pool_id_, pool_query, 0);
 
     // Submit to runtime
     ipc_manager->Enqueue(task);
@@ -321,7 +321,7 @@ class Client : public chi::ContainerClient {
     auto* ipc_manager = CHI_IPC;
 
     // Allocate FlushTask
-    auto task = ipc_manager->NewTask<FlushTask>(chi::CreateTaskNode(), pool_id_,
+    auto task = ipc_manager->NewTask<FlushTask>(chi::CreateTaskId(), pool_id_,
                                                 pool_query);
 
     // Submit to runtime
@@ -340,7 +340,7 @@ class Client : public chi::ContainerClient {
 
     // Allocate StopRuntimeTask
     auto task = ipc_manager->NewTask<StopRuntimeTask>(
-        chi::CreateTaskNode(), pool_id_, pool_query, shutdown_flags,
+        chi::CreateTaskId(), pool_id_, pool_query, shutdown_flags,
         grace_period_ms);
 
     // Submit to runtime

@@ -68,7 +68,7 @@ class Client : public chi::ContainerClient {
     // So we send it to admin pool (chi::kAdminPoolId), not to our target
     // pool_id_
     auto task = ipc_manager->NewTask<CreateTask>(
-        chi::CreateTaskNode(),
+        chi::CreateTaskId(),
         chi::kAdminPoolId,  // Send to admin pool for GetOrCreatePool processing
         pool_query,
         CreateParams::chimod_lib_name,  // chimod name from CreateParams
@@ -114,7 +114,7 @@ class Client : public chi::ContainerClient {
 
     // Allocate CustomTask
     auto task = ipc_manager->NewTask<CustomTask>(
-        chi::CreateTaskNode(), pool_id_, pool_query, input_data, operation_id);
+        chi::CreateTaskId(), pool_id_, pool_query, input_data, operation_id);
 
     // Submit to runtime
     ipc_manager->Enqueue(task);
@@ -151,7 +151,7 @@ class Client : public chi::ContainerClient {
 
     // Allocate CoMutexTestTask
     auto task = ipc_manager->NewTask<CoMutexTestTask>(
-        chi::CreateTaskNode(), pool_id_, pool_query, test_id, hold_duration_ms);
+        chi::CreateTaskId(), pool_id_, pool_query, test_id, hold_duration_ms);
 
     // Submit to runtime
     ipc_manager->Enqueue(task);
@@ -189,7 +189,7 @@ class Client : public chi::ContainerClient {
 
     // Allocate CoRwLockTestTask
     auto task = ipc_manager->NewTask<CoRwLockTestTask>(
-        chi::CreateTaskNode(), pool_id_, pool_query, test_id, is_writer,
+        chi::CreateTaskId(), pool_id_, pool_query, test_id, is_writer,
         hold_duration_ms);
 
     // Submit to runtime
@@ -214,7 +214,7 @@ class Client : public chi::ContainerClient {
     auto* ipc_manager = CHI_IPC;
 
     auto task = ipc_manager->NewTask<WaitTestTask>(
-        chi::CreateTaskNode(), pool_id_, pool_query, depth, test_id);
+        chi::CreateTaskId(), pool_id_, pool_query, depth, test_id);
 
     // Submit to runtime
     ipc_manager->Enqueue(task);

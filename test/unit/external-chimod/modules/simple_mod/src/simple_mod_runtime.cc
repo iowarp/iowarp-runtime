@@ -37,8 +37,8 @@ void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& rctx) {
   std::cout << "SimpleMod: Initializing simple_mod container" << std::endl;
 
   // Initialize the Simple Mod container with pool information from the task
-  // Create a single local queue for simple mod operations (high-latency priority, 1 lane)
-  CreateLocalQueue(kMetadataQueue, 1, chi::kHighLatency);  // Metadata operations
+  // Note: CreateLocalQueue has been removed in favor of unified scheduling
+  // CreateLocalQueue(kMetadataQueue, 1, 1);  // Metadata operations
 
   create_count_++;
 

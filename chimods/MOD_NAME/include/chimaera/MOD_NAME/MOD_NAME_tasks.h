@@ -69,7 +69,7 @@ struct CustomTask : public chi::Task {
   /** Emplace constructor */
   explicit CustomTask(
       const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
-      const chi::TaskNode &task_node,
+      const chi::TaskId &task_node,
       const chi::PoolId &pool_id, 
       const chi::PoolQuery &pool_query,
       const std::string &data,
@@ -77,7 +77,7 @@ struct CustomTask : public chi::Task {
       : chi::Task(alloc, task_node, pool_id, pool_query, 10),
         data_(alloc, data), operation_id_(operation_id) {
     // Initialize task
-    task_node_ = task_node;
+    task_id_ = task_node;
     pool_id_ = pool_id;
     method_ = Method::kCustom;
     task_flags_.Clear();
@@ -117,7 +117,7 @@ struct CoMutexTestTask : public chi::Task {
   /** Emplace constructor */
   explicit CoMutexTestTask(
       const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
-      const chi::TaskNode &task_node,
+      const chi::TaskId &task_node,
       const chi::PoolId &pool_id, 
       const chi::PoolQuery &pool_query,
       chi::u32 test_id,
@@ -125,7 +125,7 @@ struct CoMutexTestTask : public chi::Task {
       : chi::Task(alloc, task_node, pool_id, pool_query, 20),
         test_id_(test_id), hold_duration_ms_(hold_duration_ms) {
     // Initialize task
-    task_node_ = task_node;
+    task_id_ = task_node;
     pool_id_ = pool_id;
     method_ = Method::kCoMutexTest;
     task_flags_.Clear();
@@ -158,7 +158,7 @@ struct CoRwLockTestTask : public chi::Task {
   /** Emplace constructor */
   explicit CoRwLockTestTask(
       const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
-      const chi::TaskNode &task_node,
+      const chi::TaskId &task_node,
       const chi::PoolId &pool_id, 
       const chi::PoolQuery &pool_query,
       chi::u32 test_id,
@@ -167,7 +167,7 @@ struct CoRwLockTestTask : public chi::Task {
       : chi::Task(alloc, task_node, pool_id, pool_query, 21),
         test_id_(test_id), is_writer_(is_writer), hold_duration_ms_(hold_duration_ms) {
     // Initialize task
-    task_node_ = task_node;
+    task_id_ = task_node;
     pool_id_ = pool_id;
     method_ = Method::kCoRwLockTest;
     task_flags_.Clear();
@@ -201,7 +201,7 @@ struct WaitTestTask : public chi::Task {
   /** Emplace constructor */
   explicit WaitTestTask(
       const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
-      const chi::TaskNode &task_node,
+      const chi::TaskId &task_node,
       const chi::PoolId &pool_id, 
       const chi::PoolQuery &pool_query,
       chi::u32 depth,
@@ -209,7 +209,7 @@ struct WaitTestTask : public chi::Task {
       : chi::Task(alloc, task_node, pool_id, pool_query, 23),
         depth_(depth), test_id_(test_id), current_depth_(0) {
     // Initialize task
-    task_node_ = task_node;
+    task_id_ = task_node;
     pool_id_ = pool_id;
     method_ = Method::kWaitTest;
     task_flags_.Clear();

@@ -242,14 +242,6 @@ class ContainerClient {
 
  protected:
   /**
-   * Helper method to allocate and enqueue a task
-   * @param task_ptr Allocated task to enqueue
-   * @param priority Queue priority for the task
-   */
-  void EnqueueTask(hipc::FullPtr<Task>& task_ptr,
-                   QueuePriority priority = kLowLatency);
-
-  /**
    * Helper method to allocate a new task
    * @param args Arguments for task construction
    * @return Full pointer to allocated task

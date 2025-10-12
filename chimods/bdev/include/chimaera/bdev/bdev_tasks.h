@@ -183,14 +183,14 @@ struct AllocateBlocksTask : public chi::Task {
   /** Emplace constructor */
   explicit AllocateBlocksTask(
       const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
-      const chi::TaskNode &task_node,
+      const chi::TaskId &task_node,
       const chi::PoolId &pool_id, 
       const chi::PoolQuery &pool_query,
       chi::u64 size)
       : chi::Task(alloc, task_node, pool_id, pool_query, 10),
         size_(size), blocks_(alloc) {
     // Initialize task
-    task_node_ = task_node;
+    task_id_ = task_node;
     pool_id_ = pool_id;
     method_ = Method::kAllocateBlocks;
     task_flags_.Clear();
@@ -226,14 +226,14 @@ struct FreeBlocksTask : public chi::Task {
   /** Emplace constructor for multiple blocks */
   explicit FreeBlocksTask(
       const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
-      const chi::TaskNode &task_node,
+      const chi::TaskId &task_node,
       const chi::PoolId &pool_id, 
       const chi::PoolQuery &pool_query,
       const std::vector<Block>& blocks)
       : chi::Task(alloc, task_node, pool_id, pool_query, 10),
         blocks_(alloc) {
     // Initialize task
-    task_node_ = task_node;
+    task_id_ = task_node;
     pool_id_ = pool_id;
     method_ = Method::kFreeBlocks;
     task_flags_.Clear();
@@ -276,7 +276,7 @@ struct WriteTask : public chi::Task {
   /** Emplace constructor */
   explicit WriteTask(
       const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
-      const chi::TaskNode &task_node,
+      const chi::TaskId &task_node,
       const chi::PoolId &pool_id, 
       const chi::PoolQuery &pool_query,
       const Block& block,
@@ -286,7 +286,7 @@ struct WriteTask : public chi::Task {
         block_(block), data_(data), length_(length),
         bytes_written_(0) {
     // Initialize task
-    task_node_ = task_node;
+    task_id_ = task_node;
     pool_id_ = pool_id;
     method_ = Method::kWrite;
     task_flags_.Clear();
@@ -323,7 +323,7 @@ struct ReadTask : public chi::Task {
   /** Emplace constructor */
   explicit ReadTask(
       const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
-      const chi::TaskNode &task_node,
+      const chi::TaskId &task_node,
       const chi::PoolId &pool_id, 
       const chi::PoolQuery &pool_query,
       const Block& block,
@@ -332,7 +332,7 @@ struct ReadTask : public chi::Task {
       : chi::Task(alloc, task_node, pool_id, pool_query, 10),
         block_(block), data_(data), length_(length), bytes_read_(0) {
     // Initialize task
-    task_node_ = task_node;
+    task_id_ = task_node;
     pool_id_ = pool_id;
     method_ = Method::kRead;
     task_flags_.Clear();
@@ -367,13 +367,13 @@ struct GetStatsTask : public chi::Task {
   /** Emplace constructor */
   explicit GetStatsTask(
       const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
-      const chi::TaskNode &task_node,
+      const chi::TaskId &task_node,
       const chi::PoolId &pool_id, 
       const chi::PoolQuery &pool_query)
       : chi::Task(alloc, task_node, pool_id, pool_query, 10),
         remaining_size_(0) {
     // Initialize task
-    task_node_ = task_node;
+    task_id_ = task_node;
     pool_id_ = pool_id;
     method_ = Method::kGetStats;
     task_flags_.Clear();
@@ -392,11 +392,6 @@ struct GetStatsTask : public chi::Task {
     ar(metrics_, remaining_size_);
   }
 };
-
-/**
- * Backward compatibility alias for StatTask
- */
-using StatTask = GetStatsTask;
 
 /**
  * Standard DestroyTask for bdev

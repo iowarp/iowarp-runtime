@@ -135,18 +135,6 @@ class Runtime : public chi::Container {
                        chi::RunContext& ctx);
 
   /**
-   * Backward compatibility methods for StatTask
-   */
-  void Stat(hipc::FullPtr<StatTask> task, chi::RunContext& ctx) {
-    GetStats(task, ctx);
-  }
-  
-  void MonitorStat(chi::MonitorModeId mode, hipc::FullPtr<StatTask> task,
-                   chi::RunContext& ctx) {
-    MonitorGetStats(mode, task, ctx);
-  }
-
-  /**
    * Destroy the container (Method::kDestroy)
    */
   void Destroy(hipc::FullPtr<DestroyTask> task, chi::RunContext& ctx);

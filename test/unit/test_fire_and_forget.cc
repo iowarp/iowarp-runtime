@@ -272,7 +272,7 @@ TEST_CASE("fire_and_forget_task_flag_detection", "[fire_and_forget][flag_detecti
     
     // Create a FireAndForgetTestTask directly to check its flags
     auto task = ipc_manager->NewTask<chimaera::MOD_NAME::FireAndForgetTestTask>(
-        chi::CreateTaskNode(), kFireAndForgetPoolId, chi::PoolQuery::Local(),
+        chi::CreateTaskId(), kFireAndForgetPoolId, chi::PoolQuery::Local(),
         fixture.generateTestId(), 100, "flag_test");
     
     // Verify the task has the fire-and-forget flag set
@@ -292,7 +292,7 @@ TEST_CASE("fire_and_forget_task_flag_detection", "[fire_and_forget][flag_detecti
     
     // Create a regular CustomTask to check its flags
     auto task = ipc_manager->NewTask<chimaera::MOD_NAME::CustomTask>(
-        chi::CreateTaskNode(), kFireAndForgetPoolId, chi::PoolQuery::Local(),
+        chi::CreateTaskId(), kFireAndForgetPoolId, chi::PoolQuery::Local(),
         "test_data", 42);
     
     // Verify the task does NOT have the fire-and-forget flag

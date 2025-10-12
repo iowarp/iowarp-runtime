@@ -70,7 +70,7 @@ class Client : public chi::ContainerClient {
         (alignment == 0) ? 4096 : alignment;  // Ensure non-zero alignment
 
     auto task = ipc_manager->NewTask<chimaera::bdev::CreateTask>(
-        chi::CreateTaskNode(),
+        chi::CreateTaskId(),
         chi::kAdminPoolId,  // Send to admin pool for GetOrCreatePool processing
         pool_query,
         CreateParams::chimod_lib_name,  // chimod name from CreateParams
@@ -107,7 +107,7 @@ class Client : public chi::ContainerClient {
     auto* ipc_manager = CHI_IPC;
 
     auto task = ipc_manager->NewTask<AllocateBlocksTask>(
-        chi::CreateTaskNode(), pool_id_, chi::PoolQuery::Local(), size);
+        chi::CreateTaskId(), pool_id_, chi::PoolQuery::Local(), size);
 
     ipc_manager->Enqueue(task);
     return task;
@@ -134,7 +134,7 @@ class Client : public chi::ContainerClient {
 
     // Create task with std::vector constructor (constructor parameter uses std::vector)
     auto task = ipc_manager->NewTask<chimaera::bdev::FreeBlocksTask>(
-        chi::CreateTaskNode(), pool_id_, chi::PoolQuery::Local(), blocks);
+        chi::CreateTaskId(), pool_id_, chi::PoolQuery::Local(), blocks);
 
     ipc_manager->Enqueue(task);
     return task;
@@ -161,7 +161,7 @@ class Client : public chi::ContainerClient {
     auto* ipc_manager = CHI_IPC;
 
     auto task = ipc_manager->NewTask<chimaera::bdev::WriteTask>(
-        chi::CreateTaskNode(), pool_id_, chi::PoolQuery::Local(), block, data,
+        chi::CreateTaskId(), pool_id_, chi::PoolQuery::Local(), block, data,
         length);
 
     ipc_manager->Enqueue(task);
@@ -190,7 +190,7 @@ class Client : public chi::ContainerClient {
     auto* ipc_manager = CHI_IPC;
 
     auto task = ipc_manager->NewTask<chimaera::bdev::ReadTask>(
-        chi::CreateTaskNode(), pool_id_, chi::PoolQuery::Local(), block, data,
+        chi::CreateTaskId(), pool_id_, chi::PoolQuery::Local(), block, data,
         buffer_size);
 
     ipc_manager->Enqueue(task);
@@ -217,7 +217,7 @@ class Client : public chi::ContainerClient {
     auto* ipc_manager = CHI_IPC;
 
     auto task = ipc_manager->NewTask<chimaera::bdev::GetStatsTask>(
-        chi::CreateTaskNode(), pool_id_, chi::PoolQuery());
+        chi::CreateTaskId(), pool_id_, chi::PoolQuery());
 
     ipc_manager->Enqueue(task);
     return task;

@@ -2,8 +2,8 @@
  * Comprehensive unit tests for CoMutex and CoRwLock synchronization primitives
  * 
  * Tests the cooperative synchronization mechanisms in the Chimaera runtime:
- * - CoMutex: Cooperative mutual exclusion with TaskNode grouping
- * - CoRwLock: Cooperative reader-writer locks with TaskNode grouping
+ * - CoMutex: Cooperative mutual exclusion with TaskId grouping
+ * - CoRwLock: Cooperative reader-writer locks with TaskId grouping
  */
 
 #include "../simple_test.h"
@@ -320,7 +320,7 @@ TEST_CASE("CoMutex Basic Locking", "[comutex][basic]") {
 TEST_CASE("CoMutex Concurrent Access", "[comutex][concurrent]") {
   CoMutexTestFixture fixture;
   
-  SECTION("Concurrent CoMutex tasks with same TaskNode should proceed together") {
+  SECTION("Concurrent CoMutex tasks with same TaskId should proceed together") {
     REQUIRE(fixture.initializeBoth());
     REQUIRE(fixture.createModNamePool());
     
@@ -332,7 +332,7 @@ TEST_CASE("CoMutex Concurrent Access", "[comutex][concurrent]") {
     
     fixture.resetCounters();
     
-    // Submit multiple async tasks with same TaskNode characteristics
+    // Submit multiple async tasks with same TaskId characteristics
     // Tasks with same pid/tid/major but different minor should proceed together
     const int kNumConcurrentTasks = 4;
     std::vector<hipc::FullPtr<chimaera::MOD_NAME::CoMutexTestTask>> tasks;
@@ -373,12 +373,12 @@ TEST_CASE("CoMutex Concurrent Access", "[comutex][concurrent]") {
       CHI_IPC->DelTask(task);
     }
     
-    // If tasks with same TaskNode run concurrently, total time should be close to single task time
+    // If tasks with same TaskId run concurrently, total time should be close to single task time
     // If they serialize, total time would be much longer
     INFO("Duration analysis: " << duration.count() << "ms vs expected ~" << kMediumHoldMs << "ms");
   }
   
-  SECTION("Concurrent CoMutex tasks with different TaskNodes should serialize") {
+  SECTION("Concurrent CoMutex tasks with different TaskIds should serialize") {
     REQUIRE(fixture.initializeBoth());
     REQUIRE(fixture.createModNamePool());
     
@@ -388,7 +388,7 @@ TEST_CASE("CoMutex Concurrent Access", "[comutex][concurrent]") {
     bool success = mod_name_client.Create(HSHM_MCTX, pool_query, pool_name);
     REQUIRE(success);
     
-    // This test would require creating tasks with different TaskNode characteristics
+    // This test would require creating tasks with different TaskId characteristics
     // For now, we'll test that tasks do serialize when expected
     const int kNumSerialTasks = 3;
     std::vector<hipc::FullPtr<chimaera::MOD_NAME::CoMutexTestTask>> tasks;
@@ -662,13 +662,13 @@ TEST_CASE("CoRwLock Reader-Writer Interaction", "[corwlock][interaction]") {
 }
 
 //------------------------------------------------------------------------------
-// TaskNode Grouping Tests
+// TaskId Grouping Tests
 //------------------------------------------------------------------------------
 
-TEST_CASE("TaskNode Grouping", "[tasknode][grouping]") {
+TEST_CASE("TaskId Grouping", "[tasknode][grouping]") {
   CoMutexTestFixture fixture;
   
-  SECTION("Tasks with same TaskNode should group together for CoMutex") {
+  SECTION("Tasks with same TaskId should group together for CoMutex") {
     REQUIRE(fixture.initializeBoth());
     REQUIRE(fixture.createModNamePool());
     
@@ -678,7 +678,7 @@ TEST_CASE("TaskNode Grouping", "[tasknode][grouping]") {
     bool success = mod_name_client.Create(HSHM_MCTX, pool_query, pool_name);
     REQUIRE(success);
     
-    // This test validates the TaskNode grouping concept
+    // This test validates the TaskId grouping concept
     // Tasks with same pid/tid/major but different minor should proceed together
     const int kNumGroupedTasks = 3;
     std::vector<hipc::FullPtr<chimaera::MOD_NAME::CoMutexTestTask>> tasks;
@@ -703,7 +703,7 @@ TEST_CASE("TaskNode Grouping", "[tasknode][grouping]") {
       REQUIRE(task->return_code_ == 0);
     }
     
-    INFO("TaskNode grouped CoMutex tasks completed in " << duration.count() << "ms");
+    INFO("TaskId grouped CoMutex tasks completed in " << duration.count() << "ms");
     
     // Clean up tasks
     for (auto& task : tasks) {
@@ -711,7 +711,7 @@ TEST_CASE("TaskNode Grouping", "[tasknode][grouping]") {
     }
   }
   
-  SECTION("Tasks with same TaskNode should group together for CoRwLock readers") {
+  SECTION("Tasks with same TaskId should group together for CoRwLock readers") {
     REQUIRE(fixture.initializeBoth());
     REQUIRE(fixture.createModNamePool());
     
@@ -721,7 +721,7 @@ TEST_CASE("TaskNode Grouping", "[tasknode][grouping]") {
     bool success = mod_name_client.Create(HSHM_MCTX, pool_query, pool_name);
     REQUIRE(success);
     
-    // Test TaskNode grouping for readers
+    // Test TaskId grouping for readers
     const int kNumGroupedReaders = 4;
     std::vector<hipc::FullPtr<chimaera::MOD_NAME::CoRwLockTestTask>> tasks;
     
@@ -745,7 +745,7 @@ TEST_CASE("TaskNode Grouping", "[tasknode][grouping]") {
       REQUIRE(task->return_code_ == 0);
     }
     
-    INFO("TaskNode grouped readers completed in " << duration.count() << "ms");
+    INFO("TaskId grouped readers completed in " << duration.count() << "ms");
     
     // Clean up tasks
     for (auto& task : tasks) {

@@ -225,7 +225,7 @@ bool IpcManager::ServerInit() {
           this_host_.node_id);
   }
 
-  // Initialize HSHM TLS key for task counter (needed for CreateTaskNode in
+  // Initialize HSHM TLS key for task counter (needed for CreateTaskId in
   // runtime)
   HSHM_THREAD_MODEL->CreateTls<TaskCounter>(chi_task_counter_key_, nullptr);
 
@@ -311,12 +311,6 @@ void IpcManager::ServerFinalize() {
 // inline in the header
 
 TaskQueue *IpcManager::GetTaskQueue() { return external_queue_.ptr_; }
-
-void *IpcManager::GetProcessQueue(QueuePriority priority) {
-  // For compatibility, return the TaskQueue as void*
-  (void)priority; // Suppress unused parameter warning
-  return static_cast<void *>(GetTaskQueue());
-}
 
 bool IpcManager::IsInitialized() const { return is_initialized_; }
 

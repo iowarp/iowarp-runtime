@@ -38,7 +38,7 @@ bool PoolManager::ServerInit() {
   }
 
   auto admin_task = ipc_manager->NewTask<chimaera::admin::CreateTask>(
-      CreateTaskNode(),
+      CreateTaskId(),
       kAdminPoolId,  // Use admin pool for admin container creation
       PoolQuery::Local(), "chimaera_admin", "admin", kAdminPoolId);
 

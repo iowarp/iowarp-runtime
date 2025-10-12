@@ -219,13 +219,6 @@ class IpcManager {
   TaskQueue* GetTaskQueue();
   
   /**
-   * Get priority queue for task processing (compatibility)
-   * @param priority Queue priority level
-   * @return Pointer to the TaskQueue (cast as void*)
-   */
-  void* GetProcessQueue(QueuePriority priority);
-
-  /**
    * Check if IPC manager is initialized
    * @return true if initialized, false otherwise
    */

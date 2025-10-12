@@ -55,7 +55,7 @@ class Client : public chi::ContainerClient {
 
     // Use admin pool for CreateTask as per CLAUDE.md requirements
     auto task = ipc_manager->NewTask<CreateTask>(
-        chi::CreateTaskNode(), chi::kAdminPoolId, pool_query,
+        chi::CreateTaskId(), chi::kAdminPoolId, pool_query,
         "external_test_simple_mod", "simple_mod_pool", pool_id_);
 
     // Submit to runtime
@@ -92,7 +92,7 @@ class Client : public chi::ContainerClient {
     auto* ipc_manager = CHI_IPC;
 
     // Allocate DestroyTask
-    auto task = ipc_manager->NewTask<DestroyTask>(chi::CreateTaskNode(), pool_id_,
+    auto task = ipc_manager->NewTask<DestroyTask>(chi::CreateTaskId(), pool_id_,
                                                   pool_query, pool_id_, 0);
 
     // Submit to runtime
@@ -129,7 +129,7 @@ class Client : public chi::ContainerClient {
     auto* ipc_manager = CHI_IPC;
 
     // Allocate FlushTask
-    auto task = ipc_manager->NewTask<FlushTask>(chi::CreateTaskNode(), pool_id_,
+    auto task = ipc_manager->NewTask<FlushTask>(chi::CreateTaskId(), pool_id_,
                                                 pool_query);
 
     // Submit to runtime

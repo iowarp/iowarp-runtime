@@ -19,9 +19,18 @@ hshm::ThreadLocalKey chi_cur_worker_key_;
 hshm::ThreadLocalKey chi_task_counter_key_;
 
 /**
- * Create a new TaskNode with current process/thread info and next major counter
+ * Create a new TaskId with current process/thread info and next major counter
  */
-TaskNode CreateTaskNode() {
+TaskId CreateTaskId() {
+  // Get thread-local task counter at the beginning
+  TaskCounter *counter =
+      HSHM_THREAD_MODEL->GetTls<TaskCounter>(chi_task_counter_key_);
+  if (!counter) {
+    // Initialize counter if not present
+    counter = new TaskCounter();
+    HSHM_THREAD_MODEL->SetTls(chi_task_counter_key_, counter);
+  }
+
   // In runtime mode, check if we have a current worker
   auto *chimaera_manager = CHI_CHIMAERA_MANAGER;
   if (chimaera_manager && chimaera_manager->IsRuntime()) {
@@ -30,35 +39,27 @@ TaskNode CreateTaskNode() {
       // Get current task from worker
       FullPtr<Task> current_task = current_worker->GetCurrentTask();
       if (!current_task.IsNull()) {
-        // Copy TaskNode from current task and increment minor by 1
-        TaskNode new_node = current_task->task_node_;
-        new_node.minor_ += 1;
-        return new_node;
+        // Copy TaskId from current task, increment minor, and allocate new unique from counter
+        TaskId new_id = current_task->task_id_;
+        new_id.minor_ += 1;
+        new_id.unique_ = counter->GetNext();
+        return new_id;
       }
     }
   }
 
-  // Fallback: Create new TaskNode using counter (client mode or no current
-  // task) Get system information singleton (avoid direct dereferencing)
+  // Fallback: Create new TaskId using counter (client mode or no current task)
+  // Get system information singleton (avoid direct dereferencing)
   auto *system_info = HSHM_SYSTEM_INFO;
   u32 pid = system_info ? system_info->pid_ : 0;
 
   // Get thread ID
   u32 tid = static_cast<u32>(HSHM_THREAD_MODEL->GetTid().tid_);
 
-  // Get thread-local task counter (should be initialized during client init)
-  TaskCounter *counter =
-      HSHM_THREAD_MODEL->GetTls<TaskCounter>(chi_task_counter_key_);
-  if (!counter) {
-    // Initialize counter if not present (should not happen in client mode)
-    counter = new TaskCounter();
-    HSHM_THREAD_MODEL->SetTls(chi_task_counter_key_, counter);
-  }
-
-  // Get next major number
+  // Get next counter value for both major and unique
   u32 major = counter->GetNext();
 
-  return TaskNode(pid, tid, major, 0); // minor starts at 0 for new tasks
+  return TaskId(pid, tid, major, 0, major); // minor starts at 0, unique = major for root tasks
 }
 
 Chimaera::~Chimaera() {
