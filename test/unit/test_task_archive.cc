@@ -49,7 +49,6 @@ namespace {
     auto task = std::make_unique<chi::Task>(alloc, chi::TaskId(1, 1, 1, 0, 1), chi::PoolId(100, 0),
                                            chi::PoolQuery(), chi::MethodId(42));
     task->period_ns_ = 1000000.0;  // 1ms
-    task->net_key_ = 0x12345678;
     task->task_flags_.SetBits(0x10);
     return task;
   }
@@ -289,7 +288,6 @@ TEST_CASE("Task Base Class Serialization", "[task_archive][task_base]") {
     REQUIRE(new_task->task_id_ == original_task->task_id_);
     REQUIRE(new_task->method_ == original_task->method_);
     REQUIRE(new_task->period_ns_ == original_task->period_ns_);
-    REQUIRE(new_task->net_key_ == original_task->net_key_);
     REQUIRE(new_task->task_flags_.bits_.load() == original_task->task_flags_.bits_.load());
   }
   
@@ -312,7 +310,6 @@ TEST_CASE("Task Base Class Serialization", "[task_archive][task_base]") {
     REQUIRE(new_task->task_id_ == original_task->task_id_);
     REQUIRE(new_task->method_ == original_task->method_);
     REQUIRE(new_task->period_ns_ == original_task->period_ns_);
-    REQUIRE(new_task->net_key_ == original_task->net_key_);
   }
 }
 
@@ -637,21 +634,20 @@ TEST_CASE("Performance and Large Data", "[task_archive][performance]") {
   SECTION("Multiple task serialization sequence") {
     // Test serializing multiple tasks in sequence
     std::vector<std::string> serialized_tasks;
-    
+
     for (int i = 0; i < 10; ++i) {
       auto task = CreateTestTask();
-      task->net_key_ = i * 100;  // Unique identifier
-      
+
       chi::TaskSaveInArchive archive;
       archive << *task;
       serialized_tasks.push_back(archive.GetData());
     }
-    
+
     // Verify all tasks were serialized uniquely
     REQUIRE(serialized_tasks.size() == 10);
     for (size_t i = 0; i < serialized_tasks.size(); ++i) {
       REQUIRE_FALSE(serialized_tasks[i].empty());
-      // Each should be different due to different net_key_
+      // Each should be different due to different task_id_.unique_
       for (size_t j = i + 1; j < serialized_tasks.size(); ++j) {
         REQUIRE(serialized_tasks[i] != serialized_tasks[j]);
       }

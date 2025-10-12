@@ -45,7 +45,6 @@ public:
   IN ibitfield task_flags_; /**< Task properties and flags */
   IN double period_ns_;     /**< Period in nanoseconds for periodic tasks */
   IN RunContext *run_ctx_; /**< Pointer to runtime context for task execution */
-  IN u32 net_key_; /**< Network identification key for distributed scheduling */
   std::atomic<u32> is_complete; /**< Atomic flag indicating task completion
                                    (0=not complete, 1=complete) */
   std::atomic<u32>
@@ -74,7 +73,6 @@ public:
     pool_query_ = pool_query;
     period_ns_ = 0.0;
     run_ctx_ = nullptr;
-    net_key_ = 0;
     is_complete.store(0);  // Initialize as not complete
     return_code_.store(0); // Initialize as success
   }
@@ -99,7 +97,6 @@ public:
     task_flags_ = other.task_flags_;
     period_ns_ = other.period_ns_;
     run_ctx_ = other.run_ctx_;
-    net_key_ = other.net_key_;
     return_code_.store(other.return_code_.load());
     // Explicitly initialize as not complete for copied tasks
     is_complete.store(0);
@@ -141,7 +138,6 @@ public:
     task_flags_.Clear();
     period_ns_ = 0.0;
     run_ctx_ = nullptr;
-    net_key_ = 0;
     is_complete.store(0);  // Initialize as not complete
     return_code_.store(0); // Initialize as success
   }
@@ -293,7 +289,7 @@ public:
     // Handle atomic return_code_ by loading/storing its value
     u32 return_code_value = return_code_.load();
     ar(pool_id_, task_id_, pool_query_, method_, task_flags_, period_ns_,
-       net_key_, return_code_value);
+       return_code_value);
     return_code_.store(return_code_value);
   }
 
@@ -308,7 +304,7 @@ public:
     // Handle atomic return_code_ by loading/storing its value
     u32 return_code_value = return_code_.load();
     ar(pool_id_, task_id_, pool_query_, method_, task_flags_, period_ns_,
-       net_key_, return_code_value);
+       return_code_value);
     return_code_.store(return_code_value);
   }
 

@@ -1,18 +1,20 @@
 @CLAUDE.md Implement the following methods in the runtime code for the admin chimod. Also update the archives in @include/chimaera/task_archives.h accordingly. Use ZeroMQ apis directly for this. Do not write stub implementations.
 
-The admin should store an unordered_map of tasks. It should map TaskId to FullPtr<Task>. Tasks should not appear multiple times in the map. We should rename TaskNode to TaskId. It should also have a parameter called "unique", which increments the same counter as major, but it should be incremented when creating subtasks as well, not just the root task. Remove all backwards-compatability code as well. Not just for TaskNode, anywhere in the codebase.
+The admin should store an unordered_map of tasks. Let's do one map per worker to improve scalability. It should map TaskId to FullPtr<Task>. Tasks should not appear multiple times in the map. The task should be placed in the map during ClientSaveIn. ServerSaveOut, we should store a vector of unique task ids. ClientLoadOut should iterate over the unique task ids and deserialize the task return values. It should then remove the task from the map. ClientSaveIn should use the subtasks_ vector for storing replicas. Each replica should be given an id. We should rename minor_ in the TaskId to replica_id_. We should not increment replica_id_ when creating a TaskId, we will rely on unique from now on for unique ids. In addition, the node_id should be stored in the TaskId.
 
-# ServerSaveOutArchive
+# ServerSaveOut
 
-Similar to ClientSaveInArchive, with one major exception: it will call SerializeOut instead of SerializeIn. This will serialize the outputs of the task.
+Similar to ClientSaveInArchive. This will serialize the outputs of the task. Key differences:
+1. ServerSaveOutArchive should store a vector of TaskId, representing the saved unique tasks. 
+2. It should call task->SerializeOut
+3. The subtask should be deleted after being serialized.
 
-# ClientLoadOutArchive
+# ClientLoadOut
 
-Similar to ServerLoadIn, with two major exceptions:
-1. It will deserialize the ClientLoadOutArchive type similar to ServerLoadIn does for ServerLoadInArchive.
-1. The deserialized 
-1. It must locate an existing task.
-2. It will call SerializeOut
+Similar to ServerLoadIn, with the following exception:
+1. It will deserialize existing tasks, not allocate new ones. It will find the existing tasks using the TaskId. It will then get the RunContext for the task. It will index subtasks vector in the RunContext to get the replica task. RunContext should store an atomic counter for counting the number of replicas that returned.
+2. When all replicas complete, we aggregate the replicas into the original task.
+3. The original task is then marked as completed if it is not periodic.
 
 # ServerLoadInArchive
 
