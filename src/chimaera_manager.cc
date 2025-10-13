@@ -31,6 +31,10 @@ TaskId CreateTaskId() {
     HSHM_THREAD_MODEL->SetTls(chi_task_counter_key_, counter);
   }
 
+  // Get node_id from IpcManager
+  auto *ipc_manager = CHI_IPC;
+  u64 node_id = ipc_manager ? ipc_manager->GetNodeId() : 0;
+
   // In runtime mode, check if we have a current worker
   auto *chimaera_manager = CHI_CHIMAERA_MANAGER;
   if (chimaera_manager && chimaera_manager->IsRuntime()) {
@@ -39,10 +43,10 @@ TaskId CreateTaskId() {
       // Get current task from worker
       FullPtr<Task> current_task = current_worker->GetCurrentTask();
       if (!current_task.IsNull()) {
-        // Copy TaskId from current task, increment minor, and allocate new unique from counter
+        // Copy TaskId from current task, keep replica_id_ same, and allocate new unique from counter
         TaskId new_id = current_task->task_id_;
-        new_id.minor_ += 1;
         new_id.unique_ = counter->GetNext();
+        new_id.node_id_ = node_id;
         return new_id;
       }
     }
@@ -59,7 +63,7 @@ TaskId CreateTaskId() {
   // Get next counter value for both major and unique
   u32 major = counter->GetNext();
 
-  return TaskId(pid, tid, major, 0, major); // minor starts at 0, unique = major for root tasks
+  return TaskId(pid, tid, major, 0, major, node_id); // replica_id_ starts at 0, unique = major for root tasks
 }
 
 Chimaera::~Chimaera() {

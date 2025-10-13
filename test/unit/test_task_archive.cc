@@ -483,28 +483,16 @@ public:
     (void)method; (void)task_ptr;
   }
   
-  void SaveIn(chi::u32 method, chi::TaskSaveInArchive& archive, hipc::FullPtr<chi::Task> task_ptr) override {
+  void SaveTask(chi::u32 method, chi::SaveTaskArchive& archive, hipc::FullPtr<chi::Task> task_ptr) override {
     // Test implementation - just call task serialization
     (void)method;
     archive << *task_ptr;
   }
-  
-  void LoadIn(chi::u32 method, chi::TaskLoadInArchive& archive, hipc::FullPtr<chi::Task> task_ptr) override {
+
+  void LoadTask(chi::u32 method, chi::LoadTaskArchive& archive, hipc::FullPtr<chi::Task> task_ptr) override {
     // Test implementation - just call task deserialization
     (void)method;
-    archive >> *task_ptr;
-  }
-  
-  void SaveOut(chi::u32 method, chi::TaskSaveOutArchive& archive, hipc::FullPtr<chi::Task> task_ptr) override {
-    // Test implementation - just call task serialization
-    (void)method;
-    archive << *task_ptr;
-  }
-  
-  void LoadOut(chi::u32 method, chi::TaskLoadOutArchive& archive, hipc::FullPtr<chi::Task> task_ptr) override {
-    // Test implementation - just call task deserialization
-    (void)method;
-    archive >> *task_ptr;
+    archive >> task_ptr.ptr_;
   }
   
   void NewCopy(chi::u32 method, const hipc::FullPtr<chi::Task> &orig_task,

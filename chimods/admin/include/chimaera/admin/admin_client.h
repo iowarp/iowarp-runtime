@@ -121,21 +121,24 @@ class Client : public chi::ContainerClient {
   }
 
   /**
-   * Send task to remote node (synchronous)
+   * Send task to remote nodes (synchronous)
+   * Can be used for both SerializeIn (sending inputs) and SerializeOut (sending outputs)
    */
   template <typename TaskType>
-  void ClientSendTaskIn(const hipc::MemContext& mctx,
-                        const std::vector<chi::PoolQuery>& pool_queries,
-                        const hipc::FullPtr<TaskType>& task_to_send) {
-    auto task = AsyncClientSendTaskIn(mctx, pool_queries, task_to_send);
+  void Send(const hipc::MemContext& mctx,
+            bool srl_mode,
+            const hipc::FullPtr<TaskType>& subtask,
+            const std::vector<chi::PoolQuery>& pool_queries,
+            chi::u32 transfer_flags = 0) {
+    auto task = AsyncSend(mctx, srl_mode, subtask, pool_queries, transfer_flags);
     task->Wait();
 
     // Check for errors
-    if (task->return_code_ != 0) {
+    if (task->GetReturnCode() != 0) {
       std::string error = task->error_message_.str();
       auto* ipc_manager = CHI_IPC;
       ipc_manager->DelTask(task);
-      throw std::runtime_error("Task send failed: " + error);
+      throw std::runtime_error("Send failed: " + error);
     }
 
     // Clean up task
@@ -144,22 +147,28 @@ class Client : public chi::ContainerClient {
   }
 
   /**
-   * Send task to remote node (asynchronous)
+   * Send task to remote nodes (asynchronous)
+   * Can be used for both SerializeIn (sending inputs) and SerializeOut (sending outputs)
    */
   template <typename TaskType>
-  hipc::FullPtr<ClientSendTaskInTask> AsyncClientSendTaskIn(
+  hipc::FullPtr<SendTask> AsyncSend(
       const hipc::MemContext& mctx,
+      bool srl_mode,
+      const hipc::FullPtr<TaskType>& subtask,
       const std::vector<chi::PoolQuery>& pool_queries,
-      const hipc::FullPtr<TaskType>& task_to_send) {
+      chi::u32 transfer_flags = 0) {
     auto* ipc_manager = CHI_IPC;
 
     // Use local routing
     chi::PoolQuery local_pool_query = chi::PoolQuery::Local();
 
-    // Allocate ClientSendTaskInTask with pool queries and task
-    auto task = ipc_manager->NewTask<ClientSendTaskInTask>(
-        chi::CreateTaskId(), pool_id_, local_pool_query, pool_queries,
-        task_to_send, 0);
+    // Cast subtask to base Task type
+    hipc::FullPtr<chi::Task> base_subtask = subtask.template Cast<chi::Task>();
+
+    // Allocate SendTask
+    auto task = ipc_manager->NewTask<SendTask>(
+        chi::CreateTaskId(), pool_id_, local_pool_query,
+        srl_mode, base_subtask, pool_queries, transfer_flags);
 
     // Submit to runtime
     ipc_manager->Enqueue(task);
@@ -168,20 +177,21 @@ class Client : public chi::ContainerClient {
   }
 
   /**
-   * Poll and receive tasks from network (synchronous)
-   * Periodic task that deserializes incoming tasks from remote nodes
+   * Receive tasks from network (synchronous)
+   * Can be used for both SerializeIn (receiving inputs) and SerializeOut (receiving outputs)
    */
-  void ServerRecvTaskIn(const hipc::MemContext& mctx,
-                        const chi::PoolQuery& pool_query) {
-    auto task = AsyncServerRecvTaskIn(mctx, pool_query);
+  void Recv(const hipc::MemContext& mctx,
+            const chi::PoolQuery& pool_query,
+            chi::u32 transfer_flags = 0) {
+    auto task = AsyncRecv(mctx, pool_query, transfer_flags);
     task->Wait();
 
     // Check for errors
-    if (task->return_code_ != 0) {
+    if (task->GetReturnCode() != 0) {
       std::string error = task->error_message_.str();
       auto* ipc_manager = CHI_IPC;
       ipc_manager->DelTask(task);
-      throw std::runtime_error("Task receive failed: " + error);
+      throw std::runtime_error("Recv failed: " + error);
     }
 
     // Clean up task
@@ -190,102 +200,18 @@ class Client : public chi::ContainerClient {
   }
 
   /**
-   * Poll and receive tasks from network (asynchronous)
-   * Periodic task that deserializes incoming tasks from remote nodes
+   * Receive tasks from network (asynchronous)
+   * Can be used for both SerializeIn (receiving inputs) and SerializeOut (receiving outputs)
    */
-  hipc::FullPtr<ServerRecvTaskInTask> AsyncServerRecvTaskIn(
-      const hipc::MemContext& mctx, const chi::PoolQuery& pool_query) {
+  hipc::FullPtr<RecvTask> AsyncRecv(
+      const hipc::MemContext& mctx,
+      const chi::PoolQuery& pool_query,
+      chi::u32 transfer_flags = 0) {
     auto* ipc_manager = CHI_IPC;
 
-    // Allocate ServerRecvTaskInTask for periodic polling
-    auto task = ipc_manager->NewTask<ServerRecvTaskInTask>(
-        chi::CreateTaskId(), pool_id_, pool_query, 0);
-
-    // Submit to runtime
-    ipc_manager->Enqueue(task);
-
-    return task;
-  }
-
-  /**
-   * Send task output to remote node (synchronous)
-   */
-  template <typename TaskType>
-  void ServerSendTaskOut(const hipc::MemContext& mctx,
-                         const chi::PoolQuery& pool_query,
-                         chi::u32 target_node_id,
-                         const hipc::FullPtr<TaskType>& completed_task) {
-    auto task = AsyncServerSendTaskOut(mctx, pool_query, target_node_id,
-                                       completed_task);
-    task->Wait();
-
-    // Check for errors
-    if (task->return_code_ != 0) {
-      std::string error = task->error_message_.str();
-      auto* ipc_manager = CHI_IPC;
-      ipc_manager->DelTask(task);
-      throw std::runtime_error("Task output send failed: " + error);
-    }
-
-    // Clean up task
-    auto* ipc_manager = CHI_IPC;
-    ipc_manager->DelTask(task);
-  }
-
-  /**
-   * Send task output to remote node (asynchronous)
-   */
-  template <typename TaskType>
-  hipc::FullPtr<ServerSendTaskOutTask> AsyncServerSendTaskOut(
-      const hipc::MemContext& mctx, const chi::PoolQuery& pool_query,
-      chi::u32 target_node_id, const hipc::FullPtr<TaskType>& completed_task) {
-    auto* ipc_manager = CHI_IPC;
-
-    // Allocate ServerSendTaskOutTask with the original completed task (no
-    // serialization)
-    auto task = ipc_manager->NewTask<ServerSendTaskOutTask>(
-        chi::CreateTaskId(), pool_id_, pool_query,
-        static_cast<hipc::FullPtr<chi::Task>>(completed_task), 0);
-
-    // Submit to runtime
-    ipc_manager->Enqueue(task);
-
-    return task;
-  }
-
-  /**
-   * Poll and receive task outputs from network (synchronous)
-   * Periodic task that deserializes incoming task results from remote nodes
-   */
-  void ClientRecvTaskOut(const hipc::MemContext& mctx,
-                         const chi::PoolQuery& pool_query) {
-    auto task = AsyncClientRecvTaskOut(mctx, pool_query);
-    task->Wait();
-
-    // Check for errors
-    if (task->return_code_ != 0) {
-      std::string error = task->error_message_.str();
-      auto* ipc_manager = CHI_IPC;
-      ipc_manager->DelTask(task);
-      throw std::runtime_error("Task output receive failed: " + error);
-    }
-
-    // Clean up task
-    auto* ipc_manager = CHI_IPC;
-    ipc_manager->DelTask(task);
-  }
-
-  /**
-   * Poll and receive task outputs from network (asynchronous)
-   * Periodic task that deserializes incoming task results from remote nodes
-   */
-  hipc::FullPtr<ClientRecvTaskOutTask> AsyncClientRecvTaskOut(
-      const hipc::MemContext& mctx, const chi::PoolQuery& pool_query) {
-    auto* ipc_manager = CHI_IPC;
-
-    // Allocate ClientRecvTaskOutTask for periodic polling
-    auto task = ipc_manager->NewTask<ClientRecvTaskOutTask>(
-        chi::CreateTaskId(), pool_id_, pool_query, 0);
+    // Allocate RecvTask
+    auto task = ipc_manager->NewTask<RecvTask>(
+        chi::CreateTaskId(), pool_id_, pool_query, transfer_flags);
 
     // Submit to runtime
     ipc_manager->Enqueue(task);

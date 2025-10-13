@@ -118,34 +118,38 @@ struct TaskId {
   u32 pid_;       ///< Process ID
   u32 tid_;       ///< Thread ID
   u32 major_;     ///< Major sequence number (monotonically increasing per thread)
-  u32 minor_;     ///< Minor sequence number (for sub-tasks)
+  u32 replica_id_;     ///< Replica identifier (for replicated tasks)
   u32 unique_;    ///< Unique identifier incremented for both root tasks and subtasks
+  u64 node_id_;   ///< Node identifier for distributed execution
 
-  TaskId() : pid_(0), tid_(0), major_(0), minor_(0), unique_(0) {}
-  TaskId(u32 pid, u32 tid, u32 major, u32 minor = 0, u32 unique = 0)
-      : pid_(pid), tid_(tid), major_(major), minor_(minor), unique_(unique) {}
+  TaskId() : pid_(0), tid_(0), major_(0), replica_id_(0), unique_(0), node_id_(0) {}
+  TaskId(u32 pid, u32 tid, u32 major, u32 replica_id = 0, u32 unique = 0, u64 node_id = 0)
+      : pid_(pid), tid_(tid), major_(major), replica_id_(replica_id), unique_(unique), node_id_(node_id) {}
 
   // Equality operators
   bool operator==(const TaskId& other) const {
     return pid_ == other.pid_ && tid_ == other.tid_ &&
-           major_ == other.major_ && minor_ == other.minor_ &&
-           unique_ == other.unique_;
+           major_ == other.major_ && replica_id_ == other.replica_id_ &&
+           unique_ == other.unique_ && node_id_ == other.node_id_;
   }
 
   bool operator!=(const TaskId& other) const {
     return !(*this == other);
   }
 
-  // Convert to u64 for hashing (combine pid, tid, major, unique)
+  // Convert to u64 for hashing (combine all fields)
   u64 ToU64() const {
-    return (static_cast<u64>(pid_) << 48) | (static_cast<u64>(tid_) << 32) |
-           (static_cast<u64>(major_) << 16) | static_cast<u64>(minor_);
+    // Combine multiple fields using XOR and shifts for better distribution
+    u64 hash1 = (static_cast<u64>(pid_) << 32) | static_cast<u64>(tid_);
+    u64 hash2 = (static_cast<u64>(major_) << 32) | static_cast<u64>(replica_id_);
+    u64 hash3 = (static_cast<u64>(unique_) << 32) | static_cast<u64>(node_id_ & 0xFFFFFFFF);
+    return hash1 ^ hash2 ^ hash3;
   }
 
   // Serialization support
   template<typename Ar>
   void serialize(Ar& ar) {
-    ar(pid_, tid_, major_, minor_, unique_);
+    ar(pid_, tid_, major_, replica_id_, unique_, node_id_);
   }
 };
 
@@ -278,9 +282,9 @@ struct TaskCounter {
 
 /**
  * Create a new TaskId with current process/thread info and next major counter
- * In runtime mode: copies current task's TaskId and increments both minor and unique
- * In client mode: creates new TaskId with fresh major counter, minor = 0, and unique from counter
- * @return TaskId with pid, tid, major, minor, and unique populated
+ * In runtime mode: copies current task's TaskId and increments unique (keeps replica_id_ same)
+ * In client mode: creates new TaskId with fresh major counter, replica_id_ = 0, and unique from counter
+ * @return TaskId with pid, tid, major, replica_id_, unique, and node_id populated
  */
 TaskId CreateTaskId();
 

@@ -290,11 +290,12 @@ bool Worker::RouteGlobal(const FullPtr<Task> &task_ptr,
     // Create memory context
     hipc::MemContext mctx;
 
-    // Send task using Client API with entire pool queries vector
-    admin_client.ClientSendTaskIn(
+    // Send task using unified Send API with SerializeIn mode
+    admin_client.Send(
         mctx,
-        pool_queries, // Pass entire pool queries vector
-        task_ptr      // Task pointer passed, serialization handled internally
+        true,         // srl_mode = true (SerializeIn - sending inputs)
+        task_ptr,     // Task pointer to send
+        pool_queries  // Pool queries vector for target nodes
     );
 
     // Set TASK_ROUTED flag on original task

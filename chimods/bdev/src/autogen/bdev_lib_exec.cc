@@ -132,42 +132,71 @@ void Runtime::Del(chi::u32 method, hipc::FullPtr<chi::Task> task_ptr) {
   }
 }
 
-void Runtime::SaveIn(chi::u32 method, chi::TaskSaveInArchive& archive, 
-                      hipc::FullPtr<chi::Task> task_ptr) {
+void Runtime::SaveTask(chi::u32 method, chi::SaveTaskArchive& archive, 
+                        hipc::FullPtr<chi::Task> task_ptr) {
+  bool srl_mode = archive.GetSerializeMode();
   switch (method) {
     case Method::kCreate: {
       auto typed_task = task_ptr.Cast<CreateTask>();
-      typed_task->SerializeIn(archive);
+      if (srl_mode) {
+        typed_task->SerializeIn(archive);
+      } else {
+        typed_task->SerializeOut(archive);
+      }
       break;
     }
     case Method::kDestroy: {
       auto typed_task = task_ptr.Cast<DestroyTask>();
-      typed_task->SerializeIn(archive);
+      if (srl_mode) {
+        typed_task->SerializeIn(archive);
+      } else {
+        typed_task->SerializeOut(archive);
+      }
       break;
     }
     case Method::kAllocateBlocks: {
       auto typed_task = task_ptr.Cast<AllocateBlocksTask>();
-      typed_task->SerializeIn(archive);
+      if (srl_mode) {
+        typed_task->SerializeIn(archive);
+      } else {
+        typed_task->SerializeOut(archive);
+      }
       break;
     }
     case Method::kFreeBlocks: {
       auto typed_task = task_ptr.Cast<FreeBlocksTask>();
-      typed_task->SerializeIn(archive);
+      if (srl_mode) {
+        typed_task->SerializeIn(archive);
+      } else {
+        typed_task->SerializeOut(archive);
+      }
       break;
     }
     case Method::kWrite: {
       auto typed_task = task_ptr.Cast<WriteTask>();
-      typed_task->SerializeIn(archive);
+      if (srl_mode) {
+        typed_task->SerializeIn(archive);
+      } else {
+        typed_task->SerializeOut(archive);
+      }
       break;
     }
     case Method::kRead: {
       auto typed_task = task_ptr.Cast<ReadTask>();
-      typed_task->SerializeIn(archive);
+      if (srl_mode) {
+        typed_task->SerializeIn(archive);
+      } else {
+        typed_task->SerializeOut(archive);
+      }
       break;
     }
     case Method::kGetStats: {
       auto typed_task = task_ptr.Cast<GetStatsTask>();
-      typed_task->SerializeIn(archive);
+      if (srl_mode) {
+        typed_task->SerializeIn(archive);
+      } else {
+        typed_task->SerializeOut(archive);
+      }
       break;
     }
     default: {
@@ -177,132 +206,71 @@ void Runtime::SaveIn(chi::u32 method, chi::TaskSaveInArchive& archive,
   }
 }
 
-void Runtime::LoadIn(chi::u32 method, chi::TaskLoadInArchive& archive, 
-                      hipc::FullPtr<chi::Task> task_ptr) {
+void Runtime::LoadTask(chi::u32 method, chi::LoadTaskArchive& archive, 
+                        hipc::FullPtr<chi::Task> task_ptr) {
+  bool srl_mode = archive.GetSerializeMode();
   switch (method) {
     case Method::kCreate: {
       auto typed_task = task_ptr.Cast<CreateTask>();
-      typed_task->SerializeIn(archive);
+      if (srl_mode) {
+        typed_task->SerializeIn(archive);
+      } else {
+        typed_task->SerializeOut(archive);
+      }
       break;
     }
     case Method::kDestroy: {
       auto typed_task = task_ptr.Cast<DestroyTask>();
-      typed_task->SerializeIn(archive);
+      if (srl_mode) {
+        typed_task->SerializeIn(archive);
+      } else {
+        typed_task->SerializeOut(archive);
+      }
       break;
     }
     case Method::kAllocateBlocks: {
       auto typed_task = task_ptr.Cast<AllocateBlocksTask>();
-      typed_task->SerializeIn(archive);
+      if (srl_mode) {
+        typed_task->SerializeIn(archive);
+      } else {
+        typed_task->SerializeOut(archive);
+      }
       break;
     }
     case Method::kFreeBlocks: {
       auto typed_task = task_ptr.Cast<FreeBlocksTask>();
-      typed_task->SerializeIn(archive);
+      if (srl_mode) {
+        typed_task->SerializeIn(archive);
+      } else {
+        typed_task->SerializeOut(archive);
+      }
       break;
     }
     case Method::kWrite: {
       auto typed_task = task_ptr.Cast<WriteTask>();
-      typed_task->SerializeIn(archive);
+      if (srl_mode) {
+        typed_task->SerializeIn(archive);
+      } else {
+        typed_task->SerializeOut(archive);
+      }
       break;
     }
     case Method::kRead: {
       auto typed_task = task_ptr.Cast<ReadTask>();
-      typed_task->SerializeIn(archive);
+      if (srl_mode) {
+        typed_task->SerializeIn(archive);
+      } else {
+        typed_task->SerializeOut(archive);
+      }
       break;
     }
     case Method::kGetStats: {
       auto typed_task = task_ptr.Cast<GetStatsTask>();
-      typed_task->SerializeIn(archive);
-      break;
-    }
-    default: {
-      // Unknown method - do nothing
-      break;
-    }
-  }
-}
-
-void Runtime::SaveOut(chi::u32 method, chi::TaskSaveOutArchive& archive, 
-                       hipc::FullPtr<chi::Task> task_ptr) {
-  switch (method) {
-    case Method::kCreate: {
-      auto typed_task = task_ptr.Cast<CreateTask>();
-      typed_task->SerializeOut(archive);
-      break;
-    }
-    case Method::kDestroy: {
-      auto typed_task = task_ptr.Cast<DestroyTask>();
-      typed_task->SerializeOut(archive);
-      break;
-    }
-    case Method::kAllocateBlocks: {
-      auto typed_task = task_ptr.Cast<AllocateBlocksTask>();
-      typed_task->SerializeOut(archive);
-      break;
-    }
-    case Method::kFreeBlocks: {
-      auto typed_task = task_ptr.Cast<FreeBlocksTask>();
-      typed_task->SerializeOut(archive);
-      break;
-    }
-    case Method::kWrite: {
-      auto typed_task = task_ptr.Cast<WriteTask>();
-      typed_task->SerializeOut(archive);
-      break;
-    }
-    case Method::kRead: {
-      auto typed_task = task_ptr.Cast<ReadTask>();
-      typed_task->SerializeOut(archive);
-      break;
-    }
-    case Method::kGetStats: {
-      auto typed_task = task_ptr.Cast<GetStatsTask>();
-      typed_task->SerializeOut(archive);
-      break;
-    }
-    default: {
-      // Unknown method - do nothing
-      break;
-    }
-  }
-}
-
-void Runtime::LoadOut(chi::u32 method, chi::TaskLoadOutArchive& archive, 
-                       hipc::FullPtr<chi::Task> task_ptr) {
-  switch (method) {
-    case Method::kCreate: {
-      auto typed_task = task_ptr.Cast<CreateTask>();
-      typed_task->SerializeOut(archive);
-      break;
-    }
-    case Method::kDestroy: {
-      auto typed_task = task_ptr.Cast<DestroyTask>();
-      typed_task->SerializeOut(archive);
-      break;
-    }
-    case Method::kAllocateBlocks: {
-      auto typed_task = task_ptr.Cast<AllocateBlocksTask>();
-      typed_task->SerializeOut(archive);
-      break;
-    }
-    case Method::kFreeBlocks: {
-      auto typed_task = task_ptr.Cast<FreeBlocksTask>();
-      typed_task->SerializeOut(archive);
-      break;
-    }
-    case Method::kWrite: {
-      auto typed_task = task_ptr.Cast<WriteTask>();
-      typed_task->SerializeOut(archive);
-      break;
-    }
-    case Method::kRead: {
-      auto typed_task = task_ptr.Cast<ReadTask>();
-      typed_task->SerializeOut(archive);
-      break;
-    }
-    case Method::kGetStats: {
-      auto typed_task = task_ptr.Cast<GetStatsTask>();
-      typed_task->SerializeOut(archive);
+      if (srl_mode) {
+        typed_task->SerializeIn(archive);
+      } else {
+        typed_task->SerializeOut(archive);
+      }
       break;
     }
     default: {

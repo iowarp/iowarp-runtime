@@ -48,6 +48,10 @@ private:
   // Client for making calls to this ChiMod
   Client client_;
 
+  // Network task tracking maps
+  std::unordered_map<chi::TaskId, hipc::FullPtr<chi::Task>> send_map_;  // Tasks sent to remote nodes
+  std::unordered_map<chi::TaskId, hipc::FullPtr<chi::Task>> recv_map_;  // Tasks received from remote nodes
+
 public:
   /**
    * Constructor
@@ -169,56 +173,26 @@ public:
   //===========================================================================
 
   /**
-   * Handle ClientSendTaskIn - Send task input data to remote node
+   * Handle Send - Send task inputs or outputs over network
    */
-  void ClientSendTaskIn(hipc::FullPtr<ClientSendTaskInTask> task,
-                        chi::RunContext &rctx);
+  void Send(hipc::FullPtr<SendTask> task, chi::RunContext &rctx);
 
   /**
-   * Monitor ClientSendTaskIn task
+   * Monitor Send task
    */
-  void MonitorClientSendTaskIn(chi::MonitorModeId mode,
-                               hipc::FullPtr<ClientSendTaskInTask> task_ptr,
-                               chi::RunContext &rctx);
+  void MonitorSend(chi::MonitorModeId mode, hipc::FullPtr<SendTask> task_ptr,
+                   chi::RunContext &rctx);
 
   /**
-   * Handle ServerRecvTaskIn - Receive task input data from remote node
+   * Handle Recv - Receive task inputs or outputs from network
    */
-  void ServerRecvTaskIn(hipc::FullPtr<ServerRecvTaskInTask> task,
-                        chi::RunContext &rctx);
+  void Recv(hipc::FullPtr<RecvTask> task, chi::RunContext &rctx);
 
   /**
-   * Monitor ServerRecvTaskIn task
+   * Monitor Recv task
    */
-  void MonitorServerRecvTaskIn(chi::MonitorModeId mode,
-                               hipc::FullPtr<ServerRecvTaskInTask> task_ptr,
-                               chi::RunContext &rctx);
-
-  /**
-   * Handle ServerSendTaskOut - Send task output data to remote node
-   */
-  void ServerSendTaskOut(hipc::FullPtr<ServerSendTaskOutTask> task,
-                         chi::RunContext &rctx);
-
-  /**
-   * Monitor ServerSendTaskOut task
-   */
-  void MonitorServerSendTaskOut(chi::MonitorModeId mode,
-                                hipc::FullPtr<ServerSendTaskOutTask> task_ptr,
-                                chi::RunContext &rctx);
-
-  /**
-   * Handle ClientRecvTaskOut - Receive task output data from remote node
-   */
-  void ClientRecvTaskOut(hipc::FullPtr<ClientRecvTaskOutTask> task,
-                         chi::RunContext &rctx);
-
-  /**
-   * Monitor ClientRecvTaskOut task
-   */
-  void MonitorClientRecvTaskOut(chi::MonitorModeId mode,
-                                hipc::FullPtr<ClientRecvTaskOutTask> task_ptr,
-                                chi::RunContext &rctx);
+  void MonitorRecv(chi::MonitorModeId mode, hipc::FullPtr<RecvTask> task_ptr,
+                   chi::RunContext &rctx);
 
   /**
    * Get remaining work count for this admin container
@@ -231,28 +205,16 @@ public:
   //===========================================================================
 
   /**
-   * Serialize task IN parameters for network transfer
+   * Serialize task parameters (IN or OUT based on archive mode)
    */
-  void SaveIn(chi::u32 method, chi::TaskSaveInArchive &archive,
-              hipc::FullPtr<chi::Task> task_ptr) override;
+  void SaveTask(chi::u32 method, chi::SaveTaskArchive &archive,
+                hipc::FullPtr<chi::Task> task_ptr) override;
 
   /**
-   * Deserialize task IN parameters from network transfer
+   * Deserialize task parameters (IN or OUT based on archive mode)
    */
-  void LoadIn(chi::u32 method, chi::TaskLoadInArchive &archive,
-              hipc::FullPtr<chi::Task> task_ptr) override;
-
-  /**
-   * Serialize task OUT parameters for network transfer
-   */
-  void SaveOut(chi::u32 method, chi::TaskSaveOutArchive &archive,
-               hipc::FullPtr<chi::Task> task_ptr) override;
-
-  /**
-   * Deserialize task OUT parameters from network transfer
-   */
-  void LoadOut(chi::u32 method, chi::TaskLoadOutArchive &archive,
-               hipc::FullPtr<chi::Task> task_ptr) override;
+  void LoadTask(chi::u32 method, chi::LoadTaskArchive &archive,
+                hipc::FullPtr<chi::Task> task_ptr) override;
 
   /**
    * Create a new copy of a task (deep copy for distributed execution)

@@ -120,37 +120,62 @@ void Runtime::Del(chi::u32 method, hipc::FullPtr<chi::Task> task_ptr) {
   }
 }
 
-void Runtime::SaveIn(chi::u32 method, chi::TaskSaveInArchive& archive,
-                      hipc::FullPtr<chi::Task> task_ptr) {
+void Runtime::SaveTask(chi::u32 method, chi::SaveTaskArchive& archive, 
+                        hipc::FullPtr<chi::Task> task_ptr) {
+  bool srl_mode = archive.GetSerializeMode();
   switch (method) {
     case Method::kCreate: {
       auto typed_task = task_ptr.Cast<CreateTask>();
-      typed_task->SerializeIn(archive);
+      if (srl_mode) {
+        typed_task->SerializeIn(archive);
+      } else {
+        typed_task->SerializeOut(archive);
+      }
       break;
     }
     case Method::kDestroy: {
       auto typed_task = task_ptr.Cast<DestroyTask>();
-      typed_task->SerializeIn(archive);
+      if (srl_mode) {
+        typed_task->SerializeIn(archive);
+      } else {
+        typed_task->SerializeOut(archive);
+      }
       break;
     }
     case Method::kCustom: {
       auto typed_task = task_ptr.Cast<CustomTask>();
-      typed_task->SerializeIn(archive);
+      if (srl_mode) {
+        typed_task->SerializeIn(archive);
+      } else {
+        typed_task->SerializeOut(archive);
+      }
       break;
     }
     case Method::kCoMutexTest: {
       auto typed_task = task_ptr.Cast<CoMutexTestTask>();
-      typed_task->SerializeIn(archive);
+      if (srl_mode) {
+        typed_task->SerializeIn(archive);
+      } else {
+        typed_task->SerializeOut(archive);
+      }
       break;
     }
     case Method::kCoRwLockTest: {
       auto typed_task = task_ptr.Cast<CoRwLockTestTask>();
-      typed_task->SerializeIn(archive);
+      if (srl_mode) {
+        typed_task->SerializeIn(archive);
+      } else {
+        typed_task->SerializeOut(archive);
+      }
       break;
     }
     case Method::kWaitTest: {
       auto typed_task = task_ptr.Cast<WaitTestTask>();
-      typed_task->SerializeIn(archive);
+      if (srl_mode) {
+        typed_task->SerializeIn(archive);
+      } else {
+        typed_task->SerializeOut(archive);
+      }
       break;
     }
     default: {
@@ -160,117 +185,62 @@ void Runtime::SaveIn(chi::u32 method, chi::TaskSaveInArchive& archive,
   }
 }
 
-void Runtime::LoadIn(chi::u32 method, chi::TaskLoadInArchive& archive,
-                      hipc::FullPtr<chi::Task> task_ptr) {
+void Runtime::LoadTask(chi::u32 method, chi::LoadTaskArchive& archive, 
+                        hipc::FullPtr<chi::Task> task_ptr) {
+  bool srl_mode = archive.GetSerializeMode();
   switch (method) {
     case Method::kCreate: {
       auto typed_task = task_ptr.Cast<CreateTask>();
-      typed_task->SerializeIn(archive);
+      if (srl_mode) {
+        typed_task->SerializeIn(archive);
+      } else {
+        typed_task->SerializeOut(archive);
+      }
       break;
     }
     case Method::kDestroy: {
       auto typed_task = task_ptr.Cast<DestroyTask>();
-      typed_task->SerializeIn(archive);
+      if (srl_mode) {
+        typed_task->SerializeIn(archive);
+      } else {
+        typed_task->SerializeOut(archive);
+      }
       break;
     }
     case Method::kCustom: {
       auto typed_task = task_ptr.Cast<CustomTask>();
-      typed_task->SerializeIn(archive);
+      if (srl_mode) {
+        typed_task->SerializeIn(archive);
+      } else {
+        typed_task->SerializeOut(archive);
+      }
       break;
     }
     case Method::kCoMutexTest: {
       auto typed_task = task_ptr.Cast<CoMutexTestTask>();
-      typed_task->SerializeIn(archive);
+      if (srl_mode) {
+        typed_task->SerializeIn(archive);
+      } else {
+        typed_task->SerializeOut(archive);
+      }
       break;
     }
     case Method::kCoRwLockTest: {
       auto typed_task = task_ptr.Cast<CoRwLockTestTask>();
-      typed_task->SerializeIn(archive);
+      if (srl_mode) {
+        typed_task->SerializeIn(archive);
+      } else {
+        typed_task->SerializeOut(archive);
+      }
       break;
     }
     case Method::kWaitTest: {
       auto typed_task = task_ptr.Cast<WaitTestTask>();
-      typed_task->SerializeIn(archive);
-      break;
-    }
-    default: {
-      // Unknown method - do nothing
-      break;
-    }
-  }
-}
-
-void Runtime::SaveOut(chi::u32 method, chi::TaskSaveOutArchive& archive,
-                       hipc::FullPtr<chi::Task> task_ptr) {
-  switch (method) {
-    case Method::kCreate: {
-      auto typed_task = task_ptr.Cast<CreateTask>();
-      typed_task->SerializeOut(archive);
-      break;
-    }
-    case Method::kDestroy: {
-      auto typed_task = task_ptr.Cast<DestroyTask>();
-      typed_task->SerializeOut(archive);
-      break;
-    }
-    case Method::kCustom: {
-      auto typed_task = task_ptr.Cast<CustomTask>();
-      typed_task->SerializeOut(archive);
-      break;
-    }
-    case Method::kCoMutexTest: {
-      auto typed_task = task_ptr.Cast<CoMutexTestTask>();
-      typed_task->SerializeOut(archive);
-      break;
-    }
-    case Method::kCoRwLockTest: {
-      auto typed_task = task_ptr.Cast<CoRwLockTestTask>();
-      typed_task->SerializeOut(archive);
-      break;
-    }
-    case Method::kWaitTest: {
-      auto typed_task = task_ptr.Cast<WaitTestTask>();
-      typed_task->SerializeOut(archive);
-      break;
-    }
-    default: {
-      // Unknown method - do nothing
-      break;
-    }
-  }
-}
-
-void Runtime::LoadOut(chi::u32 method, chi::TaskLoadOutArchive& archive,
-                       hipc::FullPtr<chi::Task> task_ptr) {
-  switch (method) {
-    case Method::kCreate: {
-      auto typed_task = task_ptr.Cast<CreateTask>();
-      typed_task->SerializeOut(archive);
-      break;
-    }
-    case Method::kDestroy: {
-      auto typed_task = task_ptr.Cast<DestroyTask>();
-      typed_task->SerializeOut(archive);
-      break;
-    }
-    case Method::kCustom: {
-      auto typed_task = task_ptr.Cast<CustomTask>();
-      typed_task->SerializeOut(archive);
-      break;
-    }
-    case Method::kCoMutexTest: {
-      auto typed_task = task_ptr.Cast<CoMutexTestTask>();
-      typed_task->SerializeOut(archive);
-      break;
-    }
-    case Method::kCoRwLockTest: {
-      auto typed_task = task_ptr.Cast<CoRwLockTestTask>();
-      typed_task->SerializeOut(archive);
-      break;
-    }
-    case Method::kWaitTest: {
-      auto typed_task = task_ptr.Cast<WaitTestTask>();
-      typed_task->SerializeOut(archive);
+      if (srl_mode) {
+        typed_task->SerializeIn(archive);
+      } else {
+        typed_task->SerializeOut(archive);
+      }
       break;
     }
     default: {

@@ -172,28 +172,16 @@ class Runtime : public chi::Container {
   chi::u64 GetWorkRemaining() const override;
 
   /**
-   * Serialize task IN parameters for network transfer
+   * Serialize task parameters for network transfer (unified method)
    */
-  void SaveIn(chi::u32 method, chi::TaskSaveInArchive& archive,
-              hipc::FullPtr<chi::Task> task_ptr) override;
+  void SaveTask(chi::u32 method, chi::SaveTaskArchive& archive,
+                hipc::FullPtr<chi::Task> task_ptr) override;
 
   /**
-   * Deserialize task IN parameters from network transfer
+   * Deserialize task parameters from network transfer (unified method)
    */
-  void LoadIn(chi::u32 method, chi::TaskLoadInArchive& archive,
-              hipc::FullPtr<chi::Task> task_ptr) override;
-
-  /**
-   * Serialize task OUT parameters for network transfer
-   */
-  void SaveOut(chi::u32 method, chi::TaskSaveOutArchive& archive,
-               hipc::FullPtr<chi::Task> task_ptr) override;
-
-  /**
-   * Deserialize task OUT parameters from network transfer
-   */
-  void LoadOut(chi::u32 method, chi::TaskLoadOutArchive& archive,
-               hipc::FullPtr<chi::Task> task_ptr) override;
+  void LoadTask(chi::u32 method, chi::LoadTaskArchive& archive,
+                hipc::FullPtr<chi::Task> task_ptr) override;
 
   /**
    * Create a new copy of a task (deep copy for distributed execution)

@@ -42,20 +42,12 @@ void Runtime::Run(chi::u32 method, hipc::FullPtr<chi::Task> task_ptr, chi::RunCo
       Flush(task_ptr.Cast<FlushTask>(), rctx);
       break;
     }
-    case Method::kClientSendTaskIn: {
-      ClientSendTaskIn(task_ptr.Cast<ClientSendTaskInTask>(), rctx);
+    case Method::kSend: {
+      Send(task_ptr.Cast<SendTask>(), rctx);
       break;
     }
-    case Method::kServerRecvTaskIn: {
-      ServerRecvTaskIn(task_ptr.Cast<ServerRecvTaskInTask>(), rctx);
-      break;
-    }
-    case Method::kServerSendTaskOut: {
-      ServerSendTaskOut(task_ptr.Cast<ServerSendTaskOutTask>(), rctx);
-      break;
-    }
-    case Method::kClientRecvTaskOut: {
-      ClientRecvTaskOut(task_ptr.Cast<ClientRecvTaskOutTask>(), rctx);
+    case Method::kRecv: {
+      Recv(task_ptr.Cast<RecvTask>(), rctx);
       break;
     }
     default: {
@@ -92,20 +84,12 @@ void Runtime::Monitor(chi::MonitorModeId mode, chi::u32 method,
       MonitorFlush(mode, task_ptr.Cast<FlushTask>(), rctx);
       break;
     }
-    case Method::kClientSendTaskIn: {
-      MonitorClientSendTaskIn(mode, task_ptr.Cast<ClientSendTaskInTask>(), rctx);
+    case Method::kSend: {
+      MonitorSend(mode, task_ptr.Cast<SendTask>(), rctx);
       break;
     }
-    case Method::kServerRecvTaskIn: {
-      MonitorServerRecvTaskIn(mode, task_ptr.Cast<ServerRecvTaskInTask>(), rctx);
-      break;
-    }
-    case Method::kServerSendTaskOut: {
-      MonitorServerSendTaskOut(mode, task_ptr.Cast<ServerSendTaskOutTask>(), rctx);
-      break;
-    }
-    case Method::kClientRecvTaskOut: {
-      MonitorClientRecvTaskOut(mode, task_ptr.Cast<ClientRecvTaskOutTask>(), rctx);
+    case Method::kRecv: {
+      MonitorRecv(mode, task_ptr.Cast<RecvTask>(), rctx);
       break;
     }
     default: {
@@ -144,20 +128,12 @@ void Runtime::Del(chi::u32 method, hipc::FullPtr<chi::Task> task_ptr) {
       ipc_manager->DelTask(task_ptr.Cast<FlushTask>());
       break;
     }
-    case Method::kClientSendTaskIn: {
-      ipc_manager->DelTask(task_ptr.Cast<ClientSendTaskInTask>());
+    case Method::kSend: {
+      ipc_manager->DelTask(task_ptr.Cast<SendTask>());
       break;
     }
-    case Method::kServerRecvTaskIn: {
-      ipc_manager->DelTask(task_ptr.Cast<ServerRecvTaskInTask>());
-      break;
-    }
-    case Method::kServerSendTaskOut: {
-      ipc_manager->DelTask(task_ptr.Cast<ServerSendTaskOutTask>());
-      break;
-    }
-    case Method::kClientRecvTaskOut: {
-      ipc_manager->DelTask(task_ptr.Cast<ClientRecvTaskOutTask>());
+    case Method::kRecv: {
+      ipc_manager->DelTask(task_ptr.Cast<RecvTask>());
       break;
     }
     default: {
@@ -168,57 +144,80 @@ void Runtime::Del(chi::u32 method, hipc::FullPtr<chi::Task> task_ptr) {
   }
 }
 
-void Runtime::SaveIn(chi::u32 method, chi::TaskSaveInArchive& archive, 
-                      hipc::FullPtr<chi::Task> task_ptr) {
+void Runtime::SaveTask(chi::u32 method, chi::SaveTaskArchive& archive, 
+                        hipc::FullPtr<chi::Task> task_ptr) {
+  bool srl_mode = archive.GetSerializeMode();
   switch (method) {
     case Method::kCreate: {
       auto typed_task = task_ptr.Cast<CreateTask>();
-      typed_task->SerializeIn(archive);
+      if (srl_mode) {
+        typed_task->SerializeIn(archive);
+      } else {
+        typed_task->SerializeOut(archive);
+      }
       break;
     }
     case Method::kDestroy: {
       auto typed_task = task_ptr.Cast<DestroyTask>();
-      typed_task->SerializeIn(archive);
+      if (srl_mode) {
+        typed_task->SerializeIn(archive);
+      } else {
+        typed_task->SerializeOut(archive);
+      }
       break;
     }
     case Method::kGetOrCreatePool: {
       auto typed_task = task_ptr.Cast<admin::GetOrCreatePoolTask<admin::CreateParams>>();
-      typed_task->SerializeIn(archive);
+      if (srl_mode) {
+        typed_task->SerializeIn(archive);
+      } else {
+        typed_task->SerializeOut(archive);
+      }
       break;
     }
     case Method::kDestroyPool: {
       auto typed_task = task_ptr.Cast<DestroyPoolTask>();
-      typed_task->SerializeIn(archive);
+      if (srl_mode) {
+        typed_task->SerializeIn(archive);
+      } else {
+        typed_task->SerializeOut(archive);
+      }
       break;
     }
     case Method::kStopRuntime: {
       auto typed_task = task_ptr.Cast<StopRuntimeTask>();
-      typed_task->SerializeIn(archive);
+      if (srl_mode) {
+        typed_task->SerializeIn(archive);
+      } else {
+        typed_task->SerializeOut(archive);
+      }
       break;
     }
     case Method::kFlush: {
       auto typed_task = task_ptr.Cast<FlushTask>();
-      typed_task->SerializeIn(archive);
+      if (srl_mode) {
+        typed_task->SerializeIn(archive);
+      } else {
+        typed_task->SerializeOut(archive);
+      }
       break;
     }
-    case Method::kClientSendTaskIn: {
-      auto typed_task = task_ptr.Cast<ClientSendTaskInTask>();
-      typed_task->SerializeIn(archive);
+    case Method::kSend: {
+      auto typed_task = task_ptr.Cast<SendTask>();
+      if (srl_mode) {
+        typed_task->SerializeIn(archive);
+      } else {
+        typed_task->SerializeOut(archive);
+      }
       break;
     }
-    case Method::kServerRecvTaskIn: {
-      auto typed_task = task_ptr.Cast<ServerRecvTaskInTask>();
-      typed_task->SerializeIn(archive);
-      break;
-    }
-    case Method::kServerSendTaskOut: {
-      auto typed_task = task_ptr.Cast<ServerSendTaskOutTask>();
-      typed_task->SerializeIn(archive);
-      break;
-    }
-    case Method::kClientRecvTaskOut: {
-      auto typed_task = task_ptr.Cast<ClientRecvTaskOutTask>();
-      typed_task->SerializeIn(archive);
+    case Method::kRecv: {
+      auto typed_task = task_ptr.Cast<RecvTask>();
+      if (srl_mode) {
+        typed_task->SerializeIn(archive);
+      } else {
+        typed_task->SerializeOut(archive);
+      }
       break;
     }
     default: {
@@ -228,177 +227,80 @@ void Runtime::SaveIn(chi::u32 method, chi::TaskSaveInArchive& archive,
   }
 }
 
-void Runtime::LoadIn(chi::u32 method, chi::TaskLoadInArchive& archive, 
-                      hipc::FullPtr<chi::Task> task_ptr) {
+void Runtime::LoadTask(chi::u32 method, chi::LoadTaskArchive& archive, 
+                        hipc::FullPtr<chi::Task> task_ptr) {
+  bool srl_mode = archive.GetSerializeMode();
   switch (method) {
     case Method::kCreate: {
       auto typed_task = task_ptr.Cast<CreateTask>();
-      typed_task->SerializeIn(archive);
+      if (srl_mode) {
+        typed_task->SerializeIn(archive);
+      } else {
+        typed_task->SerializeOut(archive);
+      }
       break;
     }
     case Method::kDestroy: {
       auto typed_task = task_ptr.Cast<DestroyTask>();
-      typed_task->SerializeIn(archive);
+      if (srl_mode) {
+        typed_task->SerializeIn(archive);
+      } else {
+        typed_task->SerializeOut(archive);
+      }
       break;
     }
     case Method::kGetOrCreatePool: {
       auto typed_task = task_ptr.Cast<admin::GetOrCreatePoolTask<admin::CreateParams>>();
-      typed_task->SerializeIn(archive);
+      if (srl_mode) {
+        typed_task->SerializeIn(archive);
+      } else {
+        typed_task->SerializeOut(archive);
+      }
       break;
     }
     case Method::kDestroyPool: {
       auto typed_task = task_ptr.Cast<DestroyPoolTask>();
-      typed_task->SerializeIn(archive);
+      if (srl_mode) {
+        typed_task->SerializeIn(archive);
+      } else {
+        typed_task->SerializeOut(archive);
+      }
       break;
     }
     case Method::kStopRuntime: {
       auto typed_task = task_ptr.Cast<StopRuntimeTask>();
-      typed_task->SerializeIn(archive);
+      if (srl_mode) {
+        typed_task->SerializeIn(archive);
+      } else {
+        typed_task->SerializeOut(archive);
+      }
       break;
     }
     case Method::kFlush: {
       auto typed_task = task_ptr.Cast<FlushTask>();
-      typed_task->SerializeIn(archive);
+      if (srl_mode) {
+        typed_task->SerializeIn(archive);
+      } else {
+        typed_task->SerializeOut(archive);
+      }
       break;
     }
-    case Method::kClientSendTaskIn: {
-      auto typed_task = task_ptr.Cast<ClientSendTaskInTask>();
-      typed_task->SerializeIn(archive);
+    case Method::kSend: {
+      auto typed_task = task_ptr.Cast<SendTask>();
+      if (srl_mode) {
+        typed_task->SerializeIn(archive);
+      } else {
+        typed_task->SerializeOut(archive);
+      }
       break;
     }
-    case Method::kServerRecvTaskIn: {
-      auto typed_task = task_ptr.Cast<ServerRecvTaskInTask>();
-      typed_task->SerializeIn(archive);
-      break;
-    }
-    case Method::kServerSendTaskOut: {
-      auto typed_task = task_ptr.Cast<ServerSendTaskOutTask>();
-      typed_task->SerializeIn(archive);
-      break;
-    }
-    case Method::kClientRecvTaskOut: {
-      auto typed_task = task_ptr.Cast<ClientRecvTaskOutTask>();
-      typed_task->SerializeIn(archive);
-      break;
-    }
-    default: {
-      // Unknown method - do nothing
-      break;
-    }
-  }
-}
-
-void Runtime::SaveOut(chi::u32 method, chi::TaskSaveOutArchive& archive, 
-                       hipc::FullPtr<chi::Task> task_ptr) {
-  switch (method) {
-    case Method::kCreate: {
-      auto typed_task = task_ptr.Cast<CreateTask>();
-      typed_task->SerializeOut(archive);
-      break;
-    }
-    case Method::kDestroy: {
-      auto typed_task = task_ptr.Cast<DestroyTask>();
-      typed_task->SerializeOut(archive);
-      break;
-    }
-    case Method::kGetOrCreatePool: {
-      auto typed_task = task_ptr.Cast<admin::GetOrCreatePoolTask<admin::CreateParams>>();
-      typed_task->SerializeOut(archive);
-      break;
-    }
-    case Method::kDestroyPool: {
-      auto typed_task = task_ptr.Cast<DestroyPoolTask>();
-      typed_task->SerializeOut(archive);
-      break;
-    }
-    case Method::kStopRuntime: {
-      auto typed_task = task_ptr.Cast<StopRuntimeTask>();
-      typed_task->SerializeOut(archive);
-      break;
-    }
-    case Method::kFlush: {
-      auto typed_task = task_ptr.Cast<FlushTask>();
-      typed_task->SerializeOut(archive);
-      break;
-    }
-    case Method::kClientSendTaskIn: {
-      auto typed_task = task_ptr.Cast<ClientSendTaskInTask>();
-      typed_task->SerializeOut(archive);
-      break;
-    }
-    case Method::kServerRecvTaskIn: {
-      auto typed_task = task_ptr.Cast<ServerRecvTaskInTask>();
-      typed_task->SerializeOut(archive);
-      break;
-    }
-    case Method::kServerSendTaskOut: {
-      auto typed_task = task_ptr.Cast<ServerSendTaskOutTask>();
-      typed_task->SerializeOut(archive);
-      break;
-    }
-    case Method::kClientRecvTaskOut: {
-      auto typed_task = task_ptr.Cast<ClientRecvTaskOutTask>();
-      typed_task->SerializeOut(archive);
-      break;
-    }
-    default: {
-      // Unknown method - do nothing
-      break;
-    }
-  }
-}
-
-void Runtime::LoadOut(chi::u32 method, chi::TaskLoadOutArchive& archive, 
-                       hipc::FullPtr<chi::Task> task_ptr) {
-  switch (method) {
-    case Method::kCreate: {
-      auto typed_task = task_ptr.Cast<CreateTask>();
-      typed_task->SerializeOut(archive);
-      break;
-    }
-    case Method::kDestroy: {
-      auto typed_task = task_ptr.Cast<DestroyTask>();
-      typed_task->SerializeOut(archive);
-      break;
-    }
-    case Method::kGetOrCreatePool: {
-      auto typed_task = task_ptr.Cast<admin::GetOrCreatePoolTask<admin::CreateParams>>();
-      typed_task->SerializeOut(archive);
-      break;
-    }
-    case Method::kDestroyPool: {
-      auto typed_task = task_ptr.Cast<DestroyPoolTask>();
-      typed_task->SerializeOut(archive);
-      break;
-    }
-    case Method::kStopRuntime: {
-      auto typed_task = task_ptr.Cast<StopRuntimeTask>();
-      typed_task->SerializeOut(archive);
-      break;
-    }
-    case Method::kFlush: {
-      auto typed_task = task_ptr.Cast<FlushTask>();
-      typed_task->SerializeOut(archive);
-      break;
-    }
-    case Method::kClientSendTaskIn: {
-      auto typed_task = task_ptr.Cast<ClientSendTaskInTask>();
-      typed_task->SerializeOut(archive);
-      break;
-    }
-    case Method::kServerRecvTaskIn: {
-      auto typed_task = task_ptr.Cast<ServerRecvTaskInTask>();
-      typed_task->SerializeOut(archive);
-      break;
-    }
-    case Method::kServerSendTaskOut: {
-      auto typed_task = task_ptr.Cast<ServerSendTaskOutTask>();
-      typed_task->SerializeOut(archive);
-      break;
-    }
-    case Method::kClientRecvTaskOut: {
-      auto typed_task = task_ptr.Cast<ClientRecvTaskOutTask>();
-      typed_task->SerializeOut(archive);
+    case Method::kRecv: {
+      auto typed_task = task_ptr.Cast<RecvTask>();
+      if (srl_mode) {
+        typed_task->SerializeIn(archive);
+      } else {
+        typed_task->SerializeOut(archive);
+      }
       break;
     }
     default: {
@@ -482,45 +384,23 @@ void Runtime::NewCopy(chi::u32 method, const hipc::FullPtr<chi::Task>& orig_task
       }
       break;
     }
-    case Method::kClientSendTaskIn: {
+    case Method::kSend: {
       // Allocate new task using SHM default constructor
-      auto typed_task = ipc_manager->NewTask<ClientSendTaskInTask>();
+      auto typed_task = ipc_manager->NewTask<SendTask>();
       if (!typed_task.IsNull()) {
         // Use HSHM strong copy method for actual copying
-        typed_task->shm_strong_copy_main(*orig_task.Cast<ClientSendTaskInTask>());
+        typed_task->shm_strong_copy_main(*orig_task.Cast<SendTask>());
         // Cast to base Task type for return
         dup_task = typed_task.template Cast<chi::Task>();
       }
       break;
     }
-    case Method::kServerRecvTaskIn: {
+    case Method::kRecv: {
       // Allocate new task using SHM default constructor
-      auto typed_task = ipc_manager->NewTask<ServerRecvTaskInTask>();
+      auto typed_task = ipc_manager->NewTask<RecvTask>();
       if (!typed_task.IsNull()) {
         // Use HSHM strong copy method for actual copying
-        typed_task->shm_strong_copy_main(*orig_task.Cast<ServerRecvTaskInTask>());
-        // Cast to base Task type for return
-        dup_task = typed_task.template Cast<chi::Task>();
-      }
-      break;
-    }
-    case Method::kServerSendTaskOut: {
-      // Allocate new task using SHM default constructor
-      auto typed_task = ipc_manager->NewTask<ServerSendTaskOutTask>();
-      if (!typed_task.IsNull()) {
-        // Use HSHM strong copy method for actual copying
-        typed_task->shm_strong_copy_main(*orig_task.Cast<ServerSendTaskOutTask>());
-        // Cast to base Task type for return
-        dup_task = typed_task.template Cast<chi::Task>();
-      }
-      break;
-    }
-    case Method::kClientRecvTaskOut: {
-      // Allocate new task using SHM default constructor
-      auto typed_task = ipc_manager->NewTask<ClientRecvTaskOutTask>();
-      if (!typed_task.IsNull()) {
-        // Use HSHM strong copy method for actual copying
-        typed_task->shm_strong_copy_main(*orig_task.Cast<ClientRecvTaskOutTask>());
+        typed_task->shm_strong_copy_main(*orig_task.Cast<RecvTask>());
         // Cast to base Task type for return
         dup_task = typed_task.template Cast<chi::Task>();
       }

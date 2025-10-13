@@ -299,6 +299,7 @@ private:
   std::unique_ptr<std::istringstream> stream_;
   std::unique_ptr<cereal::BinaryInputArchive> archive_;
   std::vector<BulkTransferInfo> bulk_transfers_;
+  std::vector<TaskId> task_ids_;  // Task IDs being deserialized
 
 public:
   /** Constructor from serialized data */
@@ -323,7 +324,8 @@ public:
       : data_(std::move(other.data_)),
         stream_(std::move(other.stream_)),
         archive_(std::move(other.archive_)),
-        bulk_transfers_(std::move(other.bulk_transfers_)) {}
+        bulk_transfers_(std::move(other.bulk_transfers_)),
+        task_ids_(std::move(other.task_ids_)) {}
 
   /** Move assignment operator */
   TaskLoadOutArchive& operator=(TaskLoadOutArchive&& other) noexcept {
@@ -332,6 +334,7 @@ public:
       stream_ = std::move(other.stream_);
       archive_ = std::move(other.archive_);
       bulk_transfers_ = std::move(other.bulk_transfers_);
+      task_ids_ = std::move(other.task_ids_);
     }
     return *this;
   }
@@ -369,6 +372,20 @@ public:
     return bulk_transfers_;
   }
 
+  /** Load archive from message with task IDs */
+  void LoadFromMessage(const std::string& message, const std::vector<TaskId>& ids) {
+    task_ids_ = ids;
+    // Reconstruct the archive from the message
+    data_ = message;
+    stream_ = std::make_unique<std::istringstream>(data_);
+    archive_ = std::make_unique<cereal::BinaryInputArchive>(*stream_);
+  }
+
+  /** Get task IDs being deserialized */
+  const std::vector<TaskId>& GetTaskIds() const {
+    return task_ids_;
+  }
+
   /** Access underlying cereal archive */
   cereal::BinaryInputArchive& GetArchive() { return *archive_; }
 };
@@ -382,6 +399,7 @@ private:
   std::ostringstream stream_;
   std::unique_ptr<cereal::BinaryOutputArchive> archive_;
   std::vector<BulkTransferInfo> bulk_transfers_;
+  std::vector<TaskId> task_ids_;  // Unique task IDs being serialized
 
 public:
   /** Default constructor */
@@ -392,7 +410,8 @@ public:
   TaskSaveOutArchive(TaskSaveOutArchive&& other) noexcept
       : stream_(std::move(other.stream_)),
         archive_(std::move(other.archive_)),
-        bulk_transfers_(std::move(other.bulk_transfers_)) {}
+        bulk_transfers_(std::move(other.bulk_transfers_)),
+        task_ids_(std::move(other.task_ids_)) {}
 
   /** Move assignment operator */
   TaskSaveOutArchive& operator=(TaskSaveOutArchive&& other) noexcept {
@@ -400,6 +419,7 @@ public:
       stream_ = std::move(other.stream_);
       archive_ = std::move(other.archive_);
       bulk_transfers_ = std::move(other.bulk_transfers_);
+      task_ids_ = std::move(other.task_ids_);
     }
     return *this;
   }
@@ -445,8 +465,326 @@ public:
     return bulk_transfers_;
   }
 
+  /** Get task IDs being serialized */
+  const std::vector<TaskId>& GetTaskIds() const {
+    return task_ids_;
+  }
+
+  /** Add a task ID to the serialization */
+  void AddTaskId(const TaskId& id) {
+    task_ids_.push_back(id);
+  }
+
   /** Access underlying cereal archive */
   cereal::BinaryOutputArchive& GetArchive() { return *archive_; }
+};
+
+/**
+ * Archive for saving tasks (inputs or outputs) for network transfer
+ * Unified archive that replaces TaskSaveInArchive and TaskSaveOutArchive
+ */
+class SaveTaskArchive {
+private:
+  std::ostringstream stream_;
+  std::unique_ptr<cereal::BinaryOutputArchive> archive_;
+  std::vector<DataTransfer> data_transfers_;
+
+  // Task information for deserialization
+  struct TaskInfo {
+    TaskId task_id_;
+    PoolId pool_id_;
+    u32 method_id_;
+
+    template<class Archive>
+    void serialize(Archive& ar) {
+      ar(task_id_, pool_id_, method_id_);
+    }
+  };
+  std::vector<TaskInfo> task_infos_;
+
+  bool srl_mode_;  // true = SerializeIn (inputs), false = SerializeOut (outputs)
+
+public:
+  /** Constructor with serialization mode */
+  explicit SaveTaskArchive(bool srl_mode)
+      : archive_(std::make_unique<cereal::BinaryOutputArchive>(stream_)),
+        srl_mode_(srl_mode) {}
+
+  /** Move constructor */
+  SaveTaskArchive(SaveTaskArchive&& other) noexcept
+      : stream_(std::move(other.stream_)),
+        archive_(std::move(other.archive_)),
+        data_transfers_(std::move(other.data_transfers_)),
+        task_infos_(std::move(other.task_infos_)),
+        srl_mode_(other.srl_mode_) {}
+
+  /** Move assignment operator */
+  SaveTaskArchive& operator=(SaveTaskArchive&& other) noexcept {
+    if (this != &other) {
+      stream_ = std::move(other.stream_);
+      archive_ = std::move(other.archive_);
+      data_transfers_ = std::move(other.data_transfers_);
+      task_infos_ = std::move(other.task_infos_);
+      srl_mode_ = other.srl_mode_;
+    }
+    return *this;
+  }
+
+  /** Delete copy constructor and assignment */
+  SaveTaskArchive(const SaveTaskArchive&) = delete;
+  SaveTaskArchive& operator=(const SaveTaskArchive&) = delete;
+
+  /** Serialize operator - handles Task-derived types specially */
+  template<typename T>
+  SaveTaskArchive& operator<<(T& value) {
+    if constexpr (std::is_base_of_v<Task, T>) {
+      // Record task information
+      TaskInfo info{value.task_id_, value.pool_id_, value.method_};
+      task_infos_.push_back(info);
+
+      // Serialize task based on mode
+      if (srl_mode_) {
+        // SerializeIn mode - serialize input parameters
+        value.BaseSerializeIn(*this);
+        value.SerializeIn(*this);
+      } else {
+        // SerializeOut mode - serialize output parameters
+        value.BaseSerializeOut(*this);
+        value.SerializeOut(*this);
+      }
+    } else {
+      (*archive_)(value);
+    }
+    return *this;
+  }
+
+  /** Bidirectional serialization - acts as output for this archive type */
+  template<typename... Args>
+  void operator()(Args&... args) {
+    ((*this << args), ...);
+  }
+
+  /** Bulk transfer support */
+  void bulk(hipc::Pointer ptr, size_t size, uint32_t flags) {
+    DataTransfer transfer(ptr, size, flags);
+    data_transfers_.push_back(transfer);
+  }
+
+  /** Get data transfer information */
+  const std::vector<DataTransfer>& GetDataTransfers() const {
+    return data_transfers_;
+  }
+
+  /** Get task information */
+  const std::vector<TaskInfo>& GetTaskInfos() const {
+    return task_infos_;
+  }
+
+  /** Get serialization mode */
+  bool GetSerializeMode() const {
+    return srl_mode_;
+  }
+
+  /** Build message for network transfer */
+  std::string BuildMessage() {
+    // First, finalize the main archive by ensuring all data is flushed
+    archive_.reset();  // Flush and close the archive
+
+    // Create a new stream for the complete message
+    std::ostringstream msg_stream;
+    cereal::BinaryOutputArchive msg_archive(msg_stream);
+
+    // Serialize the components:
+    // 1. Serialization mode
+    msg_archive(srl_mode_);
+
+    // 2. Task information vector
+    msg_archive(task_infos_);
+
+    // 3. Binary archive data (as string)
+    std::string archive_data = stream_.str();
+    msg_archive(archive_data);
+
+    // 4. DataTransfer vector
+    msg_archive(data_transfers_);
+
+    return msg_stream.str();
+  }
+
+  /** Access underlying cereal archive */
+  cereal::BinaryOutputArchive& GetArchive() { return *archive_; }
+};
+
+/**
+ * Archive for loading tasks (inputs or outputs) from network transfer
+ * Unified archive that replaces TaskLoadInArchive and TaskLoadOutArchive
+ */
+class LoadTaskArchive {
+private:
+  std::string data_;
+  std::unique_ptr<std::istringstream> stream_;
+  std::unique_ptr<cereal::BinaryInputArchive> archive_;
+  std::vector<DataTransfer> data_transfers_;
+
+  // Task information for deserialization
+  struct TaskInfo {
+    TaskId task_id_;
+    PoolId pool_id_;
+    u32 method_id_;
+
+    template<class Archive>
+    void serialize(Archive& ar) {
+      ar(task_id_, pool_id_, method_id_);
+    }
+  };
+  std::vector<TaskInfo> task_infos_;
+  size_t current_task_index_;
+
+  bool srl_mode_;  // true = SerializeIn (inputs), false = SerializeOut (outputs)
+
+public:
+  /** Default constructor */
+  LoadTaskArchive()
+      : stream_(std::make_unique<std::istringstream>("")),
+        archive_(std::make_unique<cereal::BinaryInputArchive>(*stream_)),
+        current_task_index_(0),
+        srl_mode_(true) {}
+
+  /** Constructor from serialized data */
+  explicit LoadTaskArchive(const std::string& data)
+      : data_(data),
+        stream_(std::make_unique<std::istringstream>(data_)),
+        archive_(std::make_unique<cereal::BinaryInputArchive>(*stream_)),
+        current_task_index_(0),
+        srl_mode_(true) {}
+
+  /** Move constructor */
+  LoadTaskArchive(LoadTaskArchive&& other) noexcept
+      : data_(std::move(other.data_)),
+        stream_(std::move(other.stream_)),
+        archive_(std::move(other.archive_)),
+        data_transfers_(std::move(other.data_transfers_)),
+        task_infos_(std::move(other.task_infos_)),
+        current_task_index_(other.current_task_index_),
+        srl_mode_(other.srl_mode_) {}
+
+  /** Move assignment operator */
+  LoadTaskArchive& operator=(LoadTaskArchive&& other) noexcept {
+    if (this != &other) {
+      data_ = std::move(other.data_);
+      stream_ = std::move(other.stream_);
+      archive_ = std::move(other.archive_);
+      data_transfers_ = std::move(other.data_transfers_);
+      task_infos_ = std::move(other.task_infos_);
+      current_task_index_ = other.current_task_index_;
+      srl_mode_ = other.srl_mode_;
+    }
+    return *this;
+  }
+
+  /** Delete copy constructor and assignment */
+  LoadTaskArchive(const LoadTaskArchive&) = delete;
+  LoadTaskArchive& operator=(const LoadTaskArchive&) = delete;
+
+  /** Deserialize operator - handles Task-derived types specially */
+  /** Deserialize regular (non-pointer) types using underlying cereal archive */
+  template<typename T>
+  LoadTaskArchive& operator>>(T& value) {
+    (*archive_)(value);
+    return *this;
+  }
+
+  /** Deserialize task pointers */
+  template<typename T>
+  LoadTaskArchive& operator>>(T*& value) {
+    if constexpr (std::is_base_of_v<Task, T>) {
+      // Deserialize task based on mode
+      if (srl_mode_) {
+        // SerializeIn mode - deserialize input parameters
+        value->BaseSerializeIn(*this);
+        value->SerializeIn(*this);
+      } else {
+        // SerializeOut mode - deserialize output parameters
+        value->BaseSerializeOut(*this);
+        value->SerializeOut(*this);
+      }
+      current_task_index_++;
+    } else {
+      (*archive_)(value);
+    }
+    return *this;
+  }
+
+  /** Bidirectional serialization - acts as input for this archive type */
+  template<typename... Args>
+  void operator()(Args&... args) {
+    ((*this >> args), ...);
+  }
+
+  /** Bulk transfer support for SerializeIn mode */
+  void bulk(hipc::Pointer& ptr, size_t size, uint32_t flags) {
+    if (srl_mode_) {
+      // SerializeIn mode - just record the transfer
+      // Actual buffer allocation will be done by caller after deserialization
+      data_transfers_.emplace_back(ptr, size, flags);
+    }
+    // SerializeOut mode - do nothing, task already exists
+  }
+
+  /** Get data transfer information */
+  const std::vector<DataTransfer>& GetDataTransfers() const {
+    return data_transfers_;
+  }
+
+  /** Get task information */
+  const std::vector<TaskInfo>& GetTaskInfos() const {
+    return task_infos_;
+  }
+
+  /** Get current task info */
+  const TaskInfo& GetCurrentTaskInfo() const {
+    return task_infos_[current_task_index_];
+  }
+
+  /** Get serialization mode */
+  bool GetSerializeMode() const {
+    return srl_mode_;
+  }
+
+  /** Load archive from BuildMessage() output */
+  void LoadFromMessage(const std::string& message) {
+    // Deserialize the message using cereal
+    std::istringstream msg_stream(message);
+    cereal::BinaryInputArchive msg_archive(msg_stream);
+
+    // Deserialize components in same order as BuildMessage
+    // 1. Serialization mode
+    msg_archive(srl_mode_);
+
+    // 2. Task information vector
+    msg_archive(task_infos_);
+
+    // 3. Binary archive data
+    std::string archive_data;
+    msg_archive(archive_data);
+
+    // 4. DataTransfer vector
+    msg_archive(data_transfers_);
+
+    // Reconstruct the internal archive from the archive_data
+    data_ = archive_data;
+    stream_ = std::make_unique<std::istringstream>(data_);
+    archive_ = std::make_unique<cereal::BinaryInputArchive>(*stream_);
+    current_task_index_ = 0;
+  }
+
+  /** Reset task index for iteration */
+  void ResetTaskIndex() {
+    current_task_index_ = 0;
+  }
+
+  /** Access underlying cereal archive */
+  cereal::BinaryInputArchive& GetArchive() { return *archive_; }
 };
 
 }  // namespace chi

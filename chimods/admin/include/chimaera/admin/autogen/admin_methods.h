@@ -19,10 +19,8 @@ GLOBAL_CONST chi::u32 kGetOrCreatePool = 10;
 GLOBAL_CONST chi::u32 kDestroyPool = 11;
 GLOBAL_CONST chi::u32 kStopRuntime = 12;
 GLOBAL_CONST chi::u32 kFlush = 13;
-GLOBAL_CONST chi::u32 kClientSendTaskIn = 14;
-GLOBAL_CONST chi::u32 kServerRecvTaskIn = 15;
-GLOBAL_CONST chi::u32 kServerSendTaskOut = 16;
-GLOBAL_CONST chi::u32 kClientRecvTaskOut = 17;
+GLOBAL_CONST chi::u32 kSend = 14;
+GLOBAL_CONST chi::u32 kRecv = 15;
 }  // namespace Method
 
 }  // namespace chimaera::admin

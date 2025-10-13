@@ -121,36 +121,26 @@ class Container {
   }
 
   /**
-   * Serialize task IN parameters for network transfer - must be implemented by
-   * derived classes Uses switch-case structure based on method ID to dispatch
-   * to appropriate serialization
+   * Serialize task parameters for network transfer (unified method)
+   * Must be implemented by derived classes
+   * Uses switch-case structure based on method ID to dispatch to appropriate serialization
+   * @param method The method ID to serialize
+   * @param archive SaveTaskArchive configured with srl_mode (true=In, false=Out)
+   * @param task_ptr Pointer to the task to serialize
    */
-  virtual void SaveIn(u32 method, TaskSaveInArchive& archive,
-                      hipc::FullPtr<Task> task_ptr) = 0;
+  virtual void SaveTask(u32 method, SaveTaskArchive& archive,
+                        hipc::FullPtr<Task> task_ptr) = 0;
 
   /**
-   * Deserialize task IN parameters from network transfer - must be implemented
-   * by derived classes Uses switch-case structure based on method ID to
-   * dispatch to appropriate deserialization
+   * Deserialize task parameters from network transfer (unified method)
+   * Must be implemented by derived classes
+   * Uses switch-case structure based on method ID to dispatch to appropriate deserialization
+   * @param method The method ID to deserialize
+   * @param archive LoadTaskArchive configured with srl_mode (true=In, false=Out)
+   * @param task_ptr Pointer to the task to deserialize into
    */
-  virtual void LoadIn(u32 method, TaskLoadInArchive& archive,
-                      hipc::FullPtr<Task> task_ptr) = 0;
-
-  /**
-   * Serialize task OUT parameters for network transfer - must be implemented by
-   * derived classes Uses switch-case structure based on method ID to dispatch
-   * to appropriate serialization
-   */
-  virtual void SaveOut(u32 method, TaskSaveOutArchive& archive,
-                       hipc::FullPtr<Task> task_ptr) = 0;
-
-  /**
-   * Deserialize task OUT parameters from network transfer - must be implemented
-   * by derived classes Uses switch-case structure based on method ID to
-   * dispatch to appropriate deserialization
-   */
-  virtual void LoadOut(u32 method, TaskLoadOutArchive& archive,
-                       hipc::FullPtr<Task> task_ptr) = 0;
+  virtual void LoadTask(u32 method, LoadTaskArchive& archive,
+                        hipc::FullPtr<Task> task_ptr) = 0;
 
   /**
    * Create a new copy of a task (deep copy for distributed execution) - must be

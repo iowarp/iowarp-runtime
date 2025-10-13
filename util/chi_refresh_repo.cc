@@ -5,7 +5,7 @@
  * header files (.h) for ChiMods based on their chimaera_mod.yaml configuration files.
  *
  * The libexec source files implement Container virtual API methods (Run, Monitor, Del,
- * SaveIn, LoadIn, SaveOut, LoadOut, NewCopy) with switch-case dispatch.
+ * SaveTask, LoadTask, NewCopy) with switch-case dispatch.
  *
  * Usage:
  *     chi_refresh_repo <chimod_repo_path>
@@ -295,16 +295,21 @@ class ChiModGenerator {
     oss << "  }\n";
     oss << "}\n";
     oss << "\n";
-    oss << "void Runtime::SaveIn(chi::u32 method, chi::TaskSaveInArchive& archive, \n";
-    oss << "                      hipc::FullPtr<chi::Task> task_ptr) {\n";
+    oss << "void Runtime::SaveTask(chi::u32 method, chi::SaveTaskArchive& archive, \n";
+    oss << "                        hipc::FullPtr<chi::Task> task_ptr) {\n";
+    oss << "  bool srl_mode = archive.GetSerializeMode();\n";
     oss << "  switch (method) {\n";
 
-    // Add SaveIn switch cases
+    // Add SaveTask switch cases
     for (const auto& method : methods) {
       std::string task_type = GetTaskTypeName(method.method_name, chimod_name);
       oss << "    case Method::" << method.constant_name << ": {\n";
       oss << "      auto typed_task = task_ptr.Cast<" << task_type << ">();\n";
-      oss << "      typed_task->SerializeIn(archive);\n";
+      oss << "      if (srl_mode) {\n";
+      oss << "        typed_task->SerializeIn(archive);\n";
+      oss << "      } else {\n";
+      oss << "        typed_task->SerializeOut(archive);\n";
+      oss << "      }\n";
       oss << "      break;\n";
       oss << "    }\n";
     }
@@ -316,58 +321,21 @@ class ChiModGenerator {
     oss << "  }\n";
     oss << "}\n";
     oss << "\n";
-    oss << "void Runtime::LoadIn(chi::u32 method, chi::TaskLoadInArchive& archive, \n";
-    oss << "                      hipc::FullPtr<chi::Task> task_ptr) {\n";
+    oss << "void Runtime::LoadTask(chi::u32 method, chi::LoadTaskArchive& archive, \n";
+    oss << "                        hipc::FullPtr<chi::Task> task_ptr) {\n";
+    oss << "  bool srl_mode = archive.GetSerializeMode();\n";
     oss << "  switch (method) {\n";
 
-    // Add LoadIn switch cases
+    // Add LoadTask switch cases
     for (const auto& method : methods) {
       std::string task_type = GetTaskTypeName(method.method_name, chimod_name);
       oss << "    case Method::" << method.constant_name << ": {\n";
       oss << "      auto typed_task = task_ptr.Cast<" << task_type << ">();\n";
-      oss << "      typed_task->SerializeIn(archive);\n";
-      oss << "      break;\n";
-      oss << "    }\n";
-    }
-
-    oss << "    default: {\n";
-    oss << "      // Unknown method - do nothing\n";
-    oss << "      break;\n";
-    oss << "    }\n";
-    oss << "  }\n";
-    oss << "}\n";
-    oss << "\n";
-    oss << "void Runtime::SaveOut(chi::u32 method, chi::TaskSaveOutArchive& archive, \n";
-    oss << "                       hipc::FullPtr<chi::Task> task_ptr) {\n";
-    oss << "  switch (method) {\n";
-
-    // Add SaveOut switch cases
-    for (const auto& method : methods) {
-      std::string task_type = GetTaskTypeName(method.method_name, chimod_name);
-      oss << "    case Method::" << method.constant_name << ": {\n";
-      oss << "      auto typed_task = task_ptr.Cast<" << task_type << ">();\n";
-      oss << "      typed_task->SerializeOut(archive);\n";
-      oss << "      break;\n";
-      oss << "    }\n";
-    }
-
-    oss << "    default: {\n";
-    oss << "      // Unknown method - do nothing\n";
-    oss << "      break;\n";
-    oss << "    }\n";
-    oss << "  }\n";
-    oss << "}\n";
-    oss << "\n";
-    oss << "void Runtime::LoadOut(chi::u32 method, chi::TaskLoadOutArchive& archive, \n";
-    oss << "                       hipc::FullPtr<chi::Task> task_ptr) {\n";
-    oss << "  switch (method) {\n";
-
-    // Add LoadOut switch cases
-    for (const auto& method : methods) {
-      std::string task_type = GetTaskTypeName(method.method_name, chimod_name);
-      oss << "    case Method::" << method.constant_name << ": {\n";
-      oss << "      auto typed_task = task_ptr.Cast<" << task_type << ">();\n";
-      oss << "      typed_task->SerializeOut(archive);\n";
+      oss << "      if (srl_mode) {\n";
+      oss << "        typed_task->SerializeIn(archive);\n";
+      oss << "      } else {\n";
+      oss << "        typed_task->SerializeOut(archive);\n";
+      oss << "      }\n";
       oss << "      break;\n";
       oss << "    }\n";
     }

@@ -380,12 +380,62 @@ struct RunContext {
   std::vector<FullPtr<Task>>
       waiting_for_tasks; // Tasks this task is waiting for completion
   std::vector<PoolQuery> pool_queries; // Pool queries for task distribution
+  std::vector<FullPtr<Task>> subtasks_; // Replica tasks for this execution
+  std::atomic<u32> completed_replicas_; // Count of completed replicas
 
   RunContext()
       : stack_ptr(nullptr), stack_base_for_free(nullptr), stack_size(0),
         thread_type(kSchedWorker), worker_id(0), is_blocked(false),
         estimated_completion_time_us(0.0), yield_context{}, resume_context{},
-        container(nullptr), lane(nullptr), route_lane_(nullptr) {}
+        container(nullptr), lane(nullptr), route_lane_(nullptr), completed_replicas_(0) {}
+
+  /**
+   * Move constructor - required because of atomic member
+   */
+  RunContext(RunContext&& other) noexcept
+      : stack_ptr(other.stack_ptr), stack_base_for_free(other.stack_base_for_free),
+        stack_size(other.stack_size), thread_type(other.thread_type),
+        worker_id(other.worker_id), task(std::move(other.task)),
+        is_blocked(other.is_blocked),
+        estimated_completion_time_us(other.estimated_completion_time_us),
+        block_time(other.block_time), yield_context(other.yield_context),
+        resume_context(other.resume_context), container(other.container),
+        lane(other.lane), route_lane_(other.route_lane_),
+        waiting_for_tasks(std::move(other.waiting_for_tasks)),
+        pool_queries(std::move(other.pool_queries)),
+        subtasks_(std::move(other.subtasks_)),
+        completed_replicas_(other.completed_replicas_.load()) {}
+
+  /**
+   * Move assignment operator - required because of atomic member
+   */
+  RunContext& operator=(RunContext&& other) noexcept {
+    if (this != &other) {
+      stack_ptr = other.stack_ptr;
+      stack_base_for_free = other.stack_base_for_free;
+      stack_size = other.stack_size;
+      thread_type = other.thread_type;
+      worker_id = other.worker_id;
+      task = std::move(other.task);
+      is_blocked = other.is_blocked;
+      estimated_completion_time_us = other.estimated_completion_time_us;
+      block_time = other.block_time;
+      yield_context = other.yield_context;
+      resume_context = other.resume_context;
+      container = other.container;
+      lane = other.lane;
+      route_lane_ = other.route_lane_;
+      waiting_for_tasks = std::move(other.waiting_for_tasks);
+      pool_queries = std::move(other.pool_queries);
+      subtasks_ = std::move(other.subtasks_);
+      completed_replicas_.store(other.completed_replicas_.load());
+    }
+    return *this;
+  }
+
+  // Delete copy constructor and copy assignment
+  RunContext(const RunContext&) = delete;
+  RunContext& operator=(const RunContext&) = delete;
 
   /**
    * Check if all subtasks this task is waiting for are completed
