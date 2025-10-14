@@ -628,20 +628,21 @@ private:
   std::unique_ptr<cereal::BinaryInputArchive> archive_;
   size_t current_task_index_;
   size_t current_bulk_index_; // Track bulk transfer index for recv vector
+  hshm::lbm::Server *lbm_server_; // Lightbeam server for exposing buffers in output mode
 
 public:
   /** Default constructor */
   LoadTaskArchive()
       : srl_mode_(true), stream_(std::make_unique<std::istringstream>("")),
         archive_(std::make_unique<cereal::BinaryInputArchive>(*stream_)),
-        current_task_index_(0), current_bulk_index_(0) {}
+        current_task_index_(0), current_bulk_index_(0), lbm_server_(nullptr) {}
 
   /** Constructor from serialized data */
   explicit LoadTaskArchive(const std::string &data)
       : srl_mode_(true), data_(data),
         stream_(std::make_unique<std::istringstream>(data_)),
         archive_(std::make_unique<cereal::BinaryInputArchive>(*stream_)),
-        current_task_index_(0), current_bulk_index_(0) {}
+        current_task_index_(0), current_bulk_index_(0), lbm_server_(nullptr) {}
 
   /** Move constructor */
   LoadTaskArchive(LoadTaskArchive &&other) noexcept
@@ -650,7 +651,10 @@ public:
         data_(std::move(other.data_)), stream_(std::move(other.stream_)),
         archive_(std::move(other.archive_)),
         current_task_index_(other.current_task_index_),
-        current_bulk_index_(other.current_bulk_index_) {}
+        current_bulk_index_(other.current_bulk_index_),
+        lbm_server_(other.lbm_server_) {
+    other.lbm_server_ = nullptr;
+  }
 
   /** Move assignment operator */
   LoadTaskArchive &operator=(LoadTaskArchive &&other) noexcept {
@@ -663,6 +667,8 @@ public:
       current_task_index_ = other.current_task_index_;
       current_bulk_index_ = other.current_bulk_index_;
       srl_mode_ = other.srl_mode_;
+      lbm_server_ = other.lbm_server_;
+      other.lbm_server_ = nullptr;
     }
     return *this;
   }
@@ -729,22 +735,31 @@ private:
   }
 
 public:
-  /** Bulk transfer support - only handles input mode by fetching from recv
-   * vector */
+  /** Bulk transfer support - handles both input and output modes */
   void bulk(hipc::Pointer &ptr, size_t size, uint32_t flags) {
-    // LoadTaskArchive only handles SerializeIn mode (input)
-    // Get pointer from recv vector at current index
-    // The task itself doesn't have a valid pointer during deserialization,
-    // so we look into the recv vector and use the FullPtr at the current index
-    if (current_bulk_index_ < recv.size()) {
-      ptr = recv[current_bulk_index_].data.shm_;
-      current_bulk_index_++;
+    if (srl_mode_) {
+      // SerializeIn mode (input) - Get pointer from recv vector at current index
+      // The task itself doesn't have a valid pointer during deserialization,
+      // so we look into the recv vector and use the FullPtr at the current index
+      if (current_bulk_index_ < recv.size()) {
+        ptr = recv[current_bulk_index_].data.shm_;
+        current_bulk_index_++;
+      } else {
+        // Error: not enough bulk transfers in recv vector
+        ptr = hipc::Pointer::GetNull();
+      }
     } else {
-      // Error: not enough bulk transfers in recv vector
-      ptr = hipc::Pointer::GetNull();
+      // SerializeOut mode (output) - Expose the existing pointer using lbm_server
+      // and append to recv vector
+      if (lbm_server_) {
+        hipc::FullPtr<char> buffer(ptr);
+        hshm::lbm::Bulk bulk = lbm_server_->Expose(buffer, size, flags);
+        recv.push_back(bulk);
+      } else {
+        // Error: lbm_server not set for output mode
+        ptr = hipc::Pointer::GetNull();
+      }
     }
-    (void)size;
-    (void)flags;
   }
 
   /** Get task information */
@@ -760,6 +775,12 @@ public:
 
   /** Reset task index for iteration */
   void ResetTaskIndex() { current_task_index_ = 0; }
+
+  /** Reset bulk index for iteration */
+  void ResetBulkIndex() { current_bulk_index_ = 0; }
+
+  /** Set Lightbeam server for output mode bulk transfers */
+  void SetLbmServer(hshm::lbm::Server *lbm_server) { lbm_server_ = lbm_server; }
 
   /** Access underlying cereal archive */
   cereal::BinaryInputArchive &GetArchive() { return *archive_; }

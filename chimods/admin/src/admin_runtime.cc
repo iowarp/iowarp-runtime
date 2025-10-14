@@ -623,7 +623,7 @@ void Runtime::RecvIn(hipc::FullPtr<RecvTask> task,
     hipc::FullPtr<char> buffer =
         ipc_manager->AllocateBuffer<char>(send_bulk.size);
     archive.recv.push_back(
-        lbm_server->Expose(buffer, send_bulk.size, BULK_EXPOSE));
+        lbm_server->Expose(buffer, send_bulk.size, send_bulk.flags.bits_));
   }
 
   // Receive all bulk data using Lightbeam
@@ -688,19 +688,58 @@ void Runtime::RecvIn(hipc::FullPtr<RecvTask> task,
 void Runtime::RecvOut(hipc::FullPtr<RecvTask> task,
                       chi::LoadTaskArchive &archive,
                       hshm::lbm::Server *lbm_server) {
-  auto *ipc_manager = CHI_IPC;
-  (void)ipc_manager;
+  auto *pool_manager = CHI_POOL_MANAGER;
 
   const auto &task_infos = archive.GetTaskInfos();
   HILOG(kDebug, "Admin: RecvOut - {} tasks", task_infos.size());
 
-  // Allocate buffers for bulk data and expose them for receiving
-  // archive.send contains sender's bulk descriptors (populated by RecvMetadata)
-  for (const auto &send_bulk : archive.send) {
-    hipc::FullPtr<char> buffer =
-        ipc_manager->AllocateBuffer<char>(send_bulk.size);
-    archive.recv.push_back(
-        lbm_server->Expose(buffer, send_bulk.size, BULK_EXPOSE));
+  // Set lbm_server in archive for bulk transfer exposure in output mode
+  archive.SetLbmServer(lbm_server);
+
+  // First pass: Deserialize to expose buffers
+  // LoadTask will call ar.bulk() which will expose the pointers and populate archive.recv
+  for (size_t task_idx = 0; task_idx < task_infos.size(); ++task_idx) {
+    const auto &task_info = task_infos[task_idx];
+
+    // Locate origin task from send_map
+    auto send_it = send_map_.find(task_info.task_id_);
+    if (send_it == send_map_.end()) {
+      HELOG(kError, "Admin: Origin task not found in send_map");
+      task->SetReturnCode(5);
+      return;
+    }
+
+    hipc::FullPtr<chi::Task> origin_task = send_it->second;
+    chi::RunContext *origin_rctx = origin_task->run_ctx_;
+    if (!origin_rctx) {
+      HELOG(kError, "Admin: Origin task has no RunContext");
+      task->SetReturnCode(6);
+      return;
+    }
+
+    // Locate replica in origin's run_ctx using replica_id
+    chi::u32 replica_id = task_info.task_id_.replica_id_;
+    if (replica_id >= origin_rctx->subtasks_.size()) {
+      HELOG(kError, "Admin: Invalid replica_id {} (subtasks size: {})",
+            replica_id, origin_rctx->subtasks_.size());
+      task->SetReturnCode(7);
+      return;
+    }
+
+    hipc::FullPtr<chi::Task> replica = origin_rctx->subtasks_[replica_id];
+
+    // Get the container associated with the origin task
+    chi::Container *container = pool_manager->GetContainer(origin_task->pool_id_);
+    if (!container) {
+      HELOG(kError, "Admin: Container not found for pool_id {}",
+            origin_task->pool_id_);
+      task->SetReturnCode(8);
+      return;
+    }
+
+    // Call LoadTask to deserialize - this will expose buffers via ar.bulk()
+    // and populate archive.recv
+    container->LoadTask(replica->method_, archive, replica);
   }
 
   // Receive all bulk data using Lightbeam
@@ -714,6 +753,7 @@ void Runtime::RecvOut(hipc::FullPtr<RecvTask> task,
   HILOG(kDebug, "Admin: Received {} bulk transfers via Lightbeam",
         archive.recv.size());
 
+  // Second pass: Aggregate results
   for (size_t task_idx = 0; task_idx < task_infos.size(); ++task_idx) {
     const auto &task_info = task_infos[task_idx];
 
@@ -725,8 +765,6 @@ void Runtime::RecvOut(hipc::FullPtr<RecvTask> task,
     }
 
     hipc::FullPtr<chi::Task> origin_task = send_it->second;
-
-    // Get the origin task's RunContext - CRITICAL FIX
     chi::RunContext *origin_rctx = origin_task->run_ctx_;
     if (!origin_rctx) {
       HELOG(kError, "Admin: Origin task has no RunContext");
@@ -744,17 +782,12 @@ void Runtime::RecvOut(hipc::FullPtr<RecvTask> task,
     hipc::FullPtr<chi::Task> replica = origin_rctx->subtasks_[replica_id];
 
     // Get the container associated with the origin task
-    auto *pool_manager = CHI_POOL_MANAGER;
-    chi::Container *container =
-        pool_manager->GetContainer(origin_task->pool_id_);
+    chi::Container *container = pool_manager->GetContainer(origin_task->pool_id_);
     if (!container) {
       HELOG(kError, "Admin: Container not found for pool_id {}",
             origin_task->pool_id_);
       continue;
     }
-
-    // Deserialize outputs into replica using container->LoadTask
-    container->LoadTask(replica->method_, archive, replica);
 
     // Aggregate replica results into origin task
     container->Aggregate(origin_task->method_, origin_task, replica);
