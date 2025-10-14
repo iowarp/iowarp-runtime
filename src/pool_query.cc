@@ -7,8 +7,8 @@
 namespace chi {
 
 PoolQuery::PoolQuery()
-    : routing_mode_(RoutingMode::Local), hash_value_(0), container_id_(0), 
-      range_offset_(0), range_count_(0), node_id_(0) {}
+    : routing_mode_(RoutingMode::Local), hash_value_(0), container_id_(0),
+      range_offset_(0), range_count_(0), node_id_(0), ret_node_(0) {}
 
 PoolQuery::PoolQuery(const PoolQuery& other)
     : routing_mode_(other.routing_mode_),
@@ -16,7 +16,8 @@ PoolQuery::PoolQuery(const PoolQuery& other)
       container_id_(other.container_id_),
       range_offset_(other.range_offset_),
       range_count_(other.range_count_),
-      node_id_(other.node_id_) {}
+      node_id_(other.node_id_),
+      ret_node_(other.ret_node_) {}
 
 PoolQuery& PoolQuery::operator=(const PoolQuery& other) {
   if (this != &other) {
@@ -26,6 +27,7 @@ PoolQuery& PoolQuery::operator=(const PoolQuery& other) {
     range_offset_ = other.range_offset_;
     range_count_ = other.range_count_;
     node_id_ = other.node_id_;
+    ret_node_ = other.ret_node_;
   }
   return *this;
 }
@@ -138,6 +140,14 @@ bool PoolQuery::IsBroadcastMode() const {
 
 bool PoolQuery::IsPhysicalMode() const {
   return routing_mode_ == RoutingMode::Physical;
+}
+
+void PoolQuery::SetReturnNode(u32 ret_node) {
+  ret_node_ = ret_node;
+}
+
+u32 PoolQuery::GetReturnNode() const {
+  return ret_node_;
 }
 
 }  // namespace chi

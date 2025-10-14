@@ -1138,6 +1138,109 @@ TEST_CASE("bdev_parallel_io_operations", "[bdev][parallel][io]") {
 }
 
 //==============================================================================
+// TASK_FORCE_NET TESTS
+//==============================================================================
+
+/**
+ * Test TASK_FORCE_NET flag - forces tasks through network code even for local execution
+ */
+TEST_CASE("bdev_force_net_flag", "[bdev][network][force_net]") {
+  BdevChimodFixture fixture;
+
+  SECTION("Setup") {
+    REQUIRE(fixture.initializeBoth());
+    REQUIRE(fixture.createTestFile(kDefaultFileSize));
+  }
+
+  SECTION("Write and Read with TASK_FORCE_NET") {
+    chimaera::bdev::Client client(chi::PoolId(105, 0));
+    hipc::MemContext mctx;
+
+    bool success = client.Create(mctx, chi::PoolQuery::Local(), fixture.getTestFile(), chimaera::bdev::BdevType::kFile);
+    REQUIRE(success);
+    REQUIRE(client.GetReturnCode() == 0);
+
+    HILOG(kInfo, "Created BDev container for TASK_FORCE_NET test");
+
+    // Allocate a block
+    auto alloc_task = client.AsyncAllocateBlocks(mctx, k64KB);
+    alloc_task->Wait();
+    REQUIRE(alloc_task->return_code_ == 0);
+    REQUIRE(alloc_task->blocks_.size() > 0);
+
+    chimaera::bdev::Block block = alloc_task->blocks_[0];
+    CHI_IPC->DelTask(alloc_task);
+
+    // Prepare test data
+    std::vector<hshm::u8> write_data = fixture.generateTestData(k64KB, 0xAB);
+
+    // Create write task with TASK_FORCE_NET flag
+    auto write_buffer = CHI_IPC->AllocateBuffer<char>(write_data.size());
+    REQUIRE_FALSE(write_buffer.IsNull());
+    memcpy(write_buffer.ptr_, write_data.data(), write_data.size());
+
+    // Use NewTask directly to create write task
+    auto* ipc_manager = CHI_IPC;
+    auto write_task = ipc_manager->NewTask<chimaera::bdev::WriteTask>(
+        chi::CreateTaskId(), client.pool_id_, chi::PoolQuery::Local(),
+        block, write_buffer.shm_, write_data.size());
+
+    // Set TASK_FORCE_NET flag BEFORE enqueueing
+    write_task->SetFlags(TASK_FORCE_NET);
+    REQUIRE(write_task->task_flags_.Any(TASK_FORCE_NET));
+    HILOG(kInfo, "Write task TASK_FORCE_NET flag set");
+
+    // Enqueue the task
+    ipc_manager->Enqueue(write_task);
+
+    // Wait for write to complete
+    write_task->Wait();
+    REQUIRE(write_task->return_code_ == 0);
+    REQUIRE(write_task->bytes_written_ == write_data.size());
+    CHI_IPC->DelTask(write_task);
+
+    HILOG(kInfo, "Write with TASK_FORCE_NET completed successfully");
+
+    // Create read task with TASK_FORCE_NET flag
+    auto read_buffer = CHI_IPC->AllocateBuffer<char>(k64KB);
+    REQUIRE_FALSE(read_buffer.IsNull());
+
+    // Use NewTask directly to create read task
+    auto read_task = ipc_manager->NewTask<chimaera::bdev::ReadTask>(
+        chi::CreateTaskId(), client.pool_id_, chi::PoolQuery::Local(),
+        block, read_buffer.shm_, k64KB);
+
+    // Set TASK_FORCE_NET flag BEFORE enqueueing
+    read_task->SetFlags(TASK_FORCE_NET);
+    REQUIRE(read_task->task_flags_.Any(TASK_FORCE_NET));
+    HILOG(kInfo, "Read task TASK_FORCE_NET flag set");
+
+    // Enqueue the task
+    ipc_manager->Enqueue(read_task);
+
+    // Wait for read to complete
+    read_task->Wait();
+    REQUIRE(read_task->return_code_ == 0);
+    REQUIRE(read_task->bytes_read_ == write_data.size());
+
+    HILOG(kInfo, "Read with TASK_FORCE_NET completed successfully");
+
+    // Verify data integrity
+    std::vector<hshm::u8> read_data(read_task->bytes_read_);
+    memcpy(read_data.data(), read_buffer.ptr_, read_task->bytes_read_);
+    REQUIRE(read_data.size() == write_data.size());
+
+    for (size_t i = 0; i < write_data.size(); ++i) {
+      REQUIRE(read_data[i] == write_data[i]);
+    }
+
+    CHI_IPC->DelTask(read_task);
+
+    HILOG(kInfo, "TASK_FORCE_NET test completed - data verified successfully");
+  }
+}
+
+//==============================================================================
 // MAIN TEST RUNNER
 //==============================================================================
 

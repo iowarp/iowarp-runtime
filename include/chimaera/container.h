@@ -140,16 +140,28 @@ class Container {
    * @param task_ptr Pointer to the task to deserialize into
    */
   virtual void LoadTask(u32 method, LoadTaskArchive& archive,
-                        hipc::FullPtr<Task> task_ptr) = 0;
+                        hipc::FullPtr<Task>& task_ptr) = 0;
 
   /**
    * Create a new copy of a task (deep copy for distributed execution) - must be
    * implemented by derived classes Uses switch-case structure based on method
    * ID to dispatch to appropriate task type copying
    */
-  HSHM_DLL virtual void NewCopy(u32 method, 
+  HSHM_DLL virtual void NewCopy(u32 method,
                                const hipc::FullPtr<Task> &orig_task,
                                hipc::FullPtr<Task> &dup_task, bool deep) = 0;
+
+  /**
+   * Aggregate a replica task into the origin task - must be implemented by derived classes
+   * Uses switch-case structure based on method ID to dispatch to appropriate task type aggregation
+   * This is used for merging replica results back into the origin task after distributed execution
+   * @param method The method ID for the task type
+   * @param origin_task Pointer to the origin task to aggregate into
+   * @param replica_task Pointer to the replica task to aggregate from
+   */
+  HSHM_DLL virtual void Aggregate(u32 method,
+                                 hipc::FullPtr<Task> origin_task,
+                                 hipc::FullPtr<Task> replica_task) = 0;
 
  protected:
   /**

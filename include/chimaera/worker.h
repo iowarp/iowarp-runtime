@@ -197,11 +197,12 @@ private:
 public:
 
   /**
-   * Check if task should be processed locally based on pool queries
+   * Check if task should be processed locally based on task flags and pool queries
+   * @param task_ptr Full pointer to task to check for TASK_FORCE_NET flag
    * @param pool_queries Vector of pool queries from ResolvePoolQuery
    * @return true if task should be processed locally, false for global routing
    */
-  bool IsTaskLocal(const std::vector<PoolQuery>& pool_queries);
+  bool IsTaskLocal(const FullPtr<Task> &task_ptr, const std::vector<PoolQuery>& pool_queries);
 
   /**
    * Route task locally using container query and Monitor with kLocalSchedule

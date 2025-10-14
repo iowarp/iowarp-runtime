@@ -101,6 +101,18 @@ struct CustomTask : public chi::Task {
   void SerializeOut(Archive& ar) {
     ar(data_);
   }
+
+  /**
+   * Copy from another CustomTask (assumes this task is already constructed)
+   * @param other Pointer to the source task to copy from
+   */
+  void Copy(const hipc::FullPtr<CustomTask> &other) {
+    // Copy base Task fields
+    chi::Task::Copy(other.template Cast<chi::Task>());
+    // Copy CustomTask-specific fields
+    data_ = other->data_;
+    operation_id_ = other->operation_id_;
+  }
 };
 
 /**
@@ -136,10 +148,22 @@ struct CoMutexTestTask : public chi::Task {
   void SerializeIn(Archive& ar) {
     ar(test_id_, hold_duration_ms_);
   }
-  
+
   template<typename Archive>
   void SerializeOut(Archive& ar) {
     // No output parameters for this task
+  }
+
+  /**
+   * Copy from another CoMutexTestTask (assumes this task is already constructed)
+   * @param other Pointer to the source task to copy from
+   */
+  void Copy(const hipc::FullPtr<CoMutexTestTask> &other) {
+    // Copy base Task fields
+    chi::Task::Copy(other.template Cast<chi::Task>());
+    // Copy CoMutexTestTask-specific fields
+    test_id_ = other->test_id_;
+    hold_duration_ms_ = other->hold_duration_ms_;
   }
 };
 
@@ -178,10 +202,23 @@ struct CoRwLockTestTask : public chi::Task {
   void SerializeIn(Archive& ar) {
     ar(test_id_, is_writer_, hold_duration_ms_);
   }
-  
+
   template<typename Archive>
   void SerializeOut(Archive& ar) {
     // No output parameters for this task
+  }
+
+  /**
+   * Copy from another CoRwLockTestTask (assumes this task is already constructed)
+   * @param other Pointer to the source task to copy from
+   */
+  void Copy(const hipc::FullPtr<CoRwLockTestTask> &other) {
+    // Copy base Task fields
+    chi::Task::Copy(other.template Cast<chi::Task>());
+    // Copy CoRwLockTestTask-specific fields
+    test_id_ = other->test_id_;
+    is_writer_ = other->is_writer_;
+    hold_duration_ms_ = other->hold_duration_ms_;
   }
 };
 
@@ -220,10 +257,23 @@ struct WaitTestTask : public chi::Task {
   void SerializeIn(Archive& ar) {
     ar(depth_, test_id_, current_depth_);
   }
-  
+
   template<typename Archive>
   void SerializeOut(Archive& ar) {
     ar(current_depth_);  // Return the final depth reached
+  }
+
+  /**
+   * Copy from another WaitTestTask (assumes this task is already constructed)
+   * @param other Pointer to the source task to copy from
+   */
+  void Copy(const hipc::FullPtr<WaitTestTask> &other) {
+    // Copy base Task fields
+    chi::Task::Copy(other.template Cast<chi::Task>());
+    // Copy WaitTestTask-specific fields
+    depth_ = other->depth_;
+    test_id_ = other->test_id_;
+    current_depth_ = other->current_depth_;
   }
 };
 

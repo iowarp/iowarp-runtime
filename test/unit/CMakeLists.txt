@@ -72,6 +72,12 @@ set(UNORDERED_MAP_LL_TEST_SOURCES
   test_unordered_map_ll.cc
 )
 
+# SaveTask and LoadTask test executable (test for Container SaveTask/LoadTask methods)
+set(SAVE_LOAD_TASK_TEST_TARGET chimaera_save_load_task_tests)
+set(SAVE_LOAD_TASK_TEST_SOURCES
+  test_save_load_task.cc
+)
+
 
 
 # TODO: Update test_task_archive.cc to use new unified archive system (SaveTaskArchive/LoadTaskArchive)
@@ -369,6 +375,38 @@ set_target_properties(${UNORDERED_MAP_LL_TEST_TARGET} PROPERTIES
 
 # Copy Unordered Map LL test executable to bin directory
 set_target_properties(${UNORDERED_MAP_LL_TEST_TARGET} PROPERTIES
+  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)
+
+# Create SaveTask and LoadTask test executable
+add_executable(${SAVE_LOAD_TASK_TEST_TARGET} ${SAVE_LOAD_TASK_TEST_SOURCES})
+
+# Include directories for SaveTask/LoadTask tests
+target_include_directories(${SAVE_LOAD_TASK_TEST_TARGET} PRIVATE
+  ${CMAKE_SOURCE_DIR}/include
+  ${CMAKE_SOURCE_DIR}/test  # For simple_test.h
+  ${CMAKE_SOURCE_DIR}/chimods/admin/include  # For admin tasks
+  ${CMAKE_SOURCE_DIR}/chimods/bdev/include   # For bdev tasks
+)
+
+# Link against required libraries for SaveTask/LoadTask tests
+target_link_libraries(${SAVE_LOAD_TASK_TEST_TARGET}
+  chimaera_admin_runtime          # Admin module runtime
+  chimaera_admin_client           # Admin module client
+  chimaera_bdev_runtime           # Bdev module runtime
+  chimaera_bdev_client            # Bdev module client
+  hshm::cxx                       # HermesShm library
+  ${CMAKE_THREAD_LIBS_INIT}       # Threading support
+)
+
+# Set C++ standard for SaveTask/LoadTask tests
+set_target_properties(${SAVE_LOAD_TASK_TEST_TARGET} PROPERTIES
+  CXX_STANDARD 17
+  CXX_STANDARD_REQUIRED ON
+)
+
+# Copy SaveTask/LoadTask test executable to bin directory
+set_target_properties(${SAVE_LOAD_TASK_TEST_TARGET} PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
 )
 
@@ -1003,7 +1041,7 @@ add_custom_target(test_all_unit
 
 # Install test executables (optional)
 # Note: ${TASK_ARCHIVE_TEST_TARGET} is commented out until test is updated
-install(TARGETS ${TEST_TARGET} ${FLUSH_TEST_TARGET} ${BDEV_TEST_TARGET} ${FIBER_TEST_TARGET} ${WORKER_FIBER_TEST_TARGET} ${SEGFAULT_DEBUG_TEST_TARGET} ${COMUTEX_TEST_TARGET} ${WAIT_FUNCTIONALITY_TEST_TARGET} ${IPC_ALLOCATE_BUFFER_TEST_TARGET} ${UNORDERED_MAP_LL_TEST_TARGET}
+install(TARGETS ${TEST_TARGET} ${FLUSH_TEST_TARGET} ${BDEV_TEST_TARGET} ${FIBER_TEST_TARGET} ${WORKER_FIBER_TEST_TARGET} ${SEGFAULT_DEBUG_TEST_TARGET} ${COMUTEX_TEST_TARGET} ${WAIT_FUNCTIONALITY_TEST_TARGET} ${IPC_ALLOCATE_BUFFER_TEST_TARGET} ${UNORDERED_MAP_LL_TEST_TARGET} ${SAVE_LOAD_TASK_TEST_TARGET}
   RUNTIME DESTINATION bin
 )
 
@@ -1023,5 +1061,7 @@ message(STATUS "  Wait Functionality test target: ${WAIT_FUNCTIONALITY_TEST_TARG
 message(STATUS "  Wait Functionality test sources: ${WAIT_FUNCTIONALITY_TEST_SOURCES}")
 message(STATUS "  IPC AllocateBuffer test target: ${IPC_ALLOCATE_BUFFER_TEST_TARGET}")
 message(STATUS "  IPC AllocateBuffer test sources: ${IPC_ALLOCATE_BUFFER_TEST_SOURCES}")
+message(STATUS "  Save/Load Task test target: ${SAVE_LOAD_TASK_TEST_TARGET}")
+message(STATUS "  Save/Load Task test sources: ${SAVE_LOAD_TASK_TEST_SOURCES}")
 message(STATUS "  CTest enabled: ${CHIMAERA_ENABLE_TESTS}")
 message(STATUS "  Output directory: ${CMAKE_BINARY_DIR}/bin")

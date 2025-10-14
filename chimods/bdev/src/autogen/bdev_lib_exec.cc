@@ -134,69 +134,40 @@ void Runtime::Del(chi::u32 method, hipc::FullPtr<chi::Task> task_ptr) {
 
 void Runtime::SaveTask(chi::u32 method, chi::SaveTaskArchive& archive, 
                         hipc::FullPtr<chi::Task> task_ptr) {
-  bool srl_mode = archive.GetSerializeMode();
   switch (method) {
     case Method::kCreate: {
       auto typed_task = task_ptr.Cast<CreateTask>();
-      if (srl_mode) {
-        typed_task->SerializeIn(archive);
-      } else {
-        typed_task->SerializeOut(archive);
-      }
+      archive << *typed_task;
       break;
     }
     case Method::kDestroy: {
       auto typed_task = task_ptr.Cast<DestroyTask>();
-      if (srl_mode) {
-        typed_task->SerializeIn(archive);
-      } else {
-        typed_task->SerializeOut(archive);
-      }
+      archive << *typed_task;
       break;
     }
     case Method::kAllocateBlocks: {
       auto typed_task = task_ptr.Cast<AllocateBlocksTask>();
-      if (srl_mode) {
-        typed_task->SerializeIn(archive);
-      } else {
-        typed_task->SerializeOut(archive);
-      }
+      archive << *typed_task;
       break;
     }
     case Method::kFreeBlocks: {
       auto typed_task = task_ptr.Cast<FreeBlocksTask>();
-      if (srl_mode) {
-        typed_task->SerializeIn(archive);
-      } else {
-        typed_task->SerializeOut(archive);
-      }
+      archive << *typed_task;
       break;
     }
     case Method::kWrite: {
       auto typed_task = task_ptr.Cast<WriteTask>();
-      if (srl_mode) {
-        typed_task->SerializeIn(archive);
-      } else {
-        typed_task->SerializeOut(archive);
-      }
+      archive << *typed_task;
       break;
     }
     case Method::kRead: {
       auto typed_task = task_ptr.Cast<ReadTask>();
-      if (srl_mode) {
-        typed_task->SerializeIn(archive);
-      } else {
-        typed_task->SerializeOut(archive);
-      }
+      archive << *typed_task;
       break;
     }
     case Method::kGetStats: {
       auto typed_task = task_ptr.Cast<GetStatsTask>();
-      if (srl_mode) {
-        typed_task->SerializeIn(archive);
-      } else {
-        typed_task->SerializeOut(archive);
-      }
+      archive << *typed_task;
       break;
     }
     default: {
@@ -207,70 +178,71 @@ void Runtime::SaveTask(chi::u32 method, chi::SaveTaskArchive& archive,
 }
 
 void Runtime::LoadTask(chi::u32 method, chi::LoadTaskArchive& archive, 
-                        hipc::FullPtr<chi::Task> task_ptr) {
-  bool srl_mode = archive.GetSerializeMode();
+                        hipc::FullPtr<chi::Task>& task_ptr) {
+  auto* ipc_manager = CHI_IPC;
+  
   switch (method) {
     case Method::kCreate: {
-      auto typed_task = task_ptr.Cast<CreateTask>();
-      if (srl_mode) {
-        typed_task->SerializeIn(archive);
-      } else {
-        typed_task->SerializeOut(archive);
+      // Allocate task using typed NewTask if not already allocated
+      if (task_ptr.IsNull()) {
+        task_ptr = ipc_manager->NewTask<CreateTask>().template Cast<chi::Task>();
       }
+      auto typed_task = task_ptr.Cast<CreateTask>();
+      archive >> *typed_task;
       break;
     }
     case Method::kDestroy: {
-      auto typed_task = task_ptr.Cast<DestroyTask>();
-      if (srl_mode) {
-        typed_task->SerializeIn(archive);
-      } else {
-        typed_task->SerializeOut(archive);
+      // Allocate task using typed NewTask if not already allocated
+      if (task_ptr.IsNull()) {
+        task_ptr = ipc_manager->NewTask<DestroyTask>().template Cast<chi::Task>();
       }
+      auto typed_task = task_ptr.Cast<DestroyTask>();
+      archive >> *typed_task;
       break;
     }
     case Method::kAllocateBlocks: {
-      auto typed_task = task_ptr.Cast<AllocateBlocksTask>();
-      if (srl_mode) {
-        typed_task->SerializeIn(archive);
-      } else {
-        typed_task->SerializeOut(archive);
+      // Allocate task using typed NewTask if not already allocated
+      if (task_ptr.IsNull()) {
+        task_ptr = ipc_manager->NewTask<AllocateBlocksTask>().template Cast<chi::Task>();
       }
+      auto typed_task = task_ptr.Cast<AllocateBlocksTask>();
+      archive >> *typed_task;
       break;
     }
     case Method::kFreeBlocks: {
-      auto typed_task = task_ptr.Cast<FreeBlocksTask>();
-      if (srl_mode) {
-        typed_task->SerializeIn(archive);
-      } else {
-        typed_task->SerializeOut(archive);
+      // Allocate task using typed NewTask if not already allocated
+      if (task_ptr.IsNull()) {
+        task_ptr = ipc_manager->NewTask<FreeBlocksTask>().template Cast<chi::Task>();
       }
+      auto typed_task = task_ptr.Cast<FreeBlocksTask>();
+      archive >> *typed_task;
       break;
     }
     case Method::kWrite: {
-      auto typed_task = task_ptr.Cast<WriteTask>();
-      if (srl_mode) {
-        typed_task->SerializeIn(archive);
-      } else {
-        typed_task->SerializeOut(archive);
+      // Allocate task using typed NewTask if not already allocated
+      if (task_ptr.IsNull()) {
+        task_ptr = ipc_manager->NewTask<WriteTask>().template Cast<chi::Task>();
       }
+      auto typed_task = task_ptr.Cast<WriteTask>();
+      archive >> *typed_task;
       break;
     }
     case Method::kRead: {
-      auto typed_task = task_ptr.Cast<ReadTask>();
-      if (srl_mode) {
-        typed_task->SerializeIn(archive);
-      } else {
-        typed_task->SerializeOut(archive);
+      // Allocate task using typed NewTask if not already allocated
+      if (task_ptr.IsNull()) {
+        task_ptr = ipc_manager->NewTask<ReadTask>().template Cast<chi::Task>();
       }
+      auto typed_task = task_ptr.Cast<ReadTask>();
+      archive >> *typed_task;
       break;
     }
     case Method::kGetStats: {
-      auto typed_task = task_ptr.Cast<GetStatsTask>();
-      if (srl_mode) {
-        typed_task->SerializeIn(archive);
-      } else {
-        typed_task->SerializeOut(archive);
+      // Allocate task using typed NewTask if not already allocated
+      if (task_ptr.IsNull()) {
+        task_ptr = ipc_manager->NewTask<GetStatsTask>().template Cast<chi::Task>();
       }
+      auto typed_task = task_ptr.Cast<GetStatsTask>();
+      archive >> *typed_task;
       break;
     }
     default: {
@@ -292,8 +264,8 @@ void Runtime::NewCopy(chi::u32 method, const hipc::FullPtr<chi::Task>& orig_task
       // Allocate new task using SHM default constructor
       auto typed_task = ipc_manager->NewTask<CreateTask>();
       if (!typed_task.IsNull()) {
-        // Use HSHM strong copy method for actual copying
-        typed_task->shm_strong_copy_main(*orig_task.Cast<CreateTask>());
+        // Use Copy method for actual copying
+        typed_task->Copy(orig_task.Cast<CreateTask>());
         // Cast to base Task type for return
         dup_task = typed_task.template Cast<chi::Task>();
       }
@@ -303,8 +275,8 @@ void Runtime::NewCopy(chi::u32 method, const hipc::FullPtr<chi::Task>& orig_task
       // Allocate new task using SHM default constructor
       auto typed_task = ipc_manager->NewTask<DestroyTask>();
       if (!typed_task.IsNull()) {
-        // Use HSHM strong copy method for actual copying
-        typed_task->shm_strong_copy_main(*orig_task.Cast<DestroyTask>());
+        // Use Copy method for actual copying
+        typed_task->Copy(orig_task.Cast<DestroyTask>());
         // Cast to base Task type for return
         dup_task = typed_task.template Cast<chi::Task>();
       }
@@ -314,8 +286,8 @@ void Runtime::NewCopy(chi::u32 method, const hipc::FullPtr<chi::Task>& orig_task
       // Allocate new task using SHM default constructor
       auto typed_task = ipc_manager->NewTask<AllocateBlocksTask>();
       if (!typed_task.IsNull()) {
-        // Use HSHM strong copy method for actual copying
-        typed_task->shm_strong_copy_main(*orig_task.Cast<AllocateBlocksTask>());
+        // Use Copy method for actual copying
+        typed_task->Copy(orig_task.Cast<AllocateBlocksTask>());
         // Cast to base Task type for return
         dup_task = typed_task.template Cast<chi::Task>();
       }
@@ -325,8 +297,8 @@ void Runtime::NewCopy(chi::u32 method, const hipc::FullPtr<chi::Task>& orig_task
       // Allocate new task using SHM default constructor
       auto typed_task = ipc_manager->NewTask<FreeBlocksTask>();
       if (!typed_task.IsNull()) {
-        // Use HSHM strong copy method for actual copying
-        typed_task->shm_strong_copy_main(*orig_task.Cast<FreeBlocksTask>());
+        // Use Copy method for actual copying
+        typed_task->Copy(orig_task.Cast<FreeBlocksTask>());
         // Cast to base Task type for return
         dup_task = typed_task.template Cast<chi::Task>();
       }
@@ -336,8 +308,8 @@ void Runtime::NewCopy(chi::u32 method, const hipc::FullPtr<chi::Task>& orig_task
       // Allocate new task using SHM default constructor
       auto typed_task = ipc_manager->NewTask<WriteTask>();
       if (!typed_task.IsNull()) {
-        // Use HSHM strong copy method for actual copying
-        typed_task->shm_strong_copy_main(*orig_task.Cast<WriteTask>());
+        // Use Copy method for actual copying
+        typed_task->Copy(orig_task.Cast<WriteTask>());
         // Cast to base Task type for return
         dup_task = typed_task.template Cast<chi::Task>();
       }
@@ -347,8 +319,8 @@ void Runtime::NewCopy(chi::u32 method, const hipc::FullPtr<chi::Task>& orig_task
       // Allocate new task using SHM default constructor
       auto typed_task = ipc_manager->NewTask<ReadTask>();
       if (!typed_task.IsNull()) {
-        // Use HSHM strong copy method for actual copying
-        typed_task->shm_strong_copy_main(*orig_task.Cast<ReadTask>());
+        // Use Copy method for actual copying
+        typed_task->Copy(orig_task.Cast<ReadTask>());
         // Cast to base Task type for return
         dup_task = typed_task.template Cast<chi::Task>();
       }
@@ -358,8 +330,8 @@ void Runtime::NewCopy(chi::u32 method, const hipc::FullPtr<chi::Task>& orig_task
       // Allocate new task using SHM default constructor
       auto typed_task = ipc_manager->NewTask<GetStatsTask>();
       if (!typed_task.IsNull()) {
-        // Use HSHM strong copy method for actual copying
-        typed_task->shm_strong_copy_main(*orig_task.Cast<GetStatsTask>());
+        // Use Copy method for actual copying
+        typed_task->Copy(orig_task.Cast<GetStatsTask>());
         // Cast to base Task type for return
         dup_task = typed_task.template Cast<chi::Task>();
       }
@@ -369,7 +341,7 @@ void Runtime::NewCopy(chi::u32 method, const hipc::FullPtr<chi::Task>& orig_task
       // For unknown methods, create base Task copy
       auto typed_task = ipc_manager->NewTask<chi::Task>();
       if (!typed_task.IsNull()) {
-        typed_task->shm_strong_copy_main(*orig_task);
+        typed_task->Copy(orig_task);
         dup_task = typed_task;  // Already chi::Task type
       }
       break;
@@ -377,6 +349,66 @@ void Runtime::NewCopy(chi::u32 method, const hipc::FullPtr<chi::Task>& orig_task
   }
   
   (void)deep;    // Deep copy parameter reserved for future use
+}
+
+void Runtime::Aggregate(chi::u32 method, hipc::FullPtr<chi::Task> origin_task,
+                         hipc::FullPtr<chi::Task> replica_task) {
+  switch (method) {
+    case Method::kCreate: {
+      auto typed_origin = origin_task.Cast<CreateTask>();
+      auto typed_replica = replica_task.Cast<CreateTask>();
+      // Use SFINAE-based macro to call Aggregate if available, otherwise Copy
+      CHI_AGGREGATE_OR_COPY(typed_origin, typed_replica);
+      break;
+    }
+    case Method::kDestroy: {
+      auto typed_origin = origin_task.Cast<DestroyTask>();
+      auto typed_replica = replica_task.Cast<DestroyTask>();
+      // Use SFINAE-based macro to call Aggregate if available, otherwise Copy
+      CHI_AGGREGATE_OR_COPY(typed_origin, typed_replica);
+      break;
+    }
+    case Method::kAllocateBlocks: {
+      auto typed_origin = origin_task.Cast<AllocateBlocksTask>();
+      auto typed_replica = replica_task.Cast<AllocateBlocksTask>();
+      // Use SFINAE-based macro to call Aggregate if available, otherwise Copy
+      CHI_AGGREGATE_OR_COPY(typed_origin, typed_replica);
+      break;
+    }
+    case Method::kFreeBlocks: {
+      auto typed_origin = origin_task.Cast<FreeBlocksTask>();
+      auto typed_replica = replica_task.Cast<FreeBlocksTask>();
+      // Use SFINAE-based macro to call Aggregate if available, otherwise Copy
+      CHI_AGGREGATE_OR_COPY(typed_origin, typed_replica);
+      break;
+    }
+    case Method::kWrite: {
+      auto typed_origin = origin_task.Cast<WriteTask>();
+      auto typed_replica = replica_task.Cast<WriteTask>();
+      // Use SFINAE-based macro to call Aggregate if available, otherwise Copy
+      CHI_AGGREGATE_OR_COPY(typed_origin, typed_replica);
+      break;
+    }
+    case Method::kRead: {
+      auto typed_origin = origin_task.Cast<ReadTask>();
+      auto typed_replica = replica_task.Cast<ReadTask>();
+      // Use SFINAE-based macro to call Aggregate if available, otherwise Copy
+      CHI_AGGREGATE_OR_COPY(typed_origin, typed_replica);
+      break;
+    }
+    case Method::kGetStats: {
+      auto typed_origin = origin_task.Cast<GetStatsTask>();
+      auto typed_replica = replica_task.Cast<GetStatsTask>();
+      // Use SFINAE-based macro to call Aggregate if available, otherwise Copy
+      CHI_AGGREGATE_OR_COPY(typed_origin, typed_replica);
+      break;
+    }
+    default: {
+      // For unknown methods, use base Task Copy
+      origin_task->Copy(replica_task);
+      break;
+    }
+  }
 }
 
 } // namespace chimaera::bdev

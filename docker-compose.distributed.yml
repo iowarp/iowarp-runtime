@@ -1,0 +1,80 @@
+version: '3.8'
+
+# Distributed networking test setup
+# Spawns two IoWarp runtime nodes for testing distributed task execution
+
+networks:
+  iowarp-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+services:
+  node1:
+    build:
+      context: .
+      dockerfile: Dockerfile.distributed
+    container_name: iowarp-node1
+    hostname: node1
+    networks:
+      iowarp-net:
+        ipv4_address: 172.28.0.2
+    volumes:
+      # Mount ppi-jarvis-mods directory containing pre-built modules
+      - ${HOME}/.ppi-jarvis-mods:/ppi-jarvis-mods
+      # Mount iowarp-runtime source and build directories
+      - .:/workspace
+      # Shared directory for jarvis configuration and hostfile
+      - ./test/distributed/shared:/root/.ppi-jarvis-cd/shared
+    environment:
+      - NODE_ID=1
+      - NODE_NAME=node1
+      - NODE_IP=172.28.0.2
+      - HERMES_SHM_DIR=/ppi-jarvis-mods/packages/cte-hermes-shm
+      - IOWARP_DIR=/workspace
+      - CMAKE_PREFIX_PATH=/ppi-jarvis-mods/packages/cte-hermes-shm:/workspace:/usr/local
+      - JARVIS_SHARED=/root/.ppi-jarvis-cd/shared
+    # Keep container running
+    entrypoint: []
+    command: tail -f /dev/null
+    # Shared memory for IPC
+    shm_size: '2gb'
+    # Capabilities needed for networking
+    cap_add:
+      - NET_ADMIN
+      - SYS_ADMIN
+
+  node2:
+    build:
+      context: .
+      dockerfile: Dockerfile.distributed
+    container_name: iowarp-node2
+    hostname: node2
+    networks:
+      iowarp-net:
+        ipv4_address: 172.28.0.3
+    volumes:
+      # Mount ppi-jarvis-mods directory containing pre-built modules
+      - ${HOME}/.ppi-jarvis-mods:/ppi-jarvis-mods
+      # Mount iowarp-runtime source and build directories
+      - .:/workspace
+      # Shared directory for jarvis configuration and hostfile
+      - ./test/distributed/shared:/root/.ppi-jarvis-cd/shared
+    environment:
+      - NODE_ID=2
+      - NODE_NAME=node2
+      - NODE_IP=172.28.0.3
+      - HERMES_SHM_DIR=/ppi-jarvis-mods/packages/cte-hermes-shm
+      - IOWARP_DIR=/workspace
+      - CMAKE_PREFIX_PATH=/ppi-jarvis-mods/packages/cte-hermes-shm:/workspace:/usr/local
+      - JARVIS_SHARED=/root/.ppi-jarvis-cd/shared
+    # Keep container running
+    entrypoint: []
+    command: tail -f /dev/null
+    # Shared memory for IPC
+    shm_size: '2gb'
+    # Capabilities needed for networking
+    cap_add:
+      - NET_ADMIN
+      - SYS_ADMIN

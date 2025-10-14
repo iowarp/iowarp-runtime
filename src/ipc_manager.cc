@@ -765,32 +765,15 @@ bool IpcManager::TryStartMainServer(const std::string &hostname) {
   ConfigManager *config = CHI_CONFIG_MANAGER;
 
   try {
-    // Create ZeroMQ context and socket for main server
-    zmq_main_context_ = zmq_ctx_new();
-    if (!zmq_main_context_) {
-      throw std::runtime_error("Failed to create ZeroMQ context");
-    }
-
-    zmq_main_socket_ = zmq_socket(zmq_main_context_, ZMQ_PULL);
-    if (!zmq_main_socket_) {
-      zmq_ctx_destroy(zmq_main_context_);
-      zmq_main_context_ = nullptr;
-      throw std::runtime_error("Failed to create ZeroMQ socket");
-    }
-
-    // Bind the socket
+    // Create main server using Lightbeam TransportFactory
     std::string protocol = "tcp";
     u32 port = config->GetZmqPort();
-    std::string full_url = protocol + "://" + hostname + ":" + std::to_string(port);
 
-    int rc = zmq_bind(zmq_main_socket_, full_url.c_str());
-    if (rc != 0) {
-      std::string err = "Failed to bind ZeroMQ socket to " + full_url + ": " + zmq_strerror(zmq_errno());
-      zmq_close(zmq_main_socket_);
-      zmq_ctx_destroy(zmq_main_context_);
-      zmq_main_socket_ = nullptr;
-      zmq_main_context_ = nullptr;
-      throw std::runtime_error(err);
+    main_server_ = hshm::lbm::TransportFactory::GetServer(
+        hostname, hshm::lbm::Transport::kZeroMq, protocol, port);
+
+    if (!main_server_) {
+      throw std::runtime_error("Failed to create main server");
     }
 
     HILOG(kDebug, "Main server successfully bound to {}:{}", hostname, port);

@@ -1,0 +1,4 @@
+# IoWarp Distributed Test Hostfile
+# Format: hostname IP_address
+node1 172.28.0.2
+node2 172.28.0.3

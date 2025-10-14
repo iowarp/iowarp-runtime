@@ -165,14 +165,21 @@ public:
   /**
    * Deserialize task parameters from network transfer (unified method)
    */
-  void LoadTask(chi::u32 method, chi::LoadTaskArchive& archive, hipc::FullPtr<chi::Task> task_ptr) override;
+  void LoadTask(chi::u32 method, chi::LoadTaskArchive& archive, hipc::FullPtr<chi::Task>& task_ptr) override;
 
   /**
    * Create a new copy of a task (deep copy for distributed execution)
    */
-  void NewCopy(chi::u32 method, 
+  void NewCopy(chi::u32 method,
                const hipc::FullPtr<chi::Task> &orig_task,
                hipc::FullPtr<chi::Task> &dup_task, bool deep) override;
+
+  /**
+   * Aggregate a replica task into the origin task (for merging replica results)
+   */
+  void Aggregate(chi::u32 method,
+                 hipc::FullPtr<chi::Task> origin_task,
+                 hipc::FullPtr<chi::Task> replica_task) override;
 };
 
 } // namespace chimaera::MOD_NAME

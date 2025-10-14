@@ -297,7 +297,6 @@ class ChiModGenerator {
     oss << "\n";
     oss << "void Runtime::SaveTask(chi::u32 method, chi::SaveTaskArchive& archive, \n";
     oss << "                        hipc::FullPtr<chi::Task> task_ptr) {\n";
-    oss << "  bool srl_mode = archive.GetSerializeMode();\n";
     oss << "  switch (method) {\n";
 
     // Add SaveTask switch cases
@@ -305,11 +304,7 @@ class ChiModGenerator {
       std::string task_type = GetTaskTypeName(method.method_name, chimod_name);
       oss << "    case Method::" << method.constant_name << ": {\n";
       oss << "      auto typed_task = task_ptr.Cast<" << task_type << ">();\n";
-      oss << "      if (srl_mode) {\n";
-      oss << "        typed_task->SerializeIn(archive);\n";
-      oss << "      } else {\n";
-      oss << "        typed_task->SerializeOut(archive);\n";
-      oss << "      }\n";
+      oss << "      archive << *typed_task;\n";
       oss << "      break;\n";
       oss << "    }\n";
     }
@@ -322,20 +317,21 @@ class ChiModGenerator {
     oss << "}\n";
     oss << "\n";
     oss << "void Runtime::LoadTask(chi::u32 method, chi::LoadTaskArchive& archive, \n";
-    oss << "                        hipc::FullPtr<chi::Task> task_ptr) {\n";
-    oss << "  bool srl_mode = archive.GetSerializeMode();\n";
+    oss << "                        hipc::FullPtr<chi::Task>& task_ptr) {\n";
+    oss << "  auto* ipc_manager = CHI_IPC;\n";
+    oss << "  \n";
     oss << "  switch (method) {\n";
 
     // Add LoadTask switch cases
     for (const auto& method : methods) {
       std::string task_type = GetTaskTypeName(method.method_name, chimod_name);
       oss << "    case Method::" << method.constant_name << ": {\n";
-      oss << "      auto typed_task = task_ptr.Cast<" << task_type << ">();\n";
-      oss << "      if (srl_mode) {\n";
-      oss << "        typed_task->SerializeIn(archive);\n";
-      oss << "      } else {\n";
-      oss << "        typed_task->SerializeOut(archive);\n";
+      oss << "      // Allocate task using typed NewTask if not already allocated\n";
+      oss << "      if (task_ptr.IsNull()) {\n";
+      oss << "        task_ptr = ipc_manager->NewTask<" << task_type << ">().template Cast<chi::Task>();\n";
       oss << "      }\n";
+      oss << "      auto typed_task = task_ptr.Cast<" << task_type << ">();\n";
+      oss << "      archive >> *typed_task;\n";
       oss << "      break;\n";
       oss << "    }\n";
     }
@@ -363,8 +359,8 @@ class ChiModGenerator {
       oss << "      // Allocate new task using SHM default constructor\n";
       oss << "      auto typed_task = ipc_manager->NewTask<" << task_type << ">();\n";
       oss << "      if (!typed_task.IsNull()) {\n";
-      oss << "        // Use HSHM strong copy method for actual copying\n";
-      oss << "        typed_task->shm_strong_copy_main(*orig_task.Cast<" << task_type << ">());\n";
+      oss << "        // Use Copy method for actual copying\n";
+      oss << "        typed_task->Copy(orig_task.Cast<" << task_type << ">());\n";
       oss << "        // Cast to base Task type for return\n";
       oss << "        dup_task = typed_task.template Cast<chi::Task>();\n";
       oss << "      }\n";
@@ -376,7 +372,7 @@ class ChiModGenerator {
     oss << "      // For unknown methods, create base Task copy\n";
     oss << "      auto typed_task = ipc_manager->NewTask<chi::Task>();\n";
     oss << "      if (!typed_task.IsNull()) {\n";
-    oss << "        typed_task->shm_strong_copy_main(*orig_task);\n";
+    oss << "        typed_task->Copy(orig_task);\n";
     oss << "        dup_task = typed_task;  // Already chi::Task type\n";
     oss << "      }\n";
     oss << "      break;\n";
@@ -384,6 +380,30 @@ class ChiModGenerator {
     oss << "  }\n";
     oss << "  \n";
     oss << "  (void)deep;    // Deep copy parameter reserved for future use\n";
+    oss << "}\n";
+    oss << "\n";
+    oss << "void Runtime::Aggregate(chi::u32 method, hipc::FullPtr<chi::Task> origin_task,\n";
+    oss << "                         hipc::FullPtr<chi::Task> replica_task) {\n";
+    oss << "  switch (method) {\n";
+
+    // Add Aggregate switch cases
+    for (const auto& method : methods) {
+      std::string task_type = GetTaskTypeName(method.method_name, chimod_name);
+      oss << "    case Method::" << method.constant_name << ": {\n";
+      oss << "      auto typed_origin = origin_task.Cast<" << task_type << ">();\n";
+      oss << "      auto typed_replica = replica_task.Cast<" << task_type << ">();\n";
+      oss << "      // Use SFINAE-based macro to call Aggregate if available, otherwise Copy\n";
+      oss << "      CHI_AGGREGATE_OR_COPY(typed_origin, typed_replica);\n";
+      oss << "      break;\n";
+      oss << "    }\n";
+    }
+
+    oss << "    default: {\n";
+    oss << "      // For unknown methods, use base Task Copy\n";
+    oss << "      origin_task->Copy(replica_task);\n";
+    oss << "      break;\n";
+    oss << "    }\n";
+    oss << "  }\n";
     oss << "}\n";
     oss << "\n";
     oss << "} // namespace " << namespace_name << "::" << chimod_name << "\n";

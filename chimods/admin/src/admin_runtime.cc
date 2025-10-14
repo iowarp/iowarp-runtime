@@ -11,6 +11,7 @@
 #include <chimaera/module_manager.h>
 #include <chimaera/pool_manager.h>
 #include <chimaera/task_archives.h>
+#include <chimaera/worker.h>
 
 #include <chrono>
 #include <memory>
@@ -48,10 +49,16 @@ void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext &rctx) {
 
   create_count_++;
 
+  // Spawn periodic Recv task with 15 microsecond period
+  // Worker will automatically reschedule periodic tasks
+  hipc::MemContext mctx;
+  client_.AsyncRecv(mctx, chi::PoolQuery::Local(), 0, 0.015);
+
   HILOG(kDebug,
         "Admin: Container created and initialized for pool: {} (ID: {}, count: "
         "{})",
         pool_name_, task->new_pool_id_, create_count_);
+  HILOG(kDebug, "Admin: Spawned periodic Recv task with 15us period");
 }
 
 void Runtime::GetOrCreatePool(
@@ -361,70 +368,506 @@ void Runtime::MonitorFlush(chi::MonitorModeId mode,
 // Distributed Task Scheduling Method Implementations
 //===========================================================================
 
-void Runtime::Send(hipc::FullPtr<SendTask> task, chi::RunContext& rctx) {
-  HILOG(kDebug, "Admin: Executing Send - TODO: implement networking");
-  
-  // TODO: Implement full network send functionality
-  // This requires networking APIs that don't exist yet
-  
-  auto* main_allocator = HSHM_MEMORY_MANAGER->GetDefaultAllocator<CHI_MAIN_ALLOC_T>();
-  
+/**
+ * Helper function: Send task inputs to remote node
+ * @param task SendTask containing subtask and pool queries
+ * @param rctx RunContext for managing subtasks
+ */
+void Runtime::SendIn(hipc::FullPtr<SendTask> task, chi::RunContext &rctx) {
+  auto *ipc_manager = CHI_IPC;
+  auto *pool_manager = CHI_POOL_MANAGER;
+
+  // Validate subtask
   hipc::FullPtr<chi::Task> subtask = task->subtask_;
   if (subtask.IsNull()) {
-    task->error_message_ = hipc::string(main_allocator, "Subtask is null");
     task->SetReturnCode(1);
     return;
   }
-  
-  // Stub: just mark success for now
+
+  // Get the container associated with the subtask
+  chi::Container *container = pool_manager->GetContainer(subtask->pool_id_);
+  if (!container) {
+    task->SetReturnCode(2);
+    return;
+  }
+
+  HILOG(kDebug, "Admin: SendIn - adding to send_map");
+
+  // Add the origin task to send_map for later lookup
+  send_map_[subtask->task_id_] = subtask;
+
+  // Send to each target in pool_queries
+  for (size_t i = 0; i < task->pool_queries_.size(); ++i) {
+    const chi::PoolQuery &query = task->pool_queries_[i];
+
+    // Determine target node_id based on query type
+    chi::u64 target_node_id = 0;
+
+    if (query.IsLocalMode()) {
+      // Local mode - target is the local node (for TASK_FORCE_NET testing)
+      target_node_id = ipc_manager->GetNodeId();
+    } else if (query.IsPhysicalMode()) {
+      target_node_id = query.GetNodeId();
+    } else if (query.IsDirectIdMode()) {
+      chi::ContainerId container_id = query.GetContainerId();
+      target_node_id =
+          pool_manager->GetContainerNodeId(subtask->pool_id_, container_id);
+    } else if (query.IsRangeMode()) {
+      chi::u32 offset = query.GetRangeOffset();
+      chi::ContainerId container_id(offset);
+      target_node_id =
+          pool_manager->GetContainerNodeId(subtask->pool_id_, container_id);
+    } else {
+      HELOG(kError, "Admin: Unsupported query type for SendIn");
+      continue;
+    }
+
+    // Get host information for target node
+    const chi::Host *target_host = ipc_manager->GetHost(target_node_id);
+    if (!target_host) {
+      HELOG(kError, "Admin: Host not found for node_id {}", target_node_id);
+      continue;
+    }
+
+    HILOG(kDebug, "Admin: Sending task inputs to node {} ({})", target_node_id,
+          target_host->ip_address);
+
+    // Create Lightbeam client using configured port
+    auto *config_manager = CHI_CONFIG_MANAGER;
+    int port = static_cast<int>(config_manager->GetZmqPort());
+    auto lbm_client = hshm::lbm::TransportFactory::GetClient(
+        target_host->ip_address, hshm::lbm::Transport::kZeroMq, "tcp", port);
+
+    // Create SaveTaskArchive with SerializeIn mode and lbm_client
+    chi::SaveTaskArchive archive(true, lbm_client.get());
+
+    // Create task copy
+    hipc::FullPtr<chi::Task> task_copy;
+    container->NewCopy(subtask->method_, subtask, task_copy, true);
+
+    // Update the copy's pool query to current query
+    task_copy->pool_query_ = query;
+
+    // Set return node ID in the pool query
+    chi::u64 this_node_id = ipc_manager->GetNodeId();
+    task_copy->pool_query_.SetReturnNode(this_node_id);
+    HILOG(kDebug, "Admin: Task copy return node set to {}", this_node_id);
+
+    // Get or allocate the subtask's RunContext to store replicas
+    chi::RunContext *subtask_rctx = subtask->run_ctx_;
+    if (!subtask_rctx) {
+      // Allocate RunContext for subtask if it doesn't have one
+      subtask_rctx = new chi::RunContext();
+      subtask_rctx->task = subtask;
+      subtask->run_ctx_ = subtask_rctx;
+      HILOG(kDebug, "Admin: Allocated RunContext for subtask");
+    }
+
+    // Add copy to subtasks vector in subtask's RunContext
+    subtask_rctx->subtasks_.push_back(task_copy);
+
+    // Update replica_id of task_id to be index in subtasks
+    chi::TaskId copy_id = task_copy->task_id_;
+    copy_id.replica_id_ = subtask_rctx->subtasks_.size() - 1;
+    task_copy->task_id_ = copy_id;
+
+    // Serialize the task using container->SaveTask (Expose will be called
+    // automatically for bulks)
+    container->SaveTask(task_copy->method_, archive, task_copy);
+
+    // Send using Lightbeam
+    int rc = lbm_client->Send(archive);
+    if (rc != 0) {
+      HELOG(kError, "Admin: Lightbeam Send failed with error code {}", rc);
+      continue;
+    }
+
+    HILOG(kDebug, "Admin: Task inputs sent via Lightbeam (bulks: {})",
+          archive.send.size());
+  }
+
   task->SetReturnCode(0);
-  (void)rctx;  // Suppress unused warning
 }
 
-void Runtime::MonitorSend(chi::MonitorModeId mode, hipc::FullPtr<SendTask> task_ptr,
-                          chi::RunContext& rctx) {
+/**
+ * Helper function: Send task outputs back to origin node
+ * @param task SendTask containing subtask
+ */
+void Runtime::SendOut(hipc::FullPtr<SendTask> task) {
+  auto *ipc_manager = CHI_IPC;
+  auto *pool_manager = CHI_POOL_MANAGER;
+
+  // Validate subtask
+  hipc::FullPtr<chi::Task> subtask = task->subtask_;
+  if (subtask.IsNull()) {
+    task->SetReturnCode(1);
+    return;
+  }
+
+  // Get the container associated with the subtask
+  chi::Container *container = pool_manager->GetContainer(subtask->pool_id_);
+  if (!container) {
+    task->SetReturnCode(2);
+    return;
+  }
+
+  HILOG(kDebug, "Admin: SendOut - removing from recv_map");
+
+  // Remove task from recv_map as we're completing it
+  auto it = recv_map_.find(subtask->task_id_);
+  if (it == recv_map_.end()) {
+    task->SetReturnCode(3); // Error: Task not found in recv_map
+    return;
+  }
+  recv_map_.erase(it);
+
+  // Send to each target in pool_queries
+  for (size_t i = 0; i < task->pool_queries_.size(); ++i) {
+    const chi::PoolQuery &query = task->pool_queries_[i];
+
+    // Determine target node_id
+    chi::u64 target_node_id = 0;
+
+    if (query.IsPhysicalMode()) {
+      target_node_id = query.GetNodeId();
+    } else {
+      HELOG(kError, "Admin: SendOut only supports Physical query mode");
+      continue;
+    }
+
+    // Get host information
+    const chi::Host *target_host = ipc_manager->GetHost(target_node_id);
+    if (!target_host) {
+      HELOG(kError, "Admin: Host not found for node_id {}", target_node_id);
+      continue;
+    }
+
+    HILOG(kDebug, "Admin: Sending task outputs to node {} ({})", target_node_id,
+          target_host->ip_address);
+
+    // Create Lightbeam client using configured port
+    auto *config_manager = CHI_CONFIG_MANAGER;
+    int port = static_cast<int>(config_manager->GetZmqPort());
+    auto lbm_client = hshm::lbm::TransportFactory::GetClient(
+        target_host->ip_address, hshm::lbm::Transport::kZeroMq, "tcp", port);
+
+    // Create SaveTaskArchive with SerializeOut mode and lbm_client
+    // The client will automatically call Expose internally during serialization
+    chi::SaveTaskArchive archive(false, lbm_client.get());
+
+    // Serialize the task outputs using container->SaveTask (Expose called
+    // automatically)
+    container->SaveTask(subtask->method_, archive, subtask);
+
+    int rc = lbm_client->Send(archive);
+    if (rc != 0) {
+      HELOG(kError, "Admin: Lightbeam Send failed with error code {}", rc);
+      continue;
+    }
+
+    HILOG(kDebug, "Admin: Task outputs sent via Lightbeam (bulks: {})",
+          archive.send.size());
+  }
+
+  // Delete the task after sending outputs
+  ipc_manager->DelTask(subtask);
+  HILOG(kDebug, "Admin: Task deleted after SendOut");
+
+  task->SetReturnCode(0);
+}
+
+/**
+ * Main Send function - dispatches to SendIn or SendOut
+ */
+void Runtime::Send(hipc::FullPtr<SendTask> task, chi::RunContext &rctx) {
+  if (task->srl_mode_) {
+    SendIn(task, rctx);
+  } else {
+    SendOut(task);
+  }
+}
+
+void Runtime::MonitorSend(chi::MonitorModeId mode,
+                          hipc::FullPtr<SendTask> task_ptr,
+                          chi::RunContext &rctx) {
   switch (mode) {
   case chi::MonitorModeId::kLocalSchedule:
     break;
   case chi::MonitorModeId::kGlobalSchedule:
     break;
   case chi::MonitorModeId::kEstLoad:
-    rctx.estimated_completion_time_us = 10000.0;  // 10ms estimate
+    rctx.estimated_completion_time_us = 10000.0; // 10ms estimate
     break;
   }
-  (void)task_ptr;  // Suppress unused warning
+  (void)task_ptr; // Suppress unused warning
 }
 
-void Runtime::Recv(hipc::FullPtr<RecvTask> task, chi::RunContext& rctx) {
-  HILOG(kDebug, "Admin: Executing Recv - TODO: implement networking");
-  
-  // TODO: Implement full network receive functionality
-  // This requires networking APIs that don't exist yet
-  
-  // Stub: just mark success for now
+/**
+ * Helper function: Receive task inputs from remote node
+ * @param task RecvTask containing control information
+ * @param archive Already-parsed LoadTaskArchive containing task info
+ * @param lbm_server Lightbeam server for receiving bulk data
+ */
+void Runtime::RecvIn(hipc::FullPtr<RecvTask> task,
+                     chi::LoadTaskArchive &archive,
+                     hshm::lbm::Server *lbm_server) {
+  auto *ipc_manager = CHI_IPC;
+  auto *pool_manager = CHI_POOL_MANAGER;
+
+  const auto &task_infos = archive.GetTaskInfos();
+  HILOG(kDebug, "Admin: RecvIn - {} tasks", task_infos.size());
+
+  // Allocate buffers for bulk data and expose them for receiving
+  // archive.send contains sender's bulk descriptors (populated by RecvMetadata)
+  for (const auto &send_bulk : archive.send) {
+    hipc::FullPtr<char> buffer =
+        ipc_manager->AllocateBuffer<char>(send_bulk.size);
+    archive.recv.push_back(
+        lbm_server->Expose(buffer, send_bulk.size, BULK_EXPOSE));
+  }
+
+  // Receive all bulk data using Lightbeam
+  int rc = lbm_server->RecvBulks(archive);
+  if (rc != 0) {
+    HELOG(kError, "Admin: Lightbeam RecvBulks failed with error code {}", rc);
+    task->SetReturnCode(4);
+    return;
+  }
+
+  HILOG(kDebug, "Admin: Received {} bulk transfers via Lightbeam",
+        archive.recv.size());
+
+  for (size_t task_idx = 0; task_idx < task_infos.size(); ++task_idx) {
+    const auto &task_info = task_infos[task_idx];
+
+    // Get container associated with PoolId
+    chi::Container *container = pool_manager->GetContainer(task_info.pool_id_);
+    if (!container) {
+      HELOG(kError, "Admin: Container not found for pool_id {}",
+            task_info.pool_id_);
+      continue;
+    }
+
+    // Allocate task pointer (LoadTask will allocate it using NewTask)
+    hipc::FullPtr<chi::Task> task_ptr = hipc::FullPtr<chi::Task>::GetNull();
+
+    // Call LoadTask to allocate and deserialize the task
+    container->LoadTask(task_info.method_id_, archive, task_ptr);
+
+    if (task_ptr.IsNull()) {
+      HELOG(kError, "Admin: Failed to load task");
+      continue;
+    }
+
+    // Mark task as remote, set as data owner, unset periodic and TASK_FORCE_NET
+    task_ptr->SetFlags(TASK_REMOTE | TASK_DATA_OWNER);
+    task_ptr->ClearFlags(TASK_PERIODIC | TASK_FORCE_NET);
+    HILOG(
+        kDebug,
+        "Admin: Task marked as remote and data owner, TASK_FORCE_NET cleared");
+
+    // Add task to recv_map for later lookup
+    recv_map_[task_ptr->task_id_] = task_ptr;
+
+    // Enqueue task for execution
+    ipc_manager->Enqueue(task_ptr);
+
+    HILOG(kDebug, "Admin: Task enqueued for execution (task_id={}, pool_id={})",
+          task_ptr->task_id_, task_ptr->pool_id_);
+  }
+
   task->SetReturnCode(0);
-  (void)rctx;  // Suppress unused warning
 }
 
-void Runtime::MonitorRecv(chi::MonitorModeId mode, hipc::FullPtr<RecvTask> task_ptr,
-                          chi::RunContext& rctx) {
+/**
+ * Helper function: Receive task outputs from remote node
+ * @param task RecvTask containing control information
+ * @param archive Already-parsed LoadTaskArchive containing task info
+ * @param lbm_server Lightbeam server for receiving bulk data
+ */
+void Runtime::RecvOut(hipc::FullPtr<RecvTask> task,
+                      chi::LoadTaskArchive &archive,
+                      hshm::lbm::Server *lbm_server) {
+  auto *ipc_manager = CHI_IPC;
+  (void)ipc_manager;
+
+  const auto &task_infos = archive.GetTaskInfos();
+  HILOG(kDebug, "Admin: RecvOut - {} tasks", task_infos.size());
+
+  // Allocate buffers for bulk data and expose them for receiving
+  // archive.send contains sender's bulk descriptors (populated by RecvMetadata)
+  for (const auto &send_bulk : archive.send) {
+    hipc::FullPtr<char> buffer =
+        ipc_manager->AllocateBuffer<char>(send_bulk.size);
+    archive.recv.push_back(
+        lbm_server->Expose(buffer, send_bulk.size, BULK_EXPOSE));
+  }
+
+  // Receive all bulk data using Lightbeam
+  int rc = lbm_server->RecvBulks(archive);
+  if (rc != 0) {
+    HELOG(kError, "Admin: Lightbeam RecvBulks failed with error code {}", rc);
+    task->SetReturnCode(4);
+    return;
+  }
+
+  HILOG(kDebug, "Admin: Received {} bulk transfers via Lightbeam",
+        archive.recv.size());
+
+  for (size_t task_idx = 0; task_idx < task_infos.size(); ++task_idx) {
+    const auto &task_info = task_infos[task_idx];
+
+    // Locate origin task from send_map
+    auto send_it = send_map_.find(task_info.task_id_);
+    if (send_it == send_map_.end()) {
+      HELOG(kError, "Admin: Origin task not found in send_map");
+      continue;
+    }
+
+    hipc::FullPtr<chi::Task> origin_task = send_it->second;
+
+    // Get the origin task's RunContext - CRITICAL FIX
+    chi::RunContext *origin_rctx = origin_task->run_ctx_;
+    if (!origin_rctx) {
+      HELOG(kError, "Admin: Origin task has no RunContext");
+      continue;
+    }
+
+    // Locate replica in origin's run_ctx using replica_id
+    chi::u32 replica_id = task_info.task_id_.replica_id_;
+    if (replica_id >= origin_rctx->subtasks_.size()) {
+      HELOG(kError, "Admin: Invalid replica_id {} (subtasks size: {})",
+            replica_id, origin_rctx->subtasks_.size());
+      continue;
+    }
+
+    hipc::FullPtr<chi::Task> replica = origin_rctx->subtasks_[replica_id];
+
+    // Get the container associated with the origin task
+    auto *pool_manager = CHI_POOL_MANAGER;
+    chi::Container *container =
+        pool_manager->GetContainer(origin_task->pool_id_);
+    if (!container) {
+      HELOG(kError, "Admin: Container not found for pool_id {}",
+            origin_task->pool_id_);
+      continue;
+    }
+
+    // Deserialize outputs into replica using container->LoadTask
+    container->LoadTask(replica->method_, archive, replica);
+
+    // Aggregate replica results into origin task
+    container->Aggregate(origin_task->method_, origin_task, replica);
+
+    // Increment completed replicas counter in origin's rctx
+    chi::u32 completed = origin_rctx->completed_replicas_.fetch_add(1) + 1;
+
+    HILOG(kDebug, "Admin: Replica {} completed ({}/{})", replica_id, completed,
+          origin_rctx->subtasks_.size());
+
+    // If all replicas completed
+    if (completed == origin_rctx->subtasks_.size()) {
+      // Get pool manager to access container
+      auto *pool_manager = CHI_POOL_MANAGER;
+      chi::Container *container =
+          pool_manager->GetContainer(origin_task->pool_id_);
+
+      // Unmark TASK_DATA_OWNER before deleting replicas to avoid freeing the
+      // same data pointers twice Delete all subtask replicas using
+      // container->Del() to avoid memory leak
+      if (container) {
+        for (const auto &subtask_ptr : origin_rctx->subtasks_) {
+          subtask_ptr->ClearFlags(TASK_DATA_OWNER);
+          container->Del(subtask_ptr->method_, subtask_ptr);
+        }
+      }
+
+      // Clear subtasks vector after deleting tasks
+      origin_rctx->subtasks_.clear();
+
+      // Remove origin from send_map
+      send_map_.erase(send_it);
+
+      // Handle task completion based on whether it's periodic
+      if (origin_task->IsPeriodic()) {
+        // Periodic task - add back to blocked queue for next iteration
+        auto *worker =
+            HSHM_THREAD_MODEL->GetTls<chi::Worker>(chi::chi_cur_worker_key_);
+        worker->AddToBlockedQueue(origin_rctx,
+                                  origin_task->period_ns_ / 1000.0);
+        HILOG(kDebug, "Admin: Periodic origin task added to blocked queue");
+      } else {
+        // Non-periodic task - free RunContext and mark as complete
+        delete origin_rctx;
+        origin_task->run_ctx_ = nullptr;
+        origin_task->is_complete.store(1);
+        HILOG(kDebug, "Admin: Non-periodic origin task marked complete");
+      }
+    }
+  }
+
+  task->SetReturnCode(0);
+}
+
+/**
+ * Main Recv function - receives metadata and dispatches based on mode
+ */
+void Runtime::Recv(hipc::FullPtr<RecvTask> task, chi::RunContext &rctx) {
+  // Get the main server from CHI_IPC (already bound during initialization)
+  auto *ipc_manager = CHI_IPC;
+  hshm::lbm::Server *lbm_server = ipc_manager->GetMainServer();
+  if (!lbm_server) {
+    HELOG(kError, "Admin: Main server not available");
+    task->SetReturnCode(1);
+    return;
+  }
+
+  // Receive metadata first to determine mode (non-blocking)
+  chi::LoadTaskArchive archive;
+  int rc = lbm_server->RecvMetadata(archive);
+  if (rc == EAGAIN) {
+    // No message available - this is normal for polling
+    task->SetReturnCode(0);
+    return;
+  }
+  if (rc != 0) {
+    // Error receiving metadata
+    HELOG(kError, "Admin: Lightbeam RecvMetadata failed with error code {}",
+          rc);
+    task->SetReturnCode(2);
+    return;
+  }
+
+  HILOG(kDebug, "Admin: Received metadata (mode: {})",
+        archive.GetSerializeMode() ? "SerializeIn" : "SerializeOut");
+
+  // Dispatch based on serialization mode
+  if (archive.GetSerializeMode()) {
+    RecvIn(task, archive, lbm_server);
+  } else {
+    RecvOut(task, archive, lbm_server);
+  }
+
+  (void)rctx;
+}
+
+void Runtime::MonitorRecv(chi::MonitorModeId mode,
+                          hipc::FullPtr<RecvTask> task_ptr,
+                          chi::RunContext &rctx) {
   switch (mode) {
   case chi::MonitorModeId::kLocalSchedule:
     break;
   case chi::MonitorModeId::kGlobalSchedule:
     break;
   case chi::MonitorModeId::kEstLoad:
-    rctx.estimated_completion_time_us = 10000.0;  // 10ms estimate
+    rctx.estimated_completion_time_us = 10000.0; // 10ms estimate
     break;
   }
-  (void)task_ptr;  // Suppress unused warning
+  (void)task_ptr; // Suppress unused warning
 }
 
 chi::u64 Runtime::GetWorkRemaining() const {
-  // Admin container typically has no pending work
-  // In a real implementation, this could track pending administrative
-  // operations
-  return 0;
+  return send_map_.size() + recv_map_.size();
 }
 
 //===========================================================================

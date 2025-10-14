@@ -144,6 +144,22 @@ struct BaseCreateTask : public chi::Task {
   void SerializeOut(Archive &ar) {
     ar(chimod_name_, chimod_params_, new_pool_id_, error_message_);
   }
+
+  /**
+   * Copy from another BaseCreateTask (assumes this task is already constructed)
+   * @param other Pointer to the source task to copy from
+   */
+  void Copy(const hipc::FullPtr<BaseCreateTask> &other) {
+    // Copy base Task fields
+    chi::Task::Copy(other.template Cast<chi::Task>());
+    // Copy BaseCreateTask-specific fields
+    chimod_name_ = other->chimod_name_;
+    pool_name_ = other->pool_name_;
+    chimod_params_ = other->chimod_params_;
+    new_pool_id_ = other->new_pool_id_;
+    error_message_ = other->error_message_;
+    is_admin_ = other->is_admin_;
+  }
 };
 
 /**
@@ -215,6 +231,19 @@ struct DestroyPoolTask : public chi::Task {
   void SerializeOut(Archive &ar) {
     ar(error_message_);
   }
+
+  /**
+   * Copy from another DestroyPoolTask (assumes this task is already constructed)
+   * @param other Pointer to the source task to copy from
+   */
+  void Copy(const hipc::FullPtr<DestroyPoolTask> &other) {
+    // Copy base Task fields
+    chi::Task::Copy(other.template Cast<chi::Task>());
+    // Copy DestroyPoolTask-specific fields
+    target_pool_id_ = other->target_pool_id_;
+    destruction_flags_ = other->destruction_flags_;
+    error_message_ = other->error_message_;
+  }
 };
 
 /**
@@ -271,6 +300,19 @@ struct StopRuntimeTask : public chi::Task {
   void SerializeOut(Archive &ar) {
     ar(error_message_);
   }
+
+  /**
+   * Copy from another StopRuntimeTask (assumes this task is already constructed)
+   * @param other Pointer to the source task to copy from
+   */
+  void Copy(const hipc::FullPtr<StopRuntimeTask> &other) {
+    // Copy base Task fields
+    chi::Task::Copy(other.template Cast<chi::Task>());
+    // Copy StopRuntimeTask-specific fields
+    shutdown_flags_ = other->shutdown_flags_;
+    grace_period_ms_ = other->grace_period_ms_;
+    error_message_ = other->error_message_;
+  }
 };
 
 /**
@@ -317,6 +359,17 @@ struct FlushTask : public chi::Task {
   template <typename Archive>
   void SerializeOut(Archive &ar) {
     ar(total_work_done_);
+  }
+
+  /**
+   * Copy from another FlushTask (assumes this task is already constructed)
+   * @param other Pointer to the source task to copy from
+   */
+  void Copy(const hipc::FullPtr<FlushTask> &other) {
+    // Copy base Task fields
+    chi::Task::Copy(other.template Cast<chi::Task>());
+    // Copy FlushTask-specific fields
+    total_work_done_ = other->total_work_done_;
   }
 };
 
@@ -391,6 +444,21 @@ struct SendTask : public chi::Task {
   void SerializeOut(Archive &ar) {
     ar(srl_mode_, subtask_, pool_queries_, error_message_);
   }
+
+  /**
+   * Copy from another SendTask (assumes this task is already constructed)
+   * @param other Pointer to the source task to copy from
+   */
+  void Copy(const hipc::FullPtr<SendTask> &other) {
+    // Copy base Task fields
+    chi::Task::Copy(other.template Cast<chi::Task>());
+    // Copy SendTask-specific fields
+    srl_mode_ = other->srl_mode_;
+    subtask_ = other->subtask_;
+    pool_queries_ = other->pool_queries_;
+    transfer_flags_ = other->transfer_flags_;
+    error_message_ = other->error_message_;
+  }
 };
 
 /**
@@ -439,6 +507,18 @@ struct RecvTask : public chi::Task {
   template <typename Archive>
   void SerializeOut(Archive &ar) {
     ar(error_message_);
+  }
+
+  /**
+   * Copy from another RecvTask (assumes this task is already constructed)
+   * @param other Pointer to the source task to copy from
+   */
+  void Copy(const hipc::FullPtr<RecvTask> &other) {
+    // Copy base Task fields
+    chi::Task::Copy(other.template Cast<chi::Task>());
+    // Copy RecvTask-specific fields
+    transfer_flags_ = other->transfer_flags_;
+    error_message_ = other->error_message_;
   }
 };
 

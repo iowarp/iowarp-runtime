@@ -206,12 +206,19 @@ class Client : public chi::ContainerClient {
   hipc::FullPtr<RecvTask> AsyncRecv(
       const hipc::MemContext& mctx,
       const chi::PoolQuery& pool_query,
-      chi::u32 transfer_flags = 0) {
+      chi::u32 transfer_flags = 0,
+      double period_ms = 0) {
     auto* ipc_manager = CHI_IPC;
 
     // Allocate RecvTask
     auto task = ipc_manager->NewTask<RecvTask>(
         chi::CreateTaskId(), pool_id_, pool_query, transfer_flags);
+
+    // Set task as periodic if period is specified
+    if (period_ms > 0) {
+      task->SetPeriod(period_ms, chi::kMilli);
+      task->SetFlags(TASK_PERIODIC);
+    }
 
     // Submit to runtime
     ipc_manager->Enqueue(task);

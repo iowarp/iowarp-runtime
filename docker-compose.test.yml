@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    container_name: iowarp-runtime-test
+    volumes:
+      # Mount ppi-jarvis-mods directory containing pre-built modules
+      - ${HOME}/.ppi-jarvis-mods:/ppi-jarvis-mods
+      # Mount iowarp-runtime source and build directories
+      - .:/workspace
+    environment:
+      - HERMES_SHM_DIR=/ppi-jarvis-mods/cte-hermes-shm
+      - IOWARP_DIR=/ppi-jarvis-mods/iowarp-runtime
+      - CMAKE_PREFIX_PATH=/ppi-jarvis-mods/cte-hermes-shm:/ppi-jarvis-mods/iowarp-runtime:/usr/local
+    # Run tests with output on failure
+    command: bash -c "cd /workspace/build && ctest --output-on-failure --verbose"
+
+    # Optional: Add networking if tests require it
+    # network_mode: host
+
+    # Shared memory for IPC tests
+    shm_size: '2gb'

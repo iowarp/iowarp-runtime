@@ -188,6 +188,20 @@ class IpcManager {
   }
 
   /**
+   * Free buffer from appropriate memory segment (hipc::Pointer overload)
+   * Converts hipc::Pointer to FullPtr<char> and calls the main FreeBuffer
+   * @param buffer_ptr hipc::Pointer to buffer to free
+   */
+  void FreeBuffer(hipc::Pointer buffer_ptr) {
+    if (buffer_ptr.IsNull()) {
+      return;
+    }
+    // Convert hipc::Pointer to FullPtr<char> and call main FreeBuffer
+    hipc::FullPtr<char> full_ptr(buffer_ptr);
+    FreeBuffer(full_ptr);
+  }
+
+  /**
    * Enqueue task to process queue (priority 0 - normal tasks)
    * Uses the configured lane mapping policy to select the target lane
    * @param task_ptr Task to enqueue

@@ -165,12 +165,24 @@ class PoolQuery {
   bool IsPhysicalMode() const;
 
   /**
+   * Set the return node ID for distributed task responses
+   * @param ret_node Node ID where task results should be returned
+   */
+  void SetReturnNode(u32 ret_node);
+
+  /**
+   * Get the return node ID for distributed task responses
+   * @return Node ID where task results should be returned
+   */
+  u32 GetReturnNode() const;
+
+  /**
    * Cereal serialization support
    * @param ar Archive for serialization
    */
   template <class Archive>
   void serialize(Archive& ar) {
-    ar(routing_mode_, hash_value_, container_id_, range_offset_, range_count_, node_id_);
+    ar(routing_mode_, hash_value_, container_id_, range_offset_, range_count_, node_id_, ret_node_);
   }
 
  private:
@@ -180,6 +192,7 @@ class PoolQuery {
   u32 range_offset_;         /**< Starting offset for range routing */
   u32 range_count_;          /**< Number of containers for range routing */
   u32 node_id_;              /**< Node ID for physical routing */
+  u32 ret_node_;             /**< Return node ID for distributed responses */
 };
 
 

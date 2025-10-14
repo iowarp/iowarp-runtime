@@ -70,14 +70,17 @@ message(STATUS "found hermes_shm at ${HermesShm_PREFIX}")
 include_directories(${CMAKE_SOURCE_DIR}/include)
 include_directories(${HermesShm_INCLUDE_DIRS})
 
-# Add source subdirectory to build main library
-add_subdirectory(src)
-
 # Set output directories for binaries and libraries
 # Put all outputs in bin directory for easier access
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+
+# Add utilities subdirectory FIRST so chi_refresh_repo builds before everything else
+add_subdirectory(util)
+
+# Add source subdirectory to build main library
+add_subdirectory(src)
 
 # Read namespace from chimaera_repo.yaml in project root
 read_repo_namespace(CHIMAERA_NAMESPACE "${CMAKE_SOURCE_DIR}")
@@ -87,9 +90,6 @@ message(STATUS "Chimaera namespace: ${CHIMAERA_NAMESPACE}")
 
 # Add chimods subdirectory
 add_subdirectory(chimods)
-
-# Add utilities subdirectory
-add_subdirectory(util)
 
 # Add benchmark subdirectory
 add_subdirectory(benchmark)

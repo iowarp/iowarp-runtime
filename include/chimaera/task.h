@@ -103,6 +103,23 @@ public:
   }
 
   /**
+   * Copy from another task (assumes this task is already constructed)
+   * @param other Pointer to the source task to copy from
+   */
+  HSHM_CROSS_FUN void Copy(const hipc::FullPtr<Task> &other) {
+    pool_id_ = other->pool_id_;
+    task_id_ = other->task_id_;
+    pool_query_ = other->pool_query_;
+    method_ = other->method_;
+    task_flags_ = other->task_flags_;
+    period_ns_ = other->period_ns_;
+    run_ctx_ = other->run_ctx_;
+    return_code_.store(other->return_code_.load());
+    // Explicitly initialize as not complete for copied tasks
+    is_complete.store(0);
+  }
+
+  /**
    * Move constructor
    */
   HSHM_CROSS_FUN Task(Task &&other) {
@@ -192,6 +209,14 @@ public:
    */
   HSHM_CROSS_FUN bool IsDataOwner() const {
     return task_flags_.Any(TASK_DATA_OWNER);
+  }
+
+  /**
+   * Check if task is a remote task (received from another node)
+   * @return true if task has remote flag set
+   */
+  HSHM_CROSS_FUN bool IsRemote() const {
+    return task_flags_.Any(TASK_REMOTE);
   }
 
   /**
@@ -301,10 +326,11 @@ public:
    * @param ar Archive to serialize to
    */
   template <typename Archive> void BaseSerializeOut(Archive &ar) {
-    // Handle atomic return_code_ by loading/storing its value
+    // Only serialize OUT fields - do NOT re-serialize IN fields
+    // (pool_id_, task_id_, pool_query_, method_, task_flags_, period_ns_ are all IN)
+    // Only return_code_ is an OUT field that needs to be sent back
     u32 return_code_value = return_code_.load();
-    ar(pool_id_, task_id_, pool_query_, method_, task_flags_, period_ns_,
-       return_code_value);
+    ar(return_code_value);
     return_code_.store(return_code_value);
   }
 
@@ -458,6 +484,34 @@ struct RunContext {
 // Cleanup macros
 #undef CLASS_NAME
 #undef CLASS_NEW_ARGS
+
+/**
+ * SFINAE-based compile-time detection and invocation for Aggregate method
+ * Usage: CHI_AGGREGATE_OR_COPY(origin_ptr, replica_ptr)
+ */
+namespace detail {
+  // Primary template - assumes no Aggregate method, calls Copy
+  template<typename T, typename = void>
+  struct aggregate_or_copy {
+    static void call(hipc::FullPtr<T> origin, hipc::FullPtr<T> replica) {
+      origin->Copy(replica);
+    }
+  };
+
+  // Specialization for types with Aggregate method - calls Aggregate
+  template<typename T>
+  struct aggregate_or_copy<T, std::void_t<
+    decltype(std::declval<T*>()->Aggregate(std::declval<hipc::FullPtr<T>>()))
+  >> {
+    static void call(hipc::FullPtr<T> origin, hipc::FullPtr<T> replica) {
+      origin->Aggregate(replica);
+    }
+  };
+}
+
+// Macro for convenient usage - automatically dispatches to Aggregate or Copy
+#define CHI_AGGREGATE_OR_COPY(origin_ptr, replica_ptr) \
+  chi::detail::aggregate_or_copy<typename std::remove_pointer<decltype((origin_ptr).ptr_)>::type>::call((origin_ptr), (replica_ptr))
 
 } // namespace chi
 

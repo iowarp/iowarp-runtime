@@ -178,6 +178,16 @@ public:
   void Send(hipc::FullPtr<SendTask> task, chi::RunContext &rctx);
 
   /**
+   * Helper: Send task inputs to remote node
+   */
+  void SendIn(hipc::FullPtr<SendTask> task, chi::RunContext &rctx);
+
+  /**
+   * Helper: Send task outputs back to origin node
+   */
+  void SendOut(hipc::FullPtr<SendTask> task);
+
+  /**
    * Monitor Send task
    */
   void MonitorSend(chi::MonitorModeId mode, hipc::FullPtr<SendTask> task_ptr,
@@ -187,6 +197,16 @@ public:
    * Handle Recv - Receive task inputs or outputs from network
    */
   void Recv(hipc::FullPtr<RecvTask> task, chi::RunContext &rctx);
+
+  /**
+   * Helper: Receive task inputs from remote node
+   */
+  void RecvIn(hipc::FullPtr<RecvTask> task, chi::LoadTaskArchive& archive, hshm::lbm::Server* lbm_server);
+
+  /**
+   * Helper: Receive task outputs from remote node
+   */
+  void RecvOut(hipc::FullPtr<RecvTask> task, chi::LoadTaskArchive& archive, hshm::lbm::Server* lbm_server);
 
   /**
    * Monitor Recv task
@@ -214,13 +234,20 @@ public:
    * Deserialize task parameters (IN or OUT based on archive mode)
    */
   void LoadTask(chi::u32 method, chi::LoadTaskArchive &archive,
-                hipc::FullPtr<chi::Task> task_ptr) override;
+                hipc::FullPtr<chi::Task>& task_ptr) override;
 
   /**
    * Create a new copy of a task (deep copy for distributed execution)
    */
   void NewCopy(chi::u32 method, const hipc::FullPtr<chi::Task> &orig_task,
                hipc::FullPtr<chi::Task> &dup_task, bool deep) override;
+
+  /**
+   * Aggregate a replica task into the origin task (for merging replica results)
+   */
+  void Aggregate(chi::u32 method,
+                 hipc::FullPtr<chi::Task> origin_task,
+                 hipc::FullPtr<chi::Task> replica_task) override;
 
 private:
   /**
