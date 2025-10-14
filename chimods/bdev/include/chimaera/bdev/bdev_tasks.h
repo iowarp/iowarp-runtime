@@ -352,10 +352,10 @@ struct WriteTask : public chi::Task {
  */
 struct ReadTask : public chi::Task {
   // Task-specific data
-  IN Block block_;          // Block to read from
-  OUT hipc::Pointer data_;  // Read data (pointer-based)
-  OUT size_t length_;       // Size of data buffer
-  OUT chi::u64 bytes_read_; // Number of bytes actually read
+  IN Block block_;           // Block to read from
+  OUT hipc::Pointer data_;   // Read data (pointer-based)
+  INOUT size_t length_;      // Size of data buffer (IN: buffer size, OUT: actual size)
+  OUT chi::u64 bytes_read_;  // Number of bytes actually read
 
   /** SHM default constructor */
   explicit ReadTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc)
@@ -388,7 +388,7 @@ struct ReadTask : public chi::Task {
 
   /** Serialize IN and INOUT parameters */
   template <typename Archive> void SerializeIn(Archive &ar) {
-    ar(block_);
+    ar(block_, length_);
     // Use BULK_EXPOSE to indicate metadata only - receiver will allocate buffer
     ar.bulk(data_, length_, BULK_EXPOSE);
   }
