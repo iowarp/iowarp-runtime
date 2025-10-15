@@ -477,8 +477,8 @@ Tasks can optionally implement `Copy()` and `Aggregate()` methods for distribute
  * @param other Source task to copy from
  */
 void Copy(const hipc::FullPtr<YourTask> &other) {
-  chi::Task::Copy(other.template Cast<chi::Task>());
-  // Copy task-specific fields
+  // Copy task-specific fields only
+  // Base Task fields are copied automatically by NewCopy
   field1_ = other->field1_;
   field2_ = other->field2_;
 }

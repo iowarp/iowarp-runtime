@@ -11,7 +11,7 @@ auto &orig_queue = blocked_queue_[block_queue_bit_];
 block_queue_bit_ = !block_queue_bit_;
 while(orig_queue):
   Pop the run context
-  is_complete = ExecTask
+  is_complete_ = ExecTask
   If so, continue
   Otherwise, decrement the remaining time by the current elapsed.
 ```

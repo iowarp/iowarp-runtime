@@ -39,7 +39,8 @@ void Task::Wait(double wait_time_us, bool from_yield) {
       Container *container = worker ? worker->GetCurrentContainer() : nullptr;
       if (container) {
         // Estimate completion time using Monitor with kEstLoad
-        // Use run_ctx directly - Monitor should update estimated_completion_time_us
+        // Use run_ctx directly - Monitor should update
+        // estimated_completion_time_us
         container->Monitor(MonitorModeId::kEstLoad, method_, run_ctx->task,
                            *run_ctx);
 
@@ -135,7 +136,7 @@ void Task::Yield(double wait_time_us) {
 
 bool Task::IsComplete() const {
   // Completion check (works for both client and runtime modes)
-  return is_complete.load() != 0;
+  return is_complete_.load() != 0;
 }
 
 } // namespace chi

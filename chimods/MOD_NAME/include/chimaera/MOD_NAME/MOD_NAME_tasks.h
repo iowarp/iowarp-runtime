@@ -52,7 +52,6 @@ struct CreateParams {
  */
 using CreateTask = chimaera::admin::GetOrCreatePoolTask<CreateParams>;
 
-
 /**
  * CustomTask - Example custom operation
  */
@@ -108,7 +107,6 @@ struct CustomTask : public chi::Task {
    */
   void Copy(const hipc::FullPtr<CustomTask> &other) {
     // Copy base Task fields
-    chi::Task::Copy(other.template Cast<chi::Task>());
     // Copy CustomTask-specific fields
     data_ = other->data_;
     operation_id_ = other->operation_id_;
@@ -160,7 +158,6 @@ struct CoMutexTestTask : public chi::Task {
    */
   void Copy(const hipc::FullPtr<CoMutexTestTask> &other) {
     // Copy base Task fields
-    chi::Task::Copy(other.template Cast<chi::Task>());
     // Copy CoMutexTestTask-specific fields
     test_id_ = other->test_id_;
     hold_duration_ms_ = other->hold_duration_ms_;
@@ -214,7 +211,6 @@ struct CoRwLockTestTask : public chi::Task {
    */
   void Copy(const hipc::FullPtr<CoRwLockTestTask> &other) {
     // Copy base Task fields
-    chi::Task::Copy(other.template Cast<chi::Task>());
     // Copy CoRwLockTestTask-specific fields
     test_id_ = other->test_id_;
     is_writer_ = other->is_writer_;
@@ -269,7 +265,6 @@ struct WaitTestTask : public chi::Task {
    */
   void Copy(const hipc::FullPtr<WaitTestTask> &other) {
     // Copy base Task fields
-    chi::Task::Copy(other.template Cast<chi::Task>());
     // Copy WaitTestTask-specific fields
     depth_ = other->depth_;
     test_id_ = other->test_id_;

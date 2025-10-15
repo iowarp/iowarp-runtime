@@ -121,7 +121,7 @@ public:
     auto start_time = std::chrono::steady_clock::now();
     auto timeout_duration = std::chrono::milliseconds(timeout_ms);
     
-    while (task->is_complete.load() == 0) {
+    while (task->is_complete_.load() == 0) {
       auto current_time = std::chrono::steady_clock::now();
       if (current_time - start_time > timeout_duration) {
         return false; // Timeout

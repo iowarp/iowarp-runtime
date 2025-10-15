@@ -214,7 +214,7 @@ bool Worker::RouteTask(const FullPtr<Task> &task_ptr, TaskLane *lane,
     // Mark task as complete to end it (safe here since no cleanup needed)
     // But only mark complete for non-periodic tasks
     if (!task_ptr->IsPeriodic()) {
-      task_ptr->is_complete.store(1);
+      task_ptr->is_complete_.store(1);
     }
     return false;
   }
@@ -608,7 +608,7 @@ void Worker::EndTaskWithError(const FullPtr<Task> &task_ptr, u32 error_code) {
 
   // Set the error return code and mark task as complete
   task_ptr->SetReturnCode(error_code);
-  task_ptr->is_complete.store(1);
+  task_ptr->is_complete_.store(1);
 
   // Note: Tasks are left in memory for the client to check
   // the return code and completion status before explicitly deleting them
@@ -825,7 +825,7 @@ bool Worker::ExecTask(const FullPtr<Task> &task_ptr, RunContext *run_ctx,
 
     // Mark task as complete FIRST - before deletion
     // This prevents race condition with client DelTask
-    task_ptr->is_complete.store(1);
+    task_ptr->is_complete_.store(1);
 
     // Deallocate stack and context
     DeallocateStackAndContext(run_ctx);

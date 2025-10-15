@@ -39,14 +39,14 @@ constexpr chi::PoolId kTestModNamePoolId = chi::PoolId(100, 0);
 // Global test state
 bool g_runtime_initialized = false;
 bool g_client_initialized = false;
-}  // namespace
+} // namespace
 
 /**
  * Test fixture for Chimaera runtime tests
  * Handles setup and teardown of runtime and client components
  */
 class ChimaeraRuntimeFixture {
- public:
+public:
   ChimaeraRuntimeFixture() = default;
 
   ~ChimaeraRuntimeFixture() { cleanup(); }
@@ -57,7 +57,7 @@ class ChimaeraRuntimeFixture {
    */
   bool initializeRuntime() {
     if (g_runtime_initialized) {
-      return true;  // Already initialized
+      return true; // Already initialized
     }
 
     INFO("Initializing Chimaera runtime...");
@@ -90,7 +90,7 @@ class ChimaeraRuntimeFixture {
    */
   bool initializeClient() {
     if (g_client_initialized) {
-      return true;  // Already initialized
+      return true; // Already initialized
     }
 
     INFO("Initializing Chimaera client...");
@@ -136,18 +136,18 @@ class ChimaeraRuntimeFixture {
     auto timeout_duration = std::chrono::duration<int, std::milli>(timeout_ms);
 
     // Use task's Wait mechanism with timeout check
-    while (task->is_complete.load() == 0) {
+    while (task->is_complete_.load() == 0) {
       auto current_time = std::chrono::steady_clock::now();
       if (current_time - start_time > timeout_duration) {
         INFO("Task completion timeout after " << timeout_ms << "ms");
-        return false;  // Timeout
+        return false; // Timeout
       }
 
       // Use the task's own Yield() method for efficient waiting
       task->Yield();
     }
 
-    return true;  // Task completed
+    return true; // Task completed
   }
 
   /**
@@ -166,7 +166,7 @@ class ChimaeraRuntimeFixture {
   bool createModNamePool() {
     try {
       // Admin client is automatically initialized via CHI_ADMIN singleton
-      chi::DomainQuery pool_query;  // Default domain query
+      chi::DomainQuery pool_query; // Default domain query
 
       // Create MOD_NAME pool parameters
       chimaera::MOD_NAME::CreateParams params;
@@ -190,7 +190,7 @@ class ChimaeraRuntimeFixture {
         return false;
       }
 
-    } catch (const std::exception& e) {
+    } catch (const std::exception &e) {
       FAIL("Exception creating MOD_NAME pool: " << e.what());
       return false;
     }
@@ -215,7 +215,7 @@ TEST_CASE("Chimaera Runtime Initialization", "[runtime][initialization]") {
 
   SECTION("Multiple runtime initializations should be safe") {
     REQUIRE(fixture.initializeRuntime());
-    REQUIRE(fixture.initializeRuntime());  // Second call should succeed
+    REQUIRE(fixture.initializeRuntime()); // Second call should succeed
   }
 }
 
@@ -263,7 +263,7 @@ TEST_CASE("MOD_NAME Custom Task Execution", "[task][mod_name][custom]") {
     chimaera::MOD_NAME::Client mod_name_client(kTestModNamePoolId);
 
     // Step 4: Create the MOD_NAME container
-    chi::DomainQuery pool_query;  // Default domain query
+    chi::DomainQuery pool_query; // Default domain query
     std::string pool_name = "test_mod_name_pool";
     bool success = mod_name_client.Create(HSHM_MCTX, pool_query, pool_name);
     REQUIRE(success);
@@ -278,7 +278,7 @@ TEST_CASE("MOD_NAME Custom Task Execution", "[task][mod_name][custom]") {
         HSHM_MCTX, pool_query, input_data, operation_id, output_data);
 
     // Verify results
-    REQUIRE(result_code == 0);  // Assuming 0 means success
+    REQUIRE(result_code == 0); // Assuming 0 means success
     REQUIRE_FALSE(output_data.empty());
 
     INFO("Custom task completed successfully");
@@ -382,7 +382,7 @@ TEST_CASE("Error Handling Tests", "[error][edge_cases]") {
     REQUIRE_FALSE(task.IsNull());
 
     // Wait with a very short timeout to test timeout handling
-    bool completed = fixture.waitForTaskCompletion(task, 50);  // 50ms timeout
+    bool completed = fixture.waitForTaskCompletion(task, 50); // 50ms timeout
 
     // The task may or may not complete in 50ms, but we shouldn't crash
     INFO("Task completed within timeout: " << completed);
@@ -426,7 +426,7 @@ TEST_CASE("Concurrent Task Execution", "[concurrent][stress]") {
 
     // Wait for all tasks to complete
     int completed_tasks = 0;
-    for (auto& task : tasks) {
+    for (auto &task : tasks) {
       if (fixture.waitForTaskCompletion(task)) {
         completed_tasks++;
         REQUIRE(task->return_code_ == 0);
@@ -435,10 +435,10 @@ TEST_CASE("Concurrent Task Execution", "[concurrent][stress]") {
 
     INFO("Completed " << completed_tasks << " out of " << kNumTasks
                       << " tasks");
-    REQUIRE(completed_tasks > 0);  // At least some tasks should complete
+    REQUIRE(completed_tasks > 0); // At least some tasks should complete
 
     // Clean up tasks
-    for (auto& task : tasks) {
+    for (auto &task : tasks) {
       if (!task.IsNull()) {
         CHI_IPC->DelTask(task);
       }
@@ -478,7 +478,7 @@ TEST_CASE("Memory Management", "[memory][cleanup]") {
     INFO("Allocated " << kNumAllocations << " tasks successfully");
 
     // Clean up all tasks
-    for (auto& task : allocated_tasks) {
+    for (auto &task : allocated_tasks) {
       CHI_IPC->DelTask(task);
     }
 
@@ -518,7 +518,7 @@ TEST_CASE("Performance Tests", "[performance][timing]") {
     INFO("Task execution time: " << duration.count() << " microseconds");
 
     // Reasonable performance expectation (task should complete within 1 second)
-    REQUIRE(duration.count() < 1000000);  // 1 second in microseconds
+    REQUIRE(duration.count() < 1000000); // 1 second in microseconds
   }
 }
 

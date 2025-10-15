@@ -359,7 +359,9 @@ class ChiModGenerator {
       oss << "      // Allocate new task using SHM default constructor\n";
       oss << "      auto typed_task = ipc_manager->NewTask<" << task_type << ">();\n";
       oss << "      if (!typed_task.IsNull()) {\n";
-      oss << "        // Use Copy method for actual copying\n";
+      oss << "        // Copy base Task fields first\n";
+      oss << "        typed_task.template Cast<chi::Task>()->Copy(orig_task);\n";
+      oss << "        // Then copy task-specific fields\n";
       oss << "        typed_task->Copy(orig_task.Cast<" << task_type << ">());\n";
       oss << "        // Cast to base Task type for return\n";
       oss << "        dup_task = typed_task.template Cast<chi::Task>();\n";

@@ -290,7 +290,9 @@ void Runtime::NewCopy(chi::u32 method, const hipc::FullPtr<chi::Task>& orig_task
       // Allocate new task using SHM default constructor
       auto typed_task = ipc_manager->NewTask<CreateTask>();
       if (!typed_task.IsNull()) {
-        // Use Copy method for actual copying
+        // Copy base Task fields first
+        typed_task.template Cast<chi::Task>()->Copy(orig_task);
+        // Then copy task-specific fields
         typed_task->Copy(orig_task.Cast<CreateTask>());
         // Cast to base Task type for return
         dup_task = typed_task.template Cast<chi::Task>();
@@ -301,7 +303,9 @@ void Runtime::NewCopy(chi::u32 method, const hipc::FullPtr<chi::Task>& orig_task
       // Allocate new task using SHM default constructor
       auto typed_task = ipc_manager->NewTask<DestroyTask>();
       if (!typed_task.IsNull()) {
-        // Use Copy method for actual copying
+        // Copy base Task fields first
+        typed_task.template Cast<chi::Task>()->Copy(orig_task);
+        // Then copy task-specific fields
         typed_task->Copy(orig_task.Cast<DestroyTask>());
         // Cast to base Task type for return
         dup_task = typed_task.template Cast<chi::Task>();
@@ -312,7 +316,9 @@ void Runtime::NewCopy(chi::u32 method, const hipc::FullPtr<chi::Task>& orig_task
       // Allocate new task using SHM default constructor
       auto typed_task = ipc_manager->NewTask<admin::GetOrCreatePoolTask<admin::CreateParams>>();
       if (!typed_task.IsNull()) {
-        // Use Copy method for actual copying
+        // Copy base Task fields first
+        typed_task.template Cast<chi::Task>()->Copy(orig_task);
+        // Then copy task-specific fields
         typed_task->Copy(orig_task.Cast<admin::GetOrCreatePoolTask<admin::CreateParams>>());
         // Cast to base Task type for return
         dup_task = typed_task.template Cast<chi::Task>();
@@ -323,7 +329,9 @@ void Runtime::NewCopy(chi::u32 method, const hipc::FullPtr<chi::Task>& orig_task
       // Allocate new task using SHM default constructor
       auto typed_task = ipc_manager->NewTask<DestroyPoolTask>();
       if (!typed_task.IsNull()) {
-        // Use Copy method for actual copying
+        // Copy base Task fields first
+        typed_task.template Cast<chi::Task>()->Copy(orig_task);
+        // Then copy task-specific fields
         typed_task->Copy(orig_task.Cast<DestroyPoolTask>());
         // Cast to base Task type for return
         dup_task = typed_task.template Cast<chi::Task>();
@@ -334,7 +342,9 @@ void Runtime::NewCopy(chi::u32 method, const hipc::FullPtr<chi::Task>& orig_task
       // Allocate new task using SHM default constructor
       auto typed_task = ipc_manager->NewTask<StopRuntimeTask>();
       if (!typed_task.IsNull()) {
-        // Use Copy method for actual copying
+        // Copy base Task fields first
+        typed_task.template Cast<chi::Task>()->Copy(orig_task);
+        // Then copy task-specific fields
         typed_task->Copy(orig_task.Cast<StopRuntimeTask>());
         // Cast to base Task type for return
         dup_task = typed_task.template Cast<chi::Task>();
@@ -345,7 +355,9 @@ void Runtime::NewCopy(chi::u32 method, const hipc::FullPtr<chi::Task>& orig_task
       // Allocate new task using SHM default constructor
       auto typed_task = ipc_manager->NewTask<FlushTask>();
       if (!typed_task.IsNull()) {
-        // Use Copy method for actual copying
+        // Copy base Task fields first
+        typed_task.template Cast<chi::Task>()->Copy(orig_task);
+        // Then copy task-specific fields
         typed_task->Copy(orig_task.Cast<FlushTask>());
         // Cast to base Task type for return
         dup_task = typed_task.template Cast<chi::Task>();
@@ -356,7 +368,9 @@ void Runtime::NewCopy(chi::u32 method, const hipc::FullPtr<chi::Task>& orig_task
       // Allocate new task using SHM default constructor
       auto typed_task = ipc_manager->NewTask<SendTask>();
       if (!typed_task.IsNull()) {
-        // Use Copy method for actual copying
+        // Copy base Task fields first
+        typed_task.template Cast<chi::Task>()->Copy(orig_task);
+        // Then copy task-specific fields
         typed_task->Copy(orig_task.Cast<SendTask>());
         // Cast to base Task type for return
         dup_task = typed_task.template Cast<chi::Task>();
@@ -367,7 +381,9 @@ void Runtime::NewCopy(chi::u32 method, const hipc::FullPtr<chi::Task>& orig_task
       // Allocate new task using SHM default constructor
       auto typed_task = ipc_manager->NewTask<RecvTask>();
       if (!typed_task.IsNull()) {
-        // Use Copy method for actual copying
+        // Copy base Task fields first
+        typed_task.template Cast<chi::Task>()->Copy(orig_task);
+        // Then copy task-specific fields
         typed_task->Copy(orig_task.Cast<RecvTask>());
         // Cast to base Task type for return
         dup_task = typed_task.template Cast<chi::Task>();

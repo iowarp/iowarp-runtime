@@ -45,7 +45,7 @@ public:
   IN ibitfield task_flags_; /**< Task properties and flags */
   IN double period_ns_;     /**< Period in nanoseconds for periodic tasks */
   IN RunContext *run_ctx_; /**< Pointer to runtime context for task execution */
-  std::atomic<u32> is_complete; /**< Atomic flag indicating task completion
+  std::atomic<u32> is_complete_; /**< Atomic flag indicating task completion
                                    (0=not complete, 1=complete) */
   std::atomic<u32>
       return_code_; /**< Task return code (0=success, non-zero=error) */
@@ -73,7 +73,7 @@ public:
     pool_query_ = pool_query;
     period_ns_ = 0.0;
     run_ctx_ = nullptr;
-    is_complete.store(0);  // Initialize as not complete
+    is_complete_.store(0); // Initialize as not complete
     return_code_.store(0); // Initialize as success
   }
 
@@ -99,7 +99,7 @@ public:
     run_ctx_ = other.run_ctx_;
     return_code_.store(other.return_code_.load());
     // Explicitly initialize as not complete for copied tasks
-    is_complete.store(0);
+    is_complete_.store(0);
   }
 
   /**
@@ -116,7 +116,7 @@ public:
     run_ctx_ = other->run_ctx_;
     return_code_.store(other->return_code_.load());
     // Explicitly initialize as not complete for copied tasks
-    is_complete.store(0);
+    is_complete_.store(0);
   }
 
   /**
@@ -155,7 +155,7 @@ public:
     task_flags_.Clear();
     period_ns_ = 0.0;
     run_ctx_ = nullptr;
-    is_complete.store(0);  // Initialize as not complete
+    is_complete_.store(0); // Initialize as not complete
     return_code_.store(0); // Initialize as success
   }
 
@@ -215,9 +215,7 @@ public:
    * Check if task is a remote task (received from another node)
    * @return true if task has remote flag set
    */
-  HSHM_CROSS_FUN bool IsRemote() const {
-    return task_flags_.Any(TASK_REMOTE);
-  }
+  HSHM_CROSS_FUN bool IsRemote() const { return task_flags_.Any(TASK_REMOTE); }
 
   /**
    * Get task execution period in specified time unit
@@ -327,8 +325,8 @@ public:
    */
   template <typename Archive> void BaseSerializeOut(Archive &ar) {
     // Only serialize OUT fields - do NOT re-serialize IN fields
-    // (pool_id_, task_id_, pool_query_, method_, task_flags_, period_ns_ are all IN)
-    // Only return_code_ is an OUT field that needs to be sent back
+    // (pool_id_, task_id_, pool_query_, method_, task_flags_, period_ns_ are
+    // all IN) Only return_code_ is an OUT field that needs to be sent back
     u32 return_code_value = return_code_.load();
     ar(return_code_value);
     return_code_.store(return_code_value);
@@ -405,7 +403,7 @@ struct RunContext {
   TaskLane *route_lane_; // Lane pointer set by kLocalSchedule for task routing
   std::vector<FullPtr<Task>>
       waiting_for_tasks; // Tasks this task is waiting for completion
-  std::vector<PoolQuery> pool_queries; // Pool queries for task distribution
+  std::vector<PoolQuery> pool_queries;  // Pool queries for task distribution
   std::vector<FullPtr<Task>> subtasks_; // Replica tasks for this execution
   std::atomic<u32> completed_replicas_; // Count of completed replicas
 
@@ -413,13 +411,15 @@ struct RunContext {
       : stack_ptr(nullptr), stack_base_for_free(nullptr), stack_size(0),
         thread_type(kSchedWorker), worker_id(0), is_blocked(false),
         estimated_completion_time_us(0.0), yield_context{}, resume_context{},
-        container(nullptr), lane(nullptr), route_lane_(nullptr), completed_replicas_(0) {}
+        container(nullptr), lane(nullptr), route_lane_(nullptr),
+        completed_replicas_(0) {}
 
   /**
    * Move constructor - required because of atomic member
    */
-  RunContext(RunContext&& other) noexcept
-      : stack_ptr(other.stack_ptr), stack_base_for_free(other.stack_base_for_free),
+  RunContext(RunContext &&other) noexcept
+      : stack_ptr(other.stack_ptr),
+        stack_base_for_free(other.stack_base_for_free),
         stack_size(other.stack_size), thread_type(other.thread_type),
         worker_id(other.worker_id), task(std::move(other.task)),
         is_blocked(other.is_blocked),
@@ -435,7 +435,7 @@ struct RunContext {
   /**
    * Move assignment operator - required because of atomic member
    */
-  RunContext& operator=(RunContext&& other) noexcept {
+  RunContext &operator=(RunContext &&other) noexcept {
     if (this != &other) {
       stack_ptr = other.stack_ptr;
       stack_base_for_free = other.stack_base_for_free;
@@ -460,8 +460,8 @@ struct RunContext {
   }
 
   // Delete copy constructor and copy assignment
-  RunContext(const RunContext&) = delete;
-  RunContext& operator=(const RunContext&) = delete;
+  RunContext(const RunContext &) = delete;
+  RunContext &operator=(const RunContext &) = delete;
 
   /**
    * Check if all subtasks this task is waiting for are completed
@@ -472,7 +472,7 @@ struct RunContext {
     for (const auto &waiting_task : waiting_for_tasks) {
       if (!waiting_task.IsNull()) {
         // Check if the waiting task is completed using atomic flag
-        if (waiting_task->is_complete.load() == 0) {
+        if (waiting_task->is_complete_.load() == 0) {
           return false; // Found a subtask that's not completed yet
         }
       }
@@ -490,28 +490,27 @@ struct RunContext {
  * Usage: CHI_AGGREGATE_OR_COPY(origin_ptr, replica_ptr)
  */
 namespace detail {
-  // Primary template - assumes no Aggregate method, calls Copy
-  template<typename T, typename = void>
-  struct aggregate_or_copy {
-    static void call(hipc::FullPtr<T> origin, hipc::FullPtr<T> replica) {
-      origin->Copy(replica);
-    }
-  };
+// Primary template - assumes no Aggregate method, calls Copy
+template <typename T, typename = void> struct aggregate_or_copy {
+  static void call(hipc::FullPtr<T> origin, hipc::FullPtr<T> replica) {
+    origin->Copy(replica);
+  }
+};
 
-  // Specialization for types with Aggregate method - calls Aggregate
-  template<typename T>
-  struct aggregate_or_copy<T, std::void_t<
-    decltype(std::declval<T*>()->Aggregate(std::declval<hipc::FullPtr<T>>()))
-  >> {
-    static void call(hipc::FullPtr<T> origin, hipc::FullPtr<T> replica) {
-      origin->Aggregate(replica);
-    }
-  };
-}
+// Specialization for types with Aggregate method - calls Aggregate
+template <typename T>
+struct aggregate_or_copy<T, std::void_t<decltype(std::declval<T *>()->Aggregate(
+                                std::declval<hipc::FullPtr<T>>()))>> {
+  static void call(hipc::FullPtr<T> origin, hipc::FullPtr<T> replica) {
+    origin->Aggregate(replica);
+  }
+};
+} // namespace detail
 
 // Macro for convenient usage - automatically dispatches to Aggregate or Copy
-#define CHI_AGGREGATE_OR_COPY(origin_ptr, replica_ptr) \
-  chi::detail::aggregate_or_copy<typename std::remove_pointer<decltype((origin_ptr).ptr_)>::type>::call((origin_ptr), (replica_ptr))
+#define CHI_AGGREGATE_OR_COPY(origin_ptr, replica_ptr)                         \
+  chi::detail::aggregate_or_copy<typename std::remove_pointer<                 \
+      decltype((origin_ptr).ptr_)>::type>::call((origin_ptr), (replica_ptr))
 
 } // namespace chi
 

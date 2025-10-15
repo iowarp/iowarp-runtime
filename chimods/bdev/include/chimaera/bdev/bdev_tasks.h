@@ -218,7 +218,6 @@ struct AllocateBlocksTask : public chi::Task {
    */
   void Copy(const hipc::FullPtr<AllocateBlocksTask> &other) {
     // Copy base Task fields
-    chi::Task::Copy(other.template Cast<chi::Task>());
     // Copy AllocateBlocksTask-specific fields
     size_ = other->size_;
     blocks_ = other->blocks_;
@@ -271,7 +270,6 @@ struct FreeBlocksTask : public chi::Task {
    */
   void Copy(const hipc::FullPtr<FreeBlocksTask> &other) {
     // Copy base Task fields
-    chi::Task::Copy(other.template Cast<chi::Task>());
     // Copy FreeBlocksTask-specific fields
     blocks_ = other->blocks_;
   }
@@ -338,7 +336,6 @@ struct WriteTask : public chi::Task {
    */
   void Copy(const hipc::FullPtr<WriteTask> &other) {
     // Copy base Task fields
-    chi::Task::Copy(other.template Cast<chi::Task>());
     // Copy WriteTask-specific fields
     block_ = other->block_;
     data_ = other->data_;
@@ -406,7 +403,6 @@ struct ReadTask : public chi::Task {
    */
   void Copy(const hipc::FullPtr<ReadTask> &other) {
     // Copy base Task fields
-    chi::Task::Copy(other.template Cast<chi::Task>());
     // Copy ReadTask-specific fields
     block_ = other->block_;
     data_ = other->data_;
@@ -458,7 +454,6 @@ struct GetStatsTask : public chi::Task {
    */
   void Copy(const hipc::FullPtr<GetStatsTask> &other) {
     // Copy base Task fields
-    chi::Task::Copy(other.template Cast<chi::Task>());
     // Copy GetStatsTask-specific fields
     metrics_ = other->metrics_;
     remaining_size_ = other->remaining_size_;

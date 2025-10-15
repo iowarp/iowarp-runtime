@@ -697,7 +697,8 @@ void Runtime::RecvOut(hipc::FullPtr<RecvTask> task,
   archive.SetLbmServer(lbm_server);
 
   // First pass: Deserialize to expose buffers
-  // LoadTask will call ar.bulk() which will expose the pointers and populate archive.recv
+  // LoadTask will call ar.bulk() which will expose the pointers and populate
+  // archive.recv
   for (size_t task_idx = 0; task_idx < task_infos.size(); ++task_idx) {
     const auto &task_info = task_infos[task_idx];
 
@@ -729,7 +730,8 @@ void Runtime::RecvOut(hipc::FullPtr<RecvTask> task,
     hipc::FullPtr<chi::Task> replica = origin_rctx->subtasks_[replica_id];
 
     // Get the container associated with the origin task
-    chi::Container *container = pool_manager->GetContainer(origin_task->pool_id_);
+    chi::Container *container =
+        pool_manager->GetContainer(origin_task->pool_id_);
     if (!container) {
       HELOG(kError, "Admin: Container not found for pool_id {}",
             origin_task->pool_id_);
@@ -782,7 +784,8 @@ void Runtime::RecvOut(hipc::FullPtr<RecvTask> task,
     hipc::FullPtr<chi::Task> replica = origin_rctx->subtasks_[replica_id];
 
     // Get the container associated with the origin task
-    chi::Container *container = pool_manager->GetContainer(origin_task->pool_id_);
+    chi::Container *container =
+        pool_manager->GetContainer(origin_task->pool_id_);
     if (!container) {
       HELOG(kError, "Admin: Container not found for pool_id {}",
             origin_task->pool_id_);
@@ -833,7 +836,7 @@ void Runtime::RecvOut(hipc::FullPtr<RecvTask> task,
         // Non-periodic task - free RunContext and mark as complete
         delete origin_rctx;
         origin_task->run_ctx_ = nullptr;
-        origin_task->is_complete.store(1);
+        origin_task->is_complete_.store(1);
         HILOG(kDebug, "Admin: Non-periodic origin task marked complete");
       }
     }
