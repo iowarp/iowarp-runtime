@@ -1,0 +1,66 @@
+# Docker build context ignore file
+# Excludes unnecessary files from Docker build context
+
+# Build directories
+build/
+cmake-build-*/
+.cmake/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Git
+.git/
+.gitignore
+.gitmodules
+
+# Test files
+test/
+tests/
+
+# Documentation (except Docker docs)
+docs/
+*.md
+!docker/README.md
+
+# Source code (we only need binaries)
+src/
+include/
+chimods/*/src/
+chimods/*/include/
+*.cc
+*.cpp
+*.h
+*.hpp
+
+# CMake files
+CMakeLists.txt
+*.cmake
+CMakePresets.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+
+# Logs
+*.log
+log/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Package files
+*.tar.gz
+*.zip
+
+# Keep only what we need: binaries in docker/bin/
+!docker/bin/

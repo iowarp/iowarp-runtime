@@ -1,0 +1,12 @@
+chimaera-runtime (0.1.0-1) unstable; urgency=medium
+
+  * Initial release
+  * Core Chimaera runtime system with distributed task orchestration
+  * Admin module for runtime management
+  * BDev module for block device operations
+  * Support for custom ChiMod development
+  * ZeroMQ-based distributed communication
+  * Coroutine-based task scheduling
+  * Docker deployment support
+
+ -- Luke Logan <llogan@hawk.iit.edu>  Tue, 14 Oct 2025 00:00:00 +0000

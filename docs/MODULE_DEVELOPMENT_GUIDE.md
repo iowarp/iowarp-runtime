@@ -599,6 +599,277 @@ This automated approach ensures consistency across all ChiMods and reduces boile
 4. **Method Assignment**: Set the method_ field to identify the operation
 5. **FullPtr Usage**: All task method signatures use `hipc::FullPtr<TaskType>` instead of raw pointers
 6. **Monitor Methods**: Optional - only implement if you need custom load estimation or distributed coordination
+7. **Copy Method**: Optional - implement for tasks that need to be replicated across nodes
+8. **Aggregate Method**: Optional - implement for tasks that need to combine results from replicas
+
+### Optional Task Methods: Copy and Aggregate
+
+For tasks that will be distributed across multiple nodes or need to combine results from multiple executions, you can optionally implement `Copy()` and `Aggregate()` methods.
+
+#### Copy Method
+
+The `Copy()` method is used to create a deep copy of a task, typically when distributing work across multiple nodes. This is useful for:
+- Remote task execution via networking
+- Task replication for fault tolerance
+- Creating independent task replicas with separate data
+
+**Signature:**
+```cpp
+void Copy(const hipc::FullPtr<YourTask> &other);
+```
+
+**Implementation Pattern:**
+```cpp
+struct WriteTask : public chi::Task {
+  IN Block block_;
+  IN hipc::Pointer data_;
+  IN size_t length_;
+  OUT chi::u64 bytes_written_;
+
+  /**
+   * Copy from another WriteTask (assumes this task is already constructed)
+   * @param other Pointer to the source task to copy from
+   */
+  void Copy(const hipc::FullPtr<WriteTask> &other) {
+    // Copy base Task fields (task_id_, pool_id_, method_, etc.)
+    chi::Task::Copy(other.template Cast<chi::Task>());
+
+    // Copy task-specific fields
+    block_ = other->block_;
+    data_ = other->data_;
+    length_ = other->length_;
+    bytes_written_ = other->bytes_written_;
+  }
+};
+```
+
+**Key Points:**
+- Always call `chi::Task::Copy()` first to copy base task fields
+- Copy all IN, OUT, and INOUT fields from the source task
+- The destination task (`this`) is already constructed - don't call constructors
+- For pointer fields, decide if you need deep or shallow copy based on ownership
+- Use `.template Cast<chi::Task>()` when casting FullPtr for base class methods
+
+#### Aggregate Method
+
+The `Aggregate()` method combines results from multiple task replicas into a single result. This is commonly used for:
+- Combining results from distributed task execution
+- Merging partial results from parallel operations
+- Accumulating metrics from multiple nodes
+
+**Signature:**
+```cpp
+void Aggregate(const hipc::FullPtr<YourTask> &other);
+```
+
+**Implementation Patterns:**
+
+**Pattern 1: Last-Writer-Wins (Simple Override)**
+```cpp
+struct WriteTask : public chi::Task {
+  IN Block block_;
+  IN hipc::Pointer data_;
+  OUT chi::u64 bytes_written_;
+
+  /**
+   * Aggregate results from another WriteTask
+   * For write operations, we typically just copy the result from the completed replica
+   */
+  void Aggregate(const hipc::FullPtr<WriteTask> &other) {
+    // Simply copy the result - last writer wins
+    Copy(other);
+  }
+};
+```
+
+**Pattern 2: Accumulation (Sum/Max/Min)**
+```cpp
+struct GetStatsTask : public chi::Task {
+  OUT chi::u64 total_bytes_;
+  OUT chi::u64 operation_count_;
+  OUT chi::u64 max_latency_us_;
+
+  /**
+   * Aggregate statistics from multiple replicas
+   * Accumulate totals and find maximum values
+   */
+  void Aggregate(const hipc::FullPtr<GetStatsTask> &other) {
+    // Sum cumulative metrics
+    total_bytes_ += other->total_bytes_;
+    operation_count_ += other->operation_count_;
+
+    // Take maximum for latency
+    max_latency_us_ = std::max(max_latency_us_, other->max_latency_us_);
+  }
+};
+```
+
+**Pattern 3: List/Vector Merging**
+```cpp
+struct AllocateBlocksTask : public chi::Task {
+  OUT chi::ipc::vector<Block> blocks_;
+
+  /**
+   * Aggregate block allocations from multiple replicas
+   * Combine all allocated blocks into a single list
+   */
+  void Aggregate(const hipc::FullPtr<AllocateBlocksTask> &other) {
+    // Append blocks from other task to this task's list
+    blocks_.insert(blocks_.end(),
+                   other->blocks_.begin(),
+                   other->blocks_.end());
+  }
+};
+```
+
+**Pattern 4: Custom Logic**
+```cpp
+struct QueryTask : public chi::Task {
+  OUT chi::ipc::vector<Result> results_;
+  OUT chi::u32 error_count_;
+
+  /**
+   * Aggregate query results with custom deduplication
+   */
+  void Aggregate(const hipc::FullPtr<QueryTask> &other) {
+    // Merge results with deduplication
+    for (const auto &result : other->results_) {
+      if (!ContainsResult(results_, result)) {
+        results_.push_back(result);
+      }
+    }
+
+    // Accumulate error counts
+    error_count_ += other->error_count_;
+  }
+
+private:
+  bool ContainsResult(const chi::ipc::vector<Result> &vec, const Result &r) {
+    // Custom deduplication logic
+    return std::find(vec.begin(), vec.end(), r) != vec.end();
+  }
+};
+```
+
+#### When to Implement Copy and Aggregate
+
+**Implement Copy when:**
+- Your task will be sent to remote nodes for execution
+- Task data needs to be replicated for fault tolerance
+- You need independent copies with separate data ownership
+
+**Implement Aggregate when:**
+- Your task returns results that can be combined (sums, lists, statistics)
+- You're using distributed execution patterns (e.g., map-reduce)
+- Multiple replicas produce partial results that need merging
+
+**Skip Copy and Aggregate when:**
+- Tasks are only executed locally on a single node
+- Results don't need to be combined across executions
+- Tasks have no output parameters (side-effects only)
+- Default shallow copy behavior is sufficient
+
+#### Copy/Aggregate Usage in Networking
+
+When tasks are sent across nodes using Send/Recv:
+
+1. **Send Phase**: The `Copy()` method creates a replica of the origin task
+   ```cpp
+   hipc::FullPtr<Task> replica;
+   container->NewCopy(task->method_, origin_task, replica, /* replica_flag */);
+   // Internally calls task->Copy(origin_task)
+   ```
+
+2. **Recv Phase**: The `Aggregate()` method combines replica results back into the origin
+   ```cpp
+   container->Aggregate(task->method_, origin_task, replica);
+   // Internally calls origin_task->Aggregate(replica)
+   ```
+
+3. **Autogeneration**: The code generator creates dispatcher methods that call your Copy/Aggregate implementations:
+   ```cpp
+   // In autogen/MOD_NAME_lib_exec.cc
+   void NewCopy(Runtime* runtime, chi::u32 method,
+                hipc::FullPtr<chi::Task> orig_task,
+                hipc::FullPtr<chi::Task>& new_task,
+                bool deep_copy) {
+     switch (method) {
+       case Method::kWrite: {
+         auto orig = orig_task.Cast<WriteTask>();
+         new_task = CHI_IPC->NewTask<WriteTask>(...);
+         new_task.Cast<WriteTask>()->Copy(orig);
+         break;
+       }
+     }
+   }
+
+   void Aggregate(Runtime* runtime, chi::u32 method,
+                  hipc::FullPtr<chi::Task> task,
+                  const hipc::FullPtr<chi::Task> &replica) {
+     switch (method) {
+       case Method::kWrite: {
+         task.Cast<WriteTask>()->Aggregate(replica.Cast<WriteTask>());
+         break;
+       }
+     }
+   }
+   ```
+
+#### Complete Example: ReadTask with Copy and Aggregate
+
+```cpp
+struct ReadTask : public chi::Task {
+  IN Block block_;
+  OUT hipc::Pointer data_;
+  INOUT size_t length_;
+  OUT chi::u64 bytes_read_;
+
+  /** SHM constructor */
+  explicit ReadTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc)
+      : chi::Task(alloc), length_(0), bytes_read_(0) {}
+
+  /** Emplace constructor */
+  explicit ReadTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
+                    const chi::TaskId &task_node,
+                    const chi::PoolId &pool_id,
+                    const chi::PoolQuery &pool_query,
+                    const Block &block,
+                    hipc::Pointer data,
+                    size_t length)
+      : chi::Task(alloc, task_node, pool_id, pool_query, 10),
+        block_(block), data_(data), length_(length), bytes_read_(0) {
+    task_id_ = task_node;
+    pool_id_ = pool_id;
+    method_ = Method::kRead;
+    task_flags_.Clear();
+    pool_query_ = pool_query;
+  }
+
+  /**
+   * Copy from another ReadTask
+   * Used when creating replicas for remote execution
+   */
+  void Copy(const hipc::FullPtr<ReadTask> &other) {
+    // Copy base task fields
+    chi::Task::Copy(other.template Cast<chi::Task>());
+
+    // Copy ReadTask-specific fields
+    block_ = other->block_;
+    data_ = other->data_;
+    length_ = other->length_;
+    bytes_read_ = other->bytes_read_;
+  }
+
+  /**
+   * Aggregate results from replica
+   * For read operations, simply copy the data from the completed replica
+   */
+  void Aggregate(const hipc::FullPtr<ReadTask> &other) {
+    // For reads, we just take the result from the replica
+    Copy(other);
+  }
+};
+```
 
 ### Task Naming Conventions
 
