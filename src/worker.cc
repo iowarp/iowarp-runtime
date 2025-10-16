@@ -818,20 +818,11 @@ bool Worker::ExecTask(const FullPtr<Task> &task_ptr, RunContext *run_ctx,
 
   // Determine if task should be completed and cleaned up
   bool should_complete_task = !task_ptr->IsPeriodic();
+  bool is_remote_task = task_ptr->IsRemote();
 
   if (should_complete_task) {
-    // Clear RunContext pointer first
-    task_ptr->run_ctx_ = nullptr;
-
-    // Mark task as complete FIRST - before deletion
-    // This prevents race condition with client DelTask
-    task_ptr->is_complete_.store(1);
-
-    // Deallocate stack and context
-    DeallocateStackAndContext(run_ctx);
-
     // Check if task is remote and needs to send outputs back
-    if (task_ptr->IsRemote()) {
+    if (is_remote_task) {
       // Get return node ID from pool_query
       chi::u32 ret_node_id = task_ptr->pool_query_.GetReturnNode();
 
@@ -853,7 +844,13 @@ bool Worker::ExecTask(const FullPtr<Task> &task_ptr, RunContext *run_ctx,
 
       HILOG(kDebug, "Worker: Sent remote task outputs back to node {}",
             ret_node_id);
+    } else {
+      // Mark task as complete
+      task_ptr->is_complete_.store(1);
     }
+
+    // Deallocate stack and context
+    DeallocateStackAndContext(run_ctx);
   }
   // Return whether the task should be considered completed
   return should_complete_task;
