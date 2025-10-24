@@ -621,7 +621,7 @@ void Runtime::RecvIn(hipc::FullPtr<RecvTask> task,
   // archive.send contains sender's bulk descriptors (populated by RecvMetadata)
   for (const auto &send_bulk : archive.send) {
     hipc::FullPtr<char> buffer =
-        ipc_manager->AllocateBuffer<char>(send_bulk.size);
+        ipc_manager->AllocateBuffer(send_bulk.size);
     archive.recv.push_back(
         lbm_server->Expose(buffer, send_bulk.size, send_bulk.flags.bits_));
   }

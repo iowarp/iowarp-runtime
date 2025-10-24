@@ -10,6 +10,8 @@
 #include "chimaera/types.h"
 #include "chimaera/task_queue.h"
 #include "chimaera/chimaera_manager.h"
+#include "chimaera/task.h"
+#include "chimaera/worker.h"
 
 namespace chi {
 
@@ -145,47 +147,18 @@ class IpcManager {
   /**
    * Allocate buffer in appropriate memory segment
    * Client uses cdata segment, runtime uses rdata segment
+   * Yields until buffer is allocated successfully
    * @param size Size in bytes to allocate
-   * @return FullPtr to allocated memory
+   * @return FullPtr<char> to allocated memory
    */
-  template<typename T>
-  FullPtr<T> AllocateBuffer(size_t size) {
-    auto* chimaera_manager = CHI_CHIMAERA_MANAGER;
-    if (chimaera_manager && chimaera_manager->IsRuntime()) {
-      // Runtime uses rdata segment
-      if (!runtime_data_allocator_) {
-        return FullPtr<T>();
-      }
-      return runtime_data_allocator_->template AllocateObjs<T>(HSHM_MCTX, size);
-    } else {
-      // Client uses cdata segment
-      if (!client_data_allocator_) {
-        return FullPtr<T>();
-      }
-      return client_data_allocator_->template AllocateObjs<T>(HSHM_MCTX, size);
-    }
-  }
+  FullPtr<char> AllocateBuffer(size_t size);
 
   /**
    * Free buffer from appropriate memory segment
    * Client uses cdata segment, runtime uses rdata segment
    * @param buffer_ptr FullPtr to buffer to free
    */
-  template<typename T>
-  void FreeBuffer(FullPtr<T> buffer_ptr) {
-    if (buffer_ptr.IsNull()) {
-      return;
-    }
-
-    auto* chimaera_manager = CHI_CHIMAERA_MANAGER;
-    if (chimaera_manager->IsRuntime()) {
-      // Runtime uses rdata segment
-      runtime_data_allocator_->Free(HSHM_MCTX, buffer_ptr);
-    } else {
-      // Client uses cdata segment
-      client_data_allocator_->Free(HSHM_MCTX, buffer_ptr);
-    }
-  }
+  void FreeBuffer(FullPtr<char> buffer_ptr);
 
   /**
    * Free buffer from appropriate memory segment (hipc::Pointer overload)

@@ -24,20 +24,19 @@ TEST_CASE("CHI_IPC AllocateBuffer basic functionality",
   auto* ipc_manager = CHI_IPC;
   REQUIRE(ipc_manager != nullptr);
 
-  SECTION("Allocate void buffer") {
+  SECTION("Allocate char buffer") {
     size_t buffer_size = 1024;
-    hipc::FullPtr<void> buffer_ptr =
-        ipc_manager->AllocateBuffer<void>(buffer_size);
+    hipc::FullPtr<char> buffer_ptr =
+        ipc_manager->AllocateBuffer(buffer_size);
 
     REQUIRE_FALSE(buffer_ptr.IsNull());
     REQUIRE(buffer_ptr.ptr_ != nullptr);
 
     // Test basic memory access
-    void* raw_ptr = buffer_ptr.ptr_;
-    memset(raw_ptr, 0xAA, buffer_size);
+    memset(buffer_ptr.ptr_, 0xAA, buffer_size);
 
     // Verify data was written
-    unsigned char* byte_ptr = static_cast<unsigned char*>(raw_ptr);
+    unsigned char* byte_ptr = reinterpret_cast<unsigned char*>(buffer_ptr.ptr_);
     for (size_t i = 0; i < buffer_size; ++i) {
       REQUIRE(byte_ptr[i] == 0xAA);
     }
@@ -46,7 +45,7 @@ TEST_CASE("CHI_IPC AllocateBuffer basic functionality",
   SECTION("Allocate typed buffer") {
     size_t buffer_size = 512;
     hipc::FullPtr<char> char_buffer =
-        ipc_manager->AllocateBuffer<char>(buffer_size);
+        ipc_manager->AllocateBuffer(buffer_size);
 
     REQUIRE_FALSE(char_buffer.IsNull());
     REQUIRE(char_buffer.ptr_ != nullptr);
@@ -63,20 +62,23 @@ TEST_CASE("CHI_IPC AllocateBuffer basic functionality",
   }
 
   SECTION("Allocate integer buffer") {
-    size_t num_ints = 100;
-    hipc::FullPtr<int> int_buffer = ipc_manager->AllocateBuffer<int>(num_ints);
+    size_t num_ints = 100 * sizeof(int);  // Allocate bytes, not int count
+    hipc::FullPtr<char> buffer = ipc_manager->AllocateBuffer(num_ints);
 
-    REQUIRE_FALSE(int_buffer.IsNull());
-    REQUIRE(int_buffer.ptr_ != nullptr);
+    REQUIRE_FALSE(buffer.IsNull());
+    REQUIRE(buffer.ptr_ != nullptr);
+
+    // Cast to int pointer for testing
+    int* int_buffer = reinterpret_cast<int*>(buffer.ptr_);
 
     // Test integer array operations
-    for (size_t i = 0; i < num_ints; ++i) {
-      int_buffer.ptr_[i] = static_cast<int>(i * 2);
+    for (size_t i = 0; i < 100; ++i) {
+      int_buffer[i] = static_cast<int>(i * 2);
     }
 
     // Verify data
-    for (size_t i = 0; i < num_ints; ++i) {
-      REQUIRE(int_buffer.ptr_[i] == static_cast<int>(i * 2));
+    for (size_t i = 0; i < 100; ++i) {
+      REQUIRE(int_buffer[i] == static_cast<int>(i * 2));
     }
   }
 }
@@ -88,24 +90,24 @@ TEST_CASE("CHI_IPC AllocateBuffer return type verification",
   auto* ipc_manager = CHI_IPC;
   REQUIRE(ipc_manager != nullptr);
 
-  SECTION("Return type is FullPtr<T>, not hipc::Pointer") {
-    // Compile-time type checking
-    auto void_buffer = ipc_manager->AllocateBuffer<void>(1024);
-    static_assert(std::is_same_v<decltype(void_buffer), hipc::FullPtr<void>>,
-                  "AllocateBuffer<void> should return FullPtr<void>");
+  SECTION("Return type is FullPtr<char>, not hipc::Pointer") {
+    // Compile-time type checking - now always returns FullPtr<char>
+    auto buffer1 = ipc_manager->AllocateBuffer(1024);
+    static_assert(std::is_same_v<decltype(buffer1), hipc::FullPtr<char>>,
+                  "AllocateBuffer should return FullPtr<char>");
 
-    auto char_buffer = ipc_manager->AllocateBuffer<char>(512);
-    static_assert(std::is_same_v<decltype(char_buffer), hipc::FullPtr<char>>,
-                  "AllocateBuffer<char> should return FullPtr<char>");
+    auto buffer2 = ipc_manager->AllocateBuffer(512);
+    static_assert(std::is_same_v<decltype(buffer2), hipc::FullPtr<char>>,
+                  "AllocateBuffer should return FullPtr<char>");
 
-    auto int_buffer = ipc_manager->AllocateBuffer<int>(256);
-    static_assert(std::is_same_v<decltype(int_buffer), hipc::FullPtr<int>>,
-                  "AllocateBuffer<int> should return FullPtr<int>");
+    auto buffer3 = ipc_manager->AllocateBuffer(256);
+    static_assert(std::is_same_v<decltype(buffer3), hipc::FullPtr<char>>,
+                  "AllocateBuffer should return FullPtr<char>");
 
     // Runtime verification
-    REQUIRE_FALSE(void_buffer.IsNull());
-    REQUIRE_FALSE(char_buffer.IsNull());
-    REQUIRE_FALSE(int_buffer.IsNull());
+    REQUIRE_FALSE(buffer1.IsNull());
+    REQUIRE_FALSE(buffer2.IsNull());
+    REQUIRE_FALSE(buffer3.IsNull());
   }
 }
 
@@ -120,25 +122,25 @@ TEST_CASE("CHI_IPC AllocateBuffer size variations",
     std::vector<size_t> test_sizes = {2, 64, 512, 1024, 4096, 16384};
 
     for (size_t size : test_sizes) {
-      hipc::FullPtr<unsigned char> buffer =
-          ipc_manager->AllocateBuffer<unsigned char>(size);
+      hipc::FullPtr<char> buffer =
+          ipc_manager->AllocateBuffer(size);
 
       REQUIRE_FALSE(buffer.IsNull());
       REQUIRE(buffer.ptr_ != nullptr);
 
       // Test memory access at boundaries
       buffer.ptr_[0] = 0x01;         // First byte
-      buffer.ptr_[size - 1] = 0xFF;  // Last byte
+      buffer.ptr_[size - 1] = static_cast<char>(0xFF);  // Last byte
 
       REQUIRE(buffer.ptr_[0] == 0x01);
-      REQUIRE(buffer.ptr_[size - 1] == 0xFF);
+      REQUIRE(static_cast<unsigned char>(buffer.ptr_[size - 1]) == 0xFF);
     }
   }
 
   SECTION("Zero size allocation") {
     // Test edge case - zero size should either return null or valid empty
     // buffer
-    hipc::FullPtr<void> buffer = ipc_manager->AllocateBuffer<void>(0);
+    hipc::FullPtr<char> buffer = ipc_manager->AllocateBuffer(0);
 
     // Either null (allocation failed) or valid but zero-sized
     // Both behaviors are acceptable for zero-size allocations
@@ -161,7 +163,7 @@ TEST_CASE("CHI_IPC AllocateBuffer multiple allocations",
 
     // Allocate multiple buffers
     for (size_t i = 0; i < num_buffers; ++i) {
-      auto buffer = ipc_manager->AllocateBuffer<char>(buffer_size);
+      auto buffer = ipc_manager->AllocateBuffer(buffer_size);
       REQUIRE_FALSE(buffer.IsNull());
       buffers.push_back(buffer);
     }
@@ -202,7 +204,7 @@ TEST_CASE("CHI_IPC AllocateBuffer client vs runtime behavior",
     // In client mode, should use client data segment
     REQUIRE_FALSE(chimaera_manager->IsRuntime());
 
-    hipc::FullPtr<int> buffer = ipc_manager->AllocateBuffer<int>(100);
+    hipc::FullPtr<char> buffer = ipc_manager->AllocateBuffer(100);
     REQUIRE_FALSE(buffer.IsNull());
     REQUIRE(buffer.ptr_ != nullptr);
 
@@ -224,9 +226,9 @@ TEST_CASE("CHI_IPC AllocateBuffer memory alignment",
 
   SECTION("Pointer alignment for different types") {
     // Test alignment for various types
-    auto char_buffer = ipc_manager->AllocateBuffer<char>(1024);
-    auto int_buffer = ipc_manager->AllocateBuffer<int>(256);
-    auto double_buffer = ipc_manager->AllocateBuffer<double>(128);
+    auto char_buffer = ipc_manager->AllocateBuffer(1024);
+    auto int_buffer = ipc_manager->AllocateBuffer(256);
+    auto double_buffer = ipc_manager->AllocateBuffer(128);
 
     REQUIRE_FALSE(char_buffer.IsNull());
     REQUIRE_FALSE(int_buffer.IsNull());
@@ -263,8 +265,8 @@ TEST_CASE("CHI_IPC AllocateBuffer documentation examples",
     // Allocate a buffer in shared memory (returns FullPtr<T>, not
     // hipc::Pointer)
     size_t buffer_size = 1024;
-    hipc::FullPtr<void> buffer_ptr =
-        ipc_manager->AllocateBuffer<void>(buffer_size);
+    hipc::FullPtr<char> buffer_ptr =
+        ipc_manager->AllocateBuffer(buffer_size);
 
     REQUIRE_FALSE(buffer_ptr.IsNull());
     REQUIRE(buffer_ptr.ptr_ != nullptr);
@@ -282,7 +284,7 @@ TEST_CASE("CHI_IPC AllocateBuffer documentation examples",
 
     // Alternative: Allocate typed buffer
     hipc::FullPtr<char> char_buffer =
-        ipc_manager->AllocateBuffer<char>(buffer_size);
+        ipc_manager->AllocateBuffer(buffer_size);
     REQUIRE_FALSE(char_buffer.IsNull());
 
     strncpy(char_buffer.ptr_, "example data", buffer_size - 1);

@@ -136,7 +136,7 @@ public:
   void bulk(hipc::Pointer &ptr, size_t size, uint32_t flags) {
     // For input archives, just record the transfer info
     // The actual buffer allocation will be done by the caller after
-    // LoadFromMessage using CHI_IPC->AllocateBuffer<char>(size) and the
+    // LoadFromMessage using CHI_IPC->AllocateBuffer(size) and the
     // DataTransfer info
     data_transfers_.emplace_back(ptr, size, flags);
   }

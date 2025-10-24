@@ -799,6 +799,64 @@ void* IpcManager::GetMainZmqContext() const {
   return zmq_main_context_;
 }
 
-// No template instantiations needed - all templates are inline in header
+FullPtr<char> IpcManager::AllocateBuffer(size_t size) {
+  auto* chimaera_manager = CHI_CHIMAERA_MANAGER;
+
+  // Determine which allocator to use
+  CHI_RDATA_ALLOC_T* allocator = nullptr;
+  if (chimaera_manager && chimaera_manager->IsRuntime()) {
+    // Runtime uses rdata segment
+    if (!runtime_data_allocator_) {
+      return FullPtr<char>::GetNull();
+    }
+    allocator = runtime_data_allocator_;
+  } else {
+    // Client uses cdata segment
+    if (!client_data_allocator_) {
+      return FullPtr<char>::GetNull();
+    }
+    allocator = reinterpret_cast<CHI_RDATA_ALLOC_T*>(client_data_allocator_);
+  }
+
+  // Loop until allocation succeeds
+  FullPtr<char> buffer = FullPtr<char>::GetNull();
+  while (buffer.IsNull()) {
+    buffer = allocator->AllocateObjs<char>(HSHM_MCTX, size);
+    if (buffer.IsNull()) {
+      // Allocation failed - yield to allow other tasks to run
+      Worker* worker = CHI_CUR_WORKER;
+      if (worker) {
+        // We're in a task context - yield from the current task
+        FullPtr<Task> current_task = worker->GetCurrentTask();
+        if (!current_task.IsNull()) {
+          current_task->Yield();
+        } else {
+          // No current task - yield from thread model
+          HSHM_THREAD_MODEL->Yield();
+        }
+      } else {
+        // Not in worker context - yield from thread model
+        HSHM_THREAD_MODEL->Yield();
+      }
+    }
+  }
+
+  return buffer;
+}
+
+void IpcManager::FreeBuffer(FullPtr<char> buffer_ptr) {
+  if (buffer_ptr.IsNull()) {
+    return;
+  }
+
+  auto* chimaera_manager = CHI_CHIMAERA_MANAGER;
+  if (chimaera_manager->IsRuntime()) {
+    // Runtime uses rdata segment
+    runtime_data_allocator_->Free(HSHM_MCTX, buffer_ptr);
+  } else {
+    // Client uses cdata segment
+    client_data_allocator_->Free(HSHM_MCTX, buffer_ptr);
+  }
+}
 
 } // namespace chi

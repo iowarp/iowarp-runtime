@@ -299,7 +299,7 @@ TEST_CASE("bdev_write_read_basic", "[bdev][io][basic]") {
     std::vector<hshm::u8> write_data = fixture.generateTestData(k4KB, 0xCD);
 
     // Write data - allocate buffer and copy data
-    auto write_buffer = CHI_IPC->AllocateBuffer<char>(write_data.size());
+    auto write_buffer = CHI_IPC->AllocateBuffer(write_data.size());
     REQUIRE_FALSE(write_buffer.IsNull());
     memcpy(write_buffer.ptr_, write_data.data(), write_data.size());
     
@@ -308,7 +308,7 @@ TEST_CASE("bdev_write_read_basic", "[bdev][io][basic]") {
     REQUIRE(bytes_written == write_data.size());
 
     // Read data back - allocate buffer for reading
-    auto read_buffer = CHI_IPC->AllocateBuffer<char>(k4KB);
+    auto read_buffer = CHI_IPC->AllocateBuffer(k4KB);
     REQUIRE_FALSE(read_buffer.IsNull());
     chi::u64 bytes_read = client.Read(mctx, block, read_buffer.shm_, k4KB);
     REQUIRE(bytes_read == write_data.size());
@@ -355,7 +355,7 @@ TEST_CASE("bdev_async_operations", "[bdev][async][io]") {
     std::vector<hshm::u8> write_data = fixture.generateTestData(k64KB, 0xEF);
 
     // Async write - allocate buffer and copy data
-    auto async_write_buffer = CHI_IPC->AllocateBuffer<char>(write_data.size());
+    auto async_write_buffer = CHI_IPC->AllocateBuffer(write_data.size());
     REQUIRE_FALSE(async_write_buffer.IsNull());
     memcpy(async_write_buffer.ptr_, write_data.data(), write_data.size());
     
@@ -366,7 +366,7 @@ TEST_CASE("bdev_async_operations", "[bdev][async][io]") {
     CHI_IPC->DelTask(write_task);
 
     // Async read - allocate buffer for reading
-    auto async_read_buffer = CHI_IPC->AllocateBuffer<char>(k64KB);
+    auto async_read_buffer = CHI_IPC->AllocateBuffer(k64KB);
     REQUIRE_FALSE(async_read_buffer.IsNull());
     
     auto read_task = client.AsyncRead(mctx, block, async_read_buffer.shm_, k64KB);
@@ -424,12 +424,12 @@ TEST_CASE("bdev_performance_metrics", "[bdev][performance][metrics]") {
     std::vector<hshm::u8> data2 = fixture.generateTestData(k256KB, 0x34);
 
     // Allocate buffers for data1 write
-    auto data1_write_buffer = CHI_IPC->AllocateBuffer<char>(data1.size());
+    auto data1_write_buffer = CHI_IPC->AllocateBuffer(data1.size());
     REQUIRE_FALSE(data1_write_buffer.IsNull());
     memcpy(data1_write_buffer.ptr_, data1.data(), data1.size());
     
     // Allocate buffers for data2 write  
-    auto data2_write_buffer = CHI_IPC->AllocateBuffer<char>(data2.size());
+    auto data2_write_buffer = CHI_IPC->AllocateBuffer(data2.size());
     REQUIRE_FALSE(data2_write_buffer.IsNull());
     memcpy(data2_write_buffer.ptr_, data2.data(), data2.size());
 
@@ -437,9 +437,9 @@ TEST_CASE("bdev_performance_metrics", "[bdev][performance][metrics]") {
     client.Write(mctx, block2, data2_write_buffer.shm_, data2.size());
 
     // Allocate buffers for reads
-    auto data1_read_buffer = CHI_IPC->AllocateBuffer<char>(k1MB);
+    auto data1_read_buffer = CHI_IPC->AllocateBuffer(k1MB);
     REQUIRE_FALSE(data1_read_buffer.IsNull());
-    auto data2_read_buffer = CHI_IPC->AllocateBuffer<char>(k256KB);
+    auto data2_read_buffer = CHI_IPC->AllocateBuffer(k256KB);
     REQUIRE_FALSE(data2_read_buffer.IsNull());
 
     client.Read(mctx, block1, data1_read_buffer.shm_, k1MB);
@@ -549,7 +549,7 @@ TEST_CASE("bdev_ram_allocation_and_io", "[bdev][ram][io]") {
   }
 
   // Write data to RAM - allocate buffer and copy data
-  auto write_buffer = CHI_IPC->AllocateBuffer<char>(write_data.size());
+  auto write_buffer = CHI_IPC->AllocateBuffer(write_data.size());
   REQUIRE_FALSE(write_buffer.IsNull());
   memcpy(write_buffer.ptr_, write_data.data(), write_data.size());
   
@@ -557,7 +557,7 @@ TEST_CASE("bdev_ram_allocation_and_io", "[bdev][ram][io]") {
   REQUIRE(bytes_written == k4KB);
 
   // Read data back from RAM - allocate buffer for reading
-  auto read_buffer = CHI_IPC->AllocateBuffer<char>(k4KB);
+  auto read_buffer = CHI_IPC->AllocateBuffer(k4KB);
   REQUIRE_FALSE(read_buffer.IsNull());
   chi::u64 bytes_read = bdev_client.Read(HSHM_MCTX, block, read_buffer.shm_, k4KB);
   REQUIRE(bytes_read == k4KB);
@@ -617,14 +617,14 @@ TEST_CASE("bdev_ram_large_blocks", "[bdev][ram][large]") {
     }
 
     // Write and read - allocate buffers
-    auto test_write_buffer = CHI_IPC->AllocateBuffer<char>(test_data.size());
+    auto test_write_buffer = CHI_IPC->AllocateBuffer(test_data.size());
     REQUIRE_FALSE(test_write_buffer.IsNull());
     memcpy(test_write_buffer.ptr_, test_data.data(), test_data.size());
     
     chi::u64 bytes_written = bdev_client.Write(HSHM_MCTX, block, test_write_buffer.shm_, test_data.size());
     REQUIRE(bytes_written == block_size);
 
-    auto test_read_buffer = CHI_IPC->AllocateBuffer<char>(block_size);
+    auto test_read_buffer = CHI_IPC->AllocateBuffer(block_size);
     REQUIRE_FALSE(test_read_buffer.IsNull());
     chi::u64 bytes_read = bdev_client.Read(HSHM_MCTX, block, test_read_buffer.shm_, block_size);
     REQUIRE(bytes_read == block_size);
@@ -676,7 +676,7 @@ TEST_CASE("bdev_ram_performance", "[bdev][ram][performance]") {
   std::vector<hshm::u8> test_data(k1MB, 0xCD);
   
   // Allocate buffer for write
-  auto perf_write_buffer = CHI_IPC->AllocateBuffer<char>(test_data.size());
+  auto perf_write_buffer = CHI_IPC->AllocateBuffer(test_data.size());
   REQUIRE_FALSE(perf_write_buffer.IsNull());
   memcpy(perf_write_buffer.ptr_, test_data.data(), test_data.size());
 
@@ -688,7 +688,7 @@ TEST_CASE("bdev_ram_performance", "[bdev][ram][performance]") {
   REQUIRE(bytes_written == k1MB);
 
   // Allocate buffer for read
-  auto perf_read_buffer = CHI_IPC->AllocateBuffer<char>(k1MB);
+  auto perf_read_buffer = CHI_IPC->AllocateBuffer(k1MB);
   REQUIRE_FALSE(perf_read_buffer.IsNull());
 
   // Measure read performance
@@ -756,7 +756,7 @@ TEST_CASE("bdev_ram_bounds_checking", "[bdev][ram][bounds]") {
   std::vector<hshm::u8> test_data(2048, 0xEF);
 
   // Write should fail with bounds check - allocate buffer
-  auto error_write_buffer = CHI_IPC->AllocateBuffer<char>(test_data.size());
+  auto error_write_buffer = CHI_IPC->AllocateBuffer(test_data.size());
   REQUIRE_FALSE(error_write_buffer.IsNull());
   memcpy(error_write_buffer.ptr_, test_data.data(), test_data.size());
   
@@ -765,7 +765,7 @@ TEST_CASE("bdev_ram_bounds_checking", "[bdev][ram][bounds]") {
   REQUIRE(bytes_written == 0);  // Should fail
 
   // Read should also fail with bounds check - allocate buffer
-  auto error_read_buffer = CHI_IPC->AllocateBuffer<char>(2048);
+  auto error_read_buffer = CHI_IPC->AllocateBuffer(2048);
   REQUIRE_FALSE(error_read_buffer.IsNull());
   chi::u64 bytes_read = bdev_client.Read(HSHM_MCTX, out_of_bounds_block, error_read_buffer.shm_, 2048);
   
@@ -833,7 +833,7 @@ TEST_CASE("bdev_file_vs_ram_comparison", "[bdev][file][ram][comparison]") {
   }
 
   // Allocate buffer for file write
-  auto file_write_buffer = CHI_IPC->AllocateBuffer<char>(test_data.size());
+  auto file_write_buffer = CHI_IPC->AllocateBuffer(test_data.size());
   REQUIRE_FALSE(file_write_buffer.IsNull());
   memcpy(file_write_buffer.ptr_, test_data.data(), test_data.size());
 
@@ -844,7 +844,7 @@ TEST_CASE("bdev_file_vs_ram_comparison", "[bdev][file][ram][comparison]") {
   auto file_write_end = std::chrono::high_resolution_clock::now();
 
   // Allocate buffer for ram write
-  auto ram_write_buffer = CHI_IPC->AllocateBuffer<char>(test_data.size());
+  auto ram_write_buffer = CHI_IPC->AllocateBuffer(test_data.size());
   REQUIRE_FALSE(ram_write_buffer.IsNull());
   memcpy(ram_write_buffer.ptr_, test_data.data(), test_data.size());
 
@@ -857,7 +857,7 @@ TEST_CASE("bdev_file_vs_ram_comparison", "[bdev][file][ram][comparison]") {
   REQUIRE(ram_bytes_written == test_size);
 
   // Allocate buffer for file read
-  auto file_read_buffer = CHI_IPC->AllocateBuffer<char>(test_size);
+  auto file_read_buffer = CHI_IPC->AllocateBuffer(test_size);
   REQUIRE_FALSE(file_read_buffer.IsNull());
 
   // Read from both backends and measure time
@@ -870,7 +870,7 @@ TEST_CASE("bdev_file_vs_ram_comparison", "[bdev][file][ram][comparison]") {
   memcpy(file_read_data.data(), file_read_buffer.ptr_, file_bytes_read);
 
   // Allocate buffer for ram read
-  auto ram_read_buffer = CHI_IPC->AllocateBuffer<char>(test_size);
+  auto ram_read_buffer = CHI_IPC->AllocateBuffer(test_size);
   REQUIRE_FALSE(ram_read_buffer.IsNull());
 
   auto ram_read_start = std::chrono::high_resolution_clock::now();
@@ -949,14 +949,14 @@ TEST_CASE("bdev_file_explicit_backend", "[bdev][file][explicit]") {
   std::vector<hshm::u8> test_data(k4KB, 0x42);
   
   // Allocate buffers for Write/Read operations
-  auto final_write_buffer = CHI_IPC->AllocateBuffer<char>(test_data.size());
+  auto final_write_buffer = CHI_IPC->AllocateBuffer(test_data.size());
   REQUIRE_FALSE(final_write_buffer.IsNull());
   memcpy(final_write_buffer.ptr_, test_data.data(), test_data.size());
   
   chi::u64 bytes_written = bdev_client.Write(HSHM_MCTX, block, final_write_buffer.shm_, test_data.size());
   REQUIRE(bytes_written == k4KB);
 
-  auto final_read_buffer = CHI_IPC->AllocateBuffer<char>(k4KB);
+  auto final_read_buffer = CHI_IPC->AllocateBuffer(k4KB);
   REQUIRE_FALSE(final_read_buffer.IsNull());
   chi::u64 bytes_read = bdev_client.Read(HSHM_MCTX, block, final_read_buffer.shm_, k4KB);
   REQUIRE(bytes_read == k4KB);
@@ -1076,7 +1076,7 @@ TEST_CASE("bdev_parallel_io_operations", "[bdev][parallel][io]") {
       hipc::MemContext thread_mctx;
 
       // Allocate write buffer in shared memory
-      auto write_buffer = CHI_IPC->AllocateBuffer<char>(io_size);
+      auto write_buffer = CHI_IPC->AllocateBuffer(io_size);
       std::memset(write_buffer.ptr_, static_cast<int>(thread_id), io_size);
 
       // Perform I/O operations
@@ -1175,7 +1175,7 @@ TEST_CASE("bdev_force_net_flag", "[bdev][network][force_net]") {
     std::vector<hshm::u8> write_data = fixture.generateTestData(k64KB, 0xAB);
 
     // Create write task with TASK_FORCE_NET flag
-    auto write_buffer = CHI_IPC->AllocateBuffer<char>(write_data.size());
+    auto write_buffer = CHI_IPC->AllocateBuffer(write_data.size());
     REQUIRE_FALSE(write_buffer.IsNull());
     memcpy(write_buffer.ptr_, write_data.data(), write_data.size());
 
@@ -1202,7 +1202,7 @@ TEST_CASE("bdev_force_net_flag", "[bdev][network][force_net]") {
     HILOG(kInfo, "Write with TASK_FORCE_NET completed successfully");
 
     // Create read task with TASK_FORCE_NET flag
-    auto read_buffer = CHI_IPC->AllocateBuffer<char>(k64KB);
+    auto read_buffer = CHI_IPC->AllocateBuffer(k64KB);
     REQUIRE_FALSE(read_buffer.IsNull());
 
     // Use NewTask directly to create read task
