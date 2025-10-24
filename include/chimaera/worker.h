@@ -19,8 +19,23 @@ namespace chi {
 // Forward declaration to avoid circular dependency
 using WorkQueue = chi::ipc::mpsc_queue<hipc::TypedPointer<TaskLane>>;
 
-// Forward declarations  
+// Forward declarations
 class Task;
+
+/**
+ * Structure to hold a cached stack and RunContext together
+ * Used for efficient reuse of stack allocations
+ */
+struct StackAndContext {
+  void* stack_base_for_free;  /**< Base pointer for freeing the stack */
+  size_t stack_size;           /**< Size of the stack in bytes */
+  RunContext* run_ctx;         /**< Pointer to the RunContext */
+
+  StackAndContext() : stack_base_for_free(nullptr), stack_size(0), run_ctx(nullptr) {}
+
+  StackAndContext(void* stack_base, size_t size, RunContext* ctx)
+      : stack_base_for_free(stack_base), stack_size(size), run_ctx(ctx) {}
+};
 
 
 // Macro for accessing HSHM thread-local storage (worker thread context)
@@ -223,13 +238,6 @@ public:
 
  private:
   /**
-   * Create run context for task execution
-   * @param task_ptr Full pointer to task to create context for
-   * @return RunContext for task execution
-   */
-  RunContext CreateRunContext(const FullPtr<Task>& task_ptr);
-
-  /**
    * Allocate stack and RunContext for task execution (64KB default)
    * @param size Stack size in bytes
    * @return RunContext pointer with stack_ptr set
@@ -295,7 +303,9 @@ public:
   // Single lane assigned to this worker (one lane per worker)
   TaskLane* assigned_lane_;
 
-  // Stack management simplified - allocate/free directly with malloc
+  // Stack and RunContext cache for efficient reuse
+  // Using ext_ring_buffer for O(1) enqueue/dequeue operations
+  hshm::ext_ring_buffer<StackAndContext> stack_cache_;
 
   // Two-tier blocked queue system:
   // - short_wait_queue_: Tasks with estimated time < 10us, checked every iteration

@@ -3,15 +3,15 @@ Mode: Allocation-only (AllocateBlocks/FreeBlocks)
 Threads: 4
 Duration: 10 seconds
 Max file size: 1073741824 bytes
-/mnt/home/Projects/iowarp/iowarp-runtime/src/chimaera_manager.cc:78 INFO 312766 ClientInit Chimaera::ClientInit
-/mnt/home/Projects/iowarp/iowarp-runtime/src/config_manager.cc:22 INFO 312766 ClientInit Config at: /home/llogan/.ppi-jarvis/shared/benchmark_throughput/runtime/chimaera_config.yaml
+/mnt/home/Projects/iowarp/iowarp-runtime/src/chimaera_manager.cc:84 INFO 928011 ClientInit Chimaera::ClientInit
+/mnt/home/Projects/iowarp/iowarp-runtime/src/config_manager.cc:22 INFO 928011 ClientInit Config at: /tmp/jarvis_test_lifecycle_lztl8stm/shared/benchmark_throughput/runtime/chimaera_config.yaml
 Lane policy: round_robin (override)
 
 Starting benchmark...
 
 === Results ===
-Total operations: 4630361
+Total operations: 8405800
 Total time: 10.000 seconds
 Avg thread time: 10.000 seconds
-Throughput: 463027 alloc/free ops/sec
-Avg latency: 2.159 us/op
+Throughput: 840563 alloc/free ops/sec
+Avg latency: 1.189 us/op

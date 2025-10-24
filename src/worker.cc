@@ -28,6 +28,7 @@ Worker::Worker(u32 worker_id, ThreadType thread_type)
     : worker_id_(worker_id), thread_type_(thread_type), is_running_(false),
       is_initialized_(false), did_work_(false), current_run_context_(nullptr),
       assigned_lane_(nullptr),
+      stack_cache_(64),       // Initial capacity for stack cache (64 entries)
       short_wait_queue_(256), // Initial capacity for short wait queue
       long_wait_queue_(256),  // Initial capacity for long wait queue
       iteration_counter_(0) {}
@@ -58,9 +59,26 @@ void Worker::Finalize() {
 
   Stop();
 
-  // Stack management simplified - stacks are freed individually when tasks
-  // complete Clear assigned lane reference (don't delete - it's in shared
-  // memory)
+  // Clean up cached stacks and RunContexts
+  StackAndContext cached_entry;
+  hshm::qtok_t token = stack_cache_.pop(cached_entry);
+  while (!token.IsNull()) {
+    // Free the cached stack
+    if (cached_entry.stack_base_for_free) {
+      free(cached_entry.stack_base_for_free);
+    }
+
+    // Free the cached RunContext
+    if (cached_entry.run_ctx) {
+      cached_entry.run_ctx->~RunContext();
+      free(cached_entry.run_ctx);
+    }
+
+    // Get next cached entry
+    token = stack_cache_.pop(cached_entry);
+  }
+
+  // Clear assigned lane reference (don't delete - it's in shared memory)
   assigned_lane_ = nullptr;
 
   is_initialized_ = false;
@@ -476,23 +494,60 @@ std::vector<PoolQuery> Worker::ResolvePhysicalQuery(const PoolQuery &query,
   return {query};
 }
 
-RunContext Worker::CreateRunContext(const FullPtr<Task> &task_ptr) {
-  // This method is deprecated - use AllocateStackAndContext instead
-  // Creating a temporary RunContext for compatibility
-  RunContext run_ctx;
-  run_ctx.thread_type = thread_type_;
-  run_ctx.worker_id = worker_id_;
-  run_ctx.stack_size = 65536;  // 64KB
-  run_ctx.stack_ptr = nullptr; // Will be set by AllocateStackAndContext
-  return run_ctx;
-}
-
 RunContext *Worker::AllocateStackAndContext(size_t size) {
-  // Allocate aligned stack and RunContext
-  // Use page alignment for the stack to match unit test pattern
+  // Normalize size to page-aligned
   const size_t page_size = 4096;
   size = ((size + page_size - 1) / page_size) * page_size;
 
+  // Try to get from cache first
+  StackAndContext cached_entry;
+  hshm::qtok_t token = stack_cache_.pop(cached_entry);
+
+  if (!token.IsNull() && cached_entry.run_ctx &&
+      cached_entry.stack_base_for_free) {
+    // Found a cached entry - verify size matches
+    if (cached_entry.stack_size == size) {
+      // Reuse cached stack and RunContext
+      RunContext *run_ctx = cached_entry.run_ctx;
+
+      // Clear the RunContext for reuse
+      run_ctx->~RunContext();
+      new (run_ctx) RunContext();
+
+      // Restore stack metadata
+      run_ctx->stack_base_for_free = cached_entry.stack_base_for_free;
+      run_ctx->stack_size = cached_entry.stack_size;
+
+      // Set the correct stack pointer based on stack growth direction
+      WorkOrchestrator *orchestrator = CHI_WORK_ORCHESTRATOR;
+      bool grows_downward = orchestrator ? orchestrator->IsStackDownward()
+                                         : true; // Default to downward
+
+      if (grows_downward) {
+        // Stack grows downward: point to aligned end of the malloc buffer
+        char *stack_top =
+            static_cast<char *>(cached_entry.stack_base_for_free) + size;
+        run_ctx->stack_ptr =
+            reinterpret_cast<void *>(reinterpret_cast<uintptr_t>(stack_top) &
+                                     ~static_cast<uintptr_t>(15));
+      } else {
+        // Stack grows upward: point to the beginning of the malloc buffer
+        run_ctx->stack_ptr = reinterpret_cast<void *>(
+            (reinterpret_cast<uintptr_t>(cached_entry.stack_base_for_free) +
+             15) &
+            ~static_cast<uintptr_t>(15));
+      }
+
+      return run_ctx;
+    } else {
+      // Size mismatch - free the cached entry and allocate new one
+      free(cached_entry.stack_base_for_free);
+      cached_entry.run_ctx->~RunContext();
+      free(cached_entry.run_ctx);
+    }
+  }
+
+  // Cache miss or size mismatch - allocate new stack and RunContext
   void *stack_base = nullptr;
   int ret = posix_memalign(&stack_base, page_size, size);
   RunContext *new_run_ctx =
@@ -501,9 +556,6 @@ RunContext *Worker::AllocateStackAndContext(size_t size) {
   if (ret == 0 && stack_base && new_run_ctx) {
     // Initialize RunContext using placement new
     new (new_run_ctx) RunContext();
-
-    // Zero the stack memory for consistent behavior
-    std::memset(stack_base, 0, size);
 
     // Store the malloc base pointer for freeing later
     new_run_ctx->stack_base_for_free = stack_base;
@@ -555,14 +607,27 @@ void Worker::DeallocateStackAndContext(RunContext *run_ctx) {
     return;
   }
 
-  // Free the stack using the original malloc base pointer
-  if (run_ctx->stack_base_for_free) {
-    free(run_ctx->stack_base_for_free);
-  }
+  // Add to cache for reuse instead of freeing
+  // Create StackAndContext entry with the stack and RunContext
+  StackAndContext cache_entry(run_ctx->stack_base_for_free, run_ctx->stack_size,
+                              run_ctx);
 
-  // Call destructor explicitly before freeing
-  run_ctx->~RunContext();
-  free(run_ctx);
+  // Try to add to cache
+  hshm::qtok_t token = stack_cache_.push(cache_entry);
+
+  // If cache is full (null token), free the resources
+  if (token.IsNull()) {
+    // Cache is full - free the stack and RunContext
+    if (run_ctx->stack_base_for_free) {
+      free(run_ctx->stack_base_for_free);
+    }
+
+    // Call destructor explicitly before freeing
+    run_ctx->~RunContext();
+    free(run_ctx);
+  }
+  // Note: If successfully added to cache, we don't free anything
+  // The resources will be reused by AllocateStackAndContext
 }
 
 void Worker::BeginTask(const FullPtr<Task> &task_ptr, Container *container,
@@ -852,6 +917,7 @@ bool Worker::ExecTask(const FullPtr<Task> &task_ptr, RunContext *run_ctx,
     // Deallocate stack and context
     DeallocateStackAndContext(run_ctx);
   }
+
   // Return whether the task should be considered completed
   return should_complete_task;
 }
