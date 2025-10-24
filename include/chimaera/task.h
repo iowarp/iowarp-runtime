@@ -464,6 +464,17 @@ struct RunContext {
   RunContext &operator=(const RunContext &) = delete;
 
   /**
+   * Clear all STL containers for reuse
+   * Does not touch pointers or primitive types
+   */
+  void Clear() {
+    waiting_for_tasks.clear();
+    pool_queries.clear();
+    subtasks_.clear();
+    completed_replicas_.store(0);
+  }
+
+  /**
    * Check if all subtasks this task is waiting for are completed
    * @return true if all subtasks are completed, false otherwise
    */

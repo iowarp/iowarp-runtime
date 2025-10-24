@@ -510,11 +510,10 @@ RunContext *Worker::AllocateStackAndContext(size_t size) {
       // Reuse cached stack and RunContext
       RunContext *run_ctx = cached_entry.run_ctx;
 
-      // Clear the RunContext for reuse
-      run_ctx->~RunContext();
-      new (run_ctx) RunContext();
+      // Clear the RunContext STL containers for reuse
+      run_ctx->Clear();
 
-      // Restore stack metadata
+      // Restore stack metadata (pointers already set, just update if needed)
       run_ctx->stack_base_for_free = cached_entry.stack_base_for_free;
       run_ctx->stack_size = cached_entry.stack_size;
 
