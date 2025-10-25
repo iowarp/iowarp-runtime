@@ -133,6 +133,10 @@ void Worker::Run() {
       }
     }
 
+    // Increment integer timer at end of each Run iteration (simulates 1
+    // microsecond per iteration)
+    IntegerTimer::Increment();
+
     // Check blocked queue for completed tasks at end of each iteration
     u32 sleep_time_us = ContinueBlockedTasks();
 
@@ -797,42 +801,40 @@ void Worker::ProcessBlockedQueue(hshm::ext_ring_buffer<RunContext *> &queue) {
 
     // Check if integer time has reached wakeup time
     // Wakeup time = block_start + block_time_us
-    IntegerTimepoint current_time = IntegerTimer::Now();
-    IntegerTimepoint wakeup_time =
-        run_ctx->block_start + IntegerTimepoint((u64)run_ctx->block_time_us);
+    // IntegerTimepoint current_time = IntegerTimer::Now();
+    // IntegerTimepoint wakeup_time =
+    //     run_ctx->block_start + IntegerTimepoint((u64)run_ctx->block_time_us);
 
-    if (current_time < wakeup_time) {
-      // Not ready yet - re-add to blocked queue
-      // Calculate remaining time
-      u64 elapsed_us = (current_time - run_ctx->block_start).GetUsec();
-      double remaining_us = run_ctx->block_time_us - elapsed_us;
-      AddToBlockedQueue(run_ctx, remaining_us > 0 ? remaining_us : 0.0);
-      continue;
-    }
+    // if (current_time < wakeup_time) {
+    //   // Not ready yet - re-add to blocked queue
+    //   // Calculate remaining time
+    //   u64 elapsed_us = (current_time - run_ctx->block_start).GetUsec();
+    //   double remaining_us = run_ctx->block_time_us - elapsed_us;
+    //   AddToBlockedQueue(run_ctx, remaining_us > 0 ? remaining_us : 0.0);
+    //   continue;
+    // }
 
     // Task is ready based on fake time - check subtask completion
     // Only check subtask completion for short waits (estimated time < 10us)
     // Long waits don't need to check every time since they're expensive
     // operations
-    if (run_ctx->block_time_us < 10.0) {
-      if (run_ctx->AreSubtasksCompleted()) {
-        // All subtasks completed - resume task immediately
-        run_ctx->is_blocked = false;
+    if (run_ctx->AreSubtasksCompleted()) {
+      // All subtasks completed - resume task immediately
+      run_ctx->is_blocked = false;
 
-        // Check if task has been started before - if not, use BeginTask
-        if (!run_ctx->task->task_flags_.Any(TASK_STARTED)) {
-          BeginTask(run_ctx->task, run_ctx->container, run_ctx->lane);
-        } else {
-          ExecTask(run_ctx->task, run_ctx, true);
-        }
-
-        // Don't re-add to queue
-        continue;
+      // Check if task has been started before - if not, use BeginTask
+      if (!run_ctx->task->task_flags_.Any(TASK_STARTED)) {
+        BeginTask(run_ctx->task, run_ctx->container, run_ctx->lane);
+      } else {
+        ExecTask(run_ctx->task, run_ctx, true);
       }
 
-      // Subtasks not completed - add 10us penalty for task not being ready
-      run_ctx->block_time_us += 10.0;
+      // Don't re-add to queue
+      continue;
     }
+
+    // Subtasks not completed - add 10us penalty for task not being ready
+    run_ctx->block_time_us += 10.0;
 
     // Re-add via AddToBlockedQueue to route to appropriate queue based on
     // updated time

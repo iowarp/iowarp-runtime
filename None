@@ -1,16 +1,20 @@
 === Chimaera Task Throughput Benchmark ===
-Test case: Round-trip Latency (MOD_NAME Custom)
+Test case: BDev I/O (Allocate -> Write -> Free)
+I/O size per operation: 4096 bytes
 Threads: 1
-Duration: 2 seconds
-/home/llogan/Documents/Projects/iowarp/iowarp-runtime/src/chimaera_manager.cc:84 INFO 2448290 ClientInit Chimaera::ClientInit
-/home/llogan/Documents/Projects/iowarp/iowarp-runtime/src/config_manager.cc:22 INFO 2448290 ClientInit Config at: /tmp/jarvis_test_lifecycle_lztl8stm/shared/benchmark_latency/runtime/chimaera_config.yaml
+Duration: 10 seconds
+Max file size: 1073741824 bytes
+/home/llogan/Documents/Projects/iowarp/iowarp-runtime/src/chimaera_manager.cc:84 INFO 2492038 ClientInit Chimaera::ClientInit
+/home/llogan/Documents/Projects/iowarp/iowarp-runtime/src/config_manager.cc:22 INFO 2492038 ClientInit Config at: /tmp/jarvis_test_lifecycle_lztl8stm/shared/benchmark_throughput/runtime/chimaera_config.yaml
 Lane policy: round_robin (override)
 
 Starting benchmark...
 
 === Results ===
-Total operations: 478645
-Total time: 2.000 seconds
-Avg thread time: 2.000 seconds
-Throughput: 239306 Custom ops/sec
-Avg round-trip latency: 4.178 us/op
+Total operations: 166440
+Total time: 10.000 seconds
+Avg thread time: 10.000 seconds
+Total bytes written: 681738240 (650.16 MB)
+IOPS: 16644 ops/sec
+Bandwidth: 65.01 MB/s
+Avg latency: 60.082 us/op
