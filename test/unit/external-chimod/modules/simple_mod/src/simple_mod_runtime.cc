@@ -18,7 +18,7 @@ namespace external_test::simple_mod {
 
 // Method implementations for Runtime class
 
-void Runtime::Init(const chi::PoolId& pool_id, const std::string& pool_name) {
+void Runtime::Init(const chi::PoolId &pool_id, const std::string &pool_name) {
   // Call base class Init to set pool_id_ and pool_name_
   chi::Container::Init(pool_id, pool_name);
 
@@ -32,7 +32,7 @@ void Runtime::Init(const chi::PoolId& pool_id, const std::string& pool_name) {
 // Method implementations
 //===========================================================================
 
-void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& rctx) {
+void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext &rctx) {
   // Simple mod container creation logic
   std::cout << "SimpleMod: Initializing simple_mod container" << std::endl;
 
@@ -53,35 +53,35 @@ void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& rctx) {
 
 void Runtime::MonitorCreate(chi::MonitorModeId mode,
                             hipc::FullPtr<CreateTask> task_ptr,
-                            chi::RunContext& rctx) {
+                            chi::RunContext &rctx) {
   switch (mode) {
-    case chi::MonitorModeId::kLocalSchedule:
-      // Set route_lane_ to indicate where task should be routed
-      std::cout << "SimpleMod: Setting route_lane_ for simple_mod Create task"
-                << std::endl;
-      // Set route_lane_ to metadata queue lane 0
-      {
-        auto lane_ptr = GetLaneFullPtr(kMetadataQueue, 0);
-        if (!lane_ptr.IsNull()) {
-          rctx.route_lane_ = lane_ptr.ptr_;
-        }
+  case chi::MonitorModeId::kLocalSchedule:
+    // Set route_lane_ to indicate where task should be routed
+    std::cout << "SimpleMod: Setting route_lane_ for simple_mod Create task"
+              << std::endl;
+    // Set route_lane_ to metadata queue lane 0
+    {
+      auto lane_ptr = GetLaneFullPtr(kMetadataQueue, 0);
+      if (!lane_ptr.IsNull()) {
+        rctx.route_lane_ = lane_ptr.ptr_;
       }
-      break;
+    }
+    break;
 
-    case chi::MonitorModeId::kGlobalSchedule:
-      // Coordinate global distribution
-      std::cout << "SimpleMod: Global scheduling for simple_mod Create task"
-                << std::endl;
-      break;
+  case chi::MonitorModeId::kGlobalSchedule:
+    // Coordinate global distribution
+    std::cout << "SimpleMod: Global scheduling for simple_mod Create task"
+              << std::endl;
+    break;
 
-    case chi::MonitorModeId::kEstLoad:
-      // Estimate task execution time - simple mod creation is fast
-      rctx.wakeup_time_us = 500.0;  // 0.5ms for simple mod create
-      break;
+  case chi::MonitorModeId::kEstLoad:
+    // Estimate task execution time - simple mod creation is fast
+    rctx.est_load = 500.0; // 0.5ms for simple mod create
+    break;
   }
 }
 
-void Runtime::Destroy(hipc::FullPtr<DestroyTask> task, chi::RunContext& rctx) {
+void Runtime::Destroy(hipc::FullPtr<DestroyTask> task, chi::RunContext &rctx) {
   std::cout << "SimpleMod: Executing Destroy task - Pool ID: "
             << task->target_pool_id_ << std::endl;
 
@@ -97,11 +97,12 @@ void Runtime::Destroy(hipc::FullPtr<DestroyTask> task, chi::RunContext& rctx) {
     // Set success result
     task->return_code_ = 0;
 
-  } catch (const std::exception& e) {
+  } catch (const std::exception &e) {
     task->return_code_ = 99;
     auto alloc = task->GetCtxAllocator();
     task->error_message_ = hipc::string(
-        alloc, std::string("Exception during simple_mod destruction: ") + e.what());
+        alloc,
+        std::string("Exception during simple_mod destruction: ") + e.what());
     std::cerr << "SimpleMod: Destruction failed with exception: " << e.what()
               << std::endl;
   }
@@ -109,62 +110,62 @@ void Runtime::Destroy(hipc::FullPtr<DestroyTask> task, chi::RunContext& rctx) {
 
 void Runtime::MonitorDestroy(chi::MonitorModeId mode,
                              hipc::FullPtr<DestroyTask> task_ptr,
-                             chi::RunContext& rctx) {
+                             chi::RunContext &rctx) {
   switch (mode) {
-    case chi::MonitorModeId::kLocalSchedule:
-      // Set route_lane_ to metadata queue lane 0
-      {
-        auto lane_ptr = GetLaneFullPtr(kMetadataQueue, 0);
-        if (!lane_ptr.IsNull()) {
-          rctx.route_lane_ = lane_ptr.ptr_;
-        }
+  case chi::MonitorModeId::kLocalSchedule:
+    // Set route_lane_ to metadata queue lane 0
+    {
+      auto lane_ptr = GetLaneFullPtr(kMetadataQueue, 0);
+      if (!lane_ptr.IsNull()) {
+        rctx.route_lane_ = lane_ptr.ptr_;
       }
-      break;
+    }
+    break;
 
-    case chi::MonitorModeId::kGlobalSchedule:
-      // Coordinate global distribution
-      break;
+  case chi::MonitorModeId::kGlobalSchedule:
+    // Coordinate global distribution
+    break;
 
-    case chi::MonitorModeId::kEstLoad:
-      // Estimate task execution time - destruction is fast
-      rctx.wakeup_time_us = 100.0;  // 0.1ms for destruction
-      break;
+  case chi::MonitorModeId::kEstLoad:
+    // Estimate task execution time - destruction is fast
+    rctx.est_load = 100.0; // 0.1ms for destruction
+    break;
   }
 }
 
-void Runtime::Flush(hipc::FullPtr<FlushTask> task, chi::RunContext& rctx) {
+void Runtime::Flush(hipc::FullPtr<FlushTask> task, chi::RunContext &rctx) {
   std::cout << "SimpleMod: Executing Flush task" << std::endl;
 
   // Simple flush implementation - just report no work remaining
   task->return_code_ = 0;
   task->total_work_done_ = GetWorkRemaining();
 
-  std::cout << "SimpleMod: Flush completed - work done: " 
+  std::cout << "SimpleMod: Flush completed - work done: "
             << task->total_work_done_ << std::endl;
 }
 
 void Runtime::MonitorFlush(chi::MonitorModeId mode,
                            hipc::FullPtr<FlushTask> task_ptr,
-                           chi::RunContext& rctx) {
+                           chi::RunContext &rctx) {
   switch (mode) {
-    case chi::MonitorModeId::kLocalSchedule:
-      // Set route_lane_ to metadata queue lane 0
-      {
-        auto lane_ptr = GetLaneFullPtr(kMetadataQueue, 0);
-        if (!lane_ptr.IsNull()) {
-          rctx.route_lane_ = lane_ptr.ptr_;
-        }
+  case chi::MonitorModeId::kLocalSchedule:
+    // Set route_lane_ to metadata queue lane 0
+    {
+      auto lane_ptr = GetLaneFullPtr(kMetadataQueue, 0);
+      if (!lane_ptr.IsNull()) {
+        rctx.route_lane_ = lane_ptr.ptr_;
       }
-      break;
+    }
+    break;
 
-    case chi::MonitorModeId::kGlobalSchedule:
-      // Coordinate global distribution
-      break;
+  case chi::MonitorModeId::kGlobalSchedule:
+    // Coordinate global distribution
+    break;
 
-    case chi::MonitorModeId::kEstLoad:
-      // Estimate task execution time - flush is fast
-      rctx.wakeup_time_us = 50.0;  // 0.05ms for flush
-      break;
+  case chi::MonitorModeId::kEstLoad:
+    // Estimate task execution time - flush is fast
+    rctx.est_load = 50.0; // 0.05ms for flush
+    break;
   }
 }
 
@@ -173,8 +174,8 @@ chi::u64 Runtime::GetWorkRemaining() const {
   return 0;
 }
 
-// Note: Task serialization methods (SaveIn, LoadIn, SaveOut, LoadOut, NewCopy) 
-// are automatically generated in autogen/simple_mod_lib_exec.cc and should not 
+// Note: Task serialization methods (SaveIn, LoadIn, SaveOut, LoadOut, NewCopy)
+// are automatically generated in autogen/simple_mod_lib_exec.cc and should not
 // be manually implemented here.
 
-}  // namespace external_test::simple_mod
+} // namespace external_test::simple_mod

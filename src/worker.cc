@@ -796,16 +796,16 @@ void Worker::ProcessBlockedQueue(hshm::ext_ring_buffer<RunContext *> &queue) {
     }
 
     // Check if integer time has reached wakeup time
-    // Wakeup time = block_time + wakeup_time_us
+    // Wakeup time = block_start + block_time_us
     IntegerTimepoint current_time = IntegerTimer::Now();
     IntegerTimepoint wakeup_time =
-        run_ctx->block_time + IntegerTimepoint((u64)run_ctx->wakeup_time_us);
+        run_ctx->block_start + IntegerTimepoint((u64)run_ctx->block_time_us);
 
     if (current_time < wakeup_time) {
       // Not ready yet - re-add to blocked queue
       // Calculate remaining time
-      u64 elapsed_us = (current_time - run_ctx->block_time).GetUsec();
-      double remaining_us = run_ctx->wakeup_time_us - elapsed_us;
+      u64 elapsed_us = (current_time - run_ctx->block_start).GetUsec();
+      double remaining_us = run_ctx->block_time_us - elapsed_us;
       AddToBlockedQueue(run_ctx, remaining_us > 0 ? remaining_us : 0.0);
       continue;
     }
@@ -814,7 +814,7 @@ void Worker::ProcessBlockedQueue(hshm::ext_ring_buffer<RunContext *> &queue) {
     // Only check subtask completion for short waits (estimated time < 10us)
     // Long waits don't need to check every time since they're expensive
     // operations
-    if (run_ctx->wakeup_time_us < 10.0) {
+    if (run_ctx->block_time_us < 10.0) {
       if (run_ctx->AreSubtasksCompleted()) {
         // All subtasks completed - resume task immediately
         run_ctx->is_blocked = false;
@@ -831,12 +831,12 @@ void Worker::ProcessBlockedQueue(hshm::ext_ring_buffer<RunContext *> &queue) {
       }
 
       // Subtasks not completed - add 10us penalty for task not being ready
-      run_ctx->wakeup_time_us += 10.0;
+      run_ctx->block_time_us += 10.0;
     }
 
     // Re-add via AddToBlockedQueue to route to appropriate queue based on
     // updated time
-    AddToBlockedQueue(run_ctx, run_ctx->wakeup_time_us);
+    AddToBlockedQueue(run_ctx, run_ctx->block_time_us);
   }
 }
 
@@ -866,8 +866,8 @@ void Worker::AddToBlockedQueue(RunContext *run_ctx, double estimated_time_us) {
   }
 
   // Set timing information in RunContext
-  run_ctx->wakeup_time_us = estimated_time_us;
-  run_ctx->block_time = IntegerTimer::Now();
+  run_ctx->block_time_us = estimated_time_us;
+  run_ctx->block_start = IntegerTimer::Now();
 
   // Route to appropriate queue based on estimated wait time
   // Short waits (< 10us): checked every iteration

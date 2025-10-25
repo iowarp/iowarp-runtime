@@ -177,7 +177,8 @@ public:
    * @param from_yield If true, do not add subtasks to RunContext (default:
    * false)
    */
-  HSHM_CROSS_FUN void Wait(double wait_time_us = 10.0, bool from_yield = false);
+  HSHM_CROSS_FUN void Wait(double block_time_us = 10.0,
+                           bool from_yield = false);
 
   /**
    * Check if task is complete
@@ -188,7 +189,7 @@ public:
   /**
    * Yield execution back to worker by waiting for task completion
    */
-  HSHM_CROSS_FUN void Yield(double wait_time_us = 10.0);
+  HSHM_CROSS_FUN void Yield(double block_time_us = 10.0);
 
   /**
    * Check if task is periodic
@@ -389,9 +390,9 @@ struct RunContext {
   u32 worker_id;
   FullPtr<Task> task; // Task being executed by this context
   bool is_blocked;    // Task is waiting for completion
-  double
-      wakeup_time_us; // Estimated time until task should wake up (microseconds)
-  IntegerTimepoint block_time; // Time when task was blocked (IntegerTimer)
+  double est_load;    // Estimated time until task should wake up (microseconds)
+  u64 block_time_us;  // Time in microseconds for task to block
+  IntegerTimepoint block_start; // Time when task was blocked (IntegerTimer)
   boost::context::detail::transfer_t
       yield_context; // boost::context transfer from FiberExecutionFunction
                      // parameter - used for yielding back
@@ -410,7 +411,7 @@ struct RunContext {
   RunContext()
       : stack_ptr(nullptr), stack_base_for_free(nullptr), stack_size(0),
         thread_type(kSchedWorker), worker_id(0), is_blocked(false),
-        wakeup_time_us(0.0), block_time(0), yield_context{}, resume_context{},
+        est_load(0.0), block_start(0), yield_context{}, resume_context{},
         container(nullptr), lane(nullptr), route_lane_(nullptr),
         completed_replicas_(0) {}
 
@@ -422,8 +423,8 @@ struct RunContext {
         stack_base_for_free(other.stack_base_for_free),
         stack_size(other.stack_size), thread_type(other.thread_type),
         worker_id(other.worker_id), task(std::move(other.task)),
-        is_blocked(other.is_blocked), wakeup_time_us(other.wakeup_time_us),
-        block_time(other.block_time), yield_context(other.yield_context),
+        is_blocked(other.is_blocked), est_load(other.est_load),
+        block_start(other.block_start), yield_context(other.yield_context),
         resume_context(other.resume_context), container(other.container),
         lane(other.lane), route_lane_(other.route_lane_),
         waiting_for_tasks(std::move(other.waiting_for_tasks)),
@@ -443,8 +444,8 @@ struct RunContext {
       worker_id = other.worker_id;
       task = std::move(other.task);
       is_blocked = other.is_blocked;
-      wakeup_time_us = other.wakeup_time_us;
-      block_time = other.block_time;
+      est_load = other.est_load;
+      block_start = other.block_start;
       yield_context = other.yield_context;
       resume_context = other.resume_context;
       container = other.container;
@@ -471,8 +472,8 @@ struct RunContext {
     pool_queries.clear();
     subtasks_.clear();
     completed_replicas_.store(0);
-    wakeup_time_us = 0.0;
-    block_time = IntegerTimepoint(0);
+    est_load = 0.0;
+    block_start = IntegerTimepoint(0);
   }
 
   /**

@@ -124,7 +124,7 @@ void Runtime::MonitorCreate(chi::MonitorModeId mode,
 
   case chi::MonitorModeId::kEstLoad:
     // Estimate task execution time - admin container creation is fast
-    rctx.wakeup_time_us = 1000.0; // 1ms for admin create
+    rctx.est_load = 1000.0; // 1ms for admin create
     break;
   }
 }
@@ -147,7 +147,7 @@ void Runtime::MonitorGetOrCreatePool(
 
   case chi::MonitorModeId::kEstLoad:
     // Estimate task execution time - pool creation can be expensive
-    rctx.wakeup_time_us = 50000.0; // 50ms for pool creation
+    rctx.est_load = 50000.0; // 50ms for pool creation
     break;
   }
 }
@@ -229,7 +229,7 @@ void Runtime::MonitorDestroyPool(chi::MonitorModeId mode,
 
   case chi::MonitorModeId::kEstLoad:
     // Estimate task execution time - pool destruction is expensive
-    rctx.wakeup_time_us = 30000.0; // 30ms for pool destruction
+    rctx.est_load = 30000.0; // 30ms for pool destruction
     break;
   }
 }
@@ -279,7 +279,7 @@ void Runtime::MonitorStopRuntime(chi::MonitorModeId mode,
 
   case chi::MonitorModeId::kEstLoad:
     // Estimate task execution time - shutdown should be fast
-    rctx.wakeup_time_us = 5000.0; // 5ms for shutdown initiation
+    rctx.est_load = 5000.0; // 5ms for shutdown initiation
     break;
   }
 }
@@ -359,7 +359,7 @@ void Runtime::MonitorFlush(chi::MonitorModeId mode,
 
   case chi::MonitorModeId::kEstLoad:
     // Estimate task execution time - flush should be fast
-    rctx.wakeup_time_us = 1000.0; // 1ms for flush
+    rctx.est_load = 1000.0; // 1ms for flush
     break;
   }
 }
@@ -596,7 +596,7 @@ void Runtime::MonitorSend(chi::MonitorModeId mode,
   case chi::MonitorModeId::kGlobalSchedule:
     break;
   case chi::MonitorModeId::kEstLoad:
-    rctx.wakeup_time_us = 10000.0; // 10ms estimate
+    rctx.est_load = 10000.0; // 10ms estimate
     break;
   }
   (void)task_ptr; // Suppress unused warning
@@ -620,8 +620,7 @@ void Runtime::RecvIn(hipc::FullPtr<RecvTask> task,
   // Allocate buffers for bulk data and expose them for receiving
   // archive.send contains sender's bulk descriptors (populated by RecvMetadata)
   for (const auto &send_bulk : archive.send) {
-    hipc::FullPtr<char> buffer =
-        ipc_manager->AllocateBuffer(send_bulk.size);
+    hipc::FullPtr<char> buffer = ipc_manager->AllocateBuffer(send_bulk.size);
     archive.recv.push_back(
         lbm_server->Expose(buffer, send_bulk.size, send_bulk.flags.bits_));
   }
@@ -896,7 +895,7 @@ void Runtime::MonitorRecv(chi::MonitorModeId mode,
   case chi::MonitorModeId::kGlobalSchedule:
     break;
   case chi::MonitorModeId::kEstLoad:
-    rctx.wakeup_time_us = 10000.0; // 10ms estimate
+    rctx.est_load = 10000.0; // 10ms estimate
     break;
   }
   (void)task_ptr; // Suppress unused warning
