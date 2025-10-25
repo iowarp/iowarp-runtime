@@ -30,27 +30,6 @@ void Task::Wait(double block_time_us, bool from_yield) {
       return;
     }
 
-    // Determine the actual wait time to use
-    double actual_block_time_us = block_time_us;
-
-    // If wait_time is 0, use Monitor to estimate task weight
-    if (block_time_us == 0.0) {
-      // Use container from RunContext to estimate load
-      Container *container = worker ? worker->GetCurrentContainer() : nullptr;
-      if (container) {
-        // Estimate completion time using Monitor with kEstLoad
-        // Use run_ctx directly - Monitor should update est_load
-        container->Monitor(MonitorModeId::kEstLoad, method_, run_ctx->task,
-                           *run_ctx);
-
-        // The estimated time should be stored in run_ctx->est_load
-        actual_block_time_us = run_ctx->est_load;
-      } else {
-        // No container available, use default estimate
-        actual_block_time_us = 1000.0; // Default 1ms estimate
-      }
-    }
-
     // Check if task is already blocked - this should never happen
     if (run_ctx->is_blocked) {
       HELOG(kFatal,
@@ -71,11 +50,41 @@ void Task::Wait(double block_time_us, bool from_yield) {
       run_ctx->waiting_for_tasks.push_back(this_task_ptr);
     }
 
+    // Determine blocking duration
+    double actual_block_time_us = block_time_us;
+
+    // If block_time_us is 0, estimate from subtasks using Monitor
+    if (block_time_us == 0.0) {
+      Container *container = worker ? worker->GetCurrentContainer() : nullptr;
+      if (container) {
+        // Estimate load for each waiting subtask and take the maximum
+        double max_est_load = 0.0;
+        for (const auto &waiting_task : run_ctx->waiting_for_tasks) {
+          if (!waiting_task.IsNull()) {
+            // Call Monitor with kEstLoad to estimate this task's execution time
+            container->Monitor(MonitorModeId::kEstLoad, waiting_task->method_,
+                             waiting_task, *run_ctx);
+            // The estimated load should be stored in run_ctx->est_load
+            if (run_ctx->est_load > max_est_load) {
+              max_est_load = run_ctx->est_load;
+            }
+          }
+        }
+        actual_block_time_us = max_est_load;
+      } else {
+        // No container available, use default estimate
+        actual_block_time_us = 1000.0; // Default 1ms estimate
+      }
+    }
+
+    // Store blocking duration in RunContext
+    run_ctx->block_time_us = actual_block_time_us;
+
     // Yield execution back to worker in loop until task completes
-    // Add to blocked queue before each yield with the determined wait time
+    // Add to blocked queue before each yield
     // NOTE(llogan): This will only be unblocked when all subtasks are complete
     // No need for a while loop here.
-    worker->AddToBlockedQueue(run_ctx, actual_block_time_us);
+    worker->AddToBlockedQueue(run_ctx);
     YieldBase();
   } else {
     // Client implementation: Wait loop using Yield()

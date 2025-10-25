@@ -28,10 +28,12 @@ Worker::Worker(u32 worker_id, ThreadType thread_type)
     : worker_id_(worker_id), thread_type_(thread_type), is_running_(false),
       is_initialized_(false), did_work_(false), current_run_context_(nullptr),
       assigned_lane_(nullptr),
-      stack_cache_(64),       // Initial capacity for stack cache (64 entries)
-      short_wait_queue_(256), // Initial capacity for short wait queue
-      long_wait_queue_(256),  // Initial capacity for long wait queue
-      iteration_counter_(0) {}
+      stack_cache_(64) { // Initial capacity for stack cache (64 entries)
+  // Initialize all blocked queues with capacity 1024
+  for (u32 i = 0; i < NUM_BLOCKED_QUEUES; ++i) {
+    blocked_queues_[i] = hshm::ext_ring_buffer<RunContext *>(1024);
+  }
+}
 
 Worker::~Worker() {
   if (is_initialized_) {
@@ -76,6 +78,17 @@ void Worker::Finalize() {
 
     // Get next cached entry
     token = stack_cache_.pop(cached_entry);
+  }
+
+  // Clean up all blocked queues (2 queues)
+  for (u32 i = 0; i < NUM_BLOCKED_QUEUES; ++i) {
+    RunContext *run_ctx;
+    hshm::qtok_t queue_token = blocked_queues_[i].pop(run_ctx);
+    while (!queue_token.IsNull()) {
+      // RunContexts in blocked queues are still in use - don't free them
+      // They will be cleaned up when the tasks complete or by stack cache
+      queue_token = blocked_queues_[i].pop(run_ctx);
+    }
   }
 
   // Clear assigned lane reference (don't delete - it's in shared memory)
@@ -132,10 +145,6 @@ void Worker::Run() {
         }
       }
     }
-
-    // Increment integer timer at end of each Run iteration (simulates 1
-    // microsecond per iteration)
-    IntegerTimer::Increment();
 
     // Check blocked queue for completed tasks at end of each iteration
     u32 sleep_time_us = ContinueBlockedTasks();
@@ -551,7 +560,7 @@ RunContext *Worker::AllocateStackAndContext(size_t size) {
   if (stack_base)
     free(stack_base);
   if (new_run_ctx)
-    free(new_run_ctx);
+    delete new_run_ctx;
 
   return nullptr;
 }
@@ -724,10 +733,6 @@ bool Worker::ExecTask(const FullPtr<Task> &task_ptr, RunContext *run_ctx,
     }
   }
 
-  // Increment integer timer after task execution (simulates 1 microsecond per
-  // task)
-  IntegerTimer::Increment();
-
   // Common cleanup logic for both fiber and direct execution
   if (run_ctx->is_blocked) {
     // Task is blocked - don't clean up, will be resumed later
@@ -799,86 +804,85 @@ void Worker::ProcessBlockedQueue(hshm::ext_ring_buffer<RunContext *> &queue) {
       continue;
     }
 
-    // Check if integer time has reached wakeup time
-    // Wakeup time = block_start + block_time_us
-    // IntegerTimepoint current_time = IntegerTimer::Now();
-    // IntegerTimepoint wakeup_time =
-    //     run_ctx->block_start + IntegerTimepoint((u64)run_ctx->block_time_us);
+    // Check if enough time has passed for this task to wake up
+    hshm::Timepoint current_time;
+    current_time.Now();
 
-    // if (current_time < wakeup_time) {
-    //   // Not ready yet - re-add to blocked queue
-    //   // Calculate remaining time
-    //   u64 elapsed_us = (current_time - run_ctx->block_start).GetUsec();
-    //   double remaining_us = run_ctx->block_time_us - elapsed_us;
-    //   AddToBlockedQueue(run_ctx, remaining_us > 0 ? remaining_us : 0.0);
-    //   continue;
-    // }
+    // Calculate elapsed time since blocking started
+    double elapsed_us = run_ctx->block_start.GetUsecFromStart(current_time);
 
-    // Task is ready based on fake time - check subtask completion
-    // Only check subtask completion for short waits (estimated time < 10us)
-    // Long waits don't need to check every time since they're expensive
-    // operations
+    if (elapsed_us < run_ctx->block_time_us) {
+      // Not enough time has passed - re-add to queue without incrementing
+      // block_count We decrement block_count before calling AddToBlockedQueue
+      // since it will increment it
+      run_ctx->block_count_--;
+      AddToBlockedQueue(run_ctx);
+      continue;
+    }
+
+    // Enough time has passed - check if all subtasks are completed
     if (run_ctx->AreSubtasksCompleted()) {
       // All subtasks completed - resume task immediately
       run_ctx->is_blocked = false;
 
-      // Check if task has been started before - if not, use BeginTask
-      if (!run_ctx->task->task_flags_.Any(TASK_STARTED)) {
-        BeginTask(run_ctx->task, run_ctx->container, run_ctx->lane);
-      } else {
-        ExecTask(run_ctx->task, run_ctx, true);
-      }
+      // Reset block count since task is now ready to proceed
+      run_ctx->block_count_ = 0;
+
+      // Determine if this is a resume (task was started before) or first
+      // execution
+      bool is_started = run_ctx->task->task_flags_.Any(TASK_STARTED);
+
+      // Execute task with existing RunContext
+      ExecTask(run_ctx->task, run_ctx, is_started);
 
       // Don't re-add to queue
       continue;
     }
 
-    // Subtasks not completed - add 10us penalty for task not being ready
-    run_ctx->block_time_us += 10.0;
-
-    // Re-add via AddToBlockedQueue to route to appropriate queue based on
-    // updated time
-    AddToBlockedQueue(run_ctx, run_ctx->block_time_us);
+    // Subtasks not completed - re-add to blocked queue
+    // Block count will be incremented automatically
+    AddToBlockedQueue(run_ctx);
   }
 }
 
 u32 Worker::ContinueBlockedTasks() {
   u32 return_value = 0; // Default return value for immediate recheck
 
-  // Increment iteration counter
-  iteration_counter_++;
+  // Use static local variable to track iteration count across calls
+  static u32 current_iteration = 0;
+  current_iteration++;
 
-  // Check if we should process long wait queue (every 5 iterations)
-  bool check_long_queue = (iteration_counter_ % 5 == 0);
+  // Process queues based on block_time_us and iteration modulo:
+  // Queue 0: Short blocking times (< 10us) - check every iteration
+  ProcessBlockedQueue(blocked_queues_[0]);
 
-  // Always process short wait queue (tasks with < 10us wait)
-  ProcessBlockedQueue(short_wait_queue_);
-
-  // Process long wait queue every 5 iterations
-  if (check_long_queue) {
-    ProcessBlockedQueue(long_wait_queue_);
+  // Queue 1: Long blocking times (>= 10us) - check every 5 iterations
+  if (current_iteration % 5 == 0) {
+    ProcessBlockedQueue(blocked_queues_[1]);
   }
 
   return return_value;
 }
 
-void Worker::AddToBlockedQueue(RunContext *run_ctx, double estimated_time_us) {
+void Worker::AddToBlockedQueue(RunContext *run_ctx) {
   if (!run_ctx || run_ctx->task.IsNull()) {
     return;
   }
 
-  // Set timing information in RunContext
-  run_ctx->block_time_us = estimated_time_us;
-  run_ctx->block_start = IntegerTimer::Now();
+  // Capture current real time when blocking
+  run_ctx->block_start.Now();
 
-  // Route to appropriate queue based on estimated wait time
-  // Short waits (< 10us): checked every iteration
-  // Long waits (>= 10us): checked every 5 iterations
-  if (estimated_time_us < 10.0) {
-    short_wait_queue_.push(run_ctx);
-  } else {
-    long_wait_queue_.push(run_ctx);
-  }
+  // Increment block count
+  run_ctx->block_count_++;
+
+  // Determine queue index based on block_time_us:
+  // Queue 0: Short blocking times (< 10us) - checked every iteration
+  // Queue 1: Long blocking times (>= 10us) - checked every 5 iterations
+  constexpr double BLOCK_TIME_THRESHOLD_US = 10.0;
+  u32 queue_idx = (run_ctx->block_time_us < BLOCK_TIME_THRESHOLD_US) ? 0 : 1;
+
+  // Add to the appropriate queue
+  blocked_queues_[queue_idx].push(run_ctx);
 }
 
 void Worker::ReschedulePeriodicTask(RunContext *run_ctx,
@@ -897,10 +901,8 @@ void Worker::ReschedulePeriodicTask(RunContext *run_ctx,
   // Unset TASK_STARTED flag when rescheduling periodic task
   task_ptr->ClearFlags(TASK_STARTED);
 
-  // Check if the lane still maps to this worker by checking the lane header
-  auto &header = lane->GetHeader();
-  double period_us = task_ptr->GetPeriod(kMicro);
-  AddToBlockedQueue(run_ctx, period_us);
+  // Add to blocked queue - block count will be incremented automatically
+  AddToBlockedQueue(run_ctx);
 }
 
 void Worker::FiberExecutionFunction(boost::context::detail::transfer_t t) {

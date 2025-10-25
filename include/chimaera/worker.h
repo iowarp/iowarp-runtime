@@ -150,12 +150,11 @@ class Worker {
   static void ClearCurrentWorker();
 
   /**
-   * Add run context to blocked queue with estimated completion time
+   * Add run context to blocked queue based on block count
    * @param run_ctx_ptr Pointer to run context (task accessible via
    * run_ctx_ptr->task)
-   * @param estimated_time_us Estimated completion time in microseconds
    */
-  void AddToBlockedQueue(RunContext* run_ctx_ptr, double estimated_time_us);
+  void AddToBlockedQueue(RunContext* run_ctx_ptr);
 
   /**
    * Reschedule a periodic task for next execution
@@ -300,15 +299,12 @@ public:
   // Using ext_ring_buffer for O(1) enqueue/dequeue operations
   hshm::ext_ring_buffer<StackAndContext> stack_cache_;
 
-  // Two-tier blocked queue system:
-  // - short_wait_queue_: Tasks with estimated time < 10us, checked every iteration
-  // - long_wait_queue_: Tasks with estimated time >= 10us, checked every 5 iterations
+  // Block-time-based blocked queue system:
+  // - Queue 0: Short blocking times (< 10us), checked every iteration
+  // - Queue 1: Long blocking times (>= 10us), checked every 5 iterations
   // Using ext_ring_buffer for O(1) enqueue/dequeue operations
-  hshm::ext_ring_buffer<RunContext*> short_wait_queue_;
-  hshm::ext_ring_buffer<RunContext*> long_wait_queue_;
-
-  // Counter for checking long wait queue every 5 iterations
-  u32 iteration_counter_;
+  static constexpr u32 NUM_BLOCKED_QUEUES = 2;
+  hshm::ext_ring_buffer<RunContext*> blocked_queues_[NUM_BLOCKED_QUEUES];
 };
 
 }  // namespace chi

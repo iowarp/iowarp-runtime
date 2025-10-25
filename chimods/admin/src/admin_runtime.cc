@@ -328,7 +328,7 @@ void Runtime::Flush(hipc::FullPtr<FlushTask> task, chi::RunContext &rctx) {
             total_work_remaining);
 
       // Brief sleep to avoid busy waiting
-      task->Yield();
+      task->Yield(25);
     }
 
     // Store the final work count (should be 0)
@@ -828,8 +828,7 @@ void Runtime::RecvOut(hipc::FullPtr<RecvTask> task,
         // Periodic task - add back to blocked queue for next iteration
         auto *worker =
             HSHM_THREAD_MODEL->GetTls<chi::Worker>(chi::chi_cur_worker_key_);
-        worker->AddToBlockedQueue(origin_rctx,
-                                  origin_task->period_ns_ / 1000.0);
+        worker->AddToBlockedQueue(origin_rctx);
         HILOG(kDebug, "Admin: Periodic origin task added to blocked queue");
       } else {
         // Non-periodic task - free RunContext and mark as complete

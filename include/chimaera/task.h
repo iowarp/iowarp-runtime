@@ -6,7 +6,6 @@
 #include <sstream>
 #include <vector>
 
-#include "chimaera/integer_timer.h"
 #include "chimaera/pool_query.h"
 #include "chimaera/task_queue.h"
 #include "chimaera/types.h"
@@ -391,8 +390,8 @@ struct RunContext {
   FullPtr<Task> task; // Task being executed by this context
   bool is_blocked;    // Task is waiting for completion
   double est_load;    // Estimated time until task should wake up (microseconds)
-  u64 block_time_us;  // Time in microseconds for task to block
-  IntegerTimepoint block_start; // Time when task was blocked (IntegerTimer)
+  double block_time_us;  // Time in microseconds for task to block
+  hshm::Timepoint block_start; // Time when task was blocked (real time)
   boost::context::detail::transfer_t
       yield_context; // boost::context transfer from FiberExecutionFunction
                      // parameter - used for yielding back
@@ -407,13 +406,14 @@ struct RunContext {
   std::vector<PoolQuery> pool_queries;  // Pool queries for task distribution
   std::vector<FullPtr<Task>> subtasks_; // Replica tasks for this execution
   std::atomic<u32> completed_replicas_; // Count of completed replicas
+  u32 block_count_;  // Number of times task has been blocked
 
   RunContext()
       : stack_ptr(nullptr), stack_base_for_free(nullptr), stack_size(0),
         thread_type(kSchedWorker), worker_id(0), is_blocked(false),
-        est_load(0.0), block_start(0), yield_context{}, resume_context{},
+        est_load(0.0), block_time_us(0.0), block_start(), yield_context{}, resume_context{},
         container(nullptr), lane(nullptr), route_lane_(nullptr),
-        completed_replicas_(0) {}
+        completed_replicas_(0), block_count_(0) {}
 
   /**
    * Move constructor - required because of atomic member
@@ -424,13 +424,14 @@ struct RunContext {
         stack_size(other.stack_size), thread_type(other.thread_type),
         worker_id(other.worker_id), task(std::move(other.task)),
         is_blocked(other.is_blocked), est_load(other.est_load),
-        block_start(other.block_start), yield_context(other.yield_context),
-        resume_context(other.resume_context), container(other.container),
-        lane(other.lane), route_lane_(other.route_lane_),
+        block_time_us(other.block_time_us), block_start(other.block_start),
+        yield_context(other.yield_context), resume_context(other.resume_context),
+        container(other.container), lane(other.lane), route_lane_(other.route_lane_),
         waiting_for_tasks(std::move(other.waiting_for_tasks)),
         pool_queries(std::move(other.pool_queries)),
         subtasks_(std::move(other.subtasks_)),
-        completed_replicas_(other.completed_replicas_.load()) {}
+        completed_replicas_(other.completed_replicas_.load()),
+        block_count_(other.block_count_) {}
 
   /**
    * Move assignment operator - required because of atomic member
@@ -445,6 +446,7 @@ struct RunContext {
       task = std::move(other.task);
       is_blocked = other.is_blocked;
       est_load = other.est_load;
+      block_time_us = other.block_time_us;
       block_start = other.block_start;
       yield_context = other.yield_context;
       resume_context = other.resume_context;
@@ -455,6 +457,7 @@ struct RunContext {
       pool_queries = std::move(other.pool_queries);
       subtasks_ = std::move(other.subtasks_);
       completed_replicas_.store(other.completed_replicas_.load());
+      block_count_ = other.block_count_;
     }
     return *this;
   }
@@ -473,7 +476,9 @@ struct RunContext {
     subtasks_.clear();
     completed_replicas_.store(0);
     est_load = 0.0;
-    block_start = IntegerTimepoint(0);
+    block_time_us = 0.0;
+    block_start = hshm::Timepoint();
+    block_count_ = 0;
   }
 
   /**
