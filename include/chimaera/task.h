@@ -6,6 +6,7 @@
 #include <sstream>
 #include <vector>
 
+#include "chimaera/integer_timer.h"
 #include "chimaera/pool_query.h"
 #include "chimaera/task_queue.h"
 #include "chimaera/types.h"
@@ -386,12 +387,11 @@ struct RunContext {
   size_t stack_size;
   ThreadType thread_type;
   u32 worker_id;
-  FullPtr<Task> task;                  // Task being executed by this context
-  bool is_blocked;                     // Task is waiting for completion
-  double estimated_completion_time_us; // Estimated completion time in
-                                       // microseconds
-  hshm::Timepoint
-      block_time; // Time when task was blocked (for timing measurements)
+  FullPtr<Task> task; // Task being executed by this context
+  bool is_blocked;    // Task is waiting for completion
+  double
+      wakeup_time_us; // Estimated time until task should wake up (microseconds)
+  IntegerTimepoint block_time; // Time when task was blocked (IntegerTimer)
   boost::context::detail::transfer_t
       yield_context; // boost::context transfer from FiberExecutionFunction
                      // parameter - used for yielding back
@@ -410,7 +410,7 @@ struct RunContext {
   RunContext()
       : stack_ptr(nullptr), stack_base_for_free(nullptr), stack_size(0),
         thread_type(kSchedWorker), worker_id(0), is_blocked(false),
-        estimated_completion_time_us(0.0), yield_context{}, resume_context{},
+        wakeup_time_us(0.0), block_time(0), yield_context{}, resume_context{},
         container(nullptr), lane(nullptr), route_lane_(nullptr),
         completed_replicas_(0) {}
 
@@ -422,8 +422,7 @@ struct RunContext {
         stack_base_for_free(other.stack_base_for_free),
         stack_size(other.stack_size), thread_type(other.thread_type),
         worker_id(other.worker_id), task(std::move(other.task)),
-        is_blocked(other.is_blocked),
-        estimated_completion_time_us(other.estimated_completion_time_us),
+        is_blocked(other.is_blocked), wakeup_time_us(other.wakeup_time_us),
         block_time(other.block_time), yield_context(other.yield_context),
         resume_context(other.resume_context), container(other.container),
         lane(other.lane), route_lane_(other.route_lane_),
@@ -444,7 +443,7 @@ struct RunContext {
       worker_id = other.worker_id;
       task = std::move(other.task);
       is_blocked = other.is_blocked;
-      estimated_completion_time_us = other.estimated_completion_time_us;
+      wakeup_time_us = other.wakeup_time_us;
       block_time = other.block_time;
       yield_context = other.yield_context;
       resume_context = other.resume_context;
@@ -472,6 +471,8 @@ struct RunContext {
     pool_queries.clear();
     subtasks_.clear();
     completed_replicas_.store(0);
+    wakeup_time_us = 0.0;
+    block_time = IntegerTimepoint(0);
   }
 
   /**

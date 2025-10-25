@@ -39,14 +39,12 @@ void Task::Wait(double wait_time_us, bool from_yield) {
       Container *container = worker ? worker->GetCurrentContainer() : nullptr;
       if (container) {
         // Estimate completion time using Monitor with kEstLoad
-        // Use run_ctx directly - Monitor should update
-        // estimated_completion_time_us
+        // Use run_ctx directly - Monitor should update wakeup_time_us
         container->Monitor(MonitorModeId::kEstLoad, method_, run_ctx->task,
                            *run_ctx);
 
-        // The estimated time should be stored in
-        // run_ctx->estimated_completion_time_us
-        actual_wait_time_us = run_ctx->estimated_completion_time_us;
+        // The estimated time should be stored in run_ctx->wakeup_time_us
+        actual_wait_time_us = run_ctx->wakeup_time_us;
       } else {
         // No container available, use default estimate
         actual_wait_time_us = 1000.0; // Default 1ms estimate

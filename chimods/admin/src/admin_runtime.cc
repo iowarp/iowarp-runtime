@@ -124,7 +124,7 @@ void Runtime::MonitorCreate(chi::MonitorModeId mode,
 
   case chi::MonitorModeId::kEstLoad:
     // Estimate task execution time - admin container creation is fast
-    rctx.estimated_completion_time_us = 1000.0; // 1ms for admin create
+    rctx.wakeup_time_us = 1000.0; // 1ms for admin create
     break;
   }
 }
@@ -147,7 +147,7 @@ void Runtime::MonitorGetOrCreatePool(
 
   case chi::MonitorModeId::kEstLoad:
     // Estimate task execution time - pool creation can be expensive
-    rctx.estimated_completion_time_us = 50000.0; // 50ms for pool creation
+    rctx.wakeup_time_us = 50000.0; // 50ms for pool creation
     break;
   }
 }
@@ -229,7 +229,7 @@ void Runtime::MonitorDestroyPool(chi::MonitorModeId mode,
 
   case chi::MonitorModeId::kEstLoad:
     // Estimate task execution time - pool destruction is expensive
-    rctx.estimated_completion_time_us = 30000.0; // 30ms for pool destruction
+    rctx.wakeup_time_us = 30000.0; // 30ms for pool destruction
     break;
   }
 }
@@ -279,7 +279,7 @@ void Runtime::MonitorStopRuntime(chi::MonitorModeId mode,
 
   case chi::MonitorModeId::kEstLoad:
     // Estimate task execution time - shutdown should be fast
-    rctx.estimated_completion_time_us = 5000.0; // 5ms for shutdown initiation
+    rctx.wakeup_time_us = 5000.0; // 5ms for shutdown initiation
     break;
   }
 }
@@ -359,7 +359,7 @@ void Runtime::MonitorFlush(chi::MonitorModeId mode,
 
   case chi::MonitorModeId::kEstLoad:
     // Estimate task execution time - flush should be fast
-    rctx.estimated_completion_time_us = 1000.0; // 1ms for flush
+    rctx.wakeup_time_us = 1000.0; // 1ms for flush
     break;
   }
 }
@@ -596,7 +596,7 @@ void Runtime::MonitorSend(chi::MonitorModeId mode,
   case chi::MonitorModeId::kGlobalSchedule:
     break;
   case chi::MonitorModeId::kEstLoad:
-    rctx.estimated_completion_time_us = 10000.0; // 10ms estimate
+    rctx.wakeup_time_us = 10000.0; // 10ms estimate
     break;
   }
   (void)task_ptr; // Suppress unused warning
@@ -896,7 +896,7 @@ void Runtime::MonitorRecv(chi::MonitorModeId mode,
   case chi::MonitorModeId::kGlobalSchedule:
     break;
   case chi::MonitorModeId::kEstLoad:
-    rctx.estimated_completion_time_us = 10000.0; // 10ms estimate
+    rctx.wakeup_time_us = 10000.0; // 10ms estimate
     break;
   }
   (void)task_ptr; // Suppress unused warning

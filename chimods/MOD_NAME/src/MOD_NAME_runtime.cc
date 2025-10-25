@@ -115,7 +115,7 @@ void Runtime::MonitorDestroy(chi::MonitorModeId mode,
 
     case chi::MonitorModeId::kEstLoad:
       // Estimate task execution time
-      rctx.estimated_completion_time_us = 10000.0;  // 10ms for destruction
+      rctx.wakeup_time_us = 10000.0;  // 10ms for destruction
       break;
   }
 }
@@ -248,7 +248,7 @@ void Runtime::MonitorWaitTest(chi::MonitorModeId mode,
       break;
     case chi::MonitorModeId::kEstLoad:
       // Estimate completion time based on depth
-      rctx.estimated_completion_time_us = task_ptr->depth_ * 1000.0;  // 1ms per depth level
+      rctx.wakeup_time_us = task_ptr->depth_ * 1000.0;  // 1ms per depth level
       break;
     default:
       break;

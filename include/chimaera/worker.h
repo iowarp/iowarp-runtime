@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "chimaera/container.h"
+#include "chimaera/integer_timer.h"
 #include "chimaera/pool_query.h"
 #include "chimaera/task.h"
 #include "chimaera/task_queue.h"
@@ -260,14 +261,6 @@ public:
    */
   void BeginTask(const FullPtr<Task>& task_ptr, Container* container,
                  TaskLane* lane);
-
-  /**
-   * End task with error due to routing failure
-   * Sets the task return code, marks it as complete, and deletes fire-and-forget tasks
-   * @param task_ptr Full pointer to task that failed routing
-   * @param error_code Error code to set (default: 1 for general error)
-   */
-  void EndTaskWithError(const FullPtr<Task>& task_ptr, u32 error_code = 1);
 
   /**
    * Continue processing blocked tasks that are ready to resume

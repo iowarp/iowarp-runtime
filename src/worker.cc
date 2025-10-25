@@ -495,7 +495,6 @@ std::vector<PoolQuery> Worker::ResolvePhysicalQuery(const PoolQuery &query,
 }
 
 RunContext *Worker::AllocateStackAndContext(size_t size) {
-  AUTO_TRACE(kInfo);
   // Try to get from cache first
   StackAndContext cached_entry;
   hshm::qtok_t token = stack_cache_.pop(cached_entry);
@@ -514,13 +513,9 @@ RunContext *Worker::AllocateStackAndContext(size_t size) {
   // Cache miss or size mismatch - allocate new stack and RunContext
   void *stack_base = nullptr;
   int ret = posix_memalign(&stack_base, page_size, size);
-  RunContext *new_run_ctx =
-      static_cast<RunContext *>(malloc(sizeof(RunContext)));
+  RunContext *new_run_ctx = new RunContext();
 
   if (ret == 0 && stack_base && new_run_ctx) {
-    // Initialize RunContext using placement new
-    new (new_run_ctx) RunContext();
-
     // Store the malloc base pointer for freeing later
     new_run_ctx->stack_base_for_free = stack_base;
     new_run_ctx->stack_size = size;
@@ -558,7 +553,6 @@ RunContext *Worker::AllocateStackAndContext(size_t size) {
 }
 
 void Worker::DeallocateStackAndContext(RunContext *run_ctx) {
-  AUTO_TRACE(kInfo);
   if (!run_ctx) {
     return;
   }
@@ -573,22 +567,15 @@ void Worker::DeallocateStackAndContext(RunContext *run_ctx) {
 
   // If cache is full (null token), free the resources
   if (token.IsNull()) {
-    // Cache is full - free the stack and RunContext
-    if (run_ctx->stack_base_for_free) {
-      free(run_ctx->stack_base_for_free);
-    }
-
-    // Call destructor explicitly before freeing
-    run_ctx->~RunContext();
-    free(run_ctx);
+    HELOG(kError,
+          "Worker {}: Failed to add RunContext to stack cache. Stack base for "
+          "free: {}, Stack size: {}",
+          worker_id_, run_ctx->stack_base_for_free, run_ctx->stack_size);
   }
-  // Note: If successfully added to cache, we don't free anything
-  // The resources will be reused by AllocateStackAndContext
 }
 
 void Worker::BeginTask(const FullPtr<Task> &task_ptr, Container *container,
                        TaskLane *lane) {
-  AUTO_TRACE(kInfo);
   if (task_ptr.IsNull()) {
     return;
   }
@@ -623,103 +610,8 @@ void Worker::BeginTask(const FullPtr<Task> &task_ptr, Container *container,
   ExecTask(task_ptr, run_ctx, false);
 }
 
-void Worker::EndTaskWithError(const FullPtr<Task> &task_ptr, u32 error_code) {
-  if (task_ptr.IsNull()) {
-    return;
-  }
-
-  // Set the error return code and mark task as complete
-  task_ptr->SetReturnCode(error_code);
-  task_ptr->is_complete_.store(1);
-
-  // Note: Tasks are left in memory for the client to check
-  // the return code and completion status before explicitly deleting them
-}
-
-void Worker::ProcessBlockedQueue(hshm::ext_ring_buffer<RunContext *> &queue) {
-  // Get current time once for all tasks in this queue
-  hshm::Timepoint current_time;
-  current_time.Now();
-
-  // Process only first 8 tasks in the queue
-  size_t queue_size = queue.GetSize();
-  size_t check_limit = std::min(queue_size, size_t(8));
-
-  for (size_t i = 0; i < check_limit; i++) {
-    RunContext *run_ctx;
-    hshm::qtok_t token = queue.pop(run_ctx);
-
-    if (token.IsNull()) {
-      // Queue is empty
-      break;
-    }
-
-    if (!run_ctx || run_ctx->task.IsNull()) {
-      // Invalid entry, don't re-add
-      continue;
-    }
-
-    // Update timing first
-    double elapsed_us = run_ctx->block_time.GetUsecFromStart(current_time);
-
-    // Decrement remaining time by elapsed time
-    run_ctx->estimated_completion_time_us -= elapsed_us;
-    if (run_ctx->estimated_completion_time_us < 0) {
-      run_ctx->estimated_completion_time_us = 0;
-    }
-
-    // Only check subtask completion for short waits (estimated time < 10us)
-    // Long waits don't need to check every time since they're expensive
-    // operations
-    if (run_ctx->estimated_completion_time_us < 10.0) {
-      if (run_ctx->AreSubtasksCompleted()) {
-        // All subtasks completed - resume task immediately
-        run_ctx->is_blocked = false;
-
-        // Check if task has been started before - if not, use BeginTask
-        if (!run_ctx->task->task_flags_.Any(TASK_STARTED)) {
-          BeginTask(run_ctx->task, run_ctx->container, run_ctx->lane);
-        } else {
-          ExecTask(run_ctx->task, run_ctx, true);
-        }
-
-        // Don't re-add to queue
-        continue;
-      }
-
-      // Subtasks not completed - add 10us penalty for task not being ready
-      run_ctx->estimated_completion_time_us += 10.0;
-    }
-
-    // Re-add via AddToBlockedQueue to route to appropriate queue based on
-    // updated time
-    AddToBlockedQueue(run_ctx, run_ctx->estimated_completion_time_us);
-  }
-}
-
-u32 Worker::ContinueBlockedTasks() {
-  u32 return_value = 0; // Default return value for immediate recheck
-
-  // Increment iteration counter
-  iteration_counter_++;
-
-  // Check if we should process long wait queue (every 5 iterations)
-  bool check_long_queue = (iteration_counter_ % 5 == 0);
-
-  // Always process short wait queue (tasks with < 10us wait)
-  ProcessBlockedQueue(short_wait_queue_);
-
-  // Process long wait queue every 5 iterations
-  if (check_long_queue) {
-    ProcessBlockedQueue(long_wait_queue_);
-  }
-
-  return return_value;
-}
-
 bool Worker::ExecTask(const FullPtr<Task> &task_ptr, RunContext *run_ctx,
                       bool is_started) {
-  AUTO_TRACE(kInfo);
   if (task_ptr.IsNull() || !run_ctx) {
     return true; // Consider null tasks as completed
   }
@@ -828,6 +720,10 @@ bool Worker::ExecTask(const FullPtr<Task> &task_ptr, RunContext *run_ctx,
     }
   }
 
+  // Increment integer timer after task execution (simulates 1 microsecond per
+  // task)
+  IntegerTimer::Increment();
+
   // Common cleanup logic for both fiber and direct execution
   if (run_ctx->is_blocked) {
     // Task is blocked - don't clean up, will be resumed later
@@ -880,14 +776,98 @@ bool Worker::ExecTask(const FullPtr<Task> &task_ptr, RunContext *run_ctx,
   return should_complete_task;
 }
 
+void Worker::ProcessBlockedQueue(hshm::ext_ring_buffer<RunContext *> &queue) {
+  // Process only first 8 tasks in the queue
+  size_t queue_size = queue.GetSize();
+  size_t check_limit = std::min(queue_size, size_t(8));
+
+  for (size_t i = 0; i < check_limit; i++) {
+    RunContext *run_ctx;
+    hshm::qtok_t token = queue.pop(run_ctx);
+
+    if (token.IsNull()) {
+      // Queue is empty
+      break;
+    }
+
+    if (!run_ctx || run_ctx->task.IsNull()) {
+      // Invalid entry, don't re-add
+      continue;
+    }
+
+    // Check if integer time has reached wakeup time
+    // Wakeup time = block_time + wakeup_time_us
+    IntegerTimepoint current_time = IntegerTimer::Now();
+    IntegerTimepoint wakeup_time =
+        run_ctx->block_time + IntegerTimepoint((u64)run_ctx->wakeup_time_us);
+
+    if (current_time < wakeup_time) {
+      // Not ready yet - re-add to blocked queue
+      // Calculate remaining time
+      u64 elapsed_us = (current_time - run_ctx->block_time).GetUsec();
+      double remaining_us = run_ctx->wakeup_time_us - elapsed_us;
+      AddToBlockedQueue(run_ctx, remaining_us > 0 ? remaining_us : 0.0);
+      continue;
+    }
+
+    // Task is ready based on fake time - check subtask completion
+    // Only check subtask completion for short waits (estimated time < 10us)
+    // Long waits don't need to check every time since they're expensive
+    // operations
+    if (run_ctx->wakeup_time_us < 10.0) {
+      if (run_ctx->AreSubtasksCompleted()) {
+        // All subtasks completed - resume task immediately
+        run_ctx->is_blocked = false;
+
+        // Check if task has been started before - if not, use BeginTask
+        if (!run_ctx->task->task_flags_.Any(TASK_STARTED)) {
+          BeginTask(run_ctx->task, run_ctx->container, run_ctx->lane);
+        } else {
+          ExecTask(run_ctx->task, run_ctx, true);
+        }
+
+        // Don't re-add to queue
+        continue;
+      }
+
+      // Subtasks not completed - add 10us penalty for task not being ready
+      run_ctx->wakeup_time_us += 10.0;
+    }
+
+    // Re-add via AddToBlockedQueue to route to appropriate queue based on
+    // updated time
+    AddToBlockedQueue(run_ctx, run_ctx->wakeup_time_us);
+  }
+}
+
+u32 Worker::ContinueBlockedTasks() {
+  u32 return_value = 0; // Default return value for immediate recheck
+
+  // Increment iteration counter
+  iteration_counter_++;
+
+  // Check if we should process long wait queue (every 5 iterations)
+  bool check_long_queue = (iteration_counter_ % 5 == 0);
+
+  // Always process short wait queue (tasks with < 10us wait)
+  ProcessBlockedQueue(short_wait_queue_);
+
+  // Process long wait queue every 5 iterations
+  if (check_long_queue) {
+    ProcessBlockedQueue(long_wait_queue_);
+  }
+
+  return return_value;
+}
+
 void Worker::AddToBlockedQueue(RunContext *run_ctx, double estimated_time_us) {
   if (!run_ctx || run_ctx->task.IsNull()) {
     return;
   }
 
   // Set timing information in RunContext
-  run_ctx->estimated_completion_time_us = estimated_time_us;
-  run_ctx->block_time.Now();
+  run_ctx->wakeup_time_us = estimated_time_us;
+  run_ctx->block_time = IntegerTimer::Now();
 
   // Route to appropriate queue based on estimated wait time
   // Short waits (< 10us): checked every iteration

@@ -76,7 +76,7 @@ void Runtime::MonitorCreate(chi::MonitorModeId mode,
 
     case chi::MonitorModeId::kEstLoad:
       // Estimate task execution time - simple mod creation is fast
-      rctx.estimated_completion_time_us = 500.0;  // 0.5ms for simple mod create
+      rctx.wakeup_time_us = 500.0;  // 0.5ms for simple mod create
       break;
   }
 }
@@ -127,7 +127,7 @@ void Runtime::MonitorDestroy(chi::MonitorModeId mode,
 
     case chi::MonitorModeId::kEstLoad:
       // Estimate task execution time - destruction is fast
-      rctx.estimated_completion_time_us = 100.0;  // 0.1ms for destruction
+      rctx.wakeup_time_us = 100.0;  // 0.1ms for destruction
       break;
   }
 }
@@ -163,7 +163,7 @@ void Runtime::MonitorFlush(chi::MonitorModeId mode,
 
     case chi::MonitorModeId::kEstLoad:
       // Estimate task execution time - flush is fast
-      rctx.estimated_completion_time_us = 50.0;  // 0.05ms for flush
+      rctx.wakeup_time_us = 50.0;  // 0.05ms for flush
       break;
   }
 }
