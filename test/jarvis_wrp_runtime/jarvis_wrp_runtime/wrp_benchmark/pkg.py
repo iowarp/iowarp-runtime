@@ -1,12 +1,13 @@
 """
-IOWarp BDev Throughput Benchmark Package
+IOWarp Throughput Benchmark Package
 
-Benchmarks BDev throughput with two modes:
-1. I/O mode (io_size > 0): Continuous Allocate -> Write -> Free operations
-2. Allocation-only mode (io_size = 0): Continuous AllocateBlocks -> FreeBlocks operations
+Benchmarks task throughput with three test cases:
+1. bdev_io: Full BDev I/O path (Allocate -> Write -> Free operations)
+2. bdev_allocation: BDev allocation only (AllocateBlocks -> FreeBlocks operations)
+3. latency: Pure task round-trip latency using MOD_NAME Custom function
 
 Each thread continuously performs operations for a specified duration
-to measure sustained BDev performance.
+to measure sustained performance.
 """
 from jarvis_cd.core.pkg import Application
 from jarvis_cd.shell import Exec, LocalExecInfo
@@ -16,21 +17,24 @@ import os
 
 class WrpBenchmark(Application):
     """
-    IOWarp BDev Throughput Benchmark
+    IOWarp Throughput Benchmark
 
-    Measures sustained BDev throughput with two modes:
-    1. I/O mode (io_size > 0): Continuous Allocate -> Write -> Free operations
+    Measures sustained task throughput with three test cases:
+    1. bdev_io: Full BDev I/O path (Allocate -> Write -> Free operations)
        Reports: IOPS, bandwidth (MB/s), and average latency
-    2. Allocation-only mode (io_size = 0): Continuous AllocateBlocks -> FreeBlocks operations
+    2. bdev_allocation: BDev allocation only (AllocateBlocks -> FreeBlocks operations)
        Reports: allocation throughput (ops/sec) and average latency
+    3. latency: Pure task round-trip latency using MOD_NAME Custom function
+       Reports: task throughput (ops/sec) and average latency
 
     Each thread continuously performs operations for a specified duration.
 
     Parameters:
     - threads: Number of concurrent client threads
     - duration: Time to run benchmark in seconds
-    - max_file_size: Maximum size of BDev file container
-    - io_size: Size of each I/O operation (set to 0 for allocation-only mode)
+    - test_case: Which test to run (bdev_io, bdev_allocation, latency)
+    - max_file_size: Maximum size of BDev file container (bdev_io and bdev_allocation only)
+    - io_size: Size of each I/O operation (bdev_io only)
     - lane_policy: Task lane mapping strategy
 
     Assumes task_throughput_benchmark is installed and available in PATH.
@@ -55,6 +59,13 @@ class WrpBenchmark(Application):
                 'msg': 'Duration to run benchmark (seconds)',
                 'type': float,
                 'default': 10.0
+            },
+            {
+                'name': 'test_case',
+                'msg': 'Test case to run (bdev_io, bdev_allocation, latency)',
+                'type': str,
+                'choices': ['bdev_io', 'bdev_allocation', 'latency'],
+                'default': 'bdev_io'
             },
             {
                 'name': 'max_file_size',
@@ -98,11 +109,14 @@ class WrpBenchmark(Application):
         # Set benchmark environment variables
         self.setenv('BENCHMARK_OUTPUT_DIR', self.config['output_dir'])
 
-        self.log("IOWarp BDev benchmark configured")
+        self.log("IOWarp throughput benchmark configured")
+        self.log(f"  Test case: {self.config['test_case']}")
         self.log(f"  Threads: {self.config['threads']}")
         self.log(f"  Duration: {self.config['duration']} seconds")
-        self.log(f"  Max file size: {self.config['max_file_size']}")
-        self.log(f"  I/O size per operation: {self.config['io_size']}")
+        if self.config['test_case'] != 'latency':
+            self.log(f"  Max file size: {self.config['max_file_size']}")
+        if self.config['test_case'] == 'bdev_io':
+            self.log(f"  I/O size per operation: {self.config['io_size']}")
         self.log(f"  Lane policy: {self.config['lane_policy']}") 
 
     def start(self):
@@ -110,17 +124,24 @@ class WrpBenchmark(Application):
         # Verify benchmark executable is available
         Which('task_throughput_benchmark', LocalExecInfo(env=self.mod_env)).run()
 
-        self.log("Starting BDev I/O throughput benchmark")
+        self.log(f"Starting {self.config['test_case']} throughput benchmark")
 
         # Build benchmark command
         cmd_parts = [
             'task_throughput_benchmark',
+            f'--test-case {self.config["test_case"]}',
             f'--threads {self.config["threads"]}',
             f'--duration {self.config["duration"]}',
-            f'--max-file-size {self.config["max_file_size"]}',
-            f'--io-size {self.config["io_size"]}',
             f'--lane-policy {self.config["lane_policy"]}'
         ]
+
+        # Add BDev-specific parameters for bdev_io and bdev_allocation
+        if self.config['test_case'] != 'latency':
+            cmd_parts.append(f'--max-file-size {self.config["max_file_size"]}')
+
+        # Add io-size only for bdev_io test
+        if self.config['test_case'] == 'bdev_io':
+            cmd_parts.append(f'--io-size {self.config["io_size"]}')
 
         if self.config['verbose']:
             cmd_parts.append('--verbose')

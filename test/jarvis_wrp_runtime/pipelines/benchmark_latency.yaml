@@ -1,11 +1,11 @@
-# BDev I/O Throughput Benchmark Pipeline
-# Purpose: Measures sustained BDev I/O throughput
-#   Full BDev I/O path: Continuous Allocate -> Write -> Free operations
+# Task Latency Benchmark Pipeline
+# Purpose: Measures pure task round-trip latency
+#   Uses MOD_NAME Custom function to measure task execution overhead
 # Each thread continuously performs operations until the duration timer expires
 # Requirements: Chimaera installed in PATH
 # Expected Runtime: Configurable via 'duration' parameter (default: 10 seconds)
 
-name: benchmark_throughput
+name: benchmark_latency
 
 # Pipeline environment
 env:
@@ -30,15 +30,13 @@ pkgs:
     task_timeout: 30000
     sleep: 1
 
-  # BDev I/O Throughput Benchmark
+  # Task Latency Benchmark
   - pkg_type: jarvis_wrp_runtime.wrp_benchmark
     pkg_name: benchmark
     # Benchmark configuration
-    test_case: "bdev_io"            # Test case: bdev_io, bdev_allocation, latency
+    test_case: "latency"            # Test case: bdev_io, bdev_allocation, latency
     threads: 1                      # Number of client threads
     duration: 10.0                  # Duration to run benchmark in seconds
-    max_file_size: "1g"             # Maximum file size for BDev container
-    io_size: "4k"                   # I/O size per operation (bdev_io only)
     lane_policy: "round_robin"      # Lane mapping: map_by_pid_tid, round_robin, random
     verbose: false                  # Print per-thread statistics
     output_dir: "/tmp/wrp_benchmark"
