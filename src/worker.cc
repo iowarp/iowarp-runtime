@@ -496,56 +496,20 @@ std::vector<PoolQuery> Worker::ResolvePhysicalQuery(const PoolQuery &query,
 
 RunContext *Worker::AllocateStackAndContext(size_t size) {
   AUTO_TRACE(kInfo);
-  // Normalize size to page-aligned
-  const size_t page_size = 4096;
-  size = ((size + page_size - 1) / page_size) * page_size;
-
   // Try to get from cache first
   StackAndContext cached_entry;
   hshm::qtok_t token = stack_cache_.pop(cached_entry);
 
   if (!token.IsNull() && cached_entry.run_ctx &&
       cached_entry.stack_base_for_free) {
-    // Found a cached entry - verify size matches
-    if (cached_entry.stack_size == size) {
-      // Reuse cached stack and RunContext
-      RunContext *run_ctx = cached_entry.run_ctx;
-
-      // Clear the RunContext STL containers for reuse
-      run_ctx->Clear();
-
-      // Restore stack metadata (pointers already set, just update if needed)
-      run_ctx->stack_base_for_free = cached_entry.stack_base_for_free;
-      run_ctx->stack_size = cached_entry.stack_size;
-
-      // Set the correct stack pointer based on stack growth direction
-      WorkOrchestrator *orchestrator = CHI_WORK_ORCHESTRATOR;
-      bool grows_downward = orchestrator ? orchestrator->IsStackDownward()
-                                         : true; // Default to downward
-
-      if (grows_downward) {
-        // Stack grows downward: point to aligned end of the malloc buffer
-        char *stack_top =
-            static_cast<char *>(cached_entry.stack_base_for_free) + size;
-        run_ctx->stack_ptr =
-            reinterpret_cast<void *>(reinterpret_cast<uintptr_t>(stack_top) &
-                                     ~static_cast<uintptr_t>(15));
-      } else {
-        // Stack grows upward: point to the beginning of the malloc buffer
-        run_ctx->stack_ptr = reinterpret_cast<void *>(
-            (reinterpret_cast<uintptr_t>(cached_entry.stack_base_for_free) +
-             15) &
-            ~static_cast<uintptr_t>(15));
-      }
-
-      return run_ctx;
-    } else {
-      // Size mismatch - free the cached entry and allocate new one
-      free(cached_entry.stack_base_for_free);
-      cached_entry.run_ctx->~RunContext();
-      free(cached_entry.run_ctx);
-    }
+    RunContext *run_ctx = cached_entry.run_ctx;
+    run_ctx->Clear();
+    return run_ctx;
   }
+
+  // Normalize size to page-aligned
+  const size_t page_size = 4096;
+  size = ((size + page_size - 1) / page_size) * page_size;
 
   // Cache miss or size mismatch - allocate new stack and RunContext
   void *stack_base = nullptr;
@@ -579,15 +543,6 @@ RunContext *Worker::AllocateStackAndContext(size_t size) {
       new_run_ctx->stack_ptr = reinterpret_cast<void *>(
           (reinterpret_cast<uintptr_t>(stack_base) + 15) &
           ~static_cast<uintptr_t>(15));
-    }
-
-    // Verify alignment
-    if (!new_run_ctx->stack_ptr ||
-        reinterpret_cast<uintptr_t>(new_run_ctx->stack_ptr) % 16 != 0) {
-      // Alignment failure - clean up and return nullptr
-      free(stack_base);
-      free(new_run_ctx);
-      return nullptr;
     }
 
     return new_run_ctx;
