@@ -1,16 +1,16 @@
 === Chimaera Task Throughput Benchmark ===
 Test case: Round-trip Latency (MOD_NAME Custom)
 Threads: 1
-Duration: 10 seconds
-/mnt/home/Projects/iowarp/iowarp-runtime/src/chimaera_manager.cc:84 INFO 359350 ClientInit Chimaera::ClientInit
-/mnt/home/Projects/iowarp/iowarp-runtime/src/config_manager.cc:22 INFO 359350 ClientInit Config at: /tmp/jarvis_test_lifecycle_lztl8stm/shared/benchmark_latency/runtime/chimaera_config.yaml
+Duration: 2 seconds
+/mnt/home/Projects/iowarp/iowarp-runtime/src/chimaera_manager.cc:84 INFO 618814 ClientInit Chimaera::ClientInit
+/mnt/home/Projects/iowarp/iowarp-runtime/src/config_manager.cc:22 INFO 618814 ClientInit Config at: /tmp/jarvis_test_lifecycle_lztl8stm/shared/benchmark_latency/runtime/chimaera_config.yaml
 Lane policy: round_robin (override)
 
 Starting benchmark...
 
 === Results ===
-Total operations: 3198369
-Total time: 10.000 seconds
-Avg thread time: 10.000 seconds
-Throughput: 319832 Custom ops/sec
-Avg round-trip latency: 3.126 us/op
+Total operations: 17960
+Total time: 2.008 seconds
+Avg thread time: 2.008 seconds
+Throughput: 8944 Custom ops/sec
+Avg round-trip latency: 111.802 us/op

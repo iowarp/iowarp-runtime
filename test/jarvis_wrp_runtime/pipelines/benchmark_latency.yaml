@@ -36,7 +36,7 @@ pkgs:
     # Benchmark configuration
     test_case: "latency"            # Test case: bdev_io, bdev_allocation, latency
     threads: 1                      # Number of client threads
-    duration: 10.0                  # Duration to run benchmark in seconds
+    duration: 2.0                  # Duration to run benchmark in seconds
     lane_policy: "round_robin"      # Lane mapping: map_by_pid_tid, round_robin, random
     verbose: false                  # Print per-thread statistics
     output_dir: "/tmp/wrp_benchmark"

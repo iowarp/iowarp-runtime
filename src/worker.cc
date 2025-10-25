@@ -495,6 +495,7 @@ std::vector<PoolQuery> Worker::ResolvePhysicalQuery(const PoolQuery &query,
 }
 
 RunContext *Worker::AllocateStackAndContext(size_t size) {
+  AUTO_TRACE(kInfo);
   // Normalize size to page-aligned
   const size_t page_size = 4096;
   size = ((size + page_size - 1) / page_size) * page_size;
@@ -602,6 +603,7 @@ RunContext *Worker::AllocateStackAndContext(size_t size) {
 }
 
 void Worker::DeallocateStackAndContext(RunContext *run_ctx) {
+  AUTO_TRACE(kInfo);
   if (!run_ctx) {
     return;
   }
@@ -631,6 +633,7 @@ void Worker::DeallocateStackAndContext(RunContext *run_ctx) {
 
 void Worker::BeginTask(const FullPtr<Task> &task_ptr, Container *container,
                        TaskLane *lane) {
+  AUTO_TRACE(kInfo);
   if (task_ptr.IsNull()) {
     return;
   }
@@ -761,6 +764,7 @@ u32 Worker::ContinueBlockedTasks() {
 
 bool Worker::ExecTask(const FullPtr<Task> &task_ptr, RunContext *run_ctx,
                       bool is_started) {
+  AUTO_TRACE(kInfo);
   if (task_ptr.IsNull() || !run_ctx) {
     return true; // Consider null tasks as completed
   }
