@@ -41,6 +41,7 @@ struct BenchmarkConfig {
   bool verbose = false;                   // Print detailed output
   std::string lane_policy =
       ""; // Lane mapping policy override (empty = use config)
+  std::string output_dir = "/tmp/wrp_benchmark"; // Output directory for benchmark files
 };
 
 /**
@@ -83,6 +84,8 @@ bool ParseArgs(int argc, char **argv, BenchmarkConfig &config) {
       config.io_size = hshm::ConfigParse::ParseSize(argv[++i]);
     } else if (arg == "--lane-policy" && i + 1 < argc) {
       config.lane_policy = argv[++i];
+    } else if (arg == "--output-dir" && i + 1 < argc) {
+      config.output_dir = argv[++i];
     } else if (arg == "--verbose" || arg == "-v") {
       config.verbose = true;
     } else if (arg == "--help" || arg == "-h") {
@@ -100,6 +103,8 @@ bool ParseArgs(int argc, char **argv, BenchmarkConfig &config) {
              "m, g (default: 4k)\n"
           << "  --lane-policy <P>       Lane policy: map_by_pid_tid, "
              "round_robin, random (default: from config)\n"
+          << "  --output-dir <dir>      Output directory for benchmark files "
+             "(default: /tmp/wrp_benchmark)\n"
           << "  --verbose, -v           Verbose output\n"
           << "  --help, -h              Show this help\n\n"
           << "Test Cases:\n"
@@ -389,8 +394,12 @@ int main(int argc, char **argv) {
     // Create BDev container for I/O and allocation tests
     test_pool_id = chi::PoolId(7000, 0);
     chimaera::bdev::Client bdev_client(test_pool_id);
+
+    // Construct BDev file path in output directory
+    std::string bdev_file_path = config.output_dir + "/benchmark_bdev.dat";
+
     bdev_client.Create(HSHM_MCTX, chi::PoolQuery::Local(),
-                       "/tmp/benchmark_bdev.dat",
+                       bdev_file_path,
                        chimaera::bdev::BdevType::kFile, config.max_file_size,
                        1024, 4096);
     if (bdev_client.GetReturnCode() != 0) {

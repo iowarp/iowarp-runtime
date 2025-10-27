@@ -132,7 +132,8 @@ class WrpBenchmark(Application):
             f'--test-case {self.config["test_case"]}',
             f'--threads {self.config["threads"]}',
             f'--duration {self.config["duration"]}',
-            f'--lane-policy {self.config["lane_policy"]}'
+            f'--lane-policy {self.config["lane_policy"]}',
+            f'--output-dir {self.config["output_dir"]}'
         ]
 
         # Add BDev-specific parameters for bdev_io and bdev_allocation

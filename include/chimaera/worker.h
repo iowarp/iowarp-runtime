@@ -301,10 +301,14 @@ public:
 
   // Block-time-based blocked queue system:
   // - Queue 0: Short blocking times (< 10us), checked every iteration
-  // - Queue 1: Long blocking times (>= 10us), checked every 5 iterations
+  // - Queue 1: Long blocking times (>= 10us), checked based on time intervals
   // Using ext_ring_buffer for O(1) enqueue/dequeue operations
   static constexpr u32 NUM_BLOCKED_QUEUES = 2;
   hshm::ext_ring_buffer<RunContext*> blocked_queues_[NUM_BLOCKED_QUEUES];
+
+  // Worker spawn time and queue processing tracking
+  hshm::Timepoint spawn_time_;  // Time when worker was spawned
+  u64 last_long_queue_check_;   // Last time (in 10us units) long queue was processed
 };
 
 }  // namespace chi

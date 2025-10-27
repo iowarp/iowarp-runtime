@@ -28,11 +28,15 @@ Worker::Worker(u32 worker_id, ThreadType thread_type)
     : worker_id_(worker_id), thread_type_(thread_type), is_running_(false),
       is_initialized_(false), did_work_(false), current_run_context_(nullptr),
       assigned_lane_(nullptr),
-      stack_cache_(64) { // Initial capacity for stack cache (64 entries)
+      stack_cache_(64), // Initial capacity for stack cache (64 entries)
+      last_long_queue_check_(0) {
   // Initialize all blocked queues with capacity 1024
   for (u32 i = 0; i < NUM_BLOCKED_QUEUES; ++i) {
     blocked_queues_[i] = hshm::ext_ring_buffer<RunContext *>(1024);
   }
+
+  // Record worker spawn time
+  spawn_time_.Now();
 }
 
 Worker::~Worker() {
@@ -848,17 +852,21 @@ void Worker::ProcessBlockedQueue(hshm::ext_ring_buffer<RunContext *> &queue) {
 u32 Worker::ContinueBlockedTasks() {
   u32 return_value = 0; // Default return value for immediate recheck
 
-  // Use static local variable to track iteration count across calls
-  static u32 current_iteration = 0;
-  current_iteration++;
-
-  // Process queues based on block_time_us and iteration modulo:
+  // Process queues based on block_time_us:
   // Queue 0: Short blocking times (< 10us) - check every iteration
   ProcessBlockedQueue(blocked_queues_[0]);
 
-  // Queue 1: Long blocking times (>= 10us) - check every 5 iterations
-  if (current_iteration % 5 == 0) {
+  // Queue 1: Long blocking times (>= 10us) - check based on elapsed time
+  // Calculate current time in 10us units since worker spawn
+  hshm::Timepoint current_time;
+  current_time.Now();
+  double elapsed_us = spawn_time_.GetUsecFromStart(current_time);
+  u64 current_time_10us = static_cast<u64>(elapsed_us / 10.0);
+
+  // Process long queue if enough time has passed since last check
+  if (current_time_10us > last_long_queue_check_) {
     ProcessBlockedQueue(blocked_queues_[1]);
+    last_long_queue_check_ = current_time_10us;
   }
 
   return return_value;
@@ -877,7 +885,7 @@ void Worker::AddToBlockedQueue(RunContext *run_ctx) {
 
   // Determine queue index based on block_time_us:
   // Queue 0: Short blocking times (< 10us) - checked every iteration
-  // Queue 1: Long blocking times (>= 10us) - checked every 5 iterations
+  // Queue 1: Long blocking times (>= 10us) - checked every 10us of elapsed time
   constexpr double BLOCK_TIME_THRESHOLD_US = 10.0;
   u32 queue_idx = (run_ctx->block_time_us < BLOCK_TIME_THRESHOLD_US) ? 0 : 1;
 
