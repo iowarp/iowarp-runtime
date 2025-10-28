@@ -1,0 +1,150 @@
+services:
+  # Node 1
+  iowarp-node1:
+    image: iowarp/iowarp-deps:ai
+    container_name: iowarp-distributed-node1
+    hostname: iowarp-node1
+    networks:
+      iowarp-cluster:
+        ipv4_address: 172.25.0.10
+    volumes:
+      - ~/.ppi-jarvis:/root/.ppi-jarvis
+      - ../../../:/iowarp-runtime
+      - ./hostfile:/etc/iowarp/hostfile:ro
+      - ./chimaera_distributed.yaml:/etc/iowarp/chimaera_distributed.yaml:ro
+    environment:
+      - NODE_ID=1
+      - NODE_IP=172.25.0.10
+      - CONTAINER_HOSTFILE=/etc/iowarp/hostfile
+    shm_size: '16gb'
+    mem_limit: 16g
+    working_dir: /iowarp-runtime
+    entrypoint: [ "/bin/bash", "-c" ]
+    command: >
+      "
+        echo 'Node 1: Loading spack environment...' &&
+        export SPACK_ROOT=/root/spack &&
+        source /root/spack/share/spack/setup-env.sh &&
+        spack load iowarp &&
+        echo 'Node 1: Spack environment loaded' &&
+        echo 'Node 1: Building IOWarp runtime...' &&
+        rm -rf build &&
+        mkdir -p build && cd build &&
+        echo 'Node 1: Running cmake...' &&
+        cmake --preset docker .. &&
+        echo 'Node 1: CMake complete. Building...' &&
+        cmake --build . --target chimaera_distributed_bdev_tests -j8 &&
+        echo 'Node 1: Build complete. Starting runtime...' &&
+        CHI_SERVER_CONF=/etc/iowarp/chimaera_distributed.yaml chi_start_runtime > /tmp/runtime.log 2>&1 &
+        echo \"Node 1: Runtime started (PID \$!). Ready for test execution.\" &&
+        tail -f /dev/null
+      "
+
+  # Node 2
+  iowarp-node2:
+    image: iowarp/iowarp-deps:ai
+    container_name: iowarp-distributed-node2
+    hostname: iowarp-node2
+    networks:
+      iowarp-cluster:
+        ipv4_address: 172.25.0.11
+    volumes:
+      - ~/.ppi-jarvis:/root/.ppi-jarvis
+      - ../../../:/iowarp-runtime
+      - ./hostfile:/etc/iowarp/hostfile:ro
+      - ./chimaera_distributed.yaml:/etc/iowarp/chimaera_distributed.yaml:ro
+    environment:
+      - NODE_ID=2
+      - NODE_IP=172.25.0.11
+      - CONTAINER_HOSTFILE=/etc/iowarp/hostfile
+    shm_size: '16gb'
+    mem_limit: 16g
+    working_dir: /iowarp-runtime
+    entrypoint: [ "/bin/bash", "-c" ]
+    command: >
+      "
+        echo 'Node 2: Loading spack environment...' &&
+        export SPACK_ROOT=/root/spack &&
+        source /root/spack/share/spack/setup-env.sh &&
+        spack load iowarp &&
+        echo 'Node 2: Spack environment loaded' &&
+        echo 'Node 2: Starting runtime...' &&
+        CHI_SERVER_CONF=/etc/iowarp/chimaera_distributed.yaml chi_start_runtime > /tmp/runtime.log 2>&1 &
+        echo \"Node 2: Runtime started (PID \$!). Waiting for tests...\" &&
+        tail -f /dev/null
+      "
+
+  # Node 3
+  iowarp-node3:
+    image: iowarp/iowarp-deps:ai
+    container_name: iowarp-distributed-node3
+    hostname: iowarp-node3
+    networks:
+      iowarp-cluster:
+        ipv4_address: 172.25.0.12
+    volumes:
+      - ~/.ppi-jarvis:/root/.ppi-jarvis
+      - ../../../:/iowarp-runtime
+      - ./hostfile:/etc/iowarp/hostfile:ro
+      - ./chimaera_distributed.yaml:/etc/iowarp/chimaera_distributed.yaml:ro
+    environment:
+      - NODE_ID=3
+      - NODE_IP=172.25.0.12
+      - CONTAINER_HOSTFILE=/etc/iowarp/hostfile
+    shm_size: '16gb'
+    mem_limit: 16g
+    working_dir: /iowarp-runtime
+    entrypoint: [ "/bin/bash", "-c" ]
+    command: >
+      "
+        echo 'Node 3: Loading spack environment...' &&
+        export SPACK_ROOT=/root/spack &&
+        source /root/spack/share/spack/setup-env.sh &&
+        spack load iowarp &&
+        echo 'Node 3: Spack environment loaded' &&
+        echo 'Node 3: Starting runtime...' &&
+        CHI_SERVER_CONF=/etc/iowarp/chimaera_distributed.yaml chi_start_runtime > /tmp/runtime.log 2>&1 &
+        echo \"Node 3: Runtime started (PID \$!). Waiting for tests...\" &&
+        tail -f /dev/null
+      "
+
+  # Node 4
+  iowarp-node4:
+    image: iowarp/iowarp-deps:ai
+    container_name: iowarp-distributed-node4
+    hostname: iowarp-node4
+    networks:
+      iowarp-cluster:
+        ipv4_address: 172.25.0.13
+    volumes:
+      - ~/.ppi-jarvis:/root/.ppi-jarvis
+      - ../../../:/iowarp-runtime
+      - ./hostfile:/etc/iowarp/hostfile:ro
+      - ./chimaera_distributed.yaml:/etc/iowarp/chimaera_distributed.yaml:ro
+    environment:
+      - NODE_ID=4
+      - NODE_IP=172.25.0.13
+      - CONTAINER_HOSTFILE=/etc/iowarp/hostfile
+    shm_size: '16gb'
+    mem_limit: 16g
+    working_dir: /iowarp-runtime
+    entrypoint: [ "/bin/bash", "-c" ]
+    command: >
+      "
+        echo 'Node 4: Loading spack environment...' &&
+        export SPACK_ROOT=/root/spack &&
+        source /root/spack/share/spack/setup-env.sh &&
+        spack load iowarp &&
+        echo 'Node 4: Spack environment loaded' &&
+        echo 'Node 4: Starting runtime...' &&
+        CHI_SERVER_CONF=/etc/iowarp/chimaera_distributed.yaml chi_start_runtime > /tmp/runtime.log 2>&1 &
+        echo \"Node 4: Runtime started (PID \$!). Waiting for tests...\" &&
+        tail -f /dev/null
+      "
+
+networks:
+  iowarp-cluster:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.25.0.0/16

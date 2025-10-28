@@ -1,0 +1,34 @@
+# Container Distributed Test Pipeline
+# Launches IOWarp runtime and runs distributed bdev tests in Docker containers
+# Uses hostfile at /etc/iowarp/hostfile for multi-node cluster
+
+name: distributed_test_container
+
+env:
+  # Environment variables for container testing
+  TEST_MODE: "container"
+  CONTAINER_HOSTFILE: "/etc/iowarp/hostfile"
+
+pkgs:
+  # Stage 1: Launch IOWarp runtime on all nodes
+  - pkg_type: jarvis_wrp_runtime.wrp_runtime
+    pkg_name: runtime
+    sched_workers: 8
+    process_reaper_workers: 1
+    main_segment_size: "4G"
+    client_data_segment_size: "2G"
+    runtime_data_segment_size: "2G"
+    zmq_port: 5555
+    log_level: "info"
+    stack_size: 65536
+    queue_depth: 10000
+    heartbeat_interval: 1000
+    task_timeout: 30000
+
+  # Stage 2: Run distributed tests with 4 nodes
+  - pkg_type: jarvis_wrp_runtime.wrp_distributed
+    pkg_name: distributed_test
+    num_nodes: 4
+    test_case: "all"
+    output_dir: "/tmp/wrp_distributed_container"
+    verbose: true

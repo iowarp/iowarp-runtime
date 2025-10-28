@@ -1,0 +1,40 @@
+# Chimaera Configuration for Distributed Testing
+# This configuration is used by the distributed unit test Docker cluster
+
+# Worker thread configuration
+workers:
+  sched_threads: 8           # Unified scheduler worker threads
+  process_reaper_threads: 1  # Process reaper threads
+
+# Memory segment configuration
+memory:
+  main_segment_size: 4294967296      # 4GB
+  client_data_segment_size: 2147483648 # 2GB
+  runtime_data_segment_size: 2147483648 # 2GB
+
+# Network configuration
+network:
+  zmq_port: 5555
+  hostfile: "/etc/iowarp/hostfile"  # Path to hostfile in container
+
+# Logging configuration
+logging:
+  level: "info"
+  file: "/tmp/chimaera.log"
+
+# Performance tuning
+performance:
+  stack_size: 65536  # 64KB per task
+  queue_depth: 10000
+  lane_map_policy: "round_robin"  # Options: map_by_pid_tid, round_robin (default), random
+
+# Shared memory configuration
+shared_memory:
+  main_segment_name: "chi_main_segment_distributed"           # Main segment for distributed test
+  client_data_segment_name: "chi_client_data_segment_distributed"  # Client data segment
+  runtime_data_segment_name: "chi_runtime_data_segment_distributed" # Runtime data segment
+
+# Runtime configuration
+runtime:
+  heartbeat_interval: 1000  # milliseconds
+  task_timeout: 30000       # milliseconds

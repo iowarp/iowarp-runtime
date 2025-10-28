@@ -1266,6 +1266,9 @@ install(TARGETS ${TEST_TARGET} ${TASK_ARCHIVE_TEST_TARGET} ${FLUSH_TEST_TARGET} 
   RUNTIME DESTINATION bin
 )
 
+# Add distributed test subdirectory
+add_subdirectory(distributed)
+
 # Print configuration summary
 message(STATUS "Chimaera unit tests configured:")
 message(STATUS "  Test target: ${TEST_TARGET}")
