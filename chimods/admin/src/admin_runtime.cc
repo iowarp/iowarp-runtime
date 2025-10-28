@@ -391,7 +391,8 @@ void Runtime::SendIn(hipc::FullPtr<SendTask> task, chi::RunContext &rctx) {
     return;
   }
 
-  HILOG(kDebug, "Admin: SendIn - adding to send_map");
+  HILOG(kDebug, "=== [SendIn BEGIN] Task {} (pool: {}) starting distributed send ===",
+        subtask->task_id_, subtask->pool_id_);
 
   // Add the origin task to send_map for later lookup
   send_map_[subtask->task_id_] = subtask;
@@ -404,7 +405,6 @@ void Runtime::SendIn(hipc::FullPtr<SendTask> task, chi::RunContext &rctx) {
     chi::u64 target_node_id = 0;
 
     if (query.IsLocalMode()) {
-      // Local mode - target is the local node (for TASK_FORCE_NET testing)
       target_node_id = ipc_manager->GetNodeId();
     } else if (query.IsPhysicalMode()) {
       target_node_id = query.GetNodeId();
@@ -417,20 +417,24 @@ void Runtime::SendIn(hipc::FullPtr<SendTask> task, chi::RunContext &rctx) {
       chi::ContainerId container_id(offset);
       target_node_id =
           pool_manager->GetContainerNodeId(subtask->pool_id_, container_id);
+    } else if (query.IsBroadcastMode()) {
+      HELOG(kError, "Admin: Broadcast mode should be handled by TaskDispatcher, not SendIn");
+      continue;
+    } else if (query.IsDirectHashMode()) {
+      HELOG(kError, "Admin: DirectHash mode should be handled by TaskDispatcher, not SendIn");
+      continue;
     } else {
-      HELOG(kError, "Admin: Unsupported query type for SendIn");
+      HELOG(kError, "Admin: Unsupported or unrecognized query type for SendIn");
       continue;
     }
 
     // Get host information for target node
     const chi::Host *target_host = ipc_manager->GetHost(target_node_id);
     if (!target_host) {
-      HELOG(kError, "Admin: Host not found for node_id {}", target_node_id);
+      HELOG(kError, "[SendIn] Task {} FAILED: Host not found for node_id {}",
+            subtask->task_id_, target_node_id);
       continue;
     }
-
-    HILOG(kDebug, "Admin: Sending task inputs to node {} ({})", target_node_id,
-          target_host->ip_address);
 
     // Create Lightbeam client using configured port
     auto *config_manager = CHI_CONFIG_MANAGER;
@@ -478,14 +482,14 @@ void Runtime::SendIn(hipc::FullPtr<SendTask> task, chi::RunContext &rctx) {
     // Send using Lightbeam
     int rc = lbm_client->Send(archive);
     if (rc != 0) {
-      HELOG(kError, "Admin: Lightbeam Send failed with error code {}", rc);
+      HELOG(kError, "[SendIn] Task {} Lightbeam Send FAILED with error code {}",
+            subtask->task_id_, rc);
       continue;
     }
-
-    HILOG(kDebug, "Admin: Task inputs sent via Lightbeam (bulks: {})",
-          archive.send.size());
   }
 
+  HILOG(kDebug, "=== [SendIn END] Task {} completed sending to {} targets ===",
+        subtask->task_id_, task->pool_queries_.size());
   task->SetReturnCode(0);
 }
 
@@ -511,12 +515,15 @@ void Runtime::SendOut(hipc::FullPtr<SendTask> task) {
     return;
   }
 
-  HILOG(kDebug, "Admin: SendOut - removing from recv_map");
+  HILOG(kDebug, "=== [SendOut BEGIN] Task {} (pool: {}) sending outputs back ===",
+        subtask->task_id_, subtask->pool_id_);
 
   // Remove task from recv_map as we're completing it
   auto it = recv_map_.find(subtask->task_id_);
   if (it == recv_map_.end()) {
-    task->SetReturnCode(3); // Error: Task not found in recv_map
+    HELOG(kError, "[SendOut] Task {} FAILED: Not found in recv_map (size: {})",
+          subtask->task_id_, recv_map_.size());
+    task->SetReturnCode(3);
     return;
   }
   recv_map_.erase(it);
@@ -538,12 +545,10 @@ void Runtime::SendOut(hipc::FullPtr<SendTask> task) {
     // Get host information
     const chi::Host *target_host = ipc_manager->GetHost(target_node_id);
     if (!target_host) {
-      HELOG(kError, "Admin: Host not found for node_id {}", target_node_id);
+      HELOG(kError, "[SendOut] Task {} FAILED: Host not found for node_id {}",
+            subtask->task_id_, target_node_id);
       continue;
     }
-
-    HILOG(kDebug, "Admin: Sending task outputs to node {} ({})", target_node_id,
-          target_host->ip_address);
 
     // Create Lightbeam client using configured port
     auto *config_manager = CHI_CONFIG_MANAGER;
@@ -561,17 +566,16 @@ void Runtime::SendOut(hipc::FullPtr<SendTask> task) {
 
     int rc = lbm_client->Send(archive);
     if (rc != 0) {
-      HELOG(kError, "Admin: Lightbeam Send failed with error code {}", rc);
+      HELOG(kError, "[SendOut] Task {} Lightbeam Send FAILED with error code {}",
+            subtask->task_id_, rc);
       continue;
     }
-
-    HILOG(kDebug, "Admin: Task outputs sent via Lightbeam (bulks: {})",
-          archive.send.size());
   }
 
   // Delete the task after sending outputs
   ipc_manager->DelTask(subtask);
-  HILOG(kDebug, "Admin: Task deleted after SendOut");
+  HILOG(kDebug, "=== [SendOut END] Task {} completed and deleted ===",
+        subtask->task_id_);
 
   task->SetReturnCode(0);
 }
@@ -615,7 +619,8 @@ void Runtime::RecvIn(hipc::FullPtr<RecvTask> task,
   auto *pool_manager = CHI_POOL_MANAGER;
 
   const auto &task_infos = archive.GetTaskInfos();
-  HILOG(kDebug, "Admin: RecvIn - {} tasks", task_infos.size());
+  HILOG(kDebug, "=== [RecvIn BEGIN] Receiving {} task(s) from remote node ===",
+        task_infos.size());
 
   // Allocate buffers for bulk data and expose them for receiving
   // archive.send contains sender's bulk descriptors (populated by RecvMetadata)
@@ -661,20 +666,15 @@ void Runtime::RecvIn(hipc::FullPtr<RecvTask> task,
     // Mark task as remote, set as data owner, unset periodic and TASK_FORCE_NET
     task_ptr->SetFlags(TASK_REMOTE | TASK_DATA_OWNER);
     task_ptr->ClearFlags(TASK_PERIODIC | TASK_FORCE_NET);
-    HILOG(
-        kDebug,
-        "Admin: Task marked as remote and data owner, TASK_FORCE_NET cleared");
 
     // Add task to recv_map for later lookup
     recv_map_[task_ptr->task_id_] = task_ptr;
 
     // Enqueue task for execution
     ipc_manager->Enqueue(task_ptr);
-
-    HILOG(kDebug, "Admin: Task enqueued for execution (task_id={}, pool_id={})",
-          task_ptr->task_id_, task_ptr->pool_id_);
   }
 
+  HILOG(kDebug, "=== [RecvIn END] Processed {} task(s) ===", task_infos.size());
   task->SetReturnCode(0);
 }
 
@@ -690,7 +690,8 @@ void Runtime::RecvOut(hipc::FullPtr<RecvTask> task,
   auto *pool_manager = CHI_POOL_MANAGER;
 
   const auto &task_infos = archive.GetTaskInfos();
-  HILOG(kDebug, "Admin: RecvOut - {} tasks", task_infos.size());
+  HILOG(kDebug, "=== [RecvOut BEGIN] Receiving {} task output(s) from remote node ===",
+        task_infos.size());
 
   // Set lbm_server in archive for bulk transfer exposure in output mode
   archive.SetLbmServer(lbm_server);
@@ -701,10 +702,15 @@ void Runtime::RecvOut(hipc::FullPtr<RecvTask> task,
   for (size_t task_idx = 0; task_idx < task_infos.size(); ++task_idx) {
     const auto &task_info = task_infos[task_idx];
 
-    // Locate origin task from send_map
-    auto send_it = send_map_.find(task_info.task_id_);
+    // Create lookup key with replica_id set to 0 (origin task always has replica_id=0)
+    chi::TaskId lookup_id = task_info.task_id_;
+    lookup_id.replica_id_ = 0;
+
+    // Locate origin task from send_map using the base task ID
+    auto send_it = send_map_.find(lookup_id);
     if (send_it == send_map_.end()) {
-      HELOG(kError, "Admin: Origin task not found in send_map");
+      HELOG(kError, "[RecvOut] Task {} FAILED: Origin task not found in send_map (size: {})",
+            task_info.task_id_, send_map_.size());
       task->SetReturnCode(5);
       return;
     }
@@ -758,8 +764,12 @@ void Runtime::RecvOut(hipc::FullPtr<RecvTask> task,
   for (size_t task_idx = 0; task_idx < task_infos.size(); ++task_idx) {
     const auto &task_info = task_infos[task_idx];
 
-    // Locate origin task from send_map
-    auto send_it = send_map_.find(task_info.task_id_);
+    // Create lookup key with replica_id set to 0 (origin task always has replica_id=0)
+    chi::TaskId lookup_id = task_info.task_id_;
+    lookup_id.replica_id_ = 0;
+
+    // Locate origin task from send_map using the base task ID
+    auto send_it = send_map_.find(lookup_id);
     if (send_it == send_map_.end()) {
       HELOG(kError, "Admin: Origin task not found in send_map");
       continue;
@@ -797,9 +807,6 @@ void Runtime::RecvOut(hipc::FullPtr<RecvTask> task,
     // Increment completed replicas counter in origin's rctx
     chi::u32 completed = origin_rctx->completed_replicas_.fetch_add(1) + 1;
 
-    HILOG(kDebug, "Admin: Replica {} completed ({}/{})", replica_id, completed,
-          origin_rctx->subtasks_.size());
-
     // If all replicas completed
     if (completed == origin_rctx->subtasks_.size()) {
       // Get pool manager to access container
@@ -829,17 +836,18 @@ void Runtime::RecvOut(hipc::FullPtr<RecvTask> task,
         auto *worker =
             HSHM_THREAD_MODEL->GetTls<chi::Worker>(chi::chi_cur_worker_key_);
         worker->AddToBlockedQueue(origin_rctx);
-        HILOG(kDebug, "Admin: Periodic origin task added to blocked queue");
       } else {
         // Non-periodic task - free RunContext and mark as complete
         delete origin_rctx;
         origin_task->run_ctx_ = nullptr;
         origin_task->is_complete_.store(1);
-        HILOG(kDebug, "Admin: Non-periodic origin task marked complete");
+        HILOG(kDebug, "=== [TASK COMPLETE] Task {} finished successfully ===",
+              origin_task->task_id_);
       }
     }
   }
 
+  HILOG(kDebug, "=== [RecvOut END] Processed {} task output(s) ===", task_infos.size());
   task->SetReturnCode(0);
 }
 

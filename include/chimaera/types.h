@@ -150,6 +150,14 @@ struct TaskId {
   }
 };
 
+// Stream output operator for TaskId
+inline std::ostream &operator<<(std::ostream &os, const TaskId &task_id) {
+  os << "TaskId(pid:" << task_id.pid_ << ", tid:" << task_id.tid_
+     << ", major:" << task_id.major_ << ", replica:" << task_id.replica_id_
+     << ", unique:" << task_id.unique_ << ", node:" << task_id.node_id_ << ")";
+  return os;
+}
+
 using MethodId = u32;
 
 // Worker and Lane identifiers

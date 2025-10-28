@@ -193,6 +193,12 @@ TEST_CASE("distributed_bdev_direct_hash", "[distributed][direct_hash]") {
     // Get IPC manager for creating tasks directly
     auto* ipc_manager = CHI_IPC;
 
+    // Bandwidth tracking variables
+    chi::u64 total_bytes_written = 0;
+    chi::u64 total_bytes_read = 0;
+    double total_write_time_ms = 0.0;
+    double total_read_time_ms = 0.0;
+
     // Run 100 iterations with DirectHash pool queries
     for (int i = 0; i < 100; i++) {
       auto pool_query = chi::PoolQuery::DirectHash(i);
@@ -217,13 +223,21 @@ TEST_CASE("distributed_bdev_direct_hash", "[distributed][direct_hash]") {
       std::memcpy(write_buffer.ptr_, write_data.data(), write_data.size());
 
       // Write with DirectHash query - use NewTask directly
+      auto write_start = std::chrono::high_resolution_clock::now();
       auto write_task = ipc_manager->NewTask<chimaera::bdev::WriteTask>(
           chi::CreateTaskId(), client.pool_id_, pool_query, block,
           write_buffer.shm_, write_data.size());
       ipc_manager->Enqueue(write_task);
       write_task->Wait();
+      auto write_end = std::chrono::high_resolution_clock::now();
       REQUIRE(write_task->return_code_.load() == 0);
       REQUIRE(write_task->bytes_written_ == write_data.size());
+
+      // Track write bandwidth
+      double write_time_ms = std::chrono::duration<double, std::milli>(write_end - write_start).count();
+      total_write_time_ms += write_time_ms;
+      total_bytes_written += write_task->bytes_written_;
+
       CHI_IPC->DelTask(write_task);
 
       // Allocate buffer and read data back
@@ -231,13 +245,20 @@ TEST_CASE("distributed_bdev_direct_hash", "[distributed][direct_hash]") {
       REQUIRE_FALSE(read_buffer.IsNull());
 
       // Read with DirectHash query - use NewTask directly
+      auto read_start = std::chrono::high_resolution_clock::now();
       auto read_task = ipc_manager->NewTask<chimaera::bdev::ReadTask>(
           chi::CreateTaskId(), client.pool_id_, pool_query, block,
           read_buffer.shm_, k4KB);
       ipc_manager->Enqueue(read_task);
       read_task->Wait();
+      auto read_end = std::chrono::high_resolution_clock::now();
       REQUIRE(read_task->return_code_.load() == 0);
       REQUIRE(read_task->bytes_read_ == write_data.size());
+
+      // Track read bandwidth
+      double read_time_ms = std::chrono::duration<double, std::milli>(read_end - read_start).count();
+      total_read_time_ms += read_time_ms;
+      total_bytes_read += read_task->bytes_read_;
 
       // Verify data integrity
       std::vector<hshm::u8> read_data(read_task->bytes_read_);
@@ -264,7 +285,18 @@ TEST_CASE("distributed_bdev_direct_hash", "[distributed][direct_hash]") {
       }
     }
 
+    // Calculate and report bandwidth metrics
+    double write_bandwidth_mbps = (total_bytes_written / (1024.0 * 1024.0)) / (total_write_time_ms / 1000.0);
+    double read_bandwidth_mbps = (total_bytes_read / (1024.0 * 1024.0)) / (total_read_time_ms / 1000.0);
+    double avg_write_latency_ms = total_write_time_ms / 100.0;
+    double avg_read_latency_ms = total_read_time_ms / 100.0;
+
     HILOG(kInfo, "DirectHash test completed successfully - 100 iterations");
+    HILOG(kInfo, "=== Bandwidth Metrics ===");
+    HILOG(kInfo, "Write: {:.2f} MB/s (avg latency: {:.3f} ms)", write_bandwidth_mbps, avg_write_latency_ms);
+    HILOG(kInfo, "Read:  {:.2f} MB/s (avg latency: {:.3f} ms)", read_bandwidth_mbps, avg_read_latency_ms);
+    HILOG(kInfo, "Total bytes written: {} bytes", total_bytes_written);
+    HILOG(kInfo, "Total bytes read: {} bytes", total_bytes_read);
   }
 }
 
@@ -293,6 +325,10 @@ TEST_CASE("distributed_bdev_range", "[distributed][range]") {
     // Get IPC manager for creating tasks directly
     auto* ipc_manager = CHI_IPC;
 
+    // Bandwidth tracking variables
+    chi::u64 total_bytes_written = 0;
+    chi::u64 total_bytes_read = 0;
+
     // Create range query for all nodes
     auto pool_query = chi::PoolQuery::Range(0, g_num_nodes);
 
@@ -316,29 +352,44 @@ TEST_CASE("distributed_bdev_range", "[distributed][range]") {
     std::memcpy(write_buffer.ptr_, write_data.data(), write_data.size());
 
     // Write with Range query - use NewTask directly
+    auto write_start = std::chrono::high_resolution_clock::now();
     auto write_task = ipc_manager->NewTask<chimaera::bdev::WriteTask>(
         chi::CreateTaskId(), client.pool_id_, pool_query, block,
         write_buffer.shm_, write_data.size());
     ipc_manager->Enqueue(write_task);
     write_task->Wait();
+    auto write_end = std::chrono::high_resolution_clock::now();
     REQUIRE(write_task->return_code_.load() == 0);
     REQUIRE(write_task->bytes_written_ == write_data.size());
+
+    // Track write bandwidth
+    double write_time_ms = std::chrono::duration<double, std::milli>(write_end - write_start).count();
+    total_bytes_written = write_task->bytes_written_;
+    double write_bandwidth_mbps = (total_bytes_written / (1024.0 * 1024.0)) / (write_time_ms / 1000.0);
+
     CHI_IPC->DelTask(write_task);
 
-    HILOG(kInfo, "Range write completed - {} bytes", write_data.size());
+    HILOG(kInfo, "Range write completed - {} bytes ({:.2f} MB/s)", write_data.size(), write_bandwidth_mbps);
 
     // Allocate buffer and read data back with Range query
     auto read_buffer = CHI_IPC->AllocateBuffer(k4KB);
     REQUIRE_FALSE(read_buffer.IsNull());
 
     // Read with Range query - use NewTask directly
+    auto read_start = std::chrono::high_resolution_clock::now();
     auto read_task = ipc_manager->NewTask<chimaera::bdev::ReadTask>(
         chi::CreateTaskId(), client.pool_id_, pool_query, block,
         read_buffer.shm_, k4KB);
     ipc_manager->Enqueue(read_task);
     read_task->Wait();
+    auto read_end = std::chrono::high_resolution_clock::now();
     REQUIRE(read_task->return_code_.load() == 0);
     REQUIRE(read_task->bytes_read_ == write_data.size());
+
+    // Track read bandwidth
+    double read_time_ms = std::chrono::duration<double, std::milli>(read_end - read_start).count();
+    total_bytes_read = read_task->bytes_read_;
+    double read_bandwidth_mbps = (total_bytes_read / (1024.0 * 1024.0)) / (read_time_ms / 1000.0);
 
     // Verify data integrity
     std::vector<hshm::u8> read_data(read_task->bytes_read_);
@@ -350,7 +401,7 @@ TEST_CASE("distributed_bdev_range", "[distributed][range]") {
 
     CHI_IPC->DelTask(read_task);
 
-    HILOG(kInfo, "Range read verified - data integrity confirmed");
+    HILOG(kInfo, "Range read verified - data integrity confirmed ({:.2f} MB/s)", read_bandwidth_mbps);
 
     // Free the block with Range query - use NewTask directly
     std::vector<chimaera::bdev::Block> free_blocks;
@@ -391,6 +442,10 @@ TEST_CASE("distributed_bdev_broadcast", "[distributed][broadcast]") {
     // Get IPC manager for creating tasks directly
     auto* ipc_manager = CHI_IPC;
 
+    // Bandwidth tracking variables
+    chi::u64 total_bytes_written = 0;
+    chi::u64 total_bytes_read = 0;
+
     // Create broadcast query
     auto pool_query = chi::PoolQuery::Broadcast();
 
@@ -414,29 +469,44 @@ TEST_CASE("distributed_bdev_broadcast", "[distributed][broadcast]") {
     std::memcpy(write_buffer.ptr_, write_data.data(), write_data.size());
 
     // Write with Broadcast query - use NewTask directly
+    auto write_start = std::chrono::high_resolution_clock::now();
     auto write_task = ipc_manager->NewTask<chimaera::bdev::WriteTask>(
         chi::CreateTaskId(), client.pool_id_, pool_query, block,
         write_buffer.shm_, write_data.size());
     ipc_manager->Enqueue(write_task);
     write_task->Wait();
+    auto write_end = std::chrono::high_resolution_clock::now();
     REQUIRE(write_task->return_code_.load() == 0);
     REQUIRE(write_task->bytes_written_ == write_data.size());
+
+    // Track write bandwidth
+    double write_time_ms = std::chrono::duration<double, std::milli>(write_end - write_start).count();
+    total_bytes_written = write_task->bytes_written_;
+    double write_bandwidth_mbps = (total_bytes_written / (1024.0 * 1024.0)) / (write_time_ms / 1000.0);
+
     CHI_IPC->DelTask(write_task);
 
-    HILOG(kInfo, "Broadcast write completed - {} bytes", write_data.size());
+    HILOG(kInfo, "Broadcast write completed - {} bytes ({:.2f} MB/s)", write_data.size(), write_bandwidth_mbps);
 
     // Allocate buffer and read data back with Broadcast query
     auto read_buffer = CHI_IPC->AllocateBuffer(k4KB);
     REQUIRE_FALSE(read_buffer.IsNull());
 
     // Read with Broadcast query - use NewTask directly
+    auto read_start = std::chrono::high_resolution_clock::now();
     auto read_task = ipc_manager->NewTask<chimaera::bdev::ReadTask>(
         chi::CreateTaskId(), client.pool_id_, pool_query, block,
         read_buffer.shm_, k4KB);
     ipc_manager->Enqueue(read_task);
     read_task->Wait();
+    auto read_end = std::chrono::high_resolution_clock::now();
     REQUIRE(read_task->return_code_.load() == 0);
     REQUIRE(read_task->bytes_read_ == write_data.size());
+
+    // Track read bandwidth
+    double read_time_ms = std::chrono::duration<double, std::milli>(read_end - read_start).count();
+    total_bytes_read = read_task->bytes_read_;
+    double read_bandwidth_mbps = (total_bytes_read / (1024.0 * 1024.0)) / (read_time_ms / 1000.0);
 
     // Verify data integrity
     std::vector<hshm::u8> read_data(read_task->bytes_read_);
@@ -448,7 +518,7 @@ TEST_CASE("distributed_bdev_broadcast", "[distributed][broadcast]") {
 
     CHI_IPC->DelTask(read_task);
 
-    HILOG(kInfo, "Broadcast read verified - data integrity confirmed");
+    HILOG(kInfo, "Broadcast read verified - data integrity confirmed ({:.2f} MB/s)", read_bandwidth_mbps);
 
     // Free the block with Broadcast query - use NewTask directly
     std::vector<chimaera::bdev::Block> free_blocks;

@@ -45,45 +45,12 @@ struct Host {
   Host() : node_id(0) {}
 
   /**
-   * Constructor with IP address
+   * Constructor with IP address and node ID (required)
+   * Node IDs are assigned based on linear offset in hostfile
    * @param ip IP address string
-   */
-  explicit Host(const std::string& ip) : ip_address(ip), node_id(IpToNodeId(ip)) {}
-
-  /**
-   * Constructor with IP address and node ID
-   * @param ip IP address string
-   * @param id Pre-computed node ID
+   * @param id Node ID (typically offset in hostfile)
    */
   Host(const std::string& ip, u64 id) : ip_address(ip), node_id(id) {}
-
-  /**
-   * Convert IP address to 64-bit node ID
-   * Performs DNS resolution to convert hostnames to IP addresses,
-   * then converts the IP to its numeric representation
-   * @param ip_str IP address string or hostname
-   * @return 64-bit node ID
-   */
-  static u64 IpToNodeId(const std::string& ip_str);
-
-private:
-  /**
-   * Resolve hostname to IP address using DNS
-   * Uses getaddrinfo for portable hostname resolution
-   * Prefers IPv4 over IPv6 for deterministic results
-   * @param hostname Hostname or IP address string
-   * @return Resolved IP address string, empty if resolution fails
-   */
-  static std::string ResolveHostnameToIp(const std::string& hostname);
-
-  /**
-   * Convert IP address string to 64-bit numeric representation
-   * For IPv4: uses the 32-bit value as lower 32 bits of result
-   * For IPv6: uses the lower 64 bits of the 128-bit address
-   * @param ip_str IP address string (IPv4 or IPv6)
-   * @return 64-bit numeric representation
-   */
-  static u64 ConvertIpToNumeric64(const std::string& ip_str);
 };
 
 /**
@@ -386,13 +353,6 @@ class IpcManager {
    * @return true if connection successful, false otherwise
    */
   bool TestLocalServer();
-
-  /**
-   * Compute 64-bit hash of hostname string
-   * @param hostname Hostname string to hash
-   * @return 64-bit hash value
-   */
-  static u64 ComputeNodeIdHash(const std::string& hostname);
 
   /**
    * Try to start main server on given hostname

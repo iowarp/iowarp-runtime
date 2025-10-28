@@ -243,6 +243,9 @@ AddressTable PoolManager::CreateAddressTable(PoolId pool_id,
     return address_table;
   }
 
+  HILOG(kInfo, "=== Address Table Mapping for Pool {} ===", pool_id);
+  HILOG(kInfo, "Creating address table with {} containers", num_containers);
+
   // Create one address per container in the global table
   for (u32 container_idx = 0; container_idx < num_containers; ++container_idx) {
     Address global_address(pool_id, Group::kGlobal, container_idx);
@@ -250,6 +253,9 @@ AddressTable PoolManager::CreateAddressTable(PoolId pool_id,
 
     // Map each global address to its corresponding physical address
     address_table.AddGlobalToPhysicalMapping(global_address, physical_address);
+
+    HILOG(kInfo, "  Global[{}] -> Physical[{}] (pool: {})",
+          container_idx, container_idx, pool_id);
   }
 
   // Create exactly one local address that maps to the global address of the
@@ -262,6 +268,9 @@ AddressTable PoolManager::CreateAddressTable(PoolId pool_id,
 
   // Map the single local address to its global counterpart
   address_table.AddLocalToGlobalMapping(local_address, global_address);
+
+  HILOG(kInfo, "  Local[0] -> Global[0] (pool: {})", pool_id);
+  HILOG(kInfo, "=== Address Table Complete ===");
 
   return address_table;
 }
@@ -282,8 +291,13 @@ bool PoolManager::CreatePool(FullPtr<Task> task, RunContext* run_ctx) {
   const std::string pool_name = create_task->pool_name_.str();
   const std::string chimod_params = create_task->chimod_params_.str();
 
-  // Set num_containers to 1 for now (can be changed later)
-  const u32 num_containers = 1;
+  // Set num_containers equal to number of nodes in the cluster
+  auto* ipc_manager = CHI_IPC;
+  std::vector<Host> all_hosts = ipc_manager->GetAllHosts();
+  const u32 num_containers = static_cast<u32>(all_hosts.size());
+
+  HILOG(kInfo, "PoolManager: Creating pool '{}' with {} containers (one per node)",
+        pool_name, num_containers);
 
   // Make was_created a local variable
   bool was_created;

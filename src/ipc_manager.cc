@@ -23,113 +23,6 @@ namespace chi {
 
 // Host struct methods
 
-u64 Host::IpToNodeId(const std::string &ip_str) {
-  // Handle empty string case
-  if (ip_str.empty()) {
-    return 0;
-  }
-
-  // Step 1: Resolve hostname to IP address using portable getaddrinfo
-  std::string resolved_ip = ResolveHostnameToIp(ip_str);
-  if (resolved_ip.empty()) {
-    // If resolution fails, fall back to string hashing for consistency
-    HILOG(
-        kDebug,
-        "Warning: Failed to resolve hostname '{}', falling back to string hash",
-        ip_str);
-    std::hash<std::string> hasher;
-    return static_cast<u64>(hasher(ip_str));
-  }
-
-  // Step 2: Convert resolved IP address to 64-bit numeric representation
-  return ConvertIpToNumeric64(resolved_ip);
-}
-
-std::string Host::ResolveHostnameToIp(const std::string &hostname) {
-  struct addrinfo hints, *result;
-  std::memset(&hints, 0, sizeof(hints));
-
-  // Allow both IPv4 and IPv6, prefer IPv4 for deterministic results
-  hints.ai_family = AF_UNSPEC;     // Allow IPv4 or IPv6
-  hints.ai_socktype = SOCK_STREAM; // TCP socket type
-  hints.ai_flags =
-      AI_ADDRCONFIG; // Return addresses only if interfaces configured
-
-  int status = getaddrinfo(hostname.c_str(), nullptr, &hints, &result);
-  if (status != 0) {
-    // getaddrinfo failed - hostname resolution failed
-    return std::string();
-  }
-
-  std::unique_ptr<struct addrinfo, decltype(&freeaddrinfo)> result_guard(
-      result, freeaddrinfo);
-
-  // Iterate through results, prefer IPv4 for deterministic ordering
-  struct addrinfo *ipv4_addr = nullptr;
-  struct addrinfo *ipv6_addr = nullptr;
-
-  for (struct addrinfo *rp = result; rp != nullptr; rp = rp->ai_next) {
-    if (rp->ai_family == AF_INET && !ipv4_addr) {
-      ipv4_addr = rp; // Store first IPv4 address
-    } else if (rp->ai_family == AF_INET6 && !ipv6_addr) {
-      ipv6_addr = rp; // Store first IPv6 address
-    }
-  }
-
-  // Prefer IPv4 for deterministic results, fall back to IPv6
-  struct addrinfo *chosen_addr = ipv4_addr ? ipv4_addr : ipv6_addr;
-  if (!chosen_addr) {
-    return std::string();
-  }
-
-  // Convert socket address to string representation
-  char ip_str[INET6_ADDRSTRLEN];
-  if (chosen_addr->ai_family == AF_INET) {
-    struct sockaddr_in *sin =
-        reinterpret_cast<struct sockaddr_in *>(chosen_addr->ai_addr);
-    inet_ntop(AF_INET, &sin->sin_addr, ip_str, INET_ADDRSTRLEN);
-  } else if (chosen_addr->ai_family == AF_INET6) {
-    struct sockaddr_in6 *sin6 =
-        reinterpret_cast<struct sockaddr_in6 *>(chosen_addr->ai_addr);
-    inet_ntop(AF_INET6, &sin6->sin6_addr, ip_str, INET6_ADDRSTRLEN);
-  } else {
-    return std::string();
-  }
-
-  return std::string(ip_str);
-}
-
-u64 Host::ConvertIpToNumeric64(const std::string &ip_str) {
-  // Try IPv4 first
-  struct in_addr ipv4_addr;
-  if (inet_pton(AF_INET, ip_str.c_str(), &ipv4_addr) == 1) {
-    // IPv4 address: use 32-bit network byte order value as lower 32 bits
-    // Upper 32 bits are 0, ensuring IPv4 addresses don't collide with IPv6
-    u32 ipv4_numeric = ntohl(ipv4_addr.s_addr);
-    return static_cast<u64>(ipv4_numeric);
-  }
-
-  // Try IPv6
-  struct in6_addr ipv6_addr;
-  if (inet_pton(AF_INET6, ip_str.c_str(), &ipv6_addr) == 1) {
-    // IPv6 address: use lower 64 bits of the 128-bit address
-    // This provides good distribution while fitting in 64 bits
-    u64 result = 0;
-    std::memcpy(&result, &ipv6_addr.s6_addr[8],
-                8); // Copy bytes 8-15 (lower 64 bits)
-
-    // Convert from network byte order to host byte order
-    return be64toh(result);
-  }
-
-  // If neither IPv4 nor IPv6 parsing succeeded, fall back to string hash
-  HILOG(kDebug,
-        "Warning: IP address '{}' is not valid IPv4 or IPv6, using string hash",
-        ip_str);
-  std::hash<std::string> hasher;
-  return static_cast<u64>(hasher(ip_str));
-}
-
 // IpcManager methods
 
 // Constructor and destructor removed - handled by HSHM singleton pattern
@@ -584,22 +477,18 @@ bool IpcManager::TestLocalServer() {
 }
 
 void IpcManager::SetNodeId(const std::string &hostname) {
+  (void)hostname;  // Unused parameter
   if (!shared_header_) {
     return;
   }
 
-  shared_header_->node_id = ComputeNodeIdHash(hostname);
+  // Set the node ID from this_host_ which was identified during IdentifyThisHost
+  shared_header_->node_id = this_host_.node_id;
 }
 
 u64 IpcManager::GetNodeId() const {
   // Return the node ID from the identified host
   return this_host_.node_id;
-}
-
-u64 IpcManager::ComputeNodeIdHash(const std::string &hostname) {
-  // Use std::hash<std::string> to generate a 64-bit hash of the hostname
-  std::hash<std::string> hasher;
-  return static_cast<u64>(hasher(hostname));
 }
 
 bool IpcManager::LoadHostfile() {
@@ -610,14 +499,10 @@ bool IpcManager::LoadHostfile() {
   hostfile_map_.clear();
 
   if (hostfile_path.empty()) {
-    // No hostfile configured - assume localhost
-    HILOG(kDebug, "No hostfile configured, using localhost");
-    std::vector<std::string> default_hosts = {"localhost", "127.0.0.1",
-                                              "0.0.0.0"};
-    for (const auto &ip : default_hosts) {
-      Host host(ip);
-      hostfile_map_[host.node_id] = host;
-    }
+    // No hostfile configured - assume localhost as node 0
+    HILOG(kDebug, "No hostfile configured, using localhost as node 0");
+    Host host("127.0.0.1", 0);
+    hostfile_map_[0] = host;
     return true;
   }
 
@@ -626,11 +511,15 @@ bool IpcManager::LoadHostfile() {
     std::vector<std::string> host_ips =
         hshm::ConfigParse::ParseHostfile(hostfile_path);
 
-    // Create Host structs and populate map
-    for (const auto &ip : host_ips) {
-      Host host(ip);
-      hostfile_map_[host.node_id] = host;
+    // Create Host structs and populate map using linear offset-based node IDs
+    HILOG(kInfo, "=== Container to Node ID Mapping (Linear Offset) ===");
+    for (size_t offset = 0; offset < host_ips.size(); ++offset) {
+      u64 node_id = static_cast<u64>(offset);
+      Host host(host_ips[offset], node_id);
+      hostfile_map_[node_id] = host;
+      HILOG(kInfo, "  Hostfile[{}]: {} -> Node ID: {}", offset, host_ips[offset], node_id);
     }
+    HILOG(kInfo, "=== Total hosts loaded: {} ===", hostfile_map_.size());
 
     HILOG(kDebug, "Loaded {} hosts from hostfile: {}", hostfile_map_.size(),
           hostfile_path);
@@ -644,12 +533,25 @@ bool IpcManager::LoadHostfile() {
 
 const Host *IpcManager::GetHost(u64 node_id) const {
   auto it = hostfile_map_.find(node_id);
-  return (it != hostfile_map_.end()) ? &it->second : nullptr;
+  if (it == hostfile_map_.end()) {
+    // Log all available node IDs when lookup fails
+    HILOG(kError, "GetHost: Looking for node_id {} but not found. Available nodes:", node_id);
+    for (const auto& pair : hostfile_map_) {
+      HILOG(kError, "  Node ID: {} -> IP: {}", pair.first, pair.second.ip_address);
+    }
+    return nullptr;
+  }
+  return &it->second;
 }
 
 const Host *IpcManager::GetHostByIp(const std::string &ip_address) const {
-  u64 node_id = Host::IpToNodeId(ip_address);
-  return GetHost(node_id);
+  // Search through hostfile_map_ for matching IP address
+  for (const auto &pair : hostfile_map_) {
+    if (pair.second.ip_address == ip_address) {
+      return &pair.second;
+    }
+  }
+  return nullptr;
 }
 
 std::vector<Host> IpcManager::GetAllHosts() const {
