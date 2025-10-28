@@ -58,7 +58,7 @@ start_docker_cluster() {
     # Generate hostfile first
     generate_hostfile
 
-    # Start containers
+    # Start containers in detached mode
     docker compose up -d
 
     # Wait for containers to be ready
@@ -69,6 +69,7 @@ start_docker_cluster() {
     docker compose ps
 
     log_success "Docker cluster started"
+    log_info "View live logs with: docker compose logs -f"
 }
 
 # Stop Docker cluster
@@ -90,9 +91,9 @@ build_test_docker() {
     local elapsed=0
 
     while [ $elapsed -lt $max_wait ]; do
-        if docker exec iowarp-distributed-node1 test -f /iowarp-runtime/build/bin/chimaera_distributed_bdev_tests 2>/dev/null; then
+        if docker exec iowarp-distributed-node1 test -f /iowarp-runtime/build-docker/bin/chimaera_distributed_bdev_tests 2>/dev/null; then
             log_success "Test built successfully in Docker"
-            docker exec iowarp-distributed-node1 ls -lh /iowarp-runtime/build/bin/chimaera_distributed_bdev_tests
+            docker exec iowarp-distributed-node1 ls -lh /iowarp-runtime/build-docker/bin/chimaera_distributed_bdev_tests
             return 0
         fi
         sleep 5
@@ -151,13 +152,13 @@ run_test_docker_direct() {
     log_info "Running distributed test directly: $TEST_CASE"
     cd "$SCRIPT_DIR"
 
-    # Wait for all runtimes to be ready
-    log_info "Waiting for runtimes to initialize..."
-    sleep 10
+    # Wait for all runtimes to be ready (give them time to initialize)
+    log_info "Waiting for runtimes to initialize across all nodes..."
+    sleep 5
 
     # Execute test on node1
     docker exec iowarp-distributed-node1 bash -c "
-        cd /iowarp-runtime/build/bin &&
+        cd /iowarp-runtime/build-docker/bin &&
         ./chimaera_distributed_bdev_tests --num-nodes $NUM_NODES --test-case $TEST_CASE
     "
 

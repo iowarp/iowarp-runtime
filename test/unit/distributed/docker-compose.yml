@@ -12,6 +12,7 @@ services:
       - ../../../:/iowarp-runtime
       - ./hostfile:/etc/iowarp/hostfile:ro
       - ./chimaera_distributed.yaml:/etc/iowarp/chimaera_distributed.yaml:ro
+      - ./build-docker:/iowarp-runtime/build-docker
     environment:
       - NODE_ID=1
       - NODE_IP=172.25.0.10
@@ -22,21 +23,27 @@ services:
     entrypoint: [ "/bin/bash", "-c" ]
     command: >
       "
+        echo 'Node 1: Cleaning old build directory...' &&
+        cd /iowarp-runtime &&
+        rm -rf build-docker &&
         echo 'Node 1: Loading spack environment...' &&
         export SPACK_ROOT=/root/spack &&
         source /root/spack/share/spack/setup-env.sh &&
-        spack load iowarp &&
+        spack load cte-hermes-shm &&
         echo 'Node 1: Spack environment loaded' &&
         echo 'Node 1: Building IOWarp runtime...' &&
-        rm -rf build &&
-        mkdir -p build && cd build &&
+        mkdir -p build-docker && cd build-docker &&
         echo 'Node 1: Running cmake...' &&
         cmake --preset docker .. &&
-        echo 'Node 1: CMake complete. Building...' &&
-        cmake --build . --target chimaera_distributed_bdev_tests -j8 &&
-        echo 'Node 1: Build complete. Starting runtime...' &&
-        CHI_SERVER_CONF=/etc/iowarp/chimaera_distributed.yaml chi_start_runtime > /tmp/runtime.log 2>&1 &
-        echo \"Node 1: Runtime started (PID \$!). Ready for test execution.\" &&
+        echo 'Node 1: CMake complete. Building runtime and tests...' &&
+        cmake --build . -j8 &&
+        echo 'Node 1: Build complete. Installing...' &&
+        cmake --install . &&
+        echo 'Node 1: Install complete. Starting runtime...' &&
+        export PATH=/usr/local/bin:$PATH &&
+        CHI_SERVER_CONF=/etc/iowarp/chimaera_distributed.yaml chimaera_start_runtime &
+        RUNTIME_PID=\$! &&
+        echo \"Node 1: Runtime started (PID \$RUNTIME_PID). Ready for test execution.\" &&
         tail -f /dev/null
       "
 
@@ -53,6 +60,7 @@ services:
       - ../../../:/iowarp-runtime
       - ./hostfile:/etc/iowarp/hostfile:ro
       - ./chimaera_distributed.yaml:/etc/iowarp/chimaera_distributed.yaml:ro
+      - ./build-docker:/iowarp-runtime/build-docker
     environment:
       - NODE_ID=2
       - NODE_IP=172.25.0.11
@@ -66,11 +74,13 @@ services:
         echo 'Node 2: Loading spack environment...' &&
         export SPACK_ROOT=/root/spack &&
         source /root/spack/share/spack/setup-env.sh &&
-        spack load iowarp &&
+        spack load cte-hermes-shm &&
         echo 'Node 2: Spack environment loaded' &&
         echo 'Node 2: Starting runtime...' &&
-        CHI_SERVER_CONF=/etc/iowarp/chimaera_distributed.yaml chi_start_runtime > /tmp/runtime.log 2>&1 &
-        echo \"Node 2: Runtime started (PID \$!). Waiting for tests...\" &&
+        export PATH=/usr/local/bin:$PATH &&
+        CHI_SERVER_CONF=/etc/iowarp/chimaera_distributed.yaml chimaera_start_runtime &
+        RUNTIME_PID=\$! &&
+        echo \"Node 2: Runtime started (PID \$RUNTIME_PID). Waiting for tests...\" &&
         tail -f /dev/null
       "
 
@@ -87,6 +97,7 @@ services:
       - ../../../:/iowarp-runtime
       - ./hostfile:/etc/iowarp/hostfile:ro
       - ./chimaera_distributed.yaml:/etc/iowarp/chimaera_distributed.yaml:ro
+      - ./build-docker:/iowarp-runtime/build-docker
     environment:
       - NODE_ID=3
       - NODE_IP=172.25.0.12
@@ -100,11 +111,13 @@ services:
         echo 'Node 3: Loading spack environment...' &&
         export SPACK_ROOT=/root/spack &&
         source /root/spack/share/spack/setup-env.sh &&
-        spack load iowarp &&
+        spack load cte-hermes-shm &&
         echo 'Node 3: Spack environment loaded' &&
         echo 'Node 3: Starting runtime...' &&
-        CHI_SERVER_CONF=/etc/iowarp/chimaera_distributed.yaml chi_start_runtime > /tmp/runtime.log 2>&1 &
-        echo \"Node 3: Runtime started (PID \$!). Waiting for tests...\" &&
+        export PATH=/usr/local/bin:$PATH &&
+        CHI_SERVER_CONF=/etc/iowarp/chimaera_distributed.yaml chimaera_start_runtime &
+        RUNTIME_PID=\$! &&
+        echo \"Node 3: Runtime started (PID \$RUNTIME_PID). Waiting for tests...\" &&
         tail -f /dev/null
       "
 
@@ -121,6 +134,7 @@ services:
       - ../../../:/iowarp-runtime
       - ./hostfile:/etc/iowarp/hostfile:ro
       - ./chimaera_distributed.yaml:/etc/iowarp/chimaera_distributed.yaml:ro
+      - ./build-docker:/iowarp-runtime/build-docker
     environment:
       - NODE_ID=4
       - NODE_IP=172.25.0.13
@@ -134,11 +148,13 @@ services:
         echo 'Node 4: Loading spack environment...' &&
         export SPACK_ROOT=/root/spack &&
         source /root/spack/share/spack/setup-env.sh &&
-        spack load iowarp &&
+        spack load cte-hermes-shm &&
         echo 'Node 4: Spack environment loaded' &&
         echo 'Node 4: Starting runtime...' &&
-        CHI_SERVER_CONF=/etc/iowarp/chimaera_distributed.yaml chi_start_runtime > /tmp/runtime.log 2>&1 &
-        echo \"Node 4: Runtime started (PID \$!). Waiting for tests...\" &&
+        export PATH=/usr/local/bin:$PATH &&
+        CHI_SERVER_CONF=/etc/iowarp/chimaera_distributed.yaml chimaera_start_runtime &
+        RUNTIME_PID=\$! &&
+        echo \"Node 4: Runtime started (PID \$RUNTIME_PID). Waiting for tests...\" &&
         tail -f /dev/null
       "
 

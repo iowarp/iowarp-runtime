@@ -13,7 +13,7 @@ memory:
   runtime_data_segment_size: 536870912 # 512MB
 
 # Network configuration
-network:
+networking:
   zmq_port: 5555
   
 # Logging configuration
@@ -27,12 +27,6 @@ performance:
   queue_depth: 10000
   lane_map_policy: "round_robin"  # Options: map_by_pid_tid, round_robin (default), random
 
-# Shared memory configuration
-shared_memory:
-  main_segment_name: "chi_main_segment_${USER}"           # Main segment with user isolation
-  client_data_segment_name: "chi_client_data_segment_${USER}"  # Client data segment
-  runtime_data_segment_name: "chi_runtime_data_segment_${USER}" # Runtime data segment
-  
 # Runtime configuration
 runtime:
   heartbeat_interval: 1000  # milliseconds

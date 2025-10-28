@@ -30,7 +30,7 @@ add_executable(chi_refresh_repo
 )
 # chi_refresh_repo is a standalone utility, no need for CHIMAERA_RUNTIME
 target_link_libraries(chi_refresh_repo
-  PUBLIC yaml-cpp
+  PUBLIC hshm::cxx
 )
 
 # Install utilities

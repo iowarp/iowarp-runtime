@@ -177,21 +177,8 @@ void ConfigManager::ParseYAML(YAML::Node &yaml_conf) {
     }
   }
 
-  // Parse shared memory configuration
-  if (yaml_conf["shared_memory"]) {
-    auto shm = yaml_conf["shared_memory"];
-    if (shm["main_segment_name"]) {
-      main_segment_name_ = shm["main_segment_name"].as<std::string>();
-    }
-    if (shm["client_data_segment_name"]) {
-      client_data_segment_name_ =
-          shm["client_data_segment_name"].as<std::string>();
-    }
-    if (shm["runtime_data_segment_name"]) {
-      runtime_data_segment_name_ =
-          shm["runtime_data_segment_name"].as<std::string>();
-    }
-  }
+  // Segment names are hardcoded and expanded in ipc_manager.cc
+  // No configuration needed here
 
   // Parse distributed scheduling configuration
   if (yaml_conf["distributed_scheduling"]) {

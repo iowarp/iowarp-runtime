@@ -144,11 +144,6 @@ class WrpRuntime(Service):
                 'stack_size': self.config['stack_size'],
                 'queue_depth': self.config['queue_depth']
             },
-            'shared_memory': {
-                'main_segment_name': 'chi_main_segment_${USER}',
-                'client_data_segment_name': 'chi_client_data_segment_${USER}',
-                'runtime_data_segment_name': 'chi_runtime_data_segment_${USER}'
-            },
             'runtime': {
                 'heartbeat_interval': self.config['heartbeat_interval'],
                 'task_timeout': self.config['task_timeout']

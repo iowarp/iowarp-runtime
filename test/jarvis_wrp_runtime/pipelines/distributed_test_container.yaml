@@ -24,6 +24,7 @@ pkgs:
     queue_depth: 10000
     heartbeat_interval: 1000
     task_timeout: 30000
+    sleep: 5
 
   # Stage 2: Run distributed tests with 4 nodes
   - pkg_type: jarvis_wrp_runtime.wrp_distributed
