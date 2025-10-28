@@ -58,7 +58,7 @@ namespace {
 
       // Create admin pool
       admin_client_ = std::make_unique<chimaera::admin::Client>(chi::kAdminPoolId);
-      admin_client_->Create(HSHM_MCTX, chi::PoolQuery::Local(), "admin");
+      admin_client_->Create(HSHM_MCTX, chi::PoolQuery::Local(), "admin", chi::kAdminPoolId);
 
       // Verify admin creation succeeded
       if (admin_client_->GetReturnCode() != 0) {

@@ -1484,10 +1484,11 @@ chi::PoolQuery::Local()
 ```
 - **Purpose**: Routes tasks to the local node only
 - **Use Case**: Operations that must execute on the calling node
-- **Example**: Local file system operations, node-specific diagnostics
+- **Example**: MPI-based container creation, node-specific diagnostics
 ```cpp
-// Client usage
-client.Create(HSHM_MCTX, chi::PoolQuery::Local());
+// Client usage in MPI environment
+const chi::PoolId custom_pool_id(7000, 0);
+client.Create(HSHM_MCTX, chi::PoolQuery::Local(), "my_pool", custom_pool_id);
 ```
 
 #### 2. Direct ID Mode
@@ -1561,16 +1562,27 @@ client.NodeDiagnostics(HSHM_MCTX, query);
 #### Best Practices
 
 1. **Never use null queries**: Always specify an explicit PoolQuery type
-2. **Default to Local**: When in doubt, use `PoolQuery::Local()`
-3. **Consider locality**: Prefer local execution to minimize network overhead
-4. **Use appropriate granularity**: Match routing mode to operation scope
+2. **Default to Broadcast for Create**: Use `PoolQuery::Broadcast()` for container creation in non-MPI environments
+3. **Use Local for MPI**: In MPI jobs, use `PoolQuery::Local()` for more efficient local-only creation
+4. **Consider locality**: Prefer local execution to minimize network overhead for regular operations
+5. **Use appropriate granularity**: Match routing mode to operation scope
 
 #### Common Patterns
 
-**Client Creation Pattern**:
+**Container Creation Pattern (Non-MPI)**:
 ```cpp
-// Always use PoolQuery::Local() for container creation
-client.Create(HSHM_MCTX, chi::PoolQuery::Local());
+// Use Broadcast for container creation in standard deployments
+// This ensures the container is created across all nodes in distributed environments
+const chi::PoolId custom_pool_id(7000, 0);
+client.Create(HSHM_MCTX, chi::PoolQuery::Broadcast(), "my_pool_name", custom_pool_id);
+```
+
+**Container Creation Pattern (MPI Environments)**:
+```cpp
+// In MPI jobs, Local may be more efficient than Broadcast
+// Use Local when you want node-local containers only
+const chi::PoolId custom_pool_id(7000, 0);
+client.Create(HSHM_MCTX, chi::PoolQuery::Local(), "my_pool_name", custom_pool_id);
 ```
 
 **Load-Balanced Operations**:
@@ -1692,16 +1704,28 @@ ipc_manager->Enqueue(task, chi::kHighPriority);
 **Required Pattern for All Client Create Methods:**
 
 ```cpp
-void Create(const hipc::MemContext& mctx, const chi::PoolQuery& pool_query, ...) {
-    auto task = AsyncCreate(mctx, pool_query, ...);
+void Create(const hipc::MemContext& mctx,
+            const chi::PoolQuery& pool_query,
+            const std::string& pool_name,
+            const chi::PoolId& custom_pool_id,
+            /* other module-specific parameters */) {
+    auto task = AsyncCreate(mctx, pool_query, pool_name, custom_pool_id, /* other params */);
     task->Wait();
-    
+
     // CRITICAL: Update client pool_id_ with the actual pool ID from the task
     pool_id_ = task->new_pool_id_;
-    
+
     CHI_IPC->DelTask(task);
 }
 ```
+
+**Required Parameters for All Create Methods:**
+
+1. **mctx**: Memory context for shared memory allocations
+2. **pool_query**: Task routing strategy (use `Broadcast()` for non-MPI, `Local()` for MPI)
+3. **pool_name**: User-provided name for the pool (must be unique, used as file path for file-based modules)
+4. **custom_pool_id**: Explicit pool ID for the container being created (must not be null)
+5. **Module-specific parameters**: Additional parameters specific to the ChiMod (e.g., BDev type, size)
 
 **Why This Is Required:**
 
@@ -1714,8 +1738,11 @@ void Create(const hipc::MemContext& mctx, const chi::PoolQuery& pool_query, ...)
 
 ```cpp
 // Admin client Create method
-void Create(const hipc::MemContext& mctx, const chi::PoolQuery& pool_query) {
-    auto task = AsyncCreate(mctx, pool_query);
+void Create(const hipc::MemContext& mctx,
+            const chi::PoolQuery& pool_query,
+            const std::string& pool_name,
+            const chi::PoolId& custom_pool_id) {
+    auto task = AsyncCreate(mctx, pool_query, pool_name, custom_pool_id);
     task->Wait();
 
     // CRITICAL: Update client pool_id_ with the actual pool ID from the task
@@ -1725,27 +1752,63 @@ void Create(const hipc::MemContext& mctx, const chi::PoolQuery& pool_query) {
     ipc_manager->DelTask(task);
 }
 
-// Bdev client Create method (with parameters)
-void Create(const hipc::MemContext& mctx, const chi::PoolQuery& pool_query,
-            BdevType bdev_type, const std::string& file_path, 
-            chi::u64 total_size, chi::u32 io_depth, chi::u32 alignment) {
-    auto task = AsyncCreate(mctx, pool_query, bdev_type, file_path, 
-                           total_size, io_depth, alignment);
+// BDev client Create method (with module-specific parameters)
+void Create(const hipc::MemContext& mctx,
+            const chi::PoolQuery& pool_query,
+            const std::string& pool_name,
+            const chi::PoolId& custom_pool_id,
+            BdevType bdev_type,
+            chi::u64 total_size = 0,
+            chi::u32 io_depth = 128,
+            chi::u32 alignment = 4096) {
+    auto task = AsyncCreate(mctx, pool_query, pool_name, custom_pool_id,
+                           bdev_type, total_size, io_depth, alignment);
     task->Wait();
-    
+
     // CRITICAL: Update client pool_id_ with the actual pool ID from the task
     pool_id_ = task->new_pool_id_;
-    
+
+    CHI_IPC->DelTask(task);
+}
+
+// MOD_NAME client Create method (simple case)
+void Create(const hipc::MemContext& mctx,
+            const chi::PoolQuery& pool_query,
+            const std::string& pool_name,
+            const chi::PoolId& custom_pool_id) {
+    auto task = AsyncCreate(mctx, pool_query, pool_name, custom_pool_id);
+    task->Wait();
+
+    // CRITICAL: Update client pool_id_ with the actual pool ID from the task
+    pool_id_ = task->new_pool_id_;
+
     CHI_IPC->DelTask(task);
 }
 ```
 
 **Common Mistakes to Avoid:**
 
+- ❌ **Using null PoolId for custom_pool_id**: Create operations REQUIRE explicit, non-null pool IDs
 - ❌ **Forgetting to update pool_id_**: Leads to incorrect pool ID for subsequent operations
 - ❌ **Using original pool_id_**: The task may return a different pool ID than initially specified
 - ❌ **Updating before task completion**: Always wait for task completion before reading new_pool_id_
 - ❌ **Not implementing this pattern**: All synchronous Create methods must follow this pattern
+- ❌ **Using Local instead of Broadcast**: In non-MPI environments, use `Broadcast()` for distributed container creation
+
+**Critical Validation:**
+
+The runtime validates that `custom_pool_id` is not null during Create operations. If a null PoolId is provided, the Create operation will fail with an error:
+
+```cpp
+// WRONG - This will fail with error
+chi::PoolId null_id;  // Null pool ID
+client.Create(HSHM_MCTX, chi::PoolQuery::Broadcast(), "my_pool", null_id);
+// Error: "Cannot create pool with null PoolId. Explicit pool IDs are required."
+
+// CORRECT - Always provide explicit pool IDs
+const chi::PoolId custom_pool_id(7000, 0);
+client.Create(HSHM_MCTX, chi::PoolQuery::Broadcast(), "my_pool", custom_pool_id);
+```
 
 This pattern is mandatory for all ChiMod clients and ensures correct pool ID management throughout the client lifecycle.
 
@@ -3921,15 +3984,20 @@ Remember: **kLocalSchedule is mandatory** - without it, your tasks will never be
 ```cpp
 // BDev file-based device - pool_name is the file path
 std::string file_path = "/path/to/device.dat";
-bdev_client.Create(mctx, pool_query, file_path, chimaera::bdev::BdevType::kFile);
+const chi::PoolId bdev_pool_id(7000, 0);
+bdev_client.Create(mctx, pool_query, file_path, bdev_pool_id,
+                   chimaera::bdev::BdevType::kFile);
 
 // BDev RAM-based device - pool_name is unique identifier
 std::string pool_name = "my_ram_device_" + std::to_string(timestamp);
-bdev_client.Create(mctx, pool_query, pool_name, chimaera::bdev::BdevType::kRam, ram_size);
+const chi::PoolId ram_pool_id(7001, 0);
+bdev_client.Create(mctx, pool_query, pool_name, ram_pool_id,
+                   chimaera::bdev::BdevType::kRam, ram_size);
 
 // Other ChiMods - pool_name is descriptive identifier
 std::string pool_name = "my_container_" + user_identifier;
-mod_client.Create(mctx, pool_query, pool_name);
+const chi::PoolId mod_pool_id(7002, 0);
+mod_client.Create(mctx, pool_query, pool_name, mod_pool_id);
 ```
 
 ### Incorrect Pool Naming Usage

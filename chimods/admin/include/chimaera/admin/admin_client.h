@@ -34,11 +34,12 @@ class Client : public chi::ContainerClient {
    * @param mctx Memory context for the operation
    * @param pool_query Pool routing information
    * @param pool_name Unique name for the admin pool (user-provided)
+   * @param custom_pool_id Explicit pool ID for the pool being created
    * @return true if creation succeeded, false if it failed
    */
   bool Create(const hipc::MemContext& mctx, const chi::PoolQuery& pool_query,
-              const std::string& pool_name) {
-    auto task = AsyncCreate(mctx, pool_query, pool_name);
+              const std::string& pool_name, const chi::PoolId& custom_pool_id) {
+    auto task = AsyncCreate(mctx, pool_query, pool_name, custom_pool_id);
     task->Wait();
 
     // CRITICAL: Update client pool_id_ with the actual pool ID from the task
@@ -50,7 +51,7 @@ class Client : public chi::ContainerClient {
     // Clean up task
     auto* ipc_manager = CHI_IPC;
     ipc_manager->DelTask(task);
-    
+
     // Return true for success (return_code_ == 0), false for failure
     return return_code_ == 0;
   }
@@ -60,17 +61,19 @@ class Client : public chi::ContainerClient {
    * @param mctx Memory context for the operation
    * @param pool_query Pool routing information
    * @param pool_name Unique name for the admin pool (user-provided)
+   * @param custom_pool_id Explicit pool ID for the pool being created
    */
   hipc::FullPtr<CreateTask> AsyncCreate(const hipc::MemContext& mctx,
                                         const chi::PoolQuery& pool_query,
-                                        const std::string& pool_name) {
+                                        const std::string& pool_name,
+                                        const chi::PoolId& custom_pool_id) {
     auto* ipc_manager = CHI_IPC;
 
     // Allocate CreateTask for admin container creation
     // Note: Admin uses BaseCreateTask pattern, not GetOrCreatePoolTask
-    // The pool_name parameter is stored but may not be used the same way as other ChiMods
+    // The custom_pool_id is the ID for the pool being created (not the task pool)
     auto task = ipc_manager->NewTask<CreateTask>(chi::CreateTaskId(),
-                                                 chi::kAdminPoolId, pool_query, "", pool_name, pool_id_);
+                                                 chi::kAdminPoolId, pool_query, "", pool_name, custom_pool_id);
 
     // Submit to runtime
     ipc_manager->Enqueue(task);

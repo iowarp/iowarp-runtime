@@ -180,7 +180,7 @@ public:
 
       if (waitForTaskCompletion(task)) {
         INFO("MOD_NAME pool created successfully with ID: "
-             << kTestModNamePoolId);
+             << kTestModNamePoolId))
 
         // Clean up task
         CHI_IPC->DelTask(task);
@@ -265,7 +265,7 @@ TEST_CASE("MOD_NAME Custom Task Execution", "[task][mod_name][custom]") {
     // Step 4: Create the MOD_NAME container
     chi::DomainQuery pool_query; // Default domain query
     std::string pool_name = "test_mod_name_pool";
-    bool success = mod_name_client.Create(HSHM_MCTX, pool_query, pool_name);
+    bool success = mod_name_client.Create(HSHM_MCTX, pool_query, pool_name, kTestModNamePoolId);
     REQUIRE(success);
 
     // Step 5: Submit custom task
@@ -303,7 +303,7 @@ TEST_CASE("MOD_NAME Async Task Execution", "[task][mod_name][async]") {
     // Create the MOD_NAME container
     chi::DomainQuery pool_query;
     std::string pool_name = "test_mod_name_pool";
-    bool success = mod_name_client.Create(HSHM_MCTX, pool_query, pool_name);
+    bool success = mod_name_client.Create(HSHM_MCTX, pool_query, pool_name, kTestModNamePoolId);
     REQUIRE(success);
 
     // Submit async custom task
@@ -347,7 +347,7 @@ TEST_CASE("Error Handling Tests", "[error][edge_cases]") {
 
     // Creating container without runtime should fail or handle gracefully
     std::string pool_name = "test_mod_name_pool";
-    bool success = mod_name_client.Create(HSHM_MCTX, pool_query, pool_name);
+    bool success = mod_name_client.Create(HSHM_MCTX, pool_query, pool_name, kTestModNamePoolId);
     REQUIRE_NOTHROW(success);
   }
 
@@ -359,9 +359,10 @@ TEST_CASE("Error Handling Tests", "[error][edge_cases]") {
     chimaera::MOD_NAME::Client invalid_client(kInvalidPoolId);
 
     chi::DomainQuery pool_query;
+    std::string pool_name = "test_invalid_pool";
 
     // This should not crash
-    bool success = invalid_client.Create(HSHM_MCTX, pool_query);
+    bool success = invalid_client.Create(HSHM_MCTX, pool_query, pool_name, kInvalidPoolId);
     REQUIRE_NOTHROW(success);
   }
 
@@ -372,7 +373,7 @@ TEST_CASE("Error Handling Tests", "[error][edge_cases]") {
     chimaera::MOD_NAME::Client mod_name_client(kTestModNamePoolId);
     chi::DomainQuery pool_query;
     std::string pool_name = "test_mod_name_pool";
-    bool success = mod_name_client.Create(HSHM_MCTX, pool_query, pool_name);
+    bool success = mod_name_client.Create(HSHM_MCTX, pool_query, pool_name, kTestModNamePoolId);
     REQUIRE(success);
 
     // Submit a task
@@ -408,7 +409,7 @@ TEST_CASE("Concurrent Task Execution", "[concurrent][stress]") {
     chimaera::MOD_NAME::Client mod_name_client(kTestModNamePoolId);
     chi::DomainQuery pool_query;
     std::string pool_name = "test_mod_name_pool";
-    bool success = mod_name_client.Create(HSHM_MCTX, pool_query, pool_name);
+    bool success = mod_name_client.Create(HSHM_MCTX, pool_query, pool_name, kTestModNamePoolId);
     REQUIRE(success);
 
     // Submit multiple concurrent tasks
@@ -460,7 +461,7 @@ TEST_CASE("Memory Management", "[memory][cleanup]") {
     chimaera::MOD_NAME::Client mod_name_client(kTestModNamePoolId);
     chi::DomainQuery pool_query;
     std::string pool_name = "test_mod_name_pool";
-    bool success = mod_name_client.Create(HSHM_MCTX, pool_query, pool_name);
+    bool success = mod_name_client.Create(HSHM_MCTX, pool_query, pool_name, kTestModNamePoolId);
     REQUIRE(success);
 
     // Allocate many tasks to test memory management
@@ -500,7 +501,7 @@ TEST_CASE("Performance Tests", "[performance][timing]") {
     chimaera::MOD_NAME::Client mod_name_client(kTestModNamePoolId);
     chi::DomainQuery pool_query;
     std::string pool_name = "test_mod_name_pool";
-    bool success = mod_name_client.Create(HSHM_MCTX, pool_query, pool_name);
+    bool success = mod_name_client.Create(HSHM_MCTX, pool_query, pool_name, kTestModNamePoolId);
     REQUIRE(success);
 
     // Measure task execution time

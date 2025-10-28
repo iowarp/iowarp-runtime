@@ -42,48 +42,9 @@ set_target_properties(${DISTRIBUTED_BDEV_TEST_TARGET} PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
 )
 
-# Enable CTest integration if testing is enabled
-if(CHIMAERA_ENABLE_TESTS)
-  # Distributed BDev Tests - DirectHash
-  add_test(
-    NAME distributed_bdev_direct_hash_tests
-    COMMAND ${DISTRIBUTED_BDEV_TEST_TARGET} --num-nodes 3 --test-case direct
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
-  )
-  set_tests_properties(distributed_bdev_direct_hash_tests PROPERTIES
-    ENVIRONMENT "CHI_REPO_PATH=${CMAKE_BINARY_DIR}/bin"
-  )
-
-  # Distributed BDev Tests - Range
-  add_test(
-    NAME distributed_bdev_range_tests
-    COMMAND ${DISTRIBUTED_BDEV_TEST_TARGET} --num-nodes 3 --test-case range
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
-  )
-  set_tests_properties(distributed_bdev_range_tests PROPERTIES
-    ENVIRONMENT "CHI_REPO_PATH=${CMAKE_BINARY_DIR}/bin"
-  )
-
-  # Distributed BDev Tests - Broadcast
-  add_test(
-    NAME distributed_bdev_broadcast_tests
-    COMMAND ${DISTRIBUTED_BDEV_TEST_TARGET} --num-nodes 3 --test-case broadcast
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
-  )
-  set_tests_properties(distributed_bdev_broadcast_tests PROPERTIES
-    ENVIRONMENT "CHI_REPO_PATH=${CMAKE_BINARY_DIR}/bin"
-  )
-
-  # Set test properties for timeout and environment
-  set_tests_properties(
-    distributed_bdev_direct_hash_tests
-    distributed_bdev_range_tests
-    distributed_bdev_broadcast_tests
-    PROPERTIES
-      TIMEOUT 300  # 300 second timeout for distributed tests
-      ENVIRONMENT "CHI_REPO_PATH=${CMAKE_BINARY_DIR}/bin;CHIMAERA_TEST_MODE=1"
-  )
-endif()
+# Note: Distributed tests are NOT added to CTest as they require Docker cluster setup
+# Run these tests manually using the Docker-based test runner:
+#   cd test/unit/distributed && ./run_distributed_test.sh all
 
 # Custom targets for running distributed tests
 add_custom_target(test_distributed_bdev

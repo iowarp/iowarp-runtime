@@ -17,6 +17,7 @@ build
 *.env.cmake
 /CMakePresets.json
 
+build-docker
 build/
 benchmarks/HermesVFD
 

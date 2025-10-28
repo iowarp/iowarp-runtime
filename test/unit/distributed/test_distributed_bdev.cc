@@ -177,12 +177,13 @@ TEST_CASE("distributed_bdev_direct_hash", "[distributed][direct_hash]") {
   }
 
   SECTION("DirectHash test with loop iterations") {
-    chimaera::bdev::Client client(chi::PoolId(300, 0));
+    chi::PoolId custom_pool_id(300, 0);
+    chimaera::bdev::Client client(custom_pool_id);
     hipc::MemContext mctx;
 
     // Create bdev container
-    bool success = client.Create(mctx, chi::PoolQuery::Local(),
-                                 fixture.getTestFile(),
+    bool success = client.Create(mctx, chi::PoolQuery::Broadcast(),
+                                 fixture.getTestFile(), custom_pool_id,
                                  chimaera::bdev::BdevType::kFile);
     REQUIRE(success);
     REQUIRE(client.GetReturnCode() == 0);
@@ -276,12 +277,13 @@ TEST_CASE("distributed_bdev_range", "[distributed][range]") {
   }
 
   SECTION("Range test with multiple operations") {
-    chimaera::bdev::Client client(chi::PoolId(301, 0));
+    chi::PoolId custom_pool_id(301, 0);
+    chimaera::bdev::Client client(custom_pool_id);
     hipc::MemContext mctx;
 
     // Create bdev container
-    bool success = client.Create(mctx, chi::PoolQuery::Local(),
-                                 fixture.getTestFile(),
+    bool success = client.Create(mctx, chi::PoolQuery::Broadcast(),
+                                 fixture.getTestFile(), custom_pool_id,
                                  chimaera::bdev::BdevType::kFile);
     REQUIRE(success);
     REQUIRE(client.GetReturnCode() == 0);
@@ -373,12 +375,13 @@ TEST_CASE("distributed_bdev_broadcast", "[distributed][broadcast]") {
   }
 
   SECTION("Broadcast test with all nodes") {
-    chimaera::bdev::Client client(chi::PoolId(302, 0));
+    chi::PoolId custom_pool_id(302, 0);
+    chimaera::bdev::Client client(custom_pool_id);
     hipc::MemContext mctx;
 
     // Create bdev container
-    bool success = client.Create(mctx, chi::PoolQuery::Local(),
-                                 fixture.getTestFile(),
+    bool success = client.Create(mctx, chi::PoolQuery::Broadcast(),
+                                 fixture.getTestFile(), custom_pool_id,
                                  chimaera::bdev::BdevType::kFile);
     REQUIRE(success);
     REQUIRE(client.GetReturnCode() == 0);

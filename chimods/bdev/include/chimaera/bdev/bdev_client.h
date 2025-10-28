@@ -26,15 +26,16 @@ class Client : public chi::ContainerClient {
    * Create bdev container - synchronous
    * For file-based bdev, pool_name is the file path; for RAM, pool_name is a
    * unique identifier
+   * @param custom_pool_id Explicit pool ID for the pool being created
    * @param perf_metrics Optional user-defined performance characteristics (uses defaults if not provided)
    * @return true if creation succeeded, false if it failed
    */
   bool Create(const hipc::MemContext& mctx, const chi::PoolQuery& pool_query,
-              const std::string& pool_name, BdevType bdev_type,
-              chi::u64 total_size = 0, chi::u32 io_depth = 32,
+              const std::string& pool_name, const chi::PoolId& custom_pool_id,
+              BdevType bdev_type, chi::u64 total_size = 0, chi::u32 io_depth = 32,
               chi::u32 alignment = 4096,
               const PerfMetrics* perf_metrics = nullptr) {
-    auto task = AsyncCreate(mctx, pool_query, pool_name, bdev_type, total_size,
+    auto task = AsyncCreate(mctx, pool_query, pool_name, custom_pool_id, bdev_type, total_size,
                             io_depth, alignment, perf_metrics);
     task->Wait();
 
@@ -45,7 +46,7 @@ class Client : public chi::ContainerClient {
     return_code_ = task->return_code_;
 
     CHI_IPC->DelTask(task);
-    
+
     // Return true for success (return_code_ == 0), false for failure
     return return_code_ == 0;
   }
@@ -54,11 +55,13 @@ class Client : public chi::ContainerClient {
    * Create bdev container - asynchronous
    * For file-based bdev, pool_name is the file path; for RAM, pool_name is a
    * unique identifier
+   * @param custom_pool_id Explicit pool ID for the pool being created
    * @param perf_metrics Optional user-defined performance characteristics (uses defaults if not provided)
    */
   hipc::FullPtr<chimaera::bdev::CreateTask> AsyncCreate(
       const hipc::MemContext& mctx, const chi::PoolQuery& pool_query,
-      const std::string& pool_name, BdevType bdev_type, chi::u64 total_size = 0,
+      const std::string& pool_name, const chi::PoolId& custom_pool_id,
+      BdevType bdev_type, chi::u64 total_size = 0,
       chi::u32 io_depth = 32, chi::u32 alignment = 4096,
       const PerfMetrics* perf_metrics = nullptr) {
     auto* ipc_manager = CHI_IPC;
@@ -76,7 +79,7 @@ class Client : public chi::ContainerClient {
         CreateParams::chimod_lib_name,  // chimod name from CreateParams
         pool_name,  // user-provided pool name (file path for files, unique name
                     // for RAM)
-        pool_id_,   // target pool ID to create
+        custom_pool_id,   // target pool ID to create (explicit from user)
         // CreateParams arguments (perf_metrics is optional, defaults used if nullptr):
         bdev_type, total_size, io_depth, safe_alignment, perf_metrics);
 

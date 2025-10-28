@@ -264,7 +264,7 @@ void LatencyWorkerThread(size_t thread_id, const BenchmarkConfig &config,
   std::string output_data;
   while (!stop_flag.load(std::memory_order_relaxed)) {
     // Call Custom with simple operation (operation_id = 0)
-    chi::u32 result = mod_client.Custom(HSHM_MCTX, chi::PoolQuery::Local(),
+    chi::u32 result = mod_client.Custom(HSHM_MCTX, chi::PoolQuery::Broadcast(),
                                         input_data, 0, output_data);
 
     // Verify result (should echo back input_data)
@@ -372,7 +372,7 @@ int main(int argc, char **argv) {
   // Create admin container
   const chi::PoolId admin_pool_id = chi::kAdminPoolId;
   chimaera::admin::Client admin_client(admin_pool_id);
-  admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), "admin");
+  admin_client.Create(HSHM_MCTX, chi::PoolQuery::Broadcast(), "admin", admin_pool_id);
   if (admin_client.GetReturnCode() != 0) {
     std::cerr << "ERROR: Failed to create admin container\n";
     return 1;
@@ -384,7 +384,7 @@ int main(int argc, char **argv) {
     // Create MOD_NAME container for latency test
     test_pool_id = chi::PoolId(8000, 0);
     chimaera::MOD_NAME::Client mod_client(test_pool_id);
-    mod_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), "latency_test_pool");
+    mod_client.Create(HSHM_MCTX, chi::PoolQuery::Broadcast(), "latency_test_pool", test_pool_id);
     if (mod_client.GetReturnCode() != 0) {
       std::cerr << "ERROR: Failed to create MOD_NAME container (return code: "
                 << mod_client.GetReturnCode() << ")\n";
@@ -398,8 +398,8 @@ int main(int argc, char **argv) {
     // Construct BDev file path in output directory
     std::string bdev_file_path = config.output_dir + "/benchmark_bdev.dat";
 
-    bdev_client.Create(HSHM_MCTX, chi::PoolQuery::Local(),
-                       bdev_file_path,
+    bdev_client.Create(HSHM_MCTX, chi::PoolQuery::Broadcast(),
+                       bdev_file_path, test_pool_id,
                        chimaera::bdev::BdevType::kFile, config.max_file_size,
                        1024, 4096);
     if (bdev_client.GetReturnCode() != 0) {

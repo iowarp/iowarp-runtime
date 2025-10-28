@@ -12,7 +12,7 @@ services:
       - ../../../:/iowarp-runtime
       - ./hostfile:/etc/iowarp/hostfile:ro
       - ./chimaera_distributed.yaml:/etc/iowarp/chimaera_distributed.yaml:ro
-      - ./build-docker:/iowarp-runtime/build-docker
+      - iowarp-install:/usr/local
     environment:
       - NODE_ID=1
       - NODE_IP=172.25.0.10
@@ -60,7 +60,7 @@ services:
       - ../../../:/iowarp-runtime
       - ./hostfile:/etc/iowarp/hostfile:ro
       - ./chimaera_distributed.yaml:/etc/iowarp/chimaera_distributed.yaml:ro
-      - ./build-docker:/iowarp-runtime/build-docker
+      - iowarp-install:/usr/local
     environment:
       - NODE_ID=2
       - NODE_IP=172.25.0.11
@@ -71,7 +71,12 @@ services:
     entrypoint: [ "/bin/bash", "-c" ]
     command: >
       "
-        echo 'Node 2: Loading spack environment...' &&
+        echo 'Node 2: Waiting for build to complete...' &&
+        while [ ! -f /usr/local/bin/chimaera_start_runtime ]; do
+          sleep 2
+          echo 'Node 2: Still waiting for binaries...'
+        done &&
+        echo 'Node 2: Binaries found. Loading spack environment...' &&
         export SPACK_ROOT=/root/spack &&
         source /root/spack/share/spack/setup-env.sh &&
         spack load cte-hermes-shm &&
@@ -97,7 +102,7 @@ services:
       - ../../../:/iowarp-runtime
       - ./hostfile:/etc/iowarp/hostfile:ro
       - ./chimaera_distributed.yaml:/etc/iowarp/chimaera_distributed.yaml:ro
-      - ./build-docker:/iowarp-runtime/build-docker
+      - iowarp-install:/usr/local
     environment:
       - NODE_ID=3
       - NODE_IP=172.25.0.12
@@ -108,7 +113,12 @@ services:
     entrypoint: [ "/bin/bash", "-c" ]
     command: >
       "
-        echo 'Node 3: Loading spack environment...' &&
+        echo 'Node 3: Waiting for build to complete...' &&
+        while [ ! -f /usr/local/bin/chimaera_start_runtime ]; do
+          sleep 2
+          echo 'Node 3: Still waiting for binaries...'
+        done &&
+        echo 'Node 3: Binaries found. Loading spack environment...' &&
         export SPACK_ROOT=/root/spack &&
         source /root/spack/share/spack/setup-env.sh &&
         spack load cte-hermes-shm &&
@@ -134,7 +144,7 @@ services:
       - ../../../:/iowarp-runtime
       - ./hostfile:/etc/iowarp/hostfile:ro
       - ./chimaera_distributed.yaml:/etc/iowarp/chimaera_distributed.yaml:ro
-      - ./build-docker:/iowarp-runtime/build-docker
+      - iowarp-install:/usr/local
     environment:
       - NODE_ID=4
       - NODE_IP=172.25.0.13
@@ -145,7 +155,12 @@ services:
     entrypoint: [ "/bin/bash", "-c" ]
     command: >
       "
-        echo 'Node 4: Loading spack environment...' &&
+        echo 'Node 4: Waiting for build to complete...' &&
+        while [ ! -f /usr/local/bin/chimaera_start_runtime ]; do
+          sleep 2
+          echo 'Node 4: Still waiting for binaries...'
+        done &&
+        echo 'Node 4: Binaries found. Loading spack environment...' &&
         export SPACK_ROOT=/root/spack &&
         source /root/spack/share/spack/setup-env.sh &&
         spack load cte-hermes-shm &&
@@ -157,6 +172,10 @@ services:
         echo \"Node 4: Runtime started (PID \$RUNTIME_PID). Waiting for tests...\" &&
         tail -f /dev/null
       "
+
+volumes:
+  iowarp-install:
+    driver: local
 
 networks:
   iowarp-cluster:

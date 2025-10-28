@@ -142,7 +142,7 @@ namespace {
       
       try {
         std::string pool_name = "fire_and_forget_test_pool";
-        bool success = client.Create(mctx, chi::PoolQuery::Local(), pool_name);
+        bool success = client.Create(mctx, chi::PoolQuery::Broadcast(), pool_name, pool_id);
         REQUIRE(success);
         
         // Give container time to initialize
@@ -272,7 +272,7 @@ TEST_CASE("fire_and_forget_task_flag_detection", "[fire_and_forget][flag_detecti
     
     // Create a FireAndForgetTestTask directly to check its flags
     auto task = ipc_manager->NewTask<chimaera::MOD_NAME::FireAndForgetTestTask>(
-        chi::CreateTaskId(), kFireAndForgetPoolId, chi::PoolQuery::Local(),
+        chi::CreateTaskId(), kFireAndForgetPoolId, chi::PoolQuery::Broadcast(),
         fixture.generateTestId(), 100, "flag_test");
     
     // Verify the task has the fire-and-forget flag set
@@ -292,7 +292,7 @@ TEST_CASE("fire_and_forget_task_flag_detection", "[fire_and_forget][flag_detecti
     
     // Create a regular CustomTask to check its flags
     auto task = ipc_manager->NewTask<chimaera::MOD_NAME::CustomTask>(
-        chi::CreateTaskId(), kFireAndForgetPoolId, chi::PoolQuery::Local(),
+        chi::CreateTaskId(), kFireAndForgetPoolId, chi::PoolQuery::Broadcast(),
         "test_data", 42);
     
     // Verify the task does NOT have the fire-and-forget flag
@@ -326,7 +326,7 @@ TEST_CASE("fire_and_forget_client_api", "[fire_and_forget][client_api]") {
     
     // The client API should not throw and should not return a task handle
     REQUIRE_NOTHROW(
-        client.FireAndForgetTest(mctx, chi::PoolQuery::Local(), test_id, 50, log_message)
+        client.FireAndForgetTest(mctx, chi::PoolQuery::Broadcast(), test_id, 50, log_message)
     );
     
     INFO("Successfully submitted fire-and-forget task via client API");
@@ -351,7 +351,7 @@ TEST_CASE("fire_and_forget_client_api", "[fire_and_forget][client_api]") {
       task_ids.push_back(test_id);
       
       REQUIRE_NOTHROW(
-          client.FireAndForgetTest(mctx, chi::PoolQuery::Local(), 
+          client.FireAndForgetTest(mctx, chi::PoolQuery::Broadcast(), 
                                  test_id, 25, "Multi-task test " + std::to_string(i))
       );
     }
@@ -387,7 +387,7 @@ TEST_CASE("fire_and_forget_task_execution", "[fire_and_forget][execution]") {
     auto start_time = std::chrono::steady_clock::now();
     
     // Submit fire-and-forget task
-    client.FireAndForgetTest(mctx, chi::PoolQuery::Local(), 
+    client.FireAndForgetTest(mctx, chi::PoolQuery::Broadcast(), 
                            test_id, processing_time_ms, "Timing test");
     
     // The client call should return immediately (fire-and-forget)
@@ -420,7 +420,7 @@ TEST_CASE("fire_and_forget_task_execution", "[fire_and_forget][execution]") {
     
     // Submit all tasks
     for (const auto& config : task_configs) {
-      client.FireAndForgetTest(mctx, chi::PoolQuery::Local(), 
+      client.FireAndForgetTest(mctx, chi::PoolQuery::Broadcast(), 
                              config.first, config.second, 
                              "Timing test " + std::to_string(config.second) + "ms");
     }
@@ -470,7 +470,7 @@ TEST_CASE("fire_and_forget_memory_cleanup", "[fire_and_forget][memory_cleanup]")
       chi::u32 test_id = fixture.generateTestId();
       task_ids.push_back(test_id);
       
-      client.FireAndForgetTest(mctx, chi::PoolQuery::Local(), 
+      client.FireAndForgetTest(mctx, chi::PoolQuery::Broadcast(), 
                              test_id, 25, "Cleanup test " + std::to_string(i));
     }
     
@@ -490,7 +490,7 @@ TEST_CASE("fire_and_forget_memory_cleanup", "[fire_and_forget][memory_cleanup]")
     // Verify that we can still submit new tasks (memory isn't exhausted)
     chi::u32 test_id = fixture.generateTestId();
     REQUIRE_NOTHROW(
-        client.FireAndForgetTest(mctx, chi::PoolQuery::Local(), 
+        client.FireAndForgetTest(mctx, chi::PoolQuery::Broadcast(), 
                                test_id, 10, "Post-cleanup test")
     );
     
@@ -508,7 +508,7 @@ TEST_CASE("fire_and_forget_memory_cleanup", "[fire_and_forget][memory_cleanup]")
       for (int i = 0; i < num_tasks; ++i) {
         chi::u32 test_id = fixture.generateTestId();
         
-        client.FireAndForgetTest(mctx, chi::PoolQuery::Local(), 
+        client.FireAndForgetTest(mctx, chi::PoolQuery::Broadcast(), 
                                test_id, 1, "Stress test " + std::to_string(batch * num_tasks + i));
       }
       
@@ -524,7 +524,7 @@ TEST_CASE("fire_and_forget_memory_cleanup", "[fire_and_forget][memory_cleanup]")
     // System should still be responsive
     chi::u32 test_id = fixture.generateTestId();
     REQUIRE_NOTHROW(
-        client.FireAndForgetTest(mctx, chi::PoolQuery::Local(), 
+        client.FireAndForgetTest(mctx, chi::PoolQuery::Broadcast(), 
                                test_id, 10, "Final test after stress")
     );
     
@@ -560,7 +560,7 @@ TEST_CASE("fire_and_forget_vs_regular_task_behavior", "[fire_and_forget][compari
     auto start_time = std::chrono::steady_clock::now();
     
     // Regular task - synchronous call that waits for completion
-    chi::u32 result = client.Custom(mctx, chi::PoolQuery::Local(), 
+    chi::u32 result = client.Custom(mctx, chi::PoolQuery::Broadcast(), 
                                    input_data, operation_id, output_data);
     
     auto complete_time = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -582,7 +582,7 @@ TEST_CASE("fire_and_forget_vs_regular_task_behavior", "[fire_and_forget][compari
     auto start_time = std::chrono::steady_clock::now();
     
     // Fire-and-forget task - should return immediately
-    client.FireAndForgetTest(mctx, chi::PoolQuery::Local(), 
+    client.FireAndForgetTest(mctx, chi::PoolQuery::Broadcast(), 
                            test_id, 100, "Comparison test");
     
     auto return_time = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -600,7 +600,7 @@ TEST_CASE("fire_and_forget_vs_regular_task_behavior", "[fire_and_forget][compari
     auto* ipc_manager = CHI_IPC;
     
     // Submit an async regular task
-    auto task = client.AsyncCustom(mctx, chi::PoolQuery::Local(), 
+    auto task = client.AsyncCustom(mctx, chi::PoolQuery::Broadcast(), 
                                   "async_test", fixture.generateTestId());
     
     // Wait for completion
@@ -639,7 +639,7 @@ TEST_CASE("fire_and_forget_error_conditions", "[fire_and_forget][error_handling]
     
     // Task with zero processing time should still work
     REQUIRE_NOTHROW(
-        client.FireAndForgetTest(mctx, chi::PoolQuery::Local(), 
+        client.FireAndForgetTest(mctx, chi::PoolQuery::Broadcast(), 
                                test_id, 0, "Zero time test")
     );
     
@@ -657,7 +657,7 @@ TEST_CASE("fire_and_forget_error_conditions", "[fire_and_forget][error_handling]
     
     // Task with empty log message should work
     REQUIRE_NOTHROW(
-        client.FireAndForgetTest(mctx, chi::PoolQuery::Local(), 
+        client.FireAndForgetTest(mctx, chi::PoolQuery::Broadcast(), 
                                test_id, 10, "")
     );
     
@@ -675,7 +675,7 @@ TEST_CASE("fire_and_forget_error_conditions", "[fire_and_forget][error_handling]
     
     // Task with long processing time - should still return immediately
     REQUIRE_NOTHROW(
-        client.FireAndForgetTest(mctx, chi::PoolQuery::Local(), 
+        client.FireAndForgetTest(mctx, chi::PoolQuery::Broadcast(), 
                                test_id, long_time, "Long running test")
     );
     
@@ -699,7 +699,7 @@ TEST_CASE("fire_and_forget_error_conditions", "[fire_and_forget][error_handling]
     
     // Task with large log message should work
     REQUIRE_NOTHROW(
-        client.FireAndForgetTest(mctx, chi::PoolQuery::Local(), 
+        client.FireAndForgetTest(mctx, chi::PoolQuery::Broadcast(), 
                                test_id, 10, large_message)
     );
     
@@ -732,7 +732,7 @@ TEST_CASE("fire_and_forget_integration", "[fire_and_forget][integration]") {
       if (i % 2 == 0) {
         // Submit fire-and-forget task
         chi::u32 test_id = fixture.generateTestId();
-        client.FireAndForgetTest(mctx, chi::PoolQuery::Local(), 
+        client.FireAndForgetTest(mctx, chi::PoolQuery::Broadcast(), 
                                test_id, 25, "Mixed test fire-and-forget " + std::to_string(i));
       } else {
         // Submit regular task
@@ -740,7 +740,7 @@ TEST_CASE("fire_and_forget_integration", "[fire_and_forget][integration]") {
         std::string output_data;
         chi::u32 operation_id = fixture.generateTestId();
         
-        chi::u32 result = client.Custom(mctx, chi::PoolQuery::Local(), 
+        chi::u32 result = client.Custom(mctx, chi::PoolQuery::Broadcast(), 
                                        input_data, operation_id, output_data);
         REQUIRE(result == 0);
       }
@@ -764,7 +764,7 @@ TEST_CASE("fire_and_forget_integration", "[fire_and_forget][integration]") {
     for (int i = 0; i < num_concurrent; ++i) {
       try {
         chi::u32 test_id = fixture.generateTestId();
-        client.FireAndForgetTest(mctx, chi::PoolQuery::Local(), 
+        client.FireAndForgetTest(mctx, chi::PoolQuery::Broadcast(), 
                                test_id, 10, "Concurrent test " + std::to_string(i));
         submitted_tasks.fetch_add(1);
       } catch (...) {

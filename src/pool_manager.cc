@@ -306,17 +306,13 @@ bool PoolManager::CreatePool(FullPtr<Task> task, RunContext* run_ctx) {
     return true;
   }
 
-  // Use task's pool ID or generate new one if null
+  // Get the target pool ID from the task
   PoolId target_pool_id = create_task->new_pool_id_;
+
+  // CRITICAL: Reject null pool IDs - users must provide explicit pool IDs
   if (target_pool_id.IsNull()) {
-    // Generate new pool ID
-    target_pool_id = GeneratePoolId();
-    if (target_pool_id.IsNull()) {
-      HELOG(kError, "PoolManager: Failed to generate pool ID");
-      return false;
-    }
-    // Update the task with the generated pool ID
-    create_task->new_pool_id_ = target_pool_id;
+    HELOG(kError, "PoolManager: Cannot create pool with null PoolId. Users must provide explicit pool ID.");
+    return false;
   }
 
   // Check if pool already exists by ID (should not happen with proper
