@@ -1557,21 +1557,57 @@ auto query = chi::PoolQuery::Physical(3);
 client.NodeDiagnostics(HSHM_MCTX, query);
 ```
 
+#### 7. Dynamic Mode (Recommended for Create Operations)
+```cpp
+chi::PoolQuery::Dynamic()
+```
+- **Purpose**: Intelligent routing with automatic caching optimization
+- **Use Case**: Create operations that benefit from local cache checking
+- **Behavior**: Routes to Monitor with `kGlobalSchedule` for cache optimization
+  1. Check if pool exists locally using PoolManager
+  2. If pool exists: change pool_query to Local (execute locally using existing pool)
+  3. If pool doesn't exist: change pool_query to Broadcast (create pool on all nodes)
+- **Benefits**:
+  - Avoids redundant pool creation attempts
+  - Eliminates unnecessary network overhead for existing pools
+  - Automatic fallback to broadcast creation when needed
+- **Example**: Container creation with automatic caching
+```cpp
+// Recommended: Use Dynamic() for Create operations
+const chi::PoolId custom_pool_id(7000, 0);
+client.Create(HSHM_MCTX, chi::PoolQuery::Dynamic(), "my_pool", custom_pool_id);
+
+// The Monitor will:
+// - Check local cache for "my_pool"
+// - If found: switch to Local mode (fast path)
+// - If not found: switch to Broadcast mode (creation path)
+```
+
 ### PoolQuery Usage Guidelines
 
 #### Best Practices
 
 1. **Never use null queries**: Always specify an explicit PoolQuery type
-2. **Default to Broadcast for Create**: Use `PoolQuery::Broadcast()` for container creation in non-MPI environments
-3. **Use Local for MPI**: In MPI jobs, use `PoolQuery::Local()` for more efficient local-only creation
+2. **Default to Dynamic for Create**: Use `PoolQuery::Dynamic()` for container creation to enable automatic caching optimization
+3. **Alternative: Use Broadcast or Local explicitly**:
+   - Use `Broadcast()` when you want to force distributed creation regardless of cache
+   - Use `Local()` in MPI jobs when you want node-local containers only
 4. **Consider locality**: Prefer local execution to minimize network overhead for regular operations
 5. **Use appropriate granularity**: Match routing mode to operation scope
 
 #### Common Patterns
 
-**Container Creation Pattern (Non-MPI)**:
+**Container Creation Pattern (Recommended)**:
 ```cpp
-// Use Broadcast for container creation in standard deployments
+// Recommended: Use Dynamic for automatic cache optimization
+// This checks local cache first and falls back to broadcast creation if needed
+const chi::PoolId custom_pool_id(7000, 0);
+client.Create(HSHM_MCTX, chi::PoolQuery::Dynamic(), "my_pool_name", custom_pool_id);
+```
+
+**Container Creation Pattern (Explicit Broadcast)**:
+```cpp
+// Alternative: Use Broadcast to force distributed creation regardless of cache
 // This ensures the container is created across all nodes in distributed environments
 const chi::PoolId custom_pool_id(7000, 0);
 client.Create(HSHM_MCTX, chi::PoolQuery::Broadcast(), "my_pool_name", custom_pool_id);
@@ -1579,7 +1615,7 @@ client.Create(HSHM_MCTX, chi::PoolQuery::Broadcast(), "my_pool_name", custom_poo
 
 **Container Creation Pattern (MPI Environments)**:
 ```cpp
-// In MPI jobs, Local may be more efficient than Broadcast
+// In MPI jobs, Local may be more efficient for node-local containers
 // Use Local when you want node-local containers only
 const chi::PoolId custom_pool_id(7000, 0);
 client.Create(HSHM_MCTX, chi::PoolQuery::Local(), "my_pool_name", custom_pool_id);

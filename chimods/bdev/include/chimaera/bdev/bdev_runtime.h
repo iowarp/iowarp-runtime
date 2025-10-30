@@ -156,12 +156,6 @@ class Runtime : public chi::Container {
            chi::RunContext& rctx) override;
 
   /**
-   * Monitor a method execution for scheduling/coordination - using autogen dispatcher
-   */
-  void Monitor(chi::MonitorModeId mode, chi::u32 method,
-               hipc::FullPtr<chi::Task> task_ptr, chi::RunContext& rctx) override;
-
-  /**
    * Delete/cleanup a task - using autogen dispatcher
    */
   void Del(chi::u32 method, hipc::FullPtr<chi::Task> task_ptr) override;

@@ -28,16 +28,16 @@ class Task;
  * Used for efficient reuse of stack allocations
  */
 struct StackAndContext {
-  void* stack_base_for_free;  /**< Base pointer for freeing the stack */
-  size_t stack_size;           /**< Size of the stack in bytes */
-  RunContext* run_ctx;         /**< Pointer to the RunContext */
+  void *stack_base_for_free; /**< Base pointer for freeing the stack */
+  size_t stack_size;         /**< Size of the stack in bytes */
+  RunContext *run_ctx;       /**< Pointer to the RunContext */
 
-  StackAndContext() : stack_base_for_free(nullptr), stack_size(0), run_ctx(nullptr) {}
+  StackAndContext()
+      : stack_base_for_free(nullptr), stack_size(0), run_ctx(nullptr) {}
 
-  StackAndContext(void* stack_base, size_t size, RunContext* ctx)
+  StackAndContext(void *stack_base, size_t size, RunContext *ctx)
       : stack_base_for_free(stack_base), stack_size(size), run_ctx(ctx) {}
 };
-
 
 // Macro for accessing HSHM thread-local storage (worker thread context)
 // This macro allows access to the current worker from any thread
@@ -45,9 +45,8 @@ struct StackAndContext {
 //   Worker* worker = CHI_CUR_WORKER;
 //   FullPtr<Task> current_task = worker->GetCurrentTask();
 //   RunContext* run_ctx = worker->GetCurrentRunContext();
-#define CHI_CUR_WORKER \
+#define CHI_CUR_WORKER                                                         \
   (HSHM_THREAD_MODEL->GetTls<class Worker>(chi_cur_worker_key_))
-
 
 /**
  * Worker class for executing tasks
@@ -56,7 +55,7 @@ struct StackAndContext {
  * and provides task execution environment with stack allocation.
  */
 class Worker {
- public:
+public:
   /**
    * Constructor
    * @param worker_id Unique worker identifier
@@ -112,14 +111,14 @@ class Worker {
    * Get current RunContext for this worker thread
    * @return Pointer to current RunContext or nullptr
    */
-  RunContext* GetCurrentRunContext() const;
+  RunContext *GetCurrentRunContext() const;
 
   /**
    * Set current RunContext for this worker thread
    * @param rctx Pointer to RunContext to set as current
    * @return Pointer to the set RunContext
    */
-  RunContext* SetCurrentRunContext(RunContext* rctx);
+  RunContext *SetCurrentRunContext(RunContext *rctx);
 
   /**
    * Get current task from the current RunContext
@@ -131,13 +130,13 @@ class Worker {
    * Get current container from the current RunContext
    * @return Pointer to current container or nullptr if no RunContext
    */
-  Container* GetCurrentContainer() const;
+  Container *GetCurrentContainer() const;
 
   /**
    * Get current lane from the current RunContext
    * @return Pointer to current lane or nullptr if no RunContext
    */
-  TaskLane* GetCurrentLane() const;
+  TaskLane *GetCurrentLane() const;
 
   /**
    * Set this worker as the current worker in thread-local storage
@@ -154,79 +153,103 @@ class Worker {
    * @param run_ctx_ptr Pointer to run context (task accessible via
    * run_ctx_ptr->task)
    */
-  void AddToBlockedQueue(RunContext* run_ctx_ptr);
+  void AddToBlockedQueue(RunContext *run_ctx_ptr);
 
   /**
    * Reschedule a periodic task for next execution
    * Checks if lane still maps to this worker - if so, adds to blocked queue
    * Otherwise, reschedules task back to the lane
-   * @param run_ctx_ptr Pointer to run context 
+   * @param run_ctx_ptr Pointer to run context
    * @param task_ptr Full pointer to the periodic task
    */
-  void ReschedulePeriodicTask(RunContext* run_ctx_ptr, const FullPtr<Task>& task_ptr);
+  void ReschedulePeriodicTask(RunContext *run_ctx_ptr,
+                              const FullPtr<Task> &task_ptr);
 
   /**
    * Set the worker's assigned lane
    * @param lane Pointer to the TaskLane assigned to this worker
    */
-  void SetLane(TaskLane* lane);
+  void SetLane(TaskLane *lane);
 
   /**
    * Get the worker's assigned lane
    * @return Pointer to the TaskLane assigned to this worker
    */
-  TaskLane* GetLane() const;
+  TaskLane *GetLane() const;
 
   /**
-   * Route a task by calling ResolvePoolQuery and determining local vs global scheduling
+   * Route a task by calling ResolvePoolQuery and determining local vs global
+   * scheduling
    * @param task_ptr Full pointer to task to route
    * @param lane Pointer to the task lane for execution context
-   * @param container Output parameter for the container to use for task execution
+   * @param container Output parameter for the container to use for task
+   * execution
    * @return true if task was successfully routed, false otherwise
    */
-  bool RouteTask(const FullPtr<Task>& task_ptr, TaskLane* lane, Container*& container);
+  bool RouteTask(const FullPtr<Task> &task_ptr, TaskLane *lane,
+                 Container *&container);
 
   /**
    * Resolve a pool query into concrete physical addresses
    * @param query Pool query to resolve
    * @param pool_id Pool ID for the query
+   * @param task_ptr Task pointer (needed for Dynamic routing)
    * @return Vector of pool queries for routing
    */
-  std::vector<PoolQuery> ResolvePoolQuery(const PoolQuery& query, PoolId pool_id);
+  std::vector<PoolQuery> ResolvePoolQuery(const PoolQuery &query,
+                                          PoolId pool_id,
+                                          const FullPtr<Task> &task_ptr);
 
 private:
   // Pool query resolution helper functions
-  std::vector<PoolQuery> ResolveLocalQuery(const PoolQuery& query);
-  std::vector<PoolQuery> ResolveDirectIdQuery(const PoolQuery& query, PoolId pool_id);
-  std::vector<PoolQuery> ResolveDirectHashQuery(const PoolQuery& query, PoolId pool_id);
-  std::vector<PoolQuery> ResolveRangeQuery(const PoolQuery& query, PoolId pool_id);
-  std::vector<PoolQuery> ResolveBroadcastQuery(const PoolQuery& query, PoolId pool_id);
-  std::vector<PoolQuery> ResolvePhysicalQuery(const PoolQuery& query, PoolId pool_id);
+  std::vector<PoolQuery> ResolveLocalQuery(const PoolQuery &query,
+                                           const FullPtr<Task> &task_ptr);
+  std::vector<PoolQuery> ResolveDynamicQuery(const PoolQuery &query,
+                                             PoolId pool_id,
+                                             const FullPtr<Task> &task_ptr);
+  std::vector<PoolQuery> ResolveDirectIdQuery(const PoolQuery &query,
+                                              PoolId pool_id,
+                                              const FullPtr<Task> &task_ptr);
+  std::vector<PoolQuery> ResolveDirectHashQuery(const PoolQuery &query,
+                                                PoolId pool_id,
+                                                const FullPtr<Task> &task_ptr);
+  std::vector<PoolQuery> ResolveRangeQuery(const PoolQuery &query,
+                                           PoolId pool_id,
+                                           const FullPtr<Task> &task_ptr);
+  std::vector<PoolQuery> ResolveBroadcastQuery(const PoolQuery &query,
+                                               PoolId pool_id,
+                                               const FullPtr<Task> &task_ptr);
+  std::vector<PoolQuery> ResolvePhysicalQuery(const PoolQuery &query,
+                                              PoolId pool_id,
+                                              const FullPtr<Task> &task_ptr);
 
   /**
    * Process a blocked queue, checking tasks and re-queuing as needed
    * @param queue Reference to the ring buffer queue to process
    */
-  void ProcessBlockedQueue(hshm::ext_ring_buffer<RunContext*>& queue);
+  void ProcessBlockedQueue(hshm::ext_ring_buffer<RunContext *> &queue);
 
 public:
-
   /**
-   * Check if task should be processed locally based on task flags and pool queries
+   * Check if task should be processed locally based on task flags and pool
+   * queries
    * @param task_ptr Full pointer to task to check for TASK_FORCE_NET flag
    * @param pool_queries Vector of pool queries from ResolvePoolQuery
    * @return true if task should be processed locally, false for global routing
    */
-  bool IsTaskLocal(const FullPtr<Task> &task_ptr, const std::vector<PoolQuery>& pool_queries);
+  bool IsTaskLocal(const FullPtr<Task> &task_ptr,
+                   const std::vector<PoolQuery> &pool_queries);
 
   /**
    * Route task locally using container query and Monitor with kLocalSchedule
    * @param task_ptr Full pointer to task to route locally
    * @param lane Pointer to the task lane for execution context
-   * @param container Output parameter for the container to use for task execution
+   * @param container Output parameter for the container to use for task
+   * execution
    * @return true if local routing successful, false otherwise
    */
-  bool RouteLocal(const FullPtr<Task>& task_ptr, TaskLane* lane, Container*& container);
+  bool RouteLocal(const FullPtr<Task> &task_ptr, TaskLane *lane,
+                  Container *&container);
 
   /**
    * Route task globally using admin client's ClientSendTaskIn method
@@ -234,22 +257,23 @@ public:
    * @param pool_queries Vector of pool queries for global routing
    * @return true if global routing successful, false otherwise
    */
-  bool RouteGlobal(const FullPtr<Task>& task_ptr, const std::vector<PoolQuery>& pool_queries);
+  bool RouteGlobal(const FullPtr<Task> &task_ptr,
+                   const std::vector<PoolQuery> &pool_queries);
 
- private:
+private:
   /**
    * Allocate stack and RunContext for task execution (64KB default)
    * @param size Stack size in bytes
    * @return RunContext pointer with stack_ptr set
    */
-  RunContext* AllocateStackAndContext(size_t size = 65536);  // 64KB default
+  RunContext *AllocateStackAndContext(size_t size = 65536); // 64KB default
 
   /**
    * Deallocate task execution stack and RunContext
    * @param run_ctx_ptr Pointer to RunContext containing stack info to
    * deallocate
    */
-  void DeallocateStackAndContext(RunContext* run_ctx_ptr);
+  void DeallocateStackAndContext(RunContext *run_ctx_ptr);
 
   /**
    * Begin task execution using boost::fiber for context switching
@@ -258,8 +282,8 @@ public:
    * @param container Container for the task
    * @param lane Lane for the task (can be nullptr)
    */
-  void BeginTask(const FullPtr<Task>& task_ptr, Container* container,
-                 TaskLane* lane);
+  void BeginTask(const FullPtr<Task> &task_ptr, Container *container,
+                 TaskLane *lane);
 
   /**
    * Continue processing blocked tasks that are ready to resume
@@ -274,8 +298,41 @@ public:
    * @param run_ctx_ptr Pointer to existing RunContext
    * @param is_started True if task is resuming, false for new task
    */
-  bool ExecTask(const FullPtr<Task>& task_ptr, RunContext* run_ctx_ptr,
+  void ExecTask(const FullPtr<Task> &task_ptr, RunContext *run_ctx_ptr,
                 bool is_started);
+
+  /**
+   * Begin fiber execution for a new task
+   * @param task_ptr Full pointer to task to execute
+   * @param run_ctx Pointer to RunContext for task
+   * @param fiber_fn Function pointer for fiber execution
+   */
+  void BeginFiber(const FullPtr<Task> &task_ptr, RunContext *run_ctx,
+                  void (*fiber_fn)(boost::context::detail::transfer_t));
+
+  /**
+   * Resume fiber execution for a yielded/blocked task
+   * @param task_ptr Full pointer to task to resume
+   * @param run_ctx Pointer to RunContext for task
+   */
+  void ResumeFiber(const FullPtr<Task> &task_ptr, RunContext *run_ctx);
+
+  /**
+   * End task execution and perform cleanup
+   * @param task_ptr Full pointer to task to end
+   * @param run_ctx Pointer to RunContext for task
+   * @param should_complete Whether task should be marked as complete
+   * @param is_remote Whether task is remote and needs to send outputs back
+   */
+  void EndTask(const FullPtr<Task> &task_ptr, RunContext *run_ctx,
+               bool should_complete, bool is_remote);
+
+  /**
+   * End dynamic scheduling task and re-route with updated pool query
+   * @param task_ptr Full pointer to task to re-route
+   * @param run_ctx Pointer to RunContext for task
+   */
+  void RerouteDynamicTask(const FullPtr<Task> &task_ptr, RunContext *run_ctx);
 
   /**
    * Static function for boost::fiber execution context
@@ -287,13 +344,13 @@ public:
   ThreadType thread_type_;
   bool is_running_;
   bool is_initialized_;
-  bool did_work_;  // Tracks if any work was done in current loop iteration
+  bool did_work_; // Tracks if any work was done in current loop iteration
 
   // Current RunContext for this worker thread
-  RunContext* current_run_context_;
+  RunContext *current_run_context_;
 
   // Single lane assigned to this worker (one lane per worker)
-  TaskLane* assigned_lane_;
+  TaskLane *assigned_lane_;
 
   // Stack and RunContext cache for efficient reuse
   // Using ext_ring_buffer for O(1) enqueue/dequeue operations
@@ -304,13 +361,14 @@ public:
   // - Queue 1: Long blocking times (>= 10us), checked based on time intervals
   // Using ext_ring_buffer for O(1) enqueue/dequeue operations
   static constexpr u32 NUM_BLOCKED_QUEUES = 2;
-  hshm::ext_ring_buffer<RunContext*> blocked_queues_[NUM_BLOCKED_QUEUES];
+  hshm::ext_ring_buffer<RunContext *> blocked_queues_[NUM_BLOCKED_QUEUES];
 
   // Worker spawn time and queue processing tracking
-  hshm::Timepoint spawn_time_;  // Time when worker was spawned
-  u64 last_long_queue_check_;   // Last time (in 10us units) long queue was processed
+  hshm::Timepoint spawn_time_; // Time when worker was spawned
+  u64 last_long_queue_check_;  // Last time (in 10us units) long queue was
+                               // processed
 };
 
-}  // namespace chi
+} // namespace chi
 
-#endif  // CHIMAERA_INCLUDE_CHIMAERA_WORKERS_WORKER_H_
+#endif // CHIMAERA_INCLUDE_CHIMAERA_WORKERS_WORKER_H_

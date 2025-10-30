@@ -2,6 +2,15 @@
 
 Use the Google C++ style guide for C++.
 
+### Worker Method Return Types
+
+The following Worker methods return `void`, not `bool`:
+- `ExecTask()` - Execute task with context switching capability
+- `EndTask()` - End task execution and perform cleanup
+- `RerouteDynamicTask()` - End dynamic scheduling task and re-route with updated pool query
+
+These methods handle task execution flow internally and do not return success/failure status.
+
 ### Type Aliases
 
 Use the `WorkQueue` typedef for worker queue types:
@@ -29,6 +38,38 @@ NEVER use a null pool query. If you don't know, always use local.
 Local QueueId should be named. NEVER use raw integers. This is the same for priorities. Please name them semantically.
 
 ## ChiMod Client Requirements
+
+### PoolQuery Recommendations for Create Operations
+
+**RECOMMENDED**: Use `PoolQuery::Dynamic()` for all Create operations to leverage automatic caching optimization.
+
+**Dynamic Pool Query Behavior:**
+- Routes to the Monitor method with `MonitorModeId::kGlobalSchedule`
+- Monitor performs a two-step process:
+  1. Check if pool exists locally using PoolManager
+  2. If pool exists: change pool_query to Local (task executes locally using existing pool)
+  3. If pool doesn't exist: change pool_query to Broadcast (task creates pool on all nodes)
+- This optimization avoids unnecessary network overhead when pools already exist locally
+
+**Correct Usage:**
+```cpp
+// Recommended: Use Dynamic() for automatic caching
+admin_client.Create(mctx, chi::PoolQuery::Dynamic(), "admin");
+bdev_client.Create(mctx, chi::PoolQuery::Dynamic(), file_path, chimaera::bdev::BdevType::kFile);
+```
+
+**Alternative Usage:**
+```cpp
+// Explicit routing - use when you specifically need Local or Broadcast behavior
+admin_client.Create(mctx, chi::PoolQuery::Local(), "admin");  // Force local creation
+bdev_client.Create(mctx, chi::PoolQuery::Broadcast(), pool_name, bdev_type);  // Force broadcast
+```
+
+**Why Dynamic() is Recommended:**
+- **Performance**: Avoids redundant pool creation attempts when pool already exists
+- **Network Efficiency**: Eliminates unnecessary broadcast messages for existing pools
+- **Automatic**: No manual cache checking required in client code
+- **Safe**: Falls back to broadcast creation when pool doesn't exist locally
 
 ### CreateTask Pool Assignment
 CreateTask operations in all ChiMod clients MUST use `chi::kAdminPoolId` instead of the client's `pool_id_`. This is because CreateTask is actually a GetOrCreatePoolTask that must be processed by the admin ChiMod to create or find the target pool.

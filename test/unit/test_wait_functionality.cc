@@ -133,7 +133,7 @@ namespace {
       
       try {
         std::string pool_name = "wait_test_pool_" + std::to_string(pool_id.ToU64());
-        bool success = client.Create(mctx, chi::PoolQuery::Local(), pool_name, pool_id);
+        bool success = client.Create(mctx, chi::PoolQuery::Dynamic(), pool_name, pool_id);
         REQUIRE(success);
         
         // Give container time to initialize

@@ -497,6 +497,7 @@ bool IpcManager::LoadHostfile() {
 
   // Clear existing hostfile map
   hostfile_map_.clear();
+  hosts_cache_valid_ = false;
 
   if (hostfile_path.empty()) {
     // No hostfile configured - assume localhost as node 0
@@ -554,15 +555,24 @@ const Host *IpcManager::GetHostByIp(const std::string &ip_address) const {
   return nullptr;
 }
 
-std::vector<Host> IpcManager::GetAllHosts() const {
-  std::vector<Host> hosts;
-  hosts.reserve(hostfile_map_.size());
+const std::vector<Host>& IpcManager::GetAllHosts() const {
+  // Rebuild cache if invalid
+  if (!hosts_cache_valid_) {
+    hosts_cache_.clear();
+    hosts_cache_.reserve(hostfile_map_.size());
 
-  for (const auto &pair : hostfile_map_) {
-    hosts.push_back(pair.second);
+    for (const auto &pair : hostfile_map_) {
+      hosts_cache_.push_back(pair.second);
+    }
+
+    hosts_cache_valid_ = true;
   }
 
-  return hosts;
+  return hosts_cache_;
+}
+
+size_t IpcManager::GetNumHosts() const {
+  return hostfile_map_.size();
 }
 
 bool IpcManager::IdentifyThisHost() {

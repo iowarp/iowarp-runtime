@@ -57,48 +57,6 @@ void Runtime::Run(chi::u32 method, hipc::FullPtr<chi::Task> task_ptr, chi::RunCo
   }
 }
 
-void Runtime::Monitor(chi::MonitorModeId mode, chi::u32 method, 
-                       hipc::FullPtr<chi::Task> task_ptr, chi::RunContext& rctx) {
-  switch (method) {
-    case Method::kCreate: {
-      MonitorCreate(mode, task_ptr.Cast<CreateTask>(), rctx);
-      break;
-    }
-    case Method::kDestroy: {
-      MonitorDestroy(mode, task_ptr.Cast<DestroyTask>(), rctx);
-      break;
-    }
-    case Method::kGetOrCreatePool: {
-      MonitorGetOrCreatePool(mode, task_ptr.Cast<admin::GetOrCreatePoolTask<admin::CreateParams>>(), rctx);
-      break;
-    }
-    case Method::kDestroyPool: {
-      MonitorDestroyPool(mode, task_ptr.Cast<DestroyPoolTask>(), rctx);
-      break;
-    }
-    case Method::kStopRuntime: {
-      MonitorStopRuntime(mode, task_ptr.Cast<StopRuntimeTask>(), rctx);
-      break;
-    }
-    case Method::kFlush: {
-      MonitorFlush(mode, task_ptr.Cast<FlushTask>(), rctx);
-      break;
-    }
-    case Method::kSend: {
-      MonitorSend(mode, task_ptr.Cast<SendTask>(), rctx);
-      break;
-    }
-    case Method::kRecv: {
-      MonitorRecv(mode, task_ptr.Cast<RecvTask>(), rctx);
-      break;
-    }
-    default: {
-      // Unknown method - do nothing
-      break;
-    }
-  }
-}
-
 void Runtime::Del(chi::u32 method, hipc::FullPtr<chi::Task> task_ptr) {
   // Use IPC manager to deallocate task from shared memory
   auto* ipc_manager = CHI_IPC;

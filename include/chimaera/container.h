@@ -88,13 +88,6 @@ class Container {
                    RunContext& rctx) = 0;
 
   /**
-   * Monitor a method execution for scheduling/coordination - must be
-   * implemented by derived classes
-   */
-  virtual void Monitor(MonitorModeId mode, u32 method,
-                       hipc::FullPtr<Task> task_ptr, RunContext& rctx) = 0;
-
-  /**
    * Delete/cleanup a task - must be implemented by derived classes
    */
   virtual void Del(u32 method, hipc::FullPtr<Task> task_ptr) = 0;

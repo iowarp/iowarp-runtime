@@ -104,6 +104,17 @@ PoolQuery PoolQuery::Physical(u32 node_id) {
   return query;
 }
 
+PoolQuery PoolQuery::Dynamic() {
+  PoolQuery query;
+  query.routing_mode_ = RoutingMode::Dynamic;
+  query.hash_value_ = 0;
+  query.container_id_ = 0;
+  query.range_offset_ = 0;
+  query.range_count_ = 0;
+  query.node_id_ = 0;
+  return query;
+}
+
 // Getter methods
 
 u32 PoolQuery::GetHash() const { return hash_value_; }
@@ -140,6 +151,10 @@ bool PoolQuery::IsBroadcastMode() const {
 
 bool PoolQuery::IsPhysicalMode() const {
   return routing_mode_ == RoutingMode::Physical;
+}
+
+bool PoolQuery::IsDynamicMode() const {
+  return routing_mode_ == RoutingMode::Dynamic;
 }
 
 void PoolQuery::SetReturnNode(u32 ret_node) {

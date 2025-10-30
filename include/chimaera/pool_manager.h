@@ -15,10 +15,6 @@ class Container;
 class Task;
 struct RunContext;
 
-// Configuration constants for pool query resolution
-constexpr u32 MAX_RANGE_FOR_PHYSICAL_SPLITTING = 64;  // Maximum range size before using range splitting
-constexpr u32 MAX_POOL_QUERIES_PER_RESOLUTION = 16;   // Maximum number of PoolQueries to produce from one resolution
-
 /**
  * Address mapping table for pool management
  * 

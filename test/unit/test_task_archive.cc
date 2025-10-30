@@ -501,16 +501,6 @@ public:
     (void)rctx;
   }
 
-  void Monitor(chi::MonitorModeId mode, chi::u32 method,
-               hipc::FullPtr<chi::Task> task_ptr,
-               chi::RunContext &rctx) override {
-    // Test implementation - do nothing
-    (void)mode;
-    (void)method;
-    (void)task_ptr;
-    (void)rctx;
-  }
-
   void Del(chi::u32 method, hipc::FullPtr<chi::Task> task_ptr) override {
     // Test implementation - do nothing
     (void)method;

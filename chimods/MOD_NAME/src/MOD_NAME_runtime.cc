@@ -39,26 +39,6 @@ void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext &rctx) {
         pool_name_, task->pool_id_, create_count_);
 }
 
-void Runtime::MonitorCreate(chi::MonitorModeId mode,
-                            hipc::FullPtr<CreateTask> task_ptr,
-                            chi::RunContext &rctx) {
-  switch (mode) {
-  case chi::MonitorModeId::kLocalSchedule:
-    // Task executes directly on current worker without re-routing
-    break;
-
-  case chi::MonitorModeId::kGlobalSchedule:
-    // Coordinate global distribution
-    HILOG(kDebug, "MOD_NAME: Global scheduling for Create task");
-    break;
-
-  case chi::MonitorModeId::kEstLoad:
-    // Estimate task execution time
-    HILOG(kDebug, "MOD_NAME: Estimating load for Create task");
-    break;
-  }
-}
-
 void Runtime::Custom(hipc::FullPtr<CustomTask> task, chi::RunContext &rctx) {
   HILOG(kDebug, "MOD_NAME: Executing Custom task with data: {}",
         task->data_.c_str());
@@ -69,26 +49,6 @@ void Runtime::Custom(hipc::FullPtr<CustomTask> task, chi::RunContext &rctx) {
   // In a real implementation, this would perform the custom operation
 
   HILOG(kDebug, "MOD_NAME: Custom completed (count: {})", custom_count_);
-}
-
-void Runtime::MonitorCustom(chi::MonitorModeId mode,
-                            hipc::FullPtr<CustomTask> task_ptr,
-                            chi::RunContext &rctx) {
-  switch (mode) {
-  case chi::MonitorModeId::kLocalSchedule:
-    // Task executes directly on current worker without re-routing
-    break;
-
-  case chi::MonitorModeId::kGlobalSchedule:
-    // Coordinate global distribution
-    HILOG(kDebug, "MOD_NAME: Global scheduling for Custom task");
-    break;
-
-  case chi::MonitorModeId::kEstLoad:
-    // Estimate task execution time
-    HILOG(kDebug, "MOD_NAME: Estimating load for Custom task");
-    break;
-  }
 }
 
 void Runtime::Destroy(hipc::FullPtr<DestroyTask> task, chi::RunContext &rctx) {
@@ -102,26 +62,6 @@ void Runtime::Destroy(hipc::FullPtr<DestroyTask> task, chi::RunContext &rctx) {
   // In a real implementation, this would clean up MOD_NAME-specific resources
   // For now, just mark as successful
   HILOG(kDebug, "MOD_NAME: Container destroyed successfully");
-}
-
-void Runtime::MonitorDestroy(chi::MonitorModeId mode,
-                             hipc::FullPtr<DestroyTask> task_ptr,
-                             chi::RunContext &rctx) {
-  switch (mode) {
-  case chi::MonitorModeId::kLocalSchedule:
-    // Task executes directly on current worker without re-routing
-    break;
-
-  case chi::MonitorModeId::kGlobalSchedule:
-    // Coordinate global destruction
-    HILOG(kDebug, "MOD_NAME: Global scheduling for Destroy task");
-    break;
-
-  case chi::MonitorModeId::kEstLoad:
-    // Estimate task execution time
-    rctx.est_load = 10000.0; // 10ms for destruction
-    break;
-  }
 }
 
 chi::u64 Runtime::GetWorkRemaining() const {
@@ -157,18 +97,6 @@ void Runtime::CoMutexTest(hipc::FullPtr<CoMutexTestTask> task,
 
   task->return_code_ = 0; // Success (0 means success in most conventions)
   HILOG(kDebug, "MOD_NAME: CoMutexTest {} completed", task->test_id_);
-}
-
-void Runtime::MonitorCoMutexTest(chi::MonitorModeId mode,
-                                 hipc::FullPtr<CoMutexTestTask> task_ptr,
-                                 chi::RunContext &rctx) {
-  switch (mode) {
-  case chi::MonitorModeId::kLocalSchedule:
-    // Task executes directly on current worker without re-routing
-    break;
-  default:
-    break;
-  }
 }
 
 void Runtime::CoRwLockTest(hipc::FullPtr<CoRwLockTestTask> task,
@@ -216,18 +144,6 @@ void Runtime::CoRwLockTest(hipc::FullPtr<CoRwLockTestTask> task,
   HILOG(kDebug, "MOD_NAME: CoRwLockTest {} completed", task->test_id_);
 }
 
-void Runtime::MonitorCoRwLockTest(chi::MonitorModeId mode,
-                                  hipc::FullPtr<CoRwLockTestTask> task_ptr,
-                                  chi::RunContext &rctx) {
-  switch (mode) {
-  case chi::MonitorModeId::kLocalSchedule:
-    // Task executes directly on current worker without re-routing
-    break;
-  default:
-    break;
-  }
-}
-
 void Runtime::WaitTest(hipc::FullPtr<WaitTestTask> task,
                        chi::RunContext &rctx) {
   HILOG(kDebug,
@@ -262,22 +178,6 @@ void Runtime::WaitTest(hipc::FullPtr<WaitTestTask> task,
 
   HILOG(kDebug, "MOD_NAME: WaitTest {} completed at depth {}", task->test_id_,
         task->current_depth_);
-}
-
-void Runtime::MonitorWaitTest(chi::MonitorModeId mode,
-                              hipc::FullPtr<WaitTestTask> task_ptr,
-                              chi::RunContext &rctx) {
-  switch (mode) {
-  case chi::MonitorModeId::kLocalSchedule:
-    // Task executes directly on current worker without re-routing
-    break;
-  case chi::MonitorModeId::kEstLoad:
-    // Estimate completion time based on depth
-    rctx.est_load = task_ptr->depth_ * 1000.0; // 1ms per depth level
-    break;
-  default:
-    break;
-  }
 }
 
 // Static member definitions

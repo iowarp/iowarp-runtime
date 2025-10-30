@@ -75,13 +75,6 @@ public:
            chi::RunContext &rctx) override;
 
   /**
-   * Monitor a method execution for scheduling/coordination
-   */
-  void Monitor(chi::MonitorModeId mode, chi::u32 method,
-               hipc::FullPtr<chi::Task> task_ptr,
-               chi::RunContext &rctx) override;
-
-  /**
    * Delete/cleanup a task
    */
   void Del(chi::u32 method, hipc::FullPtr<chi::Task> task_ptr) override;
@@ -105,22 +98,6 @@ public:
       chi::RunContext &rctx);
 
   /**
-   * Monitor Create task (IS_ADMIN=true)
-   */
-  void MonitorCreate(chi::MonitorModeId mode,
-                     hipc::FullPtr<CreateTask> task_ptr, chi::RunContext &rctx);
-
-  /**
-   * Monitor GetOrCreatePool task (IS_ADMIN=false)
-   */
-  void MonitorGetOrCreatePool(
-      chi::MonitorModeId mode,
-      hipc::FullPtr<
-          chimaera::admin::GetOrCreatePoolTask<chimaera::admin::CreateParams>>
-          task_ptr,
-      chi::RunContext &rctx);
-
-  /**
    * Handle Destroy task - Alias for DestroyPool (DestroyTask = DestroyPoolTask)
    */
   void Destroy(hipc::FullPtr<DestroyTask> task, chi::RunContext &rctx);
@@ -131,42 +108,14 @@ public:
   void DestroyPool(hipc::FullPtr<DestroyPoolTask> task, chi::RunContext &rctx);
 
   /**
-   * Monitor Destroy task - Alias for MonitorDestroyPool (DestroyTask =
-   * DestroyPoolTask)
-   */
-  void MonitorDestroy(chi::MonitorModeId mode,
-                      hipc::FullPtr<DestroyTask> task_ptr,
-                      chi::RunContext &rctx);
-
-  /**
-   * Monitor DestroyPool task
-   */
-  void MonitorDestroyPool(chi::MonitorModeId mode,
-                          hipc::FullPtr<DestroyPoolTask> task_ptr,
-                          chi::RunContext &rctx);
-
-  /**
    * Handle StopRuntime task - Stop the entire runtime
    */
   void StopRuntime(hipc::FullPtr<StopRuntimeTask> task, chi::RunContext &rctx);
 
   /**
-   * Monitor StopRuntime task
-   */
-  void MonitorStopRuntime(chi::MonitorModeId mode,
-                          hipc::FullPtr<StopRuntimeTask> task_ptr,
-                          chi::RunContext &rctx);
-
-  /**
    * Handle Flush task - Flush administrative operations
    */
   void Flush(hipc::FullPtr<FlushTask> task, chi::RunContext &rctx);
-
-  /**
-   * Monitor Flush task
-   */
-  void MonitorFlush(chi::MonitorModeId mode, hipc::FullPtr<FlushTask> task_ptr,
-                    chi::RunContext &rctx);
 
   //===========================================================================
   // Distributed Task Scheduling Methods
@@ -188,12 +137,6 @@ public:
   void SendOut(hipc::FullPtr<SendTask> task);
 
   /**
-   * Monitor Send task
-   */
-  void MonitorSend(chi::MonitorModeId mode, hipc::FullPtr<SendTask> task_ptr,
-                   chi::RunContext &rctx);
-
-  /**
    * Handle Recv - Receive task inputs or outputs from network
    */
   void Recv(hipc::FullPtr<RecvTask> task, chi::RunContext &rctx);
@@ -207,12 +150,6 @@ public:
    * Helper: Receive task outputs from remote node
    */
   void RecvOut(hipc::FullPtr<RecvTask> task, chi::LoadTaskArchive& archive, hshm::lbm::Server* lbm_server);
-
-  /**
-   * Monitor Recv task
-   */
-  void MonitorRecv(chi::MonitorModeId mode, hipc::FullPtr<RecvTask> task_ptr,
-                   chi::RunContext &rctx);
 
   /**
    * Get remaining work count for this admin container

@@ -144,25 +144,6 @@ void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& ctx) {
   task->return_code_ = 0;
 }
 
-void Runtime::MonitorCreate(chi::MonitorModeId mode,
-                            hipc::FullPtr<CreateTask> task,
-                            chi::RunContext& ctx) {
-  switch (mode) {
-    case chi::MonitorModeId::kLocalSchedule: {
-      // Task executes directly on current worker without re-routing
-      break;
-    }
-    case chi::MonitorModeId::kGlobalSchedule: {
-      // Optional: Global coordination
-      break;
-    }
-    case chi::MonitorModeId::kEstLoad: {
-      // Optional: Load estimation
-      break;
-    }
-  }
-}
-
 void Runtime::AllocateBlocks(hipc::FullPtr<AllocateBlocksTask> task,
                              chi::RunContext& ctx) {
   // Get worker ID for per-worker free list access
@@ -244,24 +225,6 @@ void Runtime::AllocateBlocks(hipc::FullPtr<AllocateBlocksTask> task,
   task->return_code_ = 0;
 }
 
-void Runtime::MonitorAllocateBlocks(chi::MonitorModeId mode,
-                                    hipc::FullPtr<AllocateBlocksTask> task,
-                                    chi::RunContext& ctx) {
-  switch (mode) {
-    case chi::MonitorModeId::kLocalSchedule: {
-      // Task executes directly on current worker without re-routing
-      break;
-    }
-    case chi::MonitorModeId::kGlobalSchedule: {
-      break;
-    }
-    case chi::MonitorModeId::kEstLoad: {
-      // Optional: Load estimation
-      break;
-    }
-  }
-}
-
 void Runtime::FreeBlocks(hipc::FullPtr<FreeBlocksTask> task,
                          chi::RunContext& ctx) {
   // Get worker ID for per-worker free list access
@@ -279,24 +242,6 @@ void Runtime::FreeBlocks(hipc::FullPtr<FreeBlocksTask> task,
   task->return_code_ = 0;
 }
 
-void Runtime::MonitorFreeBlocks(chi::MonitorModeId mode,
-                                hipc::FullPtr<FreeBlocksTask> task,
-                                chi::RunContext& ctx) {
-  switch (mode) {
-    case chi::MonitorModeId::kLocalSchedule: {
-      // Task executes directly on current worker without re-routing
-      break;
-    }
-    case chi::MonitorModeId::kGlobalSchedule: {
-      break;
-    }
-    case chi::MonitorModeId::kEstLoad: {
-      // Optional: Load estimation
-      break;
-    }
-  }
-}
-
 void Runtime::Write(hipc::FullPtr<WriteTask> task, chi::RunContext& ctx) {
   switch (bdev_type_) {
     case BdevType::kFile:
@@ -309,24 +254,6 @@ void Runtime::Write(hipc::FullPtr<WriteTask> task, chi::RunContext& ctx) {
       task->return_code_ = 1;  // Unknown backend type
       task->bytes_written_ = 0;
       break;
-  }
-}
-
-void Runtime::MonitorWrite(chi::MonitorModeId mode,
-                           hipc::FullPtr<WriteTask> task,
-                           chi::RunContext& ctx) {
-  switch (mode) {
-    case chi::MonitorModeId::kLocalSchedule: {
-      // Task executes directly on current worker without re-routing
-      break;
-    }
-    case chi::MonitorModeId::kGlobalSchedule: {
-      break;
-    }
-    case chi::MonitorModeId::kEstLoad: {
-      // Optional: Load estimation
-      break;
-    }
   }
 }
 
@@ -345,46 +272,11 @@ void Runtime::Read(hipc::FullPtr<ReadTask> task, chi::RunContext& ctx) {
   }
 }
 
-void Runtime::MonitorRead(chi::MonitorModeId mode, hipc::FullPtr<ReadTask> task,
-                          chi::RunContext& ctx) {
-  switch (mode) {
-    case chi::MonitorModeId::kLocalSchedule: {
-      // Task executes directly on current worker without re-routing
-      break;
-    }
-    case chi::MonitorModeId::kGlobalSchedule: {
-      break;
-    }
-    case chi::MonitorModeId::kEstLoad: {
-      // Optional: Load estimation
-      break;
-    }
-  }
-}
-
 void Runtime::GetStats(hipc::FullPtr<GetStatsTask> task, chi::RunContext& ctx) {
   // Return the user-provided performance characteristics instead of calculating them
   task->metrics_ = perf_metrics_;
   task->remaining_size_ = remaining_size_.load();
   task->return_code_ = 0;
-}
-
-void Runtime::MonitorGetStats(chi::MonitorModeId mode,
-                              hipc::FullPtr<GetStatsTask> task,
-                              chi::RunContext& ctx) {
-  switch (mode) {
-    case chi::MonitorModeId::kLocalSchedule: {
-      // Task executes directly on current worker without re-routing
-      break;
-    }
-    case chi::MonitorModeId::kGlobalSchedule: {
-      break;
-    }
-    case chi::MonitorModeId::kEstLoad: {
-      // Optional: Load estimation
-      break;
-    }
-  }
 }
 
 void Runtime::Destroy(hipc::FullPtr<DestroyTask> task, chi::RunContext& ctx) {
@@ -408,24 +300,6 @@ void Runtime::Destroy(hipc::FullPtr<DestroyTask> task, chi::RunContext& ctx) {
   }
 
   task->return_code_ = 0;
-}
-
-void Runtime::MonitorDestroy(chi::MonitorModeId mode,
-                             hipc::FullPtr<DestroyTask> task,
-                             chi::RunContext& ctx) {
-  switch (mode) {
-    case chi::MonitorModeId::kLocalSchedule: {
-      // Task executes directly on current worker without re-routing
-      break;
-    }
-    case chi::MonitorModeId::kGlobalSchedule: {
-      break;
-    }
-    case chi::MonitorModeId::kEstLoad: {
-      // Optional: Load estimation
-      break;
-    }
-  }
 }
 
 void Runtime::InitializeAllocator() {

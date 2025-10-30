@@ -182,7 +182,7 @@ TEST_CASE("distributed_bdev_direct_hash", "[distributed][direct_hash]") {
     hipc::MemContext mctx;
 
     // Create bdev container
-    bool success = client.Create(mctx, chi::PoolQuery::Broadcast(),
+    bool success = client.Create(mctx, chi::PoolQuery::Dynamic(),
                                  fixture.getTestFile(), custom_pool_id,
                                  chimaera::bdev::BdevType::kFile);
     REQUIRE(success);
@@ -314,7 +314,7 @@ TEST_CASE("distributed_bdev_range", "[distributed][range]") {
     hipc::MemContext mctx;
 
     // Create bdev container
-    bool success = client.Create(mctx, chi::PoolQuery::Broadcast(),
+    bool success = client.Create(mctx, chi::PoolQuery::Dynamic(),
                                  fixture.getTestFile(), custom_pool_id,
                                  chimaera::bdev::BdevType::kFile);
     REQUIRE(success);
@@ -431,7 +431,7 @@ TEST_CASE("distributed_bdev_broadcast", "[distributed][broadcast]") {
     hipc::MemContext mctx;
 
     // Create bdev container
-    bool success = client.Create(mctx, chi::PoolQuery::Broadcast(),
+    bool success = client.Create(mctx, chi::PoolQuery::Dynamic(),
                                  fixture.getTestFile(), custom_pool_id,
                                  chimaera::bdev::BdevType::kFile);
     REQUIRE(success);

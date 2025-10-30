@@ -71,6 +71,12 @@ class ConfigManager : public hshm::BaseConfig {
   u32 GetZmqPort() const;
 
   /**
+   * Get neighborhood size for range query splitting
+   * @return Maximum number of queries when splitting range queries
+   */
+  u32 GetNeighborhoodSize() const;
+
+  /**
    * Get shared memory segment names
    * @param segment Memory segment identifier`
    * @return Expanded segment name with environment variables resolved
@@ -118,6 +124,7 @@ class ConfigManager : public hshm::BaseConfig {
   size_t runtime_data_segment_size_ = hshm::Unit<size_t>::Megabytes(256);
 
   u32 zmq_port_ = 9128;
+  u32 neighborhood_size_ = 32;
 
   // Shared memory segment names with environment variable support
   std::string main_segment_name_ = "chi_main_segment_${USER}";

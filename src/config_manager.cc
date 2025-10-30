@@ -80,6 +80,8 @@ size_t ConfigManager::GetMemorySegmentSize(MemorySegment segment) const {
 
 u32 ConfigManager::GetZmqPort() const { return zmq_port_; }
 
+u32 ConfigManager::GetNeighborhoodSize() const { return neighborhood_size_; }
+
 std::string
 ConfigManager::GetSharedMemorySegmentName(MemorySegment segment) const {
   std::string segment_name;
@@ -127,6 +129,7 @@ void ConfigManager::LoadDefault() {
   runtime_data_segment_size_ = 512 * 1024 * 1024; // 512MB
 
   zmq_port_ = 5555;
+  neighborhood_size_ = 32;
 
   // Set default shared memory segment names with environment variables
   main_segment_name_ = "chi_main_segment_${USER}";
@@ -174,6 +177,9 @@ void ConfigManager::ParseYAML(YAML::Node &yaml_conf) {
     auto networking = yaml_conf["networking"];
     if (networking["zmq_port"]) {
       zmq_port_ = networking["zmq_port"].as<u32>();
+    }
+    if (networking["neighborhood_size"]) {
+      neighborhood_size_ = networking["neighborhood_size"].as<u32>();
     }
   }
 

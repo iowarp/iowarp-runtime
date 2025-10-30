@@ -66,23 +66,47 @@ void Runtime::GetOrCreatePool(
         chimaera::admin::GetOrCreatePoolTask<chimaera::admin::CreateParams>>
         task,
     chi::RunContext &rctx) {
+  // Get pool manager once - used by both dynamic scheduling and normal
+  // execution
+  auto *pool_manager = CHI_POOL_MANAGER;
+
+  // Extract pool name once
+  std::string pool_name = task->pool_name_.str();
+
+  // Check if this is dynamic scheduling mode
+  if (rctx.exec_mode == chi::ExecMode::kDynamicSchedule) {
+    // Dynamic routing with cache optimization
+    // Check if pool exists locally first to avoid unnecessary broadcast
+    HILOG(kDebug,
+          "Admin: Dynamic routing for GetOrCreatePool - checking local cache");
+
+    chi::PoolId existing_pool_id = pool_manager->FindPoolByName(pool_name);
+
+    if (!existing_pool_id.IsNull()) {
+      // Pool exists locally - change pool query to Local
+      HILOG(kDebug,
+            "Admin: Pool '{}' found locally (ID: {}), using Local query",
+            pool_name, existing_pool_id);
+      task->pool_query_ = chi::PoolQuery::Local();
+    } else {
+      // Pool doesn't exist locally - update pool query to Broadcast for
+      // creation
+      HILOG(kDebug, "Admin: Pool '{}' not found locally, broadcasting creation",
+            pool_name);
+      task->pool_query_ = chi::PoolQuery::Broadcast();
+    }
+    return;
+  }
+
   // Pool get-or-create operation logic (IS_ADMIN=false)
   HILOG(kDebug, "Admin: Executing GetOrCreatePool task - ChiMod: {}, Pool: {}",
-        task->chimod_name_.str(), task->pool_name_.str());
+        task->chimod_name_.str(), pool_name);
 
   // Initialize output values
   task->return_code_ = 0;
   task->error_message_ = "";
 
   try {
-    // Get pool manager to handle pool creation
-    auto *pool_manager = CHI_POOL_MANAGER;
-    if (!pool_manager || !pool_manager->IsInitialized()) {
-      task->return_code_ = 1;
-      task->error_message_ = "Pool manager not available";
-      return;
-    }
-
     // Use the simplified PoolManager API that extracts all parameters from the
     // task
     if (!pool_manager->CreatePool(task.Cast<chi::Task>(), &rctx)) {
@@ -98,7 +122,7 @@ void Runtime::GetOrCreatePool(
     HILOG(kDebug,
           "Admin: Pool operation completed successfully - ID: {}, Name: {} "
           "(Total pools created: {})",
-          task->new_pool_id_, task->pool_name_.str(), pools_created_);
+          task->new_pool_id_, pool_name, pools_created_);
 
   } catch (const std::exception &e) {
     task->return_code_ = 99;
@@ -108,53 +132,6 @@ void Runtime::GetOrCreatePool(
     HELOG(kError, "Admin: Pool creation failed with exception: {}", e.what());
   }
 }
-
-void Runtime::MonitorCreate(chi::MonitorModeId mode,
-                            hipc::FullPtr<CreateTask> task_ptr,
-                            chi::RunContext &rctx) {
-  switch (mode) {
-  case chi::MonitorModeId::kLocalSchedule:
-    // Task executes directly on current worker without re-routing
-    break;
-
-  case chi::MonitorModeId::kGlobalSchedule:
-    // Coordinate global distribution
-    HILOG(kDebug, "Admin: Global scheduling for admin Create task");
-    break;
-
-  case chi::MonitorModeId::kEstLoad:
-    // Estimate task execution time - admin container creation is fast
-    rctx.est_load = 1000.0; // 1ms for admin create
-    break;
-  }
-}
-
-void Runtime::MonitorGetOrCreatePool(
-    chi::MonitorModeId mode,
-    hipc::FullPtr<
-        chimaera::admin::GetOrCreatePoolTask<chimaera::admin::CreateParams>>
-        task_ptr,
-    chi::RunContext &rctx) {
-  switch (mode) {
-  case chi::MonitorModeId::kLocalSchedule:
-    // Task executes directly on current worker without re-routing
-    break;
-
-  case chi::MonitorModeId::kGlobalSchedule:
-    // Coordinate global distribution
-    HILOG(kDebug, "Admin: Global scheduling for GetOrCreatePool task");
-    break;
-
-  case chi::MonitorModeId::kEstLoad:
-    // Estimate task execution time - pool creation can be expensive
-    rctx.est_load = 50000.0; // 50ms for pool creation
-    break;
-  }
-}
-
-// GetOrCreatePool functionality is now merged into Create method
-
-// MonitorGetOrCreatePool functionality is now merged into MonitorCreate method
 
 void Runtime::Destroy(hipc::FullPtr<DestroyTask> task, chi::RunContext &rctx) {
   // DestroyTask is aliased to DestroyPoolTask, so delegate to DestroyPool
@@ -206,34 +183,6 @@ void Runtime::DestroyPool(hipc::FullPtr<DestroyPoolTask> task,
   }
 }
 
-void Runtime::MonitorDestroy(chi::MonitorModeId mode,
-                             hipc::FullPtr<DestroyTask> task_ptr,
-                             chi::RunContext &rctx) {
-  // DestroyTask is aliased to DestroyPoolTask, so delegate to
-  // MonitorDestroyPool
-  MonitorDestroyPool(mode, task_ptr, rctx);
-}
-
-void Runtime::MonitorDestroyPool(chi::MonitorModeId mode,
-                                 hipc::FullPtr<DestroyPoolTask> task_ptr,
-                                 chi::RunContext &rctx) {
-  switch (mode) {
-  case chi::MonitorModeId::kLocalSchedule:
-    // Task executes directly on current worker without re-routing
-    break;
-
-  case chi::MonitorModeId::kGlobalSchedule:
-    // Coordinate global pool destruction
-    HILOG(kDebug, "Admin: Global scheduling for DestroyPool task");
-    break;
-
-  case chi::MonitorModeId::kEstLoad:
-    // Estimate task execution time - pool destruction is expensive
-    rctx.est_load = 30000.0; // 30ms for pool destruction
-    break;
-  }
-}
-
 void Runtime::StopRuntime(hipc::FullPtr<StopRuntimeTask> task,
                           chi::RunContext &rctx) {
   HILOG(kDebug, "Admin: Executing StopRuntime task - Grace period: {}ms",
@@ -261,26 +210,6 @@ void Runtime::StopRuntime(hipc::FullPtr<StopRuntimeTask> task,
         std::string("Exception during runtime shutdown: ") + e.what();
     HELOG(kError, "Admin: Runtime shutdown failed with exception: {}",
           e.what());
-  }
-}
-
-void Runtime::MonitorStopRuntime(chi::MonitorModeId mode,
-                                 hipc::FullPtr<StopRuntimeTask> task_ptr,
-                                 chi::RunContext &rctx) {
-  switch (mode) {
-  case chi::MonitorModeId::kLocalSchedule:
-    // Task executes directly on current worker without re-routing
-    break;
-
-  case chi::MonitorModeId::kGlobalSchedule:
-    // Coordinate global runtime shutdown
-    HILOG(kDebug, "Admin: Global scheduling for StopRuntime task");
-    break;
-
-  case chi::MonitorModeId::kEstLoad:
-    // Estimate task execution time - shutdown should be fast
-    rctx.est_load = 5000.0; // 5ms for shutdown initiation
-    break;
   }
 }
 
@@ -344,26 +273,6 @@ void Runtime::Flush(hipc::FullPtr<FlushTask> task, chi::RunContext &rctx) {
   }
 }
 
-void Runtime::MonitorFlush(chi::MonitorModeId mode,
-                           hipc::FullPtr<FlushTask> task_ptr,
-                           chi::RunContext &rctx) {
-  switch (mode) {
-  case chi::MonitorModeId::kLocalSchedule:
-    // Task executes directly on current worker without re-routing
-    break;
-
-  case chi::MonitorModeId::kGlobalSchedule:
-    // Coordinate global flush operations
-    HILOG(kDebug, "Admin: Global scheduling for Flush task");
-    break;
-
-  case chi::MonitorModeId::kEstLoad:
-    // Estimate task execution time - flush should be fast
-    rctx.est_load = 1000.0; // 1ms for flush
-    break;
-  }
-}
-
 //===========================================================================
 // Distributed Task Scheduling Method Implementations
 //===========================================================================
@@ -391,7 +300,8 @@ void Runtime::SendIn(hipc::FullPtr<SendTask> task, chi::RunContext &rctx) {
     return;
   }
 
-  HILOG(kDebug, "=== [SendIn BEGIN] Task {} (pool: {}) starting distributed send ===",
+  HILOG(kDebug,
+        "=== [SendIn BEGIN] Task {} (pool: {}) starting distributed send ===",
         subtask->task_id_, subtask->pool_id_);
 
   // Add the origin task to send_map for later lookup
@@ -418,10 +328,12 @@ void Runtime::SendIn(hipc::FullPtr<SendTask> task, chi::RunContext &rctx) {
       target_node_id =
           pool_manager->GetContainerNodeId(subtask->pool_id_, container_id);
     } else if (query.IsBroadcastMode()) {
-      HELOG(kError, "Admin: Broadcast mode should be handled by TaskDispatcher, not SendIn");
+      HELOG(kError, "Admin: Broadcast mode should be handled by "
+                    "TaskDispatcher, not SendIn");
       continue;
     } else if (query.IsDirectHashMode()) {
-      HELOG(kError, "Admin: DirectHash mode should be handled by TaskDispatcher, not SendIn");
+      HELOG(kError, "Admin: DirectHash mode should be handled by "
+                    "TaskDispatcher, not SendIn");
       continue;
     } else {
       HELOG(kError, "Admin: Unsupported or unrecognized query type for SendIn");
@@ -515,7 +427,8 @@ void Runtime::SendOut(hipc::FullPtr<SendTask> task) {
     return;
   }
 
-  HILOG(kDebug, "=== [SendOut BEGIN] Task {} (pool: {}) sending outputs back ===",
+  HILOG(kDebug,
+        "=== [SendOut BEGIN] Task {} (pool: {}) sending outputs back ===",
         subtask->task_id_, subtask->pool_id_);
 
   // Remove task from recv_map as we're completing it
@@ -566,7 +479,8 @@ void Runtime::SendOut(hipc::FullPtr<SendTask> task) {
 
     int rc = lbm_client->Send(archive);
     if (rc != 0) {
-      HELOG(kError, "[SendOut] Task {} Lightbeam Send FAILED with error code {}",
+      HELOG(kError,
+            "[SendOut] Task {} Lightbeam Send FAILED with error code {}",
             subtask->task_id_, rc);
       continue;
     }
@@ -589,21 +503,6 @@ void Runtime::Send(hipc::FullPtr<SendTask> task, chi::RunContext &rctx) {
   } else {
     SendOut(task);
   }
-}
-
-void Runtime::MonitorSend(chi::MonitorModeId mode,
-                          hipc::FullPtr<SendTask> task_ptr,
-                          chi::RunContext &rctx) {
-  switch (mode) {
-  case chi::MonitorModeId::kLocalSchedule:
-    break;
-  case chi::MonitorModeId::kGlobalSchedule:
-    break;
-  case chi::MonitorModeId::kEstLoad:
-    rctx.est_load = 10000.0; // 10ms estimate
-    break;
-  }
-  (void)task_ptr; // Suppress unused warning
 }
 
 /**
@@ -690,7 +589,8 @@ void Runtime::RecvOut(hipc::FullPtr<RecvTask> task,
   auto *pool_manager = CHI_POOL_MANAGER;
 
   const auto &task_infos = archive.GetTaskInfos();
-  HILOG(kDebug, "=== [RecvOut BEGIN] Receiving {} task output(s) from remote node ===",
+  HILOG(kDebug,
+        "=== [RecvOut BEGIN] Receiving {} task output(s) from remote node ===",
         task_infos.size());
 
   // Set lbm_server in archive for bulk transfer exposure in output mode
@@ -702,14 +602,17 @@ void Runtime::RecvOut(hipc::FullPtr<RecvTask> task,
   for (size_t task_idx = 0; task_idx < task_infos.size(); ++task_idx) {
     const auto &task_info = task_infos[task_idx];
 
-    // Create lookup key with replica_id set to 0 (origin task always has replica_id=0)
+    // Create lookup key with replica_id set to 0 (origin task always has
+    // replica_id=0)
     chi::TaskId lookup_id = task_info.task_id_;
     lookup_id.replica_id_ = 0;
 
     // Locate origin task from send_map using the base task ID
     auto send_it = send_map_.find(lookup_id);
     if (send_it == send_map_.end()) {
-      HELOG(kError, "[RecvOut] Task {} FAILED: Origin task not found in send_map (size: {})",
+      HELOG(kError,
+            "[RecvOut] Task {} FAILED: Origin task not found in send_map "
+            "(size: {})",
             task_info.task_id_, send_map_.size());
       task->SetReturnCode(5);
       return;
@@ -764,7 +667,8 @@ void Runtime::RecvOut(hipc::FullPtr<RecvTask> task,
   for (size_t task_idx = 0; task_idx < task_infos.size(); ++task_idx) {
     const auto &task_info = task_infos[task_idx];
 
-    // Create lookup key with replica_id set to 0 (origin task always has replica_id=0)
+    // Create lookup key with replica_id set to 0 (origin task always has
+    // replica_id=0)
     chi::TaskId lookup_id = task_info.task_id_;
     lookup_id.replica_id_ = 0;
 
@@ -847,7 +751,8 @@ void Runtime::RecvOut(hipc::FullPtr<RecvTask> task,
     }
   }
 
-  HILOG(kDebug, "=== [RecvOut END] Processed {} task output(s) ===", task_infos.size());
+  HILOG(kDebug,
+        "=== [RecvOut END] Processed {} task output(s) ===", task_infos.size());
   task->SetReturnCode(0);
 }
 
@@ -891,21 +796,6 @@ void Runtime::Recv(hipc::FullPtr<RecvTask> task, chi::RunContext &rctx) {
   }
 
   (void)rctx;
-}
-
-void Runtime::MonitorRecv(chi::MonitorModeId mode,
-                          hipc::FullPtr<RecvTask> task_ptr,
-                          chi::RunContext &rctx) {
-  switch (mode) {
-  case chi::MonitorModeId::kLocalSchedule:
-    break;
-  case chi::MonitorModeId::kGlobalSchedule:
-    break;
-  case chi::MonitorModeId::kEstLoad:
-    rctx.est_load = 10000.0; // 10ms estimate
-    break;
-  }
-  (void)task_ptr; // Suppress unused warning
 }
 
 chi::u64 Runtime::GetWorkRemaining() const {

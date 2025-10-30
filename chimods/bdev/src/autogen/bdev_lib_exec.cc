@@ -53,44 +53,6 @@ void Runtime::Run(chi::u32 method, hipc::FullPtr<chi::Task> task_ptr, chi::RunCo
   }
 }
 
-void Runtime::Monitor(chi::MonitorModeId mode, chi::u32 method, 
-                       hipc::FullPtr<chi::Task> task_ptr, chi::RunContext& rctx) {
-  switch (method) {
-    case Method::kCreate: {
-      MonitorCreate(mode, task_ptr.Cast<CreateTask>(), rctx);
-      break;
-    }
-    case Method::kDestroy: {
-      MonitorDestroy(mode, task_ptr.Cast<DestroyTask>(), rctx);
-      break;
-    }
-    case Method::kAllocateBlocks: {
-      MonitorAllocateBlocks(mode, task_ptr.Cast<AllocateBlocksTask>(), rctx);
-      break;
-    }
-    case Method::kFreeBlocks: {
-      MonitorFreeBlocks(mode, task_ptr.Cast<FreeBlocksTask>(), rctx);
-      break;
-    }
-    case Method::kWrite: {
-      MonitorWrite(mode, task_ptr.Cast<WriteTask>(), rctx);
-      break;
-    }
-    case Method::kRead: {
-      MonitorRead(mode, task_ptr.Cast<ReadTask>(), rctx);
-      break;
-    }
-    case Method::kGetStats: {
-      MonitorGetStats(mode, task_ptr.Cast<GetStatsTask>(), rctx);
-      break;
-    }
-    default: {
-      // Unknown method - do nothing
-      break;
-    }
-  }
-}
-
 void Runtime::Del(chi::u32 method, hipc::FullPtr<chi::Task> task_ptr) {
   // Use IPC manager to deallocate task from shared memory
   auto* ipc_manager = CHI_IPC;

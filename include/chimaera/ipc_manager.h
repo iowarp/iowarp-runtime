@@ -239,9 +239,15 @@ class IpcManager {
 
   /**
    * Get all hosts from hostfile
-   * @return Vector of all Host structs
+   * @return Const reference to vector of all Host structs
    */
-  std::vector<Host> GetAllHosts() const;
+  const std::vector<Host>& GetAllHosts() const;
+
+  /**
+   * Get number of hosts in the cluster
+   * @return Number of hosts
+   */
+  size_t GetNumHosts() const;
 
   /**
    * Identify current host from hostfile by attempting TCP server binding
@@ -399,6 +405,8 @@ class IpcManager {
 
   // Hostfile management
   std::unordered_map<u64, Host> hostfile_map_; // Map node_id -> Host
+  mutable std::vector<Host> hosts_cache_; // Cached vector of hosts for GetAllHosts
+  mutable bool hosts_cache_valid_ = false; // Flag to track cache validity
   Host this_host_; // Identified host for this node
 
   // Lane mapping policy

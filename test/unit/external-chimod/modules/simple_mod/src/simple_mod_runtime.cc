@@ -51,36 +51,6 @@ void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext &rctx) {
             << ", count: " << create_count_ << ")" << std::endl;
 }
 
-void Runtime::MonitorCreate(chi::MonitorModeId mode,
-                            hipc::FullPtr<CreateTask> task_ptr,
-                            chi::RunContext &rctx) {
-  switch (mode) {
-  case chi::MonitorModeId::kLocalSchedule:
-    // Set route_lane_ to indicate where task should be routed
-    std::cout << "SimpleMod: Setting route_lane_ for simple_mod Create task"
-              << std::endl;
-    // Set route_lane_ to metadata queue lane 0
-    {
-      auto lane_ptr = GetLaneFullPtr(kMetadataQueue, 0);
-      if (!lane_ptr.IsNull()) {
-        rctx.route_lane_ = lane_ptr.ptr_;
-      }
-    }
-    break;
-
-  case chi::MonitorModeId::kGlobalSchedule:
-    // Coordinate global distribution
-    std::cout << "SimpleMod: Global scheduling for simple_mod Create task"
-              << std::endl;
-    break;
-
-  case chi::MonitorModeId::kEstLoad:
-    // Estimate task execution time - simple mod creation is fast
-    rctx.est_load = 500.0; // 0.5ms for simple mod create
-    break;
-  }
-}
-
 void Runtime::Destroy(hipc::FullPtr<DestroyTask> task, chi::RunContext &rctx) {
   std::cout << "SimpleMod: Executing Destroy task - Pool ID: "
             << task->target_pool_id_ << std::endl;
@@ -108,31 +78,6 @@ void Runtime::Destroy(hipc::FullPtr<DestroyTask> task, chi::RunContext &rctx) {
   }
 }
 
-void Runtime::MonitorDestroy(chi::MonitorModeId mode,
-                             hipc::FullPtr<DestroyTask> task_ptr,
-                             chi::RunContext &rctx) {
-  switch (mode) {
-  case chi::MonitorModeId::kLocalSchedule:
-    // Set route_lane_ to metadata queue lane 0
-    {
-      auto lane_ptr = GetLaneFullPtr(kMetadataQueue, 0);
-      if (!lane_ptr.IsNull()) {
-        rctx.route_lane_ = lane_ptr.ptr_;
-      }
-    }
-    break;
-
-  case chi::MonitorModeId::kGlobalSchedule:
-    // Coordinate global distribution
-    break;
-
-  case chi::MonitorModeId::kEstLoad:
-    // Estimate task execution time - destruction is fast
-    rctx.est_load = 100.0; // 0.1ms for destruction
-    break;
-  }
-}
-
 void Runtime::Flush(hipc::FullPtr<FlushTask> task, chi::RunContext &rctx) {
   std::cout << "SimpleMod: Executing Flush task" << std::endl;
 
@@ -142,31 +87,6 @@ void Runtime::Flush(hipc::FullPtr<FlushTask> task, chi::RunContext &rctx) {
 
   std::cout << "SimpleMod: Flush completed - work done: "
             << task->total_work_done_ << std::endl;
-}
-
-void Runtime::MonitorFlush(chi::MonitorModeId mode,
-                           hipc::FullPtr<FlushTask> task_ptr,
-                           chi::RunContext &rctx) {
-  switch (mode) {
-  case chi::MonitorModeId::kLocalSchedule:
-    // Set route_lane_ to metadata queue lane 0
-    {
-      auto lane_ptr = GetLaneFullPtr(kMetadataQueue, 0);
-      if (!lane_ptr.IsNull()) {
-        rctx.route_lane_ = lane_ptr.ptr_;
-      }
-    }
-    break;
-
-  case chi::MonitorModeId::kGlobalSchedule:
-    // Coordinate global distribution
-    break;
-
-  case chi::MonitorModeId::kEstLoad:
-    // Estimate task execution time - flush is fast
-    rctx.est_load = 50.0; // 0.05ms for flush
-    break;
-  }
 }
 
 chi::u64 Runtime::GetWorkRemaining() const {

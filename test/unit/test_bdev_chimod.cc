@@ -223,7 +223,7 @@ TEST_CASE("bdev_container_creation", "[bdev][create]") {
     chimaera::bdev::Client client(custom_pool_id);
     hipc::MemContext mctx;
 
-    bool success = client.Create(mctx, chi::PoolQuery::Broadcast(), fixture.getTestFile(),
+    bool success = client.Create(mctx, chi::PoolQuery::Dynamic(), fixture.getTestFile(),
                                  custom_pool_id, chimaera::bdev::BdevType::kFile);
     REQUIRE(success);
 
@@ -244,7 +244,7 @@ TEST_CASE("bdev_block_allocation_4kb", "[bdev][allocate][4kb]") {
     chimaera::bdev::Client client(custom_pool_id);
     hipc::MemContext mctx;
 
-    bool success = client.Create(mctx, chi::PoolQuery::Broadcast(), fixture.getTestFile(),
+    bool success = client.Create(mctx, chi::PoolQuery::Dynamic(), fixture.getTestFile(),
                                  custom_pool_id, chimaera::bdev::BdevType::kFile);
     REQUIRE(success);
 
@@ -291,7 +291,7 @@ TEST_CASE("bdev_write_read_basic", "[bdev][io][basic]") {
     chimaera::bdev::Client client(custom_pool_id);
     hipc::MemContext mctx;
 
-    bool success = client.Create(mctx, chi::PoolQuery::Broadcast(), fixture.getTestFile(),
+    bool success = client.Create(mctx, chi::PoolQuery::Dynamic(), fixture.getTestFile(),
                                  custom_pool_id, chimaera::bdev::BdevType::kFile);
     REQUIRE(success);
 
@@ -344,7 +344,7 @@ TEST_CASE("bdev_async_operations", "[bdev][async][io]") {
     chimaera::bdev::Client client(custom_pool_id);
     hipc::MemContext mctx;
 
-    bool success = client.Create(mctx, chi::PoolQuery::Broadcast(), fixture.getTestFile(),
+    bool success = client.Create(mctx, chi::PoolQuery::Dynamic(), fixture.getTestFile(),
                                  custom_pool_id, chimaera::bdev::BdevType::kFile);
     REQUIRE(success);
 
@@ -408,7 +408,7 @@ TEST_CASE("bdev_performance_metrics", "[bdev][performance][metrics]") {
     chimaera::bdev::Client client(custom_pool_id);
     hipc::MemContext mctx;
 
-    bool success = client.Create(mctx, chi::PoolQuery::Broadcast(), fixture.getTestFile(),
+    bool success = client.Create(mctx, chi::PoolQuery::Dynamic(), fixture.getTestFile(),
                                  custom_pool_id, chimaera::bdev::BdevType::kFile);
     REQUIRE(success);
 
@@ -519,7 +519,7 @@ TEST_CASE("bdev_ram_container_creation", "[bdev][ram][create]") {
   // Create RAM-based bdev container (1MB)
   const chi::u64 ram_size = 1024 * 1024;
   std::string pool_name = "ram_test_" + std::to_string(getpid()) + "_" + std::to_string(8001);
-  bool bdev_success = bdev_client.Create(HSHM_MCTX, chi::PoolQuery::Broadcast(), pool_name,
+  bool bdev_success = bdev_client.Create(HSHM_MCTX, chi::PoolQuery::Dynamic(), pool_name,
                                          custom_pool_id, chimaera::bdev::BdevType::kRam, ram_size);
   REQUIRE(bdev_success);
 
@@ -543,7 +543,7 @@ TEST_CASE("bdev_ram_allocation_and_io", "[bdev][ram][io]") {
   // Create RAM-based bdev container (1MB)
   const chi::u64 ram_size = 1024 * 1024;
   std::string pool_name = "ram_test_" + std::to_string(getpid()) + "_" + std::to_string(8002);
-  bool bdev_success = bdev_client.Create(HSHM_MCTX, chi::PoolQuery::Broadcast(), pool_name,
+  bool bdev_success = bdev_client.Create(HSHM_MCTX, chi::PoolQuery::Dynamic(), pool_name,
                                          custom_pool_id, chimaera::bdev::BdevType::kRam, ram_size);
   REQUIRE(bdev_success);
   std::this_thread::sleep_for(100ms);
@@ -607,7 +607,7 @@ TEST_CASE("bdev_ram_large_blocks", "[bdev][ram][large]") {
   // Create RAM-based bdev container (10MB)
   const chi::u64 ram_size = 10 * 1024 * 1024;
   std::string pool_name = "ram_test_" + std::to_string(getpid()) + "_" + std::to_string(8003);
-  bool bdev_success = bdev_client.Create(HSHM_MCTX, chi::PoolQuery::Broadcast(), pool_name,
+  bool bdev_success = bdev_client.Create(HSHM_MCTX, chi::PoolQuery::Dynamic(), pool_name,
                                          custom_pool_id, chimaera::bdev::BdevType::kRam, ram_size);
   REQUIRE(bdev_success);
   std::this_thread::sleep_for(100ms);
@@ -676,7 +676,7 @@ TEST_CASE("bdev_ram_performance", "[bdev][ram][performance]") {
   // Create RAM-based bdev container (100MB)
   const chi::u64 ram_size = 100 * 1024 * 1024;
   std::string pool_name = "ram_test_" + std::to_string(getpid()) + "_" + std::to_string(8004);
-  bool bdev_success = bdev_client.Create(HSHM_MCTX, chi::PoolQuery::Broadcast(), pool_name,
+  bool bdev_success = bdev_client.Create(HSHM_MCTX, chi::PoolQuery::Dynamic(), pool_name,
                                          custom_pool_id, chimaera::bdev::BdevType::kRam, ram_size);
   REQUIRE(bdev_success);
   std::this_thread::sleep_for(100ms);
@@ -757,7 +757,7 @@ TEST_CASE("bdev_ram_bounds_checking", "[bdev][ram][bounds]") {
   // Create small RAM-based bdev container (64KB)
   const chi::u64 ram_size = 64 * 1024;
   std::string pool_name = "ram_test_" + std::to_string(getpid()) + "_" + std::to_string(8005);
-  bool bdev_success = bdev_client.Create(HSHM_MCTX, chi::PoolQuery::Broadcast(), pool_name,
+  bool bdev_success = bdev_client.Create(HSHM_MCTX, chi::PoolQuery::Dynamic(), pool_name,
                                          custom_pool_id, chimaera::bdev::BdevType::kRam, ram_size);
   REQUIRE(bdev_success);
   std::this_thread::sleep_for(100ms);
@@ -814,7 +814,7 @@ TEST_CASE("bdev_file_vs_ram_comparison", "[bdev][file][ram][comparison]") {
   chimaera::bdev::Client ram_client(ram_pool_id);
 
   // Create file-based container
-  bool file_success = file_client.Create(HSHM_MCTX, chi::PoolQuery::Broadcast(),
+  bool file_success = file_client.Create(HSHM_MCTX, chi::PoolQuery::Dynamic(),
                                          fixture.getTestFile(), file_pool_id,
                                          chimaera::bdev::BdevType::kFile);
   REQUIRE(file_success);
@@ -822,7 +822,7 @@ TEST_CASE("bdev_file_vs_ram_comparison", "[bdev][file][ram][comparison]") {
 
   // Create RAM-based container (same size as file)
   std::string ram_pool_name = "ram_comparison_" + std::to_string(getpid()) + "_" + std::to_string(8007);
-  bool ram_success = ram_client.Create(HSHM_MCTX, chi::PoolQuery::Broadcast(),
+  bool ram_success = ram_client.Create(HSHM_MCTX, chi::PoolQuery::Dynamic(),
                                        ram_pool_name, ram_pool_id,
                                        chimaera::bdev::BdevType::kRam, kDefaultFileSize);
   REQUIRE(ram_success);
@@ -955,7 +955,7 @@ TEST_CASE("bdev_file_explicit_backend", "[bdev][file][explicit]") {
   chimaera::bdev::Client bdev_client(custom_pool_id);
 
   // Create file-based container using explicit backend type
-  bool bdev_success = bdev_client.Create(HSHM_MCTX, chi::PoolQuery::Broadcast(),
+  bool bdev_success = bdev_client.Create(HSHM_MCTX, chi::PoolQuery::Dynamic(),
                                          fixture.getTestFile(), custom_pool_id,
                                          chimaera::bdev::BdevType::kFile, 0,
                                          32, 4096);
@@ -1014,7 +1014,7 @@ TEST_CASE("bdev_error_conditions_enhanced", "[bdev][error][enhanced]") {
 
     // This should fail because RAM backend requires explicit size
     std::string pool_name = "ram_fail_test_" + std::to_string(getpid());
-    bool creation_success = ram_client_no_size.Create(HSHM_MCTX, chi::PoolQuery::Broadcast(),
+    bool creation_success = ram_client_no_size.Create(HSHM_MCTX, chi::PoolQuery::Dynamic(),
                                                       pool_name, custom_pool_id,
                                                       chimaera::bdev::BdevType::kRam,
                                                       0);  // Size 0 should fail
@@ -1040,7 +1040,7 @@ TEST_CASE("bdev_error_conditions_enhanced", "[bdev][error][enhanced]") {
     chimaera::bdev::Client file_client_bad_path(custom_pool_id);
 
     // This should fail because the file path doesn't exist
-    bool creation_success = file_client_bad_path.Create(HSHM_MCTX, chi::PoolQuery::Broadcast(),
+    bool creation_success = file_client_bad_path.Create(HSHM_MCTX, chi::PoolQuery::Dynamic(),
                                                         "/nonexistent/path/file.dat", custom_pool_id,
                                                         chimaera::bdev::BdevType::kFile);
     std::this_thread::sleep_for(100ms);
@@ -1083,7 +1083,7 @@ TEST_CASE("bdev_parallel_io_operations", "[bdev][parallel][io]") {
     chimaera::bdev::Client client(custom_pool_id);
     hipc::MemContext mctx;
 
-    bool success = client.Create(mctx, chi::PoolQuery::Broadcast(), fixture.getTestFile(),
+    bool success = client.Create(mctx, chi::PoolQuery::Dynamic(), fixture.getTestFile(),
                                  custom_pool_id, chimaera::bdev::BdevType::kFile);
     REQUIRE(success);
     REQUIRE(client.GetReturnCode() == 0);
@@ -1182,7 +1182,7 @@ TEST_CASE("bdev_force_net_flag", "[bdev][network][force_net]") {
     chimaera::bdev::Client client(custom_pool_id);
     hipc::MemContext mctx;
 
-    bool success = client.Create(mctx, chi::PoolQuery::Broadcast(), fixture.getTestFile(),
+    bool success = client.Create(mctx, chi::PoolQuery::Dynamic(), fixture.getTestFile(),
                                  custom_pool_id, chimaera::bdev::BdevType::kFile);
     REQUIRE(success);
     REQUIRE(client.GetReturnCode() == 0);

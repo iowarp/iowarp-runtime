@@ -142,7 +142,7 @@ namespace {
       
       try {
         std::string pool_name = "fire_and_forget_test_pool";
-        bool success = client.Create(mctx, chi::PoolQuery::Broadcast(), pool_name, pool_id);
+        bool success = client.Create(mctx, chi::PoolQuery::Dynamic(), pool_name, pool_id);
         REQUIRE(success);
         
         // Give container time to initialize

@@ -60,13 +60,6 @@ public:
   void Run(chi::u32 method, hipc::FullPtr<chi::Task> task_ptr, chi::RunContext& rctx) override;
 
   /**
-   * Monitor a method execution for scheduling/coordination
-   */
-  void Monitor(chi::MonitorModeId mode, chi::u32 method, 
-              hipc::FullPtr<chi::Task> task_ptr,
-              chi::RunContext& rctx) override;
-
-  /**
    * Delete/cleanup a task
    */
   void Del(chi::u32 method, hipc::FullPtr<chi::Task> task_ptr) override;

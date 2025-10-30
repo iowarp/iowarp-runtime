@@ -378,6 +378,14 @@ public:
 };
 
 /**
+ * Execution mode for task processing
+ */
+enum class ExecMode : u32 {
+  kExec = 0,              /**< Normal task execution */
+  kDynamicSchedule = 1    /**< Dynamic scheduling - route after execution */
+};
+
+/**
  * Context passed to task execution methods
  */
 struct RunContext {
@@ -401,6 +409,7 @@ struct RunContext {
   Container *container;  // Current container being executed
   TaskLane *lane;        // Current lane being processed
   TaskLane *route_lane_; // Lane pointer set by kLocalSchedule for task routing
+  ExecMode exec_mode;    // Execution mode (kExec or kDynamicSchedule)
   std::vector<FullPtr<Task>>
       waiting_for_tasks; // Tasks this task is waiting for completion
   std::vector<PoolQuery> pool_queries;  // Pool queries for task distribution
@@ -412,7 +421,7 @@ struct RunContext {
       : stack_ptr(nullptr), stack_base_for_free(nullptr), stack_size(0),
         thread_type(kSchedWorker), worker_id(0), is_blocked(false),
         est_load(0.0), block_time_us(0.0), block_start(), yield_context{}, resume_context{},
-        container(nullptr), lane(nullptr), route_lane_(nullptr),
+        container(nullptr), lane(nullptr), route_lane_(nullptr), exec_mode(ExecMode::kExec),
         completed_replicas_(0), block_count_(0) {}
 
   /**
@@ -427,6 +436,7 @@ struct RunContext {
         block_time_us(other.block_time_us), block_start(other.block_start),
         yield_context(other.yield_context), resume_context(other.resume_context),
         container(other.container), lane(other.lane), route_lane_(other.route_lane_),
+        exec_mode(other.exec_mode),
         waiting_for_tasks(std::move(other.waiting_for_tasks)),
         pool_queries(std::move(other.pool_queries)),
         subtasks_(std::move(other.subtasks_)),
@@ -453,6 +463,7 @@ struct RunContext {
       container = other.container;
       lane = other.lane;
       route_lane_ = other.route_lane_;
+      exec_mode = other.exec_mode;
       waiting_for_tasks = std::move(other.waiting_for_tasks);
       pool_queries = std::move(other.pool_queries);
       subtasks_ = std::move(other.subtasks_);

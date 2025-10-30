@@ -16,7 +16,8 @@ enum class RoutingMode {
   DirectHash, /**< Route using hash-based load balancing */
   Range,      /**< Route to range of containers */
   Broadcast,  /**< Broadcast to all containers */
-  Physical    /**< Route to specific physical node by ID */
+  Physical,   /**< Route to specific physical node by ID */
+  Dynamic     /**< Dynamic routing with cache optimization (routes to Monitor) */
 };
 
 /**
@@ -89,6 +90,13 @@ class PoolQuery {
    * @return PoolQuery configured for physical node routing
    */
   static PoolQuery Physical(u32 node_id);
+
+  /**
+   * Create a dynamic routing pool query (recommended for Create operations)
+   * Routes to Monitor with kGlobalSchedule for automatic cache checking
+   * @return PoolQuery configured for dynamic routing with cache optimization
+   */
+  static PoolQuery Dynamic();
 
   // Getter methods for internal query parameters (used by routing logic)
 
@@ -163,6 +171,12 @@ class PoolQuery {
    * @return true if routing mode is Physical
    */
   bool IsPhysicalMode() const;
+
+  /**
+   * Check if pool query is in Dynamic routing mode
+   * @return true if routing mode is Dynamic
+   */
+  bool IsDynamicMode() const;
 
   /**
    * Set the return node ID for distributed task responses

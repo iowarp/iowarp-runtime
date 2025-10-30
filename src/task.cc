@@ -53,28 +53,10 @@ void Task::Wait(double block_time_us, bool from_yield) {
     // Determine blocking duration
     double actual_block_time_us = block_time_us;
 
-    // If block_time_us is 0, estimate from subtasks using Monitor
+    // If block_time_us is 0, use default estimate
+    // Monitor functions have been removed - estimate 1ms per waiting subtask
     if (block_time_us == 0.0) {
-      Container *container = worker ? worker->GetCurrentContainer() : nullptr;
-      if (container) {
-        // Estimate load for each waiting subtask and take the maximum
-        double max_est_load = 0.0;
-        for (const auto &waiting_task : run_ctx->waiting_for_tasks) {
-          if (!waiting_task.IsNull()) {
-            // Call Monitor with kEstLoad to estimate this task's execution time
-            container->Monitor(MonitorModeId::kEstLoad, waiting_task->method_,
-                             waiting_task, *run_ctx);
-            // The estimated load should be stored in run_ctx->est_load
-            if (run_ctx->est_load > max_est_load) {
-              max_est_load = run_ctx->est_load;
-            }
-          }
-        }
-        actual_block_time_us = max_est_load;
-      } else {
-        // No container available, use default estimate
-        actual_block_time_us = 1000.0; // Default 1ms estimate
-      }
+      actual_block_time_us = run_ctx->waiting_for_tasks.size() * 1000.0;
     }
 
     // Store blocking duration in RunContext
