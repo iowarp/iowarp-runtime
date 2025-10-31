@@ -5,6 +5,10 @@
 2. [Architecture](#architecture)
 3. [Coding Style](#coding-style)
 4. [Module Structure](#module-structure)
+    - [Task Definition](#task-definition-mod_name_tasksh)
+    - [Client Implementation](#client-implementation-mod_name_clienthcc)
+    - [Runtime Container](#runtime-container-mod_name_runtimehcc)
+    - [Execution Modes and Dynamic Scheduling](#execution-modes-and-dynamic-scheduling)
 5. [Configuration and Code Generation](#configuration-and-code-generation)
 6. [Task Development](#task-development)
 7. [Synchronization Primitives](#synchronization-primitives)
@@ -405,57 +409,15 @@ class Container : public chi::Container {
   }
 
   /**
-   * Monitor create progress
-   */
-  void MonitorCreate(chi::MonitorModeId mode, hipc::FullPtr<CreateTask> task,
-                     chi::RunContext& ctx) {
-    switch (mode) {
-      case chi::MonitorModeId::kLocalSchedule: {
-        // Routing handled automatically by framework
-        break;
-      }
-      case chi::MonitorModeId::kGlobalSchedule: {
-        // Optional: Global coordination
-        break;
-      }
-      case chi::MonitorModeId::kEstLoad: {
-        // Estimate task execution time
-        ctx.estimated_completion_time_us = 1000.0;  // 1ms for container creation
-        break;
-      }
-    }
-  }
-
-  /**
    * Custom operation (Method::kCustom)
    */
   void Custom(hipc::FullPtr<CustomTask> task, chi::RunContext& ctx) {
     // Process the operation
-    std::string result = processData(task->data_.str(), 
+    std::string result = processData(task->data_.str(),
                                     task->operation_id_);
     task->data_ = hipc::string(main_allocator_, result);
     task->result_code_ = 0;
     // Task completion is handled by the framework
-  }
-
-  /**
-   * Monitor custom operation
-   */
-  void MonitorCustom(chi::MonitorModeId mode, hipc::FullPtr<CustomTask> task,
-                    chi::RunContext& ctx) {
-    switch (mode) {
-      case chi::MonitorModeId::kLocalSchedule: {
-        // Routing handled automatically by framework
-        break;
-      }
-      case chi::MonitorModeId::kGlobalSchedule:
-        // Global coordination logic
-        break;
-      case chi::MonitorModeId::kEstLoad:
-        // Estimate execution time based on operation complexity
-        ctx.estimated_completion_time_us = task->operation_id_ * 100.0;  // Example calculation
-        break;
-    }
   }
 
  private:
@@ -472,6 +434,218 @@ CHI_TASK_CC(chimaera::MOD_NAME::Container)
 
 #endif  // MOD_NAME_RUNTIME_H_
 ```
+
+### Execution Modes and Dynamic Scheduling
+
+The Chimaera runtime supports two execution modes through the `ExecMode` enum in `RunContext`, enabling sophisticated task routing patterns:
+
+#### ExecMode Overview
+
+```cpp
+/**
+ * Execution mode for task processing
+ */
+enum class ExecMode : u32 {
+  kExec = 0,              /**< Normal task execution (default) */
+  kDynamicSchedule = 1    /**< Dynamic scheduling - route after execution */
+};
+```
+
+The execution mode is accessible through the `RunContext` parameter passed to all task methods:
+
+```cpp
+void YourMethod(hipc::FullPtr<YourTask> task, chi::RunContext& rctx) {
+  // Check execution mode
+  if (rctx.exec_mode == chi::ExecMode::kDynamicSchedule) {
+    // Dynamic scheduling logic - modify task routing
+    task->pool_query_ = chi::PoolQuery::Broadcast();
+    return;  // Return early - task will be re-routed
+  }
+
+  // Normal execution logic (kExec mode)
+  // ... perform actual work ...
+}
+```
+
+#### kExec Mode (Default)
+
+**Purpose**: Normal task execution mode where tasks are processed completely and then marked as finished.
+
+**Behavior**:
+- Tasks execute their full logic
+- Results are written to task output parameters
+- Worker calls `EndTask()` after execution completes
+- Task is marked as completed and cleaned up
+
+**When to use**: The default mode for all standard task processing.
+
+#### kDynamicSchedule Mode
+
+**Purpose**: Two-phase execution where the first execution determines routing, then the task is re-routed and executed again.
+
+**Behavior**:
+1. Worker sets `exec_mode = kDynamicSchedule` before first execution
+2. Task method examines state and modifies `task->pool_query_` for routing
+3. Task returns early without performing full execution
+4. Worker calls `RerouteDynamicTask()` instead of `EndTask()`
+5. Task is re-routed using the updated `pool_query_`
+6. Task executes again in normal `kExec` mode with the new routing
+
+**When to use**:
+- Tasks that need runtime-dependent routing decisions
+- Cache optimization patterns (check local, then broadcast if not found)
+- Conditional distributed execution based on state
+
+#### Example: GetOrCreatePool with Dynamic Scheduling
+
+The admin ChiMod's `GetOrCreatePool` method demonstrates the canonical dynamic scheduling pattern:
+
+```cpp
+void Runtime::GetOrCreatePool(
+    hipc::FullPtr<chimaera::admin::GetOrCreatePoolTask<chimaera::admin::CreateParams>> task,
+    chi::RunContext &rctx) {
+
+  auto *pool_manager = CHI_POOL_MANAGER;
+  std::string pool_name = task->pool_name_.str();
+
+  // PHASE 1: Dynamic scheduling - determine routing
+  if (rctx.exec_mode == chi::ExecMode::kDynamicSchedule) {
+    // Check if pool exists locally first
+    chi::PoolId existing_pool_id = pool_manager->FindPoolByName(pool_name);
+
+    if (!existing_pool_id.IsNull()) {
+      // Pool exists locally - route to local execution only
+      HILOG(kDebug, "Admin: Pool '{}' found locally (ID: {}), using Local query",
+            pool_name, existing_pool_id);
+      task->pool_query_ = chi::PoolQuery::Local();
+    } else {
+      // Pool doesn't exist - broadcast creation to all nodes
+      HILOG(kDebug, "Admin: Pool '{}' not found locally, broadcasting creation",
+            pool_name);
+      task->pool_query_ = chi::PoolQuery::Broadcast();
+    }
+    return;  // Return early - worker will re-route task
+  }
+
+  // PHASE 2: Normal execution - actually create/get the pool
+  HILOG(kDebug, "Admin: Executing GetOrCreatePool task - ChiMod: {}, Pool: {}",
+        task->chimod_name_.str(), pool_name);
+
+  task->return_code_ = 0;
+  task->error_message_ = "";
+
+  try {
+    if (!pool_manager->CreatePool(task.Cast<chi::Task>(), &rctx)) {
+      task->return_code_ = 2;
+      task->error_message_ = "Failed to create or get pool via PoolManager";
+      return;
+    }
+
+    task->return_code_ = 0;
+    pools_created_++;
+
+    HILOG(kDebug, "Admin: Pool operation completed successfully - ID: {}, Name: {}",
+          task->new_pool_id_, pool_name);
+
+  } catch (const std::exception &e) {
+    task->return_code_ = 99;
+    task->error_message_ = hipc::string(
+        task->GetCtxAllocator(),
+        std::string("Exception during pool creation: ") + e.what());
+    HELOG(kError, "Admin: Pool creation failed with exception: {}", e.what());
+  }
+}
+```
+
+#### Using Dynamic() PoolQuery
+
+The `PoolQuery::Dynamic()` factory method triggers dynamic scheduling:
+
+```cpp
+// Client code - request dynamic routing
+auto pool_query = chi::PoolQuery::Dynamic();
+client.Create(mctx, pool_query, "my_pool_name", pool_id);
+```
+
+**What happens internally:**
+1. Worker recognizes `Dynamic()` pool query
+2. Sets `rctx.exec_mode = ExecMode::kDynamicSchedule`
+3. Routes task to local node first
+4. Task method checks cache and updates `pool_query_`
+5. Worker re-routes with updated query
+6. Task executes again in normal mode with correct routing
+
+#### Benefits of Dynamic Scheduling
+
+**Performance Optimization:**
+- Avoids redundant operations (e.g., pool creation when pool already exists)
+- Reduces network overhead by checking local state first
+- Enables intelligent routing based on runtime conditions
+
+**Cache Optimization Pattern:**
+```cpp
+// Check local cache first
+if (rctx.exec_mode == chi::ExecMode::kDynamicSchedule) {
+  if (LocalCacheHas(resource_id)) {
+    task->pool_query_ = chi::PoolQuery::Local();  // Found locally
+  } else {
+    task->pool_query_ = chi::PoolQuery::Broadcast();  // Need to fetch
+  }
+  return;
+}
+
+// Normal execution with optimized routing
+auto resource = GetResource(resource_id);
+```
+
+**State-Dependent Routing:**
+```cpp
+// Route based on runtime conditions
+if (rctx.exec_mode == chi::ExecMode::kDynamicSchedule) {
+  if (ShouldExecuteDistributed(task)) {
+    task->pool_query_ = chi::PoolQuery::Broadcast();
+  } else {
+    task->pool_query_ = chi::PoolQuery::Local();
+  }
+  return;
+}
+```
+
+#### Implementation Guidelines
+
+**DO:**
+- ✅ Check `rctx.exec_mode` at the start of your method
+- ✅ Return early after modifying `pool_query_` in dynamic mode
+- ✅ Keep dynamic scheduling logic lightweight (fast checks only)
+- ✅ Use dynamic scheduling for cache optimization patterns
+
+**DON'T:**
+- ❌ Perform expensive operations in dynamic scheduling mode
+- ❌ Modify task output parameters in dynamic scheduling mode
+- ❌ Call `Wait()` or spawn subtasks in dynamic scheduling mode
+- ❌ Use dynamic scheduling for simple operations that don't need routing optimization
+
+#### Worker Implementation Details
+
+The worker automatically handles dynamic scheduling:
+
+```cpp
+// Worker::ExecTask() logic
+if (run_ctx->exec_mode == ExecMode::kDynamicSchedule) {
+  // After task returns, call RerouteDynamicTask instead of EndTask
+  RerouteDynamicTask(task_ptr, run_ctx);
+  return;
+}
+
+// Normal mode - end task after execution
+EndTask(task_ptr, run_ctx);
+```
+
+The `RerouteDynamicTask()` method:
+1. Resets task flags (`TASK_STARTED`, `TASK_ROUTED`)
+2. Re-routes task using updated `pool_query_`
+3. Sets `exec_mode = kExec` for next execution
+4. Schedules task for execution again
 
 ## Configuration and Code Generation
 
@@ -563,10 +737,10 @@ For each ChiMod, the utility generates:
    }  // namespace chimaera::MOD_NAME
    ```
 
-2. **`src/autogen/MOD_NAME_lib_exec.cc`**: 
-   - Virtual method dispatch (Runtime::Run, Runtime::Monitor, etc.)
+2. **`src/autogen/MOD_NAME_lib_exec.cc`**:
+   - Virtual method dispatch (Runtime::Run, etc.)
    - Task serialization support (SaveIn/Out, LoadIn/Out)
-   - Memory management (Del, NewCopy)
+   - Memory management (Del, NewCopy, Aggregate)
 
 #### When to Run chi_refresh_repo
 **ALWAYS** run chi_refresh_repo when:
@@ -598,9 +772,8 @@ This automated approach ensures consistency across all ChiMods and reduces boile
 3. **Serializable Types**: Use HSHM types (chi::string, chi::vector, etc.) for member variables
 4. **Method Assignment**: Set the method_ field to identify the operation
 5. **FullPtr Usage**: All task method signatures use `hipc::FullPtr<TaskType>` instead of raw pointers
-6. **Monitor Methods**: Optional - only implement if you need custom load estimation or distributed coordination
-7. **Copy Method**: Optional - implement for tasks that need to be replicated across nodes
-8. **Aggregate Method**: Optional - implement for tasks that need to combine results from replicas
+6. **Copy Method**: Optional - implement for tasks that need to be replicated across nodes
+7. **Aggregate Method**: Optional - implement for tasks that need to combine results from replicas
 
 ### Optional Task Methods: Copy and Aggregate
 
@@ -904,7 +1077,6 @@ kGetStats: 14    # Get performance statistics
 
 // In bdev_runtime.h
 void GetStats(hipc::FullPtr<GetStatsTask> task, chi::RunContext& ctx);
-void MonitorGetStats(chi::MonitorModeId mode, hipc::FullPtr<GetStatsTask> task, chi::RunContext& ctx);
 ```
 
 **Incorrect Naming Examples:**
@@ -923,9 +1095,9 @@ void Stat(hipc::FullPtr<StatTask> task, ...);  // Runtime method doesn't match
 #### Naming Rules
 
 1. **Function Names**: Use descriptive verbs (e.g., `GetStats`, `AllocateBlocks`, `WriteData`)
-2. **Task Names**: Always append "Task" to the function name (e.g., `GetStatsTask`, `AllocateBlocksTask`)  
+2. **Task Names**: Always append "Task" to the function name (e.g., `GetStatsTask`, `AllocateBlocksTask`)
 3. **Method Constants**: Prefix with "k" and match the function name exactly (e.g., `kGetStats`, `kAllocateBlocks`)
-4. **Runtime Methods**: Must match the function name exactly (e.g., `GetStats()`, `MonitorGetStats()`)
+4. **Runtime Methods**: Must match the function name exactly (e.g., `GetStats()`)
 
 #### Backward Compatibility
 
@@ -1563,7 +1735,7 @@ chi::PoolQuery::Dynamic()
 ```
 - **Purpose**: Intelligent routing with automatic caching optimization
 - **Use Case**: Create operations that benefit from local cache checking
-- **Behavior**: Routes to Monitor with `kGlobalSchedule` for cache optimization
+- **Behavior**: Uses dynamic scheduling (ExecMode::kDynamicSchedule) for cache optimization
   1. Check if pool exists locally using PoolManager
   2. If pool exists: change pool_query to Local (execute locally using existing pool)
   3. If pool doesn't exist: change pool_query to Broadcast (create pool on all nodes)
@@ -1577,7 +1749,7 @@ chi::PoolQuery::Dynamic()
 const chi::PoolId custom_pool_id(7000, 0);
 client.Create(HSHM_MCTX, chi::PoolQuery::Dynamic(), "my_pool", custom_pool_id);
 
-// The Monitor will:
+// Dynamic scheduling will:
 // - Check local cache for "my_pool"
 // - If found: switch to Local mode (fast path)
 // - If not found: switch to Broadcast mode (creation path)
@@ -3104,7 +3276,7 @@ src/
 ```
 
 The auto-generated source file contains:
-- Container virtual method implementations (Run, Monitor, Del, etc.)
+- Container virtual method implementations (Run, Del, etc.)
 - Switch-case dispatch based on method IDs
 - Proper task type casting and method invocation
 - IPC manager integration for task lifecycle management
@@ -3142,28 +3314,6 @@ void Runtime::Run(chi::u32 method, hipc::FullPtr<chi::Task> task_ptr, chi::RunCo
     }
     case Method::kCustom: {
       Custom(task_ptr.Cast<CustomTask>(), rctx);
-      break;
-    }
-    default: {
-      // Unknown method - do nothing
-      break;
-    }
-  }
-}
-
-void Runtime::Monitor(chi::MonitorModeId mode, chi::u32 method, 
-                       hipc::FullPtr<chi::Task> task_ptr, chi::RunContext& rctx) {
-  switch (method) {
-    case Method::kCreate: {
-      MonitorCreate(mode, task_ptr.Cast<CreateTask>(), rctx);
-      break;
-    }
-    case Method::kDestroy: {
-      MonitorDestroy(mode, task_ptr.Cast<DestroyTask>(), rctx);
-      break;
-    }
-    case Method::kCustom: {
-      MonitorCustom(mode, task_ptr.Cast<CustomTask>(), rctx);
       break;
     }
     default: {
@@ -3216,12 +3366,6 @@ void Runtime::Run(chi::u32 method, hipc::FullPtr<chi::Task> task_ptr, chi::RunCo
   chimaera::MOD_NAME::Run(this, method, task_ptr, rctx);
 }
 
-void Runtime::Monitor(chi::MonitorModeId mode, chi::u32 method, 
-                     hipc::FullPtr<chi::Task> task_ptr, chi::RunContext& rctx) {
-  // Dispatch to the appropriate monitor handler
-  chimaera::MOD_NAME::Monitor(this, mode, method, task_ptr, rctx);
-}
-
 // Similar dispatcher implementations for Del, SaveIn, LoadIn, SaveOut, LoadOut, NewCopy...
 ```
 
@@ -3264,7 +3408,7 @@ To migrate from the old inline header pattern to the new source pattern:
 1. **Create autogen source directory**: `mkdir -p src/autogen/`
 2. **Generate new autogen source**: Create `src/autogen/MOD_NAME_lib_exec.cc` with virtual method implementations
 3. **Remove autogen header includes**: Delete `#include <[namespace]/MOD_NAME/autogen/MOD_NAME_lib_exec.h>` from runtime source (replaced by .cc files)
-4. **Remove dispatcher methods**: Delete all virtual method implementations from runtime source (Run, Monitor, Del, etc.)
+4. **Remove dispatcher methods**: Delete all virtual method implementations from runtime source (Run, Del, etc.)
 5. **Update CMakeLists.txt**: Add autogen source to `RUNTIME_SOURCES`
 6. **Keep business logic**: Retain the actual task processing methods (Create, Custom, etc.)
 
@@ -3782,79 +3926,6 @@ Tasks can be scheduled with different priorities:
 - `kLowLatency`: For time-critical operations
 - `kHighLatency`: For batch processing
 
-### Monitoring Modes
-Runtime containers support various monitoring modes:
-- `kLocalSchedule`: Route tasks to local container queue lanes (REQUIRED)
-- `kGlobalSchedule`: Coordinate global task distribution
-- `kCleanup`: Clean up completed tasks and resources
-
-**IMPORTANT**: All monitor methods MUST implement `kLocalSchedule` mode. This mode is responsible for routing tasks to the appropriate local queue lanes for execution. Failure to implement this will result in tasks not being processed.
-
-### CRITICAL: Correct Lane Routing vs Direct Enqueuing
-
-**NEVER directly enqueue tasks in Monitor methods**. The work orchestrator handles actual task enqueuing.
-
-#### ❌ INCORRECT Pattern (Direct Enqueuing):
-```cpp
-// DON'T DO THIS - bypasses work orchestrator
-case chi::MonitorModeId::kLocalSchedule:
-  if (auto* lane = GetLane(chi::kLowLatency, 0)) {
-    lane->Enqueue(task_ptr.shm_);  // WRONG - direct enqueuing
-  }
-  break;
-```
-
-#### ✅ CORRECT Pattern (Route Lane Setting):
-```cpp
-// DO THIS - let work orchestrator handle enqueuing
-case chi::MonitorModeId::kLocalSchedule:
-  // Routing handled automatically by framework
-  break;
-```
-
-**Why this matters**:
-- Work orchestrator manages task lifecycle and scheduling policies
-- Direct enqueuing bypasses load balancing and monitoring
-- Framework handles all task routing through external queue lanes
-- Workers are automatically mapped to lanes at runtime startup
-- Simplified architecture eliminates container-specific queues
-
-## Task Monitoring Requirements
-
-### Optional Monitor Methods
-Monitor methods are **optional** in the current architecture. The framework handles task routing automatically, so most ChiMods don't need custom Monitor implementations.
-
-**When to implement Monitor methods:**
-- **kEstLoad**: Only if you need custom load estimation for task scheduling
-- **kGlobalSchedule**: Only if you need distributed coordination across nodes
-- **kLocalSchedule**: Not needed - routing is fully automatic
-
-```cpp
-// Minimal Monitor implementation (only implement if needed for load estimation)
-void MonitorCustom(chi::MonitorModeId mode,
-                  hipc::FullPtr<CustomTask> task_ptr,
-                  chi::RunContext& rctx) {
-  switch (mode) {
-    case chi::MonitorModeId::kEstLoad:
-      // Optional: Estimate execution time for load balancing
-      rctx.estimated_completion_time_us = task_ptr->operation_id_ * 100.0;
-      break;
-
-    case chi::MonitorModeId::kGlobalSchedule:
-      // Optional: Global coordination logic for distributed systems
-      break;
-
-    case chi::MonitorModeId::kLocalSchedule:
-      // No longer needed - routing is automatic
-      // This case can be omitted entirely
-      break;
-
-    default:
-      break;
-  }
-}
-```
-
 ### Automatic Routing Architecture
 The framework handles all task routing automatically:
 
@@ -3905,9 +3976,9 @@ void Custom(hipc::FullPtr<CustomTask> task, chi::RunContext& ctx) {
 ### Common Issues and Solutions
 
 **Tasks Not Being Executed:**
-- **Cause**: Missing `kLocalSchedule` implementation in Monitor methods
-- **Solution**: Ensure every Monitor method has a `kLocalSchedule` case that enqueues the task
-- **Debug**: Add logging in Monitor methods to verify they're being called
+- **Cause**: Tasks not being routed to worker queues
+- **Solution**: Verify task pool_query is set correctly and pool exists
+- **Debug**: Add logging in task execution methods to verify they're being called
 
 **Queue Overflow or Deadlocks:**
 - **Cause**: Tasks being enqueued but not dequeued from lanes
@@ -3916,7 +3987,7 @@ void Custom(hipc::FullPtr<CustomTask> task, chi::RunContext& ctx) {
 
 **Memory Leaks in Shared Memory:**
 - **Cause**: Tasks not being properly cleaned up
-- **Solution**: Implement `kCleanup` mode in Monitor methods
+- **Solution**: Ensure framework Del dispatcher is working correctly
 - **Debug**: Monitor shared memory usage with `ipcs -m`
 
 ## Performance Considerations
@@ -3960,7 +4031,6 @@ When creating a new Chimaera module, ensure you have:
 - [ ] **Init() method overridden** - calls base class Init() then initializes client for this ChiMod
 - [ ] Create() method does NOT call `chi::Container::Init()` (container is already initialized before Create is called)
 - [ ] All task methods use `hipc::FullPtr<TaskType>` parameters
-- [ ] **Monitor methods are optional** - only implement if you need custom load estimation or distributed coordination
 - [ ] **NO custom Del methods needed** - framework calls `ipc_manager->DelTask()` automatically
 - [ ] Uses `CHI_TASK_CC(ClassName)` macro for entry points
 - [ ] **Routing is automatic** - tasks are routed through external queue lanes mapped to workers (1:1 worker-to-lane mapping)
@@ -3983,8 +4053,6 @@ When creating a new Chimaera module, ensure you have:
 - [ ] Links against chimaera library
 
 ### Common Pitfalls to Avoid
-- [ ] ❌ Forgetting `kLocalSchedule` implementation (tasks won't execute)
-- [ ] ❌ **CRITICAL: Direct lane enqueuing** in Monitor methods (bypasses work orchestrator)
 - [ ] ❌ **CRITICAL: Not updating pool_id_ in Create methods** (leads to incorrect pool ID for subsequent operations)
 - [ ] ❌ Using raw pointers instead of FullPtr in runtime methods
 - [ ] ❌ **Calling `chi::Container::Init()` in Create method** (container is already initialized by framework before Create is called)
@@ -3998,8 +4066,6 @@ When creating a new Chimaera module, ensure you have:
 - [ ] ❌ **Using enum class for methods** (use namespace with GLOBAL_CONST instead)
 - [ ] ❌ **Using BaseCreateTask directly for non-admin modules** (use GetOrCreatePoolTask instead)
 - [ ] ❌ **Forgetting GetOrCreatePoolTask template** for container creation (reduces boilerplate)
-
-Remember: **kLocalSchedule is mandatory** - without it, your tasks will never be executed!
 
 ## Pool Name Requirements
 **CRITICAL**: All ChiMod Create functions MUST require a user-provided `pool_name` parameter. Never auto-generate pool names using `pool_id_` during Create operations.

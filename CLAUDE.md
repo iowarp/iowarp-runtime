@@ -664,11 +664,12 @@ When creating or modifying ChiMods (Chimaera modules), refer to the comprehensiv
 
 This guide covers:
 - Module structure and architecture
-- Task development patterns 
+- Task development patterns
 - Client and runtime implementation
 - Build system integration
 - Configuration and code generation
 - Synchronization primitives
+- **Execution modes and dynamic scheduling** (ExecMode in RunContext)
 - External ChiMod development
 - Best practices and common pitfalls
 
