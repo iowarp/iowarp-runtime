@@ -133,8 +133,9 @@ class WrpRuntime(Service):
                 'client_data_segment_size': client_size,
                 'runtime_data_segment_size': runtime_size
             },
-            'network': {
-                'zmq_port': self.config['zmq_port']
+            'networking': {
+                'zmq_port': self.config['zmq_port'],
+                'hostfile': self.jarvis.hostfile.path
             },
             'logging': {
                 'level': self.config['log_level'],

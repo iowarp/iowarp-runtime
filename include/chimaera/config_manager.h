@@ -131,7 +131,7 @@ class ConfigManager : public hshm::BaseConfig {
   std::string client_data_segment_name_ = "chi_client_data_segment_${USER}";
   std::string runtime_data_segment_name_ = "chi_runtime_data_segment_${USER}";
 
-  // Distributed scheduling configuration
+  // Networking configuration
   std::string hostfile_path_ = "";
 
   // Task distribution policy

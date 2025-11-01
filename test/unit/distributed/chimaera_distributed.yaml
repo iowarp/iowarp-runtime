@@ -16,9 +16,6 @@ memory:
 networking:
   zmq_port: 5555
   neighborhood_size: 2  # Stress test with small neighborhood size for range/broadcast queries
-
-# Distributed scheduling configuration
-distributed_scheduling:
   hostfile: "/etc/iowarp/hostfile"  # Path to hostfile in container
 
 # Logging configuration

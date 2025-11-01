@@ -136,7 +136,7 @@ void ConfigManager::LoadDefault() {
   client_data_segment_name_ = "chi_client_data_segment_${USER}";
   runtime_data_segment_name_ = "chi_runtime_data_segment_${USER}";
 
-  // Set default hostfile path (empty means no distributed scheduling)
+  // Set default hostfile path (empty means no networking/distributed mode)
   hostfile_path_ = "";
 
   // Set default lane mapping policy
@@ -181,18 +181,13 @@ void ConfigManager::ParseYAML(YAML::Node &yaml_conf) {
     if (networking["neighborhood_size"]) {
       neighborhood_size_ = networking["neighborhood_size"].as<u32>();
     }
+    if (networking["hostfile"]) {
+      hostfile_path_ = networking["hostfile"].as<std::string>();
+    }
   }
 
   // Segment names are hardcoded and expanded in ipc_manager.cc
   // No configuration needed here
-
-  // Parse distributed scheduling configuration
-  if (yaml_conf["distributed_scheduling"]) {
-    auto dist = yaml_conf["distributed_scheduling"];
-    if (dist["hostfile"]) {
-      hostfile_path_ = dist["hostfile"].as<std::string>();
-    }
-  }
 
   // Parse performance tuning configuration
   if (yaml_conf["performance"]) {
