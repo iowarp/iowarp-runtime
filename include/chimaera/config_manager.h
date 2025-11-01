@@ -65,10 +65,10 @@ class ConfigManager : public hshm::BaseConfig {
   size_t GetMemorySegmentSize(MemorySegment segment) const;
 
   /**
-   * Get ZeroMQ server port
-   * @return Port number for ZeroMQ server
+   * Get networking port
+   * @return Port number for networking
    */
-  u32 GetZmqPort() const;
+  u32 GetPort() const;
 
   /**
    * Get neighborhood size for range query splitting
@@ -123,7 +123,7 @@ class ConfigManager : public hshm::BaseConfig {
   size_t client_data_segment_size_ = hshm::Unit<size_t>::Megabytes(256);
   size_t runtime_data_segment_size_ = hshm::Unit<size_t>::Megabytes(256);
 
-  u32 zmq_port_ = 9128;
+  u32 port_ = 9128;
   u32 neighborhood_size_ = 32;
 
   // Shared memory segment names with environment variable support

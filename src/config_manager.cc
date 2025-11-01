@@ -78,7 +78,7 @@ size_t ConfigManager::GetMemorySegmentSize(MemorySegment segment) const {
   }
 }
 
-u32 ConfigManager::GetZmqPort() const { return zmq_port_; }
+u32 ConfigManager::GetPort() const { return port_; }
 
 u32 ConfigManager::GetNeighborhoodSize() const { return neighborhood_size_; }
 
@@ -128,7 +128,7 @@ void ConfigManager::LoadDefault() {
   client_data_segment_size_ = 512 * 1024 * 1024;  // 512MB
   runtime_data_segment_size_ = 512 * 1024 * 1024; // 512MB
 
-  zmq_port_ = 5555;
+  port_ = 5555;
   neighborhood_size_ = 32;
 
   // Set default shared memory segment names with environment variables
@@ -175,8 +175,8 @@ void ConfigManager::ParseYAML(YAML::Node &yaml_conf) {
   // Parse networking
   if (yaml_conf["networking"]) {
     auto networking = yaml_conf["networking"];
-    if (networking["zmq_port"]) {
-      zmq_port_ = networking["zmq_port"].as<u32>();
+    if (networking["port"]) {
+      port_ = networking["port"].as<u32>();
     }
     if (networking["neighborhood_size"]) {
       neighborhood_size_ = networking["neighborhood_size"].as<u32>();

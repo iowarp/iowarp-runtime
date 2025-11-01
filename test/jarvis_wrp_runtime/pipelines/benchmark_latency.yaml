@@ -22,7 +22,7 @@ pkgs:
     main_segment_size: "1G"
     client_data_segment_size: "512M"
     runtime_data_segment_size: "512M"
-    zmq_port: 5555
+    port: 5555
     log_level: "info"
     stack_size: 65536
     queue_depth: 10000

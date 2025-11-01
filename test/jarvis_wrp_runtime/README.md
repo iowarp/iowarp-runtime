@@ -74,7 +74,7 @@ jarvis ppl start
 - **runtime_data_segment_size**: Runtime data segment size (default: `512M`)
 
 #### Network Configuration
-- **zmq_port**: ZeroMQ port for networking (default: `5555`)
+- **port**: ZeroMQ port for networking (default: `5555`)
 
 #### Logging
 - **log_level**: Logging level - `debug`, `info`, `warning`, `error` (default: `info`)
@@ -137,7 +137,7 @@ memory:
 
 # Network configuration
 network:
-  zmq_port: 5555
+  port: 5555
 
 # ... (additional configuration)
 ```

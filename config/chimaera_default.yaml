@@ -14,7 +14,7 @@ memory:
 
 # Network configuration
 networking:
-  zmq_port: 5555
+  port: 5555
   neighborhood_size: 32  # Maximum number of queries when splitting range queries
   
 # Logging configuration

@@ -20,7 +20,7 @@ pkgs:
     runtime_data_segment_size: "512M"
 
     # Networking
-    zmq_port: 5555
+    port: 5555
 
     # Logging
     log_level: "info"

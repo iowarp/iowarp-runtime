@@ -350,7 +350,7 @@ void Runtime::SendIn(hipc::FullPtr<SendTask> task, chi::RunContext &rctx) {
 
     // Create Lightbeam client using configured port
     auto *config_manager = CHI_CONFIG_MANAGER;
-    int port = static_cast<int>(config_manager->GetZmqPort());
+    int port = static_cast<int>(config_manager->GetPort());
     auto lbm_client = hshm::lbm::TransportFactory::GetClient(
         target_host->ip_address, hshm::lbm::Transport::kZeroMq, "tcp", port);
 
@@ -465,7 +465,7 @@ void Runtime::SendOut(hipc::FullPtr<SendTask> task) {
 
     // Create Lightbeam client using configured port
     auto *config_manager = CHI_CONFIG_MANAGER;
-    int port = static_cast<int>(config_manager->GetZmqPort());
+    int port = static_cast<int>(config_manager->GetPort());
     auto lbm_client = hshm::lbm::TransportFactory::GetClient(
         target_host->ip_address, hshm::lbm::Transport::kZeroMq, "tcp", port);
 

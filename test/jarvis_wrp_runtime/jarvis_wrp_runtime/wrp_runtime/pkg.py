@@ -61,7 +61,7 @@ class WrpRuntime(Service):
                 'default': '512M'
             },
             {
-                'name': 'zmq_port',
+                'name': 'port',
                 'msg': 'ZeroMQ port for networking',
                 'type': int,
                 'default': 5555
@@ -134,7 +134,7 @@ class WrpRuntime(Service):
                 'runtime_data_segment_size': runtime_size
             },
             'networking': {
-                'zmq_port': self.config['zmq_port'],
+                'port': self.config['port'],
                 'hostfile': self.jarvis.hostfile.path
             },
             'logging': {

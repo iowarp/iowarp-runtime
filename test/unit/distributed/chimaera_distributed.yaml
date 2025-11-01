@@ -14,7 +14,7 @@ memory:
 
 # Network configuration
 networking:
-  zmq_port: 5555
+  port: 5555
   neighborhood_size: 2  # Stress test with small neighborhood size for range/broadcast queries
   hostfile: "/etc/iowarp/hostfile"  # Path to hostfile in container
 

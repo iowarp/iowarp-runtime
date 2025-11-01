@@ -434,7 +434,7 @@ bool IpcManager::StartLocalServer() {
     // Start local ZeroMQ server using HSHM Lightbeam
     std::string addr = "127.0.0.1";
     std::string protocol = "tcp";
-    u32 port = config->GetZmqPort() + 1; // Use ZMQ port + 1 for local server
+    u32 port = config->GetPort() + 1; // Use ZMQ port + 1 for local server
 
     local_server_ = hshm::lbm::TransportFactory::GetServer(
         addr, hshm::lbm::Transport::kZeroMq, protocol, port);
@@ -453,7 +453,7 @@ bool IpcManager::TestLocalServer() {
     std::string addr = "127.0.0.1";
     std::string protocol = "tcp";
     u32 port =
-        config->GetZmqPort() + 1; // Use ZMQ port + 1 to match local server
+        config->GetPort() + 1; // Use ZMQ port + 1 to match local server
 
     auto client = hshm::lbm::TransportFactory::GetClient(
         addr, hshm::lbm::Transport::kZeroMq, protocol, port);
@@ -679,7 +679,7 @@ bool IpcManager::TryStartMainServer(const std::string &hostname) {
   try {
     // Create main server using Lightbeam TransportFactory
     std::string protocol = "tcp";
-    u32 port = config->GetZmqPort();
+    u32 port = config->GetPort();
 
     main_server_ = hshm::lbm::TransportFactory::GetServer(
         hostname, hshm::lbm::Transport::kZeroMq, protocol, port);
