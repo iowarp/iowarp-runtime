@@ -84,13 +84,13 @@ void Runtime::GetOrCreatePool(
 
     if (!existing_pool_id.IsNull()) {
       // Pool exists locally - change pool query to Local
-      HILOG(kInfo, "Admin: Pool '{}' found locally (ID: {}), using Local query",
+      HILOG(kDebug, "Admin: Pool '{}' found locally (ID: {}), using Local query",
             pool_name, existing_pool_id);
       task->pool_query_ = chi::PoolQuery::Local();
     } else {
       // Pool doesn't exist locally - update pool query to Broadcast for
       // creation
-      HILOG(kInfo, "Admin: Pool '{}' not found locally, broadcasting creation",
+      HILOG(kDebug, "Admin: Pool '{}' not found locally, broadcasting creation",
             pool_name);
       task->pool_query_ = chi::PoolQuery::Broadcast();
     }
@@ -309,7 +309,7 @@ void Runtime::SendIn(hipc::FullPtr<SendTask> task, chi::RunContext &rctx) {
 
   // Add the origin task to send_map before creating copies
   send_map_[send_map_key] = origin_task;
-  HILOG(kInfo, "[SendIn] Added origin task {} to send_map with net_key {}",
+  HILOG(kDebug, "[SendIn] Added origin task {} to send_map with net_key {}",
         origin_task->task_id_, send_map_key);
 
   // Reserve space for all replicas in subtasks vector BEFORE the loop
@@ -317,7 +317,7 @@ void Runtime::SendIn(hipc::FullPtr<SendTask> task, chi::RunContext &rctx) {
   chi::RunContext *origin_task_rctx = origin_task->run_ctx_;
   size_t num_replicas = task->pool_queries_.size();
   origin_task_rctx->subtasks_.resize(num_replicas);
-  HILOG(kInfo, "[SendIn] Reserved space for {} replicas in subtasks vector",
+  HILOG(kDebug, "[SendIn] Reserved space for {} replicas in subtasks vector",
         num_replicas);
 
   // Send to each target in pool_queries
@@ -379,7 +379,7 @@ void Runtime::SendIn(hipc::FullPtr<SendTask> task, chi::RunContext &rctx) {
     copy_id.net_key_ = send_map_key;
     task_copy->task_id_ = copy_id;
 
-    HILOG(kInfo, "[SendIn] Created task copy {} with net_key {} for node {}",
+    HILOG(kDebug, "[SendIn] Created task copy {} with net_key {} for node {}",
           task_copy->task_id_, send_map_key, target_node_id);
 
     // Update the copy's pool query to current query
@@ -409,11 +409,11 @@ void Runtime::SendIn(hipc::FullPtr<SendTask> task, chi::RunContext &rctx) {
       continue;
     }
 
-    HILOG(kInfo, "[SendIn] Successfully sent task copy {} to node {} ({})",
+    HILOG(kDebug, "[SendIn] Successfully sent task copy {} to node {} ({})",
           task_copy->task_id_, target_node_id, target_host->ip_address);
   }
 
-  HILOG(kInfo, "=== [SendIn END] Task {} completed sending to {} targets ===",
+  HILOG(kDebug, "=== [SendIn END] Task {} completed sending to {} targets ===",
         origin_task->task_id_, num_replicas);
   task->SetReturnCode(0);
 }
@@ -446,12 +446,12 @@ void Runtime::SendOut(hipc::FullPtr<SendTask> task) {
 
   // Print replica information
   chi::RunContext *origin_rctx = origin_task->run_ctx_;
-  HILOG(kInfo, "[SendOut] Task has {} replicas, sending to {} target(s)",
+  HILOG(kDebug, "[SendOut] Task has {} replicas, sending to {} target(s)",
         origin_rctx->subtasks_.size(), task->pool_queries_.size());
 
   // Remove task from recv_map as we're completing it (use net_key for lookup)
   size_t net_key = origin_task->task_id_.net_key_;
-  HILOG(kInfo, "[SendOut] Removing task {} from recv_map with net_key {}",
+  HILOG(kDebug, "[SendOut] Removing task {} from recv_map with net_key {}",
         origin_task->task_id_, net_key);
 
   auto it = recv_map_.find(net_key);
@@ -509,14 +509,14 @@ void Runtime::SendOut(hipc::FullPtr<SendTask> task) {
       continue;
     }
 
-    HILOG(kInfo,
+    HILOG(kDebug,
           "[SendOut] Successfully sent outputs for task {} to node {} ({})",
           origin_task->task_id_, target_node_id, target_host->ip_address);
   }
 
   // Delete the task after sending outputs
   ipc_manager->DelTask(origin_task);
-  HILOG(kInfo, "=== [SendOut END] Task {} completed and deleted ===",
+  HILOG(kDebug, "=== [SendOut END] Task {} completed and deleted ===",
         origin_task->task_id_);
 
   task->SetReturnCode(0);
@@ -546,7 +546,7 @@ void Runtime::RecvIn(hipc::FullPtr<RecvTask> task,
   auto *pool_manager = CHI_POOL_MANAGER;
 
   const auto &task_infos = archive.GetTaskInfos();
-  HILOG(kInfo, "=== [RecvIn BEGIN] Receiving {} task(s) from remote node ===",
+  HILOG(kDebug, "=== [RecvIn BEGIN] Receiving {} task(s) from remote node ===",
         task_infos.size());
 
   // Allocate buffers for bulk data and expose them for receiving
@@ -605,10 +605,10 @@ void Runtime::RecvIn(hipc::FullPtr<RecvTask> task,
 
     // Enqueue task for execution
     ipc_manager->Enqueue(task_ptr);
-    HILOG(kInfo, "[RecvIn] Enqueued task {} for execution", task_ptr->task_id_);
+    HILOG(kDebug, "[RecvIn] Enqueued task {} for execution", task_ptr->task_id_);
   }
 
-  HILOG(kInfo, "=== [RecvIn END] Processed {} task(s) ===", task_infos.size());
+  HILOG(kDebug, "=== [RecvIn END] Processed {} task(s) ===", task_infos.size());
   task->SetReturnCode(0);
 }
 
@@ -654,7 +654,7 @@ void Runtime::RecvOut(hipc::FullPtr<RecvTask> task,
     }
 
     hipc::FullPtr<chi::Task> origin_task = send_it->second;
-    HILOG(kInfo, "[RecvOut] Found origin task {} for replica {}",
+    HILOG(kDebug, "[RecvOut] Found origin task {} for replica {}",
           origin_task->task_id_, task_info.task_id_);
     chi::RunContext *origin_rctx = origin_task->run_ctx_;
 
@@ -692,7 +692,7 @@ void Runtime::RecvOut(hipc::FullPtr<RecvTask> task,
     return;
   }
 
-  HILOG(kInfo, "[RecvOut] Received {} bulk transfers via Lightbeam",
+  HILOG(kDebug, "[RecvOut] Received {} bulk transfers via Lightbeam",
         archive.recv.size());
 
   // Second pass: Aggregate results
@@ -738,7 +738,7 @@ void Runtime::RecvOut(hipc::FullPtr<RecvTask> task,
 
     // Increment completed replicas counter in origin's rctx
     chi::u32 completed = origin_rctx->completed_replicas_.fetch_add(1) + 1;
-    HILOG(kInfo, "[RecvOut] Origin task {} completed {}/{} replicas",
+    HILOG(kDebug, "[RecvOut] Origin task {} completed {}/{} replicas",
           origin_task->task_id_, completed, origin_rctx->subtasks_.size());
 
     // If all replicas completed
