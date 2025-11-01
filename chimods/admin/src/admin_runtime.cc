@@ -84,14 +84,13 @@ void Runtime::GetOrCreatePool(
 
     if (!existing_pool_id.IsNull()) {
       // Pool exists locally - change pool query to Local
-      HILOG(kDebug,
-            "Admin: Pool '{}' found locally (ID: {}), using Local query",
+      HILOG(kInfo, "Admin: Pool '{}' found locally (ID: {}), using Local query",
             pool_name, existing_pool_id);
       task->pool_query_ = chi::PoolQuery::Local();
     } else {
       // Pool doesn't exist locally - update pool query to Broadcast for
       // creation
-      HILOG(kDebug, "Admin: Pool '{}' not found locally, broadcasting creation",
+      HILOG(kInfo, "Admin: Pool '{}' not found locally, broadcasting creation",
             pool_name);
       task->pool_query_ = chi::PoolQuery::Broadcast();
     }
@@ -279,36 +278,50 @@ void Runtime::Flush(hipc::FullPtr<FlushTask> task, chi::RunContext &rctx) {
 
 /**
  * Helper function: Send task inputs to remote node
- * @param task SendTask containing subtask and pool queries
+ * @param task SendTask containing origin_task and pool queries
  * @param rctx RunContext for managing subtasks
  */
 void Runtime::SendIn(hipc::FullPtr<SendTask> task, chi::RunContext &rctx) {
   auto *ipc_manager = CHI_IPC;
   auto *pool_manager = CHI_POOL_MANAGER;
 
-  // Validate subtask
-  hipc::FullPtr<chi::Task> subtask = task->subtask_;
-  if (subtask.IsNull()) {
+  // Validate origin_task
+  hipc::FullPtr<chi::Task> origin_task = task->origin_task_;
+  if (origin_task.IsNull()) {
     task->SetReturnCode(1);
     return;
   }
 
-  // Get the container associated with the subtask
-  chi::Container *container = pool_manager->GetContainer(subtask->pool_id_);
+  // Get the container associated with the origin_task
+  chi::Container *container = pool_manager->GetContainer(origin_task->pool_id_);
   if (!container) {
     task->SetReturnCode(2);
     return;
   }
 
-  HILOG(kDebug,
+  HILOG(kInfo,
         "=== [SendIn BEGIN] Task {} (pool: {}) starting distributed send ===",
-        subtask->task_id_, subtask->pool_id_);
+        origin_task->task_id_, origin_task->pool_id_);
 
-  // Add the origin task to send_map for later lookup
-  send_map_[subtask->task_id_] = subtask;
+  // Pre-allocate send_map_key using origin_task pointer
+  // This ensures consistent net_key across all replicas
+  size_t send_map_key = size_t(origin_task.ptr_);
+
+  // Add the origin task to send_map before creating copies
+  send_map_[send_map_key] = origin_task;
+  HILOG(kInfo, "[SendIn] Added origin task {} to send_map with net_key {}",
+        origin_task->task_id_, send_map_key);
+
+  // Reserve space for all replicas in subtasks vector BEFORE the loop
+  // This ensures subtasks_.size() reflects the correct total replica count
+  chi::RunContext *origin_task_rctx = origin_task->run_ctx_;
+  size_t num_replicas = task->pool_queries_.size();
+  origin_task_rctx->subtasks_.resize(num_replicas);
+  HILOG(kInfo, "[SendIn] Reserved space for {} replicas in subtasks vector",
+        num_replicas);
 
   // Send to each target in pool_queries
-  for (size_t i = 0; i < task->pool_queries_.size(); ++i) {
+  for (size_t i = 0; i < num_replicas; ++i) {
     const chi::PoolQuery &query = task->pool_queries_[i];
 
     // Determine target node_id based on query type
@@ -321,12 +334,12 @@ void Runtime::SendIn(hipc::FullPtr<SendTask> task, chi::RunContext &rctx) {
     } else if (query.IsDirectIdMode()) {
       chi::ContainerId container_id = query.GetContainerId();
       target_node_id =
-          pool_manager->GetContainerNodeId(subtask->pool_id_, container_id);
+          pool_manager->GetContainerNodeId(origin_task->pool_id_, container_id);
     } else if (query.IsRangeMode()) {
       chi::u32 offset = query.GetRangeOffset();
       chi::ContainerId container_id(offset);
       target_node_id =
-          pool_manager->GetContainerNodeId(subtask->pool_id_, container_id);
+          pool_manager->GetContainerNodeId(origin_task->pool_id_, container_id);
     } else if (query.IsBroadcastMode()) {
       HELOG(kError, "Admin: Broadcast mode should be handled by "
                     "TaskDispatcher, not SendIn");
@@ -344,7 +357,7 @@ void Runtime::SendIn(hipc::FullPtr<SendTask> task, chi::RunContext &rctx) {
     const chi::Host *target_host = ipc_manager->GetHost(target_node_id);
     if (!target_host) {
       HELOG(kError, "[SendIn] Task {} FAILED: Host not found for node_id {}",
-            subtask->task_id_, target_node_id);
+            origin_task->task_id_, target_node_id);
       continue;
     }
 
@@ -359,7 +372,15 @@ void Runtime::SendIn(hipc::FullPtr<SendTask> task, chi::RunContext &rctx) {
 
     // Create task copy
     hipc::FullPtr<chi::Task> task_copy;
-    container->NewCopy(subtask->method_, subtask, task_copy, true);
+    container->NewCopy(origin_task->method_, origin_task, task_copy, true);
+
+    // Set net_key in task_id to match send_map_key
+    chi::TaskId copy_id = task_copy->task_id_;
+    copy_id.net_key_ = send_map_key;
+    task_copy->task_id_ = copy_id;
+
+    HILOG(kInfo, "[SendIn] Created task copy {} with net_key {} for node {}",
+          task_copy->task_id_, send_map_key, target_node_id);
 
     // Update the copy's pool query to current query
     task_copy->pool_query_ = query;
@@ -369,22 +390,11 @@ void Runtime::SendIn(hipc::FullPtr<SendTask> task, chi::RunContext &rctx) {
     task_copy->pool_query_.SetReturnNode(this_node_id);
     HILOG(kDebug, "Admin: Task copy return node set to {}", this_node_id);
 
-    // Get or allocate the subtask's RunContext to store replicas
-    chi::RunContext *subtask_rctx = subtask->run_ctx_;
-    if (!subtask_rctx) {
-      // Allocate RunContext for subtask if it doesn't have one
-      subtask_rctx = new chi::RunContext();
-      subtask_rctx->task = subtask;
-      subtask->run_ctx_ = subtask_rctx;
-      HILOG(kDebug, "Admin: Allocated RunContext for subtask");
-    }
+    // Set replica using index operator (space already reserved)
+    origin_task_rctx->subtasks_[i] = task_copy;
 
-    // Add copy to subtasks vector in subtask's RunContext
-    subtask_rctx->subtasks_.push_back(task_copy);
-
-    // Update replica_id of task_id to be index in subtasks
-    chi::TaskId copy_id = task_copy->task_id_;
-    copy_id.replica_id_ = subtask_rctx->subtasks_.size() - 1;
+    // Update replica_id of task_id to be the loop index (preserve net_key)
+    copy_id.replica_id_ = i;
     task_copy->task_id_ = copy_id;
 
     // Serialize the task using container->SaveTask (Expose will be called
@@ -395,47 +405,61 @@ void Runtime::SendIn(hipc::FullPtr<SendTask> task, chi::RunContext &rctx) {
     int rc = lbm_client->Send(archive);
     if (rc != 0) {
       HELOG(kError, "[SendIn] Task {} Lightbeam Send FAILED with error code {}",
-            subtask->task_id_, rc);
+            origin_task->task_id_, rc);
       continue;
     }
+
+    HILOG(kInfo, "[SendIn] Successfully sent task copy {} to node {} ({})",
+          task_copy->task_id_, target_node_id, target_host->ip_address);
   }
 
-  HILOG(kDebug, "=== [SendIn END] Task {} completed sending to {} targets ===",
-        subtask->task_id_, task->pool_queries_.size());
+  HILOG(kInfo, "=== [SendIn END] Task {} completed sending to {} targets ===",
+        origin_task->task_id_, num_replicas);
   task->SetReturnCode(0);
 }
 
 /**
  * Helper function: Send task outputs back to origin node
- * @param task SendTask containing subtask
+ * @param task SendTask containing origin_task
  */
 void Runtime::SendOut(hipc::FullPtr<SendTask> task) {
   auto *ipc_manager = CHI_IPC;
   auto *pool_manager = CHI_POOL_MANAGER;
 
-  // Validate subtask
-  hipc::FullPtr<chi::Task> subtask = task->subtask_;
-  if (subtask.IsNull()) {
+  // Validate origin_task
+  hipc::FullPtr<chi::Task> origin_task = task->origin_task_;
+  if (origin_task.IsNull()) {
     task->SetReturnCode(1);
     return;
   }
 
-  // Get the container associated with the subtask
-  chi::Container *container = pool_manager->GetContainer(subtask->pool_id_);
+  // Get the container associated with the origin_task
+  chi::Container *container = pool_manager->GetContainer(origin_task->pool_id_);
   if (!container) {
     task->SetReturnCode(2);
     return;
   }
 
-  HILOG(kDebug,
-        "=== [SendOut BEGIN] Task {} (pool: {}) sending outputs back ===",
-        subtask->task_id_, subtask->pool_id_);
+  HILOG(kInfo,
+        "=== [SendOut BEGIN] Task {} (pool: {}, method: {}) sending outputs back ===",
+        origin_task->task_id_, origin_task->pool_id_, origin_task->method_);
 
-  // Remove task from recv_map as we're completing it
-  auto it = recv_map_.find(subtask->task_id_);
+  // Print replica information
+  chi::RunContext *origin_rctx = origin_task->run_ctx_;
+  HILOG(kInfo, "[SendOut] Task has {} replicas, sending to {} target(s)",
+        origin_rctx->subtasks_.size(), task->pool_queries_.size());
+
+  // Remove task from recv_map as we're completing it (use net_key for lookup)
+  size_t net_key = origin_task->task_id_.net_key_;
+  HILOG(kInfo, "[SendOut] Removing task {} from recv_map with net_key {}",
+        origin_task->task_id_, net_key);
+
+  auto it = recv_map_.find(net_key);
   if (it == recv_map_.end()) {
-    HELOG(kError, "[SendOut] Task {} FAILED: Not found in recv_map (size: {})",
-          subtask->task_id_, recv_map_.size());
+    HELOG(kError,
+          "[SendOut] Task {} FAILED: Not found in recv_map (size: {}) with "
+          "net_key {}",
+          origin_task->task_id_, recv_map_.size(), net_key);
     task->SetReturnCode(3);
     return;
   }
@@ -459,7 +483,7 @@ void Runtime::SendOut(hipc::FullPtr<SendTask> task) {
     const chi::Host *target_host = ipc_manager->GetHost(target_node_id);
     if (!target_host) {
       HELOG(kError, "[SendOut] Task {} FAILED: Host not found for node_id {}",
-            subtask->task_id_, target_node_id);
+            origin_task->task_id_, target_node_id);
       continue;
     }
 
@@ -475,21 +499,25 @@ void Runtime::SendOut(hipc::FullPtr<SendTask> task) {
 
     // Serialize the task outputs using container->SaveTask (Expose called
     // automatically)
-    container->SaveTask(subtask->method_, archive, subtask);
+    container->SaveTask(origin_task->method_, archive, origin_task);
 
     int rc = lbm_client->Send(archive);
     if (rc != 0) {
       HELOG(kError,
             "[SendOut] Task {} Lightbeam Send FAILED with error code {}",
-            subtask->task_id_, rc);
+            origin_task->task_id_, rc);
       continue;
     }
+
+    HILOG(kInfo,
+          "[SendOut] Successfully sent outputs for task {} to node {} ({})",
+          origin_task->task_id_, target_node_id, target_host->ip_address);
   }
 
   // Delete the task after sending outputs
-  ipc_manager->DelTask(subtask);
-  HILOG(kDebug, "=== [SendOut END] Task {} completed and deleted ===",
-        subtask->task_id_);
+  ipc_manager->DelTask(origin_task);
+  HILOG(kInfo, "=== [SendOut END] Task {} completed and deleted ===",
+        origin_task->task_id_);
 
   task->SetReturnCode(0);
 }
@@ -518,7 +546,7 @@ void Runtime::RecvIn(hipc::FullPtr<RecvTask> task,
   auto *pool_manager = CHI_POOL_MANAGER;
 
   const auto &task_infos = archive.GetTaskInfos();
-  HILOG(kDebug, "=== [RecvIn BEGIN] Receiving {} task(s) from remote node ===",
+  HILOG(kInfo, "=== [RecvIn BEGIN] Receiving {} task(s) from remote node ===",
         task_infos.size());
 
   // Allocate buffers for bulk data and expose them for receiving
@@ -566,14 +594,21 @@ void Runtime::RecvIn(hipc::FullPtr<RecvTask> task,
     task_ptr->SetFlags(TASK_REMOTE | TASK_DATA_OWNER);
     task_ptr->ClearFlags(TASK_PERIODIC | TASK_FORCE_NET);
 
-    // Add task to recv_map for later lookup
-    recv_map_[task_ptr->task_id_] = task_ptr;
+    // Add task to recv_map for later lookup (use net_key from task_id)
+    size_t net_key = task_ptr->task_id_.net_key_;
+    recv_map_[net_key] = task_ptr;
+
+    HILOG(kInfo,
+          "[RecvIn] Received task {} (pool: {}) with net_key {}, added to "
+          "recv_map",
+          task_ptr->task_id_, task_info.pool_id_, net_key);
 
     // Enqueue task for execution
     ipc_manager->Enqueue(task_ptr);
+    HILOG(kInfo, "[RecvIn] Enqueued task {} for execution", task_ptr->task_id_);
   }
 
-  HILOG(kDebug, "=== [RecvIn END] Processed {} task(s) ===", task_infos.size());
+  HILOG(kInfo, "=== [RecvIn END] Processed {} task(s) ===", task_infos.size());
   task->SetReturnCode(0);
 }
 
@@ -589,7 +624,7 @@ void Runtime::RecvOut(hipc::FullPtr<RecvTask> task,
   auto *pool_manager = CHI_POOL_MANAGER;
 
   const auto &task_infos = archive.GetTaskInfos();
-  HILOG(kDebug,
+  HILOG(kInfo,
         "=== [RecvOut BEGIN] Receiving {} task output(s) from remote node ===",
         task_infos.size());
 
@@ -602,29 +637,26 @@ void Runtime::RecvOut(hipc::FullPtr<RecvTask> task,
   for (size_t task_idx = 0; task_idx < task_infos.size(); ++task_idx) {
     const auto &task_info = task_infos[task_idx];
 
-    // Create lookup key with replica_id set to 0 (origin task always has
-    // replica_id=0)
-    chi::TaskId lookup_id = task_info.task_id_;
-    lookup_id.replica_id_ = 0;
+    // Locate origin task from send_map using net_key
+    size_t net_key = task_info.task_id_.net_key_;
+    HILOG(kInfo,
+          "[RecvOut] Looking up origin task for replica {} with net_key {}",
+          task_info.task_id_, net_key);
 
-    // Locate origin task from send_map using the base task ID
-    auto send_it = send_map_.find(lookup_id);
+    auto send_it = send_map_.find(net_key);
     if (send_it == send_map_.end()) {
       HELOG(kError,
             "[RecvOut] Task {} FAILED: Origin task not found in send_map "
-            "(size: {})",
-            task_info.task_id_, send_map_.size());
+            "(size: {}) with net_key {}",
+            task_info.task_id_, send_map_.size(), net_key);
       task->SetReturnCode(5);
       return;
     }
 
     hipc::FullPtr<chi::Task> origin_task = send_it->second;
+    HILOG(kInfo, "[RecvOut] Found origin task {} for replica {}",
+          origin_task->task_id_, task_info.task_id_);
     chi::RunContext *origin_rctx = origin_task->run_ctx_;
-    if (!origin_rctx) {
-      HELOG(kError, "Admin: Origin task has no RunContext");
-      task->SetReturnCode(6);
-      return;
-    }
 
     // Locate replica in origin's run_ctx using replica_id
     chi::u32 replica_id = task_info.task_id_.replica_id_;
@@ -660,31 +692,24 @@ void Runtime::RecvOut(hipc::FullPtr<RecvTask> task,
     return;
   }
 
-  HILOG(kDebug, "Admin: Received {} bulk transfers via Lightbeam",
+  HILOG(kInfo, "[RecvOut] Received {} bulk transfers via Lightbeam",
         archive.recv.size());
 
   // Second pass: Aggregate results
   for (size_t task_idx = 0; task_idx < task_infos.size(); ++task_idx) {
     const auto &task_info = task_infos[task_idx];
 
-    // Create lookup key with replica_id set to 0 (origin task always has
-    // replica_id=0)
-    chi::TaskId lookup_id = task_info.task_id_;
-    lookup_id.replica_id_ = 0;
-
-    // Locate origin task from send_map using the base task ID
-    auto send_it = send_map_.find(lookup_id);
+    // Locate origin task from send_map using net_key
+    size_t net_key = task_info.task_id_.net_key_;
+    auto send_it = send_map_.find(net_key);
     if (send_it == send_map_.end()) {
-      HELOG(kError, "Admin: Origin task not found in send_map");
+      HELOG(kError, "Admin: Origin task not found in send_map with net_key {}",
+            net_key);
       continue;
     }
 
     hipc::FullPtr<chi::Task> origin_task = send_it->second;
     chi::RunContext *origin_rctx = origin_task->run_ctx_;
-    if (!origin_rctx) {
-      HELOG(kError, "Admin: Origin task has no RunContext");
-      continue;
-    }
 
     // Locate replica in origin's run_ctx using replica_id
     chi::u32 replica_id = task_info.task_id_.replica_id_;
@@ -707,9 +732,14 @@ void Runtime::RecvOut(hipc::FullPtr<RecvTask> task,
 
     // Aggregate replica results into origin task
     container->Aggregate(origin_task->method_, origin_task, replica);
+    HILOG(kInfo,
+          "[RecvOut] Aggregated results from replica {} into origin task {}",
+          replica->task_id_, origin_task->task_id_);
 
     // Increment completed replicas counter in origin's rctx
     chi::u32 completed = origin_rctx->completed_replicas_.fetch_add(1) + 1;
+    HILOG(kInfo, "[RecvOut] Origin task {} completed {}/{} replicas",
+          origin_task->task_id_, completed, origin_rctx->subtasks_.size());
 
     // If all replicas completed
     if (completed == origin_rctx->subtasks_.size()) {
@@ -719,12 +749,12 @@ void Runtime::RecvOut(hipc::FullPtr<RecvTask> task,
           pool_manager->GetContainer(origin_task->pool_id_);
 
       // Unmark TASK_DATA_OWNER before deleting replicas to avoid freeing the
-      // same data pointers twice Delete all subtask replicas using
+      // same data pointers twice Delete all origin_task replicas using
       // container->Del() to avoid memory leak
       if (container) {
-        for (const auto &subtask_ptr : origin_rctx->subtasks_) {
-          subtask_ptr->ClearFlags(TASK_DATA_OWNER);
-          container->Del(subtask_ptr->method_, subtask_ptr);
+        for (const auto &origin_task_ptr : origin_rctx->subtasks_) {
+          origin_task_ptr->ClearFlags(TASK_DATA_OWNER);
+          container->Del(origin_task_ptr->method_, origin_task_ptr);
         }
       }
 
@@ -779,8 +809,17 @@ void Runtime::Recv(hipc::FullPtr<RecvTask> task, chi::RunContext &rctx) {
   }
   if (rc != 0) {
     // Error receiving metadata
-    HELOG(kError, "Admin: Lightbeam RecvMetadata failed with error code {}",
-          rc);
+    if (rc == -1) {
+      HELOG(kError,
+            "Admin: Lightbeam RecvMetadata deserialization failed (error code "
+            "{}). "
+            "This likely indicates a version mismatch between nodes. "
+            "Ensure all nodes are rebuilt with the same code version.",
+            rc);
+    } else {
+      HELOG(kError, "Admin: Lightbeam RecvMetadata failed with error code {}",
+            rc);
+    }
     task->SetReturnCode(2);
     return;
   }

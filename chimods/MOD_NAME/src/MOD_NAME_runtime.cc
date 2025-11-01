@@ -163,7 +163,7 @@ void Runtime::WaitTest(hipc::FullPtr<WaitTestTask> task,
     // functionality properly Create a subtask with remaining depth
     hipc::MemContext mctx;
     chi::u32 remaining_depth = task->depth_ - task->current_depth_;
-    chi::u32 subtask_final_depth = client_.WaitTest(
+    chi::u32 origin_task_final_depth = client_.WaitTest(
         mctx, task->pool_query_, remaining_depth, task->test_id_);
 
     // The subtask returns the final depth it reached, so we set our depth to

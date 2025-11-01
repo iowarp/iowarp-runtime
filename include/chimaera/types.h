@@ -116,19 +116,21 @@ struct TaskId {
   u32 unique_;     ///< Unique identifier incremented for both root tasks and
                    ///< subtasks
   u64 node_id_;    ///< Node identifier for distributed execution
+  size_t net_key_; ///< Network key for send/recv map lookup (pointer-based)
 
   TaskId()
-      : pid_(0), tid_(0), major_(0), replica_id_(0), unique_(0), node_id_(0) {}
+      : pid_(0), tid_(0), major_(0), replica_id_(0), unique_(0), node_id_(0),
+        net_key_(0) {}
   TaskId(u32 pid, u32 tid, u32 major, u32 replica_id = 0, u32 unique = 0,
-         u64 node_id = 0)
+         u64 node_id = 0, size_t net_key = 0)
       : pid_(pid), tid_(tid), major_(major), replica_id_(replica_id),
-        unique_(unique), node_id_(node_id) {}
+        unique_(unique), node_id_(node_id), net_key_(net_key) {}
 
   // Equality operators
   bool operator==(const TaskId &other) const {
     return pid_ == other.pid_ && tid_ == other.tid_ && major_ == other.major_ &&
            replica_id_ == other.replica_id_ && unique_ == other.unique_ &&
-           node_id_ == other.node_id_;
+           node_id_ == other.node_id_ && net_key_ == other.net_key_;
   }
 
   bool operator!=(const TaskId &other) const { return !(*this == other); }
@@ -146,7 +148,7 @@ struct TaskId {
 
   // Serialization support
   template <typename Ar> void serialize(Ar &ar) {
-    ar(pid_, tid_, major_, replica_id_, unique_, node_id_);
+    ar(pid_, tid_, major_, replica_id_, unique_, node_id_, net_key_);
   }
 };
 
@@ -154,7 +156,8 @@ struct TaskId {
 inline std::ostream &operator<<(std::ostream &os, const TaskId &task_id) {
   os << "TaskId(pid:" << task_id.pid_ << ", tid:" << task_id.tid_
      << ", major:" << task_id.major_ << ", replica:" << task_id.replica_id_
-     << ", unique:" << task_id.unique_ << ", node:" << task_id.node_id_ << ")";
+     << ", unique:" << task_id.unique_ << ", node:" << task_id.node_id_
+     << ", net_key:" << task_id.net_key_ << ")";
   return os;
 }
 

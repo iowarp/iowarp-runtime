@@ -513,12 +513,12 @@ Worker::ResolveRangeQuery(const PoolQuery &query, PoolId pool_id,
   u32 neighborhood_size = config_manager->GetNeighborhoodSize();
 
   // Calculate queries needed, capped at neighborhood_size
-  u32 ideal_queries = range_count / neighborhood_size;
+  u32 ideal_queries = (range_count + neighborhood_size - 1) / neighborhood_size;
   u32 queries_to_create = std::min(ideal_queries, neighborhood_size);
 
-  // Ensure at least 1 query if range_count > 0
-  if (queries_to_create == 0) {
-    queries_to_create = 1;
+  // Create one query per container
+  if (queries_to_create <= 1) {
+    queries_to_create = range_count;
   }
 
   u32 containers_per_query = range_count / queries_to_create;

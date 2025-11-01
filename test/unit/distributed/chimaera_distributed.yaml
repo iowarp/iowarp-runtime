@@ -15,7 +15,7 @@ memory:
 # Network configuration
 networking:
   port: 5555
-  neighborhood_size: 2  # Stress test with small neighborhood size for range/broadcast queries
+  neighborhood_size: 4  # Stress test with small neighborhood size for range/broadcast queries
   hostfile: "/etc/iowarp/hostfile"  # Path to hostfile in container
 
 # Logging configuration

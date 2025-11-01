@@ -48,9 +48,9 @@ private:
   // Client for making calls to this ChiMod
   Client client_;
 
-  // Network task tracking maps
-  std::unordered_map<chi::TaskId, hipc::FullPtr<chi::Task>> send_map_;  // Tasks sent to remote nodes
-  std::unordered_map<chi::TaskId, hipc::FullPtr<chi::Task>> recv_map_;  // Tasks received from remote nodes
+  // Network task tracking maps (keyed by net_key for efficient lookup)
+  std::unordered_map<size_t, hipc::FullPtr<chi::Task>> send_map_;  // Tasks sent to remote nodes
+  std::unordered_map<size_t, hipc::FullPtr<chi::Task>> recv_map_;  // Tasks received from remote nodes
 
 public:
   /**

@@ -39,6 +39,8 @@ services:
         cmake --build . -j8 &&
         echo 'Node 1: Build complete. Installing...' &&
         cmake --install . &&
+        echo 'Node 1: Creating build completion marker...' &&
+        touch /usr/local/.build_complete &&
         echo 'Node 1: Install complete. Starting runtime...' &&
         export PATH=/usr/local/bin:$PATH &&
         CHI_SERVER_CONF=/etc/iowarp/chimaera_distributed.yaml chimaera_start_runtime &
@@ -72,11 +74,11 @@ services:
     command: >
       "
         echo 'Node 2: Waiting for build to complete...' &&
-        while [ ! -f /usr/local/bin/chimaera_start_runtime ]; do
+        while [ ! -f /usr/local/.build_complete ]; do
           sleep 2
-          echo 'Node 2: Still waiting for binaries...'
+          echo 'Node 2: Still waiting for build completion marker...'
         done &&
-        echo 'Node 2: Binaries found. Loading spack environment...' &&
+        echo 'Node 2: Build complete. Loading spack environment...' &&
         export SPACK_ROOT=/root/spack &&
         source /root/spack/share/spack/setup-env.sh &&
         spack load cte-hermes-shm &&
@@ -114,11 +116,11 @@ services:
     command: >
       "
         echo 'Node 3: Waiting for build to complete...' &&
-        while [ ! -f /usr/local/bin/chimaera_start_runtime ]; do
+        while [ ! -f /usr/local/.build_complete ]; do
           sleep 2
-          echo 'Node 3: Still waiting for binaries...'
+          echo 'Node 3: Still waiting for build completion marker...'
         done &&
-        echo 'Node 3: Binaries found. Loading spack environment...' &&
+        echo 'Node 3: Build complete. Loading spack environment...' &&
         export SPACK_ROOT=/root/spack &&
         source /root/spack/share/spack/setup-env.sh &&
         spack load cte-hermes-shm &&
@@ -156,11 +158,11 @@ services:
     command: >
       "
         echo 'Node 4: Waiting for build to complete...' &&
-        while [ ! -f /usr/local/bin/chimaera_start_runtime ]; do
+        while [ ! -f /usr/local/.build_complete ]; do
           sleep 2
-          echo 'Node 4: Still waiting for binaries...'
+          echo 'Node 4: Still waiting for build completion marker...'
         done &&
-        echo 'Node 4: Binaries found. Loading spack environment...' &&
+        echo 'Node 4: Build complete. Loading spack environment...' &&
         export SPACK_ROOT=/root/spack &&
         source /root/spack/share/spack/setup-env.sh &&
         spack load cte-hermes-shm &&
