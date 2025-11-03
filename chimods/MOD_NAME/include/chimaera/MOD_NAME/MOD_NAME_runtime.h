@@ -74,23 +74,9 @@ public:
   void Create(hipc::FullPtr<CreateTask> task, chi::RunContext& rctx);
 
   /**
-   * Monitor Create task
-   */
-  void MonitorCreate(chi::MonitorModeId mode, 
-                    hipc::FullPtr<CreateTask> task_ptr,
-                    chi::RunContext& rctx);
-
-  /**
    * Handle Custom task
    */
   void Custom(hipc::FullPtr<CustomTask> task, chi::RunContext& rctx);
-
-  /**
-   * Monitor Custom task
-   */
-  void MonitorCustom(chi::MonitorModeId mode, 
-                    hipc::FullPtr<CustomTask> task_ptr,
-                    chi::RunContext& rctx);
 
   /**
    * Handle CoMutexTest task
@@ -98,23 +84,9 @@ public:
   void CoMutexTest(hipc::FullPtr<CoMutexTestTask> task, chi::RunContext& rctx);
 
   /**
-   * Monitor CoMutexTest task
-   */
-  void MonitorCoMutexTest(chi::MonitorModeId mode, 
-                         hipc::FullPtr<CoMutexTestTask> task_ptr,
-                         chi::RunContext& rctx);
-
-  /**
    * Handle CoRwLockTest task
    */
   void CoRwLockTest(hipc::FullPtr<CoRwLockTestTask> task, chi::RunContext& rctx);
-
-  /**
-   * Monitor CoRwLockTest task
-   */
-  void MonitorCoRwLockTest(chi::MonitorModeId mode,
-                          hipc::FullPtr<CoRwLockTestTask> task_ptr,
-                          chi::RunContext& rctx);
 
   /**
    * Handle WaitTest task
@@ -122,23 +94,9 @@ public:
   void WaitTest(hipc::FullPtr<WaitTestTask> task, chi::RunContext& rctx);
 
   /**
-   * Monitor WaitTest task
-   */
-  void MonitorWaitTest(chi::MonitorModeId mode, 
-                      hipc::FullPtr<WaitTestTask> task_ptr,
-                      chi::RunContext& rctx);
-
-  /**
    * Handle Destroy task - Alias for DestroyPool (DestroyTask = DestroyPoolTask)
    */
   void Destroy(hipc::FullPtr<DestroyTask> task, chi::RunContext& rctx);
-
-  /**
-   * Monitor Destroy task - Alias for MonitorDestroyPool (DestroyTask = DestroyPoolTask)
-   */
-  void MonitorDestroy(chi::MonitorModeId mode, 
-                     hipc::FullPtr<DestroyTask> task_ptr,
-                     chi::RunContext& rctx);
 
   /**
    * Get remaining work count for this container

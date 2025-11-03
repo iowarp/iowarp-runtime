@@ -69,35 +69,14 @@ public:
   void Create(hipc::FullPtr<CreateTask> task, chi::RunContext& rctx);
 
   /**
-   * Monitor Create task
-   */
-  void MonitorCreate(chi::MonitorModeId mode, 
-                    hipc::FullPtr<CreateTask> task_ptr,
-                    chi::RunContext& rctx);
-
-  /**
    * Handle Destroy task - Destroy the Simple Mod container
    */
   void Destroy(hipc::FullPtr<DestroyTask> task, chi::RunContext& rctx);
 
   /**
-   * Monitor Destroy task
-   */
-  void MonitorDestroy(chi::MonitorModeId mode, 
-                     hipc::FullPtr<DestroyTask> task_ptr,
-                     chi::RunContext& rctx);
-
-  /**
    * Handle Flush task - Flush simple mod operations
    */
   void Flush(hipc::FullPtr<FlushTask> task, chi::RunContext& rctx);
-
-  /**
-   * Monitor Flush task
-   */
-  void MonitorFlush(chi::MonitorModeId mode, 
-                   hipc::FullPtr<FlushTask> task_ptr,
-                   chi::RunContext& rctx);
 
   /**
    * Get remaining work count for this simple mod container

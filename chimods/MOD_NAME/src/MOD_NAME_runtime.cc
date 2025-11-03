@@ -12,15 +12,7 @@ namespace chimaera::MOD_NAME {
 
 // Method implementations for Runtime class
 
-void Runtime::Init(const chi::PoolId &pool_id, const std::string &pool_name) {
-  // Call base class initialization
-  chi::Container::Init(pool_id, pool_name);
-
-  // Initialize the client for this ChiMod
-  client_ = Client(pool_id);
-}
-
-// Virtual method implementations now in autogen/MOD_NAME_lib_exec.cc
+// Virtual method implementations (Init, Run, Del, SaveTask, LoadTask, NewCopy, Aggregate) now in autogen/MOD_NAME_lib_exec.cc
 
 //===========================================================================
 // Method implementations

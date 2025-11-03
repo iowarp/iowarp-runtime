@@ -25,15 +25,7 @@ namespace chimaera::admin {
 
 // Method implementations for Runtime class
 
-void Runtime::Init(const chi::PoolId &pool_id, const std::string &pool_name) {
-  // Call base class initialization
-  chi::Container::Init(pool_id, pool_name);
-
-  // Initialize the client for this ChiMod
-  client_ = Client(pool_id);
-}
-
-// Virtual method implementations now in autogen/admin_lib_exec.cc
+// Virtual method implementations (Init, Run, Del, SaveTask, LoadTask, NewCopy, Aggregate) now in autogen/admin_lib_exec.cc
 
 //===========================================================================
 // Method implementations
@@ -287,8 +279,9 @@ void Runtime::SendIn(hipc::FullPtr<SendTask> task, chi::RunContext &rctx) {
   auto *pool_manager = CHI_POOL_MANAGER;
 
   // Log host information at method entry
-  auto& this_host = CHI_IPC->GetThisHost();
-  HILOG(kInfo, "SendIn executing on host {} (node_id: {})", this_host.ip_address, this_host.node_id);
+  auto &this_host = CHI_IPC->GetThisHost();
+  HILOG(kInfo, "SendIn executing on host {} (node_id: {})",
+        this_host.ip_address, this_host.node_id);
 
   // Validate origin_task
   hipc::FullPtr<chi::Task> origin_task = task->origin_task_;
@@ -426,8 +419,9 @@ void Runtime::SendOut(hipc::FullPtr<SendTask> task) {
   auto *pool_manager = CHI_POOL_MANAGER;
 
   // Log host information at method entry
-  auto& this_host = CHI_IPC->GetThisHost();
-  HILOG(kInfo, "SendOut executing on host {} (node_id: {})", this_host.ip_address, this_host.node_id);
+  auto &this_host = CHI_IPC->GetThisHost();
+  HILOG(kInfo, "SendOut executing on host {} (node_id: {})",
+        this_host.ip_address, this_host.node_id);
 
   // Validate origin_task
   hipc::FullPtr<chi::Task> origin_task = task->origin_task_;
@@ -448,16 +442,11 @@ void Runtime::SendOut(hipc::FullPtr<SendTask> task) {
         "back ===",
         origin_task->task_id_, origin_task->pool_id_, origin_task->method_);
 
-  // Print replica information
-  chi::RunContext *origin_rctx = origin_task->run_ctx_;
-  HILOG(kInfo, "[SendOut] Task has {} replicas, sending to {} target(s)",
-        origin_rctx->subtasks_.size(), task->pool_queries_.size());
-
   // Remove task from recv_map as we're completing it (use net_key for lookup)
+  chi::RunContext *origin_rctx = origin_task->run_ctx_;
   size_t net_key = origin_task->task_id_.net_key_;
   HILOG(kDebug, "[SendOut] Removing task {} from recv_map with net_key {}",
         origin_task->task_id_, net_key);
-
   auto it = recv_map_.find(net_key);
   if (it == recv_map_.end()) {
     HELOG(kError,
@@ -550,8 +539,9 @@ void Runtime::RecvIn(hipc::FullPtr<RecvTask> task,
   auto *pool_manager = CHI_POOL_MANAGER;
 
   // Log host information at method entry
-  auto& this_host = CHI_IPC->GetThisHost();
-  HILOG(kInfo, "RecvIn executing on host {} (node_id: {})", this_host.ip_address, this_host.node_id);
+  auto &this_host = CHI_IPC->GetThisHost();
+  HILOG(kInfo, "RecvIn executing on host {} (node_id: {})",
+        this_host.ip_address, this_host.node_id);
 
   const auto &task_infos = archive.GetTaskInfos();
   HILOG(
@@ -635,8 +625,9 @@ void Runtime::RecvOut(hipc::FullPtr<RecvTask> task,
   auto *pool_manager = CHI_POOL_MANAGER;
 
   // Log host information at method entry
-  auto& this_host = CHI_IPC->GetThisHost();
-  HILOG(kInfo, "RecvOut executing on host {} (node_id: {})", this_host.ip_address, this_host.node_id);
+  auto &this_host = CHI_IPC->GetThisHost();
+  HILOG(kInfo, "RecvOut executing on host {} (node_id: {})",
+        this_host.ip_address, this_host.node_id);
 
   const auto &task_infos = archive.GetTaskInfos();
   HILOG(kInfo,

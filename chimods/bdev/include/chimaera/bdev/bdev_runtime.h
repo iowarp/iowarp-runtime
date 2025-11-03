@@ -3,6 +3,7 @@
 
 #include <chimaera/chimaera.h>
 #include <chimaera/comutex.h>
+#include "bdev_client.h"
 #include "bdev_tasks.h"
 #include <sys/types.h>
 #include <unistd.h>
@@ -73,22 +74,9 @@ class Runtime : public chi::Container {
   void Create(hipc::FullPtr<CreateTask> task, chi::RunContext& ctx);
 
   /**
-   * Monitor create progress
-   */
-  void MonitorCreate(chi::MonitorModeId mode, hipc::FullPtr<CreateTask> task,
-                     chi::RunContext& ctx);
-
-  /**
    * Allocate multiple blocks (Method::kAllocateBlocks)
    */
   void AllocateBlocks(hipc::FullPtr<AllocateBlocksTask> task, chi::RunContext& ctx);
-
-  /**
-   * Monitor allocate blocks progress
-   */
-  void MonitorAllocateBlocks(chi::MonitorModeId mode, hipc::FullPtr<AllocateBlocksTask> task,
-                             chi::RunContext& ctx);
-
 
   /**
    * Free data blocks (Method::kFreeBlocks)
@@ -96,21 +84,9 @@ class Runtime : public chi::Container {
   void FreeBlocks(hipc::FullPtr<FreeBlocksTask> task, chi::RunContext& ctx);
 
   /**
-   * Monitor free blocks progress
-   */
-  void MonitorFreeBlocks(chi::MonitorModeId mode, hipc::FullPtr<FreeBlocksTask> task,
-                         chi::RunContext& ctx);
-
-  /**
    * Write data to a block (Method::kWrite)
    */
   void Write(hipc::FullPtr<WriteTask> task, chi::RunContext& ctx);
-
-  /**
-   * Monitor write progress
-   */
-  void MonitorWrite(chi::MonitorModeId mode, hipc::FullPtr<WriteTask> task,
-                    chi::RunContext& ctx);
 
   /**
    * Read data from a block (Method::kRead)
@@ -118,21 +94,9 @@ class Runtime : public chi::Container {
   void Read(hipc::FullPtr<ReadTask> task, chi::RunContext& ctx);
 
   /**
-   * Monitor read progress
-   */
-  void MonitorRead(chi::MonitorModeId mode, hipc::FullPtr<ReadTask> task,
-                   chi::RunContext& ctx);
-
-  /**
    * Get performance statistics (Method::kGetStats)
    */
   void GetStats(hipc::FullPtr<GetStatsTask> task, chi::RunContext& ctx);
-
-  /**
-   * Monitor GetStats progress
-   */
-  void MonitorGetStats(chi::MonitorModeId mode, hipc::FullPtr<GetStatsTask> task,
-                       chi::RunContext& ctx);
 
   /**
    * Destroy the container (Method::kDestroy)
@@ -140,15 +104,14 @@ class Runtime : public chi::Container {
   void Destroy(hipc::FullPtr<DestroyTask> task, chi::RunContext& ctx);
 
   /**
-   * Monitor destroy progress
-   */
-  void MonitorDestroy(chi::MonitorModeId mode, hipc::FullPtr<DestroyTask> task,
-                      chi::RunContext& ctx);
-
-  /**
    * REQUIRED VIRTUAL METHODS FROM chi::Container
    */
-  
+
+  /**
+   * Initialize container with pool information
+   */
+  void Init(const chi::PoolId &pool_id, const std::string &pool_name) override;
+
   /**
    * Execute a method on a task - using autogen dispatcher
    */
@@ -191,6 +154,9 @@ class Runtime : public chi::Container {
                  hipc::FullPtr<chi::Task> replica_task) override;
 
  private:
+  // Client for making calls to this ChiMod
+  Client client_;
+
   // Storage backend configuration
   BdevType bdev_type_;                            // Backend type (file or RAM)
   

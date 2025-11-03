@@ -1,8 +1,7 @@
+name: external-chimod
 namespace: external_test
-description: External ChiMod development test repository
 version: 1.0.0
+description: External ChiMod development test repository
 
 modules:
-  - name: simple_mod
-    description: Simple test ChiMod for external development
-    path: modules/simple_mod
+  - simple_mod
