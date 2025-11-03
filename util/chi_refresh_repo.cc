@@ -42,6 +42,7 @@ class ChiModGenerator {
  private:
   fs::path repo_path_;
   fs::path repo_yaml_path_;
+  std::string repo_namespace_;
 
  public:
   explicit ChiModGenerator(const std::string& repo_path)
@@ -50,6 +51,10 @@ class ChiModGenerator {
     if (!fs::exists(repo_yaml_path_)) {
       throw std::runtime_error("Repository YAML not found: " + repo_yaml_path_.string());
     }
+
+    // Load repository namespace from chimaera_repo.yaml
+    YAML::Node repo_config = LoadRepoConfig();
+    repo_namespace_ = repo_config["namespace"] ? repo_config["namespace"].as<std::string>() : "chimaera";
   }
 
   /**
@@ -128,9 +133,10 @@ class ChiModGenerator {
   /**
    * Generate the methods header file
    */
-  std::string GenerateMethodsHeader(const std::string& chimod_name, const YAML::Node& config) {
+  std::string GenerateMethodsHeader(const std::string& chimod_name, const YAML::Node& config,
+                                     const std::string& repo_namespace) {
     auto methods = GetMethods(config);
-    std::string namespace_name = config["namespace"] ? config["namespace"].as<std::string>() : "chimaera";
+    std::string namespace_name = repo_namespace;
     std::string module_name = config["module_name"] ? config["module_name"].as<std::string>() : chimod_name;
 
     std::ostringstream oss;
@@ -207,9 +213,10 @@ class ChiModGenerator {
   /**
    * Generate the lib_exec source file (.cc) with Container virtual API implementations
    */
-  std::string GenerateLibExecSource(const std::string& chimod_name, const YAML::Node& config) {
+  std::string GenerateLibExecSource(const std::string& chimod_name, const YAML::Node& config,
+                                     const std::string& repo_namespace) {
     auto methods = GetMethods(config);
-    std::string namespace_name = config["namespace"] ? config["namespace"].as<std::string>() : "chimaera";
+    std::string namespace_name = repo_namespace;
     std::string module_name = config["module_name"] ? config["module_name"].as<std::string>() : chimod_name;
 
     std::ostringstream oss;
@@ -418,9 +425,9 @@ class ChiModGenerator {
     }
 
     // Create include autogen directory for methods header
-    // Structure: [chimod_directory]/include/chimaera/[module_name]/autogen/
+    // Structure: [chimod_directory]/include/[namespace]/[module_name]/autogen/
     std::string module_name = config["module_name"] ? config["module_name"].as<std::string>() : chimod_name;
-    fs::path include_autogen_dir = repo_path_ / chimod_name / "include" / "chimaera" / module_name / "autogen";
+    fs::path include_autogen_dir = repo_path_ / chimod_name / "include" / repo_namespace_ / module_name / "autogen";
     fs::create_directories(include_autogen_dir);
 
     // Create src autogen directory for lib_exec source
@@ -428,7 +435,7 @@ class ChiModGenerator {
     fs::create_directories(src_autogen_dir);
 
     // Generate methods header
-    std::string methods_content = GenerateMethodsHeader(chimod_name, config);
+    std::string methods_content = GenerateMethodsHeader(chimod_name, config, repo_namespace_);
     fs::path methods_file = include_autogen_dir / (chimod_name + "_methods.h");
     std::ofstream methods_stream(methods_file);
     if (!methods_stream) {
@@ -439,7 +446,7 @@ class ChiModGenerator {
     std::cout << "  Generated: " << methods_file << std::endl;
 
     // Generate lib_exec source file
-    std::string lib_exec_content = GenerateLibExecSource(chimod_name, config);
+    std::string lib_exec_content = GenerateLibExecSource(chimod_name, config, repo_namespace_);
     fs::path lib_exec_file = src_autogen_dir / (chimod_name + "_lib_exec.cc");
     std::ofstream lib_exec_stream(lib_exec_file);
     if (!lib_exec_stream) {
