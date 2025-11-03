@@ -377,62 +377,78 @@ void Runtime::Aggregate(chi::u32 method, hipc::FullPtr<chi::Task> origin_task,
     case Method::kCreate: {
       auto typed_origin = origin_task.Cast<CreateTask>();
       auto typed_replica = replica_task.Cast<CreateTask>();
-      // Use SFINAE-based macro to call Aggregate if available, otherwise Copy
+      // Call base Task aggregate to propagate return codes
+      origin_task->Aggregate(replica_task);
+      // Use SFINAE-based macro to call task-specific Aggregate if available, otherwise Copy
       CHI_AGGREGATE_OR_COPY(typed_origin, typed_replica);
       break;
     }
     case Method::kDestroy: {
       auto typed_origin = origin_task.Cast<DestroyTask>();
       auto typed_replica = replica_task.Cast<DestroyTask>();
-      // Use SFINAE-based macro to call Aggregate if available, otherwise Copy
+      // Call base Task aggregate to propagate return codes
+      origin_task->Aggregate(replica_task);
+      // Use SFINAE-based macro to call task-specific Aggregate if available, otherwise Copy
       CHI_AGGREGATE_OR_COPY(typed_origin, typed_replica);
       break;
     }
     case Method::kGetOrCreatePool: {
       auto typed_origin = origin_task.Cast<admin::GetOrCreatePoolTask<admin::CreateParams>>();
       auto typed_replica = replica_task.Cast<admin::GetOrCreatePoolTask<admin::CreateParams>>();
-      // Use SFINAE-based macro to call Aggregate if available, otherwise Copy
+      // Call base Task aggregate to propagate return codes
+      origin_task->Aggregate(replica_task);
+      // Use SFINAE-based macro to call task-specific Aggregate if available, otherwise Copy
       CHI_AGGREGATE_OR_COPY(typed_origin, typed_replica);
       break;
     }
     case Method::kDestroyPool: {
       auto typed_origin = origin_task.Cast<DestroyPoolTask>();
       auto typed_replica = replica_task.Cast<DestroyPoolTask>();
-      // Use SFINAE-based macro to call Aggregate if available, otherwise Copy
+      // Call base Task aggregate to propagate return codes
+      origin_task->Aggregate(replica_task);
+      // Use SFINAE-based macro to call task-specific Aggregate if available, otherwise Copy
       CHI_AGGREGATE_OR_COPY(typed_origin, typed_replica);
       break;
     }
     case Method::kStopRuntime: {
       auto typed_origin = origin_task.Cast<StopRuntimeTask>();
       auto typed_replica = replica_task.Cast<StopRuntimeTask>();
-      // Use SFINAE-based macro to call Aggregate if available, otherwise Copy
+      // Call base Task aggregate to propagate return codes
+      origin_task->Aggregate(replica_task);
+      // Use SFINAE-based macro to call task-specific Aggregate if available, otherwise Copy
       CHI_AGGREGATE_OR_COPY(typed_origin, typed_replica);
       break;
     }
     case Method::kFlush: {
       auto typed_origin = origin_task.Cast<FlushTask>();
       auto typed_replica = replica_task.Cast<FlushTask>();
-      // Use SFINAE-based macro to call Aggregate if available, otherwise Copy
+      // Call base Task aggregate to propagate return codes
+      origin_task->Aggregate(replica_task);
+      // Use SFINAE-based macro to call task-specific Aggregate if available, otherwise Copy
       CHI_AGGREGATE_OR_COPY(typed_origin, typed_replica);
       break;
     }
     case Method::kSend: {
       auto typed_origin = origin_task.Cast<SendTask>();
       auto typed_replica = replica_task.Cast<SendTask>();
-      // Use SFINAE-based macro to call Aggregate if available, otherwise Copy
+      // Call base Task aggregate to propagate return codes
+      origin_task->Aggregate(replica_task);
+      // Use SFINAE-based macro to call task-specific Aggregate if available, otherwise Copy
       CHI_AGGREGATE_OR_COPY(typed_origin, typed_replica);
       break;
     }
     case Method::kRecv: {
       auto typed_origin = origin_task.Cast<RecvTask>();
       auto typed_replica = replica_task.Cast<RecvTask>();
-      // Use SFINAE-based macro to call Aggregate if available, otherwise Copy
+      // Call base Task aggregate to propagate return codes
+      origin_task->Aggregate(replica_task);
+      // Use SFINAE-based macro to call task-specific Aggregate if available, otherwise Copy
       CHI_AGGREGATE_OR_COPY(typed_origin, typed_replica);
       break;
     }
     default: {
-      // For unknown methods, use base Task Copy
-      origin_task->Copy(replica_task);
+      // For unknown methods, use base Task Aggregate (which also propagates return codes)
+      origin_task->Aggregate(replica_task);
       break;
     }
   }

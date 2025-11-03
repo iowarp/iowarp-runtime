@@ -390,15 +390,17 @@ class ChiModGenerator {
       oss << "    case Method::" << method.constant_name << ": {\n";
       oss << "      auto typed_origin = origin_task.Cast<" << task_type << ">();\n";
       oss << "      auto typed_replica = replica_task.Cast<" << task_type << ">();\n";
-      oss << "      // Use SFINAE-based macro to call Aggregate if available, otherwise Copy\n";
+      oss << "      // Call base Task aggregate to propagate return codes\n";
+      oss << "      origin_task->Aggregate(replica_task);\n";
+      oss << "      // Use SFINAE-based macro to call task-specific Aggregate if available, otherwise Copy\n";
       oss << "      CHI_AGGREGATE_OR_COPY(typed_origin, typed_replica);\n";
       oss << "      break;\n";
       oss << "    }\n";
     }
 
     oss << "    default: {\n";
-    oss << "      // For unknown methods, use base Task Copy\n";
-    oss << "      origin_task->Copy(replica_task);\n";
+    oss << "      // For unknown methods, use base Task Aggregate (which also propagates return codes)\n";
+    oss << "      origin_task->Aggregate(replica_task);\n";
     oss << "      break;\n";
     oss << "    }\n";
     oss << "  }\n";

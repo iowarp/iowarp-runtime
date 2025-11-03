@@ -307,48 +307,60 @@ void Runtime::Aggregate(chi::u32 method, hipc::FullPtr<chi::Task> origin_task,
     case Method::kCreate: {
       auto typed_origin = origin_task.Cast<CreateTask>();
       auto typed_replica = replica_task.Cast<CreateTask>();
-      // Use SFINAE-based macro to call Aggregate if available, otherwise Copy
+      // Call base Task aggregate to propagate return codes
+      origin_task->Aggregate(replica_task);
+      // Use SFINAE-based macro to call task-specific Aggregate if available, otherwise Copy
       CHI_AGGREGATE_OR_COPY(typed_origin, typed_replica);
       break;
     }
     case Method::kDestroy: {
       auto typed_origin = origin_task.Cast<DestroyTask>();
       auto typed_replica = replica_task.Cast<DestroyTask>();
-      // Use SFINAE-based macro to call Aggregate if available, otherwise Copy
+      // Call base Task aggregate to propagate return codes
+      origin_task->Aggregate(replica_task);
+      // Use SFINAE-based macro to call task-specific Aggregate if available, otherwise Copy
       CHI_AGGREGATE_OR_COPY(typed_origin, typed_replica);
       break;
     }
     case Method::kCustom: {
       auto typed_origin = origin_task.Cast<CustomTask>();
       auto typed_replica = replica_task.Cast<CustomTask>();
-      // Use SFINAE-based macro to call Aggregate if available, otherwise Copy
+      // Call base Task aggregate to propagate return codes
+      origin_task->Aggregate(replica_task);
+      // Use SFINAE-based macro to call task-specific Aggregate if available, otherwise Copy
       CHI_AGGREGATE_OR_COPY(typed_origin, typed_replica);
       break;
     }
     case Method::kCoMutexTest: {
       auto typed_origin = origin_task.Cast<CoMutexTestTask>();
       auto typed_replica = replica_task.Cast<CoMutexTestTask>();
-      // Use SFINAE-based macro to call Aggregate if available, otherwise Copy
+      // Call base Task aggregate to propagate return codes
+      origin_task->Aggregate(replica_task);
+      // Use SFINAE-based macro to call task-specific Aggregate if available, otherwise Copy
       CHI_AGGREGATE_OR_COPY(typed_origin, typed_replica);
       break;
     }
     case Method::kCoRwLockTest: {
       auto typed_origin = origin_task.Cast<CoRwLockTestTask>();
       auto typed_replica = replica_task.Cast<CoRwLockTestTask>();
-      // Use SFINAE-based macro to call Aggregate if available, otherwise Copy
+      // Call base Task aggregate to propagate return codes
+      origin_task->Aggregate(replica_task);
+      // Use SFINAE-based macro to call task-specific Aggregate if available, otherwise Copy
       CHI_AGGREGATE_OR_COPY(typed_origin, typed_replica);
       break;
     }
     case Method::kWaitTest: {
       auto typed_origin = origin_task.Cast<WaitTestTask>();
       auto typed_replica = replica_task.Cast<WaitTestTask>();
-      // Use SFINAE-based macro to call Aggregate if available, otherwise Copy
+      // Call base Task aggregate to propagate return codes
+      origin_task->Aggregate(replica_task);
+      // Use SFINAE-based macro to call task-specific Aggregate if available, otherwise Copy
       CHI_AGGREGATE_OR_COPY(typed_origin, typed_replica);
       break;
     }
     default: {
-      // For unknown methods, use base Task Copy
-      origin_task->Copy(replica_task);
+      // For unknown methods, use base Task Aggregate (which also propagates return codes)
+      origin_task->Aggregate(replica_task);
       break;
     }
   }

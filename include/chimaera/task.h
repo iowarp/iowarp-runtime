@@ -375,6 +375,13 @@ public:
   HSHM_CROSS_FUN void SetReturnCode(u32 return_code) {
     return_code_.store(return_code);
   }
+
+  /**
+   * Base aggregate method - propagates return codes from replica tasks
+   * Sets this task's return code to the replica's return code if replica has non-zero return code
+   * @param replica_task The replica task to aggregate from
+   */
+  HSHM_CROSS_FUN void Aggregate(const hipc::FullPtr<Task> &replica_task);
 };
 
 /**

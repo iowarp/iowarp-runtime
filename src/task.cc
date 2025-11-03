@@ -128,4 +128,11 @@ bool Task::IsComplete() const {
   return is_complete_.load() != 0;
 }
 
+void Task::Aggregate(const hipc::FullPtr<Task> &replica_task) {
+  // If replica task has non-zero return code, propagate it to this task
+  if (!replica_task.IsNull() && replica_task->GetReturnCode() != 0) {
+    SetReturnCode(replica_task->GetReturnCode());
+  }
+}
+
 } // namespace chi
