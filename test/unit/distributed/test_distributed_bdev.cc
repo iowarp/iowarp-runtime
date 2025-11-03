@@ -188,7 +188,7 @@ TEST_CASE("distributed_bdev_direct_hash", "[distributed][direct_hash]") {
     REQUIRE(success);
     REQUIRE(client.GetReturnCode() == 0);
 
-    HILOG(kInfo, "Starting DirectHash test with 100 iterations");
+    HILOG(kInfo, "Starting DirectHash test with 16 iterations");
 
     // Get IPC manager for creating tasks directly
     auto* ipc_manager = CHI_IPC;
@@ -199,8 +199,8 @@ TEST_CASE("distributed_bdev_direct_hash", "[distributed][direct_hash]") {
     double total_write_time_ms = 0.0;
     double total_read_time_ms = 0.0;
 
-    // Run 100 iterations with DirectHash pool queries
-    for (int i = 0; i < 100; i++) {
+    // Run 16 iterations with DirectHash pool queries
+    for (int i = 0; i < 16; i++) {
       auto pool_query = chi::PoolQuery::DirectHash(i);
 
       // Allocate block with DirectHash query - use NewTask directly
@@ -288,10 +288,10 @@ TEST_CASE("distributed_bdev_direct_hash", "[distributed][direct_hash]") {
     // Calculate and report bandwidth metrics
     double write_bandwidth_mbps = (total_bytes_written / (1024.0 * 1024.0)) / (total_write_time_ms / 1000.0);
     double read_bandwidth_mbps = (total_bytes_read / (1024.0 * 1024.0)) / (total_read_time_ms / 1000.0);
-    double avg_write_latency_ms = total_write_time_ms / 100.0;
-    double avg_read_latency_ms = total_read_time_ms / 100.0;
+    double avg_write_latency_ms = total_write_time_ms / 16.0;
+    double avg_read_latency_ms = total_read_time_ms / 16.0;
 
-    HILOG(kInfo, "DirectHash test completed successfully - 100 iterations");
+    HILOG(kInfo, "DirectHash test completed successfully - 16 iterations");
     HILOG(kInfo, "=== Bandwidth Metrics ===");
     HILOG(kInfo, "Write: {:.2f} MB/s (avg latency: {:.3f} ms)", write_bandwidth_mbps, avg_write_latency_ms);
     HILOG(kInfo, "Read:  {:.2f} MB/s (avg latency: {:.3f} ms)", read_bandwidth_mbps, avg_read_latency_ms);

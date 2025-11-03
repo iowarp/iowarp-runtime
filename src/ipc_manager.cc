@@ -79,7 +79,8 @@ bool IpcManager::ClientInit() {
   auto *config = CHI_CONFIG_MANAGER;
   if (config && config->IsValid()) {
     lane_map_policy_ = config->GetLaneMapPolicy();
-    HILOG(kDebug, "Lane mapping policy set to: {}", static_cast<int>(lane_map_policy_));
+    HILOG(kDebug, "Lane mapping policy set to: {}",
+          static_cast<int>(lane_map_policy_));
   }
 
   is_initialized_ = true;
@@ -129,7 +130,8 @@ bool IpcManager::ServerInit() {
   auto *config = CHI_CONFIG_MANAGER;
   if (config && config->IsValid()) {
     lane_map_policy_ = config->GetLaneMapPolicy();
-    HILOG(kDebug, "Lane mapping policy set to: {}", static_cast<int>(lane_map_policy_));
+    HILOG(kDebug, "Lane mapping policy set to: {}",
+          static_cast<int>(lane_map_policy_));
   }
 
   is_initialized_ = true;
@@ -452,8 +454,7 @@ bool IpcManager::TestLocalServer() {
     // Create lightbeam client to test connection to local server
     std::string addr = "127.0.0.1";
     std::string protocol = "tcp";
-    u32 port =
-        config->GetPort() + 1; // Use ZMQ port + 1 to match local server
+    u32 port = config->GetPort() + 1; // Use ZMQ port + 1 to match local server
 
     auto client = hshm::lbm::TransportFactory::GetClient(
         addr, hshm::lbm::Transport::kZeroMq, protocol, port);
@@ -477,12 +478,13 @@ bool IpcManager::TestLocalServer() {
 }
 
 void IpcManager::SetNodeId(const std::string &hostname) {
-  (void)hostname;  // Unused parameter
+  (void)hostname; // Unused parameter
   if (!shared_header_) {
     return;
   }
 
-  // Set the node ID from this_host_ which was identified during IdentifyThisHost
+  // Set the node ID from this_host_ which was identified during
+  // IdentifyThisHost
   shared_header_->node_id = this_host_.node_id;
 }
 
@@ -518,7 +520,8 @@ bool IpcManager::LoadHostfile() {
       u64 node_id = static_cast<u64>(offset);
       Host host(host_ips[offset], node_id);
       hostfile_map_[node_id] = host;
-      HILOG(kInfo, "  Hostfile[{}]: {} -> Node ID: {}", offset, host_ips[offset], node_id);
+      HILOG(kInfo, "  Hostfile[{}]: {} -> Node ID: {}", offset,
+            host_ips[offset], node_id);
     }
     HILOG(kInfo, "=== Total hosts loaded: {} ===", hostfile_map_.size());
 
@@ -536,9 +539,12 @@ const Host *IpcManager::GetHost(u64 node_id) const {
   auto it = hostfile_map_.find(node_id);
   if (it == hostfile_map_.end()) {
     // Log all available node IDs when lookup fails
-    HILOG(kError, "GetHost: Looking for node_id {} but not found. Available nodes:", node_id);
-    for (const auto& pair : hostfile_map_) {
-      HILOG(kError, "  Node ID: {} -> IP: {}", pair.first, pair.second.ip_address);
+    HILOG(kError,
+          "GetHost: Looking for node_id {} but not found. Available nodes:",
+          node_id);
+    for (const auto &pair : hostfile_map_) {
+      HILOG(kError, "  Node ID: {} -> IP: {}", pair.first,
+            pair.second.ip_address);
     }
     return nullptr;
   }
@@ -555,7 +561,7 @@ const Host *IpcManager::GetHostByIp(const std::string &ip_address) const {
   return nullptr;
 }
 
-const std::vector<Host>& IpcManager::GetAllHosts() const {
+const std::vector<Host> &IpcManager::GetAllHosts() const {
   // Rebuild cache if invalid
   if (!hosts_cache_valid_) {
     hosts_cache_.clear();
@@ -571,9 +577,7 @@ const std::vector<Host>& IpcManager::GetAllHosts() const {
   return hosts_cache_;
 }
 
-size_t IpcManager::GetNumHosts() const {
-  return hostfile_map_.size();
-}
+size_t IpcManager::GetNumHosts() const { return hostfile_map_.size(); }
 
 bool IpcManager::IdentifyThisHost() {
   HILOG(kDebug, "Identifying current host");
@@ -601,7 +605,8 @@ bool IpcManager::IdentifyThisHost() {
 
     try {
       if (TryStartMainServer(host.ip_address)) {
-        HILOG(kDebug, "SUCCESS: Main server started on {}", host.ip_address);
+        HILOG(kInfo, "SUCCESS: Main server started on {} (node={})",
+              host.ip_address, host.node_id);
         this_host_ = host;
         return true;
       }
@@ -624,9 +629,7 @@ void IpcManager::SetLaneMapPolicy(LaneMapPolicy policy) {
   lane_map_policy_ = policy;
 }
 
-LaneMapPolicy IpcManager::GetLaneMapPolicy() const {
-  return lane_map_policy_;
-}
+LaneMapPolicy IpcManager::GetLaneMapPolicy() const { return lane_map_policy_; }
 
 LaneId IpcManager::MapByPidTid(u32 num_lanes) {
   // Use HSHM_SYSTEM_INFO to get both PID and TID for lane hashing
@@ -634,8 +637,10 @@ LaneId IpcManager::MapByPidTid(u32 num_lanes) {
   pid_t pid = sys_info->pid_;
   auto tid = HSHM_THREAD_MODEL->GetTid();
 
-  // Combine PID and TID for hashing to ensure different processes/threads use different lanes
-  size_t combined_hash = std::hash<pid_t>{}(pid) ^ (std::hash<void *>{}(&tid) << 1);
+  // Combine PID and TID for hashing to ensure different processes/threads use
+  // different lanes
+  size_t combined_hash =
+      std::hash<pid_t>{}(pid) ^ (std::hash<void *>{}(&tid) << 1);
   return static_cast<LaneId>(combined_hash % num_lanes);
 }
 
@@ -654,22 +659,22 @@ LaneId IpcManager::MapRandom(u32 num_lanes) {
 
 LaneId IpcManager::MapTaskToLane(u32 num_lanes) {
   if (num_lanes == 0) {
-    return 0;  // Avoid division by zero
+    return 0; // Avoid division by zero
   }
 
   switch (lane_map_policy_) {
-    case LaneMapPolicy::kMapByPidTid:
-      return MapByPidTid(num_lanes);
+  case LaneMapPolicy::kMapByPidTid:
+    return MapByPidTid(num_lanes);
 
-    case LaneMapPolicy::kRoundRobin:
-      return MapRoundRobin(num_lanes);
+  case LaneMapPolicy::kRoundRobin:
+    return MapRoundRobin(num_lanes);
 
-    case LaneMapPolicy::kRandom:
-      return MapRandom(num_lanes);
+  case LaneMapPolicy::kRandom:
+    return MapRandom(num_lanes);
 
-    default:
-      // Fallback to round-robin
-      return MapRoundRobin(num_lanes);
+  default:
+    // Fallback to round-robin
+    return MapRoundRobin(num_lanes);
   }
 }
 
@@ -699,23 +704,21 @@ bool IpcManager::TryStartMainServer(const std::string &hostname) {
   }
 }
 
-hshm::lbm::Server* IpcManager::GetMainServer() const {
+hshm::lbm::Server *IpcManager::GetMainServer() const {
   return main_server_.get();
 }
 
-void* IpcManager::GetMainZmqSocket() const {
-  return zmq_main_socket_;
-}
+void *IpcManager::GetMainZmqSocket() const { return zmq_main_socket_; }
 
-void* IpcManager::GetMainZmqContext() const {
-  return zmq_main_context_;
-}
+void *IpcManager::GetMainZmqContext() const { return zmq_main_context_; }
+
+const Host& IpcManager::GetThisHost() const { return this_host_; }
 
 FullPtr<char> IpcManager::AllocateBuffer(size_t size) {
-  auto* chimaera_manager = CHI_CHIMAERA_MANAGER;
+  auto *chimaera_manager = CHI_CHIMAERA_MANAGER;
 
   // Determine which allocator to use
-  CHI_RDATA_ALLOC_T* allocator = nullptr;
+  CHI_RDATA_ALLOC_T *allocator = nullptr;
   if (chimaera_manager && chimaera_manager->IsRuntime()) {
     // Runtime uses rdata segment
     if (!runtime_data_allocator_) {
@@ -727,7 +730,7 @@ FullPtr<char> IpcManager::AllocateBuffer(size_t size) {
     if (!client_data_allocator_) {
       return FullPtr<char>::GetNull();
     }
-    allocator = reinterpret_cast<CHI_RDATA_ALLOC_T*>(client_data_allocator_);
+    allocator = reinterpret_cast<CHI_RDATA_ALLOC_T *>(client_data_allocator_);
   }
 
   // Loop until allocation succeeds
@@ -736,7 +739,7 @@ FullPtr<char> IpcManager::AllocateBuffer(size_t size) {
     buffer = allocator->AllocateObjs<char>(HSHM_MCTX, size);
     if (buffer.IsNull()) {
       // Allocation failed - yield to allow other tasks to run
-      Worker* worker = CHI_CUR_WORKER;
+      Worker *worker = CHI_CUR_WORKER;
       if (worker) {
         // We're in a task context - yield from the current task
         FullPtr<Task> current_task = worker->GetCurrentTask();
@@ -761,7 +764,7 @@ void IpcManager::FreeBuffer(FullPtr<char> buffer_ptr) {
     return;
   }
 
-  auto* chimaera_manager = CHI_CHIMAERA_MANAGER;
+  auto *chimaera_manager = CHI_CHIMAERA_MANAGER;
   if (chimaera_manager->IsRuntime()) {
     // Runtime uses rdata segment
     runtime_data_allocator_->Free(HSHM_MCTX, buffer_ptr);

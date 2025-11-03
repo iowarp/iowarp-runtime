@@ -2,6 +2,7 @@
 #define CHIMAERA_INCLUDE_CHIMAERA_MANAGERS_IPC_MANAGER_H_
 
 #include <atomic>
+#include <iostream>
 #include <memory>
 #include <random>
 #include <unordered_map>
@@ -51,6 +52,17 @@ struct Host {
    * @param id Node ID (typically offset in hostfile)
    */
   Host(const std::string& ip, u64 id) : ip_address(ip), node_id(id) {}
+
+  /**
+   * Stream output operator for Host
+   * @param os Output stream
+   * @param host Host object to print
+   * @return Reference to output stream
+   */
+  friend std::ostream& operator<<(std::ostream& os, const Host& host) {
+    os << "Host(ip=" << host.ip_address << ", node_id=" << host.node_id << ")";
+    return os;
+  }
 };
 
 /**
@@ -291,6 +303,12 @@ class IpcManager {
    * @return ZeroMQ context handle or nullptr if not initialized
    */
   void* GetMainZmqContext() const;
+
+  /**
+   * Get this host identified during host identification
+   * @return Const reference to this Host struct
+   */
+  const Host& GetThisHost() const;
 
  private:
   /**

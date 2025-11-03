@@ -84,7 +84,8 @@ void Runtime::GetOrCreatePool(
 
     if (!existing_pool_id.IsNull()) {
       // Pool exists locally - change pool query to Local
-      HILOG(kDebug, "Admin: Pool '{}' found locally (ID: {}), using Local query",
+      HILOG(kDebug,
+            "Admin: Pool '{}' found locally (ID: {}), using Local query",
             pool_name, existing_pool_id);
       task->pool_query_ = chi::PoolQuery::Local();
     } else {
@@ -285,6 +286,10 @@ void Runtime::SendIn(hipc::FullPtr<SendTask> task, chi::RunContext &rctx) {
   auto *ipc_manager = CHI_IPC;
   auto *pool_manager = CHI_POOL_MANAGER;
 
+  // Log host information at method entry
+  auto& this_host = CHI_IPC->GetThisHost();
+  HILOG(kInfo, "SendIn executing on host {} (node_id: {})", this_host.ip_address, this_host.node_id);
+
   // Validate origin_task
   hipc::FullPtr<chi::Task> origin_task = task->origin_task_;
   if (origin_task.IsNull()) {
@@ -317,7 +322,7 @@ void Runtime::SendIn(hipc::FullPtr<SendTask> task, chi::RunContext &rctx) {
   chi::RunContext *origin_task_rctx = origin_task->run_ctx_;
   size_t num_replicas = task->pool_queries_.size();
   origin_task_rctx->subtasks_.resize(num_replicas);
-  HILOG(kDebug, "[SendIn] Reserved space for {} replicas in subtasks vector",
+  HILOG(kInfo, "[SendIn] Reserved space for {} replicas in subtasks vector",
         num_replicas);
 
   // Send to each target in pool_queries
@@ -373,13 +378,14 @@ void Runtime::SendIn(hipc::FullPtr<SendTask> task, chi::RunContext &rctx) {
     // Create task copy
     hipc::FullPtr<chi::Task> task_copy;
     container->NewCopy(origin_task->method_, origin_task, task_copy, true);
+    origin_task_rctx->subtasks_[i] = task_copy;
 
     // Set net_key in task_id to match send_map_key
-    chi::TaskId copy_id = task_copy->task_id_;
+    chi::TaskId &copy_id = task_copy->task_id_;
     copy_id.net_key_ = send_map_key;
-    task_copy->task_id_ = copy_id;
+    copy_id.replica_id_ = i;
 
-    HILOG(kDebug, "[SendIn] Created task copy {} with net_key {} for node {}",
+    HILOG(kInfo, "[SendIn] Created task copy {} with net_key {} for node {}",
           task_copy->task_id_, send_map_key, target_node_id);
 
     // Update the copy's pool query to current query
@@ -388,14 +394,7 @@ void Runtime::SendIn(hipc::FullPtr<SendTask> task, chi::RunContext &rctx) {
     // Set return node ID in the pool query
     chi::u64 this_node_id = ipc_manager->GetNodeId();
     task_copy->pool_query_.SetReturnNode(this_node_id);
-    HILOG(kDebug, "Admin: Task copy return node set to {}", this_node_id);
-
-    // Set replica using index operator (space already reserved)
-    origin_task_rctx->subtasks_[i] = task_copy;
-
-    // Update replica_id of task_id to be the loop index (preserve net_key)
-    copy_id.replica_id_ = i;
-    task_copy->task_id_ = copy_id;
+    HILOG(kInfo, "Admin: Task copy return node set to {}", this_node_id);
 
     // Serialize the task using container->SaveTask (Expose will be called
     // automatically for bulks)
@@ -409,11 +408,11 @@ void Runtime::SendIn(hipc::FullPtr<SendTask> task, chi::RunContext &rctx) {
       continue;
     }
 
-    HILOG(kDebug, "[SendIn] Successfully sent task copy {} to node {} ({})",
+    HILOG(kInfo, "[SendIn] Successfully sent task copy {} to node {} ({})",
           task_copy->task_id_, target_node_id, target_host->ip_address);
   }
 
-  HILOG(kDebug, "=== [SendIn END] Task {} completed sending to {} targets ===",
+  HILOG(kInfo, "=== [SendIn END] Task {} completed sending to {} targets ===",
         origin_task->task_id_, num_replicas);
   task->SetReturnCode(0);
 }
@@ -425,6 +424,10 @@ void Runtime::SendIn(hipc::FullPtr<SendTask> task, chi::RunContext &rctx) {
 void Runtime::SendOut(hipc::FullPtr<SendTask> task) {
   auto *ipc_manager = CHI_IPC;
   auto *pool_manager = CHI_POOL_MANAGER;
+
+  // Log host information at method entry
+  auto& this_host = CHI_IPC->GetThisHost();
+  HILOG(kInfo, "SendOut executing on host {} (node_id: {})", this_host.ip_address, this_host.node_id);
 
   // Validate origin_task
   hipc::FullPtr<chi::Task> origin_task = task->origin_task_;
@@ -441,12 +444,13 @@ void Runtime::SendOut(hipc::FullPtr<SendTask> task) {
   }
 
   HILOG(kInfo,
-        "=== [SendOut BEGIN] Task {} (pool: {}, method: {}) sending outputs back ===",
+        "=== [SendOut BEGIN] Task {} (pool: {}, method: {}) sending outputs "
+        "back ===",
         origin_task->task_id_, origin_task->pool_id_, origin_task->method_);
 
   // Print replica information
   chi::RunContext *origin_rctx = origin_task->run_ctx_;
-  HILOG(kDebug, "[SendOut] Task has {} replicas, sending to {} target(s)",
+  HILOG(kInfo, "[SendOut] Task has {} replicas, sending to {} target(s)",
         origin_rctx->subtasks_.size(), task->pool_queries_.size());
 
   // Remove task from recv_map as we're completing it (use net_key for lookup)
@@ -545,9 +549,15 @@ void Runtime::RecvIn(hipc::FullPtr<RecvTask> task,
   auto *ipc_manager = CHI_IPC;
   auto *pool_manager = CHI_POOL_MANAGER;
 
+  // Log host information at method entry
+  auto& this_host = CHI_IPC->GetThisHost();
+  HILOG(kInfo, "RecvIn executing on host {} (node_id: {})", this_host.ip_address, this_host.node_id);
+
   const auto &task_infos = archive.GetTaskInfos();
-  HILOG(kDebug, "=== [RecvIn BEGIN] Receiving {} task(s) from remote node ===",
-        task_infos.size());
+  HILOG(
+      kInfo,
+      "=== [RecvIn BEGIN] (node={}) Receiving {} task(s) from remote node ===",
+      ipc_manager->GetNodeId(), task_infos.size());
 
   // Allocate buffers for bulk data and expose them for receiving
   // archive.send contains sender's bulk descriptors (populated by RecvMetadata)
@@ -605,7 +615,8 @@ void Runtime::RecvIn(hipc::FullPtr<RecvTask> task,
 
     // Enqueue task for execution
     ipc_manager->Enqueue(task_ptr);
-    HILOG(kDebug, "[RecvIn] Enqueued task {} for execution", task_ptr->task_id_);
+    HILOG(kDebug, "[RecvIn] Enqueued task {} for execution",
+          task_ptr->task_id_);
   }
 
   HILOG(kDebug, "=== [RecvIn END] Processed {} task(s) ===", task_infos.size());
@@ -622,6 +633,10 @@ void Runtime::RecvOut(hipc::FullPtr<RecvTask> task,
                       chi::LoadTaskArchive &archive,
                       hshm::lbm::Server *lbm_server) {
   auto *pool_manager = CHI_POOL_MANAGER;
+
+  // Log host information at method entry
+  auto& this_host = CHI_IPC->GetThisHost();
+  HILOG(kInfo, "RecvOut executing on host {} (node_id: {})", this_host.ip_address, this_host.node_id);
 
   const auto &task_infos = archive.GetTaskInfos();
   HILOG(kInfo,
@@ -738,7 +753,7 @@ void Runtime::RecvOut(hipc::FullPtr<RecvTask> task,
 
     // Increment completed replicas counter in origin's rctx
     chi::u32 completed = origin_rctx->completed_replicas_.fetch_add(1) + 1;
-    HILOG(kDebug, "[RecvOut] Origin task {} completed {}/{} replicas",
+    HILOG(kInfo, "[RecvOut] Origin task {} completed {}/{} replicas",
           origin_task->task_id_, completed, origin_rctx->subtasks_.size());
 
     // If all replicas completed
