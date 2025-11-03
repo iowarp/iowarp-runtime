@@ -280,7 +280,7 @@ void Runtime::SendIn(hipc::FullPtr<SendTask> task, chi::RunContext &rctx) {
 
   // Log host information at method entry
   auto &this_host = CHI_IPC->GetThisHost();
-  HILOG(kInfo, "SendIn executing on host {} (node_id: {})",
+  HILOG(kDebug, "SendIn executing on host {} (node_id: {})",
         this_host.ip_address, this_host.node_id);
 
   // Validate origin_task
@@ -420,7 +420,7 @@ void Runtime::SendOut(hipc::FullPtr<SendTask> task) {
 
   // Log host information at method entry
   auto &this_host = CHI_IPC->GetThisHost();
-  HILOG(kInfo, "SendOut executing on host {} (node_id: {})",
+  HILOG(kDebug, "SendOut executing on host {} (node_id: {})",
         this_host.ip_address, this_host.node_id);
 
   // Validate origin_task
@@ -540,7 +540,7 @@ void Runtime::RecvIn(hipc::FullPtr<RecvTask> task,
 
   // Log host information at method entry
   auto &this_host = CHI_IPC->GetThisHost();
-  HILOG(kInfo, "RecvIn executing on host {} (node_id: {})",
+  HILOG(kDebug, "RecvIn executing on host {} (node_id: {})",
         this_host.ip_address, this_host.node_id);
 
   const auto &task_infos = archive.GetTaskInfos();
@@ -626,7 +626,7 @@ void Runtime::RecvOut(hipc::FullPtr<RecvTask> task,
 
   // Log host information at method entry
   auto &this_host = CHI_IPC->GetThisHost();
-  HILOG(kInfo, "RecvOut executing on host {} (node_id: {})",
+  HILOG(kDebug, "RecvOut executing on host {} (node_id: {})",
         this_host.ip_address, this_host.node_id);
 
   const auto &task_infos = archive.GetTaskInfos();
