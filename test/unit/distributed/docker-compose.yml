@@ -26,11 +26,6 @@ services:
         echo 'Node 1: Cleaning old build directory...' &&
         cd /iowarp-runtime &&
         rm -rf build-docker &&
-        echo 'Node 1: Loading spack environment...' &&
-        export SPACK_ROOT=/root/spack &&
-        source /root/spack/share/spack/setup-env.sh &&
-        spack load cte-hermes-shm &&
-        echo 'Node 1: Spack environment loaded' &&
         echo 'Node 1: Building IOWarp runtime...' &&
         mkdir -p build-docker && cd build-docker &&
         echo 'Node 1: Running cmake...' &&
@@ -78,12 +73,7 @@ services:
           sleep 2
           echo 'Node 2: Still waiting for build completion marker...'
         done &&
-        echo 'Node 2: Build complete. Loading spack environment...' &&
-        export SPACK_ROOT=/root/spack &&
-        source /root/spack/share/spack/setup-env.sh &&
-        spack load cte-hermes-shm &&
-        echo 'Node 2: Spack environment loaded' &&
-        echo 'Node 2: Starting runtime...' &&
+        echo 'Node 2: Build complete. Starting runtime...' &&
         export PATH=/usr/local/bin:$PATH &&
         CHI_SERVER_CONF=/etc/iowarp/chimaera_distributed.yaml chimaera_start_runtime &
         RUNTIME_PID=\$! &&
@@ -120,12 +110,7 @@ services:
           sleep 2
           echo 'Node 3: Still waiting for build completion marker...'
         done &&
-        echo 'Node 3: Build complete. Loading spack environment...' &&
-        export SPACK_ROOT=/root/spack &&
-        source /root/spack/share/spack/setup-env.sh &&
-        spack load cte-hermes-shm &&
-        echo 'Node 3: Spack environment loaded' &&
-        echo 'Node 3: Starting runtime...' &&
+        echo 'Node 3: Build complete. Starting runtime...' &&
         export PATH=/usr/local/bin:$PATH &&
         CHI_SERVER_CONF=/etc/iowarp/chimaera_distributed.yaml chimaera_start_runtime &
         RUNTIME_PID=\$! &&
@@ -162,12 +147,7 @@ services:
           sleep 2
           echo 'Node 4: Still waiting for build completion marker...'
         done &&
-        echo 'Node 4: Build complete. Loading spack environment...' &&
-        export SPACK_ROOT=/root/spack &&
-        source /root/spack/share/spack/setup-env.sh &&
-        spack load cte-hermes-shm &&
-        echo 'Node 4: Spack environment loaded' &&
-        echo 'Node 4: Starting runtime...' &&
+        echo 'Node 4: Build complete. Starting runtime...' &&
         export PATH=/usr/local/bin:$PATH &&
         CHI_SERVER_CONF=/etc/iowarp/chimaera_distributed.yaml chimaera_start_runtime &
         RUNTIME_PID=\$! &&

@@ -9,7 +9,7 @@
         {
             "name": "debug",
             "hidden": false,
-            "generator": "Ninja",
+            "generator": "Unix Makefiles",
             "binaryDir": "${sourceDir}/build",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
@@ -34,7 +34,7 @@
         {
             "name": "rocm-debug",
             "hidden": false,
-            "generator": "Ninja",
+            "generator": "Unix Makefiles",
             "binaryDir": "${sourceDir}/build",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
@@ -48,7 +48,7 @@
         {
             "name": "release",
             "hidden": false,
-            "generator": "Ninja",
+            "generator": "Unix Makefiles",
             "binaryDir": "${sourceDir}/build",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",

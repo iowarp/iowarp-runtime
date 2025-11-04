@@ -1,0 +1,7 @@
+FROM iowarp/cte-hermes-shm:latest
+
+COPY . /workspace
+
+WORKDIR /workspace
+
+RUN cd build && make install

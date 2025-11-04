@@ -1,29 +1,24 @@
 {
-  "name": "IoWarp Development",
-  "image": "iowarp/iowarp:latest",
-
-  "workspaceFolder": "/workspace",
-  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
-
-  "mounts": [
-    "source=${localEnv:HOME}/.ssh,target=/root/.ssh,type=bind,readonly"
-  ],
-
-  "customizations": {
-    "vscode": {
-      "extensions": [
-        "ms-vscode.cpptools",
-        "ms-vscode.cmake-tools",
-        "twxs.cmake",
-        "KylinIdeTeam.cppdebug"
-      ],
-      "settings": {
-        "cmake.configureOnOpen": false
-      }
-    }
-  },
-
-  "postCreateCommand": "git config --global --add safe.directory /workspace",
-
-  "remoteUser": "root"
+    "name": "IoWarp Runtime",
+    "image": "iowarp/cte-hermes-shm:latest",
+    "workspaceFolder": "/workspace",
+    "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
+    "mounts": [
+        "source=${localEnv:HOME}/.ssh,target=/tmp/host-ssh,type=bind,readonly"
+    ],
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-vscode.cpptools",
+                "ms-vscode.cmake-tools",
+                "twxs.cmake",
+                "KylinIdeTeam.cppdebug"
+            ],
+            "settings": {
+                "cmake.configureOnOpen": false
+            }
+        }
+    },
+    "postCreateCommand": "git config --global --add safe.directory /workspace",
+    "remoteUser": "root"
 }
