@@ -82,28 +82,20 @@ stop_docker_cluster() {
 
 # Build test in Docker
 build_test_docker() {
-    log_info "Building distributed test in Docker containers..."
+    log_info "Checking for test binary in Docker containers..."
     cd "$SCRIPT_DIR"
 
-    # Wait for build to complete (node1 builds on startup)
-    log_info "Waiting for build to complete..."
-    local max_wait=300  # 5 minutes max
-    local elapsed=0
-
-    while [ $elapsed -lt $max_wait ]; do
-        if docker exec iowarp-distributed-node1 test -f /iowarp-runtime/build-docker/bin/chimaera_distributed_bdev_tests 2>/dev/null; then
-            log_success "Test built successfully in Docker"
-            docker exec iowarp-distributed-node1 ls -lh /iowarp-runtime/build-docker/bin/chimaera_distributed_bdev_tests
-            return 0
-        fi
-        sleep 5
-        elapsed=$((elapsed + 5))
-    done
-
-    log_error "Build timed out after ${max_wait} seconds"
-    log_error "Build logs:"
-    docker compose logs iowarp-node1
-    return 1
+    # Check if the test binary exists in the installed location
+    if docker exec iowarp-distributed-node1 test -f /usr/local/bin/chimaera_distributed_bdev_tests 2>/dev/null; then
+        log_success "Test binary found in Docker image"
+        docker exec iowarp-distributed-node1 ls -lh /usr/local/bin/chimaera_distributed_bdev_tests
+        return 0
+    else
+        log_error "Test binary not found in /usr/local/bin/"
+        log_error "Available binaries:"
+        docker exec iowarp-distributed-node1 ls -la /usr/local/bin/ || true
+        return 1
+    fi
 }
 
 # Build test locally
@@ -125,7 +117,7 @@ run_test_docker() {
 
     # Execute test on node1 using Jarvis pipeline
     docker exec iowarp-distributed-node1 bash -c "
-        cd /iowarp-runtime/test/jarvis_wrp_runtime &&
+        cd /workspace/test/jarvis_wrp_runtime &&
         jarvis ppl load yaml pipelines/distributed_test_container.yaml &&
         jarvis pkg conf distributed_test num_nodes=$NUM_NODES test_case=$TEST_CASE &&
         jarvis ppl run
@@ -156,10 +148,9 @@ run_test_docker_direct() {
     log_info "Waiting for runtimes to initialize across all nodes..."
     sleep 5
 
-    # Execute test on node1
+    # Execute test on node1 using installed binary
     docker exec iowarp-distributed-node1 bash -c "
-        cd /iowarp-runtime/build-docker/bin &&
-        ./chimaera_distributed_bdev_tests --num-nodes $NUM_NODES --test-case $TEST_CASE
+        chimaera_distributed_bdev_tests --num-nodes $NUM_NODES --test-case $TEST_CASE
     "
 
     log_success "Test completed"
