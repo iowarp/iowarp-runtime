@@ -15,7 +15,6 @@ build
 *.egg-info
 *.env
 *.env.cmake
-/CMakePresets.json
 
 build-docker
 build/
