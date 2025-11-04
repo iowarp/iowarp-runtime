@@ -23,20 +23,7 @@ services:
     entrypoint: [ "/bin/bash", "-c" ]
     command: >
       "
-        echo 'Node 1: Cleaning old build directory...' &&
-        cd /iowarp-runtime &&
-        rm -rf build-docker &&
-        echo 'Node 1: Building IOWarp runtime...' &&
-        mkdir -p build-docker && cd build-docker &&
-        echo 'Node 1: Running cmake...' &&
-        cmake --preset docker .. &&
-        echo 'Node 1: CMake complete. Building runtime and tests...' &&
-        cmake --build . -j8 &&
-        echo 'Node 1: Build complete. Installing...' &&
-        cmake --install . &&
-        echo 'Node 1: Creating build completion marker...' &&
-        touch /usr/local/.build_complete &&
-        echo 'Node 1: Install complete. Starting runtime...' &&
+        echo 'Node 1: Starting runtime...' &&
         export PATH=/usr/local/bin:$PATH &&
         CHI_SERVER_CONF=/etc/iowarp/chimaera_distributed.yaml chimaera_start_runtime &
         RUNTIME_PID=\$! &&
@@ -68,12 +55,7 @@ services:
     entrypoint: [ "/bin/bash", "-c" ]
     command: >
       "
-        echo 'Node 2: Waiting for build to complete...' &&
-        while [ ! -f /usr/local/.build_complete ]; do
-          sleep 2
-          echo 'Node 2: Still waiting for build completion marker...'
-        done &&
-        echo 'Node 2: Build complete. Starting runtime...' &&
+        echo 'Node 2: Starting runtime...' &&
         export PATH=/usr/local/bin:$PATH &&
         CHI_SERVER_CONF=/etc/iowarp/chimaera_distributed.yaml chimaera_start_runtime &
         RUNTIME_PID=\$! &&
@@ -105,12 +87,7 @@ services:
     entrypoint: [ "/bin/bash", "-c" ]
     command: >
       "
-        echo 'Node 3: Waiting for build to complete...' &&
-        while [ ! -f /usr/local/.build_complete ]; do
-          sleep 2
-          echo 'Node 3: Still waiting for build completion marker...'
-        done &&
-        echo 'Node 3: Build complete. Starting runtime...' &&
+        echo 'Node 3: Starting runtime...' &&
         export PATH=/usr/local/bin:$PATH &&
         CHI_SERVER_CONF=/etc/iowarp/chimaera_distributed.yaml chimaera_start_runtime &
         RUNTIME_PID=\$! &&
@@ -142,12 +119,7 @@ services:
     entrypoint: [ "/bin/bash", "-c" ]
     command: >
       "
-        echo 'Node 4: Waiting for build to complete...' &&
-        while [ ! -f /usr/local/.build_complete ]; do
-          sleep 2
-          echo 'Node 4: Still waiting for build completion marker...'
-        done &&
-        echo 'Node 4: Build complete. Starting runtime...' &&
+        echo 'Node 4: Starting runtime...' &&
         export PATH=/usr/local/bin:$PATH &&
         CHI_SERVER_CONF=/etc/iowarp/chimaera_distributed.yaml chimaera_start_runtime &
         RUNTIME_PID=\$! &&

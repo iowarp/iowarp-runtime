@@ -167,4 +167,4 @@ install(FILES
 
 message(STATUS "Created core package: ${MAIN_PACKAGE_NAME}")
 message(STATUS "  Export set: ${MAIN_EXPORT_NAME}")
-message(STATUS "  Config location: cmake/${MAIN_PACKAGE_NAME}")
+message(STATUS "  Config location: lib/cmake/${MAIN_PACKAGE_NAME}")
