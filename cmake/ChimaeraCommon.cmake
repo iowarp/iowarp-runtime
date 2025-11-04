@@ -417,9 +417,9 @@ function(add_chimod_runtime)
     install(EXPORT ${MODULE_EXPORT_NAME}
       FILE ${MODULE_EXPORT_NAME}.cmake
       NAMESPACE ${CHIMAERA_NAMESPACE}::
-      DESTINATION cmake/${MODULE_PACKAGE_NAME}
+      DESTINATION lib/cmake/${MODULE_PACKAGE_NAME}
     )
-    
+
     # Generate Config.cmake file
     set(CONFIG_CONTENT "
 @PACKAGE_INIT@
@@ -432,34 +432,34 @@ find_dependency(chimaera REQUIRED)
 # Include the exported targets
 include(\"\${CMAKE_CURRENT_LIST_DIR}/${MODULE_EXPORT_NAME}.cmake\")
 
-# Provide components  
+# Provide components
 check_required_components(${MODULE_PACKAGE_NAME})
 ")
-    
+
     # Write Config.cmake template
     set(CONFIG_IN_FILE "${CMAKE_CURRENT_BINARY_DIR}/${MODULE_PACKAGE_NAME}Config.cmake.in")
     file(WRITE "${CONFIG_IN_FILE}" "${CONFIG_CONTENT}")
-    
+
     # Configure and install Config.cmake
     include(CMakePackageConfigHelpers)
     configure_package_config_file(
       "${CONFIG_IN_FILE}"
       "${CMAKE_CURRENT_BINARY_DIR}/${MODULE_PACKAGE_NAME}Config.cmake"
-      INSTALL_DESTINATION cmake/${MODULE_PACKAGE_NAME}
+      INSTALL_DESTINATION lib/cmake/${MODULE_PACKAGE_NAME}
     )
-    
+
     # Generate ConfigVersion.cmake
     write_basic_package_version_file(
       "${CMAKE_CURRENT_BINARY_DIR}/${MODULE_PACKAGE_NAME}ConfigVersion.cmake"
       VERSION 1.0.0
       COMPATIBILITY SameMajorVersion
     )
-    
+
     # Install Config and ConfigVersion files
     install(FILES
       "${CMAKE_CURRENT_BINARY_DIR}/${MODULE_PACKAGE_NAME}Config.cmake"
       "${CMAKE_CURRENT_BINARY_DIR}/${MODULE_PACKAGE_NAME}ConfigVersion.cmake"
-      DESTINATION cmake/${MODULE_PACKAGE_NAME}
+      DESTINATION lib/cmake/${MODULE_PACKAGE_NAME}
     )
     
     # Collect targets for status message

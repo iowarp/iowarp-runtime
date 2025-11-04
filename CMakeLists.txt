@@ -140,7 +140,7 @@ install(DIRECTORY config/
 install(EXPORT ${MAIN_EXPORT_NAME}
   FILE ${MAIN_EXPORT_NAME}.cmake
   NAMESPACE ${CHIMAERA_NAMESPACE}::
-  DESTINATION cmake/${MAIN_PACKAGE_NAME}
+  DESTINATION lib/cmake/${MAIN_PACKAGE_NAME}
 )
 
 # Generate and install package config file for main library
@@ -149,7 +149,7 @@ include(CMakePackageConfigHelpers)
 configure_package_config_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/cmake/ChimaeraConfig.cmake.in"
   "${CMAKE_CURRENT_BINARY_DIR}/${MAIN_PACKAGE_NAME}Config.cmake"
-  INSTALL_DESTINATION cmake/${MAIN_PACKAGE_NAME}
+  INSTALL_DESTINATION lib/cmake/${MAIN_PACKAGE_NAME}
 )
 
 write_basic_package_version_file(
@@ -162,7 +162,7 @@ install(FILES
   "${CMAKE_CURRENT_BINARY_DIR}/${MAIN_PACKAGE_NAME}Config.cmake"
   "${CMAKE_CURRENT_BINARY_DIR}/${MAIN_PACKAGE_NAME}ConfigVersion.cmake"
   "${CMAKE_CURRENT_SOURCE_DIR}/cmake/ChimaeraCommon.cmake"
-  DESTINATION cmake/${MAIN_PACKAGE_NAME}
+  DESTINATION lib/cmake/${MAIN_PACKAGE_NAME}
 )
 
 message(STATUS "Created core package: ${MAIN_PACKAGE_NAME}")
