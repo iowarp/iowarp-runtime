@@ -1,6 +1,4 @@
 # Build artifacts
-build/
-build-*/
 .cache/
 
 # IDE and editor files

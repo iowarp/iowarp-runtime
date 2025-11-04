@@ -1,25 +1,22 @@
 services:
   # Node 1
   iowarp-node1:
-    image: iowarp/iowarp:latest
+    image: iowarp/iowarp-runtime:latest
     container_name: iowarp-distributed-node1
     hostname: iowarp-node1
     networks:
       iowarp-cluster:
         ipv4_address: 172.25.0.10
     volumes:
-      - ~/.ppi-jarvis:/root/.ppi-jarvis
-      - ../../../:/iowarp-runtime
       - ./hostfile:/etc/iowarp/hostfile:ro
       - ./chimaera_distributed.yaml:/etc/iowarp/chimaera_distributed.yaml:ro
-      - iowarp-install:/usr/local
     environment:
       - NODE_ID=1
       - NODE_IP=172.25.0.10
       - CONTAINER_HOSTFILE=/etc/iowarp/hostfile
     shm_size: '16gb'
     mem_limit: 16g
-    working_dir: /iowarp-runtime
+    working_dir: /workspace
     entrypoint: [ "/bin/bash", "-c" ]
     command: >
       "
@@ -33,25 +30,22 @@ services:
 
   # Node 2
   iowarp-node2:
-    image: iowarp/iowarp:latest
+    image: iowarp/iowarp-runtime:latest
     container_name: iowarp-distributed-node2
     hostname: iowarp-node2
     networks:
       iowarp-cluster:
         ipv4_address: 172.25.0.11
     volumes:
-      - ~/.ppi-jarvis:/root/.ppi-jarvis
-      - ../../../:/iowarp-runtime
       - ./hostfile:/etc/iowarp/hostfile:ro
       - ./chimaera_distributed.yaml:/etc/iowarp/chimaera_distributed.yaml:ro
-      - iowarp-install:/usr/local
     environment:
       - NODE_ID=2
       - NODE_IP=172.25.0.11
       - CONTAINER_HOSTFILE=/etc/iowarp/hostfile
     shm_size: '16gb'
     mem_limit: 16g
-    working_dir: /iowarp-runtime
+    working_dir: /workspace
     entrypoint: [ "/bin/bash", "-c" ]
     command: >
       "
@@ -65,25 +59,22 @@ services:
 
   # Node 3
   iowarp-node3:
-    image: iowarp/iowarp:latest
+    image: iowarp/iowarp-runtime:latest
     container_name: iowarp-distributed-node3
     hostname: iowarp-node3
     networks:
       iowarp-cluster:
         ipv4_address: 172.25.0.12
     volumes:
-      - ~/.ppi-jarvis:/root/.ppi-jarvis
-      - ../../../:/iowarp-runtime
       - ./hostfile:/etc/iowarp/hostfile:ro
       - ./chimaera_distributed.yaml:/etc/iowarp/chimaera_distributed.yaml:ro
-      - iowarp-install:/usr/local
     environment:
       - NODE_ID=3
       - NODE_IP=172.25.0.12
       - CONTAINER_HOSTFILE=/etc/iowarp/hostfile
     shm_size: '16gb'
     mem_limit: 16g
-    working_dir: /iowarp-runtime
+    working_dir: /workspace
     entrypoint: [ "/bin/bash", "-c" ]
     command: >
       "
@@ -97,25 +88,22 @@ services:
 
   # Node 4
   iowarp-node4:
-    image: iowarp/iowarp:latest
+    image: iowarp/iowarp-runtime:latest
     container_name: iowarp-distributed-node4
     hostname: iowarp-node4
     networks:
       iowarp-cluster:
         ipv4_address: 172.25.0.13
     volumes:
-      - ~/.ppi-jarvis:/root/.ppi-jarvis
-      - ../../../:/iowarp-runtime
       - ./hostfile:/etc/iowarp/hostfile:ro
       - ./chimaera_distributed.yaml:/etc/iowarp/chimaera_distributed.yaml:ro
-      - iowarp-install:/usr/local
     environment:
       - NODE_ID=4
       - NODE_IP=172.25.0.13
       - CONTAINER_HOSTFILE=/etc/iowarp/hostfile
     shm_size: '16gb'
     mem_limit: 16g
-    working_dir: /iowarp-runtime
+    working_dir: /workspace
     entrypoint: [ "/bin/bash", "-c" ]
     command: >
       "
@@ -126,10 +114,6 @@ services:
         echo \"Node 4: Runtime started (PID \$RUNTIME_PID). Waiting for tests...\" &&
         tail -f /dev/null
       "
-
-volumes:
-  iowarp-install:
-    driver: local
 
 networks:
   iowarp-cluster:
