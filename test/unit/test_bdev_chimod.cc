@@ -1196,7 +1196,7 @@ TEST_CASE("bdev_error_conditions_enhanced", "[bdev][error][enhanced]") {
     // If creation didn't fail at the Create level, test allocation to see if the container is invalid
     if (!creation_failed) {
       std::vector<chimaera::bdev::Block> blocks =
-          ram_client_no_size.AllocateBlocks(HSHM_MCTX, k4KB);
+          ram_client_no_size.AllocateBlocks(HSHM_MCTX, chi::PoolQuery::Local(), k4KB);
       creation_failed = (blocks.size() == 0);  // Should be invalid block list
     }
 
@@ -1221,7 +1221,7 @@ TEST_CASE("bdev_error_conditions_enhanced", "[bdev][error][enhanced]") {
     // If creation didn't fail at the Create level, test allocation to see if the container is invalid
     if (!creation_failed) {
       std::vector<chimaera::bdev::Block> blocks =
-          file_client_bad_path.AllocateBlocks(HSHM_MCTX, k4KB);
+          file_client_bad_path.AllocateBlocks(HSHM_MCTX, chi::PoolQuery::Local(), k4KB);
       creation_failed = (blocks.size() == 0);
     }
 
@@ -1284,7 +1284,12 @@ TEST_CASE("bdev_parallel_io_operations", "[bdev][parallel][io]") {
         alloc_task->Wait();
         REQUIRE(alloc_task->return_code_.load() == 0);
         REQUIRE(alloc_task->blocks_.size() == 1);
-        auto blocks = alloc_task->blocks_;
+
+        // Convert hipc::vector to std::vector for FreeBlocks
+        std::vector<chimaera::bdev::Block> blocks;
+        for (size_t i = 0; i < alloc_task->blocks_.size(); ++i) {
+          blocks.push_back(alloc_task->blocks_[i]);
+        }
         CHI_IPC->DelTask(alloc_task);
 
         // Write data

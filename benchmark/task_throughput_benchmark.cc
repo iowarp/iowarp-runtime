@@ -146,10 +146,10 @@ void AllocationWorkerThread(size_t thread_id, const BenchmarkConfig &config,
   // Continuously perform allocate/free operations until stop signal
   while (!stop_flag.load(std::memory_order_relaxed)) {
     // Allocate blocks
-    auto blocks = bdev_client.AllocateBlocks(HSHM_MCTX, alloc_size);
+    auto blocks = bdev_client.AllocateBlocks(HSHM_MCTX, chi::PoolQuery::Local(), alloc_size);
 
     // Free blocks immediately
-    bdev_client.FreeBlocks(HSHM_MCTX, blocks);
+    bdev_client.FreeBlocks(HSHM_MCTX, chi::PoolQuery::Local(), blocks);
 
     local_ops++;
   }
@@ -195,7 +195,7 @@ void IOWorkerThread(size_t thread_id, const BenchmarkConfig &config,
   // Continuously perform I/O operations until stop signal
   while (!stop_flag.load(std::memory_order_relaxed)) {
     // Allocate blocks for the requested I/O size
-    auto blocks = bdev_client.AllocateBlocks(HSHM_MCTX, config.io_size);
+    auto blocks = bdev_client.AllocateBlocks(HSHM_MCTX, chi::PoolQuery::Local(), config.io_size);
 
     // Write data across all allocated blocks
     size_t bytes_written = 0;
@@ -207,7 +207,7 @@ void IOWorkerThread(size_t thread_id, const BenchmarkConfig &config,
       hipc::Pointer write_ptr = write_buffer.shm_;
       write_ptr.off_ += bytes_written;
 
-      chi::u64 ret = bdev_client.Write(HSHM_MCTX, blocks[block_idx], write_ptr,
+      chi::u64 ret = bdev_client.Write(HSHM_MCTX, chi::PoolQuery::Local(), blocks[block_idx], write_ptr,
                                        bytes_to_write);
       if (ret != bytes_to_write) {
         std::cerr << "ERROR: Thread " << thread_id
@@ -219,7 +219,7 @@ void IOWorkerThread(size_t thread_id, const BenchmarkConfig &config,
     }
 
     // Free blocks
-    bdev_client.FreeBlocks(HSHM_MCTX, blocks);
+    bdev_client.FreeBlocks(HSHM_MCTX, chi::PoolQuery::Local(), blocks);
 
     local_ops++;
     local_bytes += config.io_size;

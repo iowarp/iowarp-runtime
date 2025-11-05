@@ -129,19 +129,36 @@ public:
 #define INFO(message) \
     std::cout << "  [INFO] " << message << std::endl
 
-// Main test runner
-inline int run_all_tests() {
+// Main test runner with optional filter
+inline int run_all_tests(const std::string& filter = "") {
     const auto& tests = TestRegistry::instance().get_tests();
-    
-    std::cout << "Running " << tests.size() << " test(s)..." << std::endl;
-    
+
+    // Count tests that match filter
+    int matching_tests = 0;
     for (const auto& test : tests) {
+        if (filter.empty() || test.first.find(filter) != std::string::npos) {
+            matching_tests++;
+        }
+    }
+
+    if (!filter.empty()) {
+        std::cout << "Running " << matching_tests << " test(s) matching filter '" << filter << "'..." << std::endl;
+    } else {
+        std::cout << "Running " << tests.size() << " test(s)..." << std::endl;
+    }
+
+    for (const auto& test : tests) {
+        // Skip tests that don't match filter
+        if (!filter.empty() && test.first.find(filter) == std::string::npos) {
+            continue;
+        }
+
         g_current_test_name = test.first;
         g_current_section_name = "";
         g_stats.total_tests++;
-        
+
         std::cout << "\n[TEST] " << test.first << std::endl;
-        
+
         try {
             test.second();
             g_stats.passed_tests++;
@@ -160,7 +177,7 @@ inline int run_all_tests() {
             std::cout << "    Unknown exception caught" << std::endl;
         }
     }
-    
+
     g_stats.print_summary();
     return g_stats.failed_tests > 0 ? 1 : 0;
 }
@@ -181,6 +198,9 @@ inline int run_all_tests() {
 // Main function for test executable
 #define SIMPLE_TEST_MAIN() \
 int main(int argc, char* argv[]) { \
-    (void)argc; (void)argv; \
-    return SimpleTest::run_all_tests(); \
+    std::string filter = ""; \
+    if (argc > 1) { \
+        filter = argv[1]; \
+    } \
+    return SimpleTest::run_all_tests(filter); \
 }

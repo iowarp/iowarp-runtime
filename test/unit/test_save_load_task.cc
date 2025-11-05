@@ -190,6 +190,7 @@ TEST_CASE("SaveTask and LoadTask - Admin FlushTask full flow",
 
   auto *ipc_manager = CHI_IPC;
   auto alloc = GetTestAllocator();
+  (void)alloc;  // Suppress unused variable warning
 
   // Get container
   auto *pool_manager = CHI_POOL_MANAGER;

@@ -259,17 +259,20 @@ AddressTable PoolManager::CreateAddressTable(PoolId pool_id,
   }
 
   // Create exactly one local address that maps to the global address of the
-  // container on this node Assuming this node gets container 0 (this could be
-  // made configurable)
+  // container on this node. Use this node's ID to determine which global
+  // container this node owns.
+  auto* ipc_manager = CHI_IPC;
+  u32 node_id = ipc_manager->GetNodeId();
+
   Address local_address(pool_id, Group::kLocal,
                         0);  // One local address for this node
   Address global_address(pool_id, Group::kGlobal,
-                         0);  // Maps to container 0 globally
+                         node_id);  // Maps to this node's global container
 
   // Map the single local address to its global counterpart
   address_table.AddLocalToGlobalMapping(local_address, global_address);
 
-  HILOG(kInfo, "  Local[0] -> Global[0] (pool: {})", pool_id);
+  HILOG(kInfo, "  Local[0] -> Global[{}] (pool: {})", node_id, pool_id);
   HILOG(kInfo, "=== Address Table Complete ===");
 
   return address_table;

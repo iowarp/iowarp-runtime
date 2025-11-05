@@ -1266,8 +1266,8 @@ install(TARGETS ${TEST_TARGET} ${TASK_ARCHIVE_TEST_TARGET} ${FLUSH_TEST_TARGET} 
   RUNTIME DESTINATION bin
 )
 
-# Add distributed test subdirectory
-add_subdirectory(distributed)
+# Note: Distributed tests are run via Docker using the chimaera_bdev_chimod_tests binary
+# See test/unit/distributed/docker-compose.yml and run_tests.sh for distributed test execution
 
 # Print configuration summary
 message(STATUS "Chimaera unit tests configured:")

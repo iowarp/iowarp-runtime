@@ -297,7 +297,7 @@ void Runtime::SendIn(hipc::FullPtr<SendTask> task, chi::RunContext &rctx) {
     return;
   }
 
-  HILOG(kInfo,
+  HILOG(kDebug,
         "=== [SendIn BEGIN] Task {} (pool: {}) starting distributed send ===",
         origin_task->task_id_, origin_task->pool_id_);
 
@@ -315,7 +315,7 @@ void Runtime::SendIn(hipc::FullPtr<SendTask> task, chi::RunContext &rctx) {
   chi::RunContext *origin_task_rctx = origin_task->run_ctx_;
   size_t num_replicas = task->pool_queries_.size();
   origin_task_rctx->subtasks_.resize(num_replicas);
-  HILOG(kInfo, "[SendIn] Reserved space for {} replicas in subtasks vector",
+  HILOG(kDebug, "[SendIn] Reserved space for {} replicas in subtasks vector",
         num_replicas);
 
   // Send to each target in pool_queries
@@ -378,7 +378,7 @@ void Runtime::SendIn(hipc::FullPtr<SendTask> task, chi::RunContext &rctx) {
     copy_id.net_key_ = send_map_key;
     copy_id.replica_id_ = i;
 
-    HILOG(kInfo, "[SendIn] Created task copy {} with net_key {} for node {}",
+    HILOG(kDebug, "[SendIn] Created task copy {} with net_key {} for node {}",
           task_copy->task_id_, send_map_key, target_node_id);
 
     // Update the copy's pool query to current query
@@ -387,7 +387,7 @@ void Runtime::SendIn(hipc::FullPtr<SendTask> task, chi::RunContext &rctx) {
     // Set return node ID in the pool query
     chi::u64 this_node_id = ipc_manager->GetNodeId();
     task_copy->pool_query_.SetReturnNode(this_node_id);
-    HILOG(kInfo, "Admin: Task copy return node set to {}", this_node_id);
+    HILOG(kDebug, "Admin: Task copy return node set to {}", this_node_id);
 
     // Serialize the task using container->SaveTask (Expose will be called
     // automatically for bulks)
@@ -401,11 +401,11 @@ void Runtime::SendIn(hipc::FullPtr<SendTask> task, chi::RunContext &rctx) {
       continue;
     }
 
-    HILOG(kInfo, "[SendIn] Successfully sent task copy {} to node {} ({})",
+    HILOG(kDebug, "[SendIn] Successfully sent task copy {} to node {} ({})",
           task_copy->task_id_, target_node_id, target_host->ip_address);
   }
 
-  HILOG(kInfo, "=== [SendIn END] Task {} completed sending to {} targets ===",
+  HILOG(kDebug, "=== [SendIn END] Task {} completed sending to {} targets ===",
         origin_task->task_id_, num_replicas);
   task->SetReturnCode(0);
 }
@@ -437,7 +437,7 @@ void Runtime::SendOut(hipc::FullPtr<SendTask> task) {
     return;
   }
 
-  HILOG(kInfo,
+  HILOG(kDebug,
         "=== [SendOut BEGIN] Task {} (pool: {}, method: {}) sending outputs "
         "back ===",
         origin_task->task_id_, origin_task->pool_id_, origin_task->method_);
@@ -545,7 +545,7 @@ void Runtime::RecvIn(hipc::FullPtr<RecvTask> task,
 
   const auto &task_infos = archive.GetTaskInfos();
   HILOG(
-      kInfo,
+      kDebug,
       "=== [RecvIn BEGIN] (node={}) Receiving {} task(s) from remote node ===",
       ipc_manager->GetNodeId(), task_infos.size());
 
@@ -598,7 +598,7 @@ void Runtime::RecvIn(hipc::FullPtr<RecvTask> task,
     size_t net_key = task_ptr->task_id_.net_key_;
     recv_map_[net_key] = task_ptr;
 
-    HILOG(kInfo,
+    HILOG(kDebug,
           "[RecvIn] Received task {} (pool: {}) with net_key {}, added to "
           "recv_map",
           task_ptr->task_id_, task_info.pool_id_, net_key);
@@ -630,7 +630,7 @@ void Runtime::RecvOut(hipc::FullPtr<RecvTask> task,
         this_host.ip_address, this_host.node_id);
 
   const auto &task_infos = archive.GetTaskInfos();
-  HILOG(kInfo,
+  HILOG(kDebug,
         "=== [RecvOut BEGIN] Receiving {} task output(s) from remote node ===",
         task_infos.size());
 
@@ -645,7 +645,7 @@ void Runtime::RecvOut(hipc::FullPtr<RecvTask> task,
 
     // Locate origin task from send_map using net_key
     size_t net_key = task_info.task_id_.net_key_;
-    HILOG(kInfo,
+    HILOG(kDebug,
           "[RecvOut] Looking up origin task for replica {} with net_key {}",
           task_info.task_id_, net_key);
 
@@ -738,13 +738,13 @@ void Runtime::RecvOut(hipc::FullPtr<RecvTask> task,
 
     // Aggregate replica results into origin task
     container->Aggregate(origin_task->method_, origin_task, replica);
-    HILOG(kInfo,
+    HILOG(kDebug,
           "[RecvOut] Aggregated results from replica {} into origin task {}",
           replica->task_id_, origin_task->task_id_);
 
     // Increment completed replicas counter in origin's rctx
     chi::u32 completed = origin_rctx->completed_replicas_.fetch_add(1) + 1;
-    HILOG(kInfo, "[RecvOut] Origin task {} completed {}/{} replicas",
+    HILOG(kDebug, "[RecvOut] Origin task {} completed {}/{} replicas",
           origin_task->task_id_, completed, origin_rctx->subtasks_.size());
 
     // If all replicas completed

@@ -1,5 +1,5 @@
 services:
-  # Node 1
+  # Node 1 - Test coordinator that runs the test binary
   iowarp-node1:
     image: iowarp/iowarp-runtime:latest
     container_name: iowarp-distributed-node1
@@ -10,6 +10,7 @@ services:
     volumes:
       - ./hostfile:/etc/iowarp/hostfile:ro
       - ./chimaera_distributed.yaml:/etc/iowarp/chimaera_distributed.yaml:ro
+      - ../../../build/bin/chimaera_bdev_chimod_tests:/usr/local/bin/chimaera_bdev_chimod_tests:ro
     environment:
       - NODE_ID=1
       - NODE_IP=172.25.0.10
@@ -25,8 +26,12 @@ services:
         export PATH=/usr/local/bin:$PATH &&
         CHI_SERVER_CONF=/etc/iowarp/chimaera_distributed.yaml chimaera_start_runtime &
         RUNTIME_PID=\$! &&
-        echo \"Node 1: Runtime started (PID \$RUNTIME_PID). Ready for test execution.\" &&
-        tail -f /dev/null
+        sleep 5 &&
+        echo 'Node 1: Runtime started (PID \$RUNTIME_PID). Running distributed tests...' &&
+        chimaera_bdev_chimod_tests bdev_file_explicit_backend &&
+        echo 'Node 1: Tests completed.' &&
+        kill \$RUNTIME_PID &&
+        wait \$RUNTIME_PID
       "
 
   # Node 2
