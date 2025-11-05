@@ -206,6 +206,7 @@ void Runtime::AllocateBlocks(hipc::FullPtr<AllocateBlocksTask> task,
             remaining_size_.fetch_add(allocated_block.size_);
           }
           task->blocks_.clear();
+          HELOG(kError, "Out of space: {} bytes requested, {} bytes available", total_size, remaining_size_.load());
           task->return_code_ = 1;  // Out of space
           return;
         }
