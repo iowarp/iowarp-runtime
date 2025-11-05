@@ -70,6 +70,7 @@ void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& ctx) {
     // File-based storage initialization - use pool_name as file path
     file_fd_ = open(pool_name.c_str(), O_RDWR | O_CREAT | O_DIRECT, 0644);
     if (file_fd_ < 0) {
+      HELOG(kError, "Failed to open file: {}, fd: {}, errno: {}, strerror: {}", pool_name, file_fd_, errno, strerror(errno));
       task->return_code_ = 1;
       return;
     }

@@ -243,8 +243,8 @@ AddressTable PoolManager::CreateAddressTable(PoolId pool_id,
     return address_table;
   }
 
-  HILOG(kInfo, "=== Address Table Mapping for Pool {} ===", pool_id);
-  HILOG(kInfo, "Creating address table with {} containers", num_containers);
+  HILOG(kDebug, "=== Address Table Mapping for Pool {} ===", pool_id);
+  HILOG(kDebug, "Creating address table with {} containers", num_containers);
 
   // Create one address per container in the global table
   for (u32 container_idx = 0; container_idx < num_containers; ++container_idx) {
@@ -254,7 +254,7 @@ AddressTable PoolManager::CreateAddressTable(PoolId pool_id,
     // Map each global address to its corresponding physical address
     address_table.AddGlobalToPhysicalMapping(global_address, physical_address);
 
-    HILOG(kInfo, "  Global[{}] -> Physical[{}] (pool: {})",
+    HILOG(kDebug, "  Global[{}] -> Physical[{}] (pool: {})",
           container_idx, container_idx, pool_id);
   }
 
@@ -272,8 +272,8 @@ AddressTable PoolManager::CreateAddressTable(PoolId pool_id,
   // Map the single local address to its global counterpart
   address_table.AddLocalToGlobalMapping(local_address, global_address);
 
-  HILOG(kInfo, "  Local[0] -> Global[{}] (pool: {})", node_id, pool_id);
-  HILOG(kInfo, "=== Address Table Complete ===");
+  HILOG(kDebug, "  Local[0] -> Global[{}] (pool: {})", node_id, pool_id);
+  HILOG(kDebug, "=== Address Table Complete ===");
 
   return address_table;
 }
