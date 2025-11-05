@@ -4,11 +4,14 @@
     "workspaceFolder": "/workspace",
     "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
     "mounts": [
-        "source=${localEnv:HOME}/.ssh,target=/tmp/host-ssh,type=bind,readonly"
+        "source=${localEnv:HOME}/.ssh,target=/tmp/host-ssh,type=bind,readonly",
+        "source=${localEnv:HOME}/.claude,target=/tmp/host-claude,type=bind,readonly",
+        "source=${localEnv:HOME}/.claude.json,target=/tmp/host-claude.json,type=bind,readonly"
     ],
     "customizations": {
         "vscode": {
             "extensions": [
+                "anthropic.claude-code",
                 "ms-vscode.cpptools",
                 "ms-vscode.cmake-tools",
                 "twxs.cmake",
@@ -19,6 +22,6 @@
             }
         }
     },
-    "postCreateCommand": "git config --global --add safe.directory /workspace",
-    "remoteUser": "root"
+    "postCreateCommand": "git config --global --add safe.directory /workspace && cp -r /tmp/host-ssh /home/iowarp/.ssh && chmod 700 /home/iowarp/.ssh && chmod 600 /home/iowarp/.ssh/* && chmod 644 /home/iowarp/.ssh/*.pub 2>/dev/null || true && sudo cp -r /tmp/host-claude /home/iowarp/.claude && sudo cp /tmp/host-claude.json /home/iowarp/.claude.json && sudo chown -R iowarp:iowarp /home/iowarp/.claude /home/iowarp/.claude.json",
+    "remoteUser": "iowarp"
 }

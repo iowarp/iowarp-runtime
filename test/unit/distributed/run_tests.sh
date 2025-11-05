@@ -86,9 +86,9 @@ build_test_docker() {
     cd "$SCRIPT_DIR"
 
     # Check if the test binary exists in the installed location
-    if docker exec iowarp-distributed-node1 test -f /usr/local/bin/chimaera_distributed_bdev_tests 2>/dev/null; then
+    if docker exec iowarp-distributed-node1 test -f /usr/local/bin/chimaera_bdev_tests 2>/dev/null; then
         log_success "Test binary found in Docker image"
-        docker exec iowarp-distributed-node1 ls -lh /usr/local/bin/chimaera_distributed_bdev_tests
+        docker exec iowarp-distributed-node1 ls -lh /usr/local/bin/chimaera_bdev_tests
         return 0
     else
         log_error "Test binary not found in /usr/local/bin/"
@@ -150,7 +150,8 @@ run_test_docker_direct() {
 
     # Execute test on node1 using installed binary
     docker exec iowarp-distributed-node1 bash -c "
-        chimaera_distributed_bdev_tests --num-nodes $NUM_NODES --test-case $TEST_CASE
+        export CHIMAERA_DISABLE_RUNTIME_INIT=1
+        chimaera_bdev_tests
     "
 
     log_success "Test completed"
