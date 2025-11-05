@@ -62,21 +62,24 @@ explicit Client(const chi::PoolId& pool_id)
 Creates and initializes the bdev container with specified backend type.
 
 ```cpp
-void Create(const hipc::MemContext& mctx, const chi::PoolQuery& pool_query,
-           const std::string& pool_name, BdevType bdev_type, 
-           chi::u64 total_size = 0, chi::u32 io_depth = 32, chi::u32 alignment = 4096,
-           const PerfMetrics* perf_metrics = nullptr)
+bool Create(const hipc::MemContext& mctx, const chi::PoolQuery& pool_query,
+            const std::string& pool_name, const chi::PoolId& custom_pool_id,
+            BdevType bdev_type, chi::u64 total_size = 0, chi::u32 io_depth = 32,
+            chi::u32 alignment = 4096, const PerfMetrics* perf_metrics = nullptr)
 ```
 
 **Parameters:**
 - `mctx`: Memory context for task allocation
-- `pool_query`: Pool domain query (typically `chi::PoolQuery::Local()`)
+- `pool_query`: Pool domain query (typically `chi::PoolQuery::Dynamic()` for automatic caching)
 - `pool_name`: Pool name (serves as file path for kFile, unique identifier for kRam)
+- `custom_pool_id`: Explicit pool ID to create for this container
 - `bdev_type`: Backend type (`BdevType::kFile` or `BdevType::kRam`)
 - `total_size`: Total size available for allocation (0 = use file size for kFile, required for kRam)
 - `io_depth`: libaio queue depth for asynchronous operations (ignored for kRam, default: 32)
 - `alignment`: I/O alignment in bytes for optimal performance (default: 4096)
 - `perf_metrics`: **Optional** user-defined performance characteristics (nullptr = use defaults)
+
+**Returns:** `true` if creation succeeded (return_code == 0), `false` if it failed
 
 **Performance Characteristics Definition:**
 Instead of automatic benchmarking during container creation, users can optionally specify the expected performance characteristics of their storage device. This allows for:
@@ -88,10 +91,11 @@ Instead of automatic benchmarking during container creation, users can optionall
 **Example with Default Performance (recommended for most users):**
 ```cpp
 // Create container with default performance characteristics
-bdev_client.Create(HSHM_MCTX, pool_query, "/dev/nvme0n1", BdevType::kFile);
+const chi::PoolId pool_id = chi::PoolId(8000, 0);
+bdev_client.Create(HSHM_MCTX, pool_query, "/dev/nvme0n1", pool_id, BdevType::kFile);
 
 // Or with custom storage parameters but default performance
-bdev_client.Create(HSHM_MCTX, pool_query, "/dev/nvme0n1", BdevType::kFile, 0, 64, 4096);
+bdev_client.Create(HSHM_MCTX, pool_query, "/dev/nvme0n1", pool_id, BdevType::kFile, 0, 64, 4096);
 ```
 
 **Example with Custom Performance (for advanced users):**
@@ -99,13 +103,14 @@ bdev_client.Create(HSHM_MCTX, pool_query, "/dev/nvme0n1", BdevType::kFile, 0, 64
 // Define performance characteristics for a high-end NVMe SSD
 PerfMetrics nvme_perf;
 nvme_perf.read_bandwidth_mbps_ = 3500.0;   // 3.5 GB/s read
-nvme_perf.write_bandwidth_mbps_ = 3000.0;  // 3.0 GB/s write  
+nvme_perf.write_bandwidth_mbps_ = 3000.0;  // 3.0 GB/s write
 nvme_perf.read_latency_us_ = 50.0;         // 50μs read latency
 nvme_perf.write_latency_us_ = 80.0;        // 80μs write latency
 nvme_perf.iops_ = 500000.0;                // 500K IOPS
 
 // Create container with custom performance profile
-bdev_client.Create(HSHM_MCTX, pool_query, "/dev/nvme0n1", BdevType::kFile, 
+const chi::PoolId pool_id = chi::PoolId(8000, 0);
+bdev_client.Create(HSHM_MCTX, pool_query, "/dev/nvme0n1", pool_id, BdevType::kFile,
                    0, 64, 4096, &nvme_perf);
 ```
 
@@ -117,15 +122,16 @@ chi::CHIMAERA_CLIENT_INIT();
 const chi::PoolId pool_id = chi::PoolId(8000, 0);
 chimaera::bdev::Client bdev_client(pool_id);
 
-auto pool_query = chi::PoolQuery::Local();
+auto pool_query = chi::PoolQuery::Dynamic();  // Recommended for automatic caching
 // File-based storage (pool_name IS the file path)
-bdev_client.Create(HSHM_MCTX, pool_query, "/dev/nvme0n1", BdevType::kFile, 0, 64, 4096);
+bdev_client.Create(HSHM_MCTX, pool_query, "/dev/nvme0n1", pool_id, BdevType::kFile, 0, 64, 4096);
 ```
 
 *RAM-based storage:*
 ```cpp
 // RAM-based storage (1GB, pool_name is unique identifier)
-bdev_client.Create(HSHM_MCTX, pool_query, "my_ram_device", BdevType::kRam, 1024*1024*1024);
+const chi::PoolId pool_id = chi::PoolId(8001, 0);
+bdev_client.Create(HSHM_MCTX, pool_query, "my_ram_device", pool_id, BdevType::kRam, 1024*1024*1024);
 ```
 
 ##### `AsyncCreate()` - Asynchronous (Unified Pool Name Interface)
@@ -134,9 +140,9 @@ Creates and initializes the bdev container asynchronously with specified backend
 ```cpp
 hipc::FullPtr<chimaera::bdev::CreateTask> AsyncCreate(
     const hipc::MemContext& mctx, const chi::PoolQuery& pool_query,
-    const std::string& pool_name, BdevType bdev_type,
-    chi::u64 total_size = 0, chi::u32 io_depth = 32, chi::u32 alignment = 4096,
-    const PerfMetrics* perf_metrics = nullptr)
+    const std::string& pool_name, const chi::PoolId& custom_pool_id,
+    BdevType bdev_type, chi::u64 total_size = 0, chi::u32 io_depth = 32,
+    chi::u32 alignment = 4096, const PerfMetrics* perf_metrics = nullptr)
 ```
 
 **Returns:** Task pointer for asynchronous completion checking
@@ -145,49 +151,73 @@ hipc::FullPtr<chimaera::bdev::CreateTask> AsyncCreate(
 
 #### Block Management Operations
 
-##### `Allocate()` - Synchronous
-Allocates a block of the specified size.
+##### `AllocateBlocks()` - Synchronous
+Allocates multiple blocks with the specified total size. The system automatically determines the optimal block configuration based on the requested size.
 
 ```cpp
-Block Allocate(const hipc::MemContext& mctx, chi::u64 size)
+std::vector<Block> AllocateBlocks(const hipc::MemContext& mctx,
+                                  const chi::PoolQuery& pool_query,
+                                  chi::u64 size)
 ```
 
 **Parameters:**
 - `mctx`: Memory context for task allocation
-- `size`: Size of the block to allocate in bytes
+- `pool_query`: Pool domain query for routing (typically `chi::PoolQuery::Local()`)
+- `size`: Total size to allocate in bytes
 
-**Returns:** `Block` structure containing offset, size, and block type information
+**Returns:** `std::vector<Block>` containing allocated block structures
+
+**Block Allocation Algorithm:**
+- **Size < 1MB**: Allocates a single block of the next largest size category (4KB, 64KB, 256KB, or 1MB)
+- **Size >= 1MB**: Allocates only 1MB blocks to meet the requested size
 
 **Usage:**
 ```cpp
-Block my_block = bdev_client.Allocate(HSHM_MCTX, 65536);  // Allocate 64KB
-std::cout << "Allocated block at offset " << my_block.offset_ 
-          << " with size " << my_block.size_ << std::endl;
+auto pool_query = chi::PoolQuery::Local();
+auto blocks = bdev_client.AllocateBlocks(HSHM_MCTX, pool_query, 512*1024);  // Allocate 512KB
+std::cout << "Allocated " << blocks.size() << " block(s)" << std::endl;
+for (const auto& block : blocks) {
+  std::cout << "  Block at offset " << block.offset_ << " with size " << block.size_ << std::endl;
+}
 ```
 
-##### `AsyncAllocate()` - Asynchronous
+##### `AsyncAllocateBlocks()` - Asynchronous
 ```cpp
-hipc::FullPtr<chimaera::bdev::AllocateTask> AsyncAllocate(
-    const hipc::MemContext& mctx, chi::u64 size)
+hipc::FullPtr<chimaera::bdev::AllocateBlocksTask> AsyncAllocateBlocks(
+    const hipc::MemContext& mctx, const chi::PoolQuery& pool_query,
+    chi::u64 size)
 ```
 
-##### `Free()` - Synchronous
-Frees a previously allocated block.
+##### `FreeBlocks()` - Synchronous
+Frees multiple previously allocated blocks.
 
 ```cpp
-chi::u32 Free(const hipc::MemContext& mctx, const Block& block)
+chi::u32 FreeBlocks(const hipc::MemContext& mctx,
+                    const chi::PoolQuery& pool_query,
+                    const std::vector<Block>& blocks)
 ```
 
 **Parameters:**
 - `mctx`: Memory context for task allocation
-- `block`: Block structure to free
+- `pool_query`: Pool domain query for routing (typically `chi::PoolQuery::Local()`)
+- `blocks`: Vector of block structures to free
 
 **Returns:** Result code (0 = success, non-zero = error)
 
-##### `AsyncFree()` - Asynchronous
+**Usage:**
 ```cpp
-hipc::FullPtr<chimaera::bdev::FreeTask> AsyncFree(
-    const hipc::MemContext& mctx, const Block& block)
+auto pool_query = chi::PoolQuery::Local();
+chi::u32 result = bdev_client.FreeBlocks(HSHM_MCTX, pool_query, blocks);
+if (result == 0) {
+  std::cout << "Successfully freed " << blocks.size() << " block(s)" << std::endl;
+}
+```
+
+##### `AsyncFreeBlocks()` - Asynchronous
+```cpp
+hipc::FullPtr<chimaera::bdev::FreeBlocksTask> AsyncFreeBlocks(
+    const hipc::MemContext& mctx, const chi::PoolQuery& pool_query,
+    const std::vector<Block>& blocks)
 ```
 
 #### I/O Operations
@@ -196,62 +226,88 @@ hipc::FullPtr<chimaera::bdev::FreeTask> AsyncFree(
 Writes data to a previously allocated block.
 
 ```cpp
-chi::u64 Write(const hipc::MemContext& mctx, const Block& block,
-              const std::vector<hshm::u8>& data)
+chi::u64 Write(const hipc::MemContext& mctx, const chi::PoolQuery& pool_query,
+               const Block& block, hipc::Pointer data, size_t length)
 ```
 
 **Parameters:**
 - `mctx`: Memory context for task allocation
+- `pool_query`: Pool domain query for routing (typically `chi::PoolQuery::Local()`)
 - `block`: Target block for writing
-- `data`: Data to write as a byte vector
+- `data`: Pointer to data to write (hipc::Pointer)
+- `length`: Size of data to write in bytes
 
 **Returns:** Number of bytes actually written
 
 **Usage:**
 ```cpp
 // Prepare data
-std::vector<hshm::u8> write_data(4096, 0xAB);  // 4KB of 0xAB pattern
+size_t data_size = 4096;
+auto* ipc_manager = CHI_IPC;
+hipc::Pointer write_ptr = ipc_manager->AllocateBuffer(data_size);
+hipc::FullPtr<char> write_data(write_ptr);
+memset(write_data.ptr_, 0xAB, data_size);  // Fill with pattern
 
 // Write to block
-chi::u64 bytes_written = bdev_client.Write(HSHM_MCTX, my_block, write_data);
+auto pool_query = chi::PoolQuery::Local();
+chi::u64 bytes_written = bdev_client.Write(HSHM_MCTX, pool_query, blocks[0], write_ptr, data_size);
 std::cout << "Wrote " << bytes_written << " bytes" << std::endl;
+
+// Free buffer when done
+ipc_manager->FreeBuffer(write_ptr);
 ```
 
 ##### `AsyncWrite()` - Asynchronous
 ```cpp
 hipc::FullPtr<chimaera::bdev::WriteTask> AsyncWrite(
-    const hipc::MemContext& mctx, const Block& block,
-    const std::vector<hshm::u8>& data)
+    const hipc::MemContext& mctx, const chi::PoolQuery& pool_query,
+    const Block& block, hipc::Pointer data, size_t length)
 ```
 
 ##### `Read()` - Synchronous
 Reads data from a previously allocated and written block.
 
 ```cpp
-std::vector<hshm::u8> Read(const hipc::MemContext& mctx, const Block& block)
+chi::u64 Read(const hipc::MemContext& mctx, const chi::PoolQuery& pool_query,
+              const Block& block, hipc::Pointer& data_out, size_t buffer_size)
 ```
 
 **Parameters:**
 - `mctx`: Memory context for task allocation
+- `pool_query`: Pool domain query for routing (typically `chi::PoolQuery::Local()`)
 - `block`: Source block for reading
+- `data_out`: Output buffer pointer (allocated by caller)
+- `buffer_size`: Size of the buffer in bytes
 
-**Returns:** Vector containing the read data
+**Returns:** Number of bytes actually read
 
 **Usage:**
 ```cpp
-// Read data back
-std::vector<hshm::u8> read_data = bdev_client.Read(HSHM_MCTX, my_block);
-std::cout << "Read " << read_data.size() << " bytes" << std::endl;
+// Allocate read buffer
+size_t buffer_size = blocks[0].size_;
+auto* ipc_manager = CHI_IPC;
+hipc::Pointer read_ptr = ipc_manager->AllocateBuffer(buffer_size);
 
+// Read data back
+auto pool_query = chi::PoolQuery::Local();
+chi::u64 bytes_read = bdev_client.Read(HSHM_MCTX, pool_query, blocks[0], read_ptr, buffer_size);
+std::cout << "Read " << bytes_read << " bytes" << std::endl;
+
+// Access the data
+hipc::FullPtr<char> read_data(read_ptr);
 // Verify data integrity
-bool data_matches = std::equal(write_data.begin(), write_data.end(), read_data.begin());
+bool data_matches = (memcmp(write_data.ptr_, read_data.ptr_, bytes_read) == 0);
 std::cout << "Data integrity check: " << (data_matches ? "PASS" : "FAIL") << std::endl;
+
+// Free buffer when done
+ipc_manager->FreeBuffer(read_ptr);
 ```
 
 ##### `AsyncRead()` - Asynchronous
 ```cpp
 hipc::FullPtr<chimaera::bdev::ReadTask> AsyncRead(
-    const hipc::MemContext& mctx, const Block& block)
+    const hipc::MemContext& mctx, const chi::PoolQuery& pool_query,
+    const Block& block, hipc::Pointer data, size_t buffer_size)
 ```
 
 #### Performance Monitoring
@@ -287,7 +343,7 @@ std::cout << "  Remaining space: " << remaining_space << " bytes" << std::endl;
 
 ##### `AsyncGetStats()` - Asynchronous
 ```cpp
-hipc::FullPtr<chimaera::bdev::StatTask> AsyncGetStats(
+hipc::FullPtr<chimaera::bdev::GetStatsTask> AsyncGetStats(
     const hipc::MemContext& mctx)
 ```
 
@@ -347,46 +403,48 @@ Container creation task for the bdev module. This is an alias for `chimaera::adm
 - Processed by admin module for pool creation
 - Contains serialized bdev configuration parameters
 
-### AllocateTask
-Block allocation task.
+### AllocateBlocksTask
+Block allocation task for multiple blocks.
 
 **Key Fields:**
-- `size_`: Requested block size in bytes
-- `block_`: Allocated block information (output)
-- `result_code_`: Operation result (0 = success)
+- `size_`: Requested total size in bytes (IN)
+- `blocks_`: Allocated blocks information vector (OUT)
+- `return_code_`: Operation result (0 = success)
 
-### FreeTask
-Block deallocation task.
+### FreeBlocksTask
+Block deallocation task for multiple blocks.
 
 **Key Fields:**
-- `block_`: Block to free
-- `result_code_`: Operation result (0 = success)
+- `blocks_`: Vector of blocks to free (IN)
+- `return_code_`: Operation result (0 = success)
 
 ### WriteTask
 Block write operation task.
 
 **Key Fields:**
-- `block_`: Target block for writing
-- `data_`: Data to write (INOUT - input for write, output for verification)
-- `result_code_`: Operation result (0 = success)
-- `bytes_written_`: Number of bytes actually written
+- `block_`: Target block for writing (IN)
+- `data_`: Pointer to data to write (IN)
+- `length_`: Size of data to write (IN)
+- `bytes_written_`: Number of bytes actually written (OUT)
+- `return_code_`: Operation result (0 = success)
 
 ### ReadTask
 Block read operation task.
 
 **Key Fields:**
-- `block_`: Source block for reading
-- `data_`: Read data (output)
-- `result_code_`: Operation result (0 = success)
-- `bytes_read_`: Number of bytes actually read
+- `block_`: Source block for reading (IN)
+- `data_`: Pointer to buffer for read data (OUT)
+- `length_`: Size of buffer / actual bytes read (INOUT)
+- `bytes_read_`: Number of bytes actually read (OUT)
+- `return_code_`: Operation result (0 = success)
 
-### StatTask
+### GetStatsTask
 Performance statistics retrieval task.
 
 **Key Fields:**
-- `metrics_`: Performance metrics (output)
-- `remaining_size_`: Remaining allocatable space (output)
-- `result_code_`: Operation result (0 = success)
+- `metrics_`: Performance metrics (OUT)
+- `remaining_size_`: Remaining allocatable space (OUT)
+- `return_code_`: Operation result (0 = success)
 
 ## Configuration
 
@@ -442,11 +500,13 @@ int main() {
     // Create bdev client
     const chi::PoolId bdev_pool_id = chi::PoolId(8000, 0);
     chimaera::bdev::Client bdev_client(bdev_pool_id);
-    
+
+    auto pool_query = chi::PoolQuery::Dynamic();  // Recommended for automatic caching
+
     // Option 1: Initialize with default performance characteristics (recommended)
-    bdev_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), 
-                      "/dev/nvme0n1", BdevType::kFile, 0, 64, 4096);
-    
+    bdev_client.Create(HSHM_MCTX, pool_query, "/dev/nvme0n1", bdev_pool_id,
+                      BdevType::kFile, 0, 64, 4096);
+
     // Option 2: Initialize with custom performance characteristics (advanced)
     PerfMetrics nvme_perf;
     nvme_perf.read_bandwidth_mbps_ = 3500.0;   // 3.5 GB/s
@@ -454,45 +514,57 @@ int main() {
     nvme_perf.read_latency_us_ = 50.0;         // 50μs
     nvme_perf.write_latency_us_ = 80.0;        // 80μs
     nvme_perf.iops_ = 500000.0;                // 500K IOPS
-    
-    bdev_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), 
-                      "/dev/nvme0n1", BdevType::kFile, 0, 64, 4096, &nvme_perf);
-    
-    // Allocate a 1MB block
-    Block large_block = bdev_client.Allocate(HSHM_MCTX, 1024 * 1024);
-    
+
+    bdev_client.Create(HSHM_MCTX, pool_query, "/dev/nvme0n1", bdev_pool_id,
+                      BdevType::kFile, 0, 64, 4096, &nvme_perf);
+
+    // Allocate blocks for 1MB of data
+    auto pool_query_local = chi::PoolQuery::Local();
+    auto blocks = bdev_client.AllocateBlocks(HSHM_MCTX, pool_query_local, 1024 * 1024);
+    std::cout << "Allocated " << blocks.size() << " block(s)" << std::endl;
+
     // Prepare test data
-    std::vector<hshm::u8> test_data(large_block.size_, 0xDE);
-    for (size_t i = 0; i < test_data.size(); i += 4096) {
+    auto* ipc_manager = CHI_IPC;
+    size_t data_size = blocks[0].size_;
+    hipc::Pointer write_ptr = ipc_manager->AllocateBuffer(data_size);
+    hipc::FullPtr<char> test_data(write_ptr);
+    memset(test_data.ptr_, 0xDE, data_size);
+    for (size_t i = 0; i < data_size; i += 4096) {
       // Add pattern to verify data integrity
-      test_data[i] = static_cast<hshm::u8>(i % 256);
+      test_data.ptr_[i] = static_cast<char>(i % 256);
     }
-    
+
     // Write data
-    chi::u64 bytes_written = bdev_client.Write(HSHM_MCTX, large_block, test_data);
+    chi::u64 bytes_written = bdev_client.Write(HSHM_MCTX, pool_query_local, blocks[0], write_ptr, data_size);
     std::cout << "Wrote " << bytes_written << " bytes to block" << std::endl;
-    
+
     // Read data back
-    std::vector<hshm::u8> read_data = bdev_client.Read(HSHM_MCTX, large_block);
-    
+    hipc::Pointer read_ptr = ipc_manager->AllocateBuffer(data_size);
+    chi::u64 bytes_read = bdev_client.Read(HSHM_MCTX, pool_query_local, blocks[0], read_ptr, data_size);
+    hipc::FullPtr<char> read_data(read_ptr);
+
     // Verify data integrity
-    bool integrity_ok = (read_data.size() == test_data.size()) &&
-                       std::equal(test_data.begin(), test_data.end(), read_data.begin());
+    bool integrity_ok = (bytes_read == data_size) &&
+                       (memcmp(test_data.ptr_, read_data.ptr_, bytes_read) == 0);
     std::cout << "Data integrity: " << (integrity_ok ? "PASS" : "FAIL") << std::endl;
-    
+
     // Get performance characteristics (user-defined, not runtime measured)
     chi::u64 remaining_space;
     PerfMetrics perf = bdev_client.GetStats(HSHM_MCTX, remaining_space);
-    
+
     std::cout << "\nDevice Performance Profile:" << std::endl;
     std::cout << "  Read: " << perf.read_bandwidth_mbps_ << " MB/s" << std::endl;
     std::cout << "  Write: " << perf.write_bandwidth_mbps_ << " MB/s" << std::endl;
     std::cout << "  IOPS: " << perf.iops_ << std::endl;
     std::cout << "  Note: Values reflect user-defined characteristics, not runtime measurements" << std::endl;
-    
-    // Free the allocated block
-    chi::u32 free_result = bdev_client.Free(HSHM_MCTX, large_block);
-    std::cout << "Block freed: " << (free_result == 0 ? "SUCCESS" : "FAILED") << std::endl;
+
+    // Free the allocated blocks
+    chi::u32 free_result = bdev_client.FreeBlocks(HSHM_MCTX, pool_query_local, blocks);
+    std::cout << "Blocks freed: " << (free_result == 0 ? "SUCCESS" : "FAILED") << std::endl;
+
+    // Clean up buffers
+    ipc_manager->FreeBuffer(write_ptr);
+    ipc_manager->FreeBuffer(read_ptr);
     
     return 0;
     
@@ -520,13 +592,15 @@ int main() {
     admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), "admin");
     
     // Create bdev client
-    const chi::PoolId bdev_pool_id = chi::PoolId(8000, 0);
+    const chi::PoolId bdev_pool_id = chi::PoolId(8001, 0);
     chimaera::bdev::Client bdev_client(bdev_pool_id);
-    
+
+    auto pool_query = chi::PoolQuery::Dynamic();  // Recommended for automatic caching
+
     // Option 1: Initialize with default RAM performance characteristics (recommended)
-    bdev_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), 
-                      "my_ram_device", BdevType::kRam, 1024*1024*1024);
-    
+    bdev_client.Create(HSHM_MCTX, pool_query, "my_ram_device", bdev_pool_id,
+                      BdevType::kRam, 1024*1024*1024);
+
     // Option 2: Initialize with custom RAM performance characteristics (advanced)
     PerfMetrics ram_perf;
     ram_perf.read_bandwidth_mbps_ = 25000.0;   // 25 GB/s (typical DDR4)
@@ -534,42 +608,53 @@ int main() {
     ram_perf.read_latency_us_ = 0.1;           // 100ns
     ram_perf.write_latency_us_ = 0.1;          // 100ns
     ram_perf.iops_ = 10000000.0;               // 10M IOPS
-    
-    bdev_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), 
-                      "my_ram_device", BdevType::kRam, 1024*1024*1024, 32, 4096, &ram_perf);
-    
-    // Allocate a 1MB block (from RAM)
-    Block large_block = bdev_client.Allocate(HSHM_MCTX, 1024 * 1024);
-    
+
+    bdev_client.Create(HSHM_MCTX, pool_query, "my_ram_device", bdev_pool_id,
+                      BdevType::kRam, 1024*1024*1024, 32, 4096, &ram_perf);
+
+    // Allocate blocks for 1MB of data (from RAM)
+    auto pool_query_local = chi::PoolQuery::Local();
+    auto blocks = bdev_client.AllocateBlocks(HSHM_MCTX, pool_query_local, 1024 * 1024);
+
     // Prepare test data
-    std::vector<hshm::u8> test_data(large_block.size_, 0xAB);
-    
+    auto* ipc_manager = CHI_IPC;
+    size_t data_size = blocks[0].size_;
+    hipc::Pointer write_ptr = ipc_manager->AllocateBuffer(data_size);
+    hipc::FullPtr<char> test_data(write_ptr);
+    memset(test_data.ptr_, 0xAB, data_size);
+
     // Write data to RAM (very fast)
     auto start = std::chrono::high_resolution_clock::now();
-    chi::u64 bytes_written = bdev_client.Write(HSHM_MCTX, large_block, test_data);
+    chi::u64 bytes_written = bdev_client.Write(HSHM_MCTX, pool_query_local, blocks[0], write_ptr, data_size);
     auto write_end = std::chrono::high_resolution_clock::now();
-    
+
     // Read data from RAM (very fast)
-    std::vector<hshm::u8> read_data = bdev_client.Read(HSHM_MCTX, large_block);
+    hipc::Pointer read_ptr = ipc_manager->AllocateBuffer(data_size);
+    chi::u64 bytes_read = bdev_client.Read(HSHM_MCTX, pool_query_local, blocks[0], read_ptr, data_size);
     auto read_end = std::chrono::high_resolution_clock::now();
-    
+    hipc::FullPtr<char> read_data(read_ptr);
+
     // Calculate performance
     double write_time_ms = std::chrono::duration<double, std::milli>(write_end - start).count();
     double read_time_ms = std::chrono::duration<double, std::milli>(read_end - write_end).count();
-    
+
     std::cout << "RAM Backend Performance:" << std::endl;
     std::cout << "  Write time: " << write_time_ms << " ms" << std::endl;
     std::cout << "  Read time: " << read_time_ms << " ms" << std::endl;
     std::cout << "  Write bandwidth: " << (bytes_written / 1024.0 / 1024.0) / (write_time_ms / 1000.0) << " MB/s" << std::endl;
-    
+
     // Verify data integrity
-    bool integrity_ok = (read_data.size() == test_data.size()) &&
-                       std::equal(test_data.begin(), test_data.end(), read_data.begin());
+    bool integrity_ok = (bytes_read == data_size) &&
+                       (memcmp(test_data.ptr_, read_data.ptr_, bytes_read) == 0);
     std::cout << "Data integrity: " << (integrity_ok ? "PASS" : "FAIL") << std::endl;
-    
-    // Free the allocated block
-    chi::u32 free_result = bdev_client.Free(HSHM_MCTX, large_block);
-    std::cout << "Block freed: " << (free_result == 0 ? "SUCCESS" : "FAILED") << std::endl;
+
+    // Free the allocated blocks
+    chi::u32 free_result = bdev_client.FreeBlocks(HSHM_MCTX, pool_query_local, blocks);
+    std::cout << "Blocks freed: " << (free_result == 0 ? "SUCCESS" : "FAILED") << std::endl;
+
+    // Clean up buffers
+    ipc_manager->FreeBuffer(write_ptr);
+    ipc_manager->FreeBuffer(read_ptr);
     
     return 0;
     
@@ -583,32 +668,44 @@ int main() {
 ### Asynchronous Operations
 ```cpp
 // Example of asynchronous block allocation and I/O
-auto alloc_task = bdev_client.AsyncAllocate(HSHM_MCTX, 65536);  // 64KB
+auto pool_query = chi::PoolQuery::Local();
+auto alloc_task = bdev_client.AsyncAllocateBlocks(HSHM_MCTX, pool_query, 65536);  // 64KB
 alloc_task->Wait();
 
-if (alloc_task->result_code_ == 0) {
-  Block block = alloc_task->block_;
+if (alloc_task->return_code_ == 0) {
+  auto& blocks = alloc_task->blocks_;
   CHI_IPC->DelTask(alloc_task);
-  
+
+  // Prepare data buffer
+  auto* ipc_manager = CHI_IPC;
+  size_t data_size = blocks[0].size_;
+  hipc::Pointer write_ptr = ipc_manager->AllocateBuffer(data_size);
+  hipc::FullPtr<char> data(write_ptr);
+  memset(data.ptr_, 0xFF, data_size);
+
   // Async write
-  std::vector<hshm::u8> data(65536, 0xFF);
-  auto write_task = bdev_client.AsyncWrite(HSHM_MCTX, block, data);
+  auto write_task = bdev_client.AsyncWrite(HSHM_MCTX, pool_query, blocks[0], write_ptr, data_size);
   write_task->Wait();
-  
-  std::cout << "Async write completed, bytes written: " 
+
+  std::cout << "Async write completed, bytes written: "
             << write_task->bytes_written_ << std::endl;
   CHI_IPC->DelTask(write_task);
-  
+
   // Async read
-  auto read_task = bdev_client.AsyncRead(HSHM_MCTX, block);
+  hipc::Pointer read_ptr = ipc_manager->AllocateBuffer(data_size);
+  auto read_task = bdev_client.AsyncRead(HSHM_MCTX, pool_query, blocks[0], read_ptr, data_size);
   read_task->Wait();
-  
-  std::cout << "Async read completed, bytes read: " 
+
+  std::cout << "Async read completed, bytes read: "
             << read_task->bytes_read_ << std::endl;
   CHI_IPC->DelTask(read_task);
-  
-  // Free block
-  bdev_client.Free(HSHM_MCTX, block);
+
+  // Free blocks
+  bdev_client.FreeBlocks(HSHM_MCTX, pool_query, blocks);
+
+  // Clean up buffers
+  ipc_manager->FreeBuffer(write_ptr);
+  ipc_manager->FreeBuffer(read_ptr);
 }
 ```
 
@@ -618,20 +715,33 @@ if (alloc_task->result_code_ == 0) {
 const std::vector<chi::u64> block_sizes = {4096, 65536, 262144, 1048576};
 const size_t num_operations = 1000;
 
+auto* ipc_manager = CHI_IPC;
+auto pool_query = chi::PoolQuery::Local();
+
 for (chi::u64 block_size : block_sizes) {
   auto start_time = std::chrono::high_resolution_clock::now();
-  
+
   for (size_t i = 0; i < num_operations; ++i) {
-    Block block = bdev_client.Allocate(HSHM_MCTX, block_size);
-    
-    std::vector<hshm::u8> data(block_size, static_cast<hshm::u8>(i % 256));
-    bdev_client.Write(HSHM_MCTX, block, data);
-    
-    std::vector<hshm::u8> read_data = bdev_client.Read(HSHM_MCTX, block);
-    
-    bdev_client.Free(HSHM_MCTX, block);
+    auto blocks = bdev_client.AllocateBlocks(HSHM_MCTX, pool_query, block_size);
+
+    // Prepare data
+    hipc::Pointer write_ptr = ipc_manager->AllocateBuffer(block_size);
+    hipc::FullPtr<char> data(write_ptr);
+    memset(data.ptr_, static_cast<char>(i % 256), block_size);
+
+    bdev_client.Write(HSHM_MCTX, pool_query, blocks[0], write_ptr, block_size);
+
+    // Read data back
+    hipc::Pointer read_ptr = ipc_manager->AllocateBuffer(block_size);
+    bdev_client.Read(HSHM_MCTX, pool_query, blocks[0], read_ptr, block_size);
+
+    bdev_client.FreeBlocks(HSHM_MCTX, pool_query, blocks);
+
+    // Clean up buffers
+    ipc_manager->FreeBuffer(write_ptr);
+    ipc_manager->FreeBuffer(read_ptr);
   }
-  
+
   auto end_time = std::chrono::high_resolution_clock::now();
   auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
     end_time - start_time);
@@ -686,18 +796,20 @@ All synchronous methods may encounter errors during block device operations. Che
 
 ```cpp
 try {
-  Block block = bdev_client.Allocate(HSHM_MCTX, 1024 * 1024);
-  // Use block...
+  auto pool_query = chi::PoolQuery::Local();
+  auto blocks = bdev_client.AllocateBlocks(HSHM_MCTX, pool_query, 1024 * 1024);
+  // Use blocks...
 } catch (const std::runtime_error& e) {
   std::cerr << "Block allocation failed: " << e.what() << std::endl;
 }
 
-// For asynchronous operations, check result_code_
-auto task = bdev_client.AsyncAllocate(HSHM_MCTX, 65536);
+// For asynchronous operations, check return_code_
+auto pool_query = chi::PoolQuery::Local();
+auto task = bdev_client.AsyncAllocateBlocks(HSHM_MCTX, pool_query, 65536);
 task->Wait();
 
-if (task->result_code_ != 0) {
-  std::cerr << "Async allocation failed with code: " << task->result_code_ << std::endl;
+if (task->return_code_ != 0) {
+  std::cerr << "Async allocation failed with code: " << task->return_code_ << std::endl;
 }
 
 CHI_IPC->DelTask(task);
