@@ -21,6 +21,19 @@ class CoMutex {
 public:
   CoMutex() : is_locked_(false) {}
 
+  // Non-copyable (atomics can't be copied)
+  CoMutex(const CoMutex&) = delete;
+  CoMutex& operator=(const CoMutex&) = delete;
+
+  // Movable (for use in vectors)
+  CoMutex(CoMutex&& other) noexcept : is_locked_(other.is_locked_.load()) {}
+  CoMutex& operator=(CoMutex&& other) noexcept {
+    if (this != &other) {
+      is_locked_.store(other.is_locked_.load());
+    }
+    return *this;
+  }
+
   /**
    * Acquire the mutex for the current task (retrieved from CHI_CUR_WORKER)
    * If the mutex is free, acquires it

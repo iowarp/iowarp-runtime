@@ -6,7 +6,8 @@
 #include <chimaera/chimaera.h>
 #include <chimaera/container.h>
 #include <chimaera/pool_manager.h>
-#include <unordered_map>
+#include <chimaera/comutex.h>
+#include <chimaera/unordered_map_ll.h>
 #include <vector>
 
 namespace chimaera::admin {
@@ -49,8 +50,15 @@ private:
   Client client_;
 
   // Network task tracking maps (keyed by net_key for efficient lookup)
-  std::unordered_map<size_t, hipc::FullPtr<chi::Task>> send_map_;  // Tasks sent to remote nodes
-  std::unordered_map<size_t, hipc::FullPtr<chi::Task>> recv_map_;  // Tasks received from remote nodes
+  // Using lock-free unordered_map_ll with 1024 buckets for high concurrency
+  static constexpr size_t kNumMapBuckets = 1024;
+  chi::unordered_map_ll<size_t, hipc::FullPtr<chi::Task>> send_map_;  // Tasks sent to remote nodes
+  chi::unordered_map_ll<size_t, hipc::FullPtr<chi::Task>> recv_map_;  // Tasks received from remote nodes
+
+  // CoMutex vector for synchronizing map access (one per worker thread)
+  // Mutable to allow locking in const methods like GetWorkRemaining()
+  mutable std::vector<chi::CoMutex> send_map_locks_;
+  mutable std::vector<chi::CoMutex> recv_map_locks_;
 
 public:
   /**

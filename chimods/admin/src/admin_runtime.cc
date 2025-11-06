@@ -306,7 +306,11 @@ void Runtime::SendIn(hipc::FullPtr<SendTask> task, chi::RunContext &rctx) {
   size_t send_map_key = size_t(origin_task.ptr_);
 
   // Add the origin task to send_map before creating copies
-  send_map_[send_map_key] = origin_task;
+  {
+    size_t lock_index = send_map_key % send_map_locks_.size();
+    chi::ScopedCoMutex lock(send_map_locks_[lock_index]);
+    send_map_[send_map_key] = origin_task;
+  }
   HILOG(kDebug, "[SendIn] Added origin task {} to send_map with net_key {}",
         origin_task->task_id_, send_map_key);
 
@@ -447,16 +451,20 @@ void Runtime::SendOut(hipc::FullPtr<SendTask> task) {
   size_t net_key = origin_task->task_id_.net_key_;
   HILOG(kDebug, "[SendOut] Removing task {} from recv_map with net_key {}",
         origin_task->task_id_, net_key);
-  auto it = recv_map_.find(net_key);
-  if (it == recv_map_.end()) {
-    HELOG(kError,
-          "[SendOut] Task {} FAILED: Not found in recv_map (size: {}) with "
-          "net_key {}",
-          origin_task->task_id_, recv_map_.size(), net_key);
-    task->SetReturnCode(3);
-    return;
+  {
+    size_t lock_index = net_key % recv_map_locks_.size();
+    chi::ScopedCoMutex lock(recv_map_locks_[lock_index]);
+    auto it = recv_map_.find(net_key);
+    if (it == nullptr) {
+      HELOG(kError,
+            "[SendOut] Task {} FAILED: Not found in recv_map (size: {}) with "
+            "net_key {}",
+            origin_task->task_id_, recv_map_.size(), net_key);
+      task->SetReturnCode(3);
+      return;
+    }
+    recv_map_.erase(net_key);
   }
-  recv_map_.erase(it);
 
   // Send to each target in pool_queries
   for (size_t i = 0; i < task->pool_queries_.size(); ++i) {
@@ -596,7 +604,11 @@ void Runtime::RecvIn(hipc::FullPtr<RecvTask> task,
 
     // Add task to recv_map for later lookup (use net_key from task_id)
     size_t net_key = task_ptr->task_id_.net_key_;
-    recv_map_[net_key] = task_ptr;
+    {
+      size_t lock_index = net_key % recv_map_locks_.size();
+      chi::ScopedCoMutex lock(recv_map_locks_[lock_index]);
+      recv_map_[net_key] = task_ptr;
+    }
 
     HILOG(kDebug,
           "[RecvIn] Received task {} (pool: {}) with net_key {}, added to "
@@ -649,17 +661,21 @@ void Runtime::RecvOut(hipc::FullPtr<RecvTask> task,
           "[RecvOut] Looking up origin task for replica {} with net_key {}",
           task_info.task_id_, net_key);
 
-    auto send_it = send_map_.find(net_key);
-    if (send_it == send_map_.end()) {
-      HELOG(kError,
-            "[RecvOut] Task {} FAILED: Origin task not found in send_map "
-            "(size: {}) with net_key {}",
-            task_info.task_id_, send_map_.size(), net_key);
-      task->SetReturnCode(5);
-      return;
+    hipc::FullPtr<chi::Task> origin_task;
+    {
+      size_t lock_index = net_key % send_map_locks_.size();
+      chi::ScopedCoMutex lock(send_map_locks_[lock_index]);
+      auto send_it = send_map_.find(net_key);
+      if (send_it == nullptr) {
+        HELOG(kError,
+              "[RecvOut] Task {} FAILED: Origin task not found in send_map "
+              "(size: {}) with net_key {}",
+              task_info.task_id_, send_map_.size(), net_key);
+        task->SetReturnCode(5);
+        return;
+      }
+      origin_task = *send_it;
     }
-
-    hipc::FullPtr<chi::Task> origin_task = send_it->second;
     HILOG(kDebug, "[RecvOut] Found origin task {} for replica {}",
           origin_task->task_id_, task_info.task_id_);
     chi::RunContext *origin_rctx = origin_task->run_ctx_;
@@ -707,14 +723,18 @@ void Runtime::RecvOut(hipc::FullPtr<RecvTask> task,
 
     // Locate origin task from send_map using net_key
     size_t net_key = task_info.task_id_.net_key_;
-    auto send_it = send_map_.find(net_key);
-    if (send_it == send_map_.end()) {
-      HELOG(kError, "Admin: Origin task not found in send_map with net_key {}",
-            net_key);
-      continue;
+    hipc::FullPtr<chi::Task> origin_task;
+    {
+      size_t lock_index = net_key % send_map_locks_.size();
+      chi::ScopedCoMutex lock(send_map_locks_[lock_index]);
+      auto send_it = send_map_.find(net_key);
+      if (send_it == nullptr) {
+        HELOG(kError, "Admin: Origin task not found in send_map with net_key {}",
+              net_key);
+        continue;
+      }
+      origin_task = *send_it;
     }
-
-    hipc::FullPtr<chi::Task> origin_task = send_it->second;
     chi::RunContext *origin_rctx = origin_task->run_ctx_;
 
     // Locate replica in origin's run_ctx using replica_id
@@ -768,7 +788,11 @@ void Runtime::RecvOut(hipc::FullPtr<RecvTask> task,
       origin_rctx->subtasks_.clear();
 
       // Remove origin from send_map
-      send_map_.erase(send_it);
+      {
+        size_t lock_index = net_key % send_map_locks_.size();
+        chi::ScopedCoMutex lock(send_map_locks_[lock_index]);
+        send_map_.erase(net_key);
+      }
 
       // Handle task completion based on whether it's periodic
       if (origin_task->IsPeriodic()) {
@@ -844,7 +868,31 @@ void Runtime::Recv(hipc::FullPtr<RecvTask> task, chi::RunContext &rctx) {
 }
 
 chi::u64 Runtime::GetWorkRemaining() const {
-  return send_map_.size() + recv_map_.size();
+  // Lock all map locks to get consistent size snapshot
+  // We need to lock all locks because size() needs to scan all buckets
+
+  // Lock all send_map locks
+  for (size_t i = 0; i < send_map_locks_.size(); ++i) {
+    const_cast<chi::CoMutex&>(send_map_locks_[i]).Lock();
+  }
+
+  // Lock all recv_map locks
+  for (size_t i = 0; i < recv_map_locks_.size(); ++i) {
+    const_cast<chi::CoMutex&>(recv_map_locks_[i]).Lock();
+  }
+
+  chi::u64 result = send_map_.size() + recv_map_.size();
+
+  // Unlock all locks in reverse order
+  for (size_t i = recv_map_locks_.size(); i > 0; --i) {
+    const_cast<chi::CoMutex&>(recv_map_locks_[i - 1]).Unlock();
+  }
+
+  for (size_t i = send_map_locks_.size(); i > 0; --i) {
+    const_cast<chi::CoMutex&>(send_map_locks_[i - 1]).Unlock();
+  }
+
+  return result;
 }
 
 //===========================================================================
