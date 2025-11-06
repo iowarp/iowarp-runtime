@@ -698,10 +698,11 @@ bool IpcManager::TryStartMainServer(const std::string &hostname) {
 
   } catch (const std::exception &e) {
     // Exception will be caught and handled by caller
-    throw;
+    HELOG(kFatal, "Failed to start main server: {}", e.what());
   } catch (...) {
-    throw std::runtime_error("Unknown error starting main server");
+    HELOG(kFatal, "Failed to start main server: Unknown error");
   }
+  return false;
 }
 
 hshm::lbm::Server *IpcManager::GetMainServer() const {
