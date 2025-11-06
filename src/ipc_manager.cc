@@ -617,7 +617,7 @@ bool IpcManager::IdentifyThisHost() {
     }
   }
 
-  HELOG(kError, "ERROR: Could not start TCP server on any host from hostfile");
+  HELOG(kFatal, "ERROR: Could not start TCP server on any host from hostfile");
   return false;
 }
 
@@ -696,11 +696,7 @@ bool IpcManager::TryStartMainServer(const std::string &hostname) {
     HILOG(kDebug, "Main server successfully bound to {}:{}", hostname, port);
     return true;
 
-  } catch (const std::exception &e) {
-    // Exception will be caught and handled by caller
-    HELOG(kFatal, "Failed to start main server: {}", e.what());
-  } catch (...) {
-    HELOG(kFatal, "Failed to start main server: Unknown error");
+  } catch (...) { 
   }
   return false;
 }
