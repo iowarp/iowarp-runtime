@@ -86,16 +86,17 @@ class WrpRuntime(Service):
                 'default': 10000
             },
             {
+                'name': 'lane_map_policy',
+                'msg': 'Lane mapping policy',
+                'type': str,
+                'choices': ['map_by_pid_tid', 'round_robin', 'random'],
+                'default': 'round_robin'
+            },
+            {
                 'name': 'heartbeat_interval',
                 'msg': 'Runtime heartbeat interval (milliseconds)',
                 'type': int,
                 'default': 1000
-            },
-            {
-                'name': 'task_timeout',
-                'msg': 'Task timeout (milliseconds)',
-                'type': int,
-                'default': 30000
             }
         ]
 
@@ -141,13 +142,11 @@ class WrpRuntime(Service):
                 'level': self.config['log_level'],
                 'file': f"{self.shared_dir}/chimaera.log"
             },
-            'performance': {
-                'stack_size': self.config['stack_size'],
-                'queue_depth': self.config['queue_depth']
-            },
             'runtime': {
-                'heartbeat_interval': self.config['heartbeat_interval'],
-                'task_timeout': self.config['task_timeout']
+                'stack_size': self.config['stack_size'],
+                'queue_depth': self.config['queue_depth'],
+                'lane_map_policy': self.config['lane_map_policy'],
+                'heartbeat_interval': self.config['heartbeat_interval']
             }
         }
 

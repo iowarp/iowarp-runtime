@@ -243,9 +243,9 @@ struct AddressHash {
 
 // Thread types for work orchestrator
 enum ThreadType {
-  kSchedWorker =
-      0, ///< Unified scheduler worker (replaces separate latency types)
-  kProcessReaper = 1 ///< Process reaper thread
+  kSchedWorker = 0,    ///< Scheduler worker for fast tasks (EstCpuTime < 50us)
+  kSlow = 1,           ///< Slow worker for long-running tasks (EstCpuTime >= 50us)
+  kProcessReaper = 2   ///< Process reaper thread
 };
 
 // Lane mapping policies for task distribution

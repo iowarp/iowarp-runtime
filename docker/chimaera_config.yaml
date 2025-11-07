@@ -22,13 +22,9 @@ logging:
   level: "info"              # Options: debug, info, warn, error
   file: "/tmp/chimaera.log"  # Log file path
 
-# Performance tuning
-performance:
+# Runtime configuration
+runtime:
   stack_size: 65536          # 64KB per task stack
   queue_depth: 10000         # Maximum queue depth
   lane_map_policy: "round_robin"  # Options: map_by_pid_tid, round_robin (default), random
-
-# Runtime configuration
-runtime:
   heartbeat_interval: 1000   # Heartbeat interval in milliseconds
-  task_timeout: 30000        # Task timeout in milliseconds

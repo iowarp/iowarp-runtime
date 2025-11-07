@@ -11,7 +11,8 @@ namespace chi {
  * Configuration manager singleton
  *
  * Inherits from hshm BaseConfig and manages YAML configuration parsing.
- * Reads configuration from CHI_SERVER_CONF environment variable.
+ * Reads configuration from CHI_SERVER_CONF or WRP_RUNTIME_CONF environment variables.
+ * CHI_SERVER_CONF is checked first; WRP_RUNTIME_CONF is used as fallback.
  * Uses HSHM global cross pointer variable singleton pattern.
  */
 class ConfigManager : public hshm::BaseConfig {
@@ -46,7 +47,8 @@ class ConfigManager : public hshm::BaseConfig {
 
   /**
    * Get server configuration file path from environment
-   * @return Configuration file path or empty string if not set
+   * Checks CHI_SERVER_CONF first, then falls back to WRP_RUNTIME_CONF
+   * @return Configuration file path or empty string if neither is set
    */
   std::string GetServerConfigPath() const;
 
@@ -56,6 +58,18 @@ class ConfigManager : public hshm::BaseConfig {
    * @return Number of threads to spawn
    */
   u32 GetWorkerThreadCount(ThreadType thread_type) const;
+
+  /**
+   * Get number of scheduler worker threads
+   * @return Number of scheduler worker threads
+   */
+  u32 GetSchedulerWorkerCount() const { return sched_workers_; }
+
+  /**
+   * Get number of slow worker threads
+   * @return Number of slow worker threads
+   */
+  u32 GetSlowWorkerCount() const { return slow_threads_; }
 
   /**
    * Get memory segment size
@@ -116,7 +130,8 @@ class ConfigManager : public hshm::BaseConfig {
   std::string config_file_path_;
 
   // Configuration parameters
-  u32 sched_workers_ = 8;
+  u32 sched_workers_ = 4;
+  u32 slow_threads_ = 4;
   u32 process_reaper_workers_ = 1;
 
   size_t main_segment_size_ = hshm::Unit<size_t>::Gigabytes(1);

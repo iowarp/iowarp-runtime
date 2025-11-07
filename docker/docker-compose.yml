@@ -12,39 +12,14 @@ services:
     ports:
       - "5555:5555"
     environment:
-      # Worker configuration
-      - CHI_SCHED_WORKERS=8
-      - CHI_PROCESS_REAPER_THREADS=1
-
-      # Memory configuration (in bytes)
-      - CHI_MAIN_SEGMENT_SIZE=1073741824      # 1GB
-      - CHI_CLIENT_DATA_SEGMENT_SIZE=536870912 # 512MB
-      - CHI_RUNTIME_DATA_SEGMENT_SIZE=536870912 # 512MB
-
-      # Network configuration
-      - CHI_ZMQ_PORT=5555
-      - CHI_NEIGHBORHOOD_SIZE=32
-
-      # Logging configuration
-      - CHI_LOG_LEVEL=info
-      - CHI_LOG_FILE=/tmp/chimaera.log
-
-      # Performance tuning
-      - CHI_STACK_SIZE=65536
-      - CHI_QUEUE_DEPTH=10000
-      - CHI_LANE_MAP_POLICY=round_robin
-
-      # Runtime configuration
-      - CHI_HEARTBEAT_INTERVAL=1000
-      - CHI_TASK_TIMEOUT=30000
-
-      # Hostfile for cluster nodes
-      - CHI_HOSTFILE=/etc/chimaera/hostfile
+      # WRP_RUNTIME_CONF is set to /etc/wrp_runtime/wrp_runtime_config.yaml by default
+      # Override with CHI_SERVER_CONF to use a different configuration file
+      # - CHI_SERVER_CONF=/etc/wrp_runtime/custom_config.yaml
     volumes:
       # Mount hostfile for cluster configuration
       - ./hostfile:/etc/chimaera/hostfile:ro
-      # Optional: mount custom configuration
-      # - ./chimaera_config.yaml:/etc/chimaera/chimaera_config.yaml:ro
+      # Optional: mount custom configuration (will override default)
+      # - ./chimaera_config.yaml:/etc/wrp_runtime/wrp_runtime_config.yaml:ro
       # Optional: mount log directory
       - chimaera-logs-node1:/tmp
     shm_size: 2gb  # Must be >= sum of all segment sizes
@@ -61,23 +36,13 @@ services:
     ports:
       - "5556:5555"
     environment:
-      - CHI_SCHED_WORKERS=8
-      - CHI_PROCESS_REAPER_THREADS=1
-      - CHI_MAIN_SEGMENT_SIZE=1073741824
-      - CHI_CLIENT_DATA_SEGMENT_SIZE=536870912
-      - CHI_RUNTIME_DATA_SEGMENT_SIZE=536870912
-      - CHI_ZMQ_PORT=5555
-      - CHI_NEIGHBORHOOD_SIZE=32
-      - CHI_LOG_LEVEL=info
-      - CHI_LOG_FILE=/tmp/chimaera.log
-      - CHI_STACK_SIZE=65536
-      - CHI_QUEUE_DEPTH=10000
-      - CHI_LANE_MAP_POLICY=round_robin
-      - CHI_HEARTBEAT_INTERVAL=1000
-      - CHI_TASK_TIMEOUT=30000
-      - CHI_HOSTFILE=/etc/chimaera/hostfile
+      # WRP_RUNTIME_CONF is set to /etc/wrp_runtime/wrp_runtime_config.yaml by default
+      # Override with CHI_SERVER_CONF to use a different configuration file
+      # - CHI_SERVER_CONF=/etc/wrp_runtime/custom_config.yaml
     volumes:
       - ./hostfile:/etc/chimaera/hostfile:ro
+      # Optional: mount custom configuration (will override default)
+      # - ./chimaera_config.yaml:/etc/wrp_runtime/wrp_runtime_config.yaml:ro
       - chimaera-logs-node2:/tmp
     shm_size: 2gb
     restart: unless-stopped
@@ -93,23 +58,13 @@ services:
     ports:
       - "5557:5555"
     environment:
-      - CHI_SCHED_WORKERS=8
-      - CHI_PROCESS_REAPER_THREADS=1
-      - CHI_MAIN_SEGMENT_SIZE=1073741824
-      - CHI_CLIENT_DATA_SEGMENT_SIZE=536870912
-      - CHI_RUNTIME_DATA_SEGMENT_SIZE=536870912
-      - CHI_ZMQ_PORT=5555
-      - CHI_NEIGHBORHOOD_SIZE=32
-      - CHI_LOG_LEVEL=info
-      - CHI_LOG_FILE=/tmp/chimaera.log
-      - CHI_STACK_SIZE=65536
-      - CHI_QUEUE_DEPTH=10000
-      - CHI_LANE_MAP_POLICY=round_robin
-      - CHI_HEARTBEAT_INTERVAL=1000
-      - CHI_TASK_TIMEOUT=30000
-      - CHI_HOSTFILE=/etc/chimaera/hostfile
+      # WRP_RUNTIME_CONF is set to /etc/wrp_runtime/wrp_runtime_config.yaml by default
+      # Override with CHI_SERVER_CONF to use a different configuration file
+      # - CHI_SERVER_CONF=/etc/wrp_runtime/custom_config.yaml
     volumes:
       - ./hostfile:/etc/chimaera/hostfile:ro
+      # Optional: mount custom configuration (will override default)
+      # - ./chimaera_config.yaml:/etc/wrp_runtime/wrp_runtime_config.yaml:ro
       - chimaera-logs-node3:/tmp
     shm_size: 2gb
     restart: unless-stopped

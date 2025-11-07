@@ -25,9 +25,9 @@ namespace chi {
 // Stack detection is now handled by WorkOrchestrator during initialization
 
 Worker::Worker(u32 worker_id, ThreadType thread_type)
-    : worker_id_(worker_id), thread_type_(thread_type), is_running_(false),
-      is_initialized_(false), did_work_(false), current_run_context_(nullptr),
-      assigned_lane_(nullptr),
+    : worker_id_(worker_id), thread_type_(thread_type),
+      is_running_(false), is_initialized_(false), did_work_(false),
+      current_run_context_(nullptr), assigned_lane_(nullptr),
       stack_cache_(64), // Initial capacity for stack cache (64 entries)
       last_long_queue_check_(0) {
   // Initialize all blocked queues with capacity 1024
@@ -331,6 +331,21 @@ bool Worker::IsTaskLocal(const FullPtr<Task> &task_ptr,
 
 bool Worker::RouteLocal(const FullPtr<Task> &task_ptr, TaskLane *lane,
                         Container *&container) {
+  // Check task execution time estimate
+  // Tasks with EstCpuTime >= 50us are considered slow
+  size_t est_cpu_time = task_ptr->EstCpuTime();
+
+  // Route slow tasks to kSlow workers if we're not already a slow worker
+//   if ((est_cpu_time >= 50 || task_ptr->stat_.io_size_ > 0) &&
+//       thread_type_ != kSlow) {
+//     // This is a slow task and we're a fast worker - route to slow workers
+//     auto *work_orchestrator = CHI_WORK_ORCHESTRATOR;
+//     work_orchestrator->AssignToWorkerType(kSlow, task_ptr);
+//     return false;  // Task routed to slow workers, don't execute here
+//   }
+
+  // Fast tasks (< 50us) stay on any worker, slow tasks stay on kSlow workers
+  // Get the container for execution
   auto *pool_manager = CHI_POOL_MANAGER;
   container = pool_manager->GetContainer(task_ptr->pool_id_);
   if (!container) {

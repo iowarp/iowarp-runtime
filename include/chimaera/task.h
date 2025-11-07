@@ -25,6 +25,15 @@ class Task;
 class Container;
 struct RunContext;
 
+/**
+ * Task statistics for I/O and compute time tracking
+ * Used to route tasks to appropriate worker groups
+ */
+struct TaskStat {
+  size_t io_size_{0};    /**< I/O size in bytes */
+  size_t compute_{0};    /**< Normalized compute time in microseconds */
+};
+
 // Define macros for container template
 #define CLASS_NAME Task
 #define CLASS_NEW_ARGS
@@ -49,6 +58,7 @@ public:
                                    (0=not complete, 1=complete) */
   std::atomic<u32>
       return_code_; /**< Task return code (0=success, non-zero=error) */
+  TaskStat stat_;   /**< Task statistics for I/O and compute tracking */
 
   /**
    * SHM default constructor
@@ -98,6 +108,7 @@ public:
     period_ns_ = other.period_ns_;
     run_ctx_ = other.run_ctx_;
     return_code_.store(other.return_code_.load());
+    stat_ = other.stat_;
     // Explicitly initialize as not complete for copied tasks
     is_complete_.store(0);
   }
@@ -115,6 +126,7 @@ public:
     period_ns_ = other->period_ns_;
     run_ctx_ = other->run_ctx_;
     return_code_.store(other->return_code_.load());
+    stat_ = other->stat_;
     // Explicitly initialize as not complete for copied tasks
     is_complete_.store(0);
   }
@@ -157,6 +169,8 @@ public:
     run_ctx_ = nullptr;
     is_complete_.store(0); // Initialize as not complete
     return_code_.store(0); // Initialize as success
+    stat_.io_size_ = 0;
+    stat_.compute_ = 0;
   }
 
   /**
@@ -382,6 +396,13 @@ public:
    * @param replica_task The replica task to aggregate from
    */
   HSHM_CROSS_FUN void Aggregate(const hipc::FullPtr<Task> &replica_task);
+
+  /**
+   * Estimate CPU time for this task based on I/O size and compute time
+   * Formula: (io_size / 4GBps) + compute + 5us
+   * @return Estimated CPU time in microseconds
+   */
+  HSHM_CROSS_FUN size_t EstCpuTime() const;
 };
 
 /**

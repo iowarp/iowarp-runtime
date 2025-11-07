@@ -275,6 +275,9 @@ void Runtime::Flush(hipc::FullPtr<FlushTask> task, chi::RunContext &rctx) {
  * @param rctx RunContext for managing subtasks
  */
 void Runtime::SendIn(hipc::FullPtr<SendTask> task, chi::RunContext &rctx) {
+  // Set I/O size to 1MB to ensure routing to slow workers
+  task->stat_.io_size_ = 1024 * 1024;  // 1MB
+
   auto *ipc_manager = CHI_IPC;
   auto *pool_manager = CHI_POOL_MANAGER;
 
@@ -419,6 +422,9 @@ void Runtime::SendIn(hipc::FullPtr<SendTask> task, chi::RunContext &rctx) {
  * @param task SendTask containing origin_task
  */
 void Runtime::SendOut(hipc::FullPtr<SendTask> task) {
+  // Set I/O size to 1MB to ensure routing to slow workers
+  task->stat_.io_size_ = 1024 * 1024;  // 1MB
+
   auto *ipc_manager = CHI_IPC;
   auto *pool_manager = CHI_POOL_MANAGER;
 
@@ -543,6 +549,9 @@ void Runtime::Send(hipc::FullPtr<SendTask> task, chi::RunContext &rctx) {
 void Runtime::RecvIn(hipc::FullPtr<RecvTask> task,
                      chi::LoadTaskArchive &archive,
                      hshm::lbm::Server *lbm_server) {
+  // Set I/O size to 1MB to ensure routing to slow workers
+  task->stat_.io_size_ = 1024 * 1024;  // 1MB
+
   auto *ipc_manager = CHI_IPC;
   auto *pool_manager = CHI_POOL_MANAGER;
 
@@ -634,6 +643,9 @@ void Runtime::RecvIn(hipc::FullPtr<RecvTask> task,
 void Runtime::RecvOut(hipc::FullPtr<RecvTask> task,
                       chi::LoadTaskArchive &archive,
                       hshm::lbm::Server *lbm_server) {
+  // Set I/O size to 1MB to ensure routing to slow workers
+  task->stat_.io_size_ = 1024 * 1024;  // 1MB
+
   auto *pool_manager = CHI_POOL_MANAGER;
 
   // Log host information at method entry

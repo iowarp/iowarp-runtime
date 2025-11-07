@@ -25,9 +25,9 @@ pkgs:
     # Logging
     log_level: "info"
 
-    # Performance tuning
+    # Runtime configuration
     stack_size: 65536
     queue_depth: 10000
+    lane_map_policy: "round_robin"
     heartbeat_interval: 1000
-    task_timeout: 30000
     sleep: 1

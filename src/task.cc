@@ -4,6 +4,8 @@
 
 #include "chimaera/task.h"
 
+#include <algorithm>
+
 #include "chimaera/container.h"
 #include "chimaera/singletons.h"
 #include "chimaera/worker.h"
@@ -53,10 +55,11 @@ void Task::Wait(double block_time_us, bool from_yield) {
     // Determine blocking duration
     double actual_block_time_us = block_time_us;
 
-    // If block_time_us is 0, use default estimate
-    // Monitor functions have been removed - estimate 1ms per waiting subtask
+    // If block_time_us is 0, use default estimate based on EstCpuTime()
+    // Cap at 50 microseconds to avoid over-estimating
     if (block_time_us == 0.0) {
-      actual_block_time_us = run_ctx->waiting_for_tasks.size() * 1000.0;
+      size_t est_cpu_time = EstCpuTime();
+      actual_block_time_us = std::min(static_cast<size_t>(15), est_cpu_time);
     }
 
     // Store blocking duration in RunContext
@@ -133,6 +136,14 @@ void Task::Aggregate(const hipc::FullPtr<Task> &replica_task) {
   if (!replica_task.IsNull() && replica_task->GetReturnCode() != 0) {
     SetReturnCode(replica_task->GetReturnCode());
   }
+}
+
+size_t Task::EstCpuTime() const {
+  // Calculate: io_size / 4GBps + compute + 5
+  // 4 GBps = 4 * 1024 * 1024 * 1024 bytes/second = 4294967296 bytes/second
+  // Convert to microseconds: (io_size / 4294967296) * 1000000
+  size_t io_time_us = (stat_.io_size_ * 1000000) / 4294967296ULL;
+  return io_time_us + stat_.compute_ + 5;
 }
 
 } // namespace chi

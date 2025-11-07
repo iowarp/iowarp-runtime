@@ -241,6 +241,9 @@ void Runtime::FreeBlocks(hipc::FullPtr<FreeBlocksTask> task,
 }
 
 void Runtime::Write(hipc::FullPtr<WriteTask> task, chi::RunContext& ctx) {
+  // Set I/O size in task stat for routing decisions
+  task->stat_.io_size_ = task->length_;
+
   switch (bdev_type_) {
     case BdevType::kFile:
       WriteToFile(task);
@@ -256,6 +259,9 @@ void Runtime::Write(hipc::FullPtr<WriteTask> task, chi::RunContext& ctx) {
 }
 
 void Runtime::Read(hipc::FullPtr<ReadTask> task, chi::RunContext& ctx) {
+  // Set I/O size in task stat for routing decisions
+  task->stat_.io_size_ = task->length_;
+
   switch (bdev_type_) {
     case BdevType::kFile:
       ReadFromFile(task);

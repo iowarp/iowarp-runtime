@@ -120,6 +120,13 @@ class WorkOrchestrator {
    */
   bool HasWorkRemaining(u64& total_work_remaining) const;
 
+  /**
+   * Assign a task to a specific worker type using round-robin scheduling
+   * @param thread_type Worker type to assign the task to (kSchedWorker or kSlow)
+   * @param task_ptr Full pointer to task to assign to the worker type
+   */
+  void AssignToWorkerType(ThreadType thread_type, const FullPtr<Task>& task_ptr);
+
  private:
   /**
    * Spawn worker threads using HSHM thread model
@@ -134,6 +141,13 @@ class WorkOrchestrator {
    * @return true if creation successful, false otherwise
    */
   bool CreateWorkers(ThreadType thread_type, u32 count);
+
+  /**
+   * Create a single worker with specified type
+   * @param thread_type Type of worker to create
+   * @return true if creation successful, false otherwise
+   */
+  bool CreateWorker(ThreadType thread_type);
 
   /**
    * Initialize queue lane mappings
@@ -151,6 +165,10 @@ class WorkOrchestrator {
 
   // All workers for easy access
   std::vector<Worker*> all_workers_;
+
+  // Worker groups for task routing based on execution characteristics
+  std::vector<Worker*> scheduler_workers_; ///< Fast task workers (EstCpuTime < 50us)
+  std::vector<Worker*> slow_workers_;      ///< Slow task workers (EstCpuTime >= 50us)
 
   // Active lanes pointer to IPC Manager worker queues
   void* active_lanes_;

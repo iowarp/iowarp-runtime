@@ -50,8 +50,19 @@ bool ConfigManager::LoadYaml(const std::string &config_path) {
 }
 
 std::string ConfigManager::GetServerConfigPath() const {
-  const char *env_path = std::getenv("CHI_SERVER_CONF");
-  return env_path ? std::string(env_path) : std::string();
+  // Check CHI_SERVER_CONF first (primary)
+  const char *chi_env_path = std::getenv("CHI_SERVER_CONF");
+  if (chi_env_path) {
+    return std::string(chi_env_path);
+  }
+
+  // Fall back to WRP_RUNTIME_CONF (secondary)
+  const char *wrp_env_path = std::getenv("WRP_RUNTIME_CONF");
+  if (wrp_env_path) {
+    return std::string(wrp_env_path);
+  }
+
+  return std::string();
 }
 
 u32 ConfigManager::GetWorkerThreadCount(ThreadType thread_type) const {
@@ -121,7 +132,8 @@ LaneMapPolicy ConfigManager::GetLaneMapPolicy() const {
 
 void ConfigManager::LoadDefault() {
   // Set default configuration values
-  sched_workers_ = 8;
+  sched_workers_ = 4;
+  slow_threads_ = 4;
   process_reaper_workers_ = 1;
 
   main_segment_size_ = 1024 * 1024 * 1024;        // 1GB
@@ -149,6 +161,9 @@ void ConfigManager::ParseYAML(YAML::Node &yaml_conf) {
     auto workers = yaml_conf["workers"];
     if (workers["sched_threads"]) {
       sched_workers_ = workers["sched_threads"].as<u32>();
+    }
+    if (workers["slow_threads"]) {
+      slow_threads_ = workers["slow_threads"].as<u32>();
     }
     if (workers["process_reaper_threads"]) {
       process_reaper_workers_ = workers["process_reaper_threads"].as<u32>();
@@ -189,11 +204,11 @@ void ConfigManager::ParseYAML(YAML::Node &yaml_conf) {
   // Segment names are hardcoded and expanded in ipc_manager.cc
   // No configuration needed here
 
-  // Parse performance tuning configuration
-  if (yaml_conf["performance"]) {
-    auto perf = yaml_conf["performance"];
-    if (perf["lane_map_policy"]) {
-      std::string policy_str = perf["lane_map_policy"].as<std::string>();
+  // Parse runtime configuration (merged performance and runtime)
+  if (yaml_conf["runtime"]) {
+    auto runtime = yaml_conf["runtime"];
+    if (runtime["lane_map_policy"]) {
+      std::string policy_str = runtime["lane_map_policy"].as<std::string>();
       if (policy_str == "map_by_pid_tid") {
         lane_map_policy_ = LaneMapPolicy::kMapByPidTid;
       } else if (policy_str == "round_robin") {
@@ -204,6 +219,18 @@ void ConfigManager::ParseYAML(YAML::Node &yaml_conf) {
         HELOG(kWarning, "Unknown lane_map_policy '{}', using default (round_robin)", policy_str);
         lane_map_policy_ = LaneMapPolicy::kRoundRobin;
       }
+    }
+    if (runtime["stack_size"]) {
+      // Stack size parameter exists but is not currently used by the runtime
+      // Keeping for future use or backward compatibility
+    }
+    if (runtime["queue_depth"]) {
+      // Queue depth parameter exists but is not currently used by the runtime
+      // Keeping for future use or backward compatibility
+    }
+    if (runtime["heartbeat_interval"]) {
+      // Heartbeat interval parameter exists but is not currently used by the runtime
+      // Keeping for future use or backward compatibility
     }
   }
 }

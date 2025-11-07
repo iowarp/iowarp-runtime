@@ -27,3 +27,10 @@ EXPOSE 5555
 
 # Default command (can be overridden)
 CMD ["/bin/bash"]
+
+# Add iowarp-runtime to Spack configuration
+RUN echo "  iowarp-runtime:" >> ~/.spack/packages.yaml && \
+    echo "    externals:" >> ~/.spack/packages.yaml && \
+    echo "    - spec: iowarp-runtime@main" >> ~/.spack/packages.yaml && \
+    echo "      prefix: /usr/local" >> ~/.spack/packages.yaml && \
+    echo "    buildable: false" >> ~/.spack/packages.yaml

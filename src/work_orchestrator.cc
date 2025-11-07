@@ -157,19 +157,31 @@ bool WorkOrchestrator::Init() {
   }
 
   // Calculate total worker count from configuration
-  u32 total_workers = config->GetWorkerThreadCount(kSchedWorker) +
+  // Calculate total workers: scheduler + slow + process reaper
+  u32 sched_count = config->GetSchedulerWorkerCount();
+  u32 slow_count = config->GetSlowWorkerCount();
+  u32 total_workers = sched_count + slow_count +
                       config->GetWorkerThreadCount(kProcessReaper);
 
   if (!ipc->InitializeWorkerQueues(total_workers)) {
     return false;
   }
 
-  // Create workers based on configuration
-  if (!CreateWorkers(kSchedWorker,
-                     config->GetWorkerThreadCount(kSchedWorker))) {
-    return false;
+  // Create scheduler workers (fast tasks)
+  for (u32 i = 0; i < sched_count; ++i) {
+    if (!CreateWorker(kSchedWorker)) {
+      return false;
+    }
   }
 
+  // Create slow workers (long-running tasks)
+  for (u32 i = 0; i < slow_count; ++i) {
+    if (!CreateWorker(kSlow)) {
+      return false;
+    }
+  }
+
+  // Create process reaper workers
   if (!CreateWorkers(kProcessReaper,
                      config->GetWorkerThreadCount(kProcessReaper))) {
     return false;
@@ -362,26 +374,39 @@ bool WorkOrchestrator::SpawnWorkerThreads() {
   }
 }
 
+bool WorkOrchestrator::CreateWorker(ThreadType thread_type) {
+  u32 worker_id = static_cast<u32>(all_workers_.size());
+  auto worker = std::make_unique<Worker>(worker_id, thread_type);
+
+  if (!worker->Init()) {
+    return false;
+  }
+
+  Worker* worker_ptr = worker.get();
+  all_workers_.push_back(worker_ptr);
+
+  // Add to type-specific container
+  switch (thread_type) {
+    case kSchedWorker:
+      sched_workers_.push_back(std::move(worker));
+      scheduler_workers_.push_back(worker_ptr);
+      break;
+    case kSlow:
+      sched_workers_.push_back(std::move(worker));
+      slow_workers_.push_back(worker_ptr);
+      break;
+    case kProcessReaper:
+      process_reaper_workers_.push_back(std::move(worker));
+      break;
+  }
+
+  return true;
+}
+
 bool WorkOrchestrator::CreateWorkers(ThreadType thread_type, u32 count) {
   for (u32 i = 0; i < count; ++i) {
-    u32 worker_id = static_cast<u32>(all_workers_.size());
-    auto worker = std::make_unique<Worker>(worker_id, thread_type);
-
-    if (!worker->Init()) {
+    if (!CreateWorker(thread_type)) {
       return false;
-    }
-
-    Worker* worker_ptr = worker.get();
-    all_workers_.push_back(worker_ptr);
-
-    // Add to type-specific container
-    switch (thread_type) {
-      case kSchedWorker:
-        sched_workers_.push_back(std::move(worker));
-        break;
-      case kProcessReaper:
-        process_reaper_workers_.push_back(std::move(worker));
-        break;
     }
   }
 
@@ -426,6 +451,45 @@ bool WorkOrchestrator::HasWorkRemaining(u64& total_work_remaining) const {
   }
   
   return total_work_remaining > 0;
+}
+
+void WorkOrchestrator::AssignToWorkerType(ThreadType thread_type, const FullPtr<Task>& task_ptr) {
+  if (task_ptr.IsNull()) {
+    return;
+  }
+
+  // Select target worker vector based on thread type
+  std::vector<Worker*>* target_workers = nullptr;
+  if (thread_type == kSchedWorker) {
+    target_workers = &scheduler_workers_;
+  } else if (thread_type == kSlow) {
+    target_workers = &slow_workers_;
+  } else {
+    // Process reaper or other types - not supported for task routing
+    return;
+  }
+
+  if (target_workers->empty()) {
+    HILOG(kWarning, "AssignToWorkerType: No workers of type {}",
+          static_cast<int>(thread_type));
+    return;
+  }
+
+  // Round-robin assignment using static atomic counters
+  static std::atomic<size_t> scheduler_idx{0};
+  static std::atomic<size_t> slow_idx{0};
+
+  std::atomic<size_t>& idx = (thread_type == kSchedWorker) ? scheduler_idx : slow_idx;
+  size_t worker_idx = idx.fetch_add(1) % target_workers->size();
+  Worker* worker = (*target_workers)[worker_idx];
+
+  // Get the worker's assigned lane and emplace the task
+  TaskLane* lane = worker->GetLane();
+  if (lane) {
+    // Emplace the task using its shared memory pointer (offset-based)
+    // The lane expects TypedPointer<Task> which is the shm_ member of FullPtr
+    lane->emplace(task_ptr.shm_);
+  }
 }
 
 }  // namespace chi
