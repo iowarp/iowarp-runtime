@@ -1,0 +1,128 @@
+version: '3.8'
+
+services:
+  # Node 1 - Primary runtime node
+  chimaera-node1:
+    image: iowarp/iowarp-runtime:latest
+    container_name: chimaera-node1
+    hostname: chimaera-node1
+    networks:
+      chimaera-cluster:
+        ipv4_address: 172.20.0.10
+    ports:
+      - "5555:5555"
+    environment:
+      # Worker configuration
+      - CHI_SCHED_WORKERS=8
+      - CHI_PROCESS_REAPER_THREADS=1
+
+      # Memory configuration (in bytes)
+      - CHI_MAIN_SEGMENT_SIZE=1073741824      # 1GB
+      - CHI_CLIENT_DATA_SEGMENT_SIZE=536870912 # 512MB
+      - CHI_RUNTIME_DATA_SEGMENT_SIZE=536870912 # 512MB
+
+      # Network configuration
+      - CHI_ZMQ_PORT=5555
+      - CHI_NEIGHBORHOOD_SIZE=32
+
+      # Logging configuration
+      - CHI_LOG_LEVEL=info
+      - CHI_LOG_FILE=/tmp/chimaera.log
+
+      # Performance tuning
+      - CHI_STACK_SIZE=65536
+      - CHI_QUEUE_DEPTH=10000
+      - CHI_LANE_MAP_POLICY=round_robin
+
+      # Runtime configuration
+      - CHI_HEARTBEAT_INTERVAL=1000
+      - CHI_TASK_TIMEOUT=30000
+
+      # Hostfile for cluster nodes
+      - CHI_HOSTFILE=/etc/chimaera/hostfile
+    volumes:
+      # Mount hostfile for cluster configuration
+      - ./hostfile:/etc/chimaera/hostfile:ro
+      # Optional: mount custom configuration
+      # - ./chimaera_config.yaml:/etc/chimaera/chimaera_config.yaml:ro
+      # Optional: mount log directory
+      - chimaera-logs-node1:/tmp
+    shm_size: 2gb  # Must be >= sum of all segment sizes
+    restart: unless-stopped
+
+  # Node 2 - Secondary runtime node
+  chimaera-node2:
+    image: iowarp/iowarp-runtime:latest
+    container_name: chimaera-node2
+    hostname: chimaera-node2
+    networks:
+      chimaera-cluster:
+        ipv4_address: 172.20.0.11
+    ports:
+      - "5556:5555"
+    environment:
+      - CHI_SCHED_WORKERS=8
+      - CHI_PROCESS_REAPER_THREADS=1
+      - CHI_MAIN_SEGMENT_SIZE=1073741824
+      - CHI_CLIENT_DATA_SEGMENT_SIZE=536870912
+      - CHI_RUNTIME_DATA_SEGMENT_SIZE=536870912
+      - CHI_ZMQ_PORT=5555
+      - CHI_NEIGHBORHOOD_SIZE=32
+      - CHI_LOG_LEVEL=info
+      - CHI_LOG_FILE=/tmp/chimaera.log
+      - CHI_STACK_SIZE=65536
+      - CHI_QUEUE_DEPTH=10000
+      - CHI_LANE_MAP_POLICY=round_robin
+      - CHI_HEARTBEAT_INTERVAL=1000
+      - CHI_TASK_TIMEOUT=30000
+      - CHI_HOSTFILE=/etc/chimaera/hostfile
+    volumes:
+      - ./hostfile:/etc/chimaera/hostfile:ro
+      - chimaera-logs-node2:/tmp
+    shm_size: 2gb
+    restart: unless-stopped
+
+  # Node 3 - Tertiary runtime node
+  chimaera-node3:
+    image: iowarp/iowarp-runtime:latest
+    container_name: chimaera-node3
+    hostname: chimaera-node3
+    networks:
+      chimaera-cluster:
+        ipv4_address: 172.20.0.12
+    ports:
+      - "5557:5555"
+    environment:
+      - CHI_SCHED_WORKERS=8
+      - CHI_PROCESS_REAPER_THREADS=1
+      - CHI_MAIN_SEGMENT_SIZE=1073741824
+      - CHI_CLIENT_DATA_SEGMENT_SIZE=536870912
+      - CHI_RUNTIME_DATA_SEGMENT_SIZE=536870912
+      - CHI_ZMQ_PORT=5555
+      - CHI_NEIGHBORHOOD_SIZE=32
+      - CHI_LOG_LEVEL=info
+      - CHI_LOG_FILE=/tmp/chimaera.log
+      - CHI_STACK_SIZE=65536
+      - CHI_QUEUE_DEPTH=10000
+      - CHI_LANE_MAP_POLICY=round_robin
+      - CHI_HEARTBEAT_INTERVAL=1000
+      - CHI_TASK_TIMEOUT=30000
+      - CHI_HOSTFILE=/etc/chimaera/hostfile
+    volumes:
+      - ./hostfile:/etc/chimaera/hostfile:ro
+      - chimaera-logs-node3:/tmp
+    shm_size: 2gb
+    restart: unless-stopped
+
+networks:
+  chimaera-cluster:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  chimaera-logs-node1:
+  chimaera-logs-node2:
+  chimaera-logs-node3:

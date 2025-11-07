@@ -1,0 +1,27 @@
+# Development Dockerfile for IOWarp Runtime
+# Builds the Chimaera runtime in release mode
+FROM iowarp/cte-hermes-shm:latest
+
+# Install any additional build dependencies
+RUN apt-get update && apt-get install -y \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy source code
+COPY . /workspace
+
+WORKDIR /workspace
+
+# Configure with release preset and build
+RUN cmake --preset release && \
+    cmake --build build -j$(nproc) && \
+    cmake --install build --prefix /usr/local && \
+    rm -rf /workspace
+
+# Set default working directory
+WORKDIR /usr/local
+
+# Expose default ZeroMQ port
+EXPOSE 5555
+
+# Default command (can be overridden)
+CMD ["/bin/bash"]

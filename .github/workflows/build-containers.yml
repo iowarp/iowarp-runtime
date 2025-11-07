@@ -1,0 +1,80 @@
+name: Build IOWarp Runtime Containers
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'docker/**'
+      - 'chimods/**'
+      - 'src/**'
+      - 'include/**'
+      - 'CMakeLists.txt'
+      - '.github/workflows/build-containers.yml'
+
+jobs:
+  build-dev:
+    name: Build Development Container
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push dev container
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./docker/dev.Dockerfile
+          builder: ${{ steps.buildx.outputs.name }}
+          platforms: linux/amd64
+          push: true
+          tags: iowarp/iowarp-runtime-dev:latest
+          cache-from: type=registry,ref=iowarp/iowarp-runtime-dev:buildcache
+          cache-to: type=registry,ref=iowarp/iowarp-runtime-dev:buildcache,mode=max
+
+  build-deploy:
+    name: Build Deployment Container
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    needs: build-dev
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push deploy container
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./docker/deploy.Dockerfile
+          builder: ${{ steps.buildx.outputs.name }}
+          platforms: linux/amd64
+          push: true
+          tags: iowarp/iowarp-runtime:latest
+          cache-from: type=registry,ref=iowarp/iowarp-runtime:buildcache
+          cache-to: type=registry,ref=iowarp/iowarp-runtime:buildcache,mode=max
