@@ -2,16 +2,6 @@ name: Build IOWarp Runtime Containers
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-    paths:
-      - 'docker/**'
-      - 'chimods/**'
-      - 'src/**'
-      - 'include/**'
-      - 'CMakeLists.txt'
-      - '.github/workflows/build-containers.yml'
 
 jobs:
   build-build:
