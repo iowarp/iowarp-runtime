@@ -9,4 +9,4 @@ PROJECT_ROOT="$( cd "${SCRIPT_DIR}/.." && pwd )"
 echo $PROJECT_ROOT
 echo $SCRIPT_DIR
 # Build the Docker image
-docker build  --no-cache -t iowarp/iowarp-runtime-dev:latest -f "${SCRIPT_DIR}/local.Dockerfile" "${PROJECT_ROOT}"
+docker build  --no-cache -t iowarp/iowarp-runtime-build:latest -f "${SCRIPT_DIR}/local.Dockerfile" "${PROJECT_ROOT}"
