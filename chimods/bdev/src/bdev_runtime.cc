@@ -59,9 +59,6 @@ void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& ctx) {
         static_cast<chi::u32>(params.bdev_type_), pool_name, params.total_size_,
         params.io_depth_, params.alignment_);
 
-  // Initialize the container with pool information
-  chi::Container::Init(task->pool_id_, task->pool_name_.str());
-
   // Store backend type
   bdev_type_ = params.bdev_type_;
 
@@ -120,7 +117,6 @@ void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& ctx) {
     }
 
     // Initialize RAM buffer to zero
-    memset(ram_buffer_, 0, ram_size_);
     file_size_ = ram_size_;  // Use file_size_ for common allocation logic
   }
 
