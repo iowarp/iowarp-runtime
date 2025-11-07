@@ -1,6 +1,6 @@
 # Development Dockerfile for IOWarp Runtime
 # Builds the Chimaera runtime in release mode
-FROM iowarp/cte-hermes-shm:latest
+FROM iowarp/cte-hermes-shm-build:latest
 
 # Install any additional build dependencies
 RUN apt-get update && apt-get install -y \

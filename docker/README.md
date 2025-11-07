@@ -4,8 +4,8 @@ This directory contains Docker configurations for building and deploying the IOW
 
 ## Container Images
 
-### Development Container (iowarp/iowarp-runtime-dev:latest)
-- **Dockerfile**: `dev.Dockerfile`
+### Build Container (iowarp/iowarp-runtime-build:latest)
+- **Dockerfile**: `build.Dockerfile`
 - **Purpose**: Builds Chimaera runtime in release mode
 - **Base Image**: `iowarp/cte-hermes-shm:latest`
 - **Build Process**: Compiles source using CMake release preset
@@ -14,7 +14,7 @@ This directory contains Docker configurations for building and deploying the IOW
 ### Deployment Container (iowarp/iowarp-runtime:latest)
 - **Dockerfile**: `deploy.Dockerfile`
 - **Purpose**: Production runtime container
-- **Base Image**: `iowarp/iowarp-runtime-dev:latest`
+- **Base Image**: `iowarp/iowarp-runtime-build:latest`
 - **Entry Point**: Automatically runs `chimaera_start_runtime`
 - **Configuration**: Supports environment variables and config files
 
@@ -23,8 +23,8 @@ This directory contains Docker configurations for building and deploying the IOW
 ### 1. Build Containers Locally
 
 ```bash
-# Build development container
-docker build -t iowarp/iowarp-runtime-dev:latest -f docker/dev.Dockerfile .
+# Build build container
+docker build -t iowarp/iowarp-runtime-build:latest -f docker/build.Dockerfile .
 
 # Build deployment container
 docker build -t iowarp/iowarp-runtime:latest -f docker/deploy.Dockerfile .
@@ -208,8 +208,8 @@ docker logs chimaera-node1
 
 The repository includes automated container builds via GitHub Actions (`.github/workflows/build-containers.yml`):
 
-1. **build-dev**: Builds `iowarp/iowarp-runtime-dev:latest`
-2. **build-deploy**: Builds `iowarp/iowarp-runtime:latest` (depends on dev)
+1. **build-build**: Builds `iowarp/iowarp-runtime-build:latest`
+2. **build-deploy**: Builds `iowarp/iowarp-runtime:latest` (depends on build)
 
 ### Triggers
 - Manual workflow dispatch
@@ -222,7 +222,7 @@ Configure in GitHub repository settings:
 
 ## Files
 
-- `dev.Dockerfile` - Development container build
+- `build.Dockerfile` - Build container build
 - `deploy.Dockerfile` - Deployment container build
 - `docker-compose.yml` - Multi-node cluster orchestration
 - `hostfile` - Cluster node IP addresses

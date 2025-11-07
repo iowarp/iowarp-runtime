@@ -1,4 +1,4 @@
-FROM iowarp/cte-hermes-shm:latest
+FROM iowarp/cte-hermes-shm-build:latest
 
 COPY . /workspace
 

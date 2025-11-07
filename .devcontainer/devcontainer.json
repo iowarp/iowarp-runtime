@@ -1,6 +1,6 @@
 {
     "name": "IoWarp Runtime",
-    "image": "iowarp/cte-hermes-shm:latest",
+    "image": "iowarp/cte-hermes-shm-build:latest",
     "workspaceFolder": "/workspace",
     "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
     "mounts": [

@@ -1,6 +1,6 @@
 # Deployment Dockerfile for IOWarp Runtime
-# Inherits from the dev container and runs chimaera_start_runtime
-FROM iowarp/iowarp-runtime-dev:latest
+# Inherits from the build container and runs chimaera_start_runtime
+FROM iowarp/iowarp-runtime-build:latest
 
 # Create configuration directory
 RUN mkdir -p /etc/chimaera
