@@ -1,4 +1,4 @@
-name: Build IOWarp Runtime Containers
+name: Build Containers
 
 on:
   workflow_dispatch:
