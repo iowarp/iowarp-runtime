@@ -14,7 +14,7 @@ RUN sudo chown -R $(whoami):$(whoami) /workspace && \
     cmake --build build -j$(nproc) && \
     sudo cmake --install build --prefix /usr/local && \
     sudo cmake --install build --prefix /iowarp-runtime && \
-    rm -rf /workspace
+    sudo rm -rf /workspace
 
 # Add iowarp-runtime to Spack configuration
 RUN echo "  iowarp-runtime:" >> ~/.spack/packages.yaml && \
