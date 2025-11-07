@@ -55,6 +55,7 @@ Update jarvis to support setting and generating this new key.
 
 ## Bdev Write, Bdev Read, 
 
+Use the I/O size parameter to update the stat struct.
 
 ## SendIn, RecvIn, SendOut, RecvOut
 
