@@ -23,6 +23,7 @@ jobs:
         uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
+        id: buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Build and push build container
@@ -31,7 +32,7 @@ jobs:
           context: .
           file: ./docker/build.Dockerfile
           builder: ${{ steps.buildx.outputs.name }}
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: iowarp/iowarp-runtime-build:latest
           cache-from: type=registry,ref=iowarp/iowarp-runtime-build:buildcache
@@ -56,6 +57,7 @@ jobs:
         uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
+        id: buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Build and push deploy container
@@ -64,7 +66,7 @@ jobs:
           context: .
           file: ./docker/deploy.Dockerfile
           builder: ${{ steps.buildx.outputs.name }}
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: iowarp/iowarp-runtime:latest
           cache-from: type=registry,ref=iowarp/iowarp-runtime:buildcache
