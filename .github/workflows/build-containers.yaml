@@ -24,6 +24,7 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        id: buildx
 
       - name: Build and push build container
         uses: docker/build-push-action@v6
@@ -31,7 +32,7 @@ jobs:
           context: .
           file: ./docker/build.Dockerfile
           builder: ${{ steps.buildx.outputs.name }}
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: iowarp/iowarp-runtime-build:latest
           cache-from: type=registry,ref=iowarp/iowarp-runtime-build:buildcache
@@ -57,6 +58,7 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        id: buildx
 
       - name: Build and push deploy container
         uses: docker/build-push-action@v6
@@ -64,7 +66,7 @@ jobs:
           context: .
           file: ./docker/deploy.Dockerfile
           builder: ${{ steps.buildx.outputs.name }}
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: iowarp/iowarp-runtime:latest
           cache-from: type=registry,ref=iowarp/iowarp-runtime:buildcache
