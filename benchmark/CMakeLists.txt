@@ -1,11 +1,11 @@
 # Benchmark directory
 
 # BDev I/O throughput benchmark
-add_executable(task_throughput_benchmark
-  task_throughput_benchmark.cc
+add_executable(wrp_run_thrpt_benchmark
+  wrp_run_thrpt_benchmark.cc
 )
 
-target_link_libraries(task_throughput_benchmark
+target_link_libraries(wrp_run_thrpt_benchmark
   cxx                             # Core Chimaera runtime
   chimaera::bdev_client           # BDev client for I/O operations
   chimaera::MOD_NAME_client       # MOD_NAME client for latency testing
@@ -14,6 +14,6 @@ target_link_libraries(task_throughput_benchmark
 )
 
 # Install benchmark executable
-install(TARGETS task_throughput_benchmark
+install(TARGETS wrp_run_thrpt_benchmark
   DESTINATION bin
 )

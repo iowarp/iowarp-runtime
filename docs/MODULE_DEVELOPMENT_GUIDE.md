@@ -3645,6 +3645,41 @@ int main() {
 }
 ```
 
+### CHIMAERA_RUNTIME_INIT for Testing and Benchmarks
+
+For simple unit tests and benchmarks, Chimaera provides `CHIMAERA_RUNTIME_INIT()` as a convenience function that initializes both the client and runtime in a single process. This is an alternative to using `CHIMAERA_CLIENT_INIT()` when you need both components initialized together.
+
+**Important Notes:**
+- **Primary Use Case**: Unit tests and benchmarks only
+- **Not for Production**: Should NOT be used in main production applications
+- **Single Process**: Initializes both client and runtime in the same process
+- **Simplified Testing**: Eliminates need for separate runtime and client processes during testing
+
+**Usage Example (Unit Tests/Benchmarks):**
+```cpp
+#include <chimaera/chimaera.h>
+#include <[namespace]/my_module/my_module_client.h>
+
+TEST(MyModuleTest, BasicOperation) {
+  // Initialize both client and runtime in single process
+  chi::CHIMAERA_RUNTIME_INIT();
+
+  // Create your ChiMod client
+  const chi::PoolId pool_id = chi::PoolId(7000, 0);
+  myproject::my_module::Client client(pool_id);
+
+  // Test your ChiMod functionality
+  auto pool_query = chi::PoolQuery::Local();
+  client.Create(HSHM_MCTX, pool_query, "test_pool");
+
+  // Assertions and test logic...
+}
+```
+
+**When to Use Each:**
+- **CHIMAERA_CLIENT_INIT()**: Production applications connecting to existing runtime
+- **CHIMAERA_RUNTIME_INIT()**: Unit tests, benchmarks, and simple testing scenarios
+
 ### Dependencies and Installation Paths
 
 External ChiMod development requires these components to be installed:

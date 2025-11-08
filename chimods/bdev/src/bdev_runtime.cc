@@ -536,6 +536,8 @@ void Runtime::WriteToRam(hipc::FullPtr<WriteTask> task) {
   if (task->block_.offset_ + task->length_ > ram_size_) {
     task->return_code_ = 1;  // Write beyond buffer bounds
     task->bytes_written_ = 0;
+    HELOG(kError, "Write to RAM beyond buffer bounds offset: {}, length: {}, ram_size: {}", 
+        task->block_.offset_, task->length_, ram_size_);
     return;
   }
 
