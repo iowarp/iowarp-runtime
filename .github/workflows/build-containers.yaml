@@ -30,8 +30,7 @@ jobs:
         with:
           context: .
           file: ./docker/build.Dockerfile
-          builder: ${{ steps.buildx.outputs.name }}
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: iowarp/iowarp-runtime-build:latest
           cache-from: type=registry,ref=iowarp/iowarp-runtime-build:buildcache
@@ -63,8 +62,7 @@ jobs:
         with:
           context: .
           file: ./docker/deploy.Dockerfile
-          builder: ${{ steps.buildx.outputs.name }}
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: iowarp/iowarp-runtime:latest
           cache-from: type=registry,ref=iowarp/iowarp-runtime:buildcache
