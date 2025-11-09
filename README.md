@@ -83,6 +83,11 @@ Chimaera requires the following dependencies:
 - CMake >= 3.10
 - Linux (Ubuntu 20.04+, CentOS 8+, or similar)
 
+Our docker container has all dependencies installed for you.
+```bash
+docker pull iowarp/iowarp-build:latest
+```
+
 ### Installation
 
 #### 1. Clone and Build
