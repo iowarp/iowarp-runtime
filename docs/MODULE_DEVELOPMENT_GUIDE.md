@@ -113,6 +113,9 @@ class ExampleClass {
 Task definition patterns:
 
 1. **CreateParams Structure**: Define configuration parameters for container creation
+   - CreateParams use cereal serialization and do NOT require allocator-based constructors
+   - Only need default constructor and parameter-based constructors
+   - Allocator is NOT passed to CreateParams - it's handled internally by BaseCreateTask
 2. **CreateTask Template**: Use GetOrCreatePoolTask template for container creation (non-admin modules)
 3. **Custom Tasks**: Define custom tasks with SHM/Emplace constructors and HSHM data members
 
@@ -135,22 +138,18 @@ struct CreateParams {
   // MOD_NAME-specific parameters
   std::string config_data_;
   chi::u32 worker_count_;
-  
+
   // Required: chimod library name for module manager
   static constexpr const char* chimod_lib_name = "chimaera_MOD_NAME";
-  
+
   // Default constructor
   CreateParams() : worker_count_(1) {}
-  
-  // Constructor with allocator and parameters
-  CreateParams(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc, 
-               const std::string& config_data = "", 
+
+  // Constructor with parameters
+  CreateParams(const std::string& config_data = "",
                chi::u32 worker_count = 1)
-      : config_data_(config_data), worker_count_(worker_count) {
-    // MOD_NAME parameters use standard types, so allocator isn't needed directly
-    // but it's available for future use with HSHM containers
-  }
-  
+      : config_data_(config_data), worker_count_(worker_count) {}
+
   // Serialization support for cereal
   template<class Archive>
   void serialize(Archive& ar) {
@@ -1206,15 +1205,14 @@ struct CreateParams {
   
   // Required: chimod library name
   static constexpr const char* chimod_lib_name = "chimaera_MOD_NAME";
-  
+
   // Constructors
   CreateParams() : worker_count_(1) {}
-  
-  CreateParams(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
-               const std::string& config_data = "",
+
+  CreateParams(const std::string& config_data = "",
                chi::u32 worker_count = 1)
       : config_data_(config_data), worker_count_(worker_count) {}
-  
+
   // Cereal serialization
   template<class Archive>
   void serialize(Archive& ar) {

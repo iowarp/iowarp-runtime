@@ -94,28 +94,8 @@ struct CreateParams {
     perf_metrics_.iops_ = 1000.0;               // 1000 IOPS
   }
 
-  // Constructor with allocator (required for admin task system)
-  explicit CreateParams(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc)
-      : bdev_type_(BdevType::kFile), total_size_(0), io_depth_(32),
-        alignment_(4096) {
-    // Set conservative default performance characteristics
-    perf_metrics_.read_bandwidth_mbps_ = 100.0;
-    perf_metrics_.write_bandwidth_mbps_ = 80.0;
-    perf_metrics_.read_latency_us_ = 1000.0;
-    perf_metrics_.write_latency_us_ = 1200.0;
-    perf_metrics_.iops_ = 1000.0;
-  }
-
-  // Copy constructor with allocator (for template system)
-  CreateParams(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
-               const CreateParams &other)
-      : bdev_type_(other.bdev_type_), total_size_(other.total_size_),
-        io_depth_(other.io_depth_), alignment_(other.alignment_),
-        perf_metrics_(other.perf_metrics_) {}
-
-  // Constructor with allocator and basic parameters (uses default performance)
-  CreateParams(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
-               BdevType bdev_type, chi::u64 total_size = 0,
+  // Constructor with basic parameters (uses default performance)
+  CreateParams(BdevType bdev_type, chi::u64 total_size = 0,
                chi::u32 io_depth = 32, chi::u32 alignment = 4096)
       : bdev_type_(bdev_type), total_size_(total_size), io_depth_(io_depth),
         alignment_(alignment) {
@@ -134,10 +114,8 @@ struct CreateParams {
           alignment_);
   }
 
-  // Constructor with allocator and optional performance metrics (as last
-  // parameter)
-  CreateParams(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
-               BdevType bdev_type, chi::u64 total_size, chi::u32 io_depth,
+  // Constructor with optional performance metrics (as last parameter)
+  CreateParams(BdevType bdev_type, chi::u64 total_size, chi::u32 io_depth,
                chi::u32 alignment, const PerfMetrics *perf_metrics = nullptr)
       : bdev_type_(bdev_type), total_size_(total_size), io_depth_(io_depth),
         alignment_(alignment) {

@@ -30,12 +30,6 @@ struct CreateParams {
   // Default constructor
   CreateParams() = default;
 
-  // Constructor with allocator (even though admin doesn't need it currently)
-  explicit CreateParams(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc) {
-    // Admin params don't require allocator-based initialization currently
-    (void)alloc;  // Suppress unused parameter warning
-  }
-
   // Serialization support for cereal
   template <class Archive> void serialize(Archive &ar) {
     // No additional fields to serialize for admin
@@ -106,8 +100,7 @@ struct BaseCreateTask : public chi::Task {
     // In compose mode, skip CreateParams construction - PoolConfig will be set via SetParams
     if (!do_compose_) {
       // Create and serialize the CreateParams with provided arguments
-      CreateParamsT params(alloc,
-                           std::forward<CreateParamsArgs>(create_params_args)...);
+      CreateParamsT params(std::forward<CreateParamsArgs>(create_params_args)...);
       chi::Task::Serialize(alloc, chimod_params_, params);
     }
   }
@@ -143,7 +136,7 @@ struct BaseCreateTask : public chi::Task {
     if (do_compose_) {
       return;  // Skip SetParams in compose mode
     }
-    CreateParamsT params(alloc, std::forward<Args>(args)...);
+    CreateParamsT params(std::forward<Args>(args)...);
     chi::Task::Serialize(alloc, chimod_params_, params);
   }
 
@@ -156,7 +149,7 @@ struct BaseCreateTask : public chi::Task {
     if (do_compose_) {
       // Compose mode: deserialize PoolConfig and load into CreateParams
       chi::PoolConfig pool_config = chi::Task::Deserialize<chi::PoolConfig>(chimod_params_);
-      CreateParamsT params(alloc);
+      CreateParamsT params;
       params.LoadConfig(pool_config);
       return params;
     } else {
