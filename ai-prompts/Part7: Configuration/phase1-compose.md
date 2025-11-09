@@ -122,3 +122,15 @@ for now, and only use CHIMAERA_CLIENT_INIT to start a
 client connection. Load the compose script using the
 existing code for configuration parsing (do not build another parser) 
 and then call CHI_ADMIN->Compose.
+
+## Unit test
+
+Use unit testing agent to build a simple test case for compose.
+Add it as a new test file. 
+
+It should launch the runtime using CHIMAERA_RUNTIME_INIT.
+You should build an example correct chimaera configuration
+for the bdev module.
+You should load that configuration and then call CHI_ADMIN->Compose
+with it.
+
