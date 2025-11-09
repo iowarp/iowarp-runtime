@@ -83,56 +83,23 @@ Chimaera requires the following dependencies:
 - CMake >= 3.10
 - Linux (Ubuntu 20.04+, CentOS 8+, or similar)
 
-**Required Dependencies:**
-- **HermesShm**: High-performance shared memory framework
-- **MPI**: Message Passing Interface (OpenMPI or MPICH)
-- **Boost**: Boost.Context and Boost.Fiber for coroutine support
-- **cereal**: Serialization library
-- **libaio**: Linux asynchronous I/O library
-
-**Ubuntu/Debian Installation:**
-```bash
-sudo apt-get update
-sudo apt-get install build-essential cmake libboost-all-dev \
-                     libcereal-dev libaio-dev libmpi-dev
-```
-
-**CentOS/RHEL Installation:**
-```bash
-sudo yum groupinstall "Development Tools"
-sudo yum install cmake boost-devel cereal-devel libaio-devel openmpi-devel
-```
-
 ### Installation
 
 #### 1. Clone and Build
 
 ```bash
 # Clone the repository
-git clone https://github.com/scs-lab/iowarp-runtime.git
+git clone https://github.com/iowarp/iowarp-runtime.git
 cd iowarp-runtime
 
-# Configure build with CMake preset
-cmake --preset debug
+# Configure release with CMake preset
+cmake --preset release
 
 # Build all components
 cmake --build build --parallel $(nproc)
 
 # Install to system or custom prefix
 cmake --install build --prefix /usr/local
-```
-
-#### 2. Verify Installation
-
-```bash
-# Start the Chimaera runtime (requires config file)
-./build/bin/chimaera_start_runtime config/chimaera_default.yaml
-
-# In another terminal, run unit tests to verify functionality
-./build/bin/chimaera_unit_tests
-
-# Test specific ChiMod functionality
-./build/bin/chimaera_bdev_chimod_tests
 ```
 
 #### 3. Quick Start Example
@@ -367,6 +334,6 @@ Chimaera is licensed under the **BSD 3-Clause License**. See source files for co
 
 ## Acknowledgements
 
-Chimaera is developed at the [SCS Lab](https://www.scs.cs.iit.edu/) at Illinois Institute of Technology as part of the IOWarp project. This work is supported by the National Science Foundation (NSF) and aims to advance next-generation scientific computing infrastructure.
+Chimaera is developed at the [GRC lab](https://grc.iit.edu/) at Illinois Institute of Technology as part of the IOWarp project. This work is supported by the National Science Foundation (NSF) and aims to advance next-generation scientific computing infrastructure.
 
 For more information about IOWarp: https://grc.iit.edu/research/projects/iowarp
