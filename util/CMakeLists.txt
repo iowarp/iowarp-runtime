@@ -33,7 +33,19 @@ target_link_libraries(chi_refresh_repo
   PUBLIC hshm::cxx
 )
 
+# Build chimaera_compose
+add_executable(chimaera_compose
+  ${CMAKE_CURRENT_SOURCE_DIR}/chimaera_compose.cc
+)
+# chimaera_compose is client-only code, so do not define CHIMAERA_RUNTIME
+target_link_libraries(chimaera_compose
+  PUBLIC cxx
+)
+target_include_directories(chimaera_compose PRIVATE
+  ${CMAKE_SOURCE_DIR}/chimods/admin/include
+)
+
 # Install utilities
-install(TARGETS chimaera_start_runtime chimaera_stop_runtime chi_refresh_repo
+install(TARGETS chimaera_start_runtime chimaera_stop_runtime chi_refresh_repo chimaera_compose
   RUNTIME DESTINATION bin
 )

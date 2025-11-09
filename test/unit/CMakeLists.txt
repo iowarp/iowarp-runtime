@@ -78,7 +78,46 @@ set(SAVE_LOAD_TASK_TEST_SOURCES
   test_save_load_task.cc
 )
 
+# Compose feature test executable (test for compose configuration and pool creation)
+set(COMPOSE_TEST_TARGET chimaera_compose_tests)
+set(COMPOSE_TEST_SOURCES
+  test_compose.cc
+)
 
+add_executable(${COMPOSE_TEST_TARGET} ${COMPOSE_TEST_SOURCES})
+
+# Include directories for compose tests
+target_include_directories(${COMPOSE_TEST_TARGET} PRIVATE
+  ${CMAKE_SOURCE_DIR}/include
+  ${CMAKE_SOURCE_DIR}/test  # For simple_test.h
+  ${CMAKE_SOURCE_DIR}/chimods/admin/include  # For admin client
+  ${CMAKE_SOURCE_DIR}/chimods/bdev/include   # For bdev client
+)
+
+# Link against required libraries for compose tests
+target_link_libraries(${COMPOSE_TEST_TARGET}
+  cxx                             # Core Chimaera runtime library
+  chimaera_admin_runtime          # Admin module runtime
+  chimaera_admin_client           # Admin module client
+  chimaera_bdev_runtime           # BDev module runtime
+  chimaera_bdev_client            # BDev module client
+  hshm::cxx                       # HermesShm library
+  ${CMAKE_THREAD_LIBS_INIT}       # Threading support
+)
+
+# Set C++ standard for compose tests
+set_target_properties(${COMPOSE_TEST_TARGET} PROPERTIES
+  CXX_STANDARD 17
+  CXX_STANDARD_REQUIRED ON
+)
+
+# Define CHIMAERA_RUNTIME for runtime mode
+target_compile_definitions(${COMPOSE_TEST_TARGET} PRIVATE CHIMAERA_RUNTIME=1)
+
+# Copy compose test executable to bin directory
+set_target_properties(${COMPOSE_TEST_TARGET} PROPERTIES
+  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)
 
 add_executable(${TASK_ARCHIVE_TEST_TARGET} ${TASK_ARCHIVE_TEST_SOURCES})
 
@@ -407,8 +446,6 @@ set_target_properties(${SAVE_LOAD_TASK_TEST_TARGET} PROPERTIES
 set_target_properties(${SAVE_LOAD_TASK_TEST_TARGET} PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
 )
-
-
 
 # Create test executable
 add_executable(${TEST_TARGET} ${TEST_SOURCES})
@@ -1262,7 +1299,7 @@ add_custom_target(test_all_unit
 )
 
 # Install test executables (optional)
-install(TARGETS ${TEST_TARGET} ${TASK_ARCHIVE_TEST_TARGET} ${FLUSH_TEST_TARGET} ${BDEV_TEST_TARGET} ${FIBER_TEST_TARGET} ${WORKER_FIBER_TEST_TARGET} ${SEGFAULT_DEBUG_TEST_TARGET} ${COMUTEX_TEST_TARGET} ${WAIT_FUNCTIONALITY_TEST_TARGET} ${IPC_ALLOCATE_BUFFER_TEST_TARGET} ${UNORDERED_MAP_LL_TEST_TARGET} ${SAVE_LOAD_TASK_TEST_TARGET}
+install(TARGETS ${TEST_TARGET} ${TASK_ARCHIVE_TEST_TARGET} ${FLUSH_TEST_TARGET} ${BDEV_TEST_TARGET} ${FIBER_TEST_TARGET} ${WORKER_FIBER_TEST_TARGET} ${SEGFAULT_DEBUG_TEST_TARGET} ${COMUTEX_TEST_TARGET} ${WAIT_FUNCTIONALITY_TEST_TARGET} ${IPC_ALLOCATE_BUFFER_TEST_TARGET} ${UNORDERED_MAP_LL_TEST_TARGET} ${SAVE_LOAD_TASK_TEST_TARGET} ${COMPOSE_TEST_TARGET}
   RUNTIME DESTINATION bin
 )
 
@@ -1287,5 +1324,7 @@ message(STATUS "  IPC AllocateBuffer test target: ${IPC_ALLOCATE_BUFFER_TEST_TAR
 message(STATUS "  IPC AllocateBuffer test sources: ${IPC_ALLOCATE_BUFFER_TEST_SOURCES}")
 message(STATUS "  Save/Load Task test target: ${SAVE_LOAD_TASK_TEST_TARGET}")
 message(STATUS "  Save/Load Task test sources: ${SAVE_LOAD_TASK_TEST_SOURCES}")
+message(STATUS "  Compose test target: ${COMPOSE_TEST_TARGET}")
+message(STATUS "  Compose test sources: ${COMPOSE_TEST_SOURCES}")
 message(STATUS "  CTest enabled: ${CHIMAERA_ENABLE_TESTS}")
 message(STATUS "  Output directory: ${CMAKE_BINARY_DIR}/bin")

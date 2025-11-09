@@ -2,10 +2,52 @@
 #define CHIMAERA_INCLUDE_CHIMAERA_MANAGERS_CONFIG_MANAGER_H_
 
 #include <string>
+#include <vector>
 
 #include "chimaera/types.h"
+#include "chimaera/pool_query.h"
 
 namespace chi {
+
+/**
+ * Configuration for a single pool in the compose section
+ */
+struct PoolConfig {
+  std::string mod_name_;     /**< Module name (e.g., "chimaera_bdev") */
+  std::string pool_name_;    /**< Pool name or identifier */
+  PoolId pool_id_;           /**< Pool ID for this module */
+  PoolQuery pool_query_;     /**< Pool query routing (Dynamic or Local) */
+  std::string config_;       /**< Remaining YAML configuration as string */
+
+  PoolConfig() = default;
+
+  /**
+   * Constructor with allocator (for compatibility with CreateParams pattern)
+   * The allocator is not used since PoolConfig uses std::string
+   */
+  template <typename AllocT>
+  explicit PoolConfig(const AllocT& alloc) {
+    (void)alloc;  // Suppress unused parameter warning
+  }
+
+  /**
+   * Cereal serialization support
+   * @param ar Archive for serialization
+   */
+  template <class Archive>
+  void serialize(Archive& ar) {
+    ar(mod_name_, pool_name_, pool_id_, pool_query_, config_);
+  }
+};
+
+/**
+ * Configuration for the compose section containing multiple pool configs
+ */
+struct ComposeConfig {
+  std::vector<PoolConfig> pools_; /**< List of pool configurations */
+
+  ComposeConfig() = default;
+};
 
 /**
  * Configuration manager singleton
@@ -115,6 +157,12 @@ class ConfigManager : public hshm::BaseConfig {
    */
   LaneMapPolicy GetLaneMapPolicy() const;
 
+  /**
+   * Get compose configuration
+   * @return Compose configuration with all pool definitions
+   */
+  const ComposeConfig& GetComposeConfig() const { return compose_config_; }
+
  private:
   /**
    * Set default configuration values (implements hshm::BaseConfig)
@@ -151,6 +199,9 @@ class ConfigManager : public hshm::BaseConfig {
 
   // Task distribution policy
   LaneMapPolicy lane_map_policy_ = LaneMapPolicy::kRoundRobin;
+
+  // Compose configuration
+  ComposeConfig compose_config_;
 };
 
 }  // namespace chi

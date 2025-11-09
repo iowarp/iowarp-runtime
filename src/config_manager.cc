@@ -233,6 +233,40 @@ void ConfigManager::ParseYAML(YAML::Node &yaml_conf) {
       // Keeping for future use or backward compatibility
     }
   }
+
+  // Parse compose section
+  if (yaml_conf["compose"]) {
+    auto compose_list = yaml_conf["compose"];
+    if (compose_list.IsSequence()) {
+      for (const auto& pool_node : compose_list) {
+        PoolConfig pool_config;
+
+        // Extract required fields
+        if (pool_node["mod_name"]) {
+          pool_config.mod_name_ = pool_node["mod_name"].as<std::string>();
+        }
+        if (pool_node["pool_name"]) {
+          pool_config.pool_name_ = pool_node["pool_name"].as<std::string>();
+        }
+        if (pool_node["pool_id"]) {
+          std::string pool_id_str = pool_node["pool_id"].as<std::string>();
+          pool_config.pool_id_ = PoolId::FromString(pool_id_str);
+        }
+        if (pool_node["pool_query"]) {
+          std::string query_str = pool_node["pool_query"].as<std::string>();
+          pool_config.pool_query_ = PoolQuery::FromString(query_str);
+        }
+
+        // Store entire YAML node as config string for module-specific parsing
+        YAML::Emitter emitter;
+        emitter << pool_node;
+        pool_config.config_ = emitter.c_str();
+
+        // Add to compose config
+        compose_config_.pools_.push_back(pool_config);
+      }
+    }
+  }
 }
 
 } // namespace chi

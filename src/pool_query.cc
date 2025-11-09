@@ -3,6 +3,8 @@
  */
 
 #include "chimaera/pool_query.h"
+#include <algorithm>
+#include <stdexcept>
 
 namespace chi {
 
@@ -113,6 +115,21 @@ PoolQuery PoolQuery::Dynamic() {
   query.range_count_ = 0;
   query.node_id_ = 0;
   return query;
+}
+
+PoolQuery PoolQuery::FromString(const std::string& str) {
+  // Convert to lowercase for case-insensitive comparison
+  std::string lower_str = str;
+  std::transform(lower_str.begin(), lower_str.end(), lower_str.begin(),
+                 [](unsigned char c) { return std::tolower(c); });
+
+  if (lower_str == "local") {
+    return PoolQuery::Local();
+  } else if (lower_str == "dynamic") {
+    return PoolQuery::Dynamic();
+  } else {
+    throw std::invalid_argument("Invalid PoolQuery string, expected 'local' or 'dynamic'");
+  }
 }
 
 // Getter methods

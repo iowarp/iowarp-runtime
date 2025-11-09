@@ -3,6 +3,8 @@
 
 #include "autogen/bdev_methods.h"
 #include <chimaera/chimaera.h>
+#include <chimaera/config_manager.h>
+#include <yaml-cpp/yaml.h>
 // Include admin tasks for BaseCreateTask
 #include <chimaera/admin/admin_tasks.h>
 
@@ -167,6 +169,61 @@ struct CreateParams {
   // Serialization support for cereal
   template <class Archive> void serialize(Archive &ar) {
     ar(bdev_type_, total_size_, io_depth_, alignment_, perf_metrics_);
+  }
+
+  /**
+   * Load configuration from PoolConfig (for compose mode)
+   * @param pool_config Pool configuration from compose section
+   */
+  void LoadConfig(const chi::PoolConfig& pool_config) {
+    // Parse YAML config string
+    YAML::Node config = YAML::Load(pool_config.config_);
+
+    // Load bdev type (optional, defaults to kFile)
+    if (config["bdev_type"]) {
+      std::string type_str = config["bdev_type"].as<std::string>();
+      if (type_str == "file") {
+        bdev_type_ = BdevType::kFile;
+      } else if (type_str == "ram") {
+        bdev_type_ = BdevType::kRam;
+      }
+    }
+
+    // Load capacity/total_size (parse size strings like "2GB", "512MB")
+    if (config["capacity"]) {
+      std::string capacity_str = config["capacity"].as<std::string>();
+      total_size_ = hshm::ConfigParse::ParseSize(capacity_str);
+    }
+
+    // Load io_depth (optional)
+    if (config["io_depth"]) {
+      io_depth_ = config["io_depth"].as<chi::u32>();
+    }
+
+    // Load alignment (optional)
+    if (config["alignment"]) {
+      alignment_ = config["alignment"].as<chi::u32>();
+    }
+
+    // Load performance metrics (optional)
+    if (config["perf_metrics"]) {
+      auto perf = config["perf_metrics"];
+      if (perf["read_bandwidth_mbps"]) {
+        perf_metrics_.read_bandwidth_mbps_ = perf["read_bandwidth_mbps"].as<double>();
+      }
+      if (perf["write_bandwidth_mbps"]) {
+        perf_metrics_.write_bandwidth_mbps_ = perf["write_bandwidth_mbps"].as<double>();
+      }
+      if (perf["read_latency_us"]) {
+        perf_metrics_.read_latency_us_ = perf["read_latency_us"].as<double>();
+      }
+      if (perf["write_latency_us"]) {
+        perf_metrics_.write_latency_us_ = perf["write_latency_us"].as<double>();
+      }
+      if (perf["iops"]) {
+        perf_metrics_.iops_ = perf["iops"].as<double>();
+      }
+    }
   }
 };
 

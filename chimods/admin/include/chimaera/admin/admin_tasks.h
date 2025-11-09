@@ -2,6 +2,8 @@
 #define ADMIN_TASKS_H_
 
 #include <chimaera/chimaera.h>
+#include <chimaera/config_manager.h>
+#include <yaml-cpp/yaml.h>
 
 #include "autogen/admin_methods.h"
 
@@ -31,11 +33,22 @@ struct CreateParams {
   // Constructor with allocator (even though admin doesn't need it currently)
   explicit CreateParams(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc) {
     // Admin params don't require allocator-based initialization currently
+    (void)alloc;  // Suppress unused parameter warning
   }
 
   // Serialization support for cereal
   template <class Archive> void serialize(Archive &ar) {
     // No additional fields to serialize for admin
+  }
+
+  /**
+   * Load configuration from PoolConfig (for compose mode)
+   * @param pool_config Pool configuration from compose section
+   */
+  void LoadConfig(const chi::PoolConfig& pool_config) {
+    // Admin doesn't have additional configuration fields
+    // YAML config parsing would go here for modules with config fields
+    (void)pool_config;  // Suppress unused parameter warning
   }
 };
 
@@ -45,9 +58,10 @@ struct CreateParams {
  * configuration
  * @tparam MethodId The method ID for this task type
  * @tparam IS_ADMIN Whether this is an admin operation (sets volatile variable)
+ * @tparam DO_COMPOSE Whether this task is called from compose (minimal error checking)
  */
 template <typename CreateParamsT, chi::u32 MethodId = Method::kCreate,
-          bool IS_ADMIN = false>
+          bool IS_ADMIN = false, bool DO_COMPOSE = false>
 struct BaseCreateTask : public chi::Task {
   // Pool operation parameters
   INOUT hipc::string chimod_name_;
@@ -59,14 +73,15 @@ struct BaseCreateTask : public chi::Task {
   // Results for pool operations
   OUT hipc::string error_message_;
 
-  // Volatile admin flag set by template parameter
+  // Volatile flags set by template parameters
   volatile bool is_admin_;
+  volatile bool do_compose_;
 
   /** SHM default constructor */
   explicit BaseCreateTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc)
       : chi::Task(alloc), chimod_name_(alloc), pool_name_(alloc),
         chimod_params_(alloc), new_pool_id_(chi::PoolId::GetNull()),
-        error_message_(alloc), is_admin_(IS_ADMIN) {}
+        error_message_(alloc), is_admin_(IS_ADMIN), do_compose_(DO_COMPOSE) {}
 
   /** Emplace constructor with CreateParams arguments */
   template <typename... CreateParamsArgs>
@@ -81,35 +96,73 @@ struct BaseCreateTask : public chi::Task {
       : chi::Task(alloc, task_node, task_pool_id, pool_query, 0),
         chimod_name_(alloc, chimod_name), pool_name_(alloc, pool_name),
         chimod_params_(alloc), new_pool_id_(target_pool_id),
-        error_message_(alloc), is_admin_(IS_ADMIN) {
+        error_message_(alloc), is_admin_(IS_ADMIN), do_compose_(DO_COMPOSE) {
     // Initialize base task
     task_id_ = task_node;
     method_ = MethodId;
     task_flags_.Clear();
     pool_query_ = pool_query;
 
-    // Create and serialize the CreateParams with provided arguments
-    CreateParamsT params(alloc,
-                         std::forward<CreateParamsArgs>(create_params_args)...);
-    chi::Task::Serialize(alloc, chimod_params_, params);
+    // In compose mode, skip CreateParams construction - PoolConfig will be set via SetParams
+    if (!do_compose_) {
+      // Create and serialize the CreateParams with provided arguments
+      CreateParamsT params(alloc,
+                           std::forward<CreateParamsArgs>(create_params_args)...);
+      chi::Task::Serialize(alloc, chimod_params_, params);
+    }
+  }
+
+  /** Compose constructor - takes PoolConfig directly */
+  explicit BaseCreateTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
+                          const chi::TaskId &task_node,
+                          const chi::PoolId &task_pool_id,
+                          const chi::PoolQuery &pool_query,
+                          const chi::PoolConfig &pool_config)
+      : chi::Task(alloc, task_node, task_pool_id, pool_query, 0),
+        chimod_name_(alloc, pool_config.mod_name_),
+        pool_name_(alloc, pool_config.pool_name_),
+        chimod_params_(alloc), new_pool_id_(pool_config.pool_id_),
+        error_message_(alloc), is_admin_(IS_ADMIN), do_compose_(DO_COMPOSE) {
+    // Initialize base task
+    task_id_ = task_node;
+    method_ = MethodId;
+    task_flags_.Clear();
+    pool_query_ = pool_query;
+
+    // Serialize PoolConfig directly into chimod_params_
+    chi::Task::Serialize(alloc, chimod_params_, pool_config);
   }
 
   /**
    * Set parameters by serializing them to chimod_params_
+   * Does nothing if do_compose_ is true (compose mode)
    */
   template <typename... Args>
   void SetParams(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc,
                  Args &&...args) {
+    if (do_compose_) {
+      return;  // Skip SetParams in compose mode
+    }
     CreateParamsT params(alloc, std::forward<Args>(args)...);
     chi::Task::Serialize(alloc, chimod_params_, params);
   }
 
   /**
    * Get the CreateParams by deserializing from chimod_params_
+   * In compose mode (do_compose_=true), deserializes PoolConfig and calls LoadConfig
    */
   CreateParamsT
   GetParams(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc) const {
-    return chi::Task::Deserialize<CreateParamsT>(chimod_params_);
+    if (do_compose_) {
+      // Compose mode: deserialize PoolConfig and load into CreateParams
+      chi::PoolConfig pool_config = chi::Task::Deserialize<chi::PoolConfig>(chimod_params_);
+      CreateParamsT params(alloc);
+      params.LoadConfig(pool_config);
+      return params;
+    } else {
+      // Normal mode: deserialize CreateParams directly
+      return chi::Task::Deserialize<CreateParamsT>(chimod_params_);
+    }
   }
 
   /**
@@ -141,6 +194,7 @@ struct BaseCreateTask : public chi::Task {
     new_pool_id_ = other->new_pool_id_;
     error_message_ = other->error_message_;
     is_admin_ = other->is_admin_;
+    do_compose_ = other->do_compose_;
   }
 };
 
@@ -158,6 +212,16 @@ using CreateTask = BaseCreateTask<CreateParams, Method::kCreate, true>;
 template <typename CreateParamsT>
 using GetOrCreatePoolTask =
     BaseCreateTask<CreateParamsT, Method::kGetOrCreatePool, false>;
+
+/**
+ * ComposeTask - Typedef for compose-based creation with minimal error checking
+ * Used when creating pools from compose configuration
+ * Uses kGetOrCreatePool method and IS_ADMIN=false to create pools in other ChiMods
+ * @tparam CreateParamsT The parameter structure for the specific ChiMod
+ */
+template <typename CreateParamsT>
+using ComposeTask =
+    BaseCreateTask<CreateParamsT, Method::kGetOrCreatePool, false, true>;
 
 /**
  * DestroyPoolTask - Destroy an existing ChiPool

@@ -177,6 +177,28 @@ bool Chimaera::ServerInit() {
   is_initialized_ = true;
   runtime_is_initializing_ = false;
 
+  // Process compose section if present
+  const auto& compose_config = config_manager->GetComposeConfig();
+  if (!compose_config.pools_.empty()) {
+    HILOG(kInfo, "Processing compose configuration with {} pools",
+          compose_config.pools_.size());
+
+    // Get admin client to process compose
+    auto* admin_client = CHI_ADMIN;
+    if (!admin_client) {
+      HELOG(kError, "Failed to get admin client for compose processing");
+      return false;
+    }
+
+    // Call compose to create all configured pools
+    if (!admin_client->Compose(compose_config)) {
+      HELOG(kError, "Compose processing failed");
+      return false;
+    }
+
+    HILOG(kInfo, "Compose processing completed successfully");
+  }
+
   return true;
 }
 

@@ -285,6 +285,52 @@ class Client : public chi::ContainerClient {
     return task;
   }
 
+  /**
+   * Compose - Create multiple pools from compose configuration
+   * Iterates over pools and creates them one-by-one synchronously
+   * @param compose_config Configuration with list of pools to create
+   * @return true if all pools created successfully, false otherwise
+   */
+  bool Compose(const chi::ComposeConfig& compose_config) {
+    auto* ipc_manager = CHI_IPC;
+
+    // Iterate over each pool configuration
+    for (const auto& pool_config : compose_config.pools_) {
+      HILOG(kInfo, "Compose: Creating pool {} (module: {})",
+            pool_config.pool_name_, pool_config.mod_name_);
+
+      // Create ComposeTask with PoolConfig passed directly to constructor
+      auto task = ipc_manager->NewTask<chimaera::admin::ComposeTask<chi::PoolConfig>>(
+          chi::CreateTaskId(),
+          chi::kAdminPoolId,
+          pool_config.pool_query_,
+          pool_config
+      );
+
+      // Submit and wait for completion
+      ipc_manager->Enqueue(task);
+      task->Wait();
+
+      // Check return code
+      chi::u32 return_code = task->GetReturnCode();
+      if (return_code != 0) {
+        HELOG(kError, "Compose: Failed to create pool {} (module: {}), return code: {}",
+              pool_config.pool_name_, pool_config.mod_name_, return_code);
+        ipc_manager->DelTask(task);
+        return false;
+      }
+
+      HILOG(kInfo, "Compose: Successfully created pool {} (module: {})",
+            pool_config.pool_name_, pool_config.mod_name_);
+
+      // Cleanup task
+      ipc_manager->DelTask(task);
+    }
+
+    HILOG(kInfo, "Compose: All {} pools created successfully", compose_config.pools_.size());
+    return true;
+  }
+
 private:
   /**
    * Generate a unique pool name with a given prefix

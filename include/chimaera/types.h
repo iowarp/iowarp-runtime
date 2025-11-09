@@ -83,6 +83,13 @@ struct UniqueId {
                     static_cast<u32>(value & 0xFFFFFFFF));
   }
 
+  /**
+   * Parse UniqueId from string format "major.minor"
+   * @param str String representation of ID (e.g., "200.0")
+   * @return Parsed UniqueId
+   */
+  static UniqueId FromString(const std::string& str);
+
   // Get null/invalid instance
   static constexpr UniqueId GetNull() { return UniqueId(0, 0); }
 

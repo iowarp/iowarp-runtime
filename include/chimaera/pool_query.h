@@ -98,6 +98,13 @@ class PoolQuery {
    */
   static PoolQuery Dynamic();
 
+  /**
+   * Parse PoolQuery from string (supports "local" and "dynamic")
+   * @param str String representation of pool query mode
+   * @return PoolQuery configured based on string value
+   */
+  static PoolQuery FromString(const std::string& str);
+
   // Getter methods for internal query parameters (used by routing logic)
 
   /**
