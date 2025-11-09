@@ -7,6 +7,7 @@
 #include "chimaera/config_manager.h"
 #include "chimaera/task_queue.h"
 #include <arpa/inet.h>
+#include <cstdlib>
 #include <cstring>
 #include <endian.h>
 #include <functional>
@@ -14,6 +15,7 @@
 #include <memory>
 #include <netdb.h>
 #include <sys/socket.h>
+#include <unistd.h>
 #include <zmq.h>
 
 // Global pointer variable definition for IPC manager singleton
@@ -53,13 +55,9 @@ bool IpcManager::ClientInit() {
     this_host_ = Host(); // Default constructor gives node_id = 0
   }
 
-  // Test connection to local server - critical for client functionality
-  if (!TestLocalServer()) {
+  // Wait for local server to become available - critical for client functionality
+  if (!WaitForLocalServer()) {
     HELOG(kError, "CRITICAL ERROR: Cannot connect to local server.");
-    HELOG(kError, "This usually means:");
-    HELOG(kError, "1. Chimaera runtime is not running");
-    HELOG(kError, "2. Local server failed to start");
-    HELOG(kError, "3. Network connectivity issues");
     HELOG(kError, "Client initialization failed. Exiting.");
     return false;
   }
@@ -459,22 +457,61 @@ bool IpcManager::TestLocalServer() {
     auto client = hshm::lbm::TransportFactory::GetClient(
         addr, hshm::lbm::Transport::kZeroMq, protocol, port);
 
-    if (client != nullptr) {
-      HILOG(kDebug, "Successfully connected to local server at {}:{}", addr,
-            port);
-      return true;
-    } else {
-      HELOG(kError, "Failed to create client connection to local server");
-      return false;
-    }
-  } catch (const std::exception &e) {
-    HELOG(kError, "Exception while testing local server connection: {}",
-          e.what());
-    return false;
+    return client != nullptr;
   } catch (...) {
-    HELOG(kError, "Unknown error while testing local server connection");
     return false;
   }
+}
+
+bool IpcManager::WaitForLocalServer() {
+  ConfigManager *config = CHI_CONFIG_MANAGER;
+
+  // Read environment variables for wait configuration
+  const char *wait_env = std::getenv("CHI_WAIT_SERVER");
+  const char *poll_env = std::getenv("CHI_POLL_SERVER");
+
+  if (wait_env) {
+    wait_server_timeout_ = static_cast<u32>(std::atoi(wait_env));
+  }
+  if (poll_env) {
+    poll_server_interval_ = static_cast<u32>(std::atoi(poll_env));
+  }
+
+  // Ensure poll interval is at least 1 second to avoid busy-waiting
+  if (poll_server_interval_ == 0) {
+    poll_server_interval_ = 1;
+  }
+
+  u32 port = config->GetPort() + 1;
+  HILOG(kInfo, "Waiting for local server at 127.0.0.1:{} (timeout={}s, poll_interval={}s)",
+        port, wait_server_timeout_, poll_server_interval_);
+
+  u32 elapsed = 0;
+  u32 attempt = 0;
+
+  while (elapsed < wait_server_timeout_) {
+    attempt++;
+
+    if (TestLocalServer()) {
+      HILOG(kInfo, "Successfully connected to local server after {} seconds ({} attempts)",
+            elapsed, attempt);
+      return true;
+    }
+
+    HILOG(kDebug, "Local server not available yet (attempt {}, elapsed {}s)", attempt, elapsed);
+
+    // Sleep for poll interval
+    sleep(poll_server_interval_);
+    elapsed += poll_server_interval_;
+  }
+
+  HELOG(kError, "Timeout waiting for local server after {} seconds ({} attempts)",
+        wait_server_timeout_, attempt);
+  HELOG(kError, "This usually means:");
+  HELOG(kError, "1. Chimaera runtime is not running");
+  HELOG(kError, "2. Local server failed to start");
+  HELOG(kError, "3. Network connectivity issues");
+  return false;
 }
 
 void IpcManager::SetNodeId(const std::string &hostname) {

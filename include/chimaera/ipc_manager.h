@@ -374,9 +374,19 @@ class IpcManager {
   /**
    * Test connection to local server
    * Creates lightbeam client and attempts connection to local server
+   * Does not print any logging output
    * @return true if connection successful, false otherwise
    */
   bool TestLocalServer();
+
+  /**
+   * Wait for local server to become available
+   * Polls TestLocalServer until server is available or timeout expires
+   * Uses CHI_WAIT_SERVER and CHI_POLL_SERVER environment variables
+   * Inherits logging from TestLocalServer attempts
+   * @return true if server becomes available, false on timeout
+   */
+  bool WaitForLocalServer();
 
   /**
    * Try to start main server on given hostname
@@ -430,6 +440,10 @@ class IpcManager {
   // Lane mapping policy
   LaneMapPolicy lane_map_policy_ = LaneMapPolicy::kRoundRobin;
   std::atomic<u32> round_robin_counter_{0};  // Counter for round-robin policy
+
+  // Client-side server waiting configuration (from environment variables)
+  u32 wait_server_timeout_ = 30;  // CHI_WAIT_SERVER: timeout in seconds (default 30)
+  u32 poll_server_interval_ = 1;  // CHI_POLL_SERVER: poll interval in seconds (default 1)
 };
 
 }  // namespace chi
