@@ -8,8 +8,12 @@ This guide describes how to deploy and configure the IoWarp runtime (Chimaera di
 - [Configuration Methods](#configuration-methods)
 - [Environment Variables](#environment-variables)
 - [Configuration File Format](#configuration-file-format)
+  - [Complete Configuration Example](#complete-configuration-example)
+  - [Configuration Parameters Reference](#configuration-parameters-reference)
+  - [Compose Configuration](#compose-configuration)
 - [Deployment Scenarios](#deployment-scenarios)
 - [Troubleshooting](#troubleshooting)
+- [Configuration Best Practices](#configuration-best-practices)
 
 ## Quick Start
 
@@ -91,8 +95,8 @@ The configuration file uses YAML format with the following sections:
 
 # Worker thread configuration
 workers:
-  sched_threads: 8           # Unified scheduler worker threads
-  process_reaper_threads: 1  # Process reaper threads
+  sched_threads: 4           # Scheduler worker threads (for fast tasks with EstCpuTime < 50us)
+  slow_threads: 4            # Slow worker threads (for long-running tasks with EstCpuTime >= 50us)
 
 # Memory segment configuration
 memory:
@@ -115,9 +119,77 @@ logging:
 runtime:
   stack_size: 65536  # 64KB per task
   queue_depth: 10000
-  lane_map_policy: "round_robin"  # Options: map_by_pid_tid, round_robin, random
+  lane_map_policy: "round_robin"  # Options: map_by_pid_tid, round_robin (default), random
   heartbeat_interval: 1000  # milliseconds
 ```
+
+### Configuration Parameters Reference
+
+#### Worker Threads (`workers` section)
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `sched_threads` | integer | 4 | Number of scheduler worker threads for fast tasks (EstCpuTime < 50us) |
+| `slow_threads` | integer | 4 | Number of slow worker threads for long-running tasks (EstCpuTime >= 50us) |
+
+**Notes:**
+- Fast tasks are routed to scheduler threads for low-latency execution
+- Slow tasks are routed to dedicated slow threads to avoid blocking fast tasks
+- Set based on CPU core count and workload characteristics
+- Total threads = `sched_threads + slow_threads`
+
+#### Memory Segments (`memory` section)
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `main_segment_size` | size | 1GB | Main shared memory segment for task metadata and control structures |
+| `client_data_segment_size` | size | 512MB | Client-side data segment for application data |
+| `runtime_data_segment_size` | size | 512MB | Runtime-side data segment for internal state |
+
+**Size format:** Supports bytes (`1073741824`) or suffixed values (`1G`, `512M`, `64K`)
+
+**Docker requirements:** Set `shm_size` >= sum of all segments (recommend 20-30% extra)
+
+#### Network Configuration (`networking` section)
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `port` | integer | 5555 | ZeroMQ port for distributed communication |
+| `neighborhood_size` | integer | 32 | Maximum number of nodes queried when splitting range queries |
+| `hostfile` | string | (none) | Path to hostfile containing cluster node IP addresses (one per line) |
+
+**Notes:**
+- Port must match across all cluster nodes
+- Larger `neighborhood_size` improves load distribution but increases network overhead
+- Smaller values (4-8) useful for stress testing
+- `hostfile` required for distributed deployments
+
+#### Logging Configuration (`logging` section)
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `level` | string | "info" | Log level: `debug`, `info`, `warning`, `error` |
+| `file` | string | "/tmp/chimaera.log" | Path to log file |
+
+**Log levels:**
+- `debug`: Detailed debugging information (development only)
+- `info`: General operational information (recommended for testing)
+- `warning`: Warning messages only (production)
+- `error`: Error messages only (production)
+
+#### Runtime Configuration (`runtime` section)
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `stack_size` | integer | 65536 | Stack size per task in bytes (64KB default) |
+| `queue_depth` | integer | 10000 | Maximum depth of task queues |
+| `lane_map_policy` | string | "round_robin" | Task lane assignment policy |
+| `heartbeat_interval` | integer | 1000 | Heartbeat interval in milliseconds |
+
+**Lane mapping policies:**
+- `round_robin` (default): Distribute tasks evenly across lanes
+- `map_by_pid_tid`: Map tasks based on process/thread ID for affinity
+- `random`: Random lane assignment
 
 ### Size Format
 
@@ -143,270 +215,180 @@ networking:
   hostfile: "/etc/chimaera/hostfile"
 ```
 
-### Distributed Testing Configuration
+### Compose Configuration
 
-For testing with smaller neighborhoods (stress testing):
+The `compose` section allows you to declaratively define pools that should be created when the runtime starts. This is useful for:
+- Automated pool creation during deployment
+- Infrastructure-as-code for distributed systems
+- Testing and development environments
+
+**Basic Compose Example:**
 
 ```yaml
-# Based on test/unit/distributed/chimaera_distributed.yaml
+# Chimaera configuration with compose section
+workers:
+  sched_threads: 4
+  slow_threads: 4
+
+memory:
+  main_segment_size: 1GB
+  client_data_segment_size: 512MB
+  runtime_data_segment_size: 512MB
+
+networking:
+  port: 5555
+
+compose:
+  # BDev file-based storage device
+  - mod_name: chimaera_bdev
+    pool_name: /tmp/storage_device.dat
+    pool_query: dynamic
+    pool_id: 300.0
+    capacity: 1GB
+    bdev_type: file
+    io_depth: 32
+    alignment: 4096
+
+  # BDev RAM-based storage device
+  - mod_name: chimaera_bdev
+    pool_name: ram_cache
+    pool_query: local
+    pool_id: 301.0
+    capacity: 512MB
+    bdev_type: ram
+    io_depth: 64
+    alignment: 4096
+
+  # Custom ChiMod pool
+  - mod_name: chimaera_custom_mod
+    pool_name: my_custom_pool
+    pool_query: dynamic
+    pool_id: 400.0
+    # ChiMod-specific parameters here
+    custom_param1: value1
+    custom_param2: value2
+```
+
+#### Compose Section Parameters
+
+**Common Parameters (all pools):**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `mod_name` | string | Yes | ChiMod library name (e.g., "chimaera_bdev", "chimaera_admin") |
+| `pool_name` | string | Yes | Pool name or identifier; for file-based BDev, this is the file path |
+| `pool_query` | string | Yes | Pool routing: "dynamic" (recommended) or "local" |
+| `pool_id` | string | Yes | Pool ID in format "major.minor" (e.g., "300.0") |
+
+**BDev-Specific Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `capacity` | size | Yes | Total capacity of the block device (e.g., "1GB", "512MB") |
+| `bdev_type` | string | Yes | Device type: "file" or "ram" |
+| `io_depth` | integer | No | I/O queue depth (default: 16) |
+| `alignment` | integer | No | Block alignment in bytes (default: 4096) |
+
+**Pool Query Values:**
+- `dynamic` (recommended): Automatically routes to local if pool exists, broadcast if creating new
+- `local`: Create/access pool only on local node
+- `broadcast`: Create pool on all nodes in cluster
+
+**Pool ID Format:**
+- Format: `"major.minor"` where major and minor are integers
+- Example: `"300.0"`, `"301.5"`, `"1000.100"`
+- Must be unique across all pools in the system
+
+#### Using Compose with chimaera_compose Utility
+
+The `chimaera_compose` utility creates pools from a compose configuration file. This is useful for:
+- Setting up pools after runtime initialization
+- Scripted deployment workflows
+- Testing pool configurations
+
+**Usage:**
+
+```bash
+# Start runtime first
+export CHI_SERVER_CONF=/path/to/config.yaml
+chimaera_start_runtime &
+
+# Wait for runtime to initialize
+sleep 2
+
+# Create pools from compose configuration
+chimaera_compose /path/to/config.yaml
+```
+
+#### Compose Best Practices
+
+1. **Pool IDs**: Use a consistent numbering scheme (e.g., 300-399 for BDev, 400-499 for custom modules)
+2. **Pool Names**: For file-based BDev, use absolute paths; for RAM-based BDev, use descriptive names
+3. **Pool Query**: Prefer `dynamic` for automatic routing optimization
+4. **Capacity**: Ensure capacity doesn't exceed available storage/memory
+5. **Error Handling**: Always verify pool creation succeeded (check return codes)
+
+#### Complete Compose Example
+
+```yaml
+# Production-ready configuration with multiple pools
 workers:
   sched_threads: 8
-  process_reaper_threads: 1
+  slow_threads: 8
 
 memory:
-  main_segment_size: 4294967296      # 4GB
-  client_data_segment_size: 2147483648 # 2GB
-  runtime_data_segment_size: 2147483648 # 2GB
-
-networking:
-  port: 5555
-  neighborhood_size: 4  # Small size to stress test range/broadcast queries
-  hostfile: "/etc/iowarp/hostfile"
-
-logging:
-  level: "info"
-  file: "/tmp/chimaera.log"
-
-runtime:
-  stack_size: 65536
-  queue_depth: 10000
-  lane_map_policy: "round_robin"
-  heartbeat_interval: 1000
-```
-
-## Deployment Scenarios
-
-### Scenario 1: Single Node Development
-
-**Configuration**: Use default values
-
-```bash
-# No configuration needed - uses built-in defaults
-chimaera_start_runtime
-```
-
-**Default Values**:
-- 8 scheduler workers, 1 process reaper
-- 1GB main segment, 512MB client/runtime segments
-- Port 5555, neighborhood size 32
-- Round-robin lane mapping
-
-### Scenario 2: Single Node with Custom Configuration
-
-**Configuration**: YAML file with custom settings
-
-```bash
-# Create configuration file
-cat > /etc/chimaera/chimaera_config.yaml <<EOF
-workers:
-  sched_threads: 16
-
-memory:
-  main_segment_size: 4G
-  client_data_segment_size: 2G
-  runtime_data_segment_size: 2G
-
-networking:
-  port: 5555
-
-logging:
-  level: "debug"
-  file: "/var/log/chimaera.log"
-EOF
-
-# Set configuration path and start
-export CHI_SERVER_CONF=/etc/chimaera/chimaera_config.yaml
-chimaera_start_runtime
-```
-
-### Scenario 3: Multi-Node Cluster with Docker (Default Configuration)
-
-**Configuration**: Docker Compose using default configuration
-
-The Docker container automatically sets `WRP_RUNTIME_CONF=/etc/wrp_runtime/wrp_runtime_config.yaml`.
-
-1. **Create hostfile** (`docker/hostfile`):
-   ```
-   172.20.0.10
-   172.20.0.11
-   172.20.0.12
-   ```
-
-2. **Deploy cluster** (uses default config):
-   ```bash
-   cd docker
-   docker-compose up -d
-   ```
-
-The default configuration provides:
-- 8 scheduler workers, 1 process reaper
-- 1GB main segment, 512MB client/runtime segments
-- Port 5555, neighborhood size 32
-- Info logging to /tmp/chimaera.log
-
-### Scenario 3b: Multi-Node Cluster with Custom Configuration
-
-**Configuration**: Docker Compose with custom configuration file
-
-1. **Create custom configuration** (`docker/chimaera_cluster.yaml`):
-   ```yaml
-   workers:
-     sched_threads: 16
-     process_reaper_threads: 1
-
-   memory:
-     main_segment_size: 4G
-     client_data_segment_size: 2G
-     runtime_data_segment_size: 2G
-
-   networking:
-     port: 5555
-     neighborhood_size: 32
-     hostfile: "/etc/chimaera/hostfile"
-
-   logging:
-     level: "debug"
-     file: "/tmp/chimaera.log"
-
-   runtime:
-     stack_size: 65536
-     queue_depth: 20000
-     lane_map_policy: "round_robin"
-     heartbeat_interval: 1000
-   ```
-
-2. **Create hostfile** (`docker/hostfile`):
-   ```
-   172.20.0.10
-   172.20.0.11
-   172.20.0.12
-   ```
-
-3. **Mount custom config in docker-compose.yml**:
-   ```yaml
-   version: '3.8'
-
-   services:
-     chimaera-node1:
-       image: iowarp/iowarp-runtime:latest
-       networks:
-         chimaera-cluster:
-           ipv4_address: 172.20.0.10
-       volumes:
-         # Override default config by mounting to WRP_RUNTIME_CONF path
-         - ./chimaera_cluster.yaml:/etc/wrp_runtime/wrp_runtime_config.yaml:ro
-         - ./hostfile:/etc/chimaera/hostfile:ro
-       shm_size: 8gb  # Must be >= 4GB + 2GB + 2GB
-   ```
-
-4. **Deploy cluster**:
-   ```bash
-   cd docker
-   docker-compose up -d
-   ```
-
-### Scenario 4: Docker with CHI_SERVER_CONF Override
-
-**Configuration**: Override WRP_RUNTIME_CONF using CHI_SERVER_CONF
-
-```bash
-# Create custom configuration
-cat > chimaera_custom.yaml <<EOF
-workers:
-  sched_threads: 16
-  process_reaper_threads: 1
-
-memory:
-  main_segment_size: 8G
-  client_data_segment_size: 4G
-  runtime_data_segment_size: 4G
+  main_segment_size: 4GB
+  client_data_segment_size: 2GB
+  runtime_data_segment_size: 2GB
 
 networking:
   port: 5555
   neighborhood_size: 32
-
-logging:
-  level: "info"
-  file: "/tmp/chimaera.log"
-
-runtime:
-  stack_size: 65536
-  queue_depth: 10000
-  lane_map_policy: "round_robin"
-  heartbeat_interval: 1000
-EOF
-
-# Run with custom config (CHI_SERVER_CONF takes precedence over WRP_RUNTIME_CONF)
-docker run -d \
-  -v $(pwd)/chimaera_custom.yaml:/etc/wrp_runtime/custom_config.yaml:ro \
-  -e CHI_SERVER_CONF=/etc/wrp_runtime/custom_config.yaml \
-  --shm-size=16gb \
-  iowarp/iowarp-runtime:latest
-```
-
-### Scenario 5: Production Deployment
-
-**Configuration**: Optimized for production workloads
-
-```yaml
-# production.yaml
-workers:
-  sched_threads: 32  # Match CPU core count
-  process_reaper_threads: 2
-
-memory:
-  main_segment_size: 16G
-  client_data_segment_size: 8G
-  runtime_data_segment_size: 8G
-
-networking:
-  port: 5555
-  neighborhood_size: 64  # Larger for better load distribution
   hostfile: "/etc/chimaera/hostfile"
 
 logging:
-  level: "warning"  # Reduce log verbosity
+  level: "info"
   file: "/var/log/chimaera/chimaera.log"
 
 runtime:
-  stack_size: 131072  # 128KB for larger tasks
-  queue_depth: 50000  # Higher queue depth
+  stack_size: 65536
+  queue_depth: 20000
   lane_map_policy: "round_robin"
-  heartbeat_interval: 500   # More frequent heartbeats
-```
+  heartbeat_interval: 1000
 
-**Deployment**:
-```bash
-export CHI_SERVER_CONF=/etc/chimaera/production.yaml
-chimaera_start_runtime
+compose:
+  # Primary storage device (file-based)
+  - mod_name: chimaera_bdev
+    pool_name: /data/primary_storage.dat
+    pool_query: dynamic
+    pool_id: 300.0
+    capacity: 100GB
+    bdev_type: file
+    io_depth: 64
+    alignment: 4096
+
+  # Fast cache device (RAM-based)
+  - mod_name: chimaera_bdev
+    pool_name: fast_cache
+    pool_query: local
+    pool_id: 301.0
+    capacity: 8GB
+    bdev_type: ram
+    io_depth: 128
+    alignment: 4096
+
+  # Secondary storage (file-based)
+  - mod_name: chimaera_bdev
+    pool_name: /data/secondary_storage.dat
+    pool_query: dynamic
+    pool_id: 302.0
+    capacity: 500GB
+    bdev_type: file
+    io_depth: 32
+    alignment: 4096
 ```
 
 ## Troubleshooting
-
-### Issue: Runtime fails to start
-
-**Symptoms**: `Failed to initialize Chimaera runtime`
-
-**Solutions**:
-1. Check configuration file path:
-   ```bash
-   echo $CHI_SERVER_CONF
-   cat $CHI_SERVER_CONF
-   ```
-
-2. Verify YAML syntax:
-   ```bash
-   python3 -c "import yaml; yaml.safe_load(open('$CHI_SERVER_CONF'))"
-   ```
-
-3. Check shared memory availability:
-   ```bash
-   # Linux: Check available shared memory
-   df -h /dev/shm
-
-   # Docker: Verify shm_size setting
-   docker inspect <container> | grep -i shm
-   ```
 
 ### Issue: Configuration not loaded
 
@@ -491,35 +473,6 @@ chimaera_start_runtime
      level: "debug"  # Enable detailed logging
    ```
 
-### Issue: Performance bottlenecks
-
-**Symptoms**: Tasks executing slowly or queuing up
-
-**Solutions**:
-1. Increase worker threads:
-   ```yaml
-   workers:
-     sched_threads: 16  # Match CPU core count
-   ```
-
-2. Optimize lane mapping:
-   ```yaml
-   performance:
-     lane_map_policy: "map_by_pid_tid"  # Better affinity
-   ```
-
-3. Increase queue depth:
-   ```yaml
-   performance:
-     queue_depth: 20000
-   ```
-
-4. Adjust neighborhood size for distributed workloads:
-   ```yaml
-   networking:
-     neighborhood_size: 64  # Larger for better distribution
-   ```
-
 ## Configuration Best Practices
 
 1. **Configuration File Management**:
@@ -535,9 +488,10 @@ chimaera_start_runtime
    - Example: If total segments = 2GB, set `shm_size: 2.5gb`
 
 3. **Worker Threads**:
-   - Set `sched_threads` equal to CPU core count for CPU-bound workloads
-   - Use fewer threads for I/O-bound workloads
-   - Keep `process_reaper_threads` at 1 unless debugging
+   - Set `sched_threads` + `slow_threads` equal to CPU core count
+   - Balance between fast and slow threads based on workload (50/50 split is a good starting point)
+   - Use more `sched_threads` for workloads with many fast tasks (< 50us execution time)
+   - Use more `slow_threads` for workloads with many long-running tasks (>= 50us execution time)
 
 4. **Network Tuning**:
    - Use smaller `neighborhood_size` (4-8) for stress testing
@@ -559,9 +513,51 @@ chimaera_start_runtime
 
 ## References
 
-- Example configurations:
-  - Development: `config/chimaera_default.yaml`
-  - Distributed testing: `test/unit/distributed/chimaera_distributed.yaml`
-- Docker setup: `docker/deploy.Dockerfile`, `docker/docker-compose.yml`
-- Runtime source: `util/chimaera_start_runtime.cc`
-- Configuration manager: `src/config_manager.cc`, `include/chimaera/config_manager.h`
+### Configuration Files
+- **Default configuration**: `config/chimaera_default.yaml`
+  - Reference implementation with all default values
+  - Includes comments explaining each parameter
+  - 4 scheduler workers, 4 slow workers
+  - 1GB main segment, 512MB client/runtime segments
+
+### Compose Utility
+- **Compose utility source**: `util/chimaera_compose.cc`
+  - Standalone tool for creating pools from compose configurations
+  - Requires runtime to be initialized first
+  - Usage: `chimaera_compose <config.yaml>`
+
+- **Compose test script**: `test/unit/test_chimaera_compose.sh`
+  - Complete example of using chimaera_compose utility
+  - Demonstrates BDev pool creation from compose section
+  - Includes verification and cleanup steps
+
+### Source Code
+- **Runtime startup**: `util/chimaera_start_runtime.cc`
+  - Main runtime initialization and server startup
+  - Loads configuration from CHI_SERVER_CONF or WRP_RUNTIME_CONF
+
+- **Configuration manager**: `src/config_manager.cc`, `include/chimaera/config_manager.h`
+  - YAML parsing and configuration structures
+  - PoolConfig and ComposeConfig definitions
+  - Environment variable resolution
+
+### Docker Deployment
+- **Dockerfile**: `docker/deploy.Dockerfile`
+  - Container image definition with all dependencies
+
+- **Docker Compose**: `docker/docker-compose.yml`
+  - Multi-node cluster orchestration
+  - Static IP assignment for predictable routing
+
+- **Entrypoint script**: `docker/entrypoint.sh`
+  - Runtime configuration generation
+  - Environment variable substitution
+
+### Related Documentation
+- **Module Development Guide**: `doc/MODULE_DEVELOPMENT_GUIDE.md`
+  - ChiMod development and integration
+  - Compose integration for custom modules
+
+- **Docker README**: `docker/README.md`
+  - Comprehensive Docker deployment guide
+  - Network configuration and troubleshooting
