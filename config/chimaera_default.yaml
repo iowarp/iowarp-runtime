@@ -16,6 +16,8 @@ memory:
 networking:
   port: 5555
   neighborhood_size: 32  # Maximum number of queries when splitting range queries
+  wait_for_restart: 30   # Seconds to wait for remote connection during system boot (default: 30)
+  wait_for_restart_poll_period: 1  # Seconds between retry attempts (default: 1)
   
 # Logging configuration
 logging:

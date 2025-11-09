@@ -153,6 +153,10 @@ void ConfigManager::LoadDefault() {
 
   // Set default lane mapping policy
   lane_map_policy_ = LaneMapPolicy::kRoundRobin;
+
+  // Set default network retry configuration
+  wait_for_restart_timeout_ = 30;      // 30 seconds
+  wait_for_restart_poll_period_ = 1;   // 1 second
 }
 
 void ConfigManager::ParseYAML(YAML::Node &yaml_conf) {
@@ -198,6 +202,12 @@ void ConfigManager::ParseYAML(YAML::Node &yaml_conf) {
     }
     if (networking["hostfile"]) {
       hostfile_path_ = networking["hostfile"].as<std::string>();
+    }
+    if (networking["wait_for_restart"]) {
+      wait_for_restart_timeout_ = networking["wait_for_restart"].as<u32>();
+    }
+    if (networking["wait_for_restart_poll_period"]) {
+      wait_for_restart_poll_period_ = networking["wait_for_restart_poll_period"].as<u32>();
     }
   }
 

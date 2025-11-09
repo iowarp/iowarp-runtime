@@ -163,6 +163,18 @@ class ConfigManager : public hshm::BaseConfig {
    */
   const ComposeConfig& GetComposeConfig() const { return compose_config_; }
 
+  /**
+   * Get wait_for_restart timeout in seconds
+   * @return Maximum time to wait for remote connection during system boot (default: 30 seconds)
+   */
+  u32 GetWaitForRestartTimeout() const { return wait_for_restart_timeout_; }
+
+  /**
+   * Get wait_for_restart polling period in seconds
+   * @return Time between connection retry attempts (default: 1 second)
+   */
+  u32 GetWaitForRestartPollPeriod() const { return wait_for_restart_poll_period_; }
+
  private:
   /**
    * Set default configuration values (implements hshm::BaseConfig)
@@ -199,6 +211,10 @@ class ConfigManager : public hshm::BaseConfig {
 
   // Task distribution policy
   LaneMapPolicy lane_map_policy_ = LaneMapPolicy::kRoundRobin;
+
+  // Network retry configuration for system boot
+  u32 wait_for_restart_timeout_ = 30;        // Default: 30 seconds
+  u32 wait_for_restart_poll_period_ = 1;     // Default: 1 second
 
   // Compose configuration
   ComposeConfig compose_config_;

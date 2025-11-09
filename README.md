@@ -290,9 +290,9 @@ public:
 
 ## Documentation
 
-Comprehensive documentation is available in the `doc/` directory:
+Comprehensive documentation is available in the `docs/` directory:
 
-- **[MODULE_DEVELOPMENT_GUIDE.md](doc/MODULE_DEVELOPMENT_GUIDE.md)**: Complete guide for developing ChiMods
+- **[MODULE_DEVELOPMENT_GUIDE.md](docs/MODULE_DEVELOPMENT_GUIDE.md)**: Complete guide for developing ChiMods
 - **[ChiMod Documentation](chimods/)**: Individual ChiMod API references:
   - [Admin ChiMod](chimods/admin/doc/admin.md): Core system management
   - [Bdev ChiMod](chimods/bdev/doc/bdev.md): Block device operations

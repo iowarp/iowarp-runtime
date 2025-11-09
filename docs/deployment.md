@@ -109,6 +109,8 @@ networking:
   port: 5555
   neighborhood_size: 32  # Maximum number of queries when splitting range queries
   hostfile: "/etc/chimaera/hostfile"  # Optional: path to hostfile for distributed mode
+  wait_for_restart: 30   # Seconds to wait for remote connection during system boot
+  wait_for_restart_poll_period: 1  # Seconds between retry attempts
 
 # Logging configuration
 logging:
@@ -157,12 +159,16 @@ runtime:
 | `port` | integer | 5555 | ZeroMQ port for distributed communication |
 | `neighborhood_size` | integer | 32 | Maximum number of nodes queried when splitting range queries |
 | `hostfile` | string | (none) | Path to hostfile containing cluster node IP addresses (one per line) |
+| `wait_for_restart` | integer | 30 | Seconds to wait for remote connection during system boot |
+| `wait_for_restart_poll_period` | integer | 1 | Seconds between connection retry attempts |
 
 **Notes:**
 - Port must match across all cluster nodes
 - Larger `neighborhood_size` improves load distribution but increases network overhead
 - Smaller values (4-8) useful for stress testing
 - `hostfile` required for distributed deployments
+- `wait_for_restart` prevents failures when remote nodes are still booting
+- `wait_for_restart_poll_period` controls retry frequency (lower = more frequent retries)
 
 #### Logging Configuration (`logging` section)
 
@@ -190,6 +196,52 @@ runtime:
 - `round_robin` (default): Distribute tasks evenly across lanes
 - `map_by_pid_tid`: Map tasks based on process/thread ID for affinity
 - `random`: Random lane assignment
+
+#### Connection Retry During System Boot
+
+When deploying distributed clusters, nodes may not all become available simultaneously. The `wait_for_restart` feature provides automatic retry logic for remote connections during system boot:
+
+**How it works:**
+1. When SendIn attempts to send a task to a remote node and the connection fails
+2. The system waits `wait_for_restart_poll_period` seconds and retries
+3. This continues until either:
+   - The connection succeeds, OR
+   - `wait_for_restart` seconds have elapsed (timeout)
+4. During the wait period, the task yields control using `task->Wait()` to avoid blocking the worker
+
+**Configuration parameters:**
+- `wait_for_restart`: Maximum time to wait for connection (default: 30 seconds)
+- `wait_for_restart_poll_period`: Time between retry attempts (default: 1 second)
+
+**Example scenarios:**
+```yaml
+# Quick timeout for fast-starting systems
+networking:
+  wait_for_restart: 10
+  wait_for_restart_poll_period: 1
+
+# Extended timeout for slow-starting systems
+networking:
+  wait_for_restart: 60
+  wait_for_restart_poll_period: 2
+
+# Frequent retries for flaky networks
+networking:
+  wait_for_restart: 30
+  wait_for_restart_poll_period: 0.5
+```
+
+**Use cases:**
+- **Container orchestration**: Nodes starting at different times in Docker/Kubernetes
+- **VM deployments**: VMs with different boot times
+- **Network delays**: Temporary network partitions during startup
+- **Rolling restarts**: Nodes restarting in sequence
+
+**Best practices:**
+- Set `wait_for_restart` based on expected maximum boot time difference
+- Use shorter `wait_for_restart_poll_period` for more responsive retries
+- Monitor logs for "retrying" messages to tune timeout values
+- In production, set `wait_for_restart` to 2-3x typical boot time variance
 
 ### Size Format
 
@@ -554,7 +606,7 @@ compose:
   - Environment variable substitution
 
 ### Related Documentation
-- **Module Development Guide**: `doc/MODULE_DEVELOPMENT_GUIDE.md`
+- **Module Development Guide**: `docs/MODULE_DEVELOPMENT_GUIDE.md`
   - ChiMod development and integration
   - Compose integration for custom modules
 

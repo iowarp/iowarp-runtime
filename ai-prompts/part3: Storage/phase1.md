@@ -1,4 +1,4 @@
-@CLAUDE.md Create a chimod called bdev, which stands for block device. Use the same namespace as MOD_NAME. Make sure to read @doc/MODULE_DEVELOPMENT_GUIDE.md and to use chi_refresh_repo.py when building the module. 
+@CLAUDE.md Create a chimod called bdev, which stands for block device. Use the same namespace as MOD_NAME. Make sure to read @docs/MODULE_DEVELOPMENT_GUIDE.md and to use chi_refresh_repo.py when building the module. 
 
 ## CreateTask
 

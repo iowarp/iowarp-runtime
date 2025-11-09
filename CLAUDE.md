@@ -424,7 +424,7 @@ make
 ```
 
 **For comprehensive external ChiMod development guidance, see:**
-`doc/MODULE_DEVELOPMENT_GUIDE.md` - Section "External ChiMod Development"
+`docs/MODULE_DEVELOPMENT_GUIDE.md` - Section "External ChiMod Development"
 
 This section provides complete step-by-step instructions for:
 - Setting up external ChiMod repositories
@@ -689,7 +689,7 @@ This change ensures that the worker's `ContinueBlockedTasks()` function properly
 
 When creating or modifying ChiMods (Chimaera modules), refer to the comprehensive module development guide:
 
-**📖 See [doc/MODULE_DEVELOPMENT_GUIDE.md](doc/MODULE_DEVELOPMENT_GUIDE.md) for complete ChiMod development documentation**
+**📖 See [docs/MODULE_DEVELOPMENT_GUIDE.md](docs/MODULE_DEVELOPMENT_GUIDE.md) for complete ChiMod development documentation**
 
 This guide covers:
 - Module structure and architecture
