@@ -95,13 +95,6 @@ struct BaseCreateTask : public chi::Task {
   }
 
   /**
-   * Get the ChiMod library name for module manager
-   */
-  static constexpr const char *GetChiModLibName() {
-    return CreateParamsT::chimod_lib_name;
-  }
-
-  /**
    * Set parameters by serializing them to chimod_params_
    */
   template <typename... Args>
