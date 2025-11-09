@@ -102,7 +102,7 @@ cmake --build build --parallel $(nproc)
 cmake --install build --prefix /usr/local
 ```
 
-#### 3. Quick Start Example
+#### 2. Quick Start Example
 
 Create a simple application using the bdev ChiMod:
 
