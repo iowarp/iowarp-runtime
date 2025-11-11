@@ -322,7 +322,7 @@ using CreateTask = chimaera::admin::GetOrCreatePoolTask<CreateParams>;
 struct AllocateBlocksTask : public chi::Task {
   // Task-specific data
   IN chi::u64 size_;                  // Requested total size
-  OUT ArrayVector<Block, 4> blocks_;  // Allocated blocks information (max 4 blocks)
+  OUT ArrayVector<Block, 16> blocks_;  // Allocated blocks information (max 16 blocks)
 
   /** SHM default constructor */
   explicit AllocateBlocksTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc)
@@ -367,7 +367,7 @@ struct AllocateBlocksTask : public chi::Task {
  */
 struct FreeBlocksTask : public chi::Task {
   // Task-specific data
-  IN ArrayVector<Block, 4> blocks_;  // Blocks to free (max 4 blocks)
+  IN ArrayVector<Block, 16> blocks_;  // Blocks to free (max 16 blocks)
 
   /** SHM default constructor */
   explicit FreeBlocksTask(const hipc::CtxAllocator<CHI_MAIN_ALLOC_T> &alloc)
@@ -390,7 +390,7 @@ struct FreeBlocksTask : public chi::Task {
     // Copy blocks from std::vector to ArrayVector
     for (const auto& block : blocks) {
       if (blocks_.size() >= blocks_.capacity()) {
-        throw std::runtime_error("FreeBlocksTask: too many blocks (max 4)");
+        throw std::runtime_error("FreeBlocksTask: too many blocks (max 16)");
       }
       blocks_.push_back(block);
     }
