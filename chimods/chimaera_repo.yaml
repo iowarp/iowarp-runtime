@@ -1,0 +1,22 @@
+# Chimaera Module Repository Configuration
+# This repository contains the standard Chimaera modules
+
+name: chimods
+namespace: chimaera
+version: 1.0.0
+description: Standard Chimaera modules repository
+
+# Repository metadata
+author: Chimaera Project
+license: Apache-2.0
+
+# Modules in this repository
+modules:
+  - MOD_NAME
+  - admin
+  - bdev
+
+# Build configuration
+build:
+  requires_chimaera: true
+  min_chimaera_version: 1.0.0

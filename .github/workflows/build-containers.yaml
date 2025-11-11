@@ -1,0 +1,73 @@
+name: Build Containers
+
+on:
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  build-build:
+    name: Build Container
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        id: buildx
+
+      - name: Build and push build container
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./docker/build.Dockerfile
+          builder: ${{ steps.buildx.outputs.name }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: iowarp/iowarp-runtime-build:latest
+          cache-from: type=registry,ref=iowarp/iowarp-runtime-build:buildcache
+          cache-to: type=registry,ref=iowarp/iowarp-runtime-build:buildcache,mode=max
+
+  build-deploy:
+    name: Build Deployment Container
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    needs: build-build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        id: buildx
+
+      - name: Build and push deploy container
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./docker/deploy.Dockerfile
+          builder: ${{ steps.buildx.outputs.name }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: iowarp/iowarp-runtime:latest
+          cache-from: type=registry,ref=iowarp/iowarp-runtime:buildcache
+          cache-to: type=registry,ref=iowarp/iowarp-runtime:buildcache,mode=max

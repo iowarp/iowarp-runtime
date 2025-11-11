@@ -1,5 +1,344 @@
-# Chimaera
+# Chimaera Runtime
 
-Chimaera is a distributed semi-microkernel for building near-data processing
-and data storage systems. It is designed to be secure, efficient, and
-scalable.
+<p align="center">
+  <strong>High-Performance Modular Runtime for Scientific Computing and Storage Systems</strong>
+  <br />
+  <br />
+  <a href="#getting-started">Getting Started</a> ·
+  <a href="#external-integration">External Integration</a> ·
+  <a href="#chimod-development">ChiMod Development</a> ·
+  <a href="#documentation">Documentation</a> ·
+  <a href="#contributing">Contributing</a>
+</p>
+
+---
+
+**Chimaera** is a high-performance, distributed task execution runtime designed for scientific computing, storage systems, and near-data processing applications. Built with a modular architecture, Chimaera enables developers to create custom processing modules (ChiMods) that can be dynamically loaded and executed with minimal overhead.
+
+## What is Chimaera?
+
+Chimaera provides:
+- **High-Performance Task Execution**: Coroutine-based task scheduling with microsecond-level latencies
+- **Modular Architecture**: Extensible ChiMod system for custom functionality
+- **Advanced Synchronization**: CoMutex and CoRwLock for coroutine-aware synchronization
+- **Distributed Computing**: Seamless scaling from single node to cluster deployments
+- **Storage Integration**: Built-in support for block devices, file systems, and custom storage backends
+- **Memory Management**: Shared memory IPC with HermesShm for optimal performance
+
+## Key Features
+
+- 🚀 **Ultra-High Performance**: Coroutine-based execution with shared memory IPC for microsecond-level task latencies
+- 🧩 **Modular ChiMod System**: Dynamically loadable modules for custom functionality without core modifications
+- 🔄 **Advanced Task Management**: Asynchronous and fire-and-forget task execution patterns
+- 🔐 **Coroutine-Aware Synchronization**: CoMutex and CoRwLock primitives for deadlock-free coordination
+- 💾 **Flexible Storage Backends**: Built-in support for RAM, file-based, and custom block device operations
+- 🌐 **Distributed Architecture**: Seamless scaling from development to production clusters
+- 🔧 **Developer-Friendly**: Comprehensive APIs, extensive documentation, and external project integration
+
+## Architecture
+
+Chimaera follows a modular semi-microkernel design:
+
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│  Client App 1   │    │  Client App 2   │    │  External App   │
+├─────────────────┤    ├─────────────────┤    ├─────────────────┤
+│ ChiMod Clients  │    │ ChiMod Clients  │    │ ChiMod Clients  │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+         └───────────────────────┼───────────────────────┘
+                                 │
+                    ┌─────────────────┐
+                    │ Chimaera Runtime │
+                    │                 │
+                    │  Core Services: │
+                    │  • IPC Manager  │
+                    │  • Work Orch.   │
+                    │  • Pool Manager │
+                    │  • Module Mgr   │
+                    └─────────────────┘
+                                 │
+            ┌────────────────────┼────────────────────┐
+            │                    │                    │
+    ┌───────────────┐   ┌───────────────┐   ┌───────────────┐
+    │ Admin ChiMod  │   │ Bdev ChiMod   │   │ Custom ChiMod │
+    │ (Pool Mgmt)   │   │ (Block I/O)   │   │ (User Logic)  │
+    └───────────────┘   └───────────────┘   └───────────────┘
+```
+
+**Core Components:**
+- **Runtime Process**: Central coordinator managing resources and ChiMods
+- **ChiMods**: Dynamically loaded modules providing specialized functionality
+- **Client Libraries**: Lightweight interfaces for application integration
+- **Shared Memory IPC**: High-performance inter-process communication via HermesShm
+
+## Getting Started
+
+### Prerequisites
+
+Chimaera requires the following dependencies:
+
+**System Requirements:**
+- C++17 compatible compiler (GCC >= 9, Clang >= 10)
+- CMake >= 3.10
+- Linux (Ubuntu 20.04+, CentOS 8+, or similar)
+
+Our docker container has all dependencies installed for you.
+```bash
+docker pull iowarp/iowarp-build:latest
+```
+
+### Installation
+
+#### 1. Clone and Build
+
+```bash
+# Clone the repository
+git clone https://github.com/iowarp/iowarp-runtime.git
+cd iowarp-runtime
+
+# Configure release with CMake preset
+cmake --preset release
+
+# Build all components
+cmake --build build --parallel $(nproc)
+
+# Install to system or custom prefix
+cmake --install build --prefix /usr/local
+```
+
+#### 2. Quick Start Example
+
+Create a simple application using the bdev ChiMod:
+
+```cpp
+#include <chimaera/chimaera.h>
+#include <chimaera/bdev/bdev_client.h>
+#include <chimaera/admin/admin_client.h>
+
+int main() {
+  // Initialize Chimaera client
+  chi::CHIMAERA_CLIENT_INIT();
+  
+  // Create admin client (always required)
+  chimaera::admin::Client admin_client(chi::PoolId(7000, 0));
+  admin_client.Create(HSHM_MCTX, chi::PoolQuery::Local());
+  
+  // Create bdev client for high-speed RAM storage
+  chimaera::bdev::Client bdev_client(chi::PoolId(8000, 0));
+  bdev_client.Create(HSHM_MCTX, chi::PoolQuery::Local(), 
+                    chimaera::bdev::BdevType::kRam, "", 1024*1024*1024); // 1GB RAM
+  
+  // Allocate and use a block
+  auto block = bdev_client.Allocate(HSHM_MCTX, 4096);  // 4KB block
+  std::vector<hshm::u8> data(4096, 0xAB);
+  bdev_client.Write(HSHM_MCTX, block, data);
+  auto read_data = bdev_client.Read(HSHM_MCTX, block);
+  bdev_client.Free(HSHM_MCTX, block);
+  
+  return 0;
+}
+```
+
+## External Integration
+
+Chimaera is designed to be easily integrated into external projects through its CMake export system.
+
+### For External C++ Projects
+
+**CMakeLists.txt Example:**
+```cmake
+cmake_minimum_required(VERSION 3.10)
+project(MyChimaeraApp)
+
+# Find Chimaera packages
+find_package(chimaera-core REQUIRED)
+find_package(chimaera-admin REQUIRED)
+find_package(chimaera-bdev REQUIRED)  # Optional: for block device operations
+
+# Create your application
+add_executable(my_app src/main.cpp)
+
+# Link against Chimaera libraries
+target_link_libraries(my_app
+  chimaera::cxx              # Core Chimaera runtime
+  chimaera::admin_client     # Admin module (always required)
+  chimaera::bdev_client      # Block device operations
+  ${CMAKE_THREAD_LIBS_INIT}  # Threading support
+)
+```
+
+**Build Configuration:**
+```bash
+# Set CMAKE_PREFIX_PATH to include Chimaera installation
+export CMAKE_PREFIX_PATH="/usr/local:/path/to/chimaera/install"
+
+mkdir build && cd build
+cmake ..
+make
+```
+
+### Available ChiMods
+
+| ChiMod | Purpose | CMake Package | Description |
+|--------|---------|---------------|--------------|
+| **admin** | Core Management | `chimaera-admin` | Pool creation and system administration (always required) |
+| **bdev** | Block I/O | `chimaera-bdev` | High-performance block device operations with RAM/file backends |
+| **MOD_NAME** | Template | `chimaera-MOD_NAME` | Example ChiMod template for custom development |
+
+### Runtime vs Client Mode
+
+Chimaera applications can run in two modes:
+
+**Client Mode** (Most Common):
+```cpp
+// Initialize as client - connects to existing runtime
+chi::CHIMAERA_CLIENT_INIT();
+```
+
+**Runtime Mode** (Advanced):
+```cpp
+// Initialize as runtime - starts embedded runtime process
+chi::CHIMAERA_RUNTIME_INIT();
+```
+
+## ChiMod Development
+
+The true power of Chimaera lies in developing custom ChiMods. Each ChiMod is a self-contained module providing specialized functionality.
+
+### ChiMod Structure
+
+```
+chimods/my_module/
+├── chimaera_mod.yaml           # Module metadata
+├── CMakeLists.txt              # Build configuration
+├── doc/                        # Documentation
+│   ├── my_module.md           # API reference
+│   └── integration.md         # Integration guide
+├── include/chimaera/my_module/ # Headers
+│   ├── my_module_client.h     # Client interface
+│   ├── my_module_runtime.h    # Runtime implementation
+│   └── my_module_tasks.h      # Task definitions
+└── src/                        # Implementation
+    ├── my_module_client.cc    # Client code
+    └── my_module_runtime.cc   # Runtime code
+```
+
+### Key Development Concepts
+
+**1. Task-Based Architecture:**
+```cpp
+// Define custom tasks
+struct MyCustomTask : public chi::Task {
+  chi::u64 input_data_;
+  chi::u64 result_;        // Output parameter
+  chi::u32 result_code_;   // Error code
+};
+```
+
+**2. Client Interface:**
+```cpp
+class Client : public chi::ContainerClient {
+public:
+  // Synchronous operations
+  chi::u64 ProcessData(const hipc::MemContext& mctx, chi::u64 data);
+  
+  // Asynchronous operations
+  hipc::FullPtr<MyCustomTask> AsyncProcessData(const hipc::MemContext& mctx, chi::u64 data);
+};
+```
+
+**3. Runtime Implementation:**
+```cpp
+class Runtime : public chi::Container {
+public:
+  void ProcessData(hipc::FullPtr<MyCustomTask> task, chi::RunContext& ctx) {
+    // Implement your logic here
+    task->result_ = process_algorithm(task->input_data_);
+    task->result_code_ = 0;  // Success
+  }
+};
+```
+
+## Documentation
+
+Comprehensive documentation is available in the `docs/` directory:
+
+- **[MODULE_DEVELOPMENT_GUIDE.md](docs/MODULE_DEVELOPMENT_GUIDE.md)**: Complete guide for developing ChiMods
+- **[ChiMod Documentation](chimods/)**: Individual ChiMod API references:
+  - [Admin ChiMod](chimods/admin/doc/admin.md): Core system management
+  - [Bdev ChiMod](chimods/bdev/doc/bdev.md): Block device operations
+  - [MOD_NAME Template](chimods/MOD_NAME/doc/MOD_NAME.md): Development template
+
+### Testing
+
+Chimaera includes comprehensive test suites:
+
+```bash
+# Run all unit tests
+ctest --test-dir build
+
+# Run specific test suites
+./build/bin/chimaera_bdev_chimod_tests      # Block device tests
+./build/bin/chimaera_comutex_tests          # Synchronization tests
+./build/bin/chimaera_task_archive_tests     # Serialization tests
+```
+
+## Contributing
+
+We welcome contributions to the Chimaera project!
+
+### Development Workflow
+
+1. **Fork** the repository
+2. **Create** a feature branch: `git checkout -b feature/amazing-feature`
+3. **Follow** the coding standards in [CLAUDE.md](CLAUDE.md)
+4. **Test** your changes: `ctest --test-dir build`
+5. **Submit** a pull request
+
+### Coding Standards
+
+- Follow Google C++ Style Guide
+- Use semantic naming for queue IDs and priorities
+- Never use null pool queries - always use `chi::PoolQuery::Local()`
+- Implement proper monitor methods with `route_lane_` assignment
+- Add comprehensive unit tests for new functionality
+
+## Performance Characteristics
+
+Chimaera is designed for high-performance computing scenarios:
+
+- **Task Latency**: < 10 microseconds for local task execution
+- **Memory Bandwidth**: Up to 50 GB/s with RAM-based bdev backend
+- **Scalability**: Single node to multi-node cluster deployments
+- **Concurrency**: Thousands of concurrent coroutine-based tasks
+- **I/O Performance**: Native async I/O with libaio integration
+
+## Use Cases
+
+**Scientific Computing:**
+- High-performance data processing pipelines
+- Near-data computing for large datasets
+- Custom storage engine development
+
+**Storage Systems:**
+- Distributed file system backends
+- Object storage implementations
+- Cache and tiered storage solutions
+
+**Real-Time Applications:**
+- Low-latency data processing
+- Streaming analytics
+- Edge computing deployments
+
+## License
+
+Chimaera is licensed under the **BSD 3-Clause License**. See source files for complete license text.
+
+---
+
+## Acknowledgements
+
+Chimaera is developed at the [GRC lab](https://grc.iit.edu/) at Illinois Institute of Technology as part of the IOWarp project. This work is supported by the National Science Foundation (NSF) and aims to advance next-generation scientific computing infrastructure.
+
+For more information about IOWarp: https://grc.iit.edu/research/projects/iowarp

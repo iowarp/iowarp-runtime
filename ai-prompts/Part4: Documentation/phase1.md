@@ -1,0 +1,1 @@
+@CLAUDE.md In @doc/MODULE_DEVELOPMENT_GUIDE.md Document how external chimods can link to chimaera. Include the find_package for chimaera (which should be in the chimod repo's CMakeLists.txt).

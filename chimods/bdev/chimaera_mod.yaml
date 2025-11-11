@@ -1,0 +1,21 @@
+# bdev ChiMod Configuration
+# Block device module for async I/O with data allocation management
+
+module_name: bdev
+namespace: chimaera
+version: 1.0.0
+
+# Inherited Methods
+kCreate: 0        # 0 - Create the container
+kDestroy: 1       # 1 - Destroy the container  
+kNodeFailure: -1  # 2 - Not implemented
+kRecover: -1      # 3 - Not implemented
+kMigrate: -1      # 4 - Not implemented
+kUpgrade: -1      # 5 - Not implemented
+
+# Custom Methods (start from 10)
+kAllocateBlocks: 10     # Allocate data blocks
+kFreeBlocks: 11         # Free data blocks  
+kWrite: 12              # Write data with libaio
+kRead: 13               # Read data with libaio
+kGetStats: 14           # Get performance statistics

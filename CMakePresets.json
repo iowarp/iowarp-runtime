@@ -1,0 +1,59 @@
+{
+    "version": 3,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 19,
+        "patch": 0
+    },
+    "configurePresets": [
+        {
+            "name": "debug",
+            "hidden": false,
+            "generator": "Unix Makefiles",
+            "binaryDir": "${sourceDir}/build",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CHIMAERA_ENABLE_CUDA": "OFF",
+                "CHIMAERA_ENABLE_CMAKE_DOTENV": "ON"
+            }
+        },
+        {
+            "name": "cuda-debug",
+            "hidden": false,
+            "generator": "Unix Makefiles",
+            "binaryDir": "${sourceDir}/build",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CHIMAERA_ENABLE_CUDA": "ON",
+                "CHIMAERA_ENABLE_ROCM": "OFF",
+                "BUILD_TESTS": "OFF",
+                "CMAKE_CUDA_ARCHITECTURES": "75",
+                "CHIMAERA_ENABLE_CMAKE_DOTENV": "ON"
+            }
+        },
+        {
+            "name": "rocm-debug",
+            "hidden": false,
+            "generator": "Unix Makefiles",
+            "binaryDir": "${sourceDir}/build",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CHIMAERA_ENABLE_CUDA": "OFF",
+                "CHIMAERA_ENABLE_ROCM": "ON",
+                "BUILD_TESTS": "OFF",
+                "CMAKE_CUDA_ARCHITECTURES": "75",
+                "CHIMAERA_ENABLE_CMAKE_DOTENV": "ON"
+            }
+        },
+        {
+            "name": "release",
+            "hidden": false,
+            "generator": "Unix Makefiles",
+            "binaryDir": "${sourceDir}/build",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "CHIMAERA_ENABLE_CMAKE_DOTENV": "ON"
+            }
+        }
+    ]
+}

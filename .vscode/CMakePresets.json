@@ -1,4 +1,3 @@
-// scspkg build profile m=cmake path=.env.cmake
 {
     "version": 3,
     "cmakeMinimumRequired": {
@@ -10,12 +9,13 @@
         {
             "name": "debug",
             "hidden": false,
-            "generator": "Ninja",
+            "generator": "Unix Makefiles",
             "binaryDir": "${sourceDir}/build",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_INSTALL_PREFIX": "/home/llogan/.scspkg/packages/chimaera",
-                "CHIMAERA_ENABLE_CUDA": "OFF"
+                "CMAKE_INSTALL_PREFIX": "IOWARP_PREFIX",
+                "CHIMAERA_ENABLE_CUDA": "OFF",
+                "CHIMAERA_ENABLE_CMAKE_DOTENV": "ON"
             }
         },
         {
@@ -25,35 +25,38 @@
             "binaryDir": "${sourceDir}/build",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_INSTALL_PREFIX": "/home/llogan/.scspkg/packages/chimaera",
+                "CMAKE_INSTALL_PREFIX": "IOWARP_PREFIX",
                 "CHIMAERA_ENABLE_CUDA": "ON",
                 "CHIMAERA_ENABLE_ROCM": "OFF",
                 "BUILD_TESTS": "OFF",
-                "CMAKE_CUDA_ARCHITECTURES": "75"
+                "CMAKE_CUDA_ARCHITECTURES": "75",
+                "CHIMAERA_ENABLE_CMAKE_DOTENV": "ON"
             }
         },
         {
             "name": "rocm-debug",
             "hidden": false,
-            "generator": "Ninja",
+            "generator": "Unix Makefiles",
             "binaryDir": "${sourceDir}/build",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_INSTALL_PREFIX": "/home/llogan/.scspkg/packages/chimaera",
+                "CMAKE_INSTALL_PREFIX": "IOWARP_PREFIX",
                 "CHIMAERA_ENABLE_CUDA": "OFF",
                 "CHIMAERA_ENABLE_ROCM": "ON",
                 "BUILD_TESTS": "OFF",
-                "CMAKE_CUDA_ARCHITECTURES": "75"
+                "CMAKE_CUDA_ARCHITECTURES": "75",
+                "CHIMAERA_ENABLE_CMAKE_DOTENV": "ON"
             }
         },
         {
             "name": "release",
             "hidden": false,
-            "generator": "Ninja",
+            "generator": "Unix Makefiles",
             "binaryDir": "${sourceDir}/build",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
-                "CMAKE_INSTALL_PREFIX": "/home/llogan/.scspkg/packages/chimaera"
+                "CMAKE_INSTALL_PREFIX": "IOWARP_PREFIX",
+                "CHIMAERA_ENABLE_CMAKE_DOTENV": "ON"
             }
         }
     ]

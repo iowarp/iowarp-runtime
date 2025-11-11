@@ -1,0 +1,3 @@
+Create a function called RouteTask in worker.cc. I want you to take the code from the Run function where it was calling ResolvePoolQuery and put it in here. This function  should detect if this is a local schedule and call the scheduling monitor functions (e.g., kLocalSchedule and kGlobalSchedule) like the Run function did. We should remove the functions from worker.cc dedicated to this (e.g., CallMonitorForLocalSchedule)
+
+Add a flag to the base task called TASK_ROUTED. This bit is set immediately after kLocalSchedule is called in RouteTask. This indicates the task should not undergo additional re-routing. This bit should be checked at the beginning of RouteTask. If the bit is true, then return true. Otherwise continue with the function.

@@ -1,4 +1,3 @@
-cmake*
 .idea
 *.cmd
 *.symvers
@@ -16,8 +15,8 @@ build
 *.egg-info
 *.env
 *.env.cmake
-/CMakePresets.json
 
+build-docker
 build/
 benchmarks/HermesVFD
 

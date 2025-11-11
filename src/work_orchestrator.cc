@@ -1,265 +1,505 @@
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
- * Distributed under BSD 3-Clause license.                                   *
- * Copyright by The HDF Group.                                               *
- * Copyright by the Illinois Institute of Technology.                        *
- * All rights reserved.                                                      *
- *                                                                           *
- * This file is part of Hermes. The full Hermes copyright notice, including  *
- * terms governing use, modification, and redistribution, is contained in    *
- * the COPYING file, which can be found at the top directory. If you do not  *
- * have access to the file, you may request a copy from help@hdfgroup.org.   *
- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+/**
+ * Work orchestrator implementation
+ */
 
-#include "chimaera/work_orchestrator/work_orchestrator.h"
+#include "chimaera/work_orchestrator.h"
 
-#include "chimaera/api/chimaera_runtime.h"
-#include "chimaera/module_registry/task.h"
-#include "chimaera/work_orchestrator/worker.h"
+#include <boost/context/detail/fcontext.hpp>
+#include <chrono>
+#include <cstdlib>
+#include <iostream>
+
+#include "chimaera/container.h"
+#include "chimaera/singletons.h"
+
+// Global pointer variable definition for Work Orchestrator singleton
+HSHM_DEFINE_GLOBAL_PTR_VAR_CC(chi::WorkOrchestrator, g_work_orchestrator);
 
 namespace chi {
 
-void WorkOrchestrator::ServerInit(ServerConfig *config) {
-  config_ = config;
-  // blocked_tasks_.Init(config->queue_manager_.queue_depth_);
+//===========================================================================
+// Stack Growth Direction Detection (for boost::context)
+//===========================================================================
 
-  // Initialize argobots
-  ABT_init(0, nullptr);
+// Structure to pass data to stack detection function
+struct StackDetectionData {
+  void *middle_ptr;
+  bool *detection_complete;
+};
 
-  // Create thread-local storage key
-  CreateThreadLocalBlock();
+// Function called in boost context to detect stack growth direction
+static void StackDetectionFunction(boost::context::detail::transfer_t t) {
+  // Get the data passed from the context
+  StackDetectionData *data = static_cast<StackDetectionData *>(t.data);
 
-  // Monitoring information
-  monitor_gap_ = config_->wo_.monitor_gap_;
-  monitor_window_ = config_->wo_.monitor_window_;
+  // Create a local array to check stack addresses
+  char local_array[64];
+  void *array_start = &local_array[0];
 
-  PrepareWorkers();
-  SpawnReinforceThread();
-  AssignAllQueues();
-  SpawnWorkers();
-  DedicateCores();
+  // For debugging - check where we are relative to middle
+  bool is_below_middle = (array_start < data->middle_ptr);
 
-  HILOG(kInfo, "(node {}) Started {} workers", CHI_RPC->node_id_,
-        workers_.size());
+  // Debug output to understand what's happening
+  HILOG(kDebug,
+        "Stack detection: middle_ptr={}, array_start={}, is_below_middle={}",
+        data->middle_ptr, array_start, is_below_middle);
+
+  *data->detection_complete = true;
+
+  // Jump back to caller
+  boost::context::detail::jump_fcontext(t.fctx, nullptr);
 }
 
-/** Creates the execution streams for workers to run on */
-void WorkOrchestrator::PrepareWorkers() {
-  size_t num_workers = config_->wo_.cpus_.size();
-  workers_.reserve(num_workers);
-  int worker_id = 0;
-  std::unordered_map<u32, std::vector<Worker *>> cpu_workers;
-  for (u32 cpu_id : config_->wo_.cpus_) {
-    HILOG(kInfo, "Creating worker {}", worker_id);
-    ABT_xstream xstream = MakeXstream();
-    workers_.emplace_back(std::make_unique<Worker>(worker_id, cpu_id, xstream));
-    Worker &worker = *workers_.back();
-    worker.EnableContinuousPolling();
-    cpu_workers[cpu_id].push_back(&worker);
-    ++worker_id;
+// Detect stack growth direction at runtime using boost context
+static bool DetectStackGrowthDirection() {
+  // Allocate 128KB test stack
+  const size_t test_stack_size = 128 * 1024;
+  void *test_stack = malloc(test_stack_size);
+  if (!test_stack) {
+    // Fallback to downward assumption
+    HILOG(kDebug,
+          "Stack detection: Failed to allocate test stack, assuming downward");
+    return true;
   }
-  null_worker_ = std::make_unique<Worker>(kNullWorkerId, 0, nullptr);
-  MarkWorkers(cpu_workers);
-}
 
-/** Marks the workers as low or high latency */
-void WorkOrchestrator::MarkWorkers(
-    std::unordered_map<u32, std::vector<Worker *>> cpu_workers) {
-  for (auto &cpu_work : cpu_workers) {
-    std::vector<Worker *> &workers = cpu_work.second;
-    if (workers.size() == 1) {
-      for (Worker *worker : workers) {
-        worker->SetLowLatency();
-        dworkers_.emplace_back(worker);
-      }
+  // Calculate middle pointer
+  void *middle_ptr = static_cast<char *>(test_stack) + (test_stack_size / 2);
+
+  // Prepare detection data
+  bool detection_complete = false;
+  StackDetectionData data = {middle_ptr, &detection_complete};
+
+  // Try high-end pointer first (correct for downward-growing stacks)
+  HILOG(kDebug, "Testing stack detection with high-end pointer...");
+  void *high_end_ptr = static_cast<char *>(test_stack) + test_stack_size;
+
+  bool stack_grows_downward = true; // Default assumption
+
+  try {
+    auto context = boost::context::detail::make_fcontext(
+        high_end_ptr, test_stack_size, StackDetectionFunction);
+    boost::context::detail::jump_fcontext(context, &data);
+  } catch (...) {
+    HILOG(kDebug, "High-end pointer attempt failed");
+    detection_complete = false;
+  }
+
+  if (detection_complete) {
+    // If high-end pointer worked, it means make_fcontext expects high-end
+    // pointer This is the correct behavior for downward-growing stacks
+    stack_grows_downward = true;
+    HILOG(kDebug, "High-end pointer succeeded - stack grows downward (correct "
+                  "for x86_64)");
+  } else {
+    // If first attempt failed, try low end pointer (upward growth)
+    HILOG(kDebug, "Testing stack detection with low-end pointer...");
+    detection_complete = false;
+
+    try {
+      auto context2 = boost::context::detail::make_fcontext(
+          test_stack, test_stack_size, StackDetectionFunction);
+      boost::context::detail::jump_fcontext(context2, &data);
+    } catch (...) {
+      HILOG(kDebug, "Low-end pointer attempt also failed");
+      detection_complete = false;
+    }
+
+    if (detection_complete) {
+      // If low-end pointer worked, it means make_fcontext expects low-end
+      // pointer This would be for upward-growing stacks (rare)
+      stack_grows_downward = false;
+      HILOG(kDebug, "Low-end pointer succeeded - stack grows upward (unusual "
+                    "architecture)");
     } else {
-      for (Worker *worker : workers) {
-        worker->SetHighLatency();
-        oworkers_.emplace_back(worker);
-      }
+      // Fallback to downward assumption
+      HILOG(kDebug,
+            "Both attempts failed, falling back to downward assumption");
+      stack_grows_downward = true;
     }
   }
+
+  free(test_stack);
+
+  // Log the detection result
+  HILOG(kDebug, "Stack growth direction detected: {}",
+        (stack_grows_downward ? "downward" : "upward"));
+
+  return stack_grows_downward;
 }
 
-/** Map GPU-facing and CPU-facing queues to workers */
-void WorkOrchestrator::AssignAllQueues() {
-  AssignQueueMap(*CHI_QM->queue_map_);
-  int ngpu = CHI_RUNTIME->ngpu_;
-  for (int gpu_id = 0; gpu_id < ngpu; ++gpu_id) {
-    CHI_ALLOC_T *gpu_alloc = CHI_RUNTIME->GetGpuAlloc(gpu_id);
-    QueueManagerShm &gpu_shm =
-        gpu_alloc->GetCustomHeader<ChiShm>()->queue_manager_;
-    AssignQueueMap(*gpu_shm.queue_map_);
+//===========================================================================
+// Work Orchestrator Implementation
+//===========================================================================
+
+// Constructor and destructor removed - handled by HSHM singleton pattern
+
+bool WorkOrchestrator::Init() {
+  if (is_initialized_) {
+    return true;
   }
+
+  // Detect stack growth direction once at orchestrator initialization
+  stack_is_downward_ = DetectStackGrowthDirection();
+
+  // Initialize HSHM TLS key for workers
+  HSHM_THREAD_MODEL->CreateTls<class Worker>(chi_cur_worker_key_, nullptr);
+
+  // Initialize scheduling state
+  next_worker_index_for_scheduling_.store(0);
+  active_lanes_ = nullptr;
+
+  // Initialize HSHM thread group first
+  auto thread_model = HSHM_THREAD_MODEL;
+  thread_group_ = thread_model->CreateThreadGroup({});
+
+  ConfigManager *config = CHI_CONFIG_MANAGER;
+  if (!config) {
+    return false; // Configuration manager not initialized
+  }
+
+  // Initialize worker queues in shared memory first
+  IpcManager *ipc = CHI_IPC;
+  if (!ipc) {
+    return false; // IPC manager not initialized
+  }
+
+  // Calculate total worker count from configuration
+  // Calculate total workers: scheduler + slow + process reaper
+  u32 sched_count = config->GetSchedulerWorkerCount();
+  u32 slow_count = config->GetSlowWorkerCount();
+  u32 total_workers =
+      sched_count + slow_count + config->GetWorkerThreadCount(kProcessReaper);
+
+  if (!ipc->InitializeWorkerQueues(total_workers)) {
+    return false;
+  }
+
+  // Create scheduler workers (fast tasks)
+  for (u32 i = 0; i < sched_count; ++i) {
+    if (!CreateWorker(kSchedWorker)) {
+      return false;
+    }
+  }
+
+  // Create slow workers (long-running tasks)
+  for (u32 i = 0; i < slow_count; ++i) {
+    if (!CreateWorker(kSlow)) {
+      return false;
+    }
+  }
+
+  // Create process reaper workers
+  if (!CreateWorkers(kProcessReaper,
+                     config->GetWorkerThreadCount(kProcessReaper))) {
+    return false;
+  }
+
+  is_initialized_ = true;
+  return true;
 }
 
-/** Map a device queue map to workers */
-void WorkOrchestrator::AssignQueueMap(
-    chi::ipc::vector<ingress::MultiQueue> &queue_map) {
-  static size_t count_lowlat = 0;
-  static size_t count_highlat = 0;
-  for (ingress::MultiQueue &queue : queue_map) {
-    if (queue.id_.IsNull() || !queue.flags_.Any(QUEUE_READY)) {
-      continue;
-    }
-    for (ingress::LaneGroup &lane_group : queue.groups_) {
-      u32 num_lanes = lane_group.num_lanes_;
-      for (LaneId lane_id = lane_group.num_scheduled_; lane_id < num_lanes;
-           ++lane_id) {
-        WorkerId worker_id;
-        if (lane_group.IsLowLatency()) {
-          u32 worker_off = count_lowlat % dworkers_.size();
-          count_lowlat += 1;
-          Worker &worker = *dworkers_[worker_off];
-          worker.work_proc_queue_.emplace_back(
-              IngressEntry(lane_group.prio_, lane_id, &queue));
-          worker_id = worker.id_;
-        } else {
-          u32 worker_off = count_highlat % oworkers_.size();
-          count_highlat += 1;
-          Worker &worker = *oworkers_[worker_off];
-          worker.work_proc_queue_.emplace_back(
-              IngressEntry(lane_group.prio_, lane_id, &queue));
-          worker_id = worker.id_;
-        }
-        ingress::Lane &lane = lane_group.GetLane(lane_id);
-        lane.worker_id_ = worker_id;
-      }
-      lane_group.num_scheduled_ = num_lanes;
-    }
+void WorkOrchestrator::Finalize() {
+  if (!is_initialized_) {
+    return;
   }
+
+  // Stop workers if running
+  if (workers_running_) {
+    StopWorkers();
+  }
+
+  // Cleanup worker threads using HSHM thread model
+  auto thread_model = HSHM_THREAD_MODEL;
+  for (auto &thread : worker_threads_) {
+    thread_model->Join(thread);
+  }
+  worker_threads_.clear();
+
+  // Clear worker containers
+  all_workers_.clear();
+  sched_workers_.clear();
+  process_reaper_workers_.clear();
+
+  is_initialized_ = false;
 }
 
-/** Spawns the workers */
-void WorkOrchestrator::SpawnWorkers() {
-  // Enable the workers to begin polling
-  for (std::unique_ptr<Worker> &worker : workers_) {
-    worker->Spawn();
+bool WorkOrchestrator::StartWorkers() {
+  if (!is_initialized_ || workers_running_) {
+    return false;
   }
 
-  // Wait for pids to become non-zero
-  while (true) {
-    bool all_pids_nonzero = true;
-    for (std::unique_ptr<Worker> &worker : workers_) {
-      if (worker->pid_ == 0) {
-        all_pids_nonzero = false;
-        break;
-      }
+  // Spawn worker threads using HSHM thread model
+  if (!SpawnWorkerThreads()) {
+    return false;
+  }
+
+  workers_running_ = true;
+  return true;
+}
+
+void WorkOrchestrator::StopWorkers() {
+  if (!workers_running_) {
+    return;
+  }
+
+  HILOG(kDebug, "Stopping {} worker threads...", all_workers_.size());
+
+  // Stop all workers
+  for (auto *worker : all_workers_) {
+    if (worker) {
+      worker->Stop();
     }
-    if (all_pids_nonzero) {
+  }
+
+  // Wait for worker threads to finish using HSHM thread model with timeout
+  auto thread_model = HSHM_THREAD_MODEL;
+  auto start_time = std::chrono::steady_clock::now();
+  const auto timeout_duration = std::chrono::seconds(5); // 5 second timeout
+
+  size_t joined_count = 0;
+  for (auto &thread : worker_threads_) {
+    auto elapsed = std::chrono::steady_clock::now() - start_time;
+    if (elapsed > timeout_duration) {
+      HELOG(kError, "Warning: Worker thread join timeout reached. Some threads "
+                    "may not have stopped gracefully.");
       break;
     }
-    std::this_thread::sleep_for(std::chrono::milliseconds(5));
+
+    thread_model->Join(thread);
+    joined_count++;
+  }
+
+  HILOG(kDebug, "Joined {} of {} worker threads", joined_count,
+        worker_threads_.size());
+  workers_running_ = false;
+}
+
+Worker *WorkOrchestrator::GetWorker(u32 worker_id) const {
+  if (!is_initialized_ || worker_id >= all_workers_.size()) {
+    return nullptr;
+  }
+
+  return all_workers_[worker_id];
+}
+
+std::vector<Worker *>
+WorkOrchestrator::GetWorkersByType(ThreadType thread_type) const {
+  std::vector<Worker *> workers;
+  if (!is_initialized_) {
+    return workers;
+  }
+
+  for (auto *worker : all_workers_) {
+    if (worker && worker->GetThreadType() == thread_type) {
+      workers.push_back(worker);
+    }
+  }
+
+  return workers;
+}
+
+size_t WorkOrchestrator::GetWorkerCount() const {
+  return is_initialized_ ? all_workers_.size() : 0;
+}
+
+u32 WorkOrchestrator::GetWorkerCountByType(ThreadType thread_type) const {
+  ConfigManager *config = CHI_CONFIG_MANAGER;
+  return config->GetWorkerThreadCount(thread_type);
+}
+
+bool WorkOrchestrator::IsInitialized() const { return is_initialized_; }
+
+bool WorkOrchestrator::AreWorkersRunning() const { return workers_running_; }
+
+bool WorkOrchestrator::IsStackDownward() const { return stack_is_downward_; }
+
+bool WorkOrchestrator::SpawnWorkerThreads() {
+  // Get IPC Manager to access external queue
+  IpcManager *ipc = CHI_IPC;
+  if (!ipc) {
+    return false;
+  }
+
+  // Get the external queue (task queue)
+  TaskQueue *external_queue = ipc->GetTaskQueue();
+  if (!external_queue) {
+    HELOG(kError,
+          "WorkOrchestrator: External queue not available for lane mapping");
+    return false;
+  }
+
+  u32 num_lanes = external_queue->GetNumLanes();
+  if (num_lanes == 0) {
+    HELOG(kError, "WorkOrchestrator: External queue has no lanes");
+    return false;
+  }
+
+  // Map lanes to sched workers (only sched workers process tasks from external
+  // queue)
+  u32 num_sched_workers = static_cast<u32>(sched_workers_.size());
+  if (num_sched_workers == 0) {
+    HELOG(kError,
+          "WorkOrchestrator: No sched workers available for lane mapping");
+    return false;
+  }
+
+  // Number of lanes should equal number of sched workers (configured in
+  // IpcManager) Each worker gets exactly one lane for 1:1 mapping
+  for (u32 worker_idx = 0; worker_idx < num_sched_workers; ++worker_idx) {
+    Worker *worker = sched_workers_[worker_idx].get();
+    if (worker) {
+      // Direct 1:1 mapping: worker i gets lane i
+      u32 lane_id = worker_idx;
+      TaskLane *lane = &external_queue->GetLane(lane_id, 0);
+
+      // Set the worker's assigned lane
+      worker->SetLane(lane);
+
+      // Mark the lane header with the assigned worker ID
+      auto &lane_header = lane->GetHeader();
+      lane_header.assigned_worker_id = worker->GetId();
+
+      HILOG(kDebug,
+            "WorkOrchestrator: Mapped sched worker {} (ID {}) to external "
+            "queue lane {}",
+            worker_idx, worker->GetId(), lane_id);
+    }
+  }
+
+  // Use HSHM thread model to spawn worker threads
+  auto thread_model = HSHM_THREAD_MODEL;
+  worker_threads_.reserve(all_workers_.size());
+
+  try {
+    for (size_t i = 0; i < all_workers_.size(); ++i) {
+      auto *worker = all_workers_[i];
+      if (worker) {
+        // Spawn thread using HSHM thread model
+        hshm::thread::Thread thread = thread_model->Spawn(
+            thread_group_, [worker](int tid) { worker->Run(); },
+            static_cast<int>(i));
+        worker_threads_.emplace_back(std::move(thread));
+      }
+    }
+    return true;
+  } catch (const std::exception &e) {
+    return false;
   }
 }
 
-/** Spawns the thread for reinforcing models */
-void WorkOrchestrator::SpawnReinforceThread() {
-  reinforce_worker_ =
-      std::make_unique<ReinforceWorker>(config_->wo_.reinforce_cpu_);
-  kill_requested_ = false;
-  // Create RPC worker threads
-  rpc_pool_ = tl::pool::create(tl::pool::access::mpmc);
-  for (u32 cpu_id : config_->rpc_.cpus_) {
-    tl::managed<tl::xstream> es =
-        tl::xstream::create(tl::scheduler::predef::deflt, *rpc_pool_);
-    es->set_cpubind(cpu_id);
-    rpc_xstreams_.push_back(std::move(es));
+bool WorkOrchestrator::CreateWorker(ThreadType thread_type) {
+  u32 worker_id = static_cast<u32>(all_workers_.size());
+  auto worker = std::make_unique<Worker>(worker_id, thread_type);
+
+  if (!worker->Init()) {
+    return false;
   }
-  HILOG(kInfo, "(node {}) Worker created RPC pool with {} threads",
-        CHI_RPC->node_id_, CHI_RPC->num_threads_);
+
+  Worker *worker_ptr = worker.get();
+  all_workers_.push_back(worker_ptr);
+
+  // Add to type-specific container
+  switch (thread_type) {
+  case kSchedWorker:
+    sched_workers_.push_back(std::move(worker));
+    scheduler_workers_.push_back(worker_ptr);
+    break;
+  case kSlow:
+    sched_workers_.push_back(std::move(worker));
+    slow_workers_.push_back(worker_ptr);
+    break;
+  case kProcessReaper:
+    process_reaper_workers_.push_back(std::move(worker));
+    break;
+  }
+
+  return true;
 }
 
-/** Join the workers */
-void WorkOrchestrator::Join() {
-  kill_requested_.store(true);
-  for (std::unique_ptr<Worker> &worker : workers_) {
-    worker->Join();
+bool WorkOrchestrator::CreateWorkers(ThreadType thread_type, u32 count) {
+  for (u32 i = 0; i < count; ++i) {
+    if (!CreateWorker(thread_type)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+//===========================================================================
+// Lane Scheduling Methods
+//===========================================================================
+
+bool WorkOrchestrator::ServerInitQueues(u32 num_lanes) {
+  // Initialize process queues for different priorities
+  bool success = true;
+
+  // No longer creating local queues - external queue is managed by IPC Manager
+  return success;
+}
+
+bool WorkOrchestrator::HasWorkRemaining(u64 &total_work_remaining) const {
+  total_work_remaining = 0;
+
+  // Get PoolManager to access all containers in the system
+  auto *pool_manager = CHI_POOL_MANAGER;
+  if (!pool_manager || !pool_manager->IsInitialized()) {
+    return false; // No pool manager means no work
+  }
+
+  // Get all container pool IDs from the pool manager
+  std::vector<PoolId> all_pool_ids = pool_manager->GetAllPoolIds();
+
+  for (const auto &pool_id : all_pool_ids) {
+    // Get container for each pool
+    Container *container = pool_manager->GetContainer(pool_id);
+    if (container) {
+      total_work_remaining += container->GetWorkRemaining();
+    }
+  }
+
+  return total_work_remaining > 0;
+}
+
+void WorkOrchestrator::AssignToWorkerType(ThreadType thread_type,
+                                          const FullPtr<Task> &task_ptr) {
+  if (task_ptr.IsNull()) {
+    return;
+  }
+
+  // Select target worker vector based on thread type
+  std::vector<Worker *> *target_workers = nullptr;
+  if (thread_type == kSchedWorker) {
+    target_workers = &scheduler_workers_;
+  } else if (thread_type == kSlow) {
+    target_workers = &slow_workers_;
+  } else {
+    // Process reaper or other types - not supported for task routing
+    return;
+  }
+
+  if (target_workers->empty()) {
+    HILOG(kWarning, "AssignToWorkerType: No workers of type {}",
+          static_cast<int>(thread_type));
+    return;
+  }
+
+  // Round-robin assignment using static atomic counters
+  static std::atomic<size_t> scheduler_idx{0};
+  static std::atomic<size_t> slow_idx{0};
+
+  std::atomic<size_t> &idx =
+      (thread_type == kSchedWorker) ? scheduler_idx : slow_idx;
+  size_t worker_idx = idx.fetch_add(1) % target_workers->size();
+  Worker *worker = (*target_workers)[worker_idx];
+
+  // Get the worker's assigned lane and emplace the task
+  TaskLane *lane = worker->GetLane();
+  if (lane) {
+    // Emplace the task using its shared memory pointer (offset-based)
+    // The lane expects TypedPointer<Task> which is the shm_ member of FullPtr
+    lane->emplace(task_ptr.shm_);
   }
 }
 
-/** Get worker with this id */
-Worker &WorkOrchestrator::GetWorker(WorkerId worker_id) {
-  return *workers_[worker_id];
-}
-
-/** Get the number of workers */
-size_t WorkOrchestrator::GetNumWorkers() { return workers_.size(); }
-
-/** Get all PIDs of active workers */
-std::vector<int> WorkOrchestrator::GetWorkerPids() {
-  std::vector<int> pids;
-  pids.reserve(workers_.size());
-  for (std::unique_ptr<Worker> &worker : workers_) {
-    pids.push_back(worker->pid_);
-  }
-  return pids;
-}
-
-/** Get the complement of worker cores */
-std::vector<int> WorkOrchestrator::GetWorkerCoresComplement() {
-  std::vector<int> cores;
-  cores.reserve(HSHM_SYSTEM_INFO->ncpu_);
-  for (int i = 0; i < HSHM_SYSTEM_INFO->ncpu_; ++i) {
-    cores.push_back(i);
-  }
-  for (std::unique_ptr<Worker> &worker : workers_) {
-    cores.erase(std::remove(cores.begin(), cores.end(), worker->affinity_),
-                cores.end());
-  }
-  return cores;
-}
-
-/** Dedicate cores */
-void WorkOrchestrator::DedicateCores() {
-  hshm::ProcessAffiner affiner;
-  std::vector<int> worker_pids = GetWorkerPids();
-  std::vector<int> cpu_ids = GetWorkerCoresComplement();
-  affiner.IgnorePids(worker_pids);
-  affiner.SetCpus(cpu_ids);
-  int count = affiner.AffineAll();
-  // HILOG(kInfo, "Affining {} processes to {} cores", count, cpu_ids.size());
-}
-
-std::vector<Load> WorkOrchestrator::CalculateLoad() {
-  // TODO(llogan): Implement
-  std::vector<Load> loads(workers_.size());
-  return loads;
-}
-
-/** Block a task */
-// void WorkOrchestrator::Block(Task *task, RunContext &rctx, size_t count) {
-//   rctx.block_count_ += count;
-// }
-
-/** Unblock a task */
-void WorkOrchestrator::SignalUnblock(Task *task, RunContext &rctx) {
-  ssize_t count = rctx.block_count_.fetch_sub(1) - 1;
-  if (count == 0) {
-    rctx.route_lane_->push<false>(FullPtr<Task>(task));
-  } else if (count < 0) {
-    // HELOG(kFatal, "Block count should never be negative");
-  }
-}
-
-#ifdef CHIMAERA_ENABLE_PYTHON
-void WorkOrchestrator::RegisterPath(const std::string &path) {
-  CHI_PYTHON->RegisterPath(path);
-}
-void WorkOrchestrator::ImportModule(const std::string &name) {
-  CHI_PYTHON->ImportModule(name);
-}
-void WorkOrchestrator::RunString(const std::string &script) {
-  CHI_PYTHON->RunString(script);
-}
-void WorkOrchestrator::RunFunction(const std::string &func_name,
-                                   PyDataWrapper &data) {
-  CHI_PYTHON->RunFunction(func_name, data);
-}
-void WorkOrchestrator::RunMethod(const std::string &class_name,
-                                 const std::string &method_name,
-                                 PyDataWrapper &data) {
-  CHI_PYTHON->RunMethod(class_name, method_name, data);
-}
-#endif
-
-}  // namespace chi
+} // namespace chi
