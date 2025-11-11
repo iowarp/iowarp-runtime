@@ -1015,6 +1015,10 @@ void Worker::ProcessBlockedQueue(hshm::ext_ring_buffer<RunContext *> &queue,
 
       run_ctx->block_count_ = 0;
 
+      // CRITICAL: Clear the is_blocked flag before resuming the task
+      // This allows the task to call Wait() again if needed
+      run_ctx->is_blocked = false;
+
       // Execute task with existing RunContext
       ExecTask(run_ctx->task, run_ctx, is_started);
 
@@ -1056,6 +1060,10 @@ void Worker::ProcessPeriodicQueue(hshm::ext_ring_buffer<RunContext *> &queue,
     if (run_ctx->block_start.GetUsecFromStart() >= run_ctx->block_time_us) {
       // Time threshold reached - execute the task
       bool is_started = run_ctx->task->task_flags_.Any(TASK_STARTED);
+
+      // CRITICAL: Clear the is_blocked flag before resuming the task
+      // This allows the task to call Wait() again if needed
+      run_ctx->is_blocked = false;
 
       // Execute task with existing RunContext
       ExecTask(run_ctx->task, run_ctx, is_started);
