@@ -6,8 +6,8 @@
 #include <iomanip>
 #include <iostream>
 
-#include "chimaera/singletons.h"
 #include "chimaera/admin/admin_client.h"
+#include "chimaera/singletons.h"
 
 // Global pointer variable definition for Chimaera manager singleton
 HSHM_DEFINE_GLOBAL_PTR_VAR_CC(chi::Chimaera, g_chimaera_manager);
@@ -43,7 +43,8 @@ TaskId CreateTaskId() {
       // Get current task from worker
       FullPtr<Task> current_task = current_worker->GetCurrentTask();
       if (!current_task.IsNull()) {
-        // Copy TaskId from current task, keep replica_id_ same, and allocate new unique from counter
+        // Copy TaskId from current task, keep replica_id_ same, and allocate
+        // new unique from counter
         TaskId new_id = current_task->task_id_;
         new_id.unique_ = counter->GetNext();
         new_id.node_id_ = node_id;
@@ -63,7 +64,9 @@ TaskId CreateTaskId() {
   // Get next counter value for both major and unique
   u32 major = counter->GetNext();
 
-  return TaskId(pid, tid, major, 0, major, node_id); // replica_id_ starts at 0, unique = major for root tasks
+  return TaskId(
+      pid, tid, major, 0, major,
+      node_id); // replica_id_ starts at 0, unique = major for root tasks
 }
 
 Chimaera::~Chimaera() {
@@ -178,13 +181,13 @@ bool Chimaera::ServerInit() {
   runtime_is_initializing_ = false;
 
   // Process compose section if present
-  const auto& compose_config = config_manager->GetComposeConfig();
+  const auto &compose_config = config_manager->GetComposeConfig();
   if (!compose_config.pools_.empty()) {
     HILOG(kInfo, "Processing compose configuration with {} pools",
           compose_config.pools_.size());
 
     // Get admin client to process compose
-    auto* admin_client = CHI_ADMIN;
+    auto *admin_client = CHI_ADMIN;
     if (!admin_client) {
       HELOG(kError, "Failed to get admin client for compose processing");
       return false;

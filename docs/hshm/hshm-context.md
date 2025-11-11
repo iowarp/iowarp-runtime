@@ -4545,7 +4545,7 @@ public:
     }
     
     void SubmitTask(std::function<void()> task);
-    void ProcessTasks();
+    void ProcessNewTasks();
     void Shutdown();
 };
 

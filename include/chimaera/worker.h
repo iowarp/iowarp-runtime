@@ -3,6 +3,7 @@
 
 #include <boost/context/detail/fcontext.hpp>
 #include <chrono>
+#include <functional>
 #include <mutex>
 #include <queue>
 #include <thread>
@@ -46,7 +47,7 @@ struct StackAndContext {
 //   FullPtr<Task> current_task = worker->GetCurrentTask();
 //   RunContext* run_ctx = worker->GetCurrentRunContext();
 #define CHI_CUR_WORKER                                                         \
-  (HSHM_THREAD_MODEL->GetTls<class Worker>(chi_cur_worker_key_))
+  (HSHM_THREAD_MODEL->GetTls<chi::Worker>(chi::chi_cur_worker_key_))
 
 /**
  * Worker class for executing tasks
@@ -149,6 +150,18 @@ public:
   static void ClearCurrentWorker();
 
   /**
+   * Set whether the current task did actual work
+   * @param did_work true if task did work, false if idle/no work
+   */
+  void SetTaskDidWork(bool did_work);
+
+  /**
+   * Get whether the current task did actual work
+   * @return true if task did work, false if idle/no work
+   */
+  bool GetTaskDidWork() const;
+
+  /**
    * Add run context to blocked queue based on block count
    * @param run_ctx_ptr Pointer to run context (task accessible via
    * run_ctx_ptr->task)
@@ -225,9 +238,19 @@ private:
 
   /**
    * Process a blocked queue, checking tasks and re-queuing as needed
-   * @param queue Reference to the ring buffer queue to process
+   * @param queue Reference to the ext_ring_buffer to process
+   * @param queue_idx Index of the queue being processed (0-3)
    */
-  void ProcessBlockedQueue(hshm::ext_ring_buffer<RunContext *> &queue);
+  void ProcessBlockedQueue(hshm::ext_ring_buffer<RunContext *> &queue,
+                           u32 queue_idx);
+
+  /**
+   * Process a periodic queue, checking time-based tasks and executing if ready
+   * @param queue Reference to the ext_ring_buffer to process
+   * @param queue_idx Index of the queue being processed (0-3)
+   */
+  void ProcessPeriodicQueue(hshm::ext_ring_buffer<RunContext *> &queue,
+                            u32 queue_idx);
 
 public:
   /**
@@ -287,10 +310,22 @@ private:
 
   /**
    * Continue processing blocked tasks that are ready to resume
-   * @return Number of microseconds the worker could sleep if no new work, 0 if
-   * immediate work available
+   * @param force If true, process both queues regardless of iteration count
    */
-  u32 ContinueBlockedTasks();
+  void ContinueBlockedTasks(bool force);
+
+  /**
+   * Process tasks from the worker's assigned lane
+   * Processes up to MAX_TASKS_PER_ITERATION tasks per call
+   * @return Number of tasks processed
+   */
+  u32 ProcessNewTasks();
+
+  /**
+   * Suspend worker when there is no work available
+   * Implements adaptive sleep algorithm with busy wait and linear increment
+   */
+  void SuspendMe();
 
   /**
    * Execute task with context switching capability
@@ -344,7 +379,8 @@ private:
   ThreadType thread_type_;
   bool is_running_;
   bool is_initialized_;
-  bool did_work_; // Tracks if any work was done in current loop iteration
+  bool did_work_;       // Tracks if any work was done in current loop iteration
+  bool task_did_work_;  // Tracks if current task did actual work (set by tasks via CHI_CUR_WORKER)
 
   // Current RunContext for this worker thread
   RunContext *current_run_context_;
@@ -356,17 +392,39 @@ private:
   // Using ext_ring_buffer for O(1) enqueue/dequeue operations
   hshm::ext_ring_buffer<StackAndContext> stack_cache_;
 
-  // Block-time-based blocked queue system:
-  // - Queue 0: Short blocking times (< 10us), checked every iteration
-  // - Queue 1: Long blocking times (>= 10us), checked based on time intervals
-  // Using ext_ring_buffer for O(1) enqueue/dequeue operations
-  static constexpr u32 NUM_BLOCKED_QUEUES = 2;
+  // Blocked queue system for cooperative tasks (waiting for subtasks):
+  // - Queue[0]: Tasks blocked <=2 times (checked every % 2 iterations)
+  // - Queue[1]: Tasks blocked <= 4 times (checked every % 4 iterations)
+  // - Queue[2]: Tasks blocked <= 8 times (checked every % 8 iterations)
+  // - Queue[3]: Tasks blocked > 8 times (checked every % 16 iterations)
+  // Using hshm::ext_ring_buffer for O(1) enqueue/dequeue operations
+  static constexpr u32 NUM_BLOCKED_QUEUES = 4;
+  static constexpr u32 BLOCKED_QUEUE_SIZE = 1024;
   hshm::ext_ring_buffer<RunContext *> blocked_queues_[NUM_BLOCKED_QUEUES];
+
+  // Periodic queue system for time-based periodic tasks:
+  // - Queue[0]: Tasks with block_time_us <= 50us (checked every 16 iterations)
+  // - Queue[1]: Tasks with block_time_us <= 200us (checked every 32 iterations)
+  // - Queue[2]: Tasks with block_time_us <= 50ms/50000us (checked every 64 iterations)
+  // - Queue[3]: Tasks with block_time_us > 50ms (checked every 128 iterations)
+  // Using hshm::ext_ring_buffer for O(1) enqueue/dequeue operations
+  static constexpr u32 NUM_PERIODIC_QUEUES = 4;
+  static constexpr u32 PERIODIC_QUEUE_SIZE = 1024;
+  hshm::ext_ring_buffer<RunContext *> periodic_queues_[NUM_PERIODIC_QUEUES];
 
   // Worker spawn time and queue processing tracking
   hshm::Timepoint spawn_time_; // Time when worker was spawned
   u64 last_long_queue_check_;  // Last time (in 10us units) long queue was
                                // processed
+
+  // Iteration counter for periodic blocked queue checks
+  u64 iteration_count_; // Number of iterations completed
+
+  // Sleep management for idle workers
+  u64 idle_iterations_;     // Number of consecutive iterations with no work
+  u32 current_sleep_us_;    // Current sleep duration in microseconds
+  u64 sleep_count_;         // Number of times sleep was called in current idle period
+  hshm::Timepoint idle_start_;  // Time when worker became idle
 };
 
 } // namespace chi

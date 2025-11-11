@@ -55,7 +55,8 @@ bool IpcManager::ClientInit() {
     this_host_ = Host(); // Default constructor gives node_id = 0
   }
 
-  // Wait for local server to become available - critical for client functionality
+  // Wait for local server to become available - critical for client
+  // functionality
   if (!WaitForLocalServer()) {
     HELOG(kError, "CRITICAL ERROR: Cannot connect to local server.");
     HELOG(kError, "Client initialization failed. Exiting.");
@@ -159,16 +160,6 @@ void IpcManager::ServerFinalize() {
   // Cleanup servers
   local_server_.reset();
   main_server_.reset();
-
-  // Cleanup direct ZeroMQ resources
-  if (zmq_main_socket_) {
-    zmq_close(zmq_main_socket_);
-    zmq_main_socket_ = nullptr;
-  }
-  if (zmq_main_context_) {
-    zmq_ctx_destroy(zmq_main_context_);
-    zmq_main_context_ = nullptr;
-  }
 
   // Cleanup task queue in shared header (queue handles cleanup automatically)
   // Only the last process to detach will actually destroy shared data
@@ -483,7 +474,9 @@ bool IpcManager::WaitForLocalServer() {
   }
 
   u32 port = config->GetPort() + 1;
-  HILOG(kInfo, "Waiting for local server at 127.0.0.1:{} (timeout={}s, poll_interval={}s)",
+  HILOG(kInfo,
+        "Waiting for local server at 127.0.0.1:{} (timeout={}s, "
+        "poll_interval={}s)",
         port, wait_server_timeout_, poll_server_interval_);
 
   u32 elapsed = 0;
@@ -493,19 +486,23 @@ bool IpcManager::WaitForLocalServer() {
     attempt++;
 
     if (TestLocalServer()) {
-      HILOG(kInfo, "Successfully connected to local server after {} seconds ({} attempts)",
+      HILOG(kInfo,
+            "Successfully connected to local server after {} seconds ({} "
+            "attempts)",
             elapsed, attempt);
       return true;
     }
 
-    HILOG(kDebug, "Local server not available yet (attempt {}, elapsed {}s)", attempt, elapsed);
+    HILOG(kDebug, "Local server not available yet (attempt {}, elapsed {}s)",
+          attempt, elapsed);
 
     // Sleep for poll interval
     sleep(poll_server_interval_);
     elapsed += poll_server_interval_;
   }
 
-  HELOG(kError, "Timeout waiting for local server after {} seconds ({} attempts)",
+  HELOG(kError,
+        "Timeout waiting for local server after {} seconds ({} attempts)",
         wait_server_timeout_, attempt);
   HELOG(kError, "This usually means:");
   HELOG(kError, "1. Chimaera runtime is not running");
@@ -635,9 +632,17 @@ bool IpcManager::IdentifyThisHost() {
   HILOG(kDebug, "Attempting to identify host among {} candidates",
         hostfile_map_.size());
 
+  // Get port number for error reporting
+  ConfigManager *config = CHI_CONFIG_MANAGER;
+  u32 port = config->GetPort();
+
+  // Collect list of attempted hosts for error reporting
+  std::vector<std::string> attempted_hosts;
+
   // Try to start TCP server on each host IP
   for (const auto &pair : hostfile_map_) {
     const Host &host = pair.second;
+    attempted_hosts.push_back(host.ip_address);
     HILOG(kDebug, "Trying to bind TCP server to: {}", host.ip_address);
 
     try {
@@ -654,7 +659,30 @@ bool IpcManager::IdentifyThisHost() {
     }
   }
 
-  HELOG(kFatal, "ERROR: Could not start TCP server on any host from hostfile");
+  // Build detailed error message with hosts and port
+  HELOG(kError, "ERROR: Could not start TCP server on any host from hostfile");
+  HELOG(kError, "Port attempted: {}", port);
+  HELOG(kError, "Hosts checked ({} total):", attempted_hosts.size());
+  for (const auto &host_ip : attempted_hosts) {
+    HELOG(kError, "  - {}", host_ip);
+  }
+  HELOG(kError, "");
+  HELOG(
+      kError,
+      "This usually means another process is already running on the same port");
+  HELOG(kError, "");
+  HELOG(kError, "To check which process is using port {}, run:", port);
+  HELOG(kError, "  Linux:   sudo lsof -i :{} -P -n", port);
+  HELOG(kError, "           sudo netstat -tulpn | grep :{}", port);
+  HELOG(kError, "  macOS:   sudo lsof -i :{} -P -n", port);
+  HELOG(kError, "           sudo lsof -nP -iTCP:{} | grep LISTEN", port);
+  HELOG(kError, "");
+  HELOG(kError, "To stop the Chimaera runtime, run:");
+  HELOG(kError, "  chimaera_stop_runtime");
+  HELOG(kError, "");
+  HELOG(kError, "Or kill the process directly:");
+  HELOG(kError, "  pkill -9 chimaera_start_runtime");
+  HELOG(kFatal, "  kill -9 <PID>");
   return false;
 }
 
@@ -723,30 +751,34 @@ bool IpcManager::TryStartMainServer(const std::string &hostname) {
     std::string protocol = "tcp";
     u32 port = config->GetPort();
 
+    HILOG(kDebug, "Attempting to start main server on {}:{}", hostname, port);
+
     main_server_ = hshm::lbm::TransportFactory::GetServer(
         hostname, hshm::lbm::Transport::kZeroMq, protocol, port);
 
     if (!main_server_) {
-      throw std::runtime_error("Failed to create main server");
+      HILOG(kDebug, "Failed to create main server on {}:{} - server creation returned null", hostname, port);
+      return false;
     }
 
     HILOG(kDebug, "Main server successfully bound to {}:{}", hostname, port);
     return true;
 
-  } catch (...) { 
+  } catch (const std::exception &e) {
+    HILOG(kDebug, "Failed to start main server on {}:{} - exception: {}", hostname, config->GetPort(), e.what());
+    return false;
+  } catch (...) {
+    HILOG(kDebug, "Failed to start main server on {}:{} - unknown exception", hostname, config->GetPort());
+    return false;
   }
-  return false;
 }
 
 hshm::lbm::Server *IpcManager::GetMainServer() const {
   return main_server_.get();
 }
 
-void *IpcManager::GetMainZmqSocket() const { return zmq_main_socket_; }
 
-void *IpcManager::GetMainZmqContext() const { return zmq_main_context_; }
-
-const Host& IpcManager::GetThisHost() const { return this_host_; }
+const Host &IpcManager::GetThisHost() const { return this_host_; }
 
 FullPtr<char> IpcManager::AllocateBuffer(size_t size) {
   auto *chimaera_manager = CHI_CHIMAERA_MANAGER;

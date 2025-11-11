@@ -1,11 +1,6 @@
 # Chimaera Configuration for Distributed Testing
 # This configuration is used by the distributed unit test Docker cluster
 
-# Worker thread configuration
-workers:
-  sched_threads: 4           # Scheduler worker threads (for fast tasks with EstCpuTime < 50us)
-  slow_threads: 4            # Slow worker threads (for long-running tasks with EstCpuTime >= 50us)
-
 # Memory segment configuration
 memory:
   main_segment_size: 4294967296      # 4GB
@@ -23,9 +18,20 @@ logging:
   level: "info"
   file: "/tmp/chimaera.log"
 
-# Runtime configuration
+# Runtime configuration (includes worker threads, scheduling, and performance parameters)
 runtime:
-  stack_size: 65536  # 64KB per task
-  queue_depth: 10000
+  # Worker thread configuration
+  sched_threads: 4           # Scheduler worker threads (for fast tasks with EstCpuTime < 50us)
+  slow_threads: 4            # Slow worker threads (for long-running tasks with EstCpuTime >= 50us)
+  process_reaper_threads: 1  # Process reaper threads
+
+  # Task execution configuration
+  stack_size: 65536          # 64KB per task
+  queue_depth: 10000         # Maximum queue depth
   lane_map_policy: "round_robin"  # Options: map_by_pid_tid, round_robin (default), random
-  heartbeat_interval: 1000  # milliseconds
+  heartbeat_interval: 1000   # Heartbeat interval in milliseconds
+
+  # Worker sleep configuration (all values in microseconds)
+  first_busy_wait: 50        # Busy wait duration before sleeping when idle (default: 50us)
+  sleep_increment: 1000      # Linear sleep increment per idle iteration (default: 1000us = 1ms)
+  max_sleep: 50000           # Maximum sleep duration cap (default: 50000us = 50ms)

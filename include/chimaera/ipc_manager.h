@@ -293,18 +293,6 @@ class IpcManager {
   hshm::lbm::Server* GetMainServer() const;
 
   /**
-   * Get the underlying ZeroMQ socket from the main server
-   * @return ZeroMQ socket handle or nullptr if not initialized
-   */
-  void* GetMainZmqSocket() const;
-
-  /**
-   * Get the underlying ZeroMQ context from the main server
-   * @return ZeroMQ context handle or nullptr if not initialized
-   */
-  void* GetMainZmqContext() const;
-
-  /**
    * Get this host identified during host identification
    * @return Const reference to this Host struct
    */
@@ -417,19 +405,15 @@ class IpcManager {
   
   // Pointer to shared header containing the task queue pointer
   IpcSharedHeader* shared_header_ = nullptr;
-  
-  // The actual external TaskQueue instance 
+
+  // The actual external TaskQueue instance
   hipc::FullPtr<TaskQueue> external_queue_;
   
   // Local ZeroMQ server (using lightbeam)
   std::unique_ptr<hshm::lbm::Server> local_server_;
-  
+
   // Main ZeroMQ server for distributed communication
   std::unique_ptr<hshm::lbm::Server> main_server_;
-
-  // Direct ZeroMQ access (for multi-part message support)
-  void* zmq_main_context_ = nullptr;  // ZeroMQ context for main server
-  void* zmq_main_socket_ = nullptr;   // ZeroMQ socket for main server
 
   // Hostfile management
   std::unordered_map<u64, Host> hostfile_map_; // Map node_id -> Host

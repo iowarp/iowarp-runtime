@@ -141,6 +141,7 @@ void AllocationWorkerThread(size_t thread_id, const BenchmarkConfig &config,
                           : 1048576;
 
   size_t local_ops = 0;
+  const size_t WARMUP_OPS = 5; // Ignore first 5 operations
   auto start_time = std::chrono::high_resolution_clock::now();
 
   // Continuously perform allocate/free operations until stop signal
@@ -152,6 +153,11 @@ void AllocationWorkerThread(size_t thread_id, const BenchmarkConfig &config,
     bdev_client.FreeBlocks(HSHM_MCTX, chi::PoolQuery::Local(), blocks);
 
     local_ops++;
+
+    // Start timer after warmup operations
+    if (local_ops == WARMUP_OPS) {
+      start_time = std::chrono::high_resolution_clock::now();
+    }
   }
 
   auto end_time = std::chrono::high_resolution_clock::now();
@@ -190,6 +196,7 @@ void IOWorkerThread(size_t thread_id, const BenchmarkConfig &config,
 
   size_t local_ops = 0;
   size_t local_bytes = 0;
+  const size_t WARMUP_OPS = 5; // Ignore first 5 operations
   auto start_time = std::chrono::high_resolution_clock::now();
 
   // Continuously perform I/O operations until stop signal
@@ -223,6 +230,11 @@ void IOWorkerThread(size_t thread_id, const BenchmarkConfig &config,
 
     local_ops++;
     local_bytes += config.io_size;
+
+    // Start timer after warmup operations
+    if (local_ops == WARMUP_OPS) {
+      start_time = std::chrono::high_resolution_clock::now();
+    }
   }
 
   auto end_time = std::chrono::high_resolution_clock::now();
@@ -257,6 +269,7 @@ void LatencyWorkerThread(size_t thread_id, const BenchmarkConfig &config,
   chimaera::MOD_NAME::Client mod_client(pool_id);
 
   size_t local_ops = 0;
+  const size_t WARMUP_OPS = 5; // Ignore first 5 operations
   auto start_time = std::chrono::high_resolution_clock::now();
 
   // Continuously perform Custom operations until stop signal
@@ -276,6 +289,11 @@ void LatencyWorkerThread(size_t thread_id, const BenchmarkConfig &config,
     }
 
     local_ops++;
+
+    // Start timer after warmup operations
+    if (local_ops == WARMUP_OPS) {
+      start_time = std::chrono::high_resolution_clock::now();
+    }
   }
 
   auto end_time = std::chrono::high_resolution_clock::now();
@@ -395,12 +413,36 @@ int main(int argc, char **argv) {
     test_pool_id = chi::PoolId(7000, 0);
     chimaera::bdev::Client bdev_client(test_pool_id);
 
-    // Construct BDev file path in output directory
-    std::string bdev_file_path = config.output_dir + "/benchmark_bdev.dat";
+    // Determine BDev type and pool name based on output directory
+    chimaera::bdev::BdevType bdev_type;
+    std::string pool_name;
+
+    // Check if output_dir begins with "ram" (case-insensitive)
+    bool is_ram_bdev = false;
+    if (config.output_dir.size() >= 3) {
+      std::string prefix = config.output_dir.substr(0, 3);
+      // Convert to lowercase for comparison
+      for (auto& c : prefix) {
+        c = std::tolower(static_cast<unsigned char>(c));
+      }
+      is_ram_bdev = (prefix == "ram");
+    }
+
+    if (is_ram_bdev) {
+      // Use RAM-based BDev
+      bdev_type = chimaera::bdev::BdevType::kRam;
+      pool_name = "benchmark_ram_bdev";
+      std::cout << "Using RAM-based BDev\n";
+    } else {
+      // Use file-based BDev
+      bdev_type = chimaera::bdev::BdevType::kFile;
+      pool_name = config.output_dir + "/benchmark_bdev.dat";
+      std::cout << "Using file-based BDev: " << pool_name << "\n";
+    }
 
     bdev_client.Create(HSHM_MCTX, chi::PoolQuery::Broadcast(),
-                       bdev_file_path, test_pool_id,
-                       chimaera::bdev::BdevType::kFile, config.max_file_size,
+                       pool_name, test_pool_id,
+                       bdev_type, config.max_file_size,
                        1024, 4096);
     if (bdev_client.GetReturnCode() != 0) {
       std::cerr << "ERROR: Failed to create BDev container (return code: "

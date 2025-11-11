@@ -187,10 +187,11 @@ public:
 
   /**
    * Wait for task completion (blocking)
+   * @param block_time_us Blocking duration in microseconds (default: 0.0 for cooperative tasks)
    * @param from_yield If true, do not add subtasks to RunContext (default:
    * false)
    */
-  HSHM_CROSS_FUN void Wait(double block_time_us = 10.0,
+  HSHM_CROSS_FUN void Wait(double block_time_us = 0.0,
                            bool from_yield = false);
 
   /**
@@ -201,8 +202,9 @@ public:
 
   /**
    * Yield execution back to worker by waiting for task completion
+   * @param block_time_us Blocking duration in microseconds (default: 0.0 for cooperative tasks)
    */
-  HSHM_CROSS_FUN void Yield(double block_time_us = 10.0);
+  HSHM_CROSS_FUN void Yield(double block_time_us = 0.0);
 
   /**
    * Check if task is periodic
@@ -436,7 +438,6 @@ struct RunContext {
                          // function
   Container *container;  // Current container being executed
   TaskLane *lane;        // Current lane being processed
-  TaskLane *route_lane_; // Lane pointer set by kLocalSchedule for task routing
   ExecMode exec_mode;    // Execution mode (kExec or kDynamicSchedule)
   std::vector<FullPtr<Task>>
       waiting_for_tasks; // Tasks this task is waiting for completion
@@ -449,7 +450,7 @@ struct RunContext {
       : stack_ptr(nullptr), stack_base_for_free(nullptr), stack_size(0),
         thread_type(kSchedWorker), worker_id(0), is_blocked(false),
         est_load(0.0), block_time_us(0.0), block_start(), yield_context{}, resume_context{},
-        container(nullptr), lane(nullptr), route_lane_(nullptr), exec_mode(ExecMode::kExec),
+        container(nullptr), lane(nullptr), exec_mode(ExecMode::kExec),
         completed_replicas_(0), block_count_(0) {}
 
   /**
@@ -463,7 +464,7 @@ struct RunContext {
         is_blocked(other.is_blocked), est_load(other.est_load),
         block_time_us(other.block_time_us), block_start(other.block_start),
         yield_context(other.yield_context), resume_context(other.resume_context),
-        container(other.container), lane(other.lane), route_lane_(other.route_lane_),
+        container(other.container), lane(other.lane),
         exec_mode(other.exec_mode),
         waiting_for_tasks(std::move(other.waiting_for_tasks)),
         pool_queries(std::move(other.pool_queries)),
@@ -490,7 +491,6 @@ struct RunContext {
       resume_context = other.resume_context;
       container = other.container;
       lane = other.lane;
-      route_lane_ = other.route_lane_;
       exec_mode = other.exec_mode;
       waiting_for_tasks = std::move(other.waiting_for_tasks);
       pool_queries = std::move(other.pool_queries);

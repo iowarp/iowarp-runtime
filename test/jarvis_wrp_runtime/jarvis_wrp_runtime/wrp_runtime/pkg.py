@@ -97,6 +97,24 @@ class WrpRuntime(Service):
                 'msg': 'Runtime heartbeat interval (milliseconds)',
                 'type': int,
                 'default': 1000
+            },
+            {
+                'name': 'first_busy_wait',
+                'msg': 'Busy wait duration before sleeping (microseconds)',
+                'type': int,
+                'default': 50
+            },
+            {
+                'name': 'sleep_increment',
+                'msg': 'Sleep increment per idle iteration (microseconds)',
+                'type': int,
+                'default': 1000
+            },
+            {
+                'name': 'max_sleep',
+                'msg': 'Maximum sleep duration cap (microseconds)',
+                'type': int,
+                'default': 50000
             }
         ]
 
@@ -124,11 +142,8 @@ class WrpRuntime(Service):
         runtime_size = SizeType(self.config['runtime_data_segment_size']).bytes
 
         # Build configuration dictionary matching chimaera_default.yaml format
+        # Worker threads are now consolidated into runtime section
         config_dict = {
-            'workers': {
-                'sched_threads': self.config['sched_workers'],
-                'process_reaper_threads': self.config['process_reaper_workers']
-            },
             'memory': {
                 'main_segment_size': main_size,
                 'client_data_segment_size': client_size,
@@ -143,10 +158,18 @@ class WrpRuntime(Service):
                 'file': f"{self.shared_dir}/chimaera.log"
             },
             'runtime': {
+                # Worker thread configuration
+                'sched_threads': self.config['sched_workers'],
+                'process_reaper_threads': self.config['process_reaper_workers'],
+                # Task execution configuration
                 'stack_size': self.config['stack_size'],
                 'queue_depth': self.config['queue_depth'],
                 'lane_map_policy': self.config['lane_map_policy'],
-                'heartbeat_interval': self.config['heartbeat_interval']
+                'heartbeat_interval': self.config['heartbeat_interval'],
+                # Worker sleep configuration
+                'first_busy_wait': self.config['first_busy_wait'],
+                'sleep_increment': self.config['sleep_increment'],
+                'max_sleep': self.config['max_sleep']
             }
         }
 
