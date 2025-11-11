@@ -289,7 +289,7 @@ typedef void (*destroy_chimod_t)(chi::Container* container);
     delete reinterpret_cast<CONTAINER_CLASS*>(container);            \
   }                                                                  \
                                                                      \
-  bool is_chimaera_chimod_ = true;                                   \
+  static bool is_chimaera_chimod_ = true;                            \
   }
 
 /**
@@ -321,7 +321,7 @@ typedef void (*destroy_chimod_t)(chi::Container* container);
     delete reinterpret_cast<CONTAINER_CLASS*>(container);            \
   }                                                                  \
                                                                      \
-  bool is_chimaera_chimod_ = true;                                   \
+  static bool is_chimaera_chimod_ = true;                            \
   }
 
 #endif  // CHIMAERA_INCLUDE_CHIMAERA_CONTAINER_H_

@@ -10,13 +10,161 @@
 
 namespace chimaera::bdev {
 
-// Block size constants (in bytes)
-const chi::u64 kBlockSizes[] = {
-    4096,    // 4KB
-    65536,   // 64KB
-    262144,  // 256KB
-    1048576  // 1MB
+// Block size constants (in bytes) - 256B, 1KB, 4KB, 64KB, 128KB
+static const size_t kBlockSizes[] = {
+    256,   // 256B
+    1024,  // 1KB
+    4096,  // 4KB
+    65536, // 64KB
+    131072 // 128KB
 };
+
+//===========================================================================
+// Helper Functions
+//===========================================================================
+
+/**
+ * Find the block type for a given I/O size (rounds to next largest)
+ * @param io_size Requested I/O size
+ * @param out_block_size Output parameter for the actual block size
+ * @return Block type index, or -1 if larger than all cached sizes
+ */
+static int FindBlockTypeForSize(size_t io_size, size_t &out_block_size) {
+  // Find the next block size that is larger than or equal to io_size
+  for (int i = 0; i < static_cast<int>(BlockSizeCategory::kMaxCategories);
+       ++i) {
+    if (kBlockSizes[i] >= io_size) {
+      out_block_size = kBlockSizes[i];
+      return i;
+    }
+  }
+  // If io_size is larger than all cached sizes, return -1
+  out_block_size = io_size; // Use exact size
+  return -1;
+}
+
+//===========================================================================
+// WorkerBlockMap Implementation
+//===========================================================================
+
+WorkerBlockMap::WorkerBlockMap() {
+  // Initialize vector with 5 empty lists (one for each block size category)
+  blocks_.resize(static_cast<size_t>(BlockSizeCategory::kMaxCategories));
+}
+
+bool WorkerBlockMap::AllocateBlock(int block_type, Block &block) {
+  if (block_type < 0 ||
+      block_type >= static_cast<int>(BlockSizeCategory::kMaxCategories)) {
+    return false;
+  }
+
+  // Pop from the head of the list for this block type
+  if (blocks_[block_type].empty()) {
+    return false;
+  }
+
+  block = blocks_[block_type].front();
+  blocks_[block_type].pop_front();
+  return true;
+}
+
+void WorkerBlockMap::FreeBlock(Block block) {
+  int block_type = static_cast<int>(block.block_type_);
+  if (block_type >= 0 &&
+      block_type < static_cast<int>(BlockSizeCategory::kMaxCategories)) {
+    // Append to the block list
+    blocks_[block_type].push_back(block);
+  }
+}
+
+//===========================================================================
+// GlobalBlockMap Implementation
+//===========================================================================
+
+GlobalBlockMap::GlobalBlockMap() {}
+
+void GlobalBlockMap::Init(size_t num_workers) {
+  worker_maps_.resize(num_workers);
+  worker_locks_.resize(num_workers);
+}
+
+int GlobalBlockMap::FindBlockType(size_t io_size) {
+  // Use the shared helper function to find block type
+  size_t block_size; // Not needed here, but required by the function signature
+  return FindBlockTypeForSize(io_size, block_size);
+}
+
+bool GlobalBlockMap::AllocateBlock(int worker, size_t io_size, Block &block) {
+  if (worker < 0 || worker >= static_cast<int>(worker_maps_.size())) {
+    return false;
+  }
+
+  // Find the next block size that is larger than this
+  int block_type = FindBlockType(io_size);
+  if (block_type == -1) {
+    return false; // No suitable cached size
+  }
+
+  // Acquire this worker's mutex using ScopedCoMutex
+  {
+    chi::ScopedCoMutex lock(worker_locks_[worker]);
+    // First attempt to allocate from this worker's map
+    if (worker_maps_[worker].AllocateBlock(block_type, block)) {
+      return true;
+    }
+  }
+
+  // If we fail, try up to 4 other workers (iterate linearly)
+  size_t num_workers = worker_maps_.size();
+  for (int i = 1; i <= 4 && i < static_cast<int>(num_workers); ++i) {
+    int other_worker = (worker + i) % num_workers;
+    chi::ScopedCoMutex lock(worker_locks_[other_worker]);
+    if (worker_maps_[other_worker].AllocateBlock(block_type, block)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+bool GlobalBlockMap::FreeBlock(int worker, Block &block) {
+  if (worker < 0 || worker >= static_cast<int>(worker_maps_.size())) {
+    return false;
+  }
+
+  // Free on this worker's map (with lock for thread safety)
+  chi::ScopedCoMutex lock(worker_locks_[worker]);
+  worker_maps_[worker].FreeBlock(block);
+  return true;
+}
+
+//===========================================================================
+// Heap Implementation
+//===========================================================================
+
+Heap::Heap() : heap_(0), total_size_(0) {}
+
+void Heap::Init(chi::u64 total_size) {
+  total_size_ = total_size;
+  heap_.store(0);
+}
+
+bool Heap::Allocate(size_t block_size, int block_type, Block &block) {
+  // Atomic fetch-and-add to allocate from heap
+  chi::u64 old_heap = heap_.fetch_add(block_size);
+
+  if (old_heap + block_size > total_size_) {
+    // Out of space - rollback
+    heap_.fetch_sub(block_size);
+    return false;
+  }
+
+  // Allocation successful
+  block.offset_ = old_heap;
+  block.size_ = block_size;
+  block.block_type_ = static_cast<chi::u32>(block_type);
+  return true;
+}
 
 Runtime::~Runtime() {
   // Clean up libaio (only for file-based storage)
@@ -32,20 +180,10 @@ Runtime::~Runtime() {
     ram_buffer_ = nullptr;
   }
 
-  // Clean up per-worker free lists
-  for (size_t worker = 0; worker < kMaxWorkers; ++worker) {
-    for (size_t category = 0; category < static_cast<size_t>(BlockSizeCategory::kMaxCategories); ++category) {
-      FreeListNode* node = free_lists_[worker][category];
-      while (node) {
-        FreeListNode* next = node->next_;
-        delete node;
-        node = next;
-      }
-    }
-  }
+  // Note: GlobalBlockMap and Heap destructors will clean up automatically
 }
 
-void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& ctx) {
+void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext &ctx) {
   // Get the creation parameters using task's allocator
   auto alloc = task->GetCtxAllocator();
   CreateParams params = task->GetParams(alloc);
@@ -67,7 +205,8 @@ void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& ctx) {
     // File-based storage initialization - use pool_name as file path
     file_fd_ = open(pool_name.c_str(), O_RDWR | O_CREAT | O_DIRECT, 0644);
     if (file_fd_ < 0) {
-      HELOG(kError, "Failed to open file: {}, fd: {}, errno: {}, strerror: {}", pool_name, file_fd_, errno, strerror(errno));
+      HELOG(kError, "Failed to open file: {}, fd: {}, errno: {}, strerror: {}",
+            pool_name, file_fd_, errno, strerror(errno));
       task->return_code_ = 1;
       return;
     }
@@ -89,7 +228,7 @@ void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& ctx) {
     // If file is empty, create it with default size (1GB)
     if (file_size_ == 0) {
       file_size_ = (params.total_size_ > 0) ? params.total_size_
-                                            : (1ULL << 30);  // 1GB default
+                                            : (1ULL << 30); // 1GB default
       if (ftruncate(file_fd_, file_size_) != 0) {
         task->return_code_ = 3;
         close(file_fd_);
@@ -110,14 +249,14 @@ void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& ctx) {
     }
 
     ram_size_ = params.total_size_;
-    ram_buffer_ = static_cast<char*>(malloc(ram_size_));
+    ram_buffer_ = static_cast<char *>(malloc(ram_size_));
     if (ram_buffer_ == nullptr) {
       task->return_code_ = 5;
       return;
     }
 
     // Initialize RAM buffer to zero
-    file_size_ = ram_size_;  // Use file_size_ for common allocation logic
+    file_size_ = ram_size_; // Use file_size_ for common allocation logic
   }
 
   // Initialize common parameters
@@ -142,258 +281,194 @@ void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext& ctx) {
 }
 
 void Runtime::AllocateBlocks(hipc::FullPtr<AllocateBlocksTask> task,
-                             chi::RunContext& ctx) {
-  // Get worker ID for per-worker free list access
-  size_t worker_id = GetWorkerID(ctx);
-
-  // Clear the block vector first
-  task->blocks_.clear();
+                             chi::RunContext &ctx) {
+  // Get worker ID for allocation
+  int worker_id = static_cast<int>(GetWorkerID(ctx));
 
   chi::u64 total_size = task->size_;
   if (total_size == 0) {
-    task->return_code_ = 0;  // Nothing to allocate
+    task->blocks_.clear();
+    task->return_code_ = 0; // Nothing to allocate
     return;
   }
 
-  // Calculate minimum block set according to new algorithm
-  std::vector<std::pair<BlockSizeCategory, chi::u32>> blocks_to_allocate;
-  chi::u64 total_allocated_size = 0;
+  // Create local vector in private memory to build up the block list
+  std::vector<Block> local_blocks;
 
-  if (total_size < (1ULL << 20)) {  // < 1MB
-    // Allocate a single block of the next largest size
-    BlockSizeCategory category;
-    if (total_size <= kBlockSizes[0]) {  // <= 4KB
-      category = BlockSizeCategory::k4KB;
-    } else if (total_size <= kBlockSizes[1]) {  // <= 64KB
-      category = BlockSizeCategory::k64KB;
-    } else if (total_size <= kBlockSizes[2]) {  // <= 256KB
-      category = BlockSizeCategory::k256KB;
-    } else {  // <= 1MB
-      category = BlockSizeCategory::k1MB;
+  // Divide the I/O request into blocks
+  // If I/O size >= 128KB, then divide into units of 128KB
+  // Else, just use this I/O size
+  std::vector<size_t> io_divisions;
+
+  const size_t k128KB =
+      kBlockSizes[static_cast<int>(BlockSizeCategory::k128KB)];
+  if (total_size >= k128KB) {
+    // Divide into 128KB chunks
+    chi::u64 remaining = total_size;
+    while (remaining >= k128KB) {
+      io_divisions.push_back(k128KB);
+      remaining -= k128KB;
     }
-
-    blocks_to_allocate.push_back({category, 1});
-    total_allocated_size = GetBlockSize(category);
-
-  } else {  // >= 1MB
-    // Allocate only 1MB blocks to meet requirement
-    chi::u32 num_1mb_blocks = static_cast<chi::u32>(
-        (total_size + kBlockSizes[3] - 1) / kBlockSizes[3]);
-    blocks_to_allocate.push_back({BlockSizeCategory::k1MB, num_1mb_blocks});
-    total_allocated_size = num_1mb_blocks * kBlockSizes[3];
+    // Add remaining bytes if any
+    if (remaining > 0) {
+      io_divisions.push_back(static_cast<size_t>(remaining));
+    }
+  } else {
+    // Use the entire I/O size as a single division
+    io_divisions.push_back(static_cast<size_t>(total_size));
   }
 
-  // Now allocate the determined blocks using the allocation strategy
-  for (const auto& block_spec : blocks_to_allocate) {
-    BlockSizeCategory category = block_spec.first;
-    chi::u32 num_blocks = block_spec.second;
-    chi::u64 block_size = GetBlockSize(category);
+  // For each expected I/O size division, allocate a block
+  for (size_t io_size : io_divisions) {
+    Block block;
+    bool allocated = false;
 
-    for (chi::u32 i = 0; i < num_blocks; ++i) {
-      Block block;
+    // First attempt to allocate from the GlobalBlockMap
+    if (global_block_map_.AllocateBlock(worker_id, io_size, block)) {
+      allocated = true;
+    } else {
+      // If that fails, allocate from heap
+      // Find the appropriate block type and size for this I/O size
+      size_t alloc_size;
+      int block_type = FindBlockTypeForSize(io_size, alloc_size);
 
-      // Try to allocate from per-worker free list first
-      if (!AllocateFromFreeList(worker_id, category, block_size, block)) {
-        // If no free blocks, allocate from heap using atomic operations
-        if (!AllocateFromHeap(block_size, category, block)) {
-          // If both heap and free lists exhausted, clean up and return error
-          for (size_t j = 0; j < task->blocks_.size(); ++j) {
-            const Block& allocated_block = task->blocks_[j];
-            AddToFreeList(worker_id, allocated_block);
-            remaining_size_.fetch_add(allocated_block.size_);
-          }
-          task->blocks_.clear();
-          HELOG(kError, "Out of space: {} bytes requested, {} bytes available", total_size, remaining_size_.load());
-          task->return_code_ = 1;  // Out of space
-          return;
-        }
+      // If no cached size fits, use largest category
+      if (block_type == -1) {
+        block_type = static_cast<int>(BlockSizeCategory::k128KB);
       }
 
-      // Add the allocated block to the vector
-      size_t old_size = task->blocks_.size();
-      task->blocks_.resize(old_size + 1);
-      task->blocks_[old_size] = block;
+      if (heap_.Allocate(alloc_size, block_type, block)) {
+        allocated = true;
+      }
     }
+
+    // If allocation failed, clean up and return error
+    if (!allocated) {
+      // Return all allocated blocks to the GlobalBlockMap
+      for (Block &allocated_block : local_blocks) {
+        global_block_map_.FreeBlock(worker_id, allocated_block);
+      }
+      task->blocks_.clear();
+      HELOG(kError, "Out of space: {} bytes requested", total_size);
+      task->return_code_ = 1; // Out of space
+      return;
+    }
+
+    // Add the allocated block to the local vector
+    local_blocks.push_back(block);
   }
 
-  // Update capacity: decrement remaining_size_ based on total allocated block
-  // size
-  remaining_size_.fetch_sub(total_allocated_size);
+  // Copy the local vector to the task's shared memory vector using assignment
+  // operator
+  // task->blocks_ = local_blocks;
+  for (size_t i = 0; i < local_blocks.size(); i++) {
+    task->blocks_.emplace_back(local_blocks[i]);
+  }
 
   task->return_code_ = 0;
 }
 
 void Runtime::FreeBlocks(hipc::FullPtr<FreeBlocksTask> task,
-                         chi::RunContext& ctx) {
-  // Get worker ID for per-worker free list access
-  size_t worker_id = GetWorkerID(ctx);
+                         chi::RunContext &ctx) {
+  // Get worker ID for free operation
+  int worker_id = static_cast<int>(GetWorkerID(ctx));
 
-  // Free all blocks in the vector
+  // Free all blocks in the vector using GlobalBlockMap
   for (size_t i = 0; i < task->blocks_.size(); ++i) {
-    const Block& block = task->blocks_[i];
-    // Add block back to the appropriate per-worker free list
-    AddToFreeList(worker_id, block);
-    // Update remaining size counter
-    remaining_size_.fetch_add(block.size_);
+    Block block_copy = task->blocks_[i]; // Make a copy since FreeBlock takes
+                                         // non-const reference
+    global_block_map_.FreeBlock(worker_id, block_copy);
   }
 
   task->return_code_ = 0;
 }
 
-void Runtime::Write(hipc::FullPtr<WriteTask> task, chi::RunContext& ctx) {
+void Runtime::Write(hipc::FullPtr<WriteTask> task, chi::RunContext &ctx) {
   // Set I/O size in task stat for routing decisions
   task->stat_.io_size_ = task->length_;
 
   switch (bdev_type_) {
-    case BdevType::kFile:
-      WriteToFile(task);
-      break;
-    case BdevType::kRam:
-      WriteToRam(task);
-      break;
-    default:
-      task->return_code_ = 1;  // Unknown backend type
-      task->bytes_written_ = 0;
-      break;
+  case BdevType::kFile:
+    WriteToFile(task);
+    break;
+  case BdevType::kRam:
+    WriteToRam(task);
+    break;
+  default:
+    task->return_code_ = 1; // Unknown backend type
+    task->bytes_written_ = 0;
+    break;
   }
 }
 
-void Runtime::Read(hipc::FullPtr<ReadTask> task, chi::RunContext& ctx) {
+void Runtime::Read(hipc::FullPtr<ReadTask> task, chi::RunContext &ctx) {
   // Set I/O size in task stat for routing decisions
   task->stat_.io_size_ = task->length_;
 
   switch (bdev_type_) {
-    case BdevType::kFile:
-      ReadFromFile(task);
-      break;
-    case BdevType::kRam:
-      ReadFromRam(task);
-      break;
-    default:
-      task->return_code_ = 1;  // Unknown backend type
-      task->bytes_read_ = 0;
-      break;
+  case BdevType::kFile:
+    ReadFromFile(task);
+    break;
+  case BdevType::kRam:
+    ReadFromRam(task);
+    break;
+  default:
+    task->return_code_ = 1; // Unknown backend type
+    task->bytes_read_ = 0;
+    break;
   }
 }
 
-void Runtime::GetStats(hipc::FullPtr<GetStatsTask> task, chi::RunContext& ctx) {
-  // Return the user-provided performance characteristics instead of calculating them
+void Runtime::GetStats(hipc::FullPtr<GetStatsTask> task, chi::RunContext &ctx) {
+  // Return the user-provided performance characteristics
   task->metrics_ = perf_metrics_;
-  task->remaining_size_ = remaining_size_.load();
+  // Note: remaining_size tracking is now handled by GlobalBlockMap and Heap
+  task->remaining_size_ = 0; // Not tracked in new allocator
   task->return_code_ = 0;
 }
 
-void Runtime::Destroy(hipc::FullPtr<DestroyTask> task, chi::RunContext& ctx) {
+void Runtime::Destroy(hipc::FullPtr<DestroyTask> task, chi::RunContext &ctx) {
   // Close file descriptor if open
   if (file_fd_ >= 0) {
     close(file_fd_);
     file_fd_ = -1;
   }
 
-  // Clean up per-worker free lists (no locking needed)
-  for (size_t worker = 0; worker < kMaxWorkers; ++worker) {
-    for (size_t category = 0; category < static_cast<size_t>(BlockSizeCategory::kMaxCategories); ++category) {
-      FreeListNode* node = free_lists_[worker][category];
-      while (node) {
-        FreeListNode* next = node->next_;
-        delete node;
-        node = next;
-      }
-      free_lists_[worker][category] = nullptr;
-    }
-  }
+  // Note: GlobalBlockMap and Heap cleanup is handled by their destructors
 
   task->return_code_ = 0;
 }
 
 void Runtime::InitializeAllocator() {
-  // Initialize per-worker free lists
-  for (size_t worker = 0; worker < kMaxWorkers; ++worker) {
-    for (size_t category = 0; category < static_cast<size_t>(BlockSizeCategory::kMaxCategories); ++category) {
-      free_lists_[worker][category] = nullptr;
-    }
+  // Initialize global block map with number of workers
+  global_block_map_.Init(kMaxWorkers);
+
+  // Initialize heap with total file size
+  heap_.Init(file_size_);
+}
+
+size_t Runtime::GetBlockSize(int block_type) {
+  if (block_type >= 0 &&
+      block_type < static_cast<int>(BlockSizeCategory::kMaxCategories)) {
+    return kBlockSizes[block_type];
   }
-
-  // Start allocation from beginning of file (atomic initialization)
-  next_offset_.store(0, std::memory_order_relaxed);
-  remaining_size_.store(file_size_, std::memory_order_relaxed);
+  return 0;
 }
 
-
-chi::u64 Runtime::GetBlockSize(BlockSizeCategory category) {
-  return kBlockSizes[static_cast<size_t>(category)];
-}
-
-size_t Runtime::GetWorkerID(chi::RunContext& ctx) {
+size_t Runtime::GetWorkerID(chi::RunContext &ctx) {
   // Get current worker from thread-local storage
-  auto* worker = HSHM_THREAD_MODEL->GetTls<chi::Worker>(chi::chi_cur_worker_key_);
+  auto *worker =
+      HSHM_THREAD_MODEL->GetTls<chi::Worker>(chi::chi_cur_worker_key_);
   if (worker == nullptr) {
-    return 0;  // Fallback to worker 0 if not in worker context
+    return 0; // Fallback to worker 0 if not in worker context
   }
   chi::u32 worker_id = worker->GetId();
   return worker_id % kMaxWorkers;
 }
 
-bool Runtime::AllocateFromFreeList(size_t worker_id, BlockSizeCategory category,
-                                   chi::u64 size, Block& block) {
-  size_t category_idx = static_cast<size_t>(category);
-
-  // Access per-worker free list - no locking needed
-  FreeListNode** current = &free_lists_[worker_id][category_idx];
-  while (*current) {
-    if ((*current)->size_ >= size) {
-      FreeListNode* node = *current;
-      *current = node->next_;
-
-      block.offset_ = node->offset_;
-      block.size_ = node->size_;
-      block.block_type_ = static_cast<chi::u32>(category);
-
-      delete node;
-      return true;
-    }
-    current = &((*current)->next_);
-  }
-
-  return false;
-}
-
-bool Runtime::AllocateFromHeap(chi::u64 size, BlockSizeCategory category,
-                               Block& block) {
-  chi::u64 aligned_size = AlignSize(size);
-
-  // Atomically reserve space from heap using fetch_add
-  chi::u64 offset = next_offset_.fetch_add(aligned_size, std::memory_order_relaxed);
-
-  // Check if allocation would exceed file size
-  if (offset + aligned_size > file_size_) {
-    // Rollback the atomic increment by subtracting what we added
-    next_offset_.fetch_sub(aligned_size, std::memory_order_relaxed);
-    return false;  // Out of space
-  }
-
-  block.offset_ = offset;
-  block.size_ = aligned_size;
-  block.block_type_ = static_cast<chi::u32>(category);
-
-  return true;
-}
-
-void Runtime::AddToFreeList(size_t worker_id, const Block& block) {
-  size_t category_idx = block.block_type_;
-  if (category_idx >= static_cast<size_t>(BlockSizeCategory::kMaxCategories)) {
-    return;  // Invalid block type
-  }
-
-  // Add to per-worker free list - no locking needed
-  FreeListNode* node = new FreeListNode(block.offset_, block.size_);
-  node->next_ = free_lists_[worker_id][category_idx];
-  free_lists_[worker_id][category_idx] = node;
-}
-
 chi::u64 Runtime::AlignSize(chi::u64 size) {
   if (alignment_ == 0) {
-    alignment_ = 4096;  // Set to default if somehow it's 0
+    alignment_ = 4096; // Set to default if somehow it's 0
   }
   return ((size + alignment_ - 1) / alignment_) * alignment_;
 }
@@ -412,12 +487,12 @@ void Runtime::CleanupAsyncIO() {
   // No cleanup needed - aiocb created on stack
 }
 
-chi::u32 Runtime::PerformAsyncIO(bool is_write, chi::u64 offset, void* buffer,
-                                 chi::u64 size, chi::u64& bytes_transferred,
+chi::u32 Runtime::PerformAsyncIO(bool is_write, chi::u64 offset, void *buffer,
+                                 chi::u64 size, chi::u64 &bytes_transferred,
                                  hipc::FullPtr<chi::Task> task) {
   // Create aiocb on-demand
   struct aiocb aiocb_storage;
-  struct aiocb* aiocb = &aiocb_storage;
+  struct aiocb *aiocb = &aiocb_storage;
 
   // Initialize the AIO control block
   memset(aiocb, 0, sizeof(struct aiocb));
@@ -436,7 +511,7 @@ chi::u32 Runtime::PerformAsyncIO(bool is_write, chi::u64 offset, void* buffer,
   }
 
   if (result != 0) {
-    return 2;  // Failed to submit I/O
+    return 2; // Failed to submit I/O
   }
 
   // Poll for completion
@@ -460,11 +535,11 @@ chi::u32 Runtime::PerformAsyncIO(bool is_write, chi::u64 offset, void* buffer,
   // Get the result
   ssize_t bytes_result = aio_return(aiocb);
   if (bytes_result < 0) {
-    return 4;  // I/O operation failed
+    return 4; // I/O operation failed
   }
 
   bytes_transferred = bytes_result;
-  return 0;  // Success
+  return 0; // Success
 }
 
 // Backend-specific write operations
@@ -476,11 +551,12 @@ void Runtime::WriteToFile(hipc::FullPtr<WriteTask> task) {
   chi::u64 aligned_size = AlignSize(task->length_);
 
   // Check if the buffer is already aligned
-  bool is_aligned = (reinterpret_cast<uintptr_t>(data_ptr.ptr_) % alignment_ == 0) &&
-                    (task->length_ == aligned_size);
+  bool is_aligned =
+      (reinterpret_cast<uintptr_t>(data_ptr.ptr_) % alignment_ == 0) &&
+      (task->length_ == aligned_size);
 
-  void* buffer_to_use;
-  void* aligned_buffer = nullptr;
+  void *buffer_to_use;
+  void *aligned_buffer = nullptr;
   bool needs_free = false;
 
   if (is_aligned) {
@@ -499,7 +575,7 @@ void Runtime::WriteToFile(hipc::FullPtr<WriteTask> task) {
     // Copy data to aligned buffer
     memcpy(aligned_buffer, data_ptr.ptr_, task->length_);
     if (aligned_size > task->length_) {
-      memset(static_cast<char*>(aligned_buffer) + task->length_, 0,
+      memset(static_cast<char *>(aligned_buffer) + task->length_, 0,
              aligned_size - task->length_);
     }
   }
@@ -534,10 +610,12 @@ void Runtime::WriteToRam(hipc::FullPtr<WriteTask> task) {
 
   // Check bounds
   if (task->block_.offset_ + task->length_ > ram_size_) {
-    task->return_code_ = 1;  // Write beyond buffer bounds
+    task->return_code_ = 1; // Write beyond buffer bounds
     task->bytes_written_ = 0;
-    HELOG(kError, "Write to RAM beyond buffer bounds offset: {}, length: {}, ram_size: {}", 
-        task->block_.offset_, task->length_, ram_size_);
+    HELOG(kError,
+          "Write to RAM beyond buffer bounds offset: {}, length: {}, ram_size: "
+          "{}",
+          task->block_.offset_, task->length_, ram_size_);
     return;
   }
 
@@ -561,11 +639,12 @@ void Runtime::ReadFromFile(hipc::FullPtr<ReadTask> task) {
   chi::u64 aligned_size = AlignSize(task->block_.size_);
 
   // Check if the buffer is already aligned
-  bool is_aligned = (reinterpret_cast<uintptr_t>(data_ptr.ptr_) % alignment_ == 0) &&
-                    (task->block_.size_ == aligned_size);
+  bool is_aligned =
+      (reinterpret_cast<uintptr_t>(data_ptr.ptr_) % alignment_ == 0) &&
+      (task->block_.size_ == aligned_size);
 
-  void* buffer_to_use;
-  void* aligned_buffer = nullptr;
+  void *buffer_to_use;
+  void *aligned_buffer = nullptr;
   bool needs_free = false;
 
   if (is_aligned) {
@@ -621,7 +700,7 @@ void Runtime::ReadFromRam(hipc::FullPtr<ReadTask> task) {
 
   // Check bounds
   if (task->block_.offset_ + task->block_.size_ > ram_size_) {
-    task->return_code_ = 1;  // Read beyond buffer bounds
+    task->return_code_ = 1; // Read beyond buffer bounds
     task->bytes_read_ = 0;
     return;
   }
@@ -643,7 +722,7 @@ void Runtime::ReadFromRam(hipc::FullPtr<ReadTask> task) {
 
 chi::u64 Runtime::GetWorkRemaining() const { return 0; }
 
-}  // namespace chimaera::bdev
+} // namespace chimaera::bdev
 
 // Define ChiMod entry points using CHI_TASK_CC macro
 CHI_TASK_CC(chimaera::bdev::Runtime)

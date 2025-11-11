@@ -175,6 +175,24 @@ class ConfigManager : public hshm::BaseConfig {
    */
   u32 GetWaitForRestartPollPeriod() const { return wait_for_restart_poll_period_; }
 
+  /**
+   * Get first busy wait duration in microseconds
+   * @return Duration to busy wait before sleeping when there is no work (default: 50us)
+   */
+  u32 GetFirstBusyWait() const { return first_busy_wait_; }
+
+  /**
+   * Get sleep increment in microseconds
+   * @return Amount to linearly increment sleep duration per iteration with no work (default: 1000us = 1ms)
+   */
+  u32 GetSleepIncrement() const { return sleep_increment_; }
+
+  /**
+   * Get maximum sleep duration in microseconds
+   * @return Maximum sleep duration cap (default: 50000us = 50ms)
+   */
+  u32 GetMaxSleep() const { return max_sleep_; }
+
  private:
   /**
    * Set default configuration values (implements hshm::BaseConfig)
@@ -215,6 +233,11 @@ class ConfigManager : public hshm::BaseConfig {
   // Network retry configuration for system boot
   u32 wait_for_restart_timeout_ = 30;        // Default: 30 seconds
   u32 wait_for_restart_poll_period_ = 1;     // Default: 1 second
+
+  // Worker sleep configuration (in microseconds)
+  u32 first_busy_wait_ = 50;                 // Default: 50us busy wait
+  u32 sleep_increment_ = 1000;               // Default: 1000us (1ms) sleep increment
+  u32 max_sleep_ = 50000;                    // Default: 50000us (50ms) maximum sleep
 
   // Compose configuration
   ComposeConfig compose_config_;

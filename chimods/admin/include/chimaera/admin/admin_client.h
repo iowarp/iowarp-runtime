@@ -210,7 +210,7 @@ class Client : public chi::ContainerClient {
       const hipc::MemContext& mctx,
       const chi::PoolQuery& pool_query,
       chi::u32 transfer_flags = 0,
-      double period_ms = 0) {
+      double period_us = 25) {
     auto* ipc_manager = CHI_IPC;
 
     // Allocate RecvTask
@@ -218,8 +218,8 @@ class Client : public chi::ContainerClient {
         chi::CreateTaskId(), pool_id_, pool_query, transfer_flags);
 
     // Set task as periodic if period is specified
-    if (period_ms > 0) {
-      task->SetPeriod(period_ms, chi::kMilli);
+    if (period_us > 0) {
+      task->SetPeriod(period_us, chi::kMicro);
       task->SetFlags(TASK_PERIODIC);
     }
 

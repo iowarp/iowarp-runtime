@@ -25,7 +25,8 @@ namespace chimaera::admin {
 
 // Method implementations for Runtime class
 
-// Virtual method implementations (Init, Run, Del, SaveTask, LoadTask, NewCopy, Aggregate) now in autogen/admin_lib_exec.cc
+// Virtual method implementations (Init, Run, Del, SaveTask, LoadTask, NewCopy,
+// Aggregate) now in autogen/admin_lib_exec.cc
 
 //===========================================================================
 // Method implementations
@@ -41,16 +42,16 @@ void Runtime::Create(hipc::FullPtr<CreateTask> task, chi::RunContext &rctx) {
 
   create_count_++;
 
-  // Spawn periodic Recv task with 15 microsecond period
+  // Spawn periodic Recv task with 25 microsecond period (default)
   // Worker will automatically reschedule periodic tasks
   hipc::MemContext mctx;
-  client_.AsyncRecv(mctx, chi::PoolQuery::Local(), 0, 0.015);
+  client_.AsyncRecv(mctx, chi::PoolQuery::Local(), 0, 25);
 
   HILOG(kDebug,
         "Admin: Container created and initialized for pool: {} (ID: {}, count: "
         "{})",
         pool_name_, task->new_pool_id_, create_count_);
-  HILOG(kDebug, "Admin: Spawned periodic Recv task with 15us period");
+  HILOG(kDebug, "Admin: Spawned periodic Recv task with 25us period");
 }
 
 void Runtime::GetOrCreatePool(
@@ -276,7 +277,7 @@ void Runtime::Flush(hipc::FullPtr<FlushTask> task, chi::RunContext &rctx) {
  */
 void Runtime::SendIn(hipc::FullPtr<SendTask> task, chi::RunContext &rctx) {
   // Set I/O size to 1MB to ensure routing to slow workers
-  task->stat_.io_size_ = 1024 * 1024;  // 1MB
+  task->stat_.io_size_ = 1024 * 1024; // 1MB
 
   auto *ipc_manager = CHI_IPC;
   auto *pool_manager = CHI_POOL_MANAGER;
@@ -402,7 +403,8 @@ void Runtime::SendIn(hipc::FullPtr<SendTask> task, chi::RunContext &rctx) {
 
     // Send using Lightbeam with retry logic for system boot
     // Get retry configuration from config manager
-    chi::u32 wait_for_restart_timeout = config_manager->GetWaitForRestartTimeout();
+    chi::u32 wait_for_restart_timeout =
+        config_manager->GetWaitForRestartTimeout();
     chi::u32 poll_period = config_manager->GetWaitForRestartPollPeriod();
 
     int rc = -1;
@@ -417,8 +419,11 @@ void Runtime::SendIn(hipc::FullPtr<SendTask> task, chi::RunContext &rctx) {
       }
 
       // Send failed, wait before retrying
-      HELOG(kWarning, "[SendIn] Task {} Send failed (rc={}), retrying in {} seconds... (elapsed: {}/{}s)",
-            origin_task->task_id_, rc, poll_period, elapsed_seconds, wait_for_restart_timeout);
+      HELOG(kWarning,
+            "[SendIn] Task {} Send failed (rc={}), retrying in {} seconds... "
+            "(elapsed: {}/{}s)",
+            origin_task->task_id_, rc, poll_period, elapsed_seconds,
+            wait_for_restart_timeout);
 
       // Use task->Wait() with poll_period seconds to yield control
       task->Wait(poll_period);
@@ -426,13 +431,18 @@ void Runtime::SendIn(hipc::FullPtr<SendTask> task, chi::RunContext &rctx) {
     }
 
     if (!send_succeeded) {
-      HELOG(kError, "[SendIn] Task {} Lightbeam Send FAILED after {} seconds with error code {}",
+      HELOG(kError,
+            "[SendIn] Task {} Lightbeam Send FAILED after {} seconds with "
+            "error code {}",
             origin_task->task_id_, wait_for_restart_timeout, rc);
       continue;
     }
 
-    HILOG(kDebug, "[SendIn] Successfully sent task copy {} to node {} ({}) after {} seconds",
-          task_copy->task_id_, target_node_id, target_host->ip_address, elapsed_seconds);
+    HILOG(kDebug,
+          "[SendIn] Successfully sent task copy {} to node {} ({}) after {} "
+          "seconds",
+          task_copy->task_id_, target_node_id, target_host->ip_address,
+          elapsed_seconds);
   }
 
   HILOG(kDebug, "=== [SendIn END] Task {} completed sending to {} targets ===",
@@ -446,7 +456,7 @@ void Runtime::SendIn(hipc::FullPtr<SendTask> task, chi::RunContext &rctx) {
  */
 void Runtime::SendOut(hipc::FullPtr<SendTask> task) {
   // Set I/O size to 1MB to ensure routing to slow workers
-  task->stat_.io_size_ = 1024 * 1024;  // 1MB
+  task->stat_.io_size_ = 1024 * 1024; // 1MB
 
   auto *ipc_manager = CHI_IPC;
   auto *pool_manager = CHI_POOL_MANAGER;
@@ -573,7 +583,7 @@ void Runtime::RecvIn(hipc::FullPtr<RecvTask> task,
                      chi::LoadTaskArchive &archive,
                      hshm::lbm::Server *lbm_server) {
   // Set I/O size to 1MB to ensure routing to slow workers
-  task->stat_.io_size_ = 1024 * 1024;  // 1MB
+  task->stat_.io_size_ = 1024 * 1024; // 1MB
 
   auto *ipc_manager = CHI_IPC;
   auto *pool_manager = CHI_POOL_MANAGER;
@@ -588,6 +598,13 @@ void Runtime::RecvIn(hipc::FullPtr<RecvTask> task,
       kDebug,
       "=== [RecvIn BEGIN] (node={}) Receiving {} task(s) from remote node ===",
       ipc_manager->GetNodeId(), task_infos.size());
+
+  // If no tasks to receive
+  if (task_infos.empty()) {
+    HILOG(kDebug, "=== [RecvIn END] No tasks to receive ===");
+    task->SetReturnCode(0);
+    return;
+  }
 
   // Allocate buffers for bulk data and expose them for receiving
   // archive.send contains sender's bulk descriptors (populated by RecvMetadata)
@@ -667,7 +684,7 @@ void Runtime::RecvOut(hipc::FullPtr<RecvTask> task,
                       chi::LoadTaskArchive &archive,
                       hshm::lbm::Server *lbm_server) {
   // Set I/O size to 1MB to ensure routing to slow workers
-  task->stat_.io_size_ = 1024 * 1024;  // 1MB
+  task->stat_.io_size_ = 1024 * 1024; // 1MB
 
   auto *pool_manager = CHI_POOL_MANAGER;
 
@@ -680,6 +697,13 @@ void Runtime::RecvOut(hipc::FullPtr<RecvTask> task,
   HILOG(kDebug,
         "=== [RecvOut BEGIN] Receiving {} task output(s) from remote node ===",
         task_infos.size());
+
+  // If no task outputs to receive
+  if (task_infos.empty()) {
+    HILOG(kDebug, "=== [RecvOut END] No task outputs to receive ===");
+    task->SetReturnCode(0);
+    return;
+  }
 
   // Set lbm_server in archive for bulk transfer exposure in output mode
   archive.SetLbmServer(lbm_server);
@@ -764,7 +788,8 @@ void Runtime::RecvOut(hipc::FullPtr<RecvTask> task,
       chi::ScopedCoMutex lock(send_map_locks_[lock_index]);
       auto send_it = send_map_.find(net_key);
       if (send_it == nullptr) {
-        HELOG(kError, "Admin: Origin task not found in send_map with net_key {}",
+        HELOG(kError,
+              "Admin: Origin task not found in send_map with net_key {}",
               net_key);
         continue;
       }
@@ -860,6 +885,10 @@ void Runtime::Recv(hipc::FullPtr<RecvTask> task, chi::RunContext &rctx) {
   hshm::lbm::Server *lbm_server = ipc_manager->GetMainServer();
   if (!lbm_server) {
     HELOG(kFatal, "Admin: Main server not available");
+    chi::Worker *worker = CHI_CUR_WORKER;
+    if (worker) {
+      worker->SetTaskDidWork(false);
+    }
     task->SetReturnCode(1);
     return;
   }
@@ -868,7 +897,11 @@ void Runtime::Recv(hipc::FullPtr<RecvTask> task, chi::RunContext &rctx) {
   chi::LoadTaskArchive archive;
   int rc = lbm_server->RecvMetadata(archive);
   if (rc == EAGAIN) {
-    // No message available - this is normal for polling
+    // No message available - this is normal for polling, mark as no work done
+    chi::Worker *worker = CHI_CUR_WORKER;
+    if (worker) {
+      worker->SetTaskDidWork(false);
+    }
     task->SetReturnCode(0);
     return;
   }
@@ -908,23 +941,23 @@ chi::u64 Runtime::GetWorkRemaining() const {
 
   // Lock all send_map locks
   for (size_t i = 0; i < send_map_locks_.size(); ++i) {
-    const_cast<chi::CoMutex&>(send_map_locks_[i]).Lock();
+    const_cast<chi::CoMutex &>(send_map_locks_[i]).Lock();
   }
 
   // Lock all recv_map locks
   for (size_t i = 0; i < recv_map_locks_.size(); ++i) {
-    const_cast<chi::CoMutex&>(recv_map_locks_[i]).Lock();
+    const_cast<chi::CoMutex &>(recv_map_locks_[i]).Lock();
   }
 
   chi::u64 result = send_map_.size() + recv_map_.size();
 
   // Unlock all locks in reverse order
   for (size_t i = recv_map_locks_.size(); i > 0; --i) {
-    const_cast<chi::CoMutex&>(recv_map_locks_[i - 1]).Unlock();
+    const_cast<chi::CoMutex &>(recv_map_locks_[i - 1]).Unlock();
   }
 
   for (size_t i = send_map_locks_.size(); i > 0; --i) {
-    const_cast<chi::CoMutex&>(send_map_locks_[i - 1]).Unlock();
+    const_cast<chi::CoMutex &>(send_map_locks_[i - 1]).Unlock();
   }
 
   return result;

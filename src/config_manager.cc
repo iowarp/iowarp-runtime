@@ -157,19 +157,78 @@ void ConfigManager::LoadDefault() {
   // Set default network retry configuration
   wait_for_restart_timeout_ = 30;      // 30 seconds
   wait_for_restart_poll_period_ = 1;   // 1 second
+
+  // Set default worker sleep configuration (in microseconds)
+  first_busy_wait_ = 50;               // 50us busy wait
+  sleep_increment_ = 1000;             // 1000us (1ms) sleep increment
+  max_sleep_ = 50000;                  // 50000us (50ms) maximum sleep
 }
 
 void ConfigManager::ParseYAML(YAML::Node &yaml_conf) {
-  // Parse worker thread counts
+  // Parse runtime configuration (consolidated worker threads and runtime parameters)
+  // This section now includes worker thread configuration previously in 'workers' section
+  if (yaml_conf["runtime"]) {
+    auto runtime = yaml_conf["runtime"];
+
+    // Worker thread configuration (new location)
+    if (runtime["sched_threads"]) {
+      sched_workers_ = runtime["sched_threads"].as<u32>();
+    }
+    if (runtime["slow_threads"]) {
+      slow_threads_ = runtime["slow_threads"].as<u32>();
+    }
+    if (runtime["process_reaper_threads"]) {
+      process_reaper_workers_ = runtime["process_reaper_threads"].as<u32>();
+    }
+
+    // Lane mapping policy
+    if (runtime["lane_map_policy"]) {
+      std::string policy_str = runtime["lane_map_policy"].as<std::string>();
+      if (policy_str == "map_by_pid_tid") {
+        lane_map_policy_ = LaneMapPolicy::kMapByPidTid;
+      } else if (policy_str == "round_robin") {
+        lane_map_policy_ = LaneMapPolicy::kRoundRobin;
+      } else if (policy_str == "random") {
+        lane_map_policy_ = LaneMapPolicy::kRandom;
+      } else {
+        HELOG(kWarning, "Unknown lane_map_policy '{}', using default (round_robin)", policy_str);
+        lane_map_policy_ = LaneMapPolicy::kRoundRobin;
+      }
+    }
+
+    // Worker sleep configuration
+    if (runtime["first_busy_wait"]) {
+      first_busy_wait_ = runtime["first_busy_wait"].as<u32>();
+    }
+    if (runtime["sleep_increment"]) {
+      sleep_increment_ = runtime["sleep_increment"].as<u32>();
+    }
+    if (runtime["max_sleep"]) {
+      max_sleep_ = runtime["max_sleep"].as<u32>();
+    }
+
+    // Other runtime parameters (for future use or backward compatibility)
+    if (runtime["stack_size"]) {
+      // Stack size parameter exists but is not currently used by the runtime
+    }
+    if (runtime["queue_depth"]) {
+      // Queue depth parameter exists but is not currently used by the runtime
+    }
+    if (runtime["heartbeat_interval"]) {
+      // Heartbeat interval parameter exists but is not currently used by the runtime
+    }
+  }
+
+  // Backward compatibility: support old 'workers' section if runtime section didn't set these
   if (yaml_conf["workers"]) {
     auto workers = yaml_conf["workers"];
-    if (workers["sched_threads"]) {
+    if (workers["sched_threads"] && !yaml_conf["runtime"]["sched_threads"]) {
       sched_workers_ = workers["sched_threads"].as<u32>();
     }
-    if (workers["slow_threads"]) {
+    if (workers["slow_threads"] && !yaml_conf["runtime"]["slow_threads"]) {
       slow_threads_ = workers["slow_threads"].as<u32>();
     }
-    if (workers["process_reaper_threads"]) {
+    if (workers["process_reaper_threads"] && !yaml_conf["runtime"]["process_reaper_threads"]) {
       process_reaper_workers_ = workers["process_reaper_threads"].as<u32>();
     }
   }
@@ -214,35 +273,8 @@ void ConfigManager::ParseYAML(YAML::Node &yaml_conf) {
   // Segment names are hardcoded and expanded in ipc_manager.cc
   // No configuration needed here
 
-  // Parse runtime configuration (merged performance and runtime)
-  if (yaml_conf["runtime"]) {
-    auto runtime = yaml_conf["runtime"];
-    if (runtime["lane_map_policy"]) {
-      std::string policy_str = runtime["lane_map_policy"].as<std::string>();
-      if (policy_str == "map_by_pid_tid") {
-        lane_map_policy_ = LaneMapPolicy::kMapByPidTid;
-      } else if (policy_str == "round_robin") {
-        lane_map_policy_ = LaneMapPolicy::kRoundRobin;
-      } else if (policy_str == "random") {
-        lane_map_policy_ = LaneMapPolicy::kRandom;
-      } else {
-        HELOG(kWarning, "Unknown lane_map_policy '{}', using default (round_robin)", policy_str);
-        lane_map_policy_ = LaneMapPolicy::kRoundRobin;
-      }
-    }
-    if (runtime["stack_size"]) {
-      // Stack size parameter exists but is not currently used by the runtime
-      // Keeping for future use or backward compatibility
-    }
-    if (runtime["queue_depth"]) {
-      // Queue depth parameter exists but is not currently used by the runtime
-      // Keeping for future use or backward compatibility
-    }
-    if (runtime["heartbeat_interval"]) {
-      // Heartbeat interval parameter exists but is not currently used by the runtime
-      // Keeping for future use or backward compatibility
-    }
-  }
+  // Note: Runtime section parsing is done at the beginning of ParseYAML
+  // to consolidate worker thread configuration with other runtime parameters
 
   // Parse compose section
   if (yaml_conf["compose"]) {

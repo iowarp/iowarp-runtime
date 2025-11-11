@@ -25,14 +25,22 @@ namespace chi {
 // Stack detection is now handled by WorkOrchestrator during initialization
 
 Worker::Worker(u32 worker_id, ThreadType thread_type)
-    : worker_id_(worker_id), thread_type_(thread_type),
-      is_running_(false), is_initialized_(false), did_work_(false),
+    : worker_id_(worker_id), thread_type_(thread_type), is_running_(false),
+      is_initialized_(false), did_work_(false), task_did_work_(false),
       current_run_context_(nullptr), assigned_lane_(nullptr),
       stack_cache_(64), // Initial capacity for stack cache (64 entries)
-      last_long_queue_check_(0) {
-  // Initialize all blocked queues with capacity 1024
+      last_long_queue_check_(0), iteration_count_(0), idle_iterations_(0),
+      current_sleep_us_(0), sleep_count_(0) {
+  // Initialize all 4 blocked queues with capacity 1024 each
   for (u32 i = 0; i < NUM_BLOCKED_QUEUES; ++i) {
-    blocked_queues_[i] = hshm::ext_ring_buffer<RunContext *>(1024);
+    blocked_queues_[i] =
+        hshm::ext_ring_buffer<RunContext *>(BLOCKED_QUEUE_SIZE);
+  }
+
+  // Initialize all 4 periodic queues with capacity 1024 each
+  for (u32 i = 0; i < NUM_PERIODIC_QUEUES; ++i) {
+    periodic_queues_[i] =
+        hshm::ext_ring_buffer<RunContext *>(PERIODIC_QUEUE_SIZE);
   }
 
   // Record worker spawn time
@@ -57,6 +65,10 @@ bool Worker::Init() {
   is_initialized_ = true;
   return true;
 }
+
+void Worker::SetTaskDidWork(bool did_work) { task_did_work_ = did_work; }
+
+bool Worker::GetTaskDidWork() const { return task_did_work_; }
 
 void Worker::Finalize() {
   if (!is_initialized_) {
@@ -115,60 +127,29 @@ void Worker::Run() {
   while (is_running_) {
     did_work_ = false; // Reset work tracker at start of each loop iteration
 
-    // Process tasks from the worker's assigned lane
-    if (assigned_lane_) {
-      // Process up to 16 tasks from this worker's lane per iteration
-      const u32 MAX_TASKS_PER_ITERATION = 16;
-      u32 tasks_processed = 0;
-
-      while (tasks_processed < MAX_TASKS_PER_ITERATION) {
-        hipc::TypedPointer<Task> task_typed_ptr;
-
-        // Pop task from assigned lane
-        hipc::FullPtr<TaskLane> lane_full_ptr(assigned_lane_);
-        if (::chi::TaskQueue::PopTask(lane_full_ptr, task_typed_ptr)) {
-          tasks_processed++;
-          did_work_ = true;
-
-          // Convert TypedPointer to FullPtr for consistent API usage
-          hipc::FullPtr<Task> task_full_ptr(task_typed_ptr);
-
-          if (!task_full_ptr.IsNull()) {
-            // Allocate stack and RunContext before routing
-            auto *pool_manager = CHI_POOL_MANAGER;
-            Container *container =
-                pool_manager->GetContainer(task_full_ptr->pool_id_);
-            BeginTask(task_full_ptr, container, assigned_lane_);
-
-            // Route task using consolidated routing function
-            if (RouteTask(task_full_ptr, assigned_lane_, container)) {
-              // Routing successful, execute the task
-              RunContext *run_ctx = task_full_ptr->run_ctx_;
-              ExecTask(task_full_ptr, run_ctx, false);
-            }
-            // Note: RouteTask returning false doesn't always indicate an error
-            // Real errors are handled within RouteTask itself
-          }
-        } else {
-          // No more tasks in this lane
-          break;
-        }
-      }
-    }
+    // Process tasks from assigned lane
+    ProcessNewTasks();
 
     // Check blocked queue for completed tasks at end of each iteration
-    u32 sleep_time_us = ContinueBlockedTasks();
+    ContinueBlockedTasks(false);
+
+    // Increment iteration counter
+    iteration_count_++;
 
     if (!did_work_) {
-      // No work was done in this iteration - safe to yield/sleep
-      if (sleep_time_us == 0) {
-        // No blocked tasks or immediate recheck needed, just yield briefly
-        HSHM_THREAD_MODEL->Yield();
-      } else {
-        // Sleep for the calculated time until next blocked task should be
-        // checked
-        HSHM_THREAD_MODEL->SleepForUs(static_cast<size_t>(sleep_time_us));
+      // No work was done - suspend worker with adaptive sleep
+      SuspendMe();
+    }
+
+    if (did_work_) {
+      // Work was done - reset idle counters
+      if (sleep_count_ > 0) {
+        HILOG(kInfo, "Worker {}: Woke up after {} sleeps", worker_id_,
+              sleep_count_);
       }
+      idle_iterations_ = 0;
+      current_sleep_us_ = 0;
+      sleep_count_ = 0;
     }
   }
 }
@@ -178,6 +159,104 @@ void Worker::Stop() { is_running_ = false; }
 void Worker::SetLane(TaskLane *lane) { assigned_lane_ = lane; }
 
 TaskLane *Worker::GetLane() const { return assigned_lane_; }
+
+u32 Worker::ProcessNewTasks() {
+  // Process up to 16 tasks from this worker's lane per iteration
+  const u32 MAX_TASKS_PER_ITERATION = 16;
+  u32 tasks_processed = 0;
+
+  while (tasks_processed < MAX_TASKS_PER_ITERATION) {
+    hipc::TypedPointer<Task> task_typed_ptr;
+
+    // Pop task from assigned lane
+    hipc::FullPtr<TaskLane> lane_full_ptr(assigned_lane_);
+    if (::chi::TaskQueue::PopTask(lane_full_ptr, task_typed_ptr)) {
+      tasks_processed++;
+      // Convert TypedPointer to FullPtr for consistent API usage
+      hipc::FullPtr<Task> task_full_ptr(task_typed_ptr);
+
+      if (!task_full_ptr.IsNull()) {
+        // Allocate stack and RunContext before routing
+        auto *pool_manager = CHI_POOL_MANAGER;
+        Container *container =
+            pool_manager->GetContainer(task_full_ptr->pool_id_);
+        BeginTask(task_full_ptr, container, assigned_lane_);
+
+        // Route task using consolidated routing function
+        if (RouteTask(task_full_ptr, assigned_lane_, container)) {
+          // Routing successful, execute the task
+          RunContext *run_ctx = task_full_ptr->run_ctx_;
+          ExecTask(task_full_ptr, run_ctx, false);
+        }
+        // Note: RouteTask returning false doesn't always indicate an error
+        // Real errors are handled within RouteTask itself
+      }
+    } else {
+      // No more tasks in this lane
+      break;
+    }
+  }
+
+  return tasks_processed;
+}
+
+void Worker::SuspendMe() {
+  // No work was done in this iteration - increment idle counter
+  idle_iterations_++;
+
+  // If idle iterations is less than 32, don't sleep
+  if (idle_iterations_ < 64) {
+    return;
+  }
+
+  // Set idle start time on 32 idle iteration
+  if (idle_iterations_ == 64) {
+    idle_start_.Now();
+  }
+
+  // Get configuration parameters
+  auto *config = CHI_CONFIG_MANAGER;
+  u32 first_busy_wait = config->GetFirstBusyWait();
+  u32 sleep_increment = config->GetSleepIncrement();
+  u32 max_sleep = config->GetMaxSleep();
+
+  // Calculate actual elapsed idle time using timer
+  hshm::Timepoint current_time;
+  current_time.Now();
+  double elapsed_idle_us = idle_start_.GetUsecFromStart(current_time);
+
+  if (elapsed_idle_us < first_busy_wait) {
+    // Still in busy wait period - just yield CPU
+    HSHM_THREAD_MODEL->Yield();
+  } else {
+    // Past busy wait period - start sleeping with linear increment
+    // Calculate how many sleep increments have passed since busy wait ended
+    current_sleep_us_ += sleep_increment;
+
+    // Cap at maximum sleep
+    if (current_sleep_us_ > max_sleep) {
+      current_sleep_us_ = max_sleep;
+    }
+
+    // Before sleeping, check blocked queues with force=true
+    // This will process both queues regardless of iteration count
+    ContinueBlockedTasks(true);
+
+    // If task_did_work_ is true, blocked tasks were found - don't sleep
+    if (GetTaskDidWork()) {
+      return;
+    }
+
+    if (sleep_count_ == 0) {
+      HILOG(kInfo, "Worker {}: Sleeping for {} us", worker_id_,
+            current_sleep_us_);
+    }
+
+    // Sleep for calculated duration
+    HSHM_THREAD_MODEL->SleepForUs(static_cast<size_t>(current_sleep_us_));
+    sleep_count_++;
+  }
+}
 
 u32 Worker::GetId() const { return worker_id_; }
 
@@ -336,13 +415,13 @@ bool Worker::RouteLocal(const FullPtr<Task> &task_ptr, TaskLane *lane,
   size_t est_cpu_time = task_ptr->EstCpuTime();
 
   // Route slow tasks to kSlow workers if we're not already a slow worker
-//   if ((est_cpu_time >= 50 || task_ptr->stat_.io_size_ > 0) &&
-//       thread_type_ != kSlow) {
-//     // This is a slow task and we're a fast worker - route to slow workers
-//     auto *work_orchestrator = CHI_WORK_ORCHESTRATOR;
-//     work_orchestrator->AssignToWorkerType(kSlow, task_ptr);
-//     return false;  // Task routed to slow workers, don't execute here
-//   }
+  //   if ((est_cpu_time >= 50 || task_ptr->stat_.io_size_ > 0) &&
+  //       thread_type_ != kSlow) {
+  //     // This is a slow task and we're a fast worker - route to slow workers
+  //     auto *work_orchestrator = CHI_WORK_ORCHESTRATOR;
+  //     work_orchestrator->AssignToWorkerType(kSlow, task_ptr);
+  //     return false; // Task routed to slow workers, don't execute here
+  //   }
 
   // Fast tasks (< 50us) stay on any worker, slow tasks stay on kSlow workers
   // Get the container for execution
@@ -696,9 +775,6 @@ void Worker::BeginTask(const FullPtr<Task> &task_ptr, Container *container,
 
 void Worker::BeginFiber(const FullPtr<Task> &task_ptr, RunContext *run_ctx,
                         void (*fiber_fn)(boost::context::detail::transfer_t)) {
-  // Mark that work is being done
-  did_work_ = true;
-
   // Set current run context
   SetCurrentRunContext(run_ctx);
 
@@ -727,9 +803,6 @@ void Worker::BeginFiber(const FullPtr<Task> &task_ptr, RunContext *run_ctx,
 }
 
 void Worker::ResumeFiber(const FullPtr<Task> &task_ptr, RunContext *run_ctx) {
-  // Mark that work is being done
-  did_work_ = true;
-
   // Set current run context
   SetCurrentRunContext(run_ctx);
 
@@ -796,6 +869,12 @@ void Worker::ResumeFiber(const FullPtr<Task> &task_ptr, RunContext *run_ctx) {
 
 void Worker::ExecTask(const FullPtr<Task> &task_ptr, RunContext *run_ctx,
                       bool is_started) {
+  // Set task_did_work_ to true by default (tasks can override via
+  // CHI_CUR_WORKER)
+  // This comes before the null check since the task was scheduled
+  SetTaskDidWork(true);
+
+  // Check if task is null or run context is null
   if (task_ptr.IsNull() || !run_ctx) {
     return; // Consider null tasks as completed
   }
@@ -806,6 +885,11 @@ void Worker::ExecTask(const FullPtr<Task> &task_ptr, RunContext *run_ctx,
   } else {
     BeginFiber(task_ptr, run_ctx, FiberExecutionFunction);
     task_ptr->SetFlags(TASK_STARTED);
+  }
+
+  // Only set did_work_ if the task actually did work
+  if (GetTaskDidWork() && run_ctx->exec_mode != ExecMode::kDynamicSchedule) {
+    did_work_ = true;
   }
 
   // Common cleanup logic for both fiber and direct execution
@@ -903,7 +987,8 @@ void Worker::RerouteDynamicTask(const FullPtr<Task> &task_ptr,
   }
 }
 
-void Worker::ProcessBlockedQueue(hshm::ext_ring_buffer<RunContext *> &queue) {
+void Worker::ProcessBlockedQueue(hshm::ext_ring_buffer<RunContext *> &queue,
+                                 u32 queue_idx) {
   // Process only first 8 tasks in the queue
   size_t queue_size = queue.GetSize();
   size_t check_limit = std::min(queue_size, size_t(8));
@@ -922,33 +1007,17 @@ void Worker::ProcessBlockedQueue(hshm::ext_ring_buffer<RunContext *> &queue) {
       continue;
     }
 
-    // Check if enough time has passed for this task to wake up
-    hshm::Timepoint current_time;
-    current_time.Now();
-
-    // Calculate elapsed time since blocking started
-    double elapsed_us = run_ctx->block_start.GetUsecFromStart(current_time);
-
-    if (elapsed_us < run_ctx->block_time_us) {
-      // Not enough time has passed - re-add to queue without incrementing
-      // block_count We decrement block_count before calling AddToBlockedQueue
-      // since it will increment it
-      run_ctx->block_count_--;
-      AddToBlockedQueue(run_ctx);
-      continue;
-    }
-
-    // Enough time has passed - check if all subtasks are completed
+    // Check if all subtasks are completed
     if (run_ctx->AreSubtasksCompleted()) {
-      // All subtasks completed - resume task immediately
-      run_ctx->is_blocked = false;
-
-      // Reset block count since task is now ready to proceed
-      run_ctx->block_count_ = 0;
-
       // Determine if this is a resume (task was started before) or first
       // execution
       bool is_started = run_ctx->task->task_flags_.Any(TASK_STARTED);
+
+      run_ctx->block_count_ = 0;
+
+      // CRITICAL: Clear the is_blocked flag before resuming the task
+      // This allows the task to call Wait() again if needed
+      run_ctx->is_blocked = false;
 
       // Execute task with existing RunContext
       ExecTask(run_ctx->task, run_ctx, is_started);
@@ -957,33 +1026,107 @@ void Worker::ProcessBlockedQueue(hshm::ext_ring_buffer<RunContext *> &queue) {
       continue;
     }
 
-    // Subtasks not completed - re-add to blocked queue
-    // Block count will be incremented automatically
+    // Re-add to appropriate blocked queue based on current block count
+    // AddToBlockedQueue will increment block_count_ and determine the queue
     AddToBlockedQueue(run_ctx);
   }
 }
 
-u32 Worker::ContinueBlockedTasks() {
-  u32 return_value = 0; // Default return value for immediate recheck
+void Worker::ProcessPeriodicQueue(hshm::ext_ring_buffer<RunContext *> &queue,
+                                  u32 queue_idx) {
+  (void)queue_idx; // Unused parameter, kept for API consistency
 
-  // Process queues based on block_time_us:
-  // Queue 0: Short blocking times (< 10us) - check every iteration
-  ProcessBlockedQueue(blocked_queues_[0]);
+  // Check up to 8 tasks from the queue
+  size_t check_limit = 8;
+  size_t queue_size = queue.GetSize();
+  size_t actual_limit = std::min(queue_size, check_limit);
 
-  // Queue 1: Long blocking times (>= 10us) - check based on elapsed time
-  // Calculate current time in 10us units since worker spawn
-  hshm::Timepoint current_time;
-  current_time.Now();
-  double elapsed_us = spawn_time_.GetUsecFromStart(current_time);
-  u64 current_time_10us = static_cast<u64>(elapsed_us / 10.0);
+  // Get current time for all checks
+  for (size_t i = 0; i < actual_limit; i++) {
+    RunContext *run_ctx;
+    hshm::qtok_t token = queue.pop(run_ctx);
 
-  // Process long queue if enough time has passed since last check
-  if (current_time_10us > last_long_queue_check_) {
-    ProcessBlockedQueue(blocked_queues_[1]);
-    last_long_queue_check_ = current_time_10us;
+    if (token.IsNull()) {
+      // Queue is empty
+      break;
+    }
+
+    if (!run_ctx || run_ctx->task.IsNull()) {
+      // Invalid entry, don't re-add
+      continue;
+    }
+
+    // Check if the time threshold has been surpassed
+    if (run_ctx->block_start.GetUsecFromStart() >= run_ctx->block_time_us) {
+      // Time threshold reached - execute the task
+      bool is_started = run_ctx->task->task_flags_.Any(TASK_STARTED);
+
+      // CRITICAL: Clear the is_blocked flag before resuming the task
+      // This allows the task to call Wait() again if needed
+      run_ctx->is_blocked = false;
+
+      // Execute task with existing RunContext
+      ExecTask(run_ctx->task, run_ctx, is_started);
+    } else {
+      // Time threshold not reached yet - re-add to same queue
+      queue.push(run_ctx);
+    }
   }
+}
 
-  return return_value;
+void Worker::ContinueBlockedTasks(bool force) {
+  if (force) {
+    // Force mode: process all blocked queues regardless of iteration count
+    for (u32 i = 0; i < NUM_BLOCKED_QUEUES; ++i) {
+      ProcessBlockedQueue(blocked_queues_[i], i);
+    }
+    // Also process all periodic queues in force mode
+    for (u32 i = 0; i < NUM_PERIODIC_QUEUES; ++i) {
+      ProcessPeriodicQueue(periodic_queues_[i], i);
+    }
+  } else {
+    // Normal mode: check blocked queues based on iteration count
+    // blocked_queues_[0] every 2 iterations
+    if (iteration_count_ % 2 == 0) {
+      ProcessBlockedQueue(blocked_queues_[0], 0);
+    }
+
+    // blocked_queues_[1] every 4 iterations
+    if (iteration_count_ % 4 == 0) {
+      ProcessBlockedQueue(blocked_queues_[1], 1);
+    }
+
+    // blocked_queues_[2] every 8 iterations
+    if (iteration_count_ % 8 == 0) {
+      ProcessBlockedQueue(blocked_queues_[2], 2);
+    }
+
+    // blocked_queues_[3] every 16 iterations
+    if (iteration_count_ % 16 == 0) {
+      ProcessBlockedQueue(blocked_queues_[3], 3);
+    }
+
+    // Process periodic queues with different checking frequencies
+    // periodic_queues_[0] (<=50us) every 16 iterations
+    if (iteration_count_ % 16 == 0) {
+      ProcessPeriodicQueue(periodic_queues_[0], 0);
+    }
+
+    // periodic_queues_[1] (<=200us) every 32 iterations
+    if (iteration_count_ % 32 == 0) {
+      ProcessPeriodicQueue(periodic_queues_[1], 1);
+    }
+
+    // periodic_queues_[2] (<=50ms) every 64 iterations
+    if (iteration_count_ % 64 == 0) {
+      ProcessPeriodicQueue(periodic_queues_[2], 2);
+    }
+
+    // periodic_queues_[3] (>50ms) every 128 iterations
+    if (iteration_count_ % 128 == 0) {
+      ProcessPeriodicQueue(periodic_queues_[3], 3);
+    }
+  }
 }
 
 void Worker::AddToBlockedQueue(RunContext *run_ctx) {
@@ -991,20 +1134,54 @@ void Worker::AddToBlockedQueue(RunContext *run_ctx) {
     return;
   }
 
-  // Capture current real time when blocking
-  run_ctx->block_start.Now();
+  // Check if this is a time-based periodic task or a cooperative task
+  if (run_ctx->block_time_us > 0.0) {
+    // Time-based periodic task - add to appropriate periodic queue
+    // Record the time when task was blocked
+    run_ctx->block_start.Now();
 
-  // Increment block count
-  run_ctx->block_count_++;
+    // Determine which periodic queue based on block_time_us:
+    // Queue[0]: block_time_us <= 50us
+    // Queue[1]: block_time_us <= 200us
+    // Queue[2]: block_time_us <= 50ms (50000us)
+    // Queue[3]: block_time_us > 50ms
+    u32 queue_idx;
+    if (run_ctx->block_time_us <= 50.0) {
+      queue_idx = 0;
+    } else if (run_ctx->block_time_us <= 200.0) {
+      queue_idx = 1;
+    } else if (run_ctx->block_time_us <= 50000.0) {
+      queue_idx = 2;
+    } else {
+      queue_idx = 3;
+    }
 
-  // Determine queue index based on block_time_us:
-  // Queue 0: Short blocking times (< 10us) - checked every iteration
-  // Queue 1: Long blocking times (>= 10us) - checked every 10us of elapsed time
-  constexpr double BLOCK_TIME_THRESHOLD_US = 10.0;
-  u32 queue_idx = (run_ctx->block_time_us < BLOCK_TIME_THRESHOLD_US) ? 0 : 1;
+    // Add to the appropriate periodic queue
+    periodic_queues_[queue_idx].push(run_ctx);
+  } else {
+    // Cooperative task waiting for subtasks - add to blocked queue
+    // Increment block count for cooperative tasks
+    run_ctx->block_count_++;
 
-  // Add to the appropriate queue
-  blocked_queues_[queue_idx].push(run_ctx);
+    // Determine which blocked queue based on block count:
+    // Queue[0]: Tasks blocked <=2 times (checked every % 2 iterations)
+    // Queue[1]: Tasks blocked <= 4 times (checked every % 4 iterations)
+    // Queue[2]: Tasks blocked <= 8 times (checked every % 8 iterations)
+    // Queue[3]: Tasks blocked > 8 times (checked every % 16 iterations)
+    u32 queue_idx;
+    if (run_ctx->block_count_ <= 2) {
+      queue_idx = 0;
+    } else if (run_ctx->block_count_ <= 4) {
+      queue_idx = 1;
+    } else if (run_ctx->block_count_ <= 8) {
+      queue_idx = 2;
+    } else {
+      queue_idx = 3;
+    }
+
+    // Add to the appropriate blocked queue
+    blocked_queues_[queue_idx].push(run_ctx);
+  }
 }
 
 void Worker::ReschedulePeriodicTask(RunContext *run_ctx,
@@ -1024,6 +1201,7 @@ void Worker::ReschedulePeriodicTask(RunContext *run_ctx,
   task_ptr->ClearFlags(TASK_STARTED);
 
   // Add to blocked queue - block count will be incremented automatically
+  run_ctx->block_time_us = task_ptr->period_ns_ / 1000.0;
   AddToBlockedQueue(run_ctx);
 }
 

@@ -10,6 +10,7 @@
 #include <fcntl.h>
 #include <aio.h>
 #include <vector>
+#include <list>
 #include <atomic>
 #include <chrono>
 
@@ -23,26 +24,111 @@ namespace chimaera::bdev {
 
 
 /**
- * Free list node for data allocator
+ * Block size categories for data allocator
+ * We cache the following block sizes: 256B, 1KB, 4KB, 64KB, 128KB
  */
-struct FreeListNode {
-  chi::u64 offset_;
-  chi::u64 size_;
-  FreeListNode* next_;
-  
-  FreeListNode(chi::u64 offset, chi::u64 size) 
-    : offset_(offset), size_(size), next_(nullptr) {}
+enum class BlockSizeCategory : chi::u32 {
+  k256B = 0,
+  k1KB = 1,
+  k4KB = 2,
+  k64KB = 3,
+  k128KB = 4,
+  kMaxCategories = 5
 };
 
 /**
- * Block size categories for data allocator
+ * Per-worker block cache
+ * Maintains free lists for different block sizes without locking
  */
-enum class BlockSizeCategory : chi::u32 {
-  k4KB = 0,
-  k64KB = 1, 
-  k256KB = 2,
-  k1MB = 3,
-  kMaxCategories = 4
+class WorkerBlockMap {
+ public:
+  WorkerBlockMap();
+
+  /**
+   * Allocate a block from the cache
+   * @param block_type Block size category index
+   * @param block Output block to populate
+   * @return true if allocation succeeded, false if cache is empty
+   */
+  bool AllocateBlock(int block_type, Block& block);
+
+  /**
+   * Free a block back to the cache
+   * @param block Block to free
+   */
+  void FreeBlock(Block block);
+
+ private:
+  std::vector<std::list<Block>> blocks_;
+};
+
+/**
+ * Global block map with per-worker caching and locking
+ */
+class GlobalBlockMap {
+ public:
+  GlobalBlockMap();
+
+  /**
+   * Initialize with number of workers
+   * @param num_workers Number of worker threads
+   */
+  void Init(size_t num_workers);
+
+  /**
+   * Allocate a block for a given worker
+   * @param worker Worker ID
+   * @param io_size Requested I/O size
+   * @param block Output block to populate
+   * @return true if allocation succeeded, false otherwise
+   */
+  bool AllocateBlock(int worker, size_t io_size, Block& block);
+
+  /**
+   * Free a block for a given worker
+   * @param worker Worker ID
+   * @param block Block to free
+   * @return true if free succeeded
+   */
+  bool FreeBlock(int worker, Block& block);
+
+ private:
+  std::vector<WorkerBlockMap> worker_maps_;
+  std::vector<chi::CoMutex> worker_locks_;
+
+  /**
+   * Find the next block size category larger than the requested size
+   * @param io_size Requested I/O size
+   * @return Block type index, or -1 if no suitable size
+   */
+  int FindBlockType(size_t io_size);
+};
+
+/**
+ * Heap allocator for new blocks
+ */
+class Heap {
+ public:
+  Heap();
+
+  /**
+   * Initialize heap with total size
+   * @param total_size Total size available for allocation
+   */
+  void Init(chi::u64 total_size);
+
+  /**
+   * Allocate a block from the heap
+   * @param block_size Size of block to allocate
+   * @param block_type Block type category
+   * @param block Output block to populate
+   * @return true if allocation succeeded, false if out of space
+   */
+  bool Allocate(size_t block_size, int block_type, Block& block);
+
+ private:
+  std::atomic<chi::u64> heap_;
+  chi::u64 total_size_;
 };
 
 /**
@@ -54,15 +140,9 @@ class Runtime : public chi::Container {
   using CreateParams = chimaera::bdev::CreateParams;
   
   Runtime() : bdev_type_(BdevType::kFile), file_fd_(-1), file_size_(0), alignment_(4096),
-              io_depth_(32), ram_buffer_(nullptr), ram_size_(0), remaining_size_(0),
-              next_offset_(0), total_reads_(0), total_writes_(0),
+              io_depth_(32), ram_buffer_(nullptr), ram_size_(0),
+              total_reads_(0), total_writes_(0),
               total_bytes_read_(0), total_bytes_written_(0) {
-    // Initialize per-worker free lists
-    for (size_t worker = 0; worker < kMaxWorkers; ++worker) {
-      for (size_t category = 0; category < static_cast<size_t>(BlockSizeCategory::kMaxCategories); ++category) {
-        free_lists_[worker][category] = nullptr;
-      }
-    }
     start_time_ = std::chrono::high_resolution_clock::now();
   }
   ~Runtime() override;
@@ -169,14 +249,11 @@ class Runtime : public chi::Container {
   // RAM-based storage (kRam)
   char* ram_buffer_;                              // RAM storage buffer
   chi::u64 ram_size_;                            // Total RAM buffer size
-  
-  // Data allocator state
-  std::atomic<chi::u64> remaining_size_;          // Remaining allocatable space
-  std::atomic<chi::u64> next_offset_;             // Next allocation offset (atomic for lock-free allocation)
 
-  // Per-worker free lists for different block sizes (no locking needed)
-  static constexpr size_t kMaxWorkers = 8;
-  FreeListNode* free_lists_[kMaxWorkers][static_cast<size_t>(BlockSizeCategory::kMaxCategories)];
+  // New allocator components
+  GlobalBlockMap global_block_map_;              // Global block cache with per-worker locking
+  Heap heap_;                                     // Heap allocator for new blocks
+  static constexpr size_t kMaxWorkers = 8;       // Maximum number of workers
   
   // Performance tracking
   std::atomic<chi::u64> total_reads_;
@@ -192,24 +269,17 @@ class Runtime : public chi::Container {
    * Initialize the data allocator
    */
   void InitializeAllocator();
-  
+
   /**
    * Initialize POSIX AIO control blocks
    */
   void InitializeAsyncIO();
-  
+
   /**
    * Cleanup POSIX AIO control blocks
    */
   void CleanupAsyncIO();
-  
-  
-  /**
-   * Get actual block size for category
-   */
-  chi::u64 GetBlockSize(BlockSizeCategory category);
-  
-  
+
   /**
    * Get worker ID from runtime context
    * @param ctx Runtime context containing worker information
@@ -218,30 +288,11 @@ class Runtime : public chi::Container {
   size_t GetWorkerID(chi::RunContext& ctx);
 
   /**
-   * Allocate from free list if available
-   * @param worker_id Worker ID for per-worker free list access
-   * @param category Block size category
-   * @param size Requested size
-   * @param block Output block structure
-   * @return true if allocation succeeded from free list
+   * Get block size for a given block type
+   * @param block_type Block type category index
+   * @return Size in bytes
    */
-  bool AllocateFromFreeList(size_t worker_id, BlockSizeCategory category, chi::u64 size, Block& block);
-
-  /**
-   * Allocate new block from heap offset using atomic operations
-   * @param size Requested size
-   * @param category Block size category
-   * @param block Output block structure
-   * @return true if allocation succeeded from heap
-   */
-  bool AllocateFromHeap(chi::u64 size, BlockSizeCategory category, Block& block);
-
-  /**
-   * Add block to appropriate free list for current worker
-   * @param worker_id Worker ID for per-worker free list access
-   * @param block Block to free
-   */
-  void AddToFreeList(size_t worker_id, const Block& block);
+  static size_t GetBlockSize(int block_type);
   
   /**
    * Perform async I/O operation

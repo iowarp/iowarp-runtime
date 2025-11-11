@@ -52,18 +52,9 @@ void Task::Wait(double block_time_us, bool from_yield) {
       run_ctx->waiting_for_tasks.push_back(this_task_ptr);
     }
 
-    // Determine blocking duration
-    double actual_block_time_us = block_time_us;
-
-    // If block_time_us is 0, use default estimate based on EstCpuTime()
-    // Cap at 50 microseconds to avoid over-estimating
-    if (block_time_us == 0.0) {
-      size_t est_cpu_time = EstCpuTime();
-      actual_block_time_us = std::min(static_cast<size_t>(15), est_cpu_time);
-    }
-
-    // Store blocking duration in RunContext
-    run_ctx->block_time_us = actual_block_time_us;
+    // Store blocking duration in RunContext (use provided value directly)
+    // block_time_us is passed by the caller - no estimation
+    run_ctx->block_time_us = block_time_us;
 
     // Yield execution back to worker in loop until task completes
     // Add to blocked queue before each yield
