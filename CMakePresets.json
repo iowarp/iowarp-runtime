@@ -14,7 +14,7 @@
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
                 "CHIMAERA_ENABLE_CUDA": "OFF",
-                "CHIMAERA_ENABLE_CMAKE_DOTENV": "ON"
+                "CHIMAERA_ENABLE_ASAN": "ON"
             }
         },
         {
@@ -52,7 +52,7 @@
             "binaryDir": "${sourceDir}/build",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
-                "CHIMAERA_ENABLE_CMAKE_DOTENV": "ON"
+                "CHIMAERA_ENABLE_ASAN": "OFF"
             }
         }
     ]

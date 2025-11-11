@@ -9,6 +9,7 @@ project(chimaera VERSION 1.0.0)
 #------------------------------------------------------------------------------
 option(CHIMAERA_ENABLE_CMAKE_DOTENV "Enable reading environment variables from .env.cmake" ON)
 option(CHIMAERA_ENABLE_TESTS "Enable testing" ON)
+option(CHIMAERA_ENABLE_ASAN "Enable AddressSanitizer for debugging" OFF)
 
 # Read environment variables from .env.cmake if enabled
 if(CHIMAERA_ENABLE_CMAKE_DOTENV)
@@ -44,6 +45,16 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -O0 -DDEBUG")
 
 # Release configuration
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -DNDEBUG")
+
+# AddressSanitizer configuration
+if(CHIMAERA_ENABLE_ASAN)
+  message(STATUS "AddressSanitizer enabled")
+  set(ASAN_FLAGS "-fsanitize=address -fno-omit-frame-pointer -g")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ASAN_FLAGS}")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ASAN_FLAGS}")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address")
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -fsanitize=address")
+endif()
 
 
 #------------------------------------------------------------------------------

@@ -757,7 +757,10 @@ bool IpcManager::TryStartMainServer(const std::string &hostname) {
         hostname, hshm::lbm::Transport::kZeroMq, protocol, port);
 
     if (!main_server_) {
-      HILOG(kDebug, "Failed to create main server on {}:{} - server creation returned null", hostname, port);
+      HILOG(kDebug,
+            "Failed to create main server on {}:{} - server creation returned "
+            "null",
+            hostname, port);
       return false;
     }
 
@@ -765,10 +768,12 @@ bool IpcManager::TryStartMainServer(const std::string &hostname) {
     return true;
 
   } catch (const std::exception &e) {
-    HILOG(kDebug, "Failed to start main server on {}:{} - exception: {}", hostname, config->GetPort(), e.what());
+    HILOG(kDebug, "Failed to start main server on {}:{} - exception: {}",
+          hostname, config->GetPort(), e.what());
     return false;
   } catch (...) {
-    HILOG(kDebug, "Failed to start main server on {}:{} - unknown exception", hostname, config->GetPort());
+    HILOG(kDebug, "Failed to start main server on {}:{} - unknown exception",
+          hostname, config->GetPort());
     return false;
   }
 }
@@ -776,7 +781,6 @@ bool IpcManager::TryStartMainServer(const std::string &hostname) {
 hshm::lbm::Server *IpcManager::GetMainServer() const {
   return main_server_.get();
 }
-
 
 const Host &IpcManager::GetThisHost() const { return this_host_; }
 
@@ -831,13 +835,19 @@ void IpcManager::FreeBuffer(FullPtr<char> buffer_ptr) {
   }
 
   auto *chimaera_manager = CHI_CHIMAERA_MANAGER;
-  if (chimaera_manager->IsRuntime()) {
-    // Runtime uses rdata segment
-    runtime_data_allocator_->Free(HSHM_MCTX, buffer_ptr);
-  } else {
-    // Client uses cdata segment
-    client_data_allocator_->Free(HSHM_MCTX, buffer_ptr);
-  }
+  auto *mem_manager = HSHM_MEMORY_MANAGER;
+
+  auto *allocator =
+      mem_manager->GetAllocator<CHI_RDATA_ALLOC_T>(buffer_ptr.shm_.alloc_id_);
+  allocator->Free(HSHM_MCTX, buffer_ptr);
+
+  //   if (buffer_ptr.shm_.GetAllocatorId() == runtime_data_allocator_id_) {
+  //     // Runtime uses rdata segment
+  //     runtime_data_allocator_->Free(HSHM_MCTX, buffer_ptr);
+  //   } else {
+  //     // Client uses cdata segment
+  //     client_data_allocator_->Free(HSHM_MCTX, buffer_ptr);
+  //   }
 }
 
 } // namespace chi
