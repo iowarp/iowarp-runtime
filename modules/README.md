@@ -5,7 +5,7 @@ This repository contains the standard Chimaera modules that are automatically pr
 ## Repository Structure
 
 ```
-chimods/
+modules/
 ├── chimaera_repo.yaml    # Repository metadata
 ├── CMakeLists.txt        # Main build configuration
 ├── README.md            # This file

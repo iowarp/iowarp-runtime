@@ -21,7 +21,7 @@ target_link_libraries(chimaera_stop_runtime
   PUBLIC cxx
 )
 target_include_directories(chimaera_stop_runtime PRIVATE
-  ${CMAKE_SOURCE_DIR}/chimods/admin/include
+  ${CMAKE_SOURCE_DIR}/modules/admin/include
 )
 
 # Build chi_refresh_repo
@@ -42,7 +42,7 @@ target_link_libraries(chimaera_compose
   PUBLIC cxx
 )
 target_include_directories(chimaera_compose PRIVATE
-  ${CMAKE_SOURCE_DIR}/chimods/admin/include
+  ${CMAKE_SOURCE_DIR}/modules/admin/include
 )
 
 # Install utilities

@@ -99,8 +99,8 @@ read_repo_namespace(CHIMAERA_NAMESPACE "${CMAKE_SOURCE_DIR}")
 set(CHIMAERA_NAMESPACE "${CHIMAERA_NAMESPACE}" CACHE STRING "Project namespace for chimod targets")
 message(STATUS "Chimaera namespace: ${CHIMAERA_NAMESPACE}")
 
-# Add chimods subdirectory
-add_subdirectory(chimods)
+# Add modules subdirectory
+add_subdirectory(modules)
 
 # Add benchmark subdirectory
 add_subdirectory(benchmark)

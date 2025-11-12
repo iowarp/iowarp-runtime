@@ -501,7 +501,7 @@ CHI_IPC->DelTask(task);
 
 ### Using MOD_NAME as a Template
 
-1. **File Structure**: Copy the entire `chimods/MOD_NAME/` directory structure
+1. **File Structure**: Copy the entire `modules/MOD_NAME/` directory structure
 2. **Renaming**: Replace all instances of `MOD_NAME` with your module name
 3. **Configuration**: Update `CreateParams` with your module-specific parameters
 4. **Tasks**: Replace or extend the example tasks with your domain-specific operations

@@ -209,7 +209,7 @@ The true power of Chimaera lies in developing custom ChiMods. Each ChiMod is a s
 ### ChiMod Structure
 
 ```
-chimods/my_module/
+modules/my_module/
 ├── chimaera_mod.yaml           # Module metadata
 ├── CMakeLists.txt              # Build configuration
 ├── doc/                        # Documentation
@@ -265,10 +265,10 @@ public:
 Comprehensive documentation is available in the `docs/` directory:
 
 - **[MODULE_DEVELOPMENT_GUIDE.md](docs/MODULE_DEVELOPMENT_GUIDE.md)**: Complete guide for developing ChiMods
-- **[ChiMod Documentation](chimods/)**: Individual ChiMod API references:
-  - [Admin ChiMod](chimods/admin/doc/admin.md): Core system management
-  - [Bdev ChiMod](chimods/bdev/doc/bdev.md): Block device operations
-  - [MOD_NAME Template](chimods/MOD_NAME/doc/MOD_NAME.md): Development template
+- **[ChiMod Documentation](modules/)**: Individual ChiMod API references:
+  - [Admin ChiMod](modules/admin/doc/admin.md): Core system management
+  - [Bdev ChiMod](modules/bdev/doc/bdev.md): Block device operations
+  - [MOD_NAME Template](modules/MOD_NAME/doc/MOD_NAME.md): Development template
 
 ### Testing
 

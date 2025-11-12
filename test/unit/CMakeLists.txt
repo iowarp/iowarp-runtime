@@ -90,8 +90,8 @@ add_executable(${COMPOSE_TEST_TARGET} ${COMPOSE_TEST_SOURCES})
 target_include_directories(${COMPOSE_TEST_TARGET} PRIVATE
   ${CMAKE_SOURCE_DIR}/include
   ${CMAKE_SOURCE_DIR}/test  # For simple_test.h
-  ${CMAKE_SOURCE_DIR}/chimods/admin/include  # For admin client
-  ${CMAKE_SOURCE_DIR}/chimods/bdev/include   # For bdev client
+  ${CMAKE_SOURCE_DIR}/modules/admin/include  # For admin client
+  ${CMAKE_SOURCE_DIR}/modules/bdev/include   # For bdev client
 )
 
 # Link against required libraries for compose tests
@@ -125,7 +125,7 @@ add_executable(${TASK_ARCHIVE_TEST_TARGET} ${TASK_ARCHIVE_TEST_SOURCES})
 target_include_directories(${TASK_ARCHIVE_TEST_TARGET} PRIVATE
   ${CMAKE_SOURCE_DIR}/include
   ${CMAKE_SOURCE_DIR}/test  # For simple_test.h
-  ${CMAKE_SOURCE_DIR}/chimods/admin/include  # For admin tasks
+  ${CMAKE_SOURCE_DIR}/modules/admin/include  # For admin tasks
 )
 
 # Link against required libraries for task archive tests
@@ -156,8 +156,8 @@ add_executable(${FLUSH_TEST_TARGET} ${FLUSH_TEST_SOURCES})
 target_include_directories(${FLUSH_TEST_TARGET} PRIVATE
   ${CMAKE_SOURCE_DIR}/include
   ${CMAKE_SOURCE_DIR}/test  # For test utilities
-  ${CMAKE_SOURCE_DIR}/chimods/admin/include  # For admin tasks
-  ${CMAKE_SOURCE_DIR}/chimods/MOD_NAME/include  # For MOD_NAME tasks
+  ${CMAKE_SOURCE_DIR}/modules/admin/include  # For admin tasks
+  ${CMAKE_SOURCE_DIR}/modules/MOD_NAME/include  # For MOD_NAME tasks
 )
 
 # Link against required libraries for flush tests
@@ -190,8 +190,8 @@ add_executable(${BDEV_TEST_TARGET} ${BDEV_TEST_SOURCES})
 target_include_directories(${BDEV_TEST_TARGET} PRIVATE
   ${CMAKE_SOURCE_DIR}/include
   ${CMAKE_SOURCE_DIR}/test  # For simple_test.h
-  ${CMAKE_SOURCE_DIR}/chimods/admin/include  # For admin tasks
-  ${CMAKE_SOURCE_DIR}/chimods/bdev/include   # For bdev tasks and client
+  ${CMAKE_SOURCE_DIR}/modules/admin/include  # For admin tasks
+  ${CMAKE_SOURCE_DIR}/modules/bdev/include   # For bdev tasks and client
 )
 
 # Link against required libraries for bdev tests
@@ -305,8 +305,8 @@ add_executable(${COMUTEX_TEST_TARGET} ${COMUTEX_TEST_SOURCES})
 target_include_directories(${COMUTEX_TEST_TARGET} PRIVATE
   ${CMAKE_SOURCE_DIR}/include
   ${CMAKE_SOURCE_DIR}/test  # For simple_test.h
-  ${CMAKE_SOURCE_DIR}/chimods/admin/include  # For admin tasks
-  ${CMAKE_SOURCE_DIR}/chimods/MOD_NAME/include  # For MOD_NAME tasks and client
+  ${CMAKE_SOURCE_DIR}/modules/admin/include  # For admin tasks
+  ${CMAKE_SOURCE_DIR}/modules/MOD_NAME/include  # For MOD_NAME tasks and client
 )
 
 # Link against required libraries for CoMutex tests
@@ -339,8 +339,8 @@ add_executable(${WAIT_FUNCTIONALITY_TEST_TARGET} ${WAIT_FUNCTIONALITY_TEST_SOURC
 target_include_directories(${WAIT_FUNCTIONALITY_TEST_TARGET} PRIVATE
   ${CMAKE_SOURCE_DIR}/include
   ${CMAKE_SOURCE_DIR}/test  # For simple_test.h
-  ${CMAKE_SOURCE_DIR}/chimods/admin/include  # For admin tasks
-  ${CMAKE_SOURCE_DIR}/chimods/MOD_NAME/include  # For MOD_NAME tasks and client
+  ${CMAKE_SOURCE_DIR}/modules/admin/include  # For admin tasks
+  ${CMAKE_SOURCE_DIR}/modules/MOD_NAME/include  # For MOD_NAME tasks and client
 )
 
 # Link against required libraries for Wait Functionality tests
@@ -422,8 +422,8 @@ add_executable(${SAVE_LOAD_TASK_TEST_TARGET} ${SAVE_LOAD_TASK_TEST_SOURCES})
 target_include_directories(${SAVE_LOAD_TASK_TEST_TARGET} PRIVATE
   ${CMAKE_SOURCE_DIR}/include
   ${CMAKE_SOURCE_DIR}/test  # For simple_test.h
-  ${CMAKE_SOURCE_DIR}/chimods/admin/include  # For admin tasks
-  ${CMAKE_SOURCE_DIR}/chimods/bdev/include   # For bdev tasks
+  ${CMAKE_SOURCE_DIR}/modules/admin/include  # For admin tasks
+  ${CMAKE_SOURCE_DIR}/modules/bdev/include   # For bdev tasks
 )
 
 # Link against required libraries for SaveTask/LoadTask tests

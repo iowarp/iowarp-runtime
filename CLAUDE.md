@@ -271,8 +271,8 @@ When using ChiMods, include the necessary headers:
 
 ```cmake
 target_include_directories(your_target PUBLIC
-  ${CMAKE_SOURCE_DIR}/chimods/admin/include     # Admin module headers (always required)
-  ${CMAKE_SOURCE_DIR}/chimods/your_chimod/include  # Your ChiMod headers
+  ${CMAKE_SOURCE_DIR}/modules/admin/include     # Admin module headers (always required)
+  ${CMAKE_SOURCE_DIR}/modules/your_chimod/include  # Your ChiMod headers
 )
 ```
 
@@ -407,9 +407,9 @@ External applications must have access to all dependencies:
 - **Example targets**: `chimaera::admin_client`, `chimaera::admin_runtime`, `chimaera::bdev_client`
 
 **ChiMod Repository Structure:**
-- **ChiMod repo**: The directory containing `chimaera_repo.yaml` (e.g., `chimods/` in this project)
+- **ChiMod repo**: The directory containing `chimaera_repo.yaml` (e.g., `modules/` in this project)
 - **ChiMod repo location**: Can be the project root directory OR a subdirectory
-- **Example in this project**: The chimod repo is `chimods/` containing `chimods/chimaera_repo.yaml`
+- **Example in this project**: The chimod repo is `modules/` containing `modules/chimaera_repo.yaml`
 - **External projects**: The chimod repo can be the entire repository root with `chimaera_repo.yaml` at the top level
 
 **Example external build:**
@@ -433,7 +433,7 @@ This section provides complete step-by-step instructions for:
 - Custom namespace configuration
 - Build system integration and troubleshooting
 
-**Key Point**: The `chimaera_repo.yaml` file defines the chimod repo boundary and must be placed in the directory that contains your chimods. This can be either the project root or a subdirectory like `chimods/`.
+**Key Point**: The `chimaera_repo.yaml` file defines the chimod repo boundary and must be placed in the directory that contains your chimods. This can be either the project root or a subdirectory like `modules/`.
 
 ## BDev ChiMod Requirements
 

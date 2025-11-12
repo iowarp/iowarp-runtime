@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.10)
 
 # Include directories
 include_directories(${CMAKE_SOURCE_DIR}/include)
-include_directories(${CMAKE_SOURCE_DIR}/chimods/admin/include)
+include_directories(${CMAKE_SOURCE_DIR}/modules/admin/include)
 
 # Get all source files
 file(GLOB_RECURSE CHIMAERA_SOURCES

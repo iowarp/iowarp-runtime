@@ -1,7 +1,7 @@
 # Chimaera Module Repository Configuration
 # This repository contains the standard Chimaera modules
 
-name: chimods
+name: modules
 namespace: chimaera
 version: 1.0.0
 description: Standard Chimaera modules repository
